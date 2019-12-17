@@ -10,6 +10,7 @@ pip3 install academic-observatory
 
 To install from source with pip:
 ```bash
+cd academic-observatory
 pip3 install -e .
 ```
 
