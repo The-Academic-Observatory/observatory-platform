@@ -44,7 +44,8 @@ def main():
                                       required=False,
                                       help='The output directory where to save the dataset, by default the dataset '
                                            'is saved in the Academic Observatory directory ~/.academic-observatory.')
-    parser_grid_download.set_defaults(func=download_grid_dataset)
+    parser_grid_download.set_defaults(func=lambda args_: download_grid_dataset(args_.output, args_.num_processes,
+                                                                               args_.local_mode, args_.timeout))
 
     # GRID index sub commands
     parser_grid_index.add_argument('-i',
@@ -61,7 +62,7 @@ def main():
                                    help='The path and filename of the CSV file to save the resulting GRID index. '
                                         'By default it will be saved in the Academic Observatory directory '
                                         '~/.academic-observatory')
-    parser_grid_index.set_defaults(func=index_grid_dataset)
+    parser_grid_index.set_defaults(func=lambda args_: index_grid_dataset(args_.input, args_.output))
 
     # Global arguments
     for parser in [parser_grid_download, parser_grid_index]:

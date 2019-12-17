@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-import pathlib
+from typing import List, Union
 from zipfile import ZipFile, BadZipFile
 
 import ray
@@ -14,7 +14,16 @@ GRID_FILE_URL = "https://api.figshare.com/v2/articles/{article_id}/files"
 
 
 @ray.remote
-def download_grid_release(article_id: str, title, timeout):
+def download_grid_release(output: Union[str, None], article_id: str, title: str, timeout: float) -> List[str]:
+    """ Downloads an individual GRID release from Figshare.
+
+    :param output: the output directory where the GRID dataset should be saved.
+    :param article_id: the Figshare article id of the GRID release.
+    :param title: the title of the Figshare article.
+    :param timeout: the timeout in seconds when calling the Figshare API.
+    :return: the paths on the system of the downloaded files.
+    """
+
     logging.basicConfig(level=logging.INFO)
 
     response = retry_session().get(GRID_FILE_URL.format(article_id=article_id), timeout=timeout)
@@ -32,7 +41,8 @@ def download_grid_release(article_id: str, title, timeout):
         dir_name = f"{title}-{i}"
         file_name = f"{dir_name}{file_type}"  # The title is used for the filename because they seem to be labelled
         # more reliably than the files
-        file_path = get_file(file_name, download_url, md5_hash=supplied_md5, cache_subdir=GRID_CACHE_SUBDIR)
+        file_path = get_file(file_name, download_url, md5_hash=supplied_md5, cache_subdir=GRID_CACHE_SUBDIR,
+                             cache_dir=output)
 
         # Extract zip files, leave other files such as .json and .csv
         unzip_path = os.path.join(os.path.dirname(file_path), dir_name)
@@ -51,13 +61,22 @@ def download_grid_release(article_id: str, title, timeout):
     return paths
 
 
-def download_grid_dataset(args):
-    logging.basicConfig(level=logging.INFO)
+def download_grid_dataset(output: Union[str, None], num_processes: int, local_mode: bool, timeout: float) -> None:
+    """ Download all of the GRID releases from Figshare.
 
-    ray.init(num_cpus=args.num_processes, local_mode=args.local_mode)
+    :param output: the output directory where the results should be saved. If None then the default
+    ~/.academic-observatory directory will be used.
+    :param num_processes: the number of processes to use.
+    :param local_mode: whether to run the processes serially or not.
+    :param timeout: the timeout in seconds when calling the Figshare API.
+    :return: None.
+    """
+
+    logging.basicConfig(level=logging.INFO)
+    ray.init(num_cpus=num_processes, local_mode=local_mode)
 
     logging.info("Fetching GRID data sources")
-    response = retry_session().get(GRID_DATASET_URL, timeout=args.timeout)
+    response = retry_session().get(GRID_DATASET_URL, timeout=timeout)
     grid_articles = json.loads(response.text)
 
     # Spawn tasks
@@ -66,12 +85,12 @@ def download_grid_dataset(args):
     for article in grid_articles:
         article_id = article['id']
         title = article['title']
-        task_id = download_grid_release.remote(article_id, title, args.timeout)
+        task_id = download_grid_release.remote(output, article_id, title, timeout)
         task_ids.append(task_id)
 
     # Wait for tasks to complete
     results = wait_for_tasks(task_ids)
 
     # Get GRID dataset path.
-    grid_dataset_path = pathlib.Path(results[0][0]).parent
+    grid_dataset_path = os.path.dirname(results[0][0])
     logging.info(f"Downloading of GRID dataset complete, GRID dataset path: {grid_dataset_path}")

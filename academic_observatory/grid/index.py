@@ -1,14 +1,23 @@
+import argparse
 import json
 import logging
 import os
+from typing import Union
 
 from natsort import natsorted
 
-from academic_observatory.grid.grid import GRID_CACHE_SUBDIR, parse_grid_release, save_grid
+from academic_observatory.grid.grid import GRID_CACHE_SUBDIR, parse_grid_release, save_grid_index
 from academic_observatory.utils import get_user_dir
 
 
-def index_grid_dataset(args):
+def index_grid_dataset(input: Union[str, None], output: Union[argparse.FileType, None]):
+    """ Create an index from the GRID dataset.
+
+    :param input: the input path that contains the GRID dataset.
+    :param output: the path where the GRID index CSV file should be saved.
+    :return: None.
+    """
+
     logging.basicConfig(level=logging.INFO)
 
     file_type = ".json"
@@ -19,8 +28,8 @@ def index_grid_dataset(args):
     cache_dir, cache_subdir, datadir = get_user_dir(cache_subdir=GRID_CACHE_SUBDIR)
 
     # If user supplied no input path use default
-    grid_dataset_path = args.input
-    if args.input is None:
+    grid_dataset_path = input
+    if input is None:
         grid_dataset_path = datadir
 
     # Get paths to all JSON files and sort them. We sort the files so that the oldest release is first and the newest
@@ -52,12 +61,12 @@ def index_grid_dataset(args):
             logging.debug(f"Num items after adding {path}: {len(unique_grids)}")
 
     # If user supplied no output path use default
-    grid_index_save_path = args.output
-    if args.output is None:
+    grid_index_save_path = output
+    if output is None:
         grid_index_save_path = os.path.join(datadir, grid_index_filename)
 
     data = [val for key, val in unique_grids.items()]
     data = sorted(data, key=lambda item: item[1])
-    save_grid(grid_index_save_path, data, header=True)
+    save_grid_index(grid_index_save_path, data, header=True)
 
     logging.info(f"Saved GRID Index to: {grid_index_save_path}")
