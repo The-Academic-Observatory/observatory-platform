@@ -24,6 +24,11 @@ setup(
     packages=find_packages(),
     download_url='https://github.com/The-Academic-Observatory/academic-observatory/v19.12.0.tar.gz',
     keywords=['science', 'data', 'workflows', 'academic institutes', 'academic-observatory'],
+    entry_points={
+        'console_scripts': [
+            'ao_util = academic_observatory.scripts.ao_util:main'
+        ]
+    },
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
