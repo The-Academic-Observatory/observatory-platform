@@ -1,3 +1,9 @@
+#
+# Copyright 2019 Curtin University. All rights reserved.
+#
+# Author: James Diprose
+#
+
 import json
 import logging
 import os

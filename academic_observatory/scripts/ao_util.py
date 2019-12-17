@@ -1,3 +1,9 @@
+#
+# Copyright 2019 Curtin University. All rights reserved.
+#
+# Author: James Diprose
+#
+
 import argparse
 import logging
 from multiprocessing import cpu_count
