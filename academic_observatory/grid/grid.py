@@ -1,3 +1,4 @@
+import argparse
 import logging
 from typing import Tuple, List, Union
 from urllib.parse import urlparse
@@ -8,12 +9,25 @@ import tldextract
 GRID_CACHE_SUBDIR = "datasets/grid"
 
 
-def get_url_domain_suffix(url):
+def get_url_domain_suffix(url: str) -> str:
+    """ Extract a URL composed of the domain name and the suffix of the URL. For example, library.curtin.edu would
+    become curtin.edu
+
+    :param url: a URL.
+    :return: the domain + . + suffix of the URL.
+    """
+
     result = tldextract.extract(url)
     return f"{result.domain}.{result.suffix}"
 
 
-def load_grid_index(grid_index_path):
+def load_grid_index(grid_index_path: Union[str, argparse.FileType]) -> dict:
+    """ Load the GRID Index.
+
+    :param grid_index_path: the path to the GRID Index.
+    :return: the GRID Index.
+    """
+
     grid_index = dict()
 
     if grid_index_path is not None:
@@ -30,6 +44,12 @@ def load_grid_index(grid_index_path):
 
 
 def parse_institute(institute: dict) -> Union[None, Tuple]:
+    """ Parse an institute from the GRID.ac dataset.
+
+    :param institute: an institute dict.
+    :return: a tuple with the institute details.
+    """
+
     result = None
     grid_id = institute["id"]
     status = institute["status"]
@@ -63,6 +83,11 @@ def parse_institute(institute: dict) -> Union[None, Tuple]:
 
 
 def parse_grid_release(grid_release: dict) -> Tuple[str, List[Tuple]]:
+    """ Parse an entire GRID release.
+
+    :param grid_release: a GRID release dict.
+    :return: the version of the GRID release and a list of GRID institute records.
+    """
     version = grid_release["version"].replace("release_", "")
     institutes = grid_release["institutes"]
     results = []
@@ -76,7 +101,14 @@ def parse_grid_release(grid_release: dict) -> Tuple[str, List[Tuple]]:
     return version, results
 
 
-def save_grid(path: str, data: List, header=False):
+def save_grid_index(path: Union[str, argparse.FileType], data: List, header=False) -> None:
+    """ Save the GRID Index as a CSV.
+
+    :param path: the path to save the GRID Index.
+    :param data: the GRID Index records.
+    :param header: whether to save the column names as a header in the CSV.
+    :return: None.
+    """
     columns = ['grid_id', 'name', 'type', 'url', 'url_hostname', 'url_domain_suffix', 'country_code']
     df = pd.DataFrame(data=data, columns=columns)
     df.to_csv(path, index=False, header=header)
