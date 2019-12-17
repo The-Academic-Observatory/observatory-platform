@@ -1,0 +1,9 @@
+ray>=0.7.6
+lxml>=4.4.1
+beautifulsoup4>=4.8.1
+validators
+pandas
+natsort
+psutil
+tldextract
+setproctitle
