@@ -8,13 +8,46 @@ To install from [PyPI](https://pypi.org/) with pip:
 pip3 install academic-observatory
 ```
 
-To install from source with pip:
+### From source
+Clone the project:
+```bash
+git clone https://github.com/The-Academic-Observatory/academic-observatory
+```
+
+Enter the academic-observatory directory:
 ```bash
 cd academic-observatory
+git checkout develop
+```
+
+Find the path to your Python 3.7 version, you will use it in the next step:
+```bash
+which python3.7
+/usr/local/bin/python3.7
+```
+
+Create a virtual environment (replace the --python parameter with the value you got from the previous step):
+```bash
+virtualenv --python=/usr/local/bin/python3.7 --no-site-packages venv 
+```
+
+Activate the virtual environment:
+```bash
+source venv/bin/activate
+````
+
+Install dependencies:
+```bash
+pip install -r requirements.txt 
+```
+
+Install the package:
+```bash
 pip3 install -e .
 ```
 
 ## Quickstart
+The following is a quickstart tutorial to get you started with the Academic Observatory command line tool.
 
 ### GRID
 To download all historical [Global Research Identifier Database (GRID)](https://grid.ac/) releases:
@@ -25,6 +58,12 @@ ao_util grid download
 To create the GRID index:
 ```bash
 ao_util grid index
+```
+
+### OAI-PMH
+To fetch a given list of OAI-PMH endpoints
+```bash
+ao_util oai_pmh fetch_endpoints --input oai_pmh_sources.csv --key url --output output.csv --error error.csv
 ```
 
 ## Development

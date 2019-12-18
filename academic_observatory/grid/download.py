@@ -7,7 +7,9 @@
 import json
 import logging
 import os
+from multiprocessing import cpu_count
 from typing import List, Union
+from typing import Tuple
 from zipfile import ZipFile, BadZipFile
 
 import ray
@@ -20,7 +22,8 @@ GRID_FILE_URL = "https://api.figshare.com/v2/articles/{article_id}/files"
 
 
 @ray.remote
-def download_grid_release(output: Union[str, None], article_id: str, title: str, timeout: float) -> List[str]:
+def download_grid_release(output: Union[str, None], article_id: str, title: str, timeout: float) \
+        -> List[Tuple[str, bool]]:
     """ Downloads an individual GRID release from Figshare.
 
     :param output: the output directory where the GRID dataset should be saved.
@@ -35,7 +38,7 @@ def download_grid_release(output: Union[str, None], article_id: str, title: str,
     response = retry_session().get(GRID_FILE_URL.format(article_id=article_id), timeout=timeout)
     article_files = json.loads(response.text)
 
-    paths = []
+    downloads = []
     for i, article_file in enumerate(article_files):
         real_file_name = article_file['name']
         supplied_md5 = article_file['supplied_md5']
@@ -47,27 +50,31 @@ def download_grid_release(output: Union[str, None], article_id: str, title: str,
         dir_name = f"{title}-{i}"
         file_name = f"{dir_name}{file_type}"  # The title is used for the filename because they seem to be labelled
         # more reliably than the files
-        file_path = get_file(file_name, download_url, md5_hash=supplied_md5, cache_subdir=GRID_CACHE_SUBDIR,
-                             cache_dir=output)
+        file_path, updated = get_file(file_name, download_url, md5_hash=supplied_md5, cache_subdir=GRID_CACHE_SUBDIR,
+                                      cache_dir=output)
 
         # Extract zip files, leave other files such as .json and .csv
         unzip_path = os.path.join(os.path.dirname(file_path), dir_name)
-        if file_type == ".zip":
+
+        if file_type == ".zip" and (updated or not os.path.exists(unzip_path)):
             logging.info(f"Extracting file: {file_path}")
             try:
                 with ZipFile(file_path) as zip_file:
                     zip_file.extractall(unzip_path)
+                updated = True
             except BadZipFile:
                 logging.error("Not a zip file")
         else:
             logging.info(f"File saved to: {file_path}")
 
-        paths.append(file_path)
+        downloads.append((file_path, updated))
 
-    return paths
+    return downloads
 
 
-def download_grid_dataset(output: Union[str, None], num_processes: int, local_mode: bool, timeout: float) -> None:
+def download_grid_dataset(output: Union[str, None] = None, num_processes: int = cpu_count(), local_mode: bool = False,
+                          timeout: float = 10.) \
+        -> Tuple[str, bool]:
     """ Download all of the GRID releases from Figshare.
 
     :param output: the output directory where the results should be saved. If None then the default
@@ -79,7 +86,8 @@ def download_grid_dataset(output: Union[str, None], num_processes: int, local_mo
     """
 
     logging.basicConfig(level=logging.INFO)
-    ray.init(num_cpus=num_processes, local_mode=local_mode)
+    if not ray.is_initialized():
+        ray.init(num_cpus=num_processes, local_mode=local_mode)
 
     logging.info("Fetching GRID data sources")
     response = retry_session().get(GRID_DATASET_URL, timeout=timeout)
@@ -97,6 +105,16 @@ def download_grid_dataset(output: Union[str, None], num_processes: int, local_mo
     # Wait for tasks to complete
     results = wait_for_tasks(task_ids)
 
+    # Check if GRID dataset was updated
+    grid_dataset_updated = False
+    for result in results:
+        for path, updated in result:
+            if updated:
+                grid_dataset_updated = True
+                break
+
     # Get GRID dataset path.
-    grid_dataset_path = os.path.dirname(results[0][0])
+    grid_dataset_path = os.path.dirname(results[0][0][0])
     logging.info(f"Downloading of GRID dataset complete, GRID dataset path: {grid_dataset_path}")
+
+    return grid_dataset_path, grid_dataset_updated
