@@ -6,25 +6,34 @@
 
 import argparse
 import logging
+import os
 from typing import Tuple, List, Union
 from urllib.parse import urlparse
 
 import pandas as pd
-import tldextract
+
+from academic_observatory.utils import get_home_dir, get_url_domain_suffix
 
 GRID_CACHE_SUBDIR = "datasets/grid"
+GRID_INDEX_FILENAME = "grid_index.csv"
 
 
-def get_url_domain_suffix(url: str) -> str:
-    """ Extract a URL composed of the domain name and the suffix of the URL. For example, library.curtin.edu would
-    become curtin.edu
-
-    :param url: a URL.
-    :return: the domain + . + suffix of the URL.
+def get_default_grid_path() -> str:
+    """ Get the default path to the GRID dataset.
+    :return: the default path to the GRID dataset.
     """
 
-    result = tldextract.extract(url)
-    return f"{result.domain}.{result.suffix}"
+    cache_dir, cache_subdir, datadir = get_home_dir(cache_subdir=GRID_CACHE_SUBDIR)
+    return datadir
+
+
+def get_default_grid_index_path() -> str:
+    """ Get default grid dataset path
+    :return:
+    """
+
+    cache_dir, cache_subdir, datadir = get_home_dir(cache_subdir=GRID_CACHE_SUBDIR)
+    return os.path.join(datadir, GRID_INDEX_FILENAME)
 
 
 def load_grid_index(grid_index_path: Union[str, argparse.FileType]) -> dict:

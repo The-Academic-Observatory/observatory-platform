@@ -5,12 +5,14 @@
 #
 
 import logging
+from typing import List
 
 import ray
 
 
-def wait_for_tasks(task_ids, wait_time=10.):
+def wait_for_tasks(task_ids: List[object], wait_time: float = 10.) -> List[any]:
     """ Wait until a list of ray tasks are complete.
+
     :param task_ids: a list of ray task id objects to wait for.
     :param wait_time: the time to wait before processing ready results.
     :return: the finished task results.
@@ -19,6 +21,7 @@ def wait_for_tasks(task_ids, wait_time=10.):
     logging.info(f"Waiting for tasks")
     results = []
     total_tasks_finished = 0
+
     while True:
         # Wait for until all all tasks complete or until wait time expires
         num_tasks = len(task_ids)

@@ -55,6 +55,8 @@ import sys
 import tarfile
 import zipfile
 from contextlib import closing
+from typing import Tuple
+from typing import Union
 
 import six
 from six.moves.urllib.error import HTTPError
@@ -66,7 +68,7 @@ try:
 except ImportError:
     import Queue as queue
 
-from academic_observatory.utils import Progbar
+from academic_observatory.utils.generic_utils import Progbar
 
 if sys.version_info[0] == 2:
     def urlretrieve(url, filename, reporthook=None, data=None):
@@ -153,7 +155,14 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
     return False
 
 
-def get_user_dir(cache_dir=None, cache_subdir=None):
+def get_home_dir(cache_dir: Union[str, None] = None, cache_subdir: Union[str, None] = None) -> Tuple[str, str, str]:
+    """ Return the Academic Observatory home folder.
+
+    :param cache_dir:
+    :param cache_subdir:
+    :return: the Academic Observatory home folder, the subdirectory for
+    """
+
     if cache_dir is None:
         if 'ACADEMIC_OBSERVATORY_HOME' in os.environ:
             cache_dir = os.environ.get('ACADEMIC_OBSERVATORY_HOME')
@@ -182,7 +191,7 @@ def get_file(fname,
              hash_algorithm='auto',
              extract=False,
              archive_format='auto',
-             cache_dir=None):
+             cache_dir=None) -> Tuple[str, bool]:
     """Downloads a file from a URL if it not already in the cache.
     By default the file at the url `origin` is downloaded to the
     cache_dir `~/.academic-observatory`, placed in the cache_subdir `datasets`,
@@ -219,7 +228,7 @@ def get_file(fname,
         Path to the downloaded file
     """  # noqa
 
-    cache_dir, cache_subdir, datadir = get_user_dir(cache_dir=cache_dir, cache_subdir=cache_subdir)
+    cache_dir, cache_subdir, datadir = get_home_dir(cache_dir=cache_dir, cache_subdir=cache_subdir)
 
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
@@ -282,7 +291,7 @@ def get_file(fname,
     if extract:
         _extract_archive(fpath, datadir, archive_format)
 
-    return fpath
+    return fpath, download
 
 
 def _hash_file(fpath, algorithm='sha256', chunk_size=65535):

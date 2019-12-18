@@ -49,9 +49,9 @@ from __future__ import print_function
 
 import collections
 import sys
+import time
 
 import numpy as np
-import time
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 
