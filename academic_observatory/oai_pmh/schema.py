@@ -5,11 +5,12 @@
 #
 
 import datetime
+from typing import Union, List
 
 from academic_observatory.utils import unique_id
 
 
-class Identity:
+class Endpoint:
     def __init__(self, source_ref: any, source_url: str, admin_email: str, author: str, base_url: str,
                  comment: str, compression: str, content: str, creator: str, data_policy: str, dc: str,
                  deleted_record: str, delimiter: str, description: str, earliest_datestamp: datetime.date,
@@ -18,7 +19,7 @@ class Identity:
                  repository_identifier: str, repository_name: str, rights: str, rights_definition: str,
                  rights_manifest: str, sample_identifier: str, scheme: str, submission_policy: str,
                  text: str, title: str, toolkit: str, toolkit_icon: str, url: str, version: str, xoai_description: str,
-                 grid_id: str):
+                 grid_id: Union[str, None]):
         self.source_ref = source_ref
         self.source_url = source_url
         self.admin_email = admin_email
@@ -69,7 +70,7 @@ class Identity:
 
     @staticmethod
     def from_dict(dict_):
-        return Identity(dict_["source_ref"],
+        return Endpoint(dict_["source_ref"],
                         dict_["source_url"],
                         dict_["admin_email"],
                         dict_["author"],
@@ -157,3 +158,89 @@ class Identity:
             "xoai_description": self.xoai_description,
             "grid_id": self.grid_id
         }
+
+
+class RecordHeader:
+    def __init__(self, datestamp: datetime.date, deleted: bool, identifier: str):
+        self.datestamp = datestamp
+        self.deleted = deleted
+        self.identifier = identifier
+
+    @staticmethod
+    def from_dict(dict_):
+        return RecordHeader(dict_["datestamp"], dict_["deleted"], dict_["identifier"])
+
+    def to_dict(self):
+        return {
+            "datestamp": self.datestamp,
+            "deleted": self.deleted,
+            "identifier": self.identifier
+        }
+
+
+class Record:
+    def __init__(self, identity_ref: any, identity_id: str, identity_source_url: str,
+                 header: RecordHeader, title: List[str], creator: List[str], description: List[str],
+                 date: Union[datetime.date, None], type: List[str], identifier: List[str], format: List[str],
+                 subject: List[str], relation: List[str], publisher: List[str], contributor: List[str],
+                 language: List[str]):
+        self.identity_ref = identity_ref
+        self.identity_id = identity_id
+        self.identity_source_url = identity_source_url
+        self.header = header
+        self.title = title
+        self.creator = creator
+        self.description = description
+        self.date = date
+        self.type = type
+        self.identifier = identifier
+        self.format = format
+        self.subject = subject
+        self.relation = relation
+        self.publisher = publisher
+        self.contributor = contributor
+        self.language = language
+
+    def get_id(self):
+        return unique_id(self.header.identifier)
+
+    @staticmethod
+    def from_dict(dict_):
+        return Record(dict_["identity_ref"],
+                      dict_["identity_id"],
+                      dict_["identity_source_url"],
+                      dict_["header"],
+                      dict_["title"],
+                      dict_["creator"],
+                      dict_["description"],
+                      dict_["date"],
+                      dict_["type"],
+                      dict_["identifier"],
+                      dict_["format"],
+                      dict_["subject"],
+                      dict_["relation"],
+                      dict_["publisher"],
+                      dict_["contributor"],
+                      dict_["language"])
+
+    def to_dict(self):
+        data = {
+            "identity_ref": self.identity_ref,
+            "identity_id": self.identity_id,
+            "identity_source_url": self.identity_source_url,
+            "header": self.header.to_dict(),
+            "title": self.title,
+            "creator": self.creator,
+            "description": self.description,
+            "date": self.date,
+            "type": self.type,
+            "identifier": self.identifier,
+            "format": self.format,
+            "subject": self.subject,
+            "relation": self.relation,
+            "publisher": self.publisher,
+            "contributor": self.contributor,
+            "language": self.language,
+        }
+
+        return data
