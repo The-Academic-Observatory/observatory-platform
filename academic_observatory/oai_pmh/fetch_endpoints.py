@@ -4,8 +4,8 @@
 # Author: James Diprose
 #
 
-import argparse
 import csv
+import io
 import logging
 import os
 from multiprocessing import cpu_count
@@ -15,9 +15,10 @@ from urllib.parse import urlparse, urljoin
 import pandas as pd
 import ray
 import validators
+
 from academic_observatory.grid import download_grid_dataset, index_grid_dataset, get_default_grid_index_path, \
     load_grid_index
-from academic_observatory.oai_pmh.oai_pmh import fetch_context_urls, InvalidOaiPmhContextPageException, fetch_endpoint,\
+from academic_observatory.oai_pmh.oai_pmh import fetch_context_urls, InvalidOaiPmhContextPageException, fetch_endpoint, \
     get_default_oai_pmh_path, OAI_PMH_ENDPOINTS_FILENAME
 from academic_observatory.oai_pmh.schema import Endpoint
 from academic_observatory.utils import wait_for_tasks, strip_query_params, get_url_domain_suffix
@@ -68,7 +69,7 @@ def get_oai_pmh_search_urls(base_url: str) -> List[str]:
             # Not a valid context page, but could be a valid OAI-PMH endpoint
             search_urls.append(url)
             logging.warning(f"Invalid context page: {e}")
-        except Exception as e:
+        except Exception:
             # Something wen't wrong trying to fetch the page, but we will try to see if it is an endpoint later
             search_urls.append(url)
 
@@ -117,7 +118,7 @@ def task_fetch_endpoint(source_url: str, local_mode: bool):
     return results
 
 
-def fetch_endpoints(input: Union[argparse.FileType, None], key: str, output: Union[str, None],
+def fetch_endpoints(input: Union[io.FileIO, None], key: str, output: Union[str, None],
                     num_processes: int = cpu_count() * FETCH_ENDPOINTS_PROCESS_MULTIPLIER, local_mode: bool = False,
                     timeout: float = 10.):
     """ Given a list of potential OAI-PMH URLs, fetch their meta-data and verify if they are real endpoints.
@@ -184,7 +185,7 @@ def fetch_endpoints(input: Union[argparse.FileType, None], key: str, output: Uni
             results_writer = csv.DictWriter(file, fieldnames=endpoint_list[0].keys())
             results_writer.writeheader()
             results_writer.writerows(endpoint_list)
-            logging.info(f"Saved endpoints to file: {results_file_name}")
+        logging.info(f"Saved endpoints to file: {results_file_name}")
 
     if len(error_list) > 0:
         errors_file_name = os.path.join(output, "oai_pmh_endpoint_errors.csv")
@@ -192,4 +193,4 @@ def fetch_endpoints(input: Union[argparse.FileType, None], key: str, output: Uni
             error_writer = csv.DictWriter(file, fieldnames=error_list[0].keys())
             error_writer.writeheader()
             error_writer.writerows(error_list)
-            logging.info(f"Saved errors to file: {errors_file_name}")
+        logging.info(f"Saved errors to file: {errors_file_name}")

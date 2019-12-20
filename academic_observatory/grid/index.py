@@ -4,7 +4,7 @@
 # Author: James Diprose
 #
 
-import argparse
+import io
 import json
 import logging
 import os
@@ -16,7 +16,7 @@ from academic_observatory.grid import parse_grid_release, save_grid_index, get_d
     get_default_grid_path
 
 
-def index_grid_dataset(input: Union[str, None] = None, output: Union[argparse.FileType, None] = None):
+def index_grid_dataset(input: Union[str, None] = None, output: Union[io.FileIO, None] = None):
     """ Create an index from the GRID dataset.
 
     :param input: the input path that contains the GRID dataset.

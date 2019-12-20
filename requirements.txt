@@ -13,3 +13,5 @@ git+git://github.com/jdddog/sickle@503_error_fix#egg=sickle
 tldextract>=2.2.2
 urllib3>=1.25.7
 validators>=0.14.1
+six>=1.13.0
+numpy>=1.17.4

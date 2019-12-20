@@ -4,7 +4,7 @@
 # Author: James Diprose
 #
 
-import argparse
+import io
 import logging
 import os
 from typing import Tuple, List, Union
@@ -36,7 +36,7 @@ def get_default_grid_index_path() -> str:
     return os.path.join(datadir, GRID_INDEX_FILENAME)
 
 
-def load_grid_index(grid_index_path: Union[str, argparse.FileType]) -> dict:
+def load_grid_index(grid_index_path: Union[str, io.FileIO]) -> dict:
     """ Load the GRID Index.
 
     :param grid_index_path: the path to the GRID Index.
@@ -116,7 +116,7 @@ def parse_grid_release(grid_release: dict) -> Tuple[str, List[Tuple]]:
     return version, results
 
 
-def save_grid_index(path: Union[str, argparse.FileType], data: List, header=False) -> None:
+def save_grid_index(path: Union[str, io.FileIO], data: List, header=False) -> None:
     """ Save the GRID Index as a CSV.
 
     :param path: the path to save the GRID Index.
