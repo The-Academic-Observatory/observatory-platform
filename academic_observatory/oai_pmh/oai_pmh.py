@@ -12,11 +12,12 @@ from typing import Union
 from urllib.parse import urlparse, urljoin
 from xml.etree import ElementTree
 
+from sickle import Sickle
+from sickle.oaiexceptions import NoRecordsMatch
+
 from academic_observatory.oai_pmh.schema import Endpoint, Record, RecordHeader
 from academic_observatory.utils import get_home_dir
 from academic_observatory.utils import strip_query_params, is_url_absolute, retry_session, HtmlParser
-from sickle import Sickle
-from sickle.oaiexceptions import NoRecordsMatch
 
 ############################
 # Globals
@@ -124,6 +125,16 @@ def serialize_date_to_utc_str(date: Union[datetime.datetime, datetime.date]) -> 
             result = date.strftime(__UTC_DATETIME_PATTERN_YEAR)
         except ValueError:
             logging.warning(f"serialize_date_to_utc_str: date format not known: {date}")
+
+    return result
+
+
+def oai_pmh_serialize_custom_types(obj) -> str:
+    if isinstance(obj, datetime.datetime):
+        result = obj.strftime("%Y-%m-%dT%H:%M:%S")
+    else:
+        result = str(obj)
+        logging.error(f"oai_pmh_serialize_custom_types: Object of type {type(obj)} is not JSON serializable: {result}")
 
     return result
 

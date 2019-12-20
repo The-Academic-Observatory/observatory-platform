@@ -16,7 +16,7 @@ import pandas as pd
 import ray
 
 from academic_observatory.oai_pmh.oai_pmh import fetch_endpoint_records, get_default_oai_pmh_path, \
-    get_default_oai_pmh_endpoints_path
+    get_default_oai_pmh_endpoints_path, oai_pmh_serialize_custom_types
 from academic_observatory.oai_pmh.schema import Endpoint, Record
 from academic_observatory.utils import wait_for_tasks, to_json_lines
 
@@ -121,12 +121,12 @@ def fetch_records(start_date: datetime.date, end_date: datetime.date,
     date_now = datetime.datetime.now()
     file_name = os.path.join(output, f"oai_pmh_records_{date_now}.json")
     with open(file_name, 'w') as file:
-        json_records = to_json_lines(record_list)
+        json_records = to_json_lines(record_list, serialize_custom_types_func=oai_pmh_serialize_custom_types)
         file.write(json_records)
     logging.info(f"Saved OAI-PMH records to: {file_name}")
 
     file_name = os.path.join(output, f"oai_pmh_record_errors_{date_now}.json")
     with open(file_name, 'w') as file:
-        json_errors = to_json_lines(error_list)
+        json_errors = to_json_lines(error_list, serialize_custom_types_func=oai_pmh_serialize_custom_types)
         file.write(json_errors)
     logging.info(f"Saved OAI-PMH record fetching errors to: {file_name}")
