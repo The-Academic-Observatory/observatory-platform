@@ -14,3 +14,4 @@ certifi==2019.11.28
 python-dateutil==2.8.*
 requests-file==1.4.*
 git+git://github.com/jdddog/sickle@503_error_fix#egg=sickle
+six==1.13.*

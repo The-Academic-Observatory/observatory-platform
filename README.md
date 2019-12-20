@@ -61,9 +61,24 @@ ao_util grid index
 ```
 
 ### OAI-PMH
-To fetch a given list of OAI-PMH endpoints
+Create a CSV file that has a column of potential OAI-PMH URLs and a header: 
+```csv
+url
+http://digitalknowledge.cput.ac.za/oai/request
+http://vital.seals.ac.za:8080/vital/oai/provider
+http://dspace.nwu.ac.za/oai/request?verb=ListIdentifiers&metadataPrefix=oai_dc
+http://eprints.ru.ac.za/cgi/oai2
+http://uir.unisa.ac.za/oai/request
+```
+
+Supply this CSV to the following command, to fetch the given list of OAI-PMH endpoints:
 ```bash
-ao_util oai_pmh fetch_endpoints --input oai_pmh_sources.csv --key url --output output.csv --error error.csv
+ao_util oai_pmh fetch_endpoints --input oai_pmh_sources_small.csv --key url
+```
+
+After running the fetch_endpoints command, you can fetch OAI-PMH records within a given date range:
+```bash
+ao_util oai_pmh fetch_records --start_date 2019-11-01 --end_date 2019-11-10
 ```
 
 ## Development
