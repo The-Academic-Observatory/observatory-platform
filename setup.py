@@ -26,7 +26,7 @@ setup(
     keywords=['science', 'data', 'workflows', 'academic institutes', 'academic-observatory'],
     entry_points={
         'console_scripts': [
-            'ao_util = academic_observatory.scripts.ao_util:main'
+            'aoutil = academic_observatory.scripts.ao_util:main'
         ]
     },
     classifiers=[

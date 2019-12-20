@@ -15,3 +15,7 @@ python-dateutil==2.8.*
 requests-file==1.4.*
 git+git://github.com/jdddog/sickle@503_error_fix#egg=sickle
 six==1.13.*
+numpy==1.17.*
+boto3==1.10.*
+warcio==1.7.*
+google-cloud-bigquery==1.23.*
