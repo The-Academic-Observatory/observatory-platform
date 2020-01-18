@@ -2,3 +2,7 @@
 venv
 *.egg-info
 dist
+*.pyc
+*.ipynb_checkpooints
+*checkpoint.ipynb
+.DS_Store
