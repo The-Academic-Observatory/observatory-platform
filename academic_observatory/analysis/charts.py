@@ -8,6 +8,7 @@ from IPython.display import HTML
 from abc import abstractmethod
 from inspect import signature
 from academic_observatory.analysis.resources import AbstractObservatoryResource
+from academic_observatory.analysis.helpers import _collect_kwargs_for
 
 regioncolorpalette = {
     'Asia': 'orange',
@@ -922,19 +923,3 @@ def _coki_standard_format(style='seaborn-white',
     sns.set_context(context)
 
 
-def _collect_kwargs_for(func,
-                        input_kwargs: dict):
-    """Convenience function for collecting keywords for functions
-
-    param: func: a callable, will raise a TypeError or ValueError if a
-                 a signature cannot be identified.
-    param: input_kwargs: input set of keywords from which the correct ones
-                         for the callable should be extracted
-    returns: kwargs: <dict> with keywords for the callable and pops the
-                     relevant keys and values from the input dictionary
-    """
-
-    sig = signature(func)
-    names = [parameter for parameter in sig.parameters]
-    kwargs = {k: input_kwargs.pop(k) for k in input_kwargs.keys() & names}
-    return kwargs
