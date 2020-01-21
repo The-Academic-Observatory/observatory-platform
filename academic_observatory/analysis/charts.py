@@ -6,7 +6,6 @@ import itertools
 from matplotlib import animation, rc
 from IPython.display import HTML
 from abc import abstractmethod
-from inspect import signature
 from academic_observatory.analysis.resources import AbstractObservatoryResource
 from academic_observatory.analysis.helpers import _collect_kwargs_for
 
@@ -32,14 +31,7 @@ class AbstractObservatoryChart(AbstractObservatoryResource):
     def plot(self, ax=None, fig=None, **kwargs):
         """Abstract Plot Method"""
 
-        figure_keys = ['figsize']
-        figure_kwargs = dict([(k, kwargs.pop(k, None)) for k in figure_keys])
-        if not ax:
-            self.fig, self.ax = plt.subplots(**figure_kwargs)
-
-        axis_keys = []
-        axis_kwargs = dict([(k, kwargs.pop(k, None)) for k in axis_keys])
-        ax.set(**axis_kwargs)
+        pass
 
     @abstractmethod
     def process_data(self):
@@ -50,6 +42,12 @@ class AbstractObservatoryChart(AbstractObservatoryResource):
 
 
 class ScatterPlot(AbstractObservatoryChart):
+    """Scatterplot based on sns.scatterplot for COKI data
+
+    Generates a standard scatter plot with default colors based
+    on the region color palette and size of points based on the
+    total outputs of the university
+    """
 
     def __init__(self, df,
                  x: str,
@@ -104,6 +102,8 @@ class ScatterPlot(AbstractObservatoryChart):
 
         Currently is hard-coded to sort based on region and
         set an order that works reasonably well for the OA plots.
+
+        TODO Abstract the ordering and colors for better flexibility
         """
 
         figdata = self.df
@@ -186,6 +186,11 @@ class ScatterPlot(AbstractObservatoryChart):
                               one frame per second
         param: kwargs: kwargs are collected for figure, scatterplot and
                        the remainder sent to ax.set()
+
+        returns: HTML5 video representation of the animation
+
+        TODO Generalise the output form to allow for JS and other 
+        representations of the animation.
         """
 
         fig_kwargs = _collect_kwargs_for(plt.figtext, kwargs)
@@ -239,12 +244,28 @@ class ScatterPlot(AbstractObservatoryChart):
 
 
 class BarComparisonChart(AbstractObservatoryChart):
+    """Generates BarPlot of OA outputs with helpful defaults
+
+    Produces a standard bar plot with appropriate colors for
+    Bronze, Hybrid, DOAJ_Gold and Green OA.
+
+    TODO Greater flexibility for color palettes and options
+    for other variations on OA.
+    """
 
     def __init__(self, df,
-                 comparison,
-                 year,
+                 comparison:list,
+                 year:int,
                  color_palette=['brown', 'orange', 'gold', 'green']
                  ):
+        """Initialisation function
+
+        param: df: pd.DataFrame in the standard COKI format
+        param: comparison: <list> of grid IDs
+        param: year: <int> year for the data to be used to plot
+        param: color_palette: matplotlib color palette, default colors
+                              used for an OA types contribution bar plot
+        """
 
         self.comparison = comparison
         self.year = year
@@ -252,6 +273,15 @@ class BarComparisonChart(AbstractObservatoryChart):
         super().__init__(df)
 
     def process_data(self, **kwargs):
+        """Data selection and processing function
+
+        param: kwargs: Keyword arguments, currently unused
+
+        TODO: Current hardcodes the location and type of uni ids
+        and the year in the dataframe. Generalise this and allow 
+        for more flexibility of data types
+        """
+
         figdata = self.df[(self.df.published_year == self.year) &
                           (self.df.grid_id.isin(self.comparison))]
         figdata = figdata.set_index('grid_id').reindex(self.comparison)
@@ -259,6 +289,15 @@ class BarComparisonChart(AbstractObservatoryChart):
         return self.df
 
     def plot(self, **kwargs):
+        """Plotting function
+
+        param: kwargs: Any keywords to be sent to plt.figure or ax.set 
+                       during the plotting process.
+
+        TODO: Currently hardcodes the kinds of OA to be plotted. This should
+        be abstracted to allow greater flexibility.
+        """
+
         figdata = self.df.set_index('name')
         ax = figdata[['percent_bronze',
                       'percent_hybrid',
@@ -294,6 +333,21 @@ class RankChart(AbstractObservatoryChart):
     def __init__(self, df, rankcol, filter_name, filter_value,
                  rank_length=100,
                  valcol=None, colordict=None):
+        """Initialisation function
+
+        param: df: pd.DataFrame in the standard COKI format
+        param: rankcol: <str> with the name of column containing values to 
+                        base the ranking on
+        param: filter_name: <str> with the name of the column to use for
+                            filtering the data, generally a year
+        param: filter_value: <str> or <int> value to use for filtering the
+                             data to display. Generally the year as an <int>
+        param: rank_length: <int> Length of the ranking to compute and plot
+        param: valcol: <str> with name of column to use for the values to be 
+                       plotted against the rank (if different to rankcol)
+        param: colordict: <dict> to convert a column to colors for the lines
+        """
+                     
         super().__init__(df)
         self.rankcol = rankcol
         self.valcol = valcol
@@ -303,6 +357,12 @@ class RankChart(AbstractObservatoryChart):
         self.rank_length = rank_length
 
     def process_data(self, **kwargs):
+        """Data selection and processing function
+
+        param: kwargs: Keyword arguments, currently unused
+
+        TODO: Abstraction of the coloring for the error bars
+        """
         figdata = self.df
         figdata = figdata[figdata[self.filter_name] == self.filter_value]
         if not self.valcol:
@@ -331,6 +391,21 @@ class RankChart(AbstractObservatoryChart):
              scatter=False, holes=False,
              line_args={}, scatter_args={}, hole_args={},
              **kwargs):
+        """Plotting function
+
+        param: ax: matplotlib axis to plot to, default to create new figure
+        param: forcerange: two element indexable object providing a low and
+                           high value for the right hand spine/axis. Default
+                           is an empty list which will use data extent
+        param: valaxpad: <float> padding for value axis
+        param: rank_axis_distance: <float> distance to displace the rank axis
+        param: scatter: <boolean> If true apply jitter to points
+        param: holes: <boolean> If true, plot rings rather than dots
+        param: line_args: <dict> containing arguments to modify the lines plotted
+        param: scatter_args: <dict> containing arguments to send to plot method
+        param: hole_args: <dict> containing arguments for the holes
+        """
+
         if ax is None:
             left_yaxis = plt.gca()
         else:
@@ -363,7 +438,11 @@ class RankChart(AbstractObservatoryChart):
                   dataymax=self.df.iloc[-1].max(),
                   padding=valaxpad,
                   forcerange=forcerange):
-            """Function to scale the value column to plot correctly"""
+            """Function to scale the value column to plot correctly
+            
+            TODO: Figure out if this can be done more cleanly with 
+            matplotlib transform methods.
+            """
             if len(forcerange) == 2:
                 ymin, ymax = forcerange
             else:
@@ -432,6 +511,24 @@ class ConfidenceIntervalRank(AbstractObservatoryChart):
                  filter_name, filter_value,
                  rank_length=100,
                  valcol=None, colordict=None):
+        """
+        Initialisation Function
+        
+        param: df: pd.DataFrame in the standard COKI format
+        param: rankcol: <str> with the name of column containing values to 
+                        base the ranking on
+        param: errorcol: <str> with the name of column containing values for 
+                         the length of the error bars
+        param: filter_name: <str> with the name of the column to use for
+                            filtering the data, generally a year
+        param: filter_value: <str> or <int> value to use for filtering the
+                             data to display. Generally the year as an <int>
+        param: rank_length: <int> Length of the ranking to compute and plot
+        param: valcol: <str> with name of column to use for the values to be 
+                       plotted against the rank (if different to rankcol)
+        param: colordict: <dict> to convert a column to colors for the lines
+        """
+
         super().__init__(df)
         self.rankcol = rankcol
         self.valcol = valcol
