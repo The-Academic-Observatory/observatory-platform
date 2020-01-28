@@ -6,7 +6,7 @@ understand how well universities operate as open knowledge institutions.
 
 See the documentation here: https://github.com/The-Academic-Observatory/academic-observatory
 
-academic-observatory is compatible with Python 3.7 and above.
+academic-observatory is compatible with Python 3.7.
 '''
 
 with open('requirements.txt') as f:
@@ -41,5 +41,5 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Utilities"
     ],
-    python_requires='>=3.7'
+    python_requires='==3.7.*'
 )
