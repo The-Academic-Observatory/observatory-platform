@@ -43,11 +43,12 @@ def is_url_absolute(url: Union[str, ParseResult]) -> bool:
 
 
 def strip_query_params(url: str) -> str:
-    """ Remove the query parameters from a URL.
+    """ Remove the query parameters from an absolute URL.
 
     :param url: a URL.
     :return: the URL with the query parameters removed.
     """
+    assert is_url_absolute(url), f"strip_query_params: url {url} is not absolute"
     return urljoin(url, urlparse(url).path)
 
 
