@@ -11,7 +11,7 @@ from multiprocessing import cpu_count
 from academic_observatory.common_crawl import cc_fetch_full_text
 from academic_observatory.grid import download_grid_dataset, index_grid_dataset
 from academic_observatory.oai_pmh import fetch_endpoints, FETCH_ENDPOINTS_PROCESS_MULTIPLIER, fetch_records
-from academic_observatory.utils import validate_path, validate_date
+from academic_observatory.utils import validate_path, validate_datetime
 
 
 def main():
@@ -144,12 +144,12 @@ def main():
     # Fetch records sub command
     parser_oai_records.add_argument('-s',
                                     '--start_date',
-                                    type=lambda date_str: validate_date(date_str, "%Y-%m-%d"),
+                                    type=lambda date_str: validate_datetime(date_str, "%Y-%m-%d"),
                                     required=True,
                                     help='The date to fetching records from, in the format YYYY-MM-DD.')
     parser_oai_records.add_argument('-e',
                                     '--end_date',
-                                    type=lambda date_str: validate_date(date_str, "%Y-%m-%d"),
+                                    type=lambda date_str: validate_datetime(date_str, "%Y-%m-%d"),
                                     required=True,
                                     help='The date to fetching records from, in the format YYYY-MM-DD.')
     parser_oai_records.add_argument('-i',
@@ -200,7 +200,7 @@ def main():
                                           'project_name.dataset_name.table_name')
     parser_cc_full_text.add_argument('-s',
                                      '--start_date',
-                                     type=lambda date_str: validate_date(date_str, "%Y-%m"),
+                                     type=lambda date_str: validate_datetime(date_str, "%Y-%m"),
                                      required=True,
                                      help='The month to begin fetching records from, in the format YYYY-MM. Only the '
                                           'year and month are required because the crawls are partitioned by month in '
@@ -208,7 +208,7 @@ def main():
                                           '2019-09-14, then specify 2019-09 as the start date.')
     parser_cc_full_text.add_argument('-e',
                                      '--end_date',
-                                     type=lambda date_str: validate_date(date_str, "%Y-%m"),
+                                     type=lambda date_str: validate_datetime(date_str, "%Y-%m"),
                                      required=True,
                                      help='The month to finish fetching records from, in the format YYYY-MM. Only the '
                                           'year and month are required because the crawls are partitioned by month in '
