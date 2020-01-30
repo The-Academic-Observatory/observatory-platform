@@ -10,12 +10,12 @@ setproctitle==1.1.*
 requests==2.22.*
 urllib3==1.25.*
 numpy==1.18.*
-certifi==2019.11.28
+certifi>=2019.11.28
 python-dateutil==2.8.*
 requests-file==1.4.*
 git+git://github.com/jdddog/sickle@503_error_fix#egg=sickle
 six==1.13.*
-numpy==1.17.*
 boto3==1.10.*
 warcio==1.7.*
 google-cloud-bigquery==1.23.*
+httpretty==0.9.*
