@@ -8,10 +8,9 @@ import argparse
 import datetime
 import logging
 import os
-from typing import Union
 
 
-def validate_date(date_str: str, date_format: str) -> Union[datetime.date, datetime.datetime]:
+def validate_datetime(date_str: str, date_format: str) -> datetime.datetime:
     """ Validate whether a given date string is in the correct format.
 
     :param date_str: the date string to validate.
