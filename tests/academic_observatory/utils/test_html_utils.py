@@ -266,7 +266,7 @@ class TestHtmlParser(unittest.TestCase):
             parser = HtmlParser(page)
             title = parser.get_title()
             titles.append(title)
-        self.assertListEqual(titles, EXPECTED_TITLES)
+        self.assertCountEqual(titles, EXPECTED_TITLES)
 
     def test_get_links(self):
         link_url_hashes = []
@@ -281,8 +281,8 @@ class TestHtmlParser(unittest.TestCase):
                 link_text_hashes_.append(text)
             link_url_hashes.append(unique_id(''.join(link_url_hashes_)))
             link_text_hashes.append(unique_id(''.join(link_text_hashes_)))
-        self.assertListEqual(link_url_hashes, EXPECTED_LINK_URL_HASHES)
-        self.assertListEqual(link_text_hashes, EXPECTED_LINK_TEXT_HASHES)
+        self.assertCountEqual(link_url_hashes, EXPECTED_LINK_URL_HASHES)
+        self.assertCountEqual(link_text_hashes, EXPECTED_LINK_TEXT_HASHES)
 
     def test_get_full_text(self):
         full_text_hashes = []
@@ -290,4 +290,4 @@ class TestHtmlParser(unittest.TestCase):
             parser = HtmlParser(page)
             text = parser.get_full_text()
             full_text_hashes.append(unique_id(text))
-        self.assertListEqual(full_text_hashes, EXPECTED_FULL_TEXT_HASHES)
+        self.assertCountEqual(full_text_hashes, EXPECTED_FULL_TEXT_HASHES)
