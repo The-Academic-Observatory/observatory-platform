@@ -5,7 +5,7 @@ from academic_observatory.oai_pmh import fetch_context_urls, InvalidOaiPmhContex
 
 class TestOaiPmh(unittest.TestCase):
 
-    def test_fetch_contexts(self):
+    def test_fetch_context_urls(self):
         # An invalid OAI-PMH context page
         endpoint_url = 'https://espace.curtin.edu.au/'
         with self.assertRaises(InvalidOaiPmhContextPageException):
