@@ -102,6 +102,11 @@ Detailed instructions on how to use Git are given below.
 #### Syncing your fork
 Make sure your are in the working directory of your project.
 
+Make sure that the main academic observatory repository has been added as upstream:
+```bash
+git remote add upstream https://github.com/The-Academic-Observatory/academic-observatory.git
+```
+
 Fetch the latest changes from upstream:
 ```bash
 git fetch upstream
