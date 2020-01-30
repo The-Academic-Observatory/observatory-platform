@@ -40,8 +40,9 @@ def common_crawl_serialize_custom_types(obj) -> str:
     elif isinstance(obj, datetime.date):
         result = obj.strftime("%Y-%m-%d")
     else:
-        result = str(obj)
-        logging.error(f"serialize_custom_types: Object of type {type(obj)} is not JSON serializable: {result}")
+        msg = f"serialize_custom_types: Object of type {type(obj)} is not JSON serializable: {str(obj)}"
+        logging.error(msg)
+        raise TypeError(msg)
 
     return result
 
