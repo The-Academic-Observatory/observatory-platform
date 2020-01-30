@@ -31,9 +31,12 @@ def get_fetch_months(start_month: datetime.date, end_month: datetime.date) -> Li
     :param end_month: the end month.
     :return: a list of months.
     """
+
+    assert start_month <= end_month, "get_fetch_months: `start_month` must be less than or equal to `end_month`"
+
     months = []
     for month in rrule.rrule(rrule.MONTHLY, dtstart=start_month, until=end_month):
-        months.append(month)
+        months.append(month.date())
     return months
 
 
@@ -49,9 +52,9 @@ def split_page_infos(page_infos: List[PageInfo]) -> Tuple[List[PageInfo], List[P
     failed_page_infos: List[PageInfo] = []
     for i, page_info in enumerate(page_infos):
         if page_info.warc_index_info.fetch_status == 200:
-            failed_page_infos.append(page_info)
-        else:
             success_page_infos.append(page_info)
+        else:
+            failed_page_infos.append(page_info)
 
     return success_page_infos, failed_page_infos
 
