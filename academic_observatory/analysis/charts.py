@@ -54,8 +54,8 @@ class ScatterPlot(AbstractObservatoryChart):
                  y: str,
                  filter_name: str,
                  filter_value,
-                 hue_column: str = 'region',
-                 size_column='total',
+                 hue_column: str='region',
+                 size_column: str='total',
                  focus_id=None,
                  **kwargs):
         """Initialisation Method
@@ -189,7 +189,7 @@ class ScatterPlot(AbstractObservatoryChart):
 
         returns: HTML5 video representation of the animation
 
-        TODO Generalise the output form to allow for JS and other 
+        TODO Generalise the output form to allow for JS and other
         representations of the animation.
         """
 
@@ -254,8 +254,8 @@ class BarComparisonChart(AbstractObservatoryChart):
     """
 
     def __init__(self, df,
-                 comparison:list,
-                 year:int,
+                 comparison: list,
+                 year: int,
                  color_palette=['brown', 'orange', 'gold', 'green']
                  ):
         """Initialisation function
@@ -278,7 +278,7 @@ class BarComparisonChart(AbstractObservatoryChart):
         param: kwargs: Keyword arguments, currently unused
 
         TODO: Current hardcodes the location and type of uni ids
-        and the year in the dataframe. Generalise this and allow 
+        and the year in the dataframe. Generalise this and allow
         for more flexibility of data types
         """
 
@@ -291,7 +291,7 @@ class BarComparisonChart(AbstractObservatoryChart):
     def plot(self, **kwargs):
         """Plotting function
 
-        param: kwargs: Any keywords to be sent to plt.figure or ax.set 
+        param: kwargs: Any keywords to be sent to plt.figure or ax.set
                        during the plotting process.
 
         TODO: Currently hardcodes the kinds of OA to be plotted. This should
@@ -336,18 +336,18 @@ class RankChart(AbstractObservatoryChart):
         """Initialisation function
 
         param: df: pd.DataFrame in the standard COKI format
-        param: rankcol: <str> with the name of column containing values to 
+        param: rankcol: <str> with the name of column containing values to
                         base the ranking on
         param: filter_name: <str> with the name of the column to use for
                             filtering the data, generally a year
         param: filter_value: <str> or <int> value to use for filtering the
                              data to display. Generally the year as an <int>
         param: rank_length: <int> Length of the ranking to compute and plot
-        param: valcol: <str> with name of column to use for the values to be 
+        param: valcol: <str> with name of column to use for the values to be
                        plotted against the rank (if different to rankcol)
         param: colordict: <dict> to convert a column to colors for the lines
         """
-                     
+
         super().__init__(df)
         self.rankcol = rankcol
         self.valcol = valcol
@@ -401,7 +401,8 @@ class RankChart(AbstractObservatoryChart):
         param: rank_axis_distance: <float> distance to displace the rank axis
         param: scatter: <boolean> If true apply jitter to points
         param: holes: <boolean> If true, plot rings rather than dots
-        param: line_args: <dict> containing arguments to modify the lines plotted
+        param: line_args: <dict> containing arguments to modify the lines
+               plotted
         param: scatter_args: <dict> containing arguments to send to plot method
         param: hole_args: <dict> containing arguments for the holes
         """
@@ -439,8 +440,8 @@ class RankChart(AbstractObservatoryChart):
                   padding=valaxpad,
                   forcerange=forcerange):
             """Function to scale the value column to plot correctly
-            
-            TODO: Figure out if this can be done more cleanly with 
+
+            TODO: Figure out if this can be done more cleanly with
             matplotlib transform methods.
             """
             if len(forcerange) == 2:
@@ -513,18 +514,18 @@ class ConfidenceIntervalRank(AbstractObservatoryChart):
                  valcol=None, colordict=None):
         """
         Initialisation Function
-        
+
         param: df: pd.DataFrame in the standard COKI format
-        param: rankcol: <str> with the name of column containing values to 
+        param: rankcol: <str> with the name of column containing values to
                         base the ranking on
-        param: errorcol: <str> with the name of column containing values for 
+        param: errorcol: <str> with the name of column containing values for
                          the length of the error bars
         param: filter_name: <str> with the name of the column to use for
                             filtering the data, generally a year
         param: filter_value: <str> or <int> value to use for filtering the
                              data to display. Generally the year as an <int>
         param: rank_length: <int> Length of the ranking to compute and plot
-        param: valcol: <str> with name of column to use for the values to be 
+        param: valcol: <str> with name of column to use for the values to be
                        plotted against the rank (if different to rankcol)
         param: colordict: <dict> to convert a column to colors for the lines
         """
@@ -1018,5 +1019,3 @@ def _coki_standard_format(style='seaborn-white',
     plt.style.use(style)
     sns.set_style('ticks')
     sns.set_context(context)
-
-

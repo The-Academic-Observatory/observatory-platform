@@ -5,7 +5,7 @@ from inspect import signature
 # Data cleanup required, mainly on country names #
 def clean_geo_names(df):
     country_clean = {"country": {
-        "United Kingdom of Great Britain and Northern Ireland": 
+        "United Kingdom of Great Britain and Northern Ireland":
             "United Kingdom",
         "Iran (Islamic Republic of)": "Iran",
         "Korea, Republic of": "South Korea",
