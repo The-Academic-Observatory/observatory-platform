@@ -69,6 +69,6 @@ def index_grid_dataset(input: Union[str, None] = None, output: Union[io.FileIO, 
 
     data = [val for key, val in unique_grids.items()]
     data = sorted(data, key=lambda item: item[1])
-    save_grid_index(grid_index_save_path, data, header=True)
+    save_grid_index(grid_index_save_path, data)
 
     logging.info(f"Saved GRID Index to: {grid_index_save_path}")
