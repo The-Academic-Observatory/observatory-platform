@@ -14,7 +14,7 @@ from zipfile import ZipFile, BadZipFile
 
 import ray
 
-from academic_observatory.grid.grid import GRID_CACHE_SUBDIR
+from academic_observatory.grid.grid import grid_path
 from academic_observatory.utils import retry_session, get_file, wait_for_tasks
 
 GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"
@@ -50,7 +50,7 @@ def download_grid_release(output: Union[str, None], article_id: str, title: str,
         dir_name = f"{title}-{i}"
         file_name = f"{dir_name}{file_type}"  # The title is used for the filename because they seem to be labelled
         # more reliably than the files
-        file_path, updated = get_file(file_name, download_url, md5_hash=supplied_md5, cache_subdir=GRID_CACHE_SUBDIR,
+        file_path, updated = get_file(file_name, download_url, md5_hash=supplied_md5, cache_subdir='',
                                       cache_dir=output)
 
         # Extract zip files, leave other files such as .json and .csv
@@ -92,6 +92,9 @@ def download_grid_dataset(output: Union[str, None] = None, num_processes: int = 
     logging.info("Fetching GRID data sources")
     response = retry_session().get(GRID_DATASET_URL, timeout=timeout)
     grid_articles = json.loads(response.text)
+
+    if output is None:
+        output = grid_path()
 
     # Spawn tasks
     logging.info("Spawning GRID release download tasks")

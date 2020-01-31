@@ -16,17 +16,17 @@ import pandas as pd
 import ray
 import validators
 
-from academic_observatory.grid import download_grid_dataset, index_grid_dataset, get_default_grid_index_path, \
+from academic_observatory.grid import download_grid_dataset, index_grid_dataset, grid_index_path, \
     load_grid_index
 from academic_observatory.oai_pmh.oai_pmh import fetch_context_urls, InvalidOaiPmhContextPageException, fetch_endpoint, \
-    get_default_oai_pmh_path, OAI_PMH_ENDPOINTS_FILENAME
+    oai_pmh_path, __OAI_PMH_ENDPOINTS_FILENAME
 from academic_observatory.oai_pmh.schema import Endpoint
 from academic_observatory.utils import wait_for_tasks, strip_query_params, get_url_domain_suffix
 
 FETCH_ENDPOINTS_PROCESS_MULTIPLIER = 10
 
 
-def _get_potential_oai_pmh_urls(source_url: str) -> List[str]:
+def possible_oai_pmh_urls(source_url: str) -> List[str]:
     """ Create two URLs: the source_url with query parameters stripped and another the same but with the last element
     of the URL path removed. The purpose of the second URL is to help with finding OAI-PMH context pages when only
     one of the OAI-PMH endpoint context URL has been given.
@@ -50,7 +50,7 @@ def _get_potential_oai_pmh_urls(source_url: str) -> List[str]:
     return urls
 
 
-def get_oai_pmh_search_urls(base_url: str) -> List[str]:
+def oai_pmh_search_urls(base_url: str) -> List[str]:
     """ Given an OAI-PMH base URL, this method gets a list of potential other URLs to search, including any
     OAI-PMH contexts contained in the base URL page and one path back from the current page.
 
@@ -58,7 +58,7 @@ def get_oai_pmh_search_urls(base_url: str) -> List[str]:
     :return: a list of URLs.
     """
 
-    urls = _get_potential_oai_pmh_urls(base_url)
+    urls = possible_oai_pmh_urls(base_url)
     search_urls = []
     for url in urls:
         try:
@@ -96,7 +96,7 @@ def task_fetch_endpoint(source_url: str, local_mode: bool):
         results.append({"source_url": source_url, "ex": str(ex)})
         logging.error(ex)
     else:
-        urls = get_oai_pmh_search_urls(source_url)
+        urls = oai_pmh_search_urls(source_url)
 
         for url in urls:
             logging.info(f"Fetching identity for: {url}")
@@ -141,9 +141,9 @@ def fetch_endpoints(input: Union[io.FileIO, None], key: str, output: Union[str, 
                                                        timeout=timeout)
     # TODO get modification time for each file and update if
     # GRID index less than GRID dataset
-    grid_index_path = get_default_grid_index_path()
+    grid_index_path_ = grid_index_path()
 
-    if not os.path.exists(grid_index_path) or updated:
+    if not os.path.exists(grid_index_path_) or updated:
         index_grid_dataset()
 
     logging.info("Load CSV")
@@ -154,7 +154,7 @@ def fetch_endpoints(input: Union[io.FileIO, None], key: str, output: Union[str, 
     logging.info(f"Total sources to load: {total_sources}")
 
     # Spawn tasks
-    task_fetch_endpoint.grid_index = load_grid_index(grid_index_path)
+    task_fetch_endpoint.grid_index = load_grid_index(grid_index_path_)
 
     logging.info(f"Spawning tasks")
     task_ids = []
@@ -177,10 +177,10 @@ def fetch_endpoints(input: Union[io.FileIO, None], key: str, output: Union[str, 
                 error_list.append(result)
 
     if output is None:
-        output = get_default_oai_pmh_path()
+        output = oai_pmh_path()
 
     if len(endpoint_list) > 0:
-        results_file_name = os.path.join(output, OAI_PMH_ENDPOINTS_FILENAME)
+        results_file_name = os.path.join(output, __OAI_PMH_ENDPOINTS_FILENAME)
         with open(results_file_name, 'w') as file:
             results_writer = csv.DictWriter(file, fieldnames=endpoint_list[0].keys())
             results_writer.writeheader()

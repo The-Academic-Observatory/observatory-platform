@@ -16,23 +16,16 @@ from sickle import Sickle
 from sickle.oaiexceptions import NoRecordsMatch
 
 from academic_observatory.oai_pmh.schema import Endpoint, Record, RecordHeader
-from academic_observatory.utils import get_home_dir
-from academic_observatory.utils import strip_query_params, is_url_absolute, retry_session, HtmlParser
+from academic_observatory.utils import strip_query_params, is_url_absolute, retry_session, HtmlParser, ao_home
 
-############################
-# Globals
-############################
+__OAI_PMH_ENDPOINTS_FILENAME = 'oai_pmh_endpoints.csv'
+__UTC_DATETIME_PATTERN_FULL = "%Y-%m-%dT%H:%M:%SZ"
+__UTC_DATETIME_PATTERN_YEAR = "%Y-%m-%d"
 
-OAI_PMH_CACHE_SUBDIR = "datasets/oai_pmh"
-OAI_PMH_ENDPOINTS_FILENAME = "oai_pmh_endpoints.csv"
 
 ############################
 # OAI-PMH parsers
 ############################
-
-__UTC_DATETIME_PATTERN_FULL = "%Y-%m-%dT%H:%M:%SZ"
-__UTC_DATETIME_PATTERN_YEAR = "%Y-%m-%d"
-
 
 def parse_list(obj: dict, key: str) -> List[str]:
     """ Returns a list of objects, if key doesn't exist then returns an empty list
@@ -86,7 +79,7 @@ def parse_value(obj: object, name: str):
         return None
 
 
-def parse_utc_str_to_date(string: str) -> datetime.date:
+def parse_utc_str_to_date(string: str) -> datetime.datetime:
     """ Parse an OAI-PMH date string into a datetime.datetime object.
 
     :param string: the UTC date string.
@@ -133,8 +126,9 @@ def oai_pmh_serialize_custom_types(obj) -> str:
     if isinstance(obj, datetime.datetime):
         result = obj.strftime("%Y-%m-%dT%H:%M:%S")
     else:
-        result = str(obj)
-        logging.error(f"oai_pmh_serialize_custom_types: Object of type {type(obj)} is not JSON serializable: {result}")
+        msg = f"oai_pmh_serialize_custom_types: Object of type {type(obj)} is not JSON serializable: {str(obj)}"
+        logging.error(msg)
+        raise TypeError(msg)
 
     return result
 
@@ -156,22 +150,20 @@ class RecordDateOutOfRangeError(Exception):
 # Main OAI-PMH functions
 ############################
 
-def get_default_oai_pmh_path() -> str:
+def oai_pmh_path() -> str:
     """ Get the default path to the OAI-PMH dataset folder.
     :return: the default path to the OAI-PMH dataset folder.
     """
 
-    cache_dir, cache_subdir, datadir = get_home_dir(cache_subdir=OAI_PMH_CACHE_SUBDIR)
-    return datadir
+    return ao_home('datasets', 'oai_pmh')
 
 
-def get_default_oai_pmh_endpoints_path() -> str:
+def oai_pmh_endpoints_path() -> str:
     """ Get default OAI PMH endpoints file path.
     :return:
     """
 
-    cache_dir, cache_subdir, datadir = get_home_dir(cache_subdir=OAI_PMH_CACHE_SUBDIR)
-    return os.path.join(datadir, OAI_PMH_ENDPOINTS_FILENAME)
+    return os.path.join(oai_pmh_path(), __OAI_PMH_ENDPOINTS_FILENAME)
 
 
 def fetch_endpoint(endpoint_url: str, timeout: float = 30.) -> Endpoint:

@@ -16,10 +16,10 @@ from dateutil import rrule
 from psutil import cpu_count
 
 from academic_observatory.common_crawl.cc_fetcher import CCFullTextFetcher
-from academic_observatory.common_crawl.common_crawl import get_default_common_crawl_path, save_page_infos
+from academic_observatory.common_crawl.common_crawl import common_crawl_path, save_page_infos
 from academic_observatory.common_crawl.db import get_grid_ids, get_page_infos
 from academic_observatory.common_crawl.schema import PageInfo
-from academic_observatory.grid import download_grid_dataset, index_grid_dataset, get_default_grid_index_path
+from academic_observatory.grid import download_grid_dataset, index_grid_dataset, grid_index_path
 
 RECORD_SAVE_THRESHOLD = 10000
 
@@ -97,14 +97,14 @@ def cc_fetch_full_text(table_name: str, start_date: datetime.date, end_date: dat
         grid_dataset_path, updated = download_grid_dataset(num_processes=num_processes, local_mode=local_mode,
                                                            timeout=timeout)
         # GRID index less than GRID dataset
-        grid_index = get_default_grid_index_path()
+        grid_index = grid_index_path()
 
         if not os.path.exists(grid_index) or updated:
             index_grid_dataset()
 
     # Create output directory
     if output is None:
-        output = get_default_common_crawl_path()
+        output = common_crawl_path()
 
     # Create the CCFullTextFetcher workers
     workers: List[CCFullTextFetcher] = []

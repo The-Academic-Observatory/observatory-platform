@@ -15,8 +15,8 @@ from typing import Union
 import pandas as pd
 import ray
 
-from academic_observatory.oai_pmh.oai_pmh import fetch_endpoint_records, get_default_oai_pmh_path, \
-    get_default_oai_pmh_endpoints_path, oai_pmh_serialize_custom_types
+from academic_observatory.oai_pmh.oai_pmh import fetch_endpoint_records, oai_pmh_path, \
+    oai_pmh_endpoints_path, oai_pmh_serialize_custom_types
 from academic_observatory.oai_pmh.schema import Endpoint, Record
 from academic_observatory.utils import wait_for_tasks, to_json_lines
 
@@ -84,7 +84,7 @@ def fetch_records(start_date: datetime.date, end_date: datetime.date,
 
     # Load endpoints
     if input is None:
-        input = get_default_oai_pmh_endpoints_path()
+        input = oai_pmh_endpoints_path()
     endpoints = load_endpoints(input)
     logging.info(f"Total endpoints to harvest: {len(endpoints)}")
 
@@ -116,7 +116,7 @@ def fetch_records(start_date: datetime.date, end_date: datetime.date,
 
     # If user supplied no input path use default
     if output is None:
-        output = get_default_oai_pmh_path()
+        output = oai_pmh_path()
 
     date_now = datetime.datetime.now()
     file_name = os.path.join(output, f"oai_pmh_records_{date_now}.json")

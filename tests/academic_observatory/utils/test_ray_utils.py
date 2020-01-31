@@ -1,5 +1,7 @@
 import unittest
+
 import ray
+
 from academic_observatory.utils import wait_for_tasks
 
 

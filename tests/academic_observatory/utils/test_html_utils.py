@@ -1,9 +1,8 @@
 import os
 import unittest
-import urllib.request
 from zipfile import ZipFile
 
-from academic_observatory.utils import HtmlParser, unique_id, get_home_dir, get_file
+from academic_observatory.utils import HtmlParser, unique_id, get_file, ao_home
 
 EXPECTED_TITLES = [
     'Curtin University Sustainability Policy Institute » Blog Archive  » Curtin’s own Pioneering Australian',
@@ -240,21 +239,17 @@ def get_pages(path: str):
     return pages
 
 
-def get_tests_dir() -> str:
-    cache_dir, cache_subdir, datadir = get_home_dir(cache_subdir="tests")
-    return datadir
-
-
 class TestHtmlParser(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        tests_dir = get_tests_dir()
+        tests_dir = ao_home('tests')
         test_file_url = 'https://onedrive.live.com/download?cid=6917C8254765425B&resid=6917C8254765425B%21154&authkey=AMSit72vXzUxpqI'
-        file_path, download = get_file('webpages.zip', test_file_url, extract=False, cache_subdir="tests",
-                                       md5_hash='72af61b056780a95a34feabbf9d9acaf')
+        file_path, updated = get_file('webpages.zip', test_file_url, extract=False, cache_subdir='',
+                                      cache_dir=tests_dir,
+                                      md5_hash='72af61b056780a95a34feabbf9d9acaf')
         # Unzip
-        extract_path = os.path.join(tests_dir, 'webpages')
+        extract_path = ao_home('tests', 'webpages')
         with ZipFile(file_path) as file:
             file.extractall(extract_path)
 

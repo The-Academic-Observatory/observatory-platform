@@ -12,28 +12,26 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
-from academic_observatory.utils import get_home_dir, get_url_domain_suffix
+from academic_observatory.utils import ao_home, get_url_domain_suffix
 
-GRID_CACHE_SUBDIR = "datasets/grid"
-GRID_INDEX_FILENAME = "grid_index.csv"
+__GRID_INDEX_FILENAME = 'grid_index.csv'
 
 
-def get_default_grid_path() -> str:
+def grid_path() -> str:
     """ Get the default path to the GRID dataset.
     :return: the default path to the GRID dataset.
     """
 
-    cache_dir, cache_subdir, datadir = get_home_dir(cache_subdir=GRID_CACHE_SUBDIR)
-    return datadir
+    return ao_home('datasets', 'grid')
 
 
-def get_default_grid_index_path() -> str:
+def grid_index_path() -> str:
     """ Get default grid dataset path
     :return:
     """
 
-    cache_dir, cache_subdir, datadir = get_home_dir(cache_subdir=GRID_CACHE_SUBDIR)
-    return os.path.join(datadir, GRID_INDEX_FILENAME)
+    path = os.path.join(grid_path(), __GRID_INDEX_FILENAME)
+    return path
 
 
 def load_grid_index(grid_index_path: Union[str, io.FileIO]) -> dict:
@@ -46,7 +44,7 @@ def load_grid_index(grid_index_path: Union[str, io.FileIO]) -> dict:
     grid_index = dict()
 
     if grid_index_path is not None:
-        df = pd.read_csv(grid_index_path,
+        df = pd.read_csv(grid_index_path, header=0,
                          names=['grid_id', 'name', 'type', 'url', 'url_hostname', 'url_domain_suffix', 'county_code'])
         for i, row in df.iterrows():
             url_domain_suffix = row['url_domain_suffix']
@@ -116,7 +114,7 @@ def parse_grid_release(grid_release: dict) -> Tuple[str, List[Tuple]]:
     return version, results
 
 
-def save_grid_index(path: Union[str, io.FileIO], data: List, header=False) -> None:
+def save_grid_index(path: Union[str, io.FileIO], data: List) -> None:
     """ Save the GRID Index as a CSV.
 
     :param path: the path to save the GRID Index.
@@ -126,4 +124,4 @@ def save_grid_index(path: Union[str, io.FileIO], data: List, header=False) -> No
     """
     columns = ['grid_id', 'name', 'type', 'url', 'url_hostname', 'url_domain_suffix', 'country_code']
     df = pd.DataFrame(data=data, columns=columns)
-    df.to_csv(path, index=False, header=header)
+    df.to_csv(path, index=False, header=True)

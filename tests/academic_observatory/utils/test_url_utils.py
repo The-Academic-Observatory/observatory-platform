@@ -1,7 +1,9 @@
 import unittest
+from typing import List
+
 import httpretty
 import requests
-from typing import List
+
 from academic_observatory.utils import get_url_domain_suffix, unique_id, is_url_absolute, strip_query_params, \
     retry_session
 
@@ -83,7 +85,8 @@ class TestUrlUtils(unittest.TestCase):
 
         # Test that a requests.exceptions.RetryError is triggered
         url = "http://fail.com/"
-        status_codes = [500, 500, 500, 500, 200]  # It should fail before getting to status 200
+        status_codes = [500, 500, 500, 500, 200]  # It should fail before getting to status 200, because we only retry
+        # 3 times
         bodies = ["Internal server error"] * 4 + ["success"]
         self.__create_mock_request_sequence(url, status_codes, bodies)
 

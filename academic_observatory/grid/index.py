@@ -12,8 +12,8 @@ from typing import Union
 
 from natsort import natsorted
 
-from academic_observatory.grid import parse_grid_release, save_grid_index, get_default_grid_index_path, \
-    get_default_grid_path
+from academic_observatory.grid import parse_grid_release, save_grid_index, grid_index_path, \
+    grid_path
 
 
 def index_grid_dataset(input: Union[str, None] = None, output: Union[io.FileIO, None] = None):
@@ -32,7 +32,7 @@ def index_grid_dataset(input: Union[str, None] = None, output: Union[io.FileIO, 
     # If user supplied no input path use default
     grid_dataset_path = input
     if input is None:
-        grid_dataset_path = get_default_grid_path()
+        grid_dataset_path = grid_path()
 
     # Get paths to all JSON files and sort them. We sort the files so that the oldest release is first and the newest
     # is last so that if there are duplicate entries we always save the latest information. If an older release
@@ -65,7 +65,7 @@ def index_grid_dataset(input: Union[str, None] = None, output: Union[io.FileIO, 
     # If user supplied no output path use default
     grid_index_save_path = output
     if output is None:
-        grid_index_save_path = get_default_grid_index_path()
+        grid_index_save_path = grid_index_path()
 
     data = [val for key, val in unique_grids.items()]
     data = sorted(data, key=lambda item: item[1])

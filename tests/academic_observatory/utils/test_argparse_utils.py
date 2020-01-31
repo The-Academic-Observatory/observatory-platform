@@ -1,8 +1,9 @@
-import unittest
-import os
-from argparse import ArgumentTypeError
-from academic_observatory.utils import validate_path, validate_datetime
 import datetime
+import os
+import unittest
+from argparse import ArgumentTypeError
+
+from academic_observatory.utils import validate_path, validate_datetime
 
 
 class TestArgparseUtils(unittest.TestCase):

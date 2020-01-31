@@ -13,19 +13,16 @@ import pathlib
 from typing import List
 
 from academic_observatory.common_crawl.schema import PageInfo
-from academic_observatory.utils import get_home_dir, to_json_lines
-
-COMMON_CRAWL_CACHE_SUBDIR = "datasets/common_crawl"
+from academic_observatory.utils import ao_home, to_json_lines
 
 
-def get_default_common_crawl_path() -> str:
+def common_crawl_path() -> str:
     """ Get the default path to the Common Crawl dataset.
 
     :return: the default path to the Common Crawl dataset.
     """
 
-    cache_dir, cache_subdir, datadir = get_home_dir(cache_subdir=COMMON_CRAWL_CACHE_SUBDIR)
-    return datadir
+    return ao_home('datasets', 'common_crawl')
 
 
 def common_crawl_serialize_custom_types(obj) -> str:
@@ -48,7 +45,7 @@ def common_crawl_serialize_custom_types(obj) -> str:
 
 
 def save_page_infos(page_infos: List[PageInfo], output_path: str, table_name: str, start_time: datetime.datetime,
-                    grid_id: str, fetch_month: datetime.date, batch_number: int):
+                    grid_id: str, fetch_month: datetime.date, batch_number: int) -> str:
     """ Save a list of PageInfo objects to newline delimited JSON to disk.
 
     :param page_infos: the list of PageInfo objects.
@@ -58,7 +55,7 @@ def save_page_infos(page_infos: List[PageInfo], output_path: str, table_name: st
     :param grid_id: the GRID id that the data belongs to.
     :param fetch_month: the month that is being fetched.
     :param batch_number: the batch number.
-    :return: None.
+    :return: the path of the saved file.
     """
 
     items = [page_info.to_dict() for page_info in page_infos]
@@ -71,3 +68,5 @@ def save_page_infos(page_infos: List[PageInfo], output_path: str, table_name: st
 
     with gzip.open(save_path, 'wb') as f:
         f.write(data.encode("utf-8"))  # gzip.compress() if to variable
+
+    return save_path

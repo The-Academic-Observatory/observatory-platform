@@ -19,3 +19,5 @@ boto3==1.10.*
 warcio==1.7.*
 google-cloud-bigquery==1.23.*
 httpretty==0.9.*
+aiohttp==3.6.*
+grpcio==1.26.*
