@@ -2,9 +2,20 @@ import datetime
 import os
 import unittest
 
+import httpretty
+
 from academic_observatory.telescopes.oai_pmh import fetch_context_urls, oai_pmh_serialize_custom_types, \
     InvalidOaiPmhContextPageException, parse_utc_str_to_date, oai_pmh_endpoints_path, oai_pmh_path, \
     serialize_date_to_utc_str, parse_list, parse_record_date, parse_value
+from academic_observatory.utils import test_data_dir
+
+
+def load_page_body(file_name: str) -> str:
+    path = os.path.join(test_data_dir(__file__), 'oai_pmh', file_name)
+    data: str
+    with open(path) as f:
+        data = f.read()
+    return data
 
 
 class TestOaiPmh(unittest.TestCase):
@@ -117,7 +128,19 @@ class TestOaiPmh(unittest.TestCase):
         self.assertEqual(path, os.path.join(oai_pmh_path(), "oai_pmh_endpoints.csv"))
 
     def test_fetch_context_urls(self):
-        # TODO: use httpretty to simulate websites so the tests run without internet
+        # Enable httpretty so that responses can be simulated
+        httpretty.enable()
+
+        # Register URIs for httpretty
+        pages = [('https://espace.curtin.edu.au/', load_page_body('curtin_espace'), 'text/html;charset=utf-8', 200),
+                 ('https://espace.curtin.edu.au/oai/request', load_page_body('curtin_oai_request'),
+                  'application/xml;charset=UTF-8', 200),
+                 ('https://espace.curtin.edu.au/oai/', load_page_body('curtin_oai_context'),
+                  'text/html;charset=ISO-8859-1', 400),
+                 ('http://dspace.nwu.ac.za/oai/', load_page_body('nwu_oai_context'), 'text/html;charset=ISO-8859-1',
+                  400)]
+        for uri, body, content_type, status in pages:
+            httpretty.register_uri(httpretty.GET, uri, body=body, content_type=content_type, status=status)
 
         # An invalid OAI-PMH context page
         endpoint_url = 'https://espace.curtin.edu.au/'
@@ -137,10 +160,13 @@ class TestOaiPmh(unittest.TestCase):
                                     'https://espace.curtin.edu.au/oai/openaire',
                                     'https://espace.curtin.edu.au/oai/openaccess'])
 
-        # TODO: re-enable once back online and use httpretty to test without needing actual servers
         # Valid OAI-PMH context page with malformed URLs that have to be sanitized
-        # contexts_url = 'http://dspace.nwu.ac.za/oai/'
-        # urls = fetch_context_urls(contexts_url)
-        # self.assertListEqual(urls, ['http://dspace.nwu.ac.za/oai/request',
-        #                             'http://dspace.nwu.ac.za/oai/driver',
-        #                             'http://dspace.nwu.ac.za/oai/openaire'])
+        contexts_url = 'http://dspace.nwu.ac.za/oai/'
+        urls = fetch_context_urls(contexts_url)
+        self.assertListEqual(urls, ['http://dspace.nwu.ac.za/oai/request',
+                                    'http://dspace.nwu.ac.za/oai/driver',
+                                    'http://dspace.nwu.ac.za/oai/openaire'])
+
+        # Disable httpretty so that it doesn't keep interfering with sockets
+        httpretty.disable()
+        httpretty.reset()
