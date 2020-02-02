@@ -12,7 +12,7 @@ from typing import Union
 
 from natsort import natsorted
 
-from academic_observatory.grid import parse_grid_release, save_grid_index, grid_index_path, \
+from academic_observatory.telescopes.grid.grid import parse_grid_release, save_grid_index, grid_index_path, \
     grid_path
 
 

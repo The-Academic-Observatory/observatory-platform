@@ -5,8 +5,8 @@ import os
 import shutil
 import unittest
 
-from academic_observatory.common_crawl import WarcIndex, PageInfo, ao_home, InstitutionIndex, WarcIndexInfo
-from academic_observatory.common_crawl import common_crawl_path, common_crawl_serialize_custom_types, save_page_infos
+from academic_observatory.telescopes.common_crawl import WarcIndex, PageInfo, ao_home, InstitutionIndex, WarcIndexInfo
+from academic_observatory.telescopes.common_crawl import common_crawl_path, common_crawl_serialize_custom_types, save_page_infos
 from academic_observatory.utils import test_data_dir
 
 

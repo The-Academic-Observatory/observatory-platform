@@ -4,7 +4,7 @@ import os
 import unittest
 from typing import List
 
-from academic_observatory.grid import grid_path, grid_index_path, parse_institute, ao_home, save_grid_index, \
+from academic_observatory.telescopes.grid import grid_path, grid_index_path, parse_institute, ao_home, save_grid_index, \
     load_grid_index, parse_grid_release
 from academic_observatory.utils import test_data_dir
 

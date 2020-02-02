@@ -12,7 +12,7 @@ import os
 import pathlib
 from typing import List
 
-from academic_observatory.common_crawl.schema import PageInfo
+from academic_observatory.telescopes.common_crawl.schema import PageInfo
 from academic_observatory.utils import ao_home, to_json_lines
 
 

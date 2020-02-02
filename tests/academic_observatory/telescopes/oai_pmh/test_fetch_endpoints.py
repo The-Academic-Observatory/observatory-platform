@@ -1,6 +1,6 @@
 import unittest
 
-from academic_observatory.oai_pmh import possible_oai_pmh_urls
+from academic_observatory.telescopes.oai_pmh import possible_oai_pmh_urls
 
 
 class TestFetchEndpoints(unittest.TestCase):

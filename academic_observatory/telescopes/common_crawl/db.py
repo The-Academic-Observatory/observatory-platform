@@ -9,7 +9,7 @@ from typing import List
 
 from google.cloud import bigquery
 
-from academic_observatory.common_crawl.schema import WarcIndex, PageInfo, InstitutionIndex, WarcIndexInfo
+from academic_observatory.telescopes.common_crawl.schema import WarcIndex, PageInfo, InstitutionIndex, WarcIndexInfo
 
 DATE_FORMAT = '%Y-%m-%d'
 

@@ -15,7 +15,7 @@ from xml.etree import ElementTree
 from sickle import Sickle
 from sickle.oaiexceptions import NoRecordsMatch
 
-from academic_observatory.oai_pmh.schema import Endpoint, Record, RecordHeader
+from academic_observatory.telescopes.oai_pmh.schema import Endpoint, Record, RecordHeader
 from academic_observatory.utils import strip_query_params, is_url_absolute, retry_session, HtmlParser, ao_home
 
 __OAI_PMH_ENDPOINTS_FILENAME = 'oai_pmh_endpoints.csv'

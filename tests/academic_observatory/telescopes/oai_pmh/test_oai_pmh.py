@@ -2,7 +2,7 @@ import datetime
 import os
 import unittest
 
-from academic_observatory.oai_pmh import fetch_context_urls, oai_pmh_serialize_custom_types, \
+from academic_observatory.telescopes.oai_pmh import fetch_context_urls, oai_pmh_serialize_custom_types, \
     InvalidOaiPmhContextPageException, parse_utc_str_to_date, oai_pmh_endpoints_path, oai_pmh_path, \
     serialize_date_to_utc_str, parse_list, parse_record_date, parse_value
 

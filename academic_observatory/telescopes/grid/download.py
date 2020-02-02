@@ -14,7 +14,7 @@ from zipfile import ZipFile, BadZipFile
 
 import ray
 
-from academic_observatory.grid.grid import grid_path
+from academic_observatory.telescopes.grid.grid import grid_path
 from academic_observatory.utils import retry_session, get_file, wait_for_tasks
 
 GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"

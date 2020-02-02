@@ -1,8 +1,8 @@
 import datetime
 import unittest
 
-from academic_observatory.common_crawl import WarcIndex, PageInfo, InstitutionIndex, WarcIndexInfo
-from academic_observatory.common_crawl import get_fetch_months, split_page_infos
+from academic_observatory.telescopes.common_crawl import WarcIndex, PageInfo, InstitutionIndex, WarcIndexInfo
+from academic_observatory.telescopes.common_crawl import get_fetch_months, split_page_infos
 
 
 class TestCcFetchFullText(unittest.TestCase):

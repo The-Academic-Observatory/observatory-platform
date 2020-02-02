@@ -15,9 +15,9 @@ from typing import Union
 import pandas as pd
 import ray
 
-from academic_observatory.oai_pmh.oai_pmh import fetch_endpoint_records, oai_pmh_path, \
+from academic_observatory.telescopes.oai_pmh.oai_pmh import fetch_endpoint_records, oai_pmh_path, \
     oai_pmh_endpoints_path, oai_pmh_serialize_custom_types
-from academic_observatory.oai_pmh.schema import Endpoint, Record
+from academic_observatory.telescopes.oai_pmh.schema import Endpoint, Record
 from academic_observatory.utils import wait_for_tasks, to_json_lines
 
 

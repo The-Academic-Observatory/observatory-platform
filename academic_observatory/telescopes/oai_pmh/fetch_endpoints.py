@@ -16,11 +16,11 @@ import pandas as pd
 import ray
 import validators
 
-from academic_observatory.grid import download_grid_dataset, index_grid_dataset, grid_index_path, \
-    load_grid_index
-from academic_observatory.oai_pmh.oai_pmh import fetch_context_urls, InvalidOaiPmhContextPageException, fetch_endpoint, \
-    oai_pmh_path, __OAI_PMH_ENDPOINTS_FILENAME
-from academic_observatory.oai_pmh.schema import Endpoint
+from academic_observatory.telescopes.grid import grid_index_path, load_grid_index, download_grid_dataset, \
+    index_grid_dataset
+from academic_observatory.telescopes.oai_pmh.oai_pmh import fetch_context_urls, InvalidOaiPmhContextPageException, \
+    fetch_endpoint, oai_pmh_path, __OAI_PMH_ENDPOINTS_FILENAME
+from academic_observatory.telescopes.oai_pmh.schema import Endpoint
 from academic_observatory.utils import wait_for_tasks, strip_query_params, get_url_domain_suffix
 
 FETCH_ENDPOINTS_PROCESS_MULTIPLIER = 10
