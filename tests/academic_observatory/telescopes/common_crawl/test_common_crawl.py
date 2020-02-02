@@ -86,7 +86,7 @@ class TestCommonCrawl(unittest.TestCase):
 
         # Path for test file
         test_data_dir_ = test_data_dir(__file__)
-        cc_content_test_path = os.path.join(test_data_dir_, 'cc_content_test.json')
+        cc_content_test_path = os.path.join(test_data_dir_, 'common_crawl', 'cc_content_test.json')
 
         # Check that the generated and expected files match
         self.assertTrue(filecmp.cmp(extracted_path, cc_content_test_path))

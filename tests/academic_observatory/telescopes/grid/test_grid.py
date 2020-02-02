@@ -19,9 +19,9 @@ class TestGrid(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         test_data_dir_ = test_data_dir(__file__)
-        cls.grid_index_test_path = os.path.join(test_data_dir_, 'grid_index_test.csv')
-        cls.grid_release_test_path = os.path.join(test_data_dir_, 'grid_release_test.json')
-        cls.grid_institute_test_path = os.path.join(test_data_dir_, 'grid_institute_test.json')
+        cls.grid_index_test_path = os.path.join(test_data_dir_, 'grid', 'grid_index_test.csv')
+        cls.grid_release_test_path = os.path.join(test_data_dir_, 'grid', 'grid_release_test.json')
+        cls.grid_institute_test_path = os.path.join(test_data_dir_, 'grid', 'grid_institute_test.json')
         cls.grid_index_gen_path = os.path.join(ao_home('tests'), 'grid_index_gen.csv')
         cls.grid_data = [('grid.1001.0', 'Australian National University', 'Education',
                           'http://www.anu.edu.au/', 'www.anu.edu.au', 'anu.edu.au', 'AU'),
