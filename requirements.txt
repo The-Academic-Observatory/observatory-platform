@@ -21,3 +21,5 @@ google-cloud-bigquery==1.23.*
 httpretty==0.9.*
 aiohttp==3.6.*
 grpcio==1.26.*
+matplolib>=3.1.1
+IPython>=7.8.0
