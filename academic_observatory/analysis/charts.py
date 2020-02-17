@@ -14,13 +14,15 @@ regioncolorpalette = {
     'Europe': 'limegreen',
     'North America': 'dodgerblue',
     'Latin America': 'brown',
+    'Americas': 'dodgerblue',
     'Africa': 'magenta',
     'Oceania': 'red'
 }
 
 
 class AbstractObservatoryChart(AbstractObservatoryResource):
-    """Abstract Class for COKI Charts"""
+    """Abstract Base Class for Charts
+    """
 
     def _check_df(self):
         #
@@ -29,8 +31,11 @@ class AbstractObservatoryChart(AbstractObservatoryResource):
 
     @abstractmethod
     def plot(self, ax=None, fig=None, **kwargs):
-        """Abstract Plot Method"""
+        """Abstract Plot Method
 
+        All chart classes should have a plot method which draws the 
+        chart and returns a matplotlib figure
+        """
         pass
 
     @abstractmethod
@@ -54,28 +59,11 @@ class ScatterPlot(AbstractObservatoryChart):
                  y: str,
                  filter_name: str,
                  filter_value,
-                 hue_column: str='region',
-                 size_column: str='total',
+                 hue_column: str = 'region',
+                 size_column: str = 'total',
                  focus_id=None,
                  **kwargs):
         """Initialisation Method
-
-        param: x: str with the column name for x-axis data
-        param: y: str with the column name for y-axis data
-        param: filter_name: str with the column to filter data on,
-                            often the column with publication year
-        param: filter_value: the value to match against filter col
-                             to select the required subset of data
-        param: hue_column: str the column name containing values to
-                           use to set plot colors defaul is 'region'
-        param: size_column: str the column name to use to set the size
-                            of plotted points, defaults to 'total'
-                            which is the default name for column
-                            containing total number of publications
-        param: focus_id: str with an id that can optionally be plotted
-                         with a cross. Default to None and not to plot
-        param: kwargs: other keywords should generally be passed to the
-                       plot method rather than here
         """
 
         super().__init__(df)
@@ -111,7 +99,7 @@ class ScatterPlot(AbstractObservatoryChart):
         sorter = ['Asia', 'Europe', 'North America',
                   'Latin America', 'Africa', 'Oceania']
         sorterIndex = dict(zip(sorter, range(len(sorter))))
-        figdata['order'] = figdata['region'].map(sorterIndex)
+        figdata['order'] = figdata.region.map(sorterIndex)
         figdata = figdata.sort_values('order', ascending=True)
         self.df = figdata
         return self.df
@@ -193,7 +181,7 @@ class ScatterPlot(AbstractObservatoryChart):
         representations of the animation.
         """
 
-        fig_kwargs = _collect_kwargs_for(plt.figtext, kwargs)
+        fig_kwargs = _collect_kwargs_for(plt.figure, kwargs)
         self.plot_kwargs = kwargs
         self.color_palette = colorpalette
 
@@ -662,7 +650,8 @@ class BoxScatter(AbstractObservatoryChart):
                           order=order, hue='region',
                           palette=colorpalette, alpha=alpha)
             ax.yaxis.label.set_visible(False)
-            ax.set_xticks(xticks)
+            if xticks:
+                ax.set_xticks(xticks)
             ax.get_legend().remove()
         fig.subplots_adjust(wspace=0)
 
@@ -816,6 +805,7 @@ class TimePlotLayout(AbstractObservatoryChart):
                         ax.axvline(plot.get('markerline'),
                                    0, 1.2, color='grey',
                                    linestyle='dashed', clip_on=False)
+                ax.set(**_collect_kwargs_for(ax.set, plot))
 
         all_axes = fig.get_axes()
 
@@ -846,6 +836,8 @@ class TimePlotLayout(AbstractObservatoryChart):
                 labels = ['A', 'B', 'C', 'D', 'E', 'F']
                 fig.text(xpos, ypos + panellable_adjustment,
                          labels[i], fontsize='xx-large', fontweight='bold')
+        
+        return fig
 
 
 class TimePath(AbstractObservatoryChart):
@@ -1004,6 +996,7 @@ class Layout(AbstractObservatoryChart):
                                  frameon=False)
 
         for chart, ax in zip(self.charts, axes):
+            print(chart, ax)
             chart.plot(ax=ax, **kwargs)
 
         if 'wspace' in kwargs:
