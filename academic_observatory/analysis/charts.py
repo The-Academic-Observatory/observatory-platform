@@ -1,6 +1,7 @@
 import pandas as pd
 import pandas_gbq
 import seaborn as sns
+import matplotlib
 import matplotlib.pyplot as plt
 import itertools
 from matplotlib import animation, rc
@@ -33,8 +34,8 @@ class AbstractObservatoryChart(AbstractObservatoryResource):
     def plot(self, ax=None, fig=None, **kwargs):
         """Abstract Plot Method
 
-        All chart classes should have a plot method which draws the 
-        chart and returns a matplotlib figure
+        All chart classes should have a plot method which draws the
+        figure and returns it.
         """
         pass
 
@@ -54,14 +55,15 @@ class ScatterPlot(AbstractObservatoryChart):
     total outputs of the university
     """
 
-    def __init__(self, df,
+    def __init__(self,
+                 df: pd.DataFrame,
                  x: str,
                  y: str,
                  filter_name: str,
-                 filter_value,
+                 filter_value: str,
                  hue_column: str = 'region',
                  size_column: str = 'total',
-                 focus_id=None,
+                 focus_id: str = None,
                  **kwargs):
         """Initialisation Method
         """
@@ -85,7 +87,7 @@ class ScatterPlot(AbstractObservatoryChart):
         self.focus_id = focus_id
         self.kwargs = kwargs
 
-    def process_data(self):
+    def process_data(self) -> pd.DataFrame:
         """Data processing function
 
         Currently is hard-coded to sort based on region and
@@ -104,8 +106,11 @@ class ScatterPlot(AbstractObservatoryChart):
         self.df = figdata
         return self.df
 
-    def plot(self, ax=None, colorpalette=None,
-             additional_filter=None, **kwargs):
+    def plot(self,
+             ax: matplotlib.axis = None,
+             colorpalette: sns.color_palette = None,
+             additional_filter=None,
+             **kwargs) -> matplotlib.figure:
         """Plot function
 
         param: ax: The matplotlib axis to plot to
@@ -150,13 +155,13 @@ class ScatterPlot(AbstractObservatoryChart):
         self.ax.spines['right'].set_visible(False)
         self.ax.legend(loc='upper center', bbox_to_anchor=(1, 0.8))
         self.ax.set(**kwargs)
-        return self.ax
+        return self.fig
 
     def animate(self,
-                colorpalette=None,
+                colorpalette: sns.color_palette=None,
                 year_range=None,
-                numframes=None,
-                frameinterval=1000,
+                numframes: int=None,
+                frameinterval: int=1000,
                 **kwargs):
         """User animate function for scatterplot
 
@@ -204,7 +209,7 @@ class ScatterPlot(AbstractObservatoryChart):
                                             interval=frameinterval)
         return HTML(self.anim.to_html5_video())
 
-    def anim_frame(self, i):
+    def anim_frame(self, i: int):
         """Frame animation function for scatterplot
 
         param: i: framenumber
@@ -241,7 +246,8 @@ class BarComparisonChart(AbstractObservatoryChart):
     for other variations on OA.
     """
 
-    def __init__(self, df,
+    def __init__(self, 
+                 df: pd.DataFrame,
                  comparison: list,
                  year: int,
                  color_palette=['brown', 'orange', 'gold', 'green']
@@ -318,9 +324,14 @@ class RankChart(AbstractObservatoryChart):
     rankcol and valcol are the same.
     """
 
-    def __init__(self, df, rankcol, filter_name, filter_value,
-                 rank_length=100,
-                 valcol=None, colordict=None):
+    def __init__(self, 
+                 df: pd.DataFrame, 
+                 rankcol: str, 
+                 filter_name: str, 
+                 filter_value,
+                 rank_length: int=100,
+                 valcol: str=None, 
+                 colordict: dict=None):
         """Initialisation function
 
         param: df: pd.DataFrame in the standard COKI format
@@ -374,10 +385,16 @@ class RankChart(AbstractObservatoryChart):
         return self.df
 
     def plot(self,
-             ax=None, forcerange=[], valaxpad=0,
-             show_rank_axis=True, rank_axis_distance=1.1,
-             scatter=False, holes=False,
-             line_args={}, scatter_args={}, hole_args={},
+             ax: matplotlib.axis=None, 
+             forcerange=[], 
+             valaxpad: float=0,
+             show_rank_axis: bool=True, 
+             rank_axis_distance: float=1.1,
+             scatter: bool=False, 
+             holes: bool=False,
+             line_args: dict={}, 
+             scatter_args: dict={}, 
+             hole_args: dict={},
              **kwargs):
         """Plotting function
 
@@ -496,10 +513,15 @@ class ConfidenceIntervalRank(AbstractObservatoryChart):
 
     """
 
-    def __init__(self, df, rankcol, errorcol,
-                 filter_name, filter_value,
-                 rank_length=100,
-                 valcol=None, colordict=None):
+    def __init__(self, 
+                 df: pd.DataFrame, 
+                 rankcol: str, 
+                 errorcol: str,
+                 filter_name: str, 
+                 filter_value,
+                 rank_length: int=100,
+                 valcol: str=None, 
+                 colordict: dict=None):
         """
         Initialisation Function
 
@@ -546,8 +568,8 @@ class ConfidenceIntervalRank(AbstractObservatoryChart):
         return self.df
 
     def plot(self,
-             ax=None,
-             show_rank_axis=True,
+             ax: matplotlib.axis=None,
+             show_rank_axis: bool=True,
              **kwargs):
 
         if ax is None:
@@ -574,9 +596,13 @@ class BoxScatter(AbstractObservatoryChart):
     Box and scatter charts for groupings of universitiies
     """
 
-    def __init__(self, df, year,
-                 group_column, plot_column,
-                 sort=True, sortfunc=pd.DataFrame.median,
+    def __init__(self, 
+                 df: pd.DataFrame, 
+                 year: int,
+                 group_column: str, 
+                 plot_column: str,
+                 sort: bool=True, 
+                 sortfunc: callable=pd.DataFrame.median,
                  **kwargs):
         """
 
@@ -618,14 +644,22 @@ class BoxScatter(AbstractObservatoryChart):
         return self.df
 
     def plot(self,
-             color='silver',
-             figsize=(15, 20),
-             dodge=False,
-             hue='region',
-             xticks=[0, 20, 40, 60, 80],
-             colorpalette=regioncolorpalette,
-             alpha=0.5,
+             color: str='silver',
+             figsize: tuple=(15, 20),
+             dodge: bool=False,
+             hue: str='region',
+             xticks: list=[0, 20, 40, 60, 80],
+             colorpalette: sns.color_palette=regioncolorpalette,
+             alpha: float=0.5,
              **kwargs):
+        """Plot Method
+
+        param: color color for the box plots, must be a color name
+                     for matplotlib
+        param: figsize tuple with two elements to pass to figsize
+        param: dodge sns.boxplot keyword argument for points to avoid
+                     overlap
+        """
 
         fig, axes = plt.subplots(1, len(self.plot_column),
                                  figsize=figsize,
@@ -836,7 +870,7 @@ class TimePlotLayout(AbstractObservatoryChart):
                 labels = ['A', 'B', 'C', 'D', 'E', 'F']
                 fig.text(xpos, ypos + panellable_adjustment,
                          labels[i], fontsize='xx-large', fontweight='bold')
-        
+
         return fig
 
 
@@ -921,7 +955,10 @@ class TimePath(AbstractObservatoryChart):
                     (figdata.grid_id == uni) &
                     (figdata.published_year == year_range[-1])
                 ][self.ycolumn].iloc[0] - y
-                color = colorpalette[i]
+                if type(colorpalette) == list:
+                    color = colorpalette[i]
+                elif type(colorpalette) == dict:
+                    _, color = colorpalette.items()[i]
                 ax.arrow(x, y, dx, dy, color=color, head_width=head_width)
 
         ax.set(**kwargs)
