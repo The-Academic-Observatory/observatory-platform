@@ -153,7 +153,7 @@ class ScatterPlot(AbstractObservatoryChart):
                             ax=self.ax)
         self.ax.spines['top'].set_visible(False)
         self.ax.spines['right'].set_visible(False)
-        self.ax.legend(loc='upper center', bbox_to_anchor=(1, 0.8))
+        self.ax.legend(loc='upper center', bbox_to_anchor=(1.1, 0.8))
         self.ax.set(**kwargs)
         return self.fig
 
@@ -688,6 +688,7 @@ class BoxScatter(AbstractObservatoryChart):
                 ax.set_xticks(xticks)
             ax.get_legend().remove()
         fig.subplots_adjust(wspace=0)
+        return fig
 
 
 class TimePlot(AbstractObservatoryChart):
@@ -762,6 +763,8 @@ class TimePlot(AbstractObservatoryChart):
         if marker_line:
             [ax.axvline(marker_line, 0, 1.2, color='grey',
                         linestyle='dashed', clip_on=False) for ax in axes]
+
+        return fig
 
 
 class TimePlotLayout(AbstractObservatoryChart):
@@ -960,9 +963,12 @@ class TimePath(AbstractObservatoryChart):
                 elif type(colorpalette) == dict:
                     _, color = colorpalette.items()[i]
                 ax.arrow(x, y, dx, dy, color=color, head_width=head_width)
-
-        ax.set(**kwargs)
-        return ax
+        
+        self.ax.spines['top'].set_visible(False)
+        self.ax.spines['right'].set_visible(False)
+        self.ax.legend(loc='upper center', bbox_to_anchor=(1.1, 0.8))
+        self.ax.set(**kwargs)
+        return fig
 
     def animate(self, colorpalette=None, year_range=None, **kwargs):
         self.plot_kwargs = kwargs
