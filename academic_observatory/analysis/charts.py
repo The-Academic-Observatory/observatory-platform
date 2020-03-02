@@ -153,7 +153,7 @@ class ScatterPlot(AbstractObservatoryChart):
                             ax=self.ax)
         self.ax.spines['top'].set_visible(False)
         self.ax.spines['right'].set_visible(False)
-        self.ax.legend(loc='upper center', bbox_to_anchor=(1.1, 0.8))
+        self.ax.legend(loc='upper right', bbox_to_anchor=(1.1, 0.8))
         self.ax.set(**kwargs)
         return self.fig
 
@@ -966,7 +966,7 @@ class TimePath(AbstractObservatoryChart):
         
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        ax.legend(loc='upper center', bbox_to_anchor=(1.1, 0.8))
+        ax.legend(loc='upper right', bbox_to_anchor=(1.1, 0.8))
         ax.set(**kwargs)
         #return fig
 
