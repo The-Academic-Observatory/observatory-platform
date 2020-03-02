@@ -964,11 +964,11 @@ class TimePath(AbstractObservatoryChart):
                     _, color = colorpalette.items()[i]
                 ax.arrow(x, y, dx, dy, color=color, head_width=head_width)
         
-        self.ax.spines['top'].set_visible(False)
-        self.ax.spines['right'].set_visible(False)
-        self.ax.legend(loc='upper center', bbox_to_anchor=(1.1, 0.8))
-        self.ax.set(**kwargs)
-        return fig
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.legend(loc='upper center', bbox_to_anchor=(1.1, 0.8))
+        ax.set(**kwargs)
+        #return fig
 
     def animate(self, colorpalette=None, year_range=None, **kwargs):
         self.plot_kwargs = kwargs
@@ -1039,7 +1039,6 @@ class Layout(AbstractObservatoryChart):
                                  frameon=False)
 
         for chart, ax in zip(self.charts, axes):
-            print(chart, ax)
             chart.plot(ax=ax, **kwargs)
 
         if 'wspace' in kwargs:
