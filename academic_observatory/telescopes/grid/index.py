@@ -1,27 +1,48 @@
+# Copyright 2019 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: James Diprose
+
+import io
 import json
 import logging
 import os
+from typing import Union
 
 from natsort import natsorted
 
-from academic_observatory.grid.grid import GRID_CACHE_SUBDIR, parse_grid_release, save_grid
-from academic_observatory.utils import get_user_dir
+from academic_observatory.telescopes.grid.grid import parse_grid_release, save_grid_index, grid_index_path, \
+    grid_path
 
 
-def index_grid_dataset(args):
+def index_grid_dataset(input: Union[str, None] = None, output: Union[io.FileIO, None] = None):
+    """ Create an index from the GRID dataset.
+
+    :param input: the input path that contains the GRID dataset.
+    :param output: the path where the GRID index CSV file should be saved.
+    :return: None.
+    """
+
     logging.basicConfig(level=logging.INFO)
 
     file_type = ".json"
-    grid_index_filename = "grid_index.csv"
     unique_grids = dict()
 
-    # Get default grid dataset path
-    cache_dir, cache_subdir, datadir = get_user_dir(cache_subdir=GRID_CACHE_SUBDIR)
-
     # If user supplied no input path use default
-    grid_dataset_path = args.input
-    if args.input is None:
-        grid_dataset_path = datadir
+    grid_dataset_path = input
+    if input is None:
+        grid_dataset_path = grid_path()
 
     # Get paths to all JSON files and sort them. We sort the files so that the oldest release is first and the newest
     # is last so that if there are duplicate entries we always save the latest information. If an older release
@@ -52,12 +73,12 @@ def index_grid_dataset(args):
             logging.debug(f"Num items after adding {path}: {len(unique_grids)}")
 
     # If user supplied no output path use default
-    grid_index_save_path = args.output
-    if args.output is None:
-        grid_index_save_path = os.path.join(datadir, grid_index_filename)
+    grid_index_save_path = output
+    if output is None:
+        grid_index_save_path = grid_index_path()
 
     data = [val for key, val in unique_grids.items()]
     data = sorted(data, key=lambda item: item[1])
-    save_grid(grid_index_save_path, data, header=True)
+    save_grid_index(grid_index_save_path, data)
 
     logging.info(f"Saved GRID Index to: {grid_index_save_path}")
