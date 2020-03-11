@@ -19,6 +19,21 @@ def clean_geo_names(df):
     df.replace('Americas', 'Latin America', inplace=True)
     return df
 
+
+def clean_output_type_names(df):
+    outputs_clean = {'type': {
+                     'total': 'Total Outputs',
+                     'journal_articles': 'Journal Articles',
+                     'proceedings_articles': 'Proceedings',
+                     'authored_books': 'Books',
+                     'book_sections': 'Book Sections',
+                     'edited_volumes': 'Edited Volumes',
+                     'reports': 'Reports‡',
+                     'datasets': 'Datasets‡'
+                     }}
+    df.replace(to_replace=outputs_clean, inplace=True)
+    return df
+
 # Creating nice column names for graphing
 
 
@@ -26,10 +41,16 @@ def nice_column_names(df):
     cols = [
         ('Open Access (%)', 'percent_OA'),
         ('Open Access (%)', 'percent_oa'),
+        ('Open Access (%)', 'percent_total_oa'),
         ('Total Green OA (%)', 'percent_green'),
         ('Total Gold OA (%)', 'percent_gold'),
-        ('Green in Institutional Repository (%)', 'percent_in_home_repo'),
+        ('Gold in DOAJ (%)', 'percent_gold_just_doaj'),
         ('Hybrid OA (%)', 'percent_hybrid'),
+        ('Bronze (%)', 'percent_bronze'),
+        ('Total Green OA (%)', 'percent_green'),
+        ('Green Only (%)', 'percent_green_only'),
+        ('Green in IR (%)',
+         'percent_green_in_home_repo'),
         ('Total Publications', 'total'),
         ('Change in Open Access (%)', 'total_oa_pc_change'),
         ('Change in Green OA (%)', 'green_pc_change'),
@@ -39,6 +60,20 @@ def nice_column_names(df):
         ('University Name', 'name'),
         ('Region', 'region'),
         ('Country', 'country'),
+        ('Citation Count', 'total_citations'),
+        ('Cited Articles', 'cited_articles'),
+        ('Citations to OA Outputs', 'oa_citations'),
+        ('Citations to Gold Outputs', 'gold_citations'),
+        ('Citations to Green Outputs', 'green_citations'),
+        ('Citations to Hybrid Outputs', 'hybrid_citations'),
+        ('Total Outputs', 'total'),
+        ('Journal Articles', 'journal_articles'),
+        ('Proceedings', 'proceedings_articles'),
+        ('Books', 'authored_books'),
+        ('Book Sections', 'book_sections'),
+        ('Edited Volumes', 'edited_volumes'),
+        ('Reports‡', 'reports'),
+        ('Datasets‡', 'datasets')
     ]
     for col in cols:
         if col[1] in df.columns.values:
@@ -46,13 +81,14 @@ def nice_column_names(df):
 
     return df
 
-# Function for creating percent_changes year on year
-
 
 def calculate_pc_change(df, columns,
-                        id_column='grid_id',
+                        id_column='id',
                         year_column='published_year',
-                        column_name_add='_pc_change'):
+                        column_name_add='_pc_change') -> pd.DataFrame:
+    """Function for creating percent_changes year on year
+    """
+
     df = df.sort_values(year_column, ascending=True)
     for column in columns:
         new_column_name = column + column_name_add
@@ -60,12 +96,27 @@ def calculate_pc_change(df, columns,
             id_column)[column].pct_change()*100)
     return df
 
-# Function for calculating confidence intervals
+
+def calculate_percentages(df: pd.DataFrame,
+                          numer_columns: list,
+                          denom_column: str,
+                          column_name_add: str = 'percent_') -> pd.DataFrame:
+    """Calculate Percentages from Specific Columns
+    """
+
+    for column in numer_columns:
+        pc_column_name = column_name_add + column
+        df[pc_column_name] = df[column] / df[denom_column] * 100
+
+    return df
 
 
 def calculate_confidence_interval(df, columns,
                                   total_column='total',
-                                  column_name_add='_err'):
+                                  column_name_add='_err') -> pd.DataFrame:
+    """Function for calculating confidence intervals
+    """
+
     for column in columns:
         new_column_name = column + column_name_add
         df[new_column_name] = 100*1.96*(
@@ -94,3 +145,7 @@ def _collect_kwargs_for(func,
     names = [parameter for parameter in sig.parameters]
     kwargs = {k: input_kwargs.pop(k) for k in input_kwargs.keys() & names}
     return kwargs
+
+
+def id2name(df, identifier):
+    return df[df.id == identifier].name.unique()[0]
