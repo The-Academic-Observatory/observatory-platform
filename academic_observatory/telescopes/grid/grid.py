@@ -1,23 +1,60 @@
+# Copyright 2019 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: James Diprose
+
+import io
 import logging
+import os
 from typing import Tuple, List, Union
 from urllib.parse import urlparse
 
 import pandas as pd
-import tldextract
 
-GRID_CACHE_SUBDIR = "datasets/grid"
+from academic_observatory.utils import ao_home, get_url_domain_suffix
 
-
-def get_url_domain_suffix(url):
-    result = tldextract.extract(url)
-    return f"{result.domain}.{result.suffix}"
+__GRID_INDEX_FILENAME = 'grid_index.csv'
 
 
-def load_grid_index(grid_index_path):
+def grid_path() -> str:
+    """ Get the default path to the GRID dataset.
+    :return: the default path to the GRID dataset.
+    """
+
+    return ao_home('datasets', 'grid')
+
+
+def grid_index_path() -> str:
+    """ Get default grid dataset path
+    :return:
+    """
+
+    path = os.path.join(grid_path(), __GRID_INDEX_FILENAME)
+    return path
+
+
+def load_grid_index(grid_index_path: Union[str, io.FileIO]) -> dict:
+    """ Load the GRID Index.
+
+    :param grid_index_path: the path to the GRID Index.
+    :return: the GRID Index.
+    """
+
     grid_index = dict()
 
     if grid_index_path is not None:
-        df = pd.read_csv(grid_index_path,
+        df = pd.read_csv(grid_index_path, header=0,
                          names=['grid_id', 'name', 'type', 'url', 'url_hostname', 'url_domain_suffix', 'county_code'])
         for i, row in df.iterrows():
             url_domain_suffix = row['url_domain_suffix']
@@ -30,6 +67,12 @@ def load_grid_index(grid_index_path):
 
 
 def parse_institute(institute: dict) -> Union[None, Tuple]:
+    """ Parse an institute from the GRID.ac dataset.
+
+    :param institute: an institute dict.
+    :return: a tuple with the institute details.
+    """
+
     result = None
     grid_id = institute["id"]
     status = institute["status"]
@@ -63,6 +106,11 @@ def parse_institute(institute: dict) -> Union[None, Tuple]:
 
 
 def parse_grid_release(grid_release: dict) -> Tuple[str, List[Tuple]]:
+    """ Parse an entire GRID release.
+
+    :param grid_release: a GRID release dict.
+    :return: the version of the GRID release and a list of GRID institute records.
+    """
     version = grid_release["version"].replace("release_", "")
     institutes = grid_release["institutes"]
     results = []
@@ -76,7 +124,14 @@ def parse_grid_release(grid_release: dict) -> Tuple[str, List[Tuple]]:
     return version, results
 
 
-def save_grid(path: str, data: List, header=False):
+def save_grid_index(path: Union[str, io.FileIO], data: List) -> None:
+    """ Save the GRID Index as a CSV.
+
+    :param path: the path to save the GRID Index.
+    :param data: the GRID Index records.
+    :param header: whether to save the column names as a header in the CSV.
+    :return: None.
+    """
     columns = ['grid_id', 'name', 'type', 'url', 'url_hostname', 'url_domain_suffix', 'country_code']
     df = pd.DataFrame(data=data, columns=columns)
-    df.to_csv(path, index=False, header=header)
+    df.to_csv(path, index=False, header=True)

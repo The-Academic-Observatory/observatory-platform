@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+            <!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7" lang="en"> <![endif]-->
+            <!--[if IE 7]>    <html class="no-js lt-ie9 lt-ie8" lang="en"> <![endif]-->
+            <!--[if IE 8]>    <html class="no-js lt-ie9" lang="en"> <![endif]-->
+            <!--[if gt IE 8]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
+            <head><META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+<meta content="IE=edge,chrome=1" http-equiv="X-UA-Compatible">
+<meta content="width=device-width,initial-scale=1" name="viewport">
+<link rel="shortcut icon" href="/themes/Mirage2/images/favicon.ico">
+<link rel="apple-touch-icon" href="/themes/Mirage2/images/apple-touch-icon.png">
+<meta name="Generator" content="DSpace 5.5">
+<link type="text/css" rel="stylesheet" media="screen" href="/themes/Mirage2/../../themes/ReportingSuite/lib/statistics-style.css">
+<link href="/themes/Mirage2/styles/main.css" rel="stylesheet">
+<link type="application/rss+xml" rel="alternate" href="/feed/rss_1.0/site">
+<link type="application/rss+xml" rel="alternate" href="/feed/rss_2.0/site">
+<link type="application/atom+xml" rel="alternate" href="/feed/atom_1.0/site">
+<link type="application/opensearchdescription+xml" rel="search" href="https://espace.curtin.edu.au:443/open-search/description.xml" title="DSpace">
+<script>
+                //Clear default text of emty text areas on focus
+                function tFocus(element)
+                {
+                if (element.value == ' '){element.value='';}
+                }
+                //Clear default text of emty text areas on submit
+                function tSubmit(form)
+                {
+                var defaultedElements = document.getElementsByTagName("textarea");
+                for (var i=0; i != defaultedElements.length; i++){
+                if (defaultedElements[i].value == ' '){
+                defaultedElements[i].value='';}}
+                }
+                //Disable pressing 'enter' key to submit a form (otherwise pressing 'enter' causes a submission to start over)
+                function disableEnterKey(e)
+                {
+                var key;
+
+                if(window.event)
+                key = window.event.keyCode; //Internet Explorer
+                else
+                key = e.which; //Firefox and Netscape
+
+                if(key == 13) //if "Enter" pressed, then disable!
+                return false;
+                else
+                return true;
+                }
+            </script><!--[if lt IE 9]>
+                <script src="/themes/Mirage2/vendor/html5shiv/dist/html5shiv.js"> </script>
+                <script src="/themes/Mirage2/vendor/respond/dest/respond.min.js"> </script>
+                <![endif]--><script src="/themes/Mirage2/vendor/modernizr/modernizr.js"> </script>
+<title>espace Home</title>
+</head><body>
+<header>
+<div role="navigation" class="navbar navbar-default navbar-static-top">
+<div class="container">
+<div class="navbar-header">
+<a class="navbar-brand" href="http://www.curtin.edu.au/"><img title="Curtin University Homepage" alt="Curtin University Homepage" src="/themes/Mirage2//images/logo-curtin-university.png"></a><button data-toggle="offcanvas" class="navbar-toggle" type="button"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button>
+<div class="navbar-header user pull-right visible-xs hidden-sm hidden-md hidden-lg">
+<ul class="nav nav-pills pull-left ">
+<li>
+<form method="get" action="/login" style="display: inline">
+<button class="navbar-toggle navbar-link"><b aria-hidden="true" class="visible-xs glyphicon glyphicon-user"></b></button>
+</form>
+</li>
+</ul>
+</div>
+</div>
+<div class="navbar-header pull-right hidden-xs">
+<ul class="nav navbar-nav pull-left static-links-header">
+<li class="ds-static-header-links">
+<a href="http://library.curtin.edu.au/"><span>Library</span></a>
+</li>
+<li class="ds-static-header-links">
+<a href="https://libguides.library.curtin.edu.au/espace"><span>Help</span></a>
+</li>
+</ul>
+<ul class="nav navbar-nav pull-left"></ul>
+<ul class="nav navbar-nav pull-left">
+<li>
+<a href="/login"><span class="hidden-xs">Admin</span></a>
+</li>
+</ul>
+<button type="button" class="navbar-toggle visible-sm" data-toggle="offcanvas"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button>
+</div>
+</div>
+</div>
+<div class="sub-header">
+<div class="container">
+<a class="library-link" href="/">
+<h2>espace - Curtin&rsquo;s institutional repository</h2>
+</a>
+</div>
+</div>
+</header>
+<div class="hidden" id="no-js-warning-wrapper">
+<div id="no-js-warning">
+<div class="notice failure">JavaScript is disabled for your browser. Some features of this site may not work without it.</div>
+</div>
+</div>
+<div class="container" id="main-container">
+<div class="row row-offcanvas row-offcanvas-left">
+<div class="horizontal-slider clearfix">
+<div class="col-xs-12 col-sm-12 col-md-8-4 main-content">
+<div class="trail-wrapper hidden-print">
+<div class="row">
+<div class="col-xs-12">
+<ul class="breadcrumb">
+<li class="active">espace Home</li>
+</ul>
+</div>
+</div>
+</div>
+<div>
+<h2 class="ds-div-head page-header first-page-header">espace</h2>
+<div id="file_news_div_news" class="ds-static-div primary">
+<p class="ds-paragraph">Curtin's institutional repository, espace, is an open access digital collection containing the research
+                output of Curtin staff and students. Included are digital theses, journal articles, conference papers,
+                book chapters and more. espace preserves Curtin's
+                research output and increases its exposure and impact by making it visible and freely available through
+                services such as <a href="https://www.google.com">Google</a>, <a href="http://trove.nla.gov.au/">Trove</a> and <a href="http://oaister.worldcat.org/">OAIster</a>.
+            </p>
+</div>
+
+<div id="aspect_discovery_SiteRecentSubmissions_div_site-home" class="ds-static-div primary repository">
+<h2 class="ds-div-head page-header">Recently Added</h2>
+<div id="aspect_discovery_SiteRecentSubmissions_div_site-recent-submission" class="ds-static-div secondary recent-submission">
+<ul class="ds-artifact-list list-unstyled">
+<!-- External Metadata URL: cocoon://metadata/handle/20.500.11937/77780/mets.xml?sections=dmdSec,fileSec&fileGrpTypes=THUMBNAIL-->
+<li class="ds-artifact-item odd">
+<div class="artifact-description">
+<div class="artifact-title">
+<a href="/handle/20.500.11937/77780"><span class="Z3988" title="ctx_ver=Z39.88-2004&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Adc&amp;rft_id=Wynaden%2C+D.+and+McGough%2C+S.+and+Barr%2C+L.+2019.+The+provision+of+mental+health+nursing+care+to+Indigenous+Australians%3A+How+do+we+rate%3F&amp;rft_id=http%3A%2F%2Fhdl.handle.net%2F20.500.11937%2F77780&amp;rfr_id=info%3Asid%2Fdspace.org%3Arepository&amp;rft.source=28&amp;rft.source=49&amp;rft.source=50&amp;rft.source=1445-8330&amp;rft.source=INTERNATIONAL+JOURNAL+OF+MENTAL+HEALTH+NURSING&amp;rft.source=1447-0349">The provision of mental health nursing care to Indigenous Australians: How do we rate?</span></a>
+</div>
+<div class="artifact-info">
+<span class="author"><span>Wynaden, Dianne</span>; <span>McGough, Shirley</span>; <span>Barr, Lesley</span></span> <span class="publisher-date">(<span class="date">2019</span>)</span>
+</div>
+</div>
+</li>
+<!-- External Metadata URL: cocoon://metadata/handle/20.500.11937/77779/mets.xml?sections=dmdSec,fileSec&fileGrpTypes=THUMBNAIL-->
+<li class="ds-artifact-item even">
+<div class="artifact-description">
+<div class="artifact-title">
+<a href="/handle/20.500.11937/77779"><span class="Z3988" title="ctx_ver=Z39.88-2004&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Adc&amp;rft_id=Lim%2C+E.+and+Wynaden%2C+D.+and+Heslop%2C+K.+2019.+Consumers%E2%80%99+Perceptions+of+Nurses+Using+Recovery-focused+Care+to+Reduce+Aggression+in+All+Acute+Mental+Health+Including+Forensic+Mental+Health+Services.+Journal+of+Recovery+in+Mental+Health.+2+%282-3%29%3A+pp.+21-34.&amp;rft_id=http%3A%2F%2Fhdl.handle.net%2F20.500.11937%2F77779&amp;rfr_id=info%3Asid%2Fdspace.org%3Arepository&amp;rft.source=2&amp;rft.source=2-3&amp;rft.source=21&amp;rft.source=34&amp;rft.source=Journal+of+Recovery+in+Mental+Health">Consumers&rsquo; Perceptions of Nurses Using Recovery-focused Care to Reduce Aggression in All Acute Mental Health Including Forensic Mental Health Services</span></a>
+</div>
+<div class="artifact-info">
+<span class="author"><span>Lim, Eric</span>; <span>Wynaden, Dianne</span>; <span>Heslop, Karen</span></span> <span class="publisher-date">(<span class="date">2019</span>)</span>
+</div>
+</div>
+</li>
+<!-- External Metadata URL: cocoon://metadata/handle/20.500.11937/77805/mets.xml?sections=dmdSec,fileSec&fileGrpTypes=THUMBNAIL-->
+<li class="ds-artifact-item odd">
+<div class="artifact-description">
+<div class="artifact-title">
+<a href="/handle/20.500.11937/77805"><span class="Z3988" title="ctx_ver=Z39.88-2004&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Adc&amp;rft_id=http%3A%2F%2Fhdl.handle.net%2F20.500.11937%2F77805&amp;rfr_id=info%3Asid%2Fdspace.org%3Arepository&amp;">Structure activity relationship studies of new ethylene antagonists</span></a>
+</div>
+<div class="artifact-info">
+<span class="author"><span>Musa, Muftah Miloud A.</span></span> <span class="publisher-date">(<span class="date">2016</span>)</span>
+</div>
+<div class="artifact-abstract">
+Ethylene antagonists provide one of the most effective methods to reduce postharvest losses of  horticulture produce. The understanding of the mode of action of 1-methylcyclopropene led to the discovery of a new class of ...</div>
+</div>
+</li>
+<!-- External Metadata URL: cocoon://metadata/handle/20.500.11937/77778/mets.xml?sections=dmdSec,fileSec&fileGrpTypes=THUMBNAIL-->
+<li class="ds-artifact-item even">
+<div class="artifact-description">
+<div class="artifact-title">
+<a href="/handle/20.500.11937/77778"><span class="Z3988" title="ctx_ver=Z39.88-2004&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Adc&amp;rft_id=http%3A%2F%2Fhdl.handle.net%2F20.500.11937%2F77778&amp;rft_id=10.1007%2F978-3-030-31150-6_20&amp;rfr_id=info%3Asid%2Fdspace.org%3Arepository&amp;rft.source=52&amp;rft.source=655&amp;rft.source=687&amp;rft.source=Advanced+Studies+in+Theoretical+and+Applied+Econometrics">Frequency Domain</span></a>
+</div>
+<div class="artifact-info">
+<span class="author"><span>Chan, Felix</span>; <span>Reale, M.</span></span> <span class="publisher-date">(<span class="date">2020</span>)</span>
+</div>
+<div class="artifact-abstract">
+&copy; 2020, Springer Nature Switzerland AG. Time series analysis in frequency domain has always been an active area of research. Theorists often employ techniques in frequency domain to advance current understanding on complex ...</div>
+</div>
+</li>
+<!-- External Metadata URL: cocoon://metadata/handle/20.500.11937/77777/mets.xml?sections=dmdSec,fileSec&fileGrpTypes=THUMBNAIL-->
+<li class="ds-artifact-item odd">
+<div class="artifact-description">
+<div class="artifact-title">
+<a href="/handle/20.500.11937/77777"><span class="Z3988" title="ctx_ver=Z39.88-2004&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Adc&amp;rft_id=http%3A%2F%2Fhdl.handle.net%2F20.500.11937%2F77777&amp;rft_id=10.1007%2F978-3-030-31150-6_11&amp;rfr_id=info%3Asid%2Fdspace.org%3Arepository&amp;rft.source=52&amp;rft.source=329&amp;rft.source=357&amp;rft.source=Advanced+Studies+in+Theoretical+and+Applied+Econometrics">Frequentist Averaging</span></a>
+</div>
+<div class="artifact-info">
+<span class="author"><span>Chan, Felix</span>; <span>Pauwels, L.</span>; <span>Soltyk, S.</span></span> <span class="publisher-date">(<span class="date">2020</span>)</span>
+</div>
+<div class="artifact-abstract">
+&copy; 2020, Springer Nature Switzerland AG. This chapter summarises the recent approaches to optimal forecast combination from a frequentist perspective. The availability of big data leads to the development of many different ...</div>
+</div>
+</li>
+<!-- External Metadata URL: cocoon://metadata/handle/20.500.11937/77776/mets.xml?sections=dmdSec,fileSec&fileGrpTypes=THUMBNAIL-->
+<li class="ds-artifact-item even">
+<div class="artifact-description">
+<div class="artifact-title">
+<a href="/handle/20.500.11937/77776"><span class="Z3988" title="ctx_ver=Z39.88-2004&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Adc&amp;rft_id=Bogueva%2C+D.+and+Marinova%2C+D.+2020.+Who+needs+to+solve+the+vegetarian+men+dilemma%3F+Journal+of+Human+Behaviour+in+the+Social+Environment.+30+%281%29%3A+pp.+28-53.&amp;rft_id=http%3A%2F%2Fhdl.handle.net%2F20.500.11937%2F77776&amp;rfr_id=info%3Asid%2Fdspace.org%3Arepository&amp;rft.source=30&amp;rft.source=1&amp;rft.source=28&amp;rft.source=53&amp;rft.source=Journal+of+Human+Behaviour+in+the+Social+Environment">Who needs to solve the vegetarian men dilemma?</span></a>
+</div>
+<div class="artifact-info">
+<span class="author"><span>Bogueva, Diana</span>; <span>Marinova, Dora</span></span> <span class="publisher-date">(<span class="date">2020</span>)</span>
+</div>
+</div>
+</li>
+<!-- External Metadata URL: cocoon://metadata/handle/20.500.11937/77775/mets.xml?sections=dmdSec,fileSec&fileGrpTypes=THUMBNAIL-->
+<li class="ds-artifact-item odd">
+<div class="artifact-description">
+<div class="artifact-title">
+<a href="/handle/20.500.11937/77775"><span class="Z3988" title="ctx_ver=Z39.88-2004&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Adc&amp;rft_id=Lin%2C+Y.S.+and+Strickland%2C+L.+2020.+Evidence+accumulation+models+with+R%3A+A+practical+guide+to+hierarchical+Bayesian+methods.+The+Quantitative+Methods+for+Psychology.&amp;rft_id=http%3A%2F%2Fhdl.handle.net%2F20.500.11937%2F77775&amp;rfr_id=info%3Asid%2Fdspace.org%3Arepository&amp;rft.source=The+Quantitative+Methods+for+Psychology">Evidence accumulation models with R: A practical guide to hierarchical Bayesian methods</span></a>
+</div>
+<div class="artifact-info">
+<span class="author"><span>Lin, Yi Shin</span>; <span>Strickland, Luke</span></span> <span class="publisher-date">(<span class="date">2020</span>)</span>
+</div>
+</div>
+</li>
+<!-- External Metadata URL: cocoon://metadata/handle/20.500.11937/77774/mets.xml?sections=dmdSec,fileSec&fileGrpTypes=THUMBNAIL-->
+<li class="ds-artifact-item even">
+<div class="artifact-description">
+<div class="artifact-title">
+<a href="/handle/20.500.11937/77774"><span class="Z3988" title="ctx_ver=Z39.88-2004&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Adc&amp;rft_id=Wilson%2C+M.D.+and+Boag%2C+R.J.+and+Strickland%2C+L.+2019.+All+models+are+wrong%2C+some+are+useful%2C+but+are+they+reproducible%3F+Commentary+on+Lee+et+al.+%282019%29.+Computational+Brain+%26+Behavior.+2+%283%29%3A+pp.+239-241.&amp;rft_id=http%3A%2F%2Fhdl.handle.net%2F20.500.11937%2F77774&amp;rft_id=10.1007%2Fs42113-019-00054-x&amp;rfr_id=info%3Asid%2Fdspace.org%3Arepository&amp;rft.source=2&amp;rft.source=3&amp;rft.source=239&amp;rft.source=241&amp;rft.source=2522-087X&amp;rft.source=Computational+Brain+%26+Behavior">All models are wrong, some are useful, but are they reproducible? Commentary on Lee et al. (2019)</span></a>
+</div>
+<div class="artifact-info">
+<span class="author"><span>Wilson, Michael</span>; <span>Boag, R.J.</span>; <span>Strickland, Luke</span></span> <span class="publisher-date">(<span class="date">2019</span>)</span>
+</div>
+<div class="artifact-abstract">
+Lee et al. (2019) make several practical recommendations for replicable and useful cognitive modeling. They also point out that the ultimate test of the usefulness of a cognitive model is its ability to solve practical ...</div>
+</div>
+</li>
+<!-- External Metadata URL: cocoon://metadata/handle/20.500.11937/77773/mets.xml?sections=dmdSec,fileSec&fileGrpTypes=THUMBNAIL-->
+<li class="ds-artifact-item odd">
+<div class="artifact-description">
+<div class="artifact-title">
+<a href="/handle/20.500.11937/77773"><span class="Z3988" title="ctx_ver=Z39.88-2004&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Adc&amp;rft_id=Bennett%2C+R.+and+Hobson%2C+J.+and+Jones%2C+A.+and+Martin-Lynch%2C+P.+and+Scutt%2C+C.+and+Strehlow%2C+K.+and+Veitch%2C+S.+2015.+Being+chimaera%3A+a+monstrous+identity+for+SoTL+academics.+Higher+Education+Research+%26+Development.+35+%282%29.&amp;rft_id=http%3A%2F%2Fhdl.handle.net%2F20.500.11937%2F77773&amp;rft_id=10.1080%2F07294360.2015.1087473&amp;rfr_id=info%3Asid%2Fdspace.org%3Arepository&amp;rft.source=35&amp;rft.source=2&amp;rft.source=0729-4360&amp;rft.source=Higher+Education+Research+%26+Development">Being chimaera: a monstrous identity for SoTL academics</span></a>
+</div>
+<div class="artifact-info">
+<span class="author"><span>Bennett, Rebecca</span>; <span>Hobson, Julia</span>; <span>Jones, Angela</span>; <span>Martin-Lynch, Pamela</span>; <span>Scutt, Cecily</span>; <span>Strehlow, Karin</span>; <span>Veitch, Sarah</span></span> <span class="publisher-date">(<span class="date">2015</span>)</span>
+</div>
+</div>
+</li>
+<!-- External Metadata URL: cocoon://metadata/handle/20.500.11937/77772/mets.xml?sections=dmdSec,fileSec&fileGrpTypes=THUMBNAIL-->
+<li class="ds-artifact-item even">
+<div class="artifact-description">
+<div class="artifact-title">
+<a href="/handle/20.500.11937/77772"><span class="Z3988" title="ctx_ver=Z39.88-2004&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Adc&amp;rft_id=Veitch%2C+S.+and+Strehlow%2C+K.+and+Boyd%2C+J.+2018.+Supporting+university+students+with+socially++challenging+behaviours+through+professional++development+for+teaching+staff.+Journal+of+Academic+Language+and+Learning.+12+%281%29.&amp;rft_id=http%3A%2F%2Fhdl.handle.net%2F20.500.11937%2F77772&amp;rfr_id=info%3Asid%2Fdspace.org%3Arepository&amp;rft.source=12&amp;rft.source=1&amp;rft.source=1835-5196&amp;rft.source=Journal+of+Academic+Language+and+Learning">Supporting university students with socially  challenging behaviours through professional  development for teaching staff</span></a>
+</div>
+<div class="artifact-info">
+<span class="author"><span>Veitch, Sarah</span>; <span>Strehlow, Karin</span>; <span>Boyd, James</span></span> <span class="publisher-date">(<span class="date">2018</span>)</span>
+</div>
+</div>
+</li>
+</ul>
+<p id="aspect_discovery_SiteRecentSubmissions_p_recent-submission-view-more" class="ds-paragraph recentSubmissionViewMore">
+<a href="/recent-submissions">View more</a>
+</p>
+</div>
+</div>
+<div id="aspect_statistics_StatletTransformer_div_showStats" class="ds-static-div">
+<p class="ds-paragraph">
+<a href="#" class="btn btn-default">Show Statistical Information</a>
+</p>
+<p class="ds-paragraph">
+<input id="aspect_statistics_StatletTransformer_field_contextpath" class="ds-hidden-field form-control" name="contextpath" type="hidden" value="">
+</p>
+<p class="ds-paragraph">
+<input id="aspect_statistics_StatletTransformer_field_statlet-ms-hide" class="ds-hidden-field form-control" name="statlet-ms-hide" type="hidden" value="Hide Statistical Information">
+</p>
+<p class="ds-paragraph">
+<input id="aspect_statistics_StatletTransformer_field_statlet-ms-ajax-timeout" class="ds-hidden-field form-control" name="statlet-ms-ajax-timeout" type="hidden" value="The server did not respond in time. Please try again.">
+</p>
+<p class="ds-paragraph">
+<input id="aspect_statistics_StatletTransformer_field_statlet-ms-ajax-timeout-retry" class="ds-hidden-field form-control" name="statlet-ms-ajax-timeout-retry" type="hidden" value="Retry">
+</p>
+<p class="ds-paragraph">
+<input id="aspect_statistics_StatletTransformer_field_statlet-ms-ajax-error" class="ds-hidden-field form-control" name="statlet-ms-ajax-error" type="hidden" value="No statistical information could be retrieved. Please try again later.">
+</p>
+<p class="ds-paragraph">
+<input id="aspect_statistics_StatletTransformer_field_statlet-ajax-call" class="ds-hidden-field form-control" name="statlet-ajax-call" type="hidden" value="/statlet/em/site">
+</p>
+<p class="ds-paragraph">
+<input id="aspect_statistics_StatletTransformer_field_statlet-ajax-handle" class="ds-hidden-field form-control" name="statlet-ajax-handle" type="hidden" value="">
+</p>
+</div>
+</div>
+</div>
+<div role="navigation" id="sidebar" class="col-xs-6 col-sm-3-6 sidebar-offcanvas">
+<div class="word-break hidden-print" id="ds-options">
+<div class="ds-option-set" id="ds-search-option">
+<form method="post" class="" id="ds-search-form" action="/discover">
+<fieldset>
+<div class="input-group">
+<input placeholder="Search" type="text" class="ds-text-field form-control" name="query"><span class="input-group-btn"><button title="Go" class="ds-button-field btn btn-primary"><span aria-hidden="true" class="glyphicon glyphicon-search"></span></button></span>
+</div>
+</fieldset>
+</form>
+<div class="advanced-search-link">
+<a href="/discover?advanced=true">Advanced search</a>
+</div>
+</div>
+<h2 class="ds-option-set-head  h6">Browse</h2>
+<div id="aspect_viewArtifacts_Navigation_list_browse" class="list-group">
+<a href="/community-list" class="list-group-item ds-option">Communities &amp; Collections</a><a href="/browse?type=dateissued" class="list-group-item ds-option">Issue Date</a><a href="/browse?type=author" class="list-group-item ds-option">Author</a><a href="/browse?type=title" class="list-group-item ds-option">Title</a><a href="/browse?type=subject" class="list-group-item ds-option">Subject</a><a href="/browse?type=type" class="list-group-item ds-option">Document Type</a>
+</div>
+<h2 class="ds-option-set-head  h6">My Account</h2>
+<div id="aspect_viewArtifacts_Navigation_list_account" class="list-group">
+<a href="/login" class="list-group-item ds-option">Admin</a>
+</div>
+<div id="aspect_viewArtifacts_Navigation_list_context" class="list-group"></div>
+<div id="aspect_viewArtifacts_Navigation_list_administrative" class="list-group"></div>
+<h2 class="ds-option-set-head  h6">Discover</h2>
+<div id="aspect_discovery_Navigation_list_discovery" class="list-group">
+<a class="list-group-item active"><span class="h5 list-group-item-heading  h5">Author</span></a><a href="/discover?filtertype=author&filter_relational_operator=equals&filter=Shao%2C+Zongping" class="list-group-item ds-option">Shao, Zongping (437)</a><a href="/discover?filtertype=author&filter_relational_operator=equals&filter=Nikraz%2C+Hamid" class="list-group-item ds-option">Nikraz, Hamid (424)</a><a href="/discover?filtertype=author&filter_relational_operator=equals&filter=Chang%2C+Elizabeth" class="list-group-item ds-option">Chang, Elizabeth (417)</a><a href="/discover?filtertype=author&filter_relational_operator=equals&filter=Tade%2C+Moses" class="list-group-item ds-option">Tade, Moses (374)</a><a href="/discover?filtertype=author&filter_relational_operator=equals&filter=Wang%2C+Shaobin" class="list-group-item ds-option">Wang, Shaobin (356)</a><a href="/search-filter?field=author" class="list-group-item ds-option">... View More</a><a class="list-group-item active"><span class="h5 list-group-item-heading  h5">Faculty</span></a><a href="/discover?filtertype=faculty&filter_relational_operator=equals&filter=Faculty+of+Science+and+Engineering" class="list-group-item ds-option">Faculty of Science and Engineering (2463)</a><a href="/discover?filtertype=faculty&filter_relational_operator=equals&filter=Curtin+Business+School" class="list-group-item ds-option">Curtin Business School (1547)</a><a href="/discover?filtertype=faculty&filter_relational_operator=equals&filter=Faculty+of+Health+Sciences" class="list-group-item ds-option">Faculty of Health Sciences (1307)</a><a href="/discover?filtertype=faculty&filter_relational_operator=equals&filter=School+of+Agriculture+and+Environment" class="list-group-item ds-option">School of Agriculture and Environment (592)</a><a href="/discover?filtertype=faculty&filter_relational_operator=equals&filter=Science+and+Engineering" class="list-group-item ds-option">Science and Engineering (561)</a><a href="/search-filter?field=faculty" class="list-group-item ds-option">... View More</a><a class="list-group-item active"><span class="h5 list-group-item-heading  h5">Document Type</span></a><a href="/discover?filtertype=type&filter_relational_operator=equals&filter=Journal+Article" class="list-group-item ds-option">Journal Article (45524)</a><a href="/discover?filtertype=type&filter_relational_operator=equals&filter=Conference+Paper" class="list-group-item ds-option">Conference Paper (10483)</a><a href="/discover?filtertype=type&filter_relational_operator=equals&filter=Book+Chapter" class="list-group-item ds-option">Book Chapter (4565)</a><a href="/discover?filtertype=type&filter_relational_operator=equals&filter=Thesis" class="list-group-item ds-option">Thesis (3628)</a><a href="/discover?filtertype=type&filter_relational_operator=equals&filter=Book" class="list-group-item ds-option">Book (902)</a><a href="/search-filter?field=type" class="list-group-item ds-option">... View More</a><a class="list-group-item active"><span class="h5 list-group-item-heading  h5">Access Status</span></a><a href="/discover?filtertype=accessStatus&filter_relational_operator=equals&filter=Fulltext+not+available" class="list-group-item ds-option">Fulltext not available (44357)</a><a href="/discover?filtertype=accessStatus&filter_relational_operator=equals&filter=Open+access" class="list-group-item ds-option">Open access (18758)</a><a href="/discover?filtertype=accessStatus&filter_relational_operator=equals&filter=Open+access+via+publisher" class="list-group-item ds-option">Open access via publisher (4118)</a><a href="/discover?filtertype=accessStatus&filter_relational_operator=equals&filter=In+process" class="list-group-item ds-option">In process (255)</a><a class="list-group-item active"><span class="h5 list-group-item-heading  h5">Date Issued</span></a><a href="/discover?filtertype=dateIssued&filter_relational_operator=equals&filter=%5B2010+TO+2020%5D" class="list-group-item ds-option">2010 - 2020 (53035)</a><a href="/discover?filtertype=dateIssued&filter_relational_operator=equals&filter=%5B2000+TO+2009%5D" class="list-group-item ds-option">2000 - 2009 (13517)</a><a href="/discover?filtertype=dateIssued&filter_relational_operator=equals&filter=%5B1990+TO+1999%5D" class="list-group-item ds-option">1990 - 1999 (694)</a><a href="/discover?filtertype=dateIssued&filter_relational_operator=equals&filter=%5B1980+TO+1989%5D" class="list-group-item ds-option">1980 - 1989 (174)</a><a href="/discover?filtertype=dateIssued&filter_relational_operator=equals&filter=%5B1972+TO+1979%5D" class="list-group-item ds-option">1972 - 1979 (31)</a>
+</div>
+<h2 class="ds-option-set-head  h6">Statistics</h2>
+<div id="aspect_statistics_Navigation_list_reportingSuite" class="list-group atmire-module">
+<a href="/most-popular/item" class="list-group-item ds-option">Most Popular Items</a><a href="/most-popular/country" class="list-group-item ds-option">Statistics by Country</a><a href="/most-popular/author" class="list-group-item ds-option">Most Popular Authors</a>
+</div>
+<div>
+<h2 class="ds-option-set-head h6">RSS Feeds</h2>
+<div class="ds-option-set list-group" id="ds-feed-option">
+<a class="list-group-item" href="/feed/rss_1.0/site"><img alt="feed" class="btn-xs" src="/static/icons/feed.png">RSS 1.0</a><a class="list-group-item" href="/feed/rss_2.0/site"><img alt="feed" class="btn-xs" src="/static/icons/feed.png">RSS 2.0</a><a class="list-group-item" href="/feed/atom_1.0/site"><img alt="feed" class="btn-xs" src="/static/icons/feed.png">Atom</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div>
+<footer>
+<div class="social-media">
+<div class="container">
+<h3>
+<a href="http://www.curtin.edu.au/socialmedia/">Follow Curtin</a>
+</h3>
+<ul>
+<li>
+<a title="Follow Curtin University on Twitter" class="ss-icon" href="http://twitter.com/curtinuni">
+                            </a>
+</li>
+<li>
+<a title="Like Curtin University on Facebook" class="ss-icon" href="http://facebook.com/curtinuniversity">
+                            </a>
+</li>
+<li>
+<a title="Follow Curtin University on Instagram" class="ss-icon" href="http://instagram.com/curtinuniversity">
+                            </a>
+</li>
+<li>
+<a title="Follow Curtin University on YouTube" class="ss-icon" href="http://www.youtube.com/user/CurtinUniversity">
+                            </a>
+</li>
+<li>
+<a title="Follow Curtin University on LinkedIn" class="ss-icon" href="http://www.linkedin.com/company/curtinuniversity">
+                            </a>
+</li>
+</ul>
+</div>
+</div>
+<div class="lower-footer">
+<div class="container">
+<div class="col-xs-12 col-sm-6">
+<div class="cricos">
+<p>
+<strong>CRICOS Provider Code: 00301J</strong><small>ABN: 99 143 842 569</small><small>TEQSA:
+                                    <a href="http://www.teqsa.gov.au/national-register/provider/prv12158">PRV12158</a></small>
+</p>
+</div>
+<div class="copyright">
+<a href="http://curtin.edu.au/copyright/">Copyright  </a> |
+          <a href="http://curtin.edu.au/disclaimer/">  Disclaimer </a> |
+          <a href="http://informationmanagement.curtin.edu.au/privacy/">  Privacy statement  </a> |
+          <a href="http://curtin.edu.au/accessibility/">  Accessibility</a>
+</div>
+</div>
+<div class="indigenous-welcome">
+<p>
+<small>Curtin University would like to pay our respect to the indigenous members of our community by acknowledging the traditional owners of the land on which the Perth Campus is located, the Wadjuk people of the Nyungar Nation; and on our Kalgoorlie Campus, the Wongutha people of the North-Eastern Goldfields.<br>
+<a href="https://about.curtin.edu.au/who/aboriginal-welcome/">Watch our traditional Aboriginal welcome</a></small>
+</p>
+</div>
+</div>
+</div>
+<a class="hidden" href="/htmlmap">&nbsp;</a>
+</footer>
+</div>
+<script>if(!window.DSpace){window.DSpace={};}window.DSpace.context_path='';window.DSpace.theme_path='/themes/Mirage2/';</script><script src="/themes/Mirage2/scripts/theme.js"> </script><script src="/aspects/ReportingSuite/scripts/statlet_main.js"> </script><script>
+                  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+                  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+                  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+                  ga('create', 'UA-87488809-1', 'espace.curtin.edu.au');
+                  ga('send', 'pageview');
+           </script>
+</body></html>

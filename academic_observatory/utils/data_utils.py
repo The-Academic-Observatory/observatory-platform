@@ -48,7 +48,6 @@ from __future__ import division
 from __future__ import print_function
 
 import hashlib
-import logging
 import os
 import shutil
 import sys
@@ -66,7 +65,7 @@ try:
 except ImportError:
     import Queue as queue
 
-from academic_observatory.utils import Progbar
+from academic_observatory.utils.generic_utils import Progbar
 
 if sys.version_info[0] == 2:
     def urlretrieve(url, filename, reporthook=None, data=None):
@@ -153,26 +152,6 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
     return False
 
 
-def get_user_dir(cache_dir=None, cache_subdir=None):
-    if cache_dir is None:
-        if 'ACADEMIC_OBSERVATORY_HOME' in os.environ:
-            cache_dir = os.environ.get('ACADEMIC_OBSERVATORY_HOME')
-        else:
-            cache_dir = os.path.join(os.path.expanduser('~'), '.academic-observatory')
-
-    datadir_base = os.path.expanduser(cache_dir)
-    if not os.access(datadir_base, os.W_OK):
-        datadir_base = os.path.join('/tmp', '.academic-observatory')
-    datadir = os.path.join(datadir_base, cache_subdir)
-    if not os.path.exists(datadir):
-        try:
-            os.makedirs(datadir)
-        except FileExistsError as e:
-            logging.error(f"File exists: {datadir}")
-
-    return cache_dir, cache_subdir, datadir
-
-
 def get_file(fname,
              origin,
              untar=False,
@@ -184,13 +163,16 @@ def get_file(fname,
              archive_format='auto',
              cache_dir=None):
     """Downloads a file from a URL if it not already in the cache.
+
     By default the file at the url `origin` is downloaded to the
-    cache_dir `~/.academic-observatory`, placed in the cache_subdir `datasets`,
+    cache_dir `~/.keras`, placed in the cache_subdir `datasets`,
     and given the filename `fname`. The final location of a file
-    `example.txt` would therefore be `~/.academic-observatory/datasets/example.txt`.
+    `example.txt` would therefore be `~/.keras/datasets/example.txt`.
+
     Files in tar, tar.gz, tar.bz, and zip formats can also be extracted.
     Passing a hash will verify the file after download. The command line
     programs `shasum` and `sha256sum` can compute the hash.
+
     # Arguments
         fname: Name of the file. If an absolute path `/path/to/file.txt` is
             specified the file will be saved at that location.
@@ -214,16 +196,25 @@ def get_file(fname,
             The default 'auto' is ['tar', 'zip'].
             None or an empty list will return no matches found.
         cache_dir: Location to store cached files, when None it
-            defaults to the Academic Observatory directory.
+            defaults to the [Keras Directory](/faq/#where-is-the-keras-configuration-filed-stored).
+
     # Returns
         Path to the downloaded file
     """  # noqa
-
-    cache_dir, cache_subdir, datadir = get_user_dir(cache_dir=cache_dir, cache_subdir=cache_subdir)
-
+    if cache_dir is None:
+        if 'KERAS_HOME' in os.environ:
+            cache_dir = os.environ.get('KERAS_HOME')
+        else:
+            cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = 'md5'
+    datadir_base = os.path.expanduser(cache_dir)
+    if not os.access(datadir_base, os.W_OK):
+        datadir_base = os.path.join('/tmp', '.keras')
+    datadir = os.path.join(datadir_base, cache_subdir)
+    if not os.path.exists(datadir):
+        os.makedirs(datadir)
 
     if untar:
         untar_fpath = os.path.join(datadir, fname)
@@ -282,22 +273,26 @@ def get_file(fname,
     if extract:
         _extract_archive(fpath, datadir, archive_format)
 
-    return fpath
+    return fpath, download
 
 
 def _hash_file(fpath, algorithm='sha256', chunk_size=65535):
     """Calculates a file sha256 or md5 hash.
+
     # Example
+
     ```python
         >>> from keras.utils.data_utils import _hash_file
         >>> _hash_file('/path/to/file.zip')
         'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
     ```
+
     # Arguments
         fpath: path to the file being validated
         algorithm: hash algorithm, one of 'auto', 'sha256', or 'md5'.
             The default 'auto' detects the hash algorithm in use.
         chunk_size: Bytes to read at a time, important for large files.
+
     # Returns
         The file hash
     """
