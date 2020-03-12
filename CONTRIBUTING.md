@@ -136,25 +136,36 @@ copyright owner as well as the author.
 ```
 
 ### Dependencies
-Open source dependencies must also have a license in the [`notice`](https://opensource.google/docs/thirdparty/licenses/#notice), 
-[`permissive`](https://opensource.google/docs/thirdparty/licenses/#permissive) or 
-[`unencumbered`](https://opensource.google/docs/thirdparty/licenses/#unencumbered) lists published by Google.
+You **may** depend on a third party package if the third party package has a license from the
+[`unencumbered`](https://opensource.google/docs/thirdparty/licenses/#unencumbered), 
+[`permissive`](https://opensource.google/docs/thirdparty/licenses/#permissive),
+[`notice`](https://opensource.google/docs/thirdparty/licenses/#notice),
+[`reciprocal`](https://opensource.google/docs/thirdparty/licenses/#reciprocal) lists published by Google.
 
-The [Google Open Source Licenses](https://opensource.google/docs/thirdparty/licenses/#) documentation explains why
-the above guidelines are necessary.
+You **must not** depend on any package that has a license in the 
+[`restricted`](https://opensource.google/docs/thirdparty/licenses/#restricted) or 
+[`banned`](https://opensource.google/docs/thirdparty/licenses/#banned) license lists published by Google. 
+Common examples of these licenses include, Creative Commons "Attribution-ShareAlike" (CC BY-SA), 
+Creative Commons "Attribution-NoDerivs" (CC BY-ND), the GNU GPL and the A-GPL. These licenses are incompatible with the 
+Apache 2.0 license that the Academic Observatory is released with. 
 
-### Third party code
-Code written by third parties (not the contributor) can be integrated into the project as long as:
-* It has an explicit open source license.
-* The open source license is in the [`notice`](https://opensource.google/docs/thirdparty/licenses/#notice), 
+### Third Party Code
+Code written by third parties (not the contributor) can be directly integrated into the project, although it is best
+avoided if possible. The requirements for integrating third party code includes:
+* The code requires one of the open source license from the [`unencumbered`](https://opensource.google/docs/thirdparty/licenses/#unencumbered), 
 [`permissive`](https://opensource.google/docs/thirdparty/licenses/#permissive) or 
-[`unencumbered`](https://opensource.google/docs/thirdparty/licenses/#unencumbered) lists published by Google.
-* The third party open source code is contained in its own file and not copied into other files.
+[`notice`](https://opensource.google/docs/thirdparty/licenses/#notice) lists published by Google.
+* The third party open source code should be contained in its own file and not copied into other files. You may modify
+the code in the file and make changes.
 * The license for the third party open source code must be specified at the top of the file and in the 
 LICENSES_THIRD_PARTY file.
 
-The [Google Open Source Licenses](https://opensource.google/docs/thirdparty/licenses/#) documentation explains why
-the above guidelines are necessary.
+You **must not** include any code from a project with a license in the 
+[`restricted`](https://opensource.google/docs/thirdparty/licenses/#restricted) or 
+[`banned`](https://opensource.google/docs/thirdparty/licenses/#banned) license lists published by Google. 
+Common examples of these licenses include, Creative Commons "Attribution-ShareAlike" (CC BY-SA), 
+Creative Commons "Attribution-NoDerivs" (CC BY-ND), the GNU GPL and the A-GPL. These licenses are incompatible with the 
+Apache 2.0 license that the Academic Observatory is released with. 
 
 ## Development Workflow
 This section explains the development workflow used in the academic-observatory project.
