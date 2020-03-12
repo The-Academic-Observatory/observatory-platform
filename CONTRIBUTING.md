@@ -309,5 +309,34 @@ Use twine to upload the release to [PyPI](https://pypi.org/):
 twine upload dist/*
 ```
 
-### Deploy Documentation to Read the Docs
+### Build and Deploy Documentation
+This section explains how to build and deploy the documentation, which is contained in the `docs` directory.
+
+Overview of the documentation:
+* Generated with [Sphinx](https://www.sphinx-doc.org/en/stable/).
+* Theme: [sphinx-rtd-theme](https://github.com/readthedocs/sphinx_rtd_theme).
+* Documentation can be written in both Markdown and ReStructuredText text. Markdown is preferred and is parsed with
+[recommonmark](https://github.com/readthedocs/recommonmark).
+* API reference documentation is automatically generated from docstrings with [sphinx-autoapi](https://github.com/readthedocs/sphinx-autoapi).
+
+#### Building documentation
+Navigate to the `docs` directory:
+```bash
+cd docs
+```
+
+Install the requirements for building the documentation:
+```bash
+pip install -r requirements.txt
+```
+
+Build the documentation with the following command:
+```bash
+make html
+```
+
+The documentation should be generated in the `docs/_build` directory. You can open the file `docs_/build/index.html`
+in a browser to preview what the documentation will look like.
+
+#### Deploy with Read the Docs
 Coming soon.
