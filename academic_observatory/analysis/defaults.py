@@ -16,7 +16,7 @@ oa_types = [
     'Total Gold OA (%)',
     'Total Green OA (%)',
     'Hybrid OA (%)',
-    #'Green in IR (%)',
+    # 'Green in IR (%)',
 ]
 
 # Palettes -
@@ -44,3 +44,24 @@ husl = sns.color_palette(n_colors=len(output_types))
 outputs_palette = dict([(output_type, husl[i])
                         for i, output_type in enumerate(output_types)])
 outputs_palette.update({'Total Outputs': 'black'})
+
+# Standard Name Changes
+country_clean = {"country": {
+    "United Kingdom of Great Britain and Northern Ireland":
+    "United Kingdom",
+        "Iran (Islamic Republic of)": "Iran",
+        "Korea, Republic of": "South Korea",
+        "Taiwan, Province of China": "Taiwan"
+}
+}
+
+outputs_clean = {'type': {
+    'total': 'Total Outputs',
+    'journal_articles': 'Journal Articles',
+    'proceedings_articles': 'Proceedings',
+    'authored_books': 'Books',
+    'book_sections': 'Book Sections',
+                     'edited_volumes': 'Edited Volumes',
+                     'reports': 'Reports‡',
+                     'datasets': 'Datasets‡'
+}}

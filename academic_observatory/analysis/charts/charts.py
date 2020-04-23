@@ -5,29 +5,49 @@ import matplotlib.pyplot as plt
 import itertools
 from matplotlib import animation, rc
 from IPython.display import HTML
-from abc import abstractmethod
-from academic_observatory.analysis.resources import AbstractObservatoryResource
-from academic_observatory.analysis.helpers import _collect_kwargs_for
-
-regioncolorpalette = {
-    'Asia': 'orange',
-    'Europe': 'limegreen',
-    'North America': 'dodgerblue',
-    'Latin America': 'brown',
-    'Americas': 'dodgerblue',
-    'Africa': 'magenta',
-    'Oceania': 'red'
-}
+from abc import ABC, abstractmethod
+from academic_observatory.analysis.helpers import _collect_kwargs_for, id2name
+from academic_observatory.analysis.defaults import region_palette
 
 
-class AbstractObservatoryChart(AbstractObservatoryResource):
+class AbstractObservatoryChart(ABC):
     """Abstract Base Class for Charts
+
+    Mainly provided for future development to provide any general
+    methods or objects required for Observatory Charts.
+
+    All chart methods are required to implement a `process_data` and
+    `plot` method. The first conducts any filtering or reshaping of
+    the data and the second plots with defaults. In general
+    the init method should place the relevant data as a pd.DataFrame
+    in self.df and the `process_data` method should modify this in
+    place.
+
+    The plot method should accept an ax argument which defaults to
+    None. The default behaviour should be to create and return a
+    matplotlib figure. Arguments for modifying either the ax or
+    the figure should be accepted and passed to the correct object,
+    generally after construction.
     """
+
+    def __init__(self, df, **kwargs):
+        self.df = df
 
     def _check_df(self):
         #
         # TODO Some error checking on df being in right form
         return
+
+    @abstractmethod
+    def process_data(self):
+        """Abstract Data Processing Method
+
+        All chart classes should implement a process_data method
+        which does any necessary reshaping or filtering of data
+        and modifies self.df in place to provide the necessary
+        data in the right format
+        """
+        pass
 
     @abstractmethod
     def plot(self, ax=None, fig=None, **kwargs):
@@ -38,17 +58,27 @@ class AbstractObservatoryChart(AbstractObservatoryResource):
         """
         pass
 
-    @abstractmethod
-    def process_data(self):
-        pass
-
-    def id2name(self, id):
-        return self.df[self.df.grid_id == id].iloc[0]['name']
-
     def watermark(self,
                   image_file: str,
-                  xpad = 0,
+                  xpad: int = 0,
                   position: str = 'lower right') -> matplotlib.figure:
+        """Modifies self.fig to add a watermark image to the graph
+
+        Will throw an error if self.fig does not exist, ie if the plot
+        method has not yet been called.
+
+        :param image_file: str containing path to the watermark image file
+        :type image_file: str
+        :param xpad: Padding in pixels to move the watermark. This is required
+        because the precise limits of the figure can't be easily determined,
+        defaults to 0
+        :type xpad: int, optional
+        :param position: str describing the position to place the watermark
+        image, defaults to 'lower right'
+        :type position: str, optional
+        :return: A matplotlib figure instance with the watermark added
+        :rtype: matplotlib.figure
+        """
 
         self.fig.set_dpi(300)
 
@@ -77,11 +107,17 @@ class AbstractObservatoryChart(AbstractObservatoryResource):
 
 
 class ScatterPlot(AbstractObservatoryChart):
-    """Scatterplot based on sns.scatterplot for COKI data
+    """
+    Scatterplot based on sns.scatterplot for COKI data
 
     Generates a standard scatter plot with default colors based
     on the region color palette and size of points based on the
     total outputs of the university
+
+    :param AbstractObservatoryChart: [description]
+    :type AbstractObservatoryChart: [type]
+    :return: [description]
+    :rtype: [type]
     """
 
     def __init__(self,
@@ -95,6 +131,29 @@ class ScatterPlot(AbstractObservatoryChart):
                  focus_id: str = None,
                  **kwargs):
         """Initialisation Method
+
+        :param df: DataFrame with data to plot
+        :type df: pd.DataFrame
+        :param x: Name of the column containing x-data
+        :type x: str
+        :param y: Name of the column containing y-data
+        :type y: str
+        :param filter_name: Name of the column to filter data on
+        :type filter_name: str
+        :param filter_value: Value of column to filter with. If a value
+        (str, int etc) will be compared to values in the `filter_name` column.
+        A 2-tuple will be expanded to a range (which assumes the components are
+        ints representing years)
+        :type filter_value: list, 2-tuple of ints, or value
+        :param hue_column: Name of the column to define the color
+        of plotted points, defaults to 'region'
+        :type hue_column: str, optional
+        :param size_column: Name of the column to use to define the size
+        of the plotted points, defaults to 'total'
+        :type size_column: str, optional
+        :param focus_id: Identifier for an organisation to emphasise on
+        the plot by plotting a black cross, defaults to None
+        :type focus_id: str, optional
         """
 
         super().__init__(df)
@@ -140,20 +199,25 @@ class ScatterPlot(AbstractObservatoryChart):
              colorpalette: sns.color_palette = None,
              additional_filter=None,
              **kwargs) -> matplotlib.figure:
-        """Plot function
+        """Plot method for scatter plots
 
-        param: ax: The matplotlib axis to plot to
-        param: colorpalette: A seaborn or matplotlib color palette used to
-                              set the colors for the plot. If the default
-                              None is passed, the regioncolorpalette is
-                              used.
-        param: additional_filter: <tuple> with exactly two elements, one
-                                  being the column to filter on and the
-                                  other the value. Used for animations.
-        param: kwargs: Keyword arguments for sns.relplot,
-                       matplotlib plt.subplots and matplotlib ax.set
-                       should be picked up and distributed
-                       to the appropriate functions.
+        :param ax: The matplotlib axis to plot to. If None creates a new
+        figure, defaults to None
+        :type ax: matplotlib.axis, optional
+        :param colorpalette: A seaborn or matplotlib color palette used to
+        set the colors for the plot. If the default None is passed, the
+        regioncolorpalette is used, defaults to None
+        :type colorpalette: sns.color_palette, optional
+        :param additional_filter: <tuple> with exactly two elements, one
+        being the column to filter on and the other the value.
+        Used for animations, defaults to None
+        :type additional_filter: tuple, optional
+        :param kwargs: Keyword arguments for sns.relplot, matplotlib
+        plt.subplots and matplotlib ax.set should be picked up and
+        distributed to the appropriate functions.
+        :return: The rendered matplotlib figure is returned and also
+        available at self.fig
+        :rtype: matplotlib.figure
         """
 
         scatterplot_kwargs = _collect_kwargs_for(sns.scatterplot, kwargs)
@@ -162,7 +226,7 @@ class ScatterPlot(AbstractObservatoryChart):
             self.fig, self.ax = plt.subplots(**fig_kwargs)
 
         if not colorpalette:
-            colorpalette = regioncolorpalette
+            colorpalette = region_palette
 
         figdata = self.df
         if additional_filter:
@@ -177,7 +241,7 @@ class ScatterPlot(AbstractObservatoryChart):
                         **scatterplot_kwargs)
         if self.focus_id:
             sns.scatterplot(x=self.x, y=self.y,
-                            data=figdata[figdata.grid_id == self.focus_id],
+                            data=figdata[figdata.id == self.focus_id],
                             color="black", s=500, marker='X', legend=False,
                             ax=self.ax)
         self.ax.spines['top'].set_visible(False)
@@ -192,24 +256,26 @@ class ScatterPlot(AbstractObservatoryChart):
                 numframes: int = None,
                 frameinterval: int = 1000,
                 **kwargs):
-        """User animate function for scatterplot
+        """Generate an animated scatter plot
 
-        param: colorpalette: matplotlib colorpalette, default None
-        param: year_range: optional, defaults to using self.filter_value
-                           <tuple> with exactly two or three
-                           elements which is passed to range to generate
-                           list of years or
-                           <list> of years which will be used directly
-        param: numframes: optional <int> to set number of frames, defaults
-                          to the length of the year_range plus five to
-                          pause at the end
-        param: frameinterval: optional <int> to set the frame rate of
-                              the animation in milliseconds, defaults to
-                              one frame per second
-        param: kwargs: kwargs are collected for figure, scatterplot and
-                       the remainder sent to ax.set()
-
-        returns: HTML5 video representation of the animation
+        :param colorpalette: Searborn or matplotlib color palette for the
+        scatter plot, defaults to None
+        :type colorpalette: sns.color_palette, optional
+        :param year_range: Optional parameter, with the default None it will
+        use self.filter_value as set when the object was initialised. A tuple
+        with two or three elements that will passed to range to generate a list
+        of years or a list of years that will be used directly,
+        defaults to None
+        :type year_range: tuple or list, optional
+        :param numframes: Optional set of frames to animate, with the default
+        None the number of frames will be set to the number of years plus five
+        to create a pause at the end of the animation, defaults to None
+        :type numframes: int, optional
+        :param frameinterval: Optional to set the frame rate of the animation
+        in milliseconds. Defaults to one frame per second i.e 1000
+        :type frameinterval: int, optional
+        :return: HTML5 video representation of the animation
+        :rtype:
 
         TODO Generalise the output form to allow for JS and other
         representations of the animation.
@@ -241,7 +307,9 @@ class ScatterPlot(AbstractObservatoryChart):
     def anim_frame(self, i: int):
         """Frame animation function for scatterplot
 
-        param: i: framenumber
+        :param i: framenumber
+        :type franenumber: int
+        :return: None
         """
 
         year = self.year_range[0] + i + 1
@@ -269,9 +337,13 @@ class TimePlot(AbstractObservatoryChart):
     """Line charts for showing points of change in time
     """
 
-    def __init__(self, df, year_range, unis, plot_column,
-                 hue_column='name',
-                 size_column=None,
+    def __init__(self, 
+                 df: pd.DataFrame, 
+                 year_range: tuple, 
+                 unis: list, 
+                 plot_column: str,
+                 hue_column: str='name',
+                 size_column: str=None,
                  **kwargs):
         """Init Function
 
@@ -290,10 +362,10 @@ class TimePlot(AbstractObservatoryChart):
 
     def process_data(self, *kwargs):
         figdata = self.df
-        columnorder = [figdata[figdata.grid_id == grid].iloc[0]['name']
+        columnorder = [figdata[figdata.id == grid].iloc[0]['name']
                        for grid in self.unis]
         figdata = figdata[(figdata.published_year.isin(
-            self.year_range)) & (figdata.grid_id.isin(self.unis))]
+            self.year_range)) & (figdata.id.isin(self.unis))]
         figdata = figdata.pivot(index='published_year',
                                 columns="name", values=self.plot_column)
         figdata = figdata.reindex(columnorder, axis=1)
@@ -303,11 +375,10 @@ class TimePlot(AbstractObservatoryChart):
     def plot(self, ax=None, xticks=None, marker_line=None,
              ylim=None, **kwargs):
 
-        plot_kwargs = {k: kwargs[k] for k in kwargs.keys() &
-                       {'figsize', 'sharey', 'sharex', 'frameon'}}
+        plot_kwargs = _collect_kwargs_for(plt.subplots, kwargs)
         if not ax:
-            fig, axes = plt.subplots(len(self.unis), 1, sharex=True,
-                                     frameon=False, **plot_kwargs)
+            self.fig, axes = plt.subplots(len(self.unis), 1, sharex=True,
+                                          frameon=False, **plot_kwargs)
             self.df.plot(subplots=True, ax=axes, legend=False,
                          color='black', title=[n for n in self.df.columns])
 
@@ -338,7 +409,7 @@ class TimePlot(AbstractObservatoryChart):
             [ax.axvline(marker_line, 0, 1.2, color='grey',
                         linestyle='dashed', clip_on=False) for ax in axes]
 
-        return fig
+        return self.fig
 
 
 class TimePlotLayout(AbstractObservatoryChart):
@@ -381,7 +452,7 @@ class TimePlotLayout(AbstractObservatoryChart):
             years = range(*year_range)
             self.plot_data[i] = self.df[
                 self.df.published_year.isin(years) &
-                self.df.grid_id.isin(plot.get('unis'))
+                self.df.id.isin(plot.get('unis'))
             ].sort_values('published_year')
 
     def plot(self, fig=None,
@@ -404,9 +475,9 @@ class TimePlotLayout(AbstractObservatoryChart):
             for j, uni in enumerate(plot.get('unis')):
                 ax = fig.add_subplot(subspec[j])
                 ax_df = self.plot_data[i]
-                ax_data = ax_df[ax_df.grid_id == uni]
+                ax_data = ax_df[ax_df.id == uni]
                 ax_data.plot(x='published_year', y=plot.get('y_column'),
-                             ax=ax, legend=False, title=self.id2name(uni))
+                             ax=ax, legend=False, title=id2name(self.df, uni))
                 if plot.get('markerline'):
                     if ax.is_first_row():
                         ax.axvline(plot.get('markerline'),
@@ -479,12 +550,15 @@ class TimePath(AbstractObservatoryChart):
         figdata = self.df
         for uni in self.unis:
             try:
-                assert uni in figdata['grid_id'].values
+                if 'grid_id' in figdata.columns:
+                    assert uni in figdata['grid_id'].values
+                if 'id' in figdata.columns:
+                    assert uni in figdata['id'].values
             except AssertionError:
                 print(uni, 'not in list of ids')
-        figdata = figdata[(figdata.grid_id.isin(self.unis)) &
+        figdata = figdata[(figdata.id.isin(self.unis)) &
                           figdata.published_year.isin(self.year_range)]
-        figdata['order'] = figdata['grid_id'].map(
+        figdata['order'] = figdata['id'].map(
             lambda v: self.unis.index(v))
         figdata = figdata.sort_values(
             ['order', 'published_year'], ascending=True)
@@ -499,7 +573,7 @@ class TimePath(AbstractObservatoryChart):
 
         if not ax:
             figsize = kwargs.pop('figsize', None)
-            fig, ax = plt.subplots(figsize=figsize)
+            self.fig, ax = plt.subplots(figsize=figsize)
 
         figdata = self.df[self.df.published_year.isin(year_range)]
 
@@ -517,24 +591,24 @@ class TimePath(AbstractObservatoryChart):
         if len(year_range) > 1:
             for i, uni in enumerate(self.unis):
                 x = figdata[
-                    (figdata.grid_id == uni) &
+                    (figdata.id == uni) &
                     (figdata.published_year == year_range[-2])
                 ][self.xcolumn].iloc[0]
                 y = figdata[
-                    (figdata.grid_id == uni) &
+                    (figdata.id == uni) &
                     (figdata.published_year == year_range[-2])
                 ][self.ycolumn].iloc[0]
                 dx = figdata[
-                    (figdata.grid_id == uni) &
+                    (figdata.id == uni) &
                     (figdata.published_year == year_range[-1])
                 ][self.xcolumn].iloc[0] - x
                 dy = figdata[
-                    (figdata.grid_id == uni) &
+                    (figdata.id == uni) &
                     (figdata.published_year == year_range[-1])
                 ][self.ycolumn].iloc[0] - y
-                if type(colorpalette) == list:
+                try:
                     color = colorpalette[i]
-                elif type(colorpalette) == dict:
+                except TypeError:
                     _, color = colorpalette.items()[i]
                 ax.arrow(x, y, dx, dy, color=color, head_width=head_width)
 
@@ -542,7 +616,7 @@ class TimePath(AbstractObservatoryChart):
         ax.spines['right'].set_visible(False)
         ax.legend(loc='upper right', bbox_to_anchor=(1.1, 0.8))
         ax.set(**kwargs)
-        # return fig
+        return self.fig
 
     def animate(self, colorpalette=None, year_range=None, **kwargs):
         self.plot_kwargs = kwargs
