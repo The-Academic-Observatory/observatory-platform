@@ -27,21 +27,8 @@ from academic_observatory.analysis.charts import FunderGraph
 from academic_observatory.analysis.helpers import calculate_confidence_interval
 
 
-class MockTestClass:
-    """Convenient Mock Test Class to Remove pylint Errors"""
-
-    def __init__(self, df, **init_args: dict):
-        pass
-
-    def process_data(self, df, **plot_args):
-        pass
-
-    def plot(self, df, **plot_args):
-        pass
-
-
 class abstract_test_chart(unittest.TestCase):
-    test_class = MockTestClass
+    test_class = None
     init_args = {}
     plot_args = {}
     test_data = 'test_data/test_oa_data.csv'
@@ -52,16 +39,16 @@ class abstract_test_chart(unittest.TestCase):
         self.df = pd.read_csv(test_data_file)
 
     def test_init(self):
-        if self.test_class != MockTestClass:
+        if self.test_class:
             self.chart = self.test_class(self.df, **self.init_args)
 
     def test_process(self):
-        if self.test_class != MockTestClass:
+        if self.test_class:
             self.chart = self.test_class(self.df, **self.init_args)
             self.chart.process_data()
 
     def test_plot(self):
-        if self.test_class != MockTestClass:
+        if self.test_class:
             self.chart = self.test_class(self.df, **self.init_args)
             self.chart.process_data()
             self.chart.plot(**self.plot_args)
