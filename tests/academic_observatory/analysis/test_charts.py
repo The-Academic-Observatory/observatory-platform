@@ -24,8 +24,6 @@ from academic_observatory.analysis.charts import OAAdvantageBarChart
 from academic_observatory.analysis.charts import BarComparisonChart
 from academic_observatory.analysis.charts import FunderGraph
 
-from academic_observatory.analysis.helpers import calculate_confidence_interval
-
 
 class abstract_test_chart(unittest.TestCase):
     test_class = None

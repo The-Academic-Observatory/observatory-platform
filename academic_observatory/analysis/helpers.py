@@ -41,8 +41,6 @@ def clean_output_type_names(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 # Creating nice column names for graphing
-
-
 def nice_column_names(df):
     cols = [
         ('Open Access (%)', 'percent_OA'),
