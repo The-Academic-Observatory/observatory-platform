@@ -79,8 +79,7 @@ def nice_column_names(df):
         ('Book Sections', 'book_sections'),
         ('Edited Volumes', 'edited_volumes'),
         ('Reports‡', 'reports'),
-        ('Datasets‡', 'datasets'),
-        ()
+        ('Datasets‡', 'datasets')
     ]
     for col in cols:
         if col[1] in df.columns.values:
@@ -129,7 +128,7 @@ def calculate_pc_change(df: pd.DataFrame,
 
 def calculate_percentages(df: pd.DataFrame,
                           numer_columns: list,
-                          denom_column: str,
+                          denom_column: str = 'total',
                           column_name_add: str = 'percent_') -> pd.DataFrame:
     """Calculate percentages based on counts data
 

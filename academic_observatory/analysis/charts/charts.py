@@ -337,13 +337,13 @@ class TimePlot(AbstractObservatoryChart):
     """Line charts for showing points of change in time
     """
 
-    def __init__(self, 
-                 df: pd.DataFrame, 
-                 year_range: tuple, 
-                 unis: list, 
+    def __init__(self,
+                 df: pd.DataFrame,
+                 year_range: tuple,
+                 unis: list,
                  plot_column: str,
-                 hue_column: str='name',
-                 size_column: str=None,
+                 hue_column: str = 'name',
+                 size_column: str = None,
                  **kwargs):
         """Init Function
 
@@ -526,9 +526,14 @@ class TimePath(AbstractObservatoryChart):
     """Charts to illustrate movement over time in two dimensions
     """
 
-    def __init__(self, df, year_range, unis, x, y,
-                 hue_column='name',
-                 size_column=None,
+    def __init__(self,
+                 df: pd.DataFrame,
+                 year_range: tuple,
+                 unis: list,
+                 x: str,
+                 y: str,
+                 hue_column: str = 'name',
+                 size_column: str = None,
                  **kwargs):
         """
         param: df: input data frame

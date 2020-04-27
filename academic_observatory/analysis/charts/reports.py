@@ -28,9 +28,10 @@ class OutputTypesPieChart(AbstractObservatoryChart):
                           (self.df.published_year == self.focus_year) &
                           (self.df.type.isin(type_categories))
                           ][['type', 'total']]
-        figdata['type_category'] = pd.Categorical(figdata.type,
-                                                  categories=defaults.output_types,
-                                                  ordered=True)
+        figdata['type_category'] = pd.Categorical(
+                                        figdata.type,
+                                        categories=defaults.output_types,
+                                        ordered=True)
         figdata = figdata.set_index('type_category')
         self.figdata = figdata
         return self.figdata
@@ -248,8 +249,8 @@ class OAAdvantageBarChart(AbstractObservatoryChart):
 
     def __init__(self,
                  df: pd.DataFrame,
-                 focus_year: int,
-                 identifier: str):
+                 identifier: str,
+                 focus_year: int):
         self.df = df
         self.focus_year = focus_year
         self.identifier = identifier
@@ -395,9 +396,10 @@ class FunderGraph(AbstractObservatoryChart):
 
     def __init__(self,
                  df: pd.DataFrame,
+                 identifier: str,
                  focus_year: int,
                  num_funders: int = 10,
-                 identifier: str = None):
+                 ):
 
         self.focus_year = focus_year
         self.num_funders = num_funders
