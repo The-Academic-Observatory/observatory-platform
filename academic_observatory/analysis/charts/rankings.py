@@ -6,8 +6,8 @@ import itertools
 from matplotlib import animation, rc
 from IPython.display import HTML
 
-from academic_observatory.analysis.charts import (
-    AbstractObservatoryChart, regioncolorpalette)
+from academic_observatory.analysis.charts import AbstractObservatoryChart
+from academic_observatory.analysis.defaults import region_palette
 from academic_observatory.analysis.helpers import _collect_kwargs_for
 
 
@@ -69,7 +69,7 @@ class RankChart(AbstractObservatoryChart):
         figdata['Rank'] = figdata[self.rankcol].rank(ascending=False)
 
         # TODO Abstract the coloring
-        figdata['color'] = figdata['region'].map(regioncolorpalette)
+        figdata['color'] = figdata['region'].map(region_palette)
 
         if not self.colordict:
             if 'color' in figdata.columns:
@@ -258,7 +258,7 @@ class ConfidenceIntervalRank(AbstractObservatoryChart):
 
         # TODO Abstract the coloring
         if 'region' in figdata.columns:
-            figdata['color'] = figdata['region'].map(regioncolorpalette)
+            figdata['color'] = figdata['region'].map(region_palette)
         else:
             figdata['color'] = 'grey'
         self.df = figdata
@@ -346,7 +346,7 @@ class BoxScatter(AbstractObservatoryChart):
              dodge: bool = False,
              hue: str = 'region',
              xticks: list = [0, 20, 40, 60, 80],
-             colorpalette: sns.color_palette = regioncolorpalette,
+             colorpalette: sns.color_palette = region_palette,
              alpha: float = 0.5,
              **kwargs):
         """Plot Method

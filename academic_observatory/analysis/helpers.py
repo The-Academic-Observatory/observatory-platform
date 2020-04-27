@@ -1,6 +1,6 @@
 import pandas as pd
 from inspect import signature
-from academic_observatory.analysis.helpers import country_clean, outputs_clean
+from academic_observatory.analysis.defaults import country_clean, outputs_clean
 
 
 # Data cleanup required, mainly on country names #

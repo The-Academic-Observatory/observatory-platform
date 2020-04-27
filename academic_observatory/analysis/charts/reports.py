@@ -24,7 +24,8 @@ class OutputTypesPieChart(AbstractObservatoryChart):
 
     def process_data(self):
         type_categories = defaults.output_types
-        figdata = self.df[(self.df.published_year == self.focus_year) &
+        figdata = self.df[(self.df.id == self.identifier) &
+                          (self.df.published_year == self.focus_year) &
                           (self.df.type.isin(type_categories))
                           ][['type', 'total']]
         figdata['type_category'] = pd.Categorical(figdata.type,
@@ -46,7 +47,7 @@ class OutputTypesPieChart(AbstractObservatoryChart):
         my_circle = plt.Circle((0, 0), 0.4, color='white')
         p = plt.gcf()
         p.gca().add_artist(my_circle)
-        outputs_pie.legend(labels = defaults.output_types,
+        outputs_pie.legend(labels=defaults.output_types,
                            bbox_to_anchor=(1, 0.8))
         self.fig = outputs_pie.get_figure()
         return self.fig
@@ -127,7 +128,7 @@ class OutputTypesTimeChart(GenericTimeChart):
         self.df['value'] = self.df.total
         columns = ['id', 'Year of Publication'] + self.columns
         self.columns = defaults.output_types
-        figdata = self.df[columns]
+        figdata = self.df[self.df.id == self.identifier][columns]
         figdata.sort_values('Year of Publication', inplace=True)
         self.figdata = figdata
         return self.figdata
@@ -230,9 +231,9 @@ class CitationCountTimeChart(GenericTimeChart):
                 palette = ['red', 'black', 'gold', 'darkgreen', 'orange']
         if self.chart_type == 'advantage':
             lines = {'y': 1,
-                     'xmin': 0, 
-                     'xmax': 0, 
-                     'color': 'grey', 
+                     'xmin': 0,
+                     'xmax': 0,
+                     'color': 'grey',
                      'linestyle': 'dashed'}
         else:
             lines = None
