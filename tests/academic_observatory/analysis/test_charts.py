@@ -30,13 +30,13 @@ from academic_observatory.analysis.helpers import calculate_confidence_interval
 class MockTestClass:
     """Convenient Mock Test Class to Remove pylint Errors"""
 
-    def __init__(self, init_args: dict):
+    def __init__(self, df, **init_args: dict):
         pass
 
-    def process_data(self, **plot_args):
+    def process_data(self, df, **plot_args):
         pass
 
-    def plot(self, **plot_args):
+    def plot(self, df, **plot_args):
         pass
 
 
@@ -91,7 +91,7 @@ class test_TimePlot(abstract_test_chart):
                      'grid.20861.3d',
                      'grid.4991.5',
                      'grid.6571.5'],
-            'plot_column': 'percent_oa'
+            'plot_column': 'percent_total_oa'
         }
         self.plot_args = {}
         super().setUp()
@@ -102,24 +102,24 @@ class test_TimePlotLayout(abstract_test_chart):
     def setUp(self):
         self.test_class = TimePlotLayout
         self.init_args = {
-            [
+            'plots': [
                 {'year_range': (2010, 2018),
                  'unis': ['grid.1032.0',
                           'grid.20861.3d',
                           'grid.4991.5',
                           'grid.6571.5'],
-                 'plot_column': 'percent_oa'},
+                 'y_column': 'percent_total_oa'},
                 {'year_range': (2010, 2018),
                  'unis': ['grid.1032.0',
                           'grid.20861.3d',
                           'grid.6571.5'],
-                 'plot_column': 'percent_gold'},
+                 'y_column': 'percent_gold'},
                 {'year_range': (2010, 2018),
                  'unis': ['grid.1032.0',
                           'grid.20861.3d',
                           'grid.4991.5',
                           'grid.6571.5'],
-                 'plot_column': 'percent_green'}
+                 'y_column': 'percent_green'}
             ]
         }
         self.plot_args = {}
@@ -178,7 +178,7 @@ class test_BoxScatter(abstract_test_chart):
         self.init_args = {
             'year': 2017,
             'group_column': 'country',
-            'plot_column': 'percent_oa'
+            'plot_column': 'percent_total_oa'
         }
         self.plot_args = {}
         super().setUp()
@@ -188,7 +188,7 @@ class test_OutputTypesPieChart(abstract_test_chart):
     def setUp(self):
         self.test_class = OutputTypesPieChart
         self.init_args = {
-            'id': 'grid.1032.0',
+            'identifier': 'grid.1032.0',
             'focus_year': 2018
         }
         self.test_data = 'test_data/test_outputs_data.csv'
@@ -213,6 +213,7 @@ class test_OutputTypesTimeChart(abstract_test_chart):
         self.init_args = {
             'identifier': 'grid.1032.0'
         }
+        self.test_data = 'test_data/test_outputs_data.csv'
         self.plot_args = {}
         super().setUp()
 
@@ -266,7 +267,7 @@ class test_FunderGraph(abstract_test_chart):
     def setUp(self):
         self.test_class = FunderGraph
         self.init_args = {
-            'focus_year': 2017,
+            'focus_year': 2018,
             'identifier': 'grid.1032.0'
         }
         self.test_data = 'test_data/test_funding_data.csv'
