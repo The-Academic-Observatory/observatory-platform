@@ -24,16 +24,17 @@ from academic_observatory.analysis.charts import OAAdvantageBarChart
 from academic_observatory.analysis.charts import BarComparisonChart
 from academic_observatory.analysis.charts import FunderGraph
 
+from academic_observatory.utils import test_data_dir
+
 
 class abstract_test_chart(unittest.TestCase):
     test_class = None
     init_args = {}
     plot_args = {}
-    test_data = 'test_data/test_oa_data.csv'
+    test_data = 'test_oa_data.csv'
 
     def setUp(self):
-        mod_dir = os.path.dirname(__file__)
-        test_data_file = os.path.join(mod_dir, self.test_data)
+        test_data_file = os.path.join(test_data_dir(__file__), 'analysis', self.test_data)
         self.df = pd.read_csv(test_data_file)
 
     def test_init(self):
@@ -176,7 +177,7 @@ class test_OutputTypesPieChart(abstract_test_chart):
             'identifier': 'grid.1032.0',
             'focus_year': 2018
         }
-        self.test_data = 'test_data/test_outputs_data.csv'
+        self.test_data = 'test_outputs_data.csv'
         self.plot_args = {}
         super().setUp()
 
@@ -198,7 +199,7 @@ class test_OutputTypesTimeChart(abstract_test_chart):
         self.init_args = {
             'identifier': 'grid.1032.0'
         }
-        self.test_data = 'test_data/test_outputs_data.csv'
+        self.test_data = 'test_outputs_data.csv'
         self.plot_args = {}
         super().setUp()
 
@@ -255,6 +256,6 @@ class test_FunderGraph(abstract_test_chart):
             'focus_year': 2018,
             'identifier': 'grid.1032.0'
         }
-        self.test_data = 'test_data/test_funding_data.csv'
+        self.test_data = 'test_funding_data.csv'
         self.plot_args = {}
         super().setUp()
