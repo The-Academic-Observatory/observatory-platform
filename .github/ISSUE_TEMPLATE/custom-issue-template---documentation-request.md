@@ -12,5 +12,3 @@ assignees: rnhandcock
 **Category:** e.g. raw/original data
 **BigQuery key table(s):** e.g. XXXX
 **Dataset description:** e.g. Bibliographic and citation data
-
-[insert other notes here]
