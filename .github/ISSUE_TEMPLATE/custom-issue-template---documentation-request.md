@@ -6,11 +6,11 @@ labels: 'Type: Documentation'
 assignees: rnhandcock
 
 ---
-##Dataset short name: e.g. crossref
-**Dataset long name:** e.g. Crossref Metadata
-**BigQuery location:** `e.g. academic-observatory-telescope:crossref`
+##Dataset short name: XXXX
+**Dataset long name:** XXXX
+**BigQuery location:** `XXXX`
 **Category:** e.g. raw/original data
-**BigQuery key tables:** e.g. crossref_YYYY_MM
-**Dataset description:** e.g. This dataset contains bi-weekly Crossref extractions in dated tables
+**BigQuery key table(s):** e.g. XXXX
+**Dataset description:** e.g. Bibliographic and citation data
 
 [insert other notes here]
