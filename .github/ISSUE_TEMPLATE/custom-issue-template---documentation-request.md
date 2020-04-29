@@ -1,7 +1,7 @@
 ---
 name: 'Custom issue template : Documentation request'
-about: "Create documentation for a dataset"
-title: "Create documentation for dataset: XXXX"
+about: Create documentation for a dataset
+title: 'Create documentation for dataset: XXXX'
 labels: 'Type: Documentation'
 assignees: rnhandcock
 
