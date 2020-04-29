@@ -6,8 +6,7 @@ labels: 'Type: Documentation'
 assignees: rnhandcock
 
 ---
-
-**Dataset short name:** e.g. crossref
+##Dataset short name: e.g. crossref
 **Dataset long name:** e.g. Crossref Metadata
 **BigQuery location:** `e.g. academic-observatory-telescope:crossref`
 **Category:** e.g. raw/original data
