@@ -1,18 +1,18 @@
 ---
 name: 'Custom issue template : Documentation request'
-about: "[DOC] Create documentation for COKI dataset"
-title: "[DOC] Create documentation for COKI dataset: XXXX"
+about: "[DOC] Create documentation for dataset"
+title: "[DOC] Create documentation for dataset: XXXX"
 labels: 'Type: Documentation'
 assignees: rnhandcock
 
 ---
 
-**Dataset short name:** [e.g. crossref]
-**Dataset long name:** [e.g. Crossref Metadata
-**BigQuery location:** [e.g. academic-observatory-telescope:crossref]
-**Category:** [e.g. raw/original data]
-**Update frequency:**  [e.g. bi-weekly]
-**BigQuery key tables:** [e.g. crossref_YYYY_MM]
-**Dataset description:** [e.g. This dataset contains bi-weekly Crossref extractions in dated tables] 
+**Dataset short name:** e.g. crossref
+**Dataset long name:** e.g. Crossref Metadata
+**BigQuery location:** `<e.g. academic-observatory-telescope:crossref>`
+**Category:** e.g. raw/original data
+**Update frequency:** e.g. bi-weekly
+**BigQuery key tables:** e.g. crossref_YYYY_MM
+**Dataset description:** e.g. This dataset contains bi-weekly Crossref extractions in dated tables
 
 [insert other notes here]
