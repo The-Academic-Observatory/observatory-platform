@@ -6,7 +6,7 @@ labels: 'Type: Documentation'
 assignees: rnhandcock
 
 ---
-##Dataset long name: XXXX
+## Dataset long name: XXXX
 **Dataset short name:** XXXX
 **BigQuery location:** `XXXX`
 **Category:** e.g. raw/original data
