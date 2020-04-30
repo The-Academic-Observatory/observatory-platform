@@ -1,4 +1,7 @@
 # academic-observatory
+
+[![Documentation Status](https://readthedocs.com/projects/coki-academic-observatory/badge/?version=latest&token=bcb93984ae9a67950f7e61be1d6f35c975e0bb64cc1f688124fbf452b727c669)](https://coki-academic-observatory.readthedocs-hosted.com/en/latest/?badge=latest)
+
 The `academic-observatory` is a Python API and a set of command line tools for downloading and processing data to 
 understand how well universities operate as open knowledge institutions. 
 
