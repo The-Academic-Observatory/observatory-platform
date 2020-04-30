@@ -399,7 +399,23 @@ class FunderGraph(AbstractObservatoryChart):
                  identifier: str,
                  focus_year: int,
                  num_funders: int = 10,
+                 shorten_names: int = 30
                  ):
+        """Initialisation Method
+
+        :param df: DataFrame containing data to be plotted   
+        :type df: pd.DataFrame
+        :param identifier: The id to be selected for plotting (usually a GRID)
+        :type identifier: str
+        :param focus_year: The year of publication for the plot
+        :type focus_year: int
+        :param num_funders: Number of funders to plot, defaults to 10
+        :type num_funders: int, optional
+        :param shorten_names: Limit on length of the funder names to
+        address an issue in matplotlib where long axis labels leads to an
+        error when the figure is drawn, defaults to 30
+        :type shorten_names: int, optional
+        """
 
         self.focus_year = focus_year
         self.num_funders = num_funders
@@ -414,6 +430,10 @@ class FunderGraph(AbstractObservatoryChart):
 
         data = data.melt(id_vars=['published_year', 'name'],
                          var_name='variables')
+        # Shorten funder names to avoid an issue that can arise where
+        # the length of the axis labels leads to a matplotlib error
+        # when the figure is drawn ValueError: left cannot be >= right
+        # TODO mapping of nicely formatted funder names
         data.loc[:, 'name'] = data['name'].apply(lambda s: s[0:30])
         self.figdata = data
         return self.figdata
