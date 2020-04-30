@@ -189,7 +189,7 @@ class ScatterPlot(AbstractObservatoryChart):
         sorter = ['Asia', 'Europe', 'North America',
                   'Latin America', 'Africa', 'Oceania']
         sorterIndex = dict(zip(sorter, range(len(sorter))))
-        figdata['order'] = figdata.region.map(sorterIndex)
+        figdata.loc[:, 'order'] = figdata.region.map(sorterIndex)
         figdata = figdata.sort_values('order', ascending=True)
         self.df = figdata
         return self.df

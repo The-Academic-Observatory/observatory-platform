@@ -34,7 +34,8 @@ class abstract_test_chart(unittest.TestCase):
     test_data = 'test_oa_data.csv'
 
     def setUp(self):
-        test_data_file = os.path.join(test_data_dir(__file__), 'analysis', self.test_data)
+        test_data_file = os.path.join(test_data_dir(__file__),
+                                      'analysis', self.test_data)
         self.df = pd.read_csv(test_data_file)
 
     def test_init(self):

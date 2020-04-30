@@ -414,6 +414,7 @@ class FunderGraph(AbstractObservatoryChart):
 
         data = data.melt(id_vars=['published_year', 'name'],
                          var_name='variables')
+        data.loc[:, 'name'] = data['name'].apply(lambda s: s[0:30])
         self.figdata = data
         return self.figdata
 
