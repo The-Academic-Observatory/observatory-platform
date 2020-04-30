@@ -403,7 +403,7 @@ class FunderGraph(AbstractObservatoryChart):
                  ):
         """Initialisation Method
 
-        :param df: DataFrame containing data to be plotted   
+        :param df: DataFrame containing data to be plotted
         :type df: pd.DataFrame
         :param identifier: The id to be selected for plotting (usually a GRID)
         :type identifier: str
