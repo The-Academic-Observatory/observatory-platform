@@ -15,22 +15,23 @@
 # Author: James Diprose
 
 
-import airflow.utils.dates
+from datetime import datetime
+
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 
 default_args = {
     "owner": "airflow",
-    "start_date": airflow.utils.dates.days_ago(1)
+    "start_date": datetime(2020, 1, 1)
 }
 
-with DAG(dag_id="hello_world", default_args=default_args, schedule_interval="@once") as dag:
-    t1 = BashOperator(
-        task_id="t1",
+with DAG(dag_id="hello_world", schedule_interval="@once", default_args=default_args) as dag:
+    task1 = BashOperator(
+        task_id="task1",
         bash_command="echo 'hello'"
     )
-    t2 = BashOperator(
-        task_id="t2",
+    task2 = BashOperator(
+        task_id="task2",
         bash_command="echo 'world'"
     )
-    t1 >> t2
+    task1 >> task2
