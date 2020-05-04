@@ -12,5 +12,4 @@ services:
       - ${AIRFLOW_DAGS_PATH}:/usr/local/airflow/dags
     ports:
       - "${AIRFLOW_UI_PORT}:8080"
-    command: webserver
     restart: always
