@@ -44,6 +44,6 @@ class TestObservatory(unittest.TestCase):
         runner = CliRunner()
         with runner.isolated_filesystem():
             result = runner.invoke(cli, ['platform', 'stop'])
-            self.assertEqual(result.exit_code, os.EX_CONFIG)
             self.assertIn('https://docs.docker.com/get-docker/', result.output)
             self.assertIn('https://docs.docker.com/compose/install/', result.output)
+            self.assertEqual(result.exit_code, os.EX_CONFIG)
