@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  airflow-postgres:
+    image: postgres:12.2
+    environment:
+      - POSTGRES_DB=airflow
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+    volumes:
+      - ${AIRFLOW_POSTGRES_PATH}:/var/lib/postgresql/data
+    restart: always

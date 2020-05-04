@@ -24,3 +24,6 @@ grpcio==1.26.*
 matplotlib==3.1.*
 jupyter==1.0.*
 seaborn==0.10.*
+click==7.1.*
+docker-compose==1.25.*
+apache-airflow==1.10.6

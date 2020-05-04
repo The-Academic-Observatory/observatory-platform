@@ -1,6 +1,41 @@
 # Command Line Quick Start
 The following is a quickstart tutorial to get you started with the Academic Observatory command line tool.
 
+## Academic Observatory local development environment
+To start the local Academic Observatory platform:
+```bash
+observatory platform start
+```
+
+To stop the local Academic Observatory platform:
+```bash
+observatory platform stop
+```
+
+Start the platform with a different Apache Airflow UI port:
+```bash
+observatory platform start --airflow-ui-port 8081
+```
+
+Start the platform with a different Apache Airflow DAGS path:
+```bash
+observatory platform start --airflow-dags-path /your/path
+```
+
+Start the platform with a different Apache Airflow PostgreSQL data path:
+```bash
+observatory platform start --airflow-postgres-path /your/path
+```
+
+To get help with the Academic Observatory platform commands:
+```bash
+observatory platform --help
+```
+
+The default paths can be listed by typing the above help command, the defaults are typically:
+* Apache Airflow DAGS folder: the `dags` module in the installed academic_observatory Python package.
+* Apache Airflow PostgreSQL data folder: `~/.academic-observatory/mnt/airflow-postgres`.
+
 ## GRID
 To download all historical [Global Research Identifier Database (GRID)](https://grid.ac/) releases:
 ```bash
