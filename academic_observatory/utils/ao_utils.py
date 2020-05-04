@@ -15,7 +15,9 @@
 # Author: James Diprose
 
 import os
-from pathlib import Path
+import pathlib
+
+from academic_observatory import docker, dags
 
 
 def ao_home(*subdirs) -> str:
@@ -24,10 +26,36 @@ def ao_home(*subdirs) -> str:
     :return: the Academic Observatory home directory.
     """
 
-    user_home = str(Path.home())
+    user_home = str(pathlib.Path.home())
     ao_home_ = os.path.join(user_home, ".academic_observatory", *subdirs)
 
     if not os.path.exists(ao_home_):
         os.makedirs(ao_home_, exist_ok=True)
 
     return ao_home_
+
+
+def docker_configs_path() -> str:
+    """ Get the path to the Docker configuration files.
+
+    :return: the path for the Docker config files.
+    """
+
+    # Recommended way to add non code files: https://python-packaging.readthedocs.io/en/latest/non-code-files.html
+
+    file_path = pathlib.Path(docker.__file__).resolve()
+    path = pathlib.Path(*file_path.parts[:-1])
+    return str(path.resolve())
+
+
+def dags_path() -> str:
+    """ Get the path to the Academic Observatory DAGs.
+
+    :return: the path to the Academic Observatory DAGs.
+    """
+
+    # Recommended way to add non code files: https://python-packaging.readthedocs.io/en/latest/non-code-files.html
+
+    file_path = pathlib.Path(dags.__file__).resolve()
+    path = pathlib.Path(*file_path.parts[:-1])
+    return str(path.resolve())

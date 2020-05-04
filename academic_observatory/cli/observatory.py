@@ -16,14 +16,12 @@
 
 import logging
 import os
-import pathlib
 import shutil
 import subprocess
 
 import click
 
-from academic_observatory import docker, dags
-from academic_observatory.utils import ao_home
+from academic_observatory.utils import ao_home, dags_path, docker_configs_path
 
 
 @click.group()
@@ -37,7 +35,7 @@ def cli():
     pass
 
 
-def check_dependencies():
+def __check_dependencies():
     # Check if docker is installed
     docker_ = shutil.which("docker")
     if docker_ is None:
@@ -52,35 +50,13 @@ def check_dependencies():
     return docker_ is not None and docker_compose_ is not None
 
 
-def docker_module_path():
-    """ Get docker module path
-
-    Recommended way to add non code files: https://python-packaging.readthedocs.io/en/latest/non-code-files.html
-    """
-
-    file_path = pathlib.Path(docker.__file__).resolve()
-    path = pathlib.Path(*file_path.parts[:-1])
-    return str(path.resolve())
-
-
-def dags_module_path():
-    """ Get dags module path
-
-    Recommended way to add non code files: https://python-packaging.readthedocs.io/en/latest/non-code-files.html
-    """
-
-    file_path = pathlib.Path(dags.__file__).resolve()
-    path = pathlib.Path(*file_path.parts[:-1])
-    return str(path.resolve())
-
-
-def log_output(output, error, returncode):
+def __log_output(output, error, returncode):
     logging.debug(f"returncode: {returncode}")
     logging.debug(f"stdout: {output}")
     logging.debug(f"stderr: {error}")
 
 
-def make_env(airflow_ui_port, airflow_dags_path, airflow_postgres_path):
+def __make_env(airflow_ui_port, airflow_dags_path, airflow_postgres_path):
     env = os.environ.copy()
     env['AIRFLOW_UI_PORT'] = str(airflow_ui_port)
     env['AIRFLOW_DAGS_PATH'] = airflow_dags_path
@@ -98,7 +74,7 @@ def make_env(airflow_ui_port, airflow_dags_path, airflow_postgres_path):
               show_default=True)
 @click.option('--airflow-dags-path',
               type=click.Path(exists=True, file_okay=False, dir_okay=True),
-              default=dags_module_path(),
+              default=dags_path(),
               help='The path to mount as the Apache Airflow DAGs folder.',
               show_default=True)
 @click.option('--airflow-postgres-path',
@@ -126,27 +102,27 @@ def platform(command, airflow_ui_port, airflow_dags_path, airflow_postgres_path,
     logging.basicConfig(level=level)
 
     # Check that docker and docker compose are installed
-    if not check_dependencies():
+    if not __check_dependencies():
         exit(os.EX_CONFIG)
 
     # Make absolute paths for docker compose files and base docker-compose command
-    docker_module_path_ = docker_module_path()
-    compose_postgres_path = os.path.join(docker_module_path_, 'docker-compose.airflow-postgres.yml')
-    compose_webserver_path = os.path.join(docker_module_path_, 'docker-compose.airflow-webserver.yml')
+    docker_configs_path_ = docker_configs_path()
+    compose_postgres_path = os.path.join(docker_configs_path_, 'docker-compose.airflow-postgres.yml')
+    compose_webserver_path = os.path.join(docker_configs_path_, 'docker-compose.airflow-webserver.yml')
     args = ['docker-compose', '-f', compose_postgres_path, '-f', compose_webserver_path]
 
     # Make environment variables for running commands
-    env = make_env(airflow_ui_port, airflow_dags_path, airflow_postgres_path)
+    env = __make_env(airflow_ui_port, airflow_dags_path, airflow_postgres_path)
 
     # Start the appropriate process
     if command == 'start':
         proc = subprocess.Popen(args + ['up', '-d'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         output, error = proc.communicate()
-        log_output(output, error, proc.returncode)
+        __log_output(output, error, proc.returncode)
     elif command == 'stop':
         proc = subprocess.Popen(args + ['down'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         output, error = proc.communicate()
-        log_output(output, error, proc.returncode)
+        __log_output(output, error, proc.returncode)
 
     exit(os.EX_OK)
 
