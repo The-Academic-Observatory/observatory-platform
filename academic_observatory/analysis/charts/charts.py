@@ -1,9 +1,25 @@
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Cameron Neylon
+
 import pandas as pd
 import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 import itertools
-from matplotlib import animation, rc
+from matplotlib import animation, rc, artist
 from IPython.display import HTML
 from abc import ABC, abstractmethod
 from academic_observatory.analysis.helpers import _collect_kwargs_for, id2name
@@ -224,6 +240,8 @@ class ScatterPlot(AbstractObservatoryChart):
         fig_kwargs = _collect_kwargs_for(plt.figure, kwargs)
         if not ax:
             self.fig, self.ax = plt.subplots(**fig_kwargs)
+        else:
+            self.fig = ax.get_figure()
 
         if not colorpalette:
             colorpalette = region_palette

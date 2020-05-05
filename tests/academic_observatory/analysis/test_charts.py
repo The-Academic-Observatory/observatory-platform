@@ -1,3 +1,19 @@
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Cameron Neylon
+
 import unittest
 import pandas as pd
 import os.path
@@ -23,6 +39,7 @@ from academic_observatory.analysis.charts import CitationCountTimeChart
 from academic_observatory.analysis.charts import OAAdvantageBarChart
 from academic_observatory.analysis.charts import BarComparisonChart
 from academic_observatory.analysis.charts import FunderGraph
+from academic_observatory.analysis.charts import DistributionComparisonChart
 
 from academic_observatory.utils import test_data_dir
 
@@ -258,5 +275,21 @@ class test_FunderGraph(abstract_test_chart):
             'identifier': 'grid.1032.0'
         }
         self.test_data = 'test_funding_data.csv'
+        self.plot_args = {}
+        super().setUp()
+
+
+class test_DistributionComparisonChart(abstract_test_chart):
+    def setUp(self):
+        self.test_class = DistributionComparisonChart
+        self.init_args = {
+            'focus_year': 2018,
+            'identifier': 'grid.1032.0',
+            'plot_column': 'percent_total_oa',
+            'comparison': ['grid.1032.0',
+                           'grid.20861.3d',
+                           'grid.4991.5',
+                           'grid.6571.5']
+        }
         self.plot_args = {}
         super().setUp()

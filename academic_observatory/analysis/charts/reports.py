@@ -1,9 +1,25 @@
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Cameron Neylon
+
 import pandas as pd
 import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 import itertools
-from matplotlib import animation, rc
+from matplotlib import animation, rc, lines
 from IPython.display import HTML
 from academic_observatory.analysis.charts import (
     AbstractObservatoryChart)
@@ -29,14 +45,18 @@ class OutputTypesPieChart(AbstractObservatoryChart):
                           (self.df.type.isin(type_categories))
                           ][['type', 'total']]
         figdata['type_category'] = pd.Categorical(
-                                        figdata.type,
-                                        categories=defaults.output_types,
-                                        ordered=True)
+            figdata.type,
+            categories=defaults.output_types,
+            ordered=True)
         figdata = figdata.set_index('type_category')
         self.figdata = figdata
         return self.figdata
 
     def plot(self, ax=None, **kwargs):
+        if not ax:
+            self.fig, ax = plt.subplots()
+        else:
+            self.fig = ax.get_figure()
         palette = [defaults.outputs_palette[k] for k in defaults.output_types]
         outputs_pie = self.figdata.plot.pie(y='total',
                                             startangle=90,
@@ -93,6 +113,8 @@ class GenericTimeChart(AbstractObservatoryChart):
             palette = sns.color_palette('husl', n_colors=len(self.columns))
         if not ax:
             self.fig, ax = plt.subplots(figsize=(5, 5))
+        else:
+            self.fig = ax.get_figure()
         sns.lineplot(x='Year of Publication',
                      y='value',
                      data=self.figdata,
@@ -134,10 +156,13 @@ class OutputTypesTimeChart(GenericTimeChart):
         self.figdata = figdata
         return self.figdata
 
-    def plot(self, palette=defaults.outputs_palette,
-             ax=None, **kwargs):
-        self.fig = super().plot(palette=defaults.outputs_palette,
-                                ax=ax, **kwargs)
+    def plot(self,
+             palette=defaults.outputs_palette,
+             ax=None,
+             **kwargs):
+        super().plot(palette=defaults.outputs_palette,
+                     ax=ax, **kwargs)
+        plt.ylabel('Number of Outputs')
         return self.fig
 
 
@@ -296,9 +321,9 @@ class OAAdvantageBarChart(AbstractObservatoryChart):
     def plot(self, ax=None, **kwargs):
         if not ax:
             self.fig, ax = plt.subplots()
+        else:
+            self.fig = ax.get_figure()
         self.figdata.plot(kind='bar',
-                          # color=['red', 'black', 'gold',
-                          #       'darkgreen', 'orange'],
                           ax=ax)
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -372,6 +397,8 @@ class BarComparisonChart(AbstractObservatoryChart):
 
         if not ax:
             self.fig, ax = plt.subplots()
+        else:
+            self.fig = ax.get_figure()
         self.figdata[['Bronze (%)',
                       'Hybrid OA (%)',
                       'Gold in DOAJ (%)',
@@ -390,6 +417,97 @@ class BarComparisonChart(AbstractObservatoryChart):
         return self.fig
 
 
+class DistributionComparisonChart(AbstractObservatoryChart):
+    """Comparison chart placing institution on distribution of others
+    """
+
+    def __init__(self,
+                 df: pd.DataFrame,
+                 identifier: str,
+                 plot_column: str,
+                 focus_year: int,
+                 world: bool = True,
+                 region: bool = True,
+                 country: bool = True,
+                 comparison: list = None,
+                 color=None):
+
+        self.df = df
+        self.identifier = identifier
+        self.focus_year = focus_year
+        self.plot_column = plot_column
+        self.world = world
+        self.region = region
+        self.country = country
+        self.comparison = comparison
+        self.color = color
+        super().__init__(df)
+
+    def process_data(self, **kwargs):
+        self.figdata = []
+        if self.world:
+            world = self.df[
+                self.df.published_year == self.focus_year
+                ][self.plot_column].values
+            self.figdata.append(world)
+        if self.region:
+            self.region_name = self.df[
+                self.df.id == self.identifier].region.unique()[0]
+            region = self.df[
+                (self.df.region == self.region_name) &
+                (self.df.published_year == self.focus_year)
+            ][self.plot_column].values
+            self.figdata.append(region)
+        if self.country:
+            self.country_name = self.df[
+                self.df.id == self.identifier].country.unique()[0]
+            country = self.df[
+                (self.df.country == self.country_name) &
+                (self.df.published_year == self.focus_year)
+            ][self.plot_column].values
+            self.figdata.append(country)
+
+        if self.comparison is not None:
+            comparison = self.df[
+                (self.df.id.isin(self.comparison)) &
+                (self.df.published_year == self.focus_year)
+            ][self.plot_column].values
+            self.figdata.append(comparison)
+
+        self.own_value = self.df[
+            (self.df.id == self.identifier) &
+            (self.df.published_year == self.focus_year)
+        ][self.plot_column].values[0]
+
+    def plot(self, ax=None, ylim=None, **kwargs):
+        if not ax:
+            self.fig, ax = plt.subplots()
+        else:
+            self.fig = ax.get_figure()
+        if 'violincolor' in kwargs:
+            self.color = kwargs.get('violincolor')
+        sns.violinplot(data=self.figdata,
+                       ax=ax,
+                       color=self.color)
+        ax.set_ylim(ylim)
+        ax.set_ylabel(self.plot_column)
+        lineargs = {'color': 'black',
+                    'linewidth': 2}
+        lineargs.update(helpers._collect_kwargs_for(lines.Line2D, kwargs))
+        ax.axhline(self.own_value, 0.05, 0.95, **lineargs)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        xlabels = []
+        for label, presence in [('World', self.world),
+                                (self.region_name, self.region),
+                                (self.country_name, self.country),
+                                ('Comparison Group', self.comparison)]:
+            if presence is not None:
+                xlabels.append(label)
+        ax.set_xticklabels(xlabels)
+        return self.fig
+
+
 class FunderGraph(AbstractObservatoryChart):
     """Two part figure showing OA by funder
     """
@@ -399,7 +517,7 @@ class FunderGraph(AbstractObservatoryChart):
                  identifier: str,
                  focus_year: int,
                  num_funders: int = 10,
-                 shorten_names: int = 30
+                 shorten_names: int = 20
                  ):
         """Initialisation Method
 
@@ -420,6 +538,7 @@ class FunderGraph(AbstractObservatoryChart):
         self.focus_year = focus_year
         self.num_funders = num_funders
         self.identifier = identifier
+        self.shorten_names = shorten_names
         super().__init__(df)
 
     def process_data(self):
@@ -434,26 +553,25 @@ class FunderGraph(AbstractObservatoryChart):
         # the length of the axis labels leads to a matplotlib error
         # when the figure is drawn ValueError: left cannot be >= right
         # TODO mapping of nicely formatted funder names
-        data.loc[:, 'name'] = data['name'].apply(lambda s: s[0:30])
+        data.loc[:, 'name'] = data['name'].apply(
+            lambda s: s[0:self.shorten_names])
         self.figdata = data
         return self.figdata
 
     def plot(self):
         self.fig, axes = plt.subplots(
             nrows=1, ncols=2, sharey=True, figsize=(8, 4))
-        sns.catplot(y="name",
+        sns.barplot(y="name",
                     x="value",
                     hue="variables",
-                    kind="bar",
                     data=self.figdata[self.figdata.variables.isin(['count',
                                                                    'oa'])],
                     ax=axes[0])
         axes[0].set(ylabel=None, xlabel='Number of Outputs')
         handles, labels = axes[0].get_legend_handles_labels()
         axes[0].legend(handles, ['Total', 'Open Access'])
-        sns.catplot(y="name",
+        sns.barplot(y="name",
                     x="value",
-                    kind="bar",
                     data=self.figdata[self.figdata.variables == 'percent_oa'],
                     color='blue', ax=axes[1])
         axes[1].set(ylabel=None, xlabel='% Open Access')
