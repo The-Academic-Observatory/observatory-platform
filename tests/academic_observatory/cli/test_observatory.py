@@ -15,16 +15,21 @@
 # Author: James Diprose
 
 import os
+import sys
 import unittest
 from unittest.mock import patch
 
+from academic_observatory.cli.observatory import cli
 from click.testing import CliRunner
 
-from academic_observatory.cli.observatory import cli
+
+def not_linux():
+    return not sys.platform.startswith('linux')
 
 
 class TestObservatory(unittest.TestCase):
 
+    @unittest.skipIf(not_linux(), "Only runs on Linux")
     def test_platform_start_stop(self):
         runner = CliRunner()
         with runner.isolated_filesystem():
@@ -34,6 +39,7 @@ class TestObservatory(unittest.TestCase):
             result = runner.invoke(cli, ['platform', 'stop'])
             self.assertEqual(result.exit_code, os.EX_OK)
 
+    @unittest.skipIf(not_linux(), "Only runs on Linux")
     @patch('academic_observatory.cli.observatory.shutil')
     def test_platform_check_dependencies(self, mock_shutil):
         # Mock shutil.which to return None which should make the command line interface print out information
