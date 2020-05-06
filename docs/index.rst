@@ -22,4 +22,4 @@ Indices and tables
 Datasets
 ==================
 
-* :ref:`wos`
+* wos
