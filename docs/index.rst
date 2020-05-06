@@ -11,6 +11,7 @@ Contents
     installation
     quickstart_cmd
     license
+    doc_datasets
 
 Indices and tables
 ==================
@@ -19,7 +20,3 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
-Datasets
-==================
-
-* wos
