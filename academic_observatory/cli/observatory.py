@@ -16,11 +16,13 @@
 
 import logging
 import os
+import pathlib
 import shutil
 import subprocess
 
 import click
 
+import academic_observatory
 from academic_observatory.utils import ao_home, dags_path, docker_configs_path
 
 
@@ -52,16 +54,30 @@ def __check_dependencies():
 
 def __log_output(output, error, returncode):
     logging.debug(f"returncode: {returncode}")
-    logging.debug(f"stdout: {output}")
-    logging.debug(f"stderr: {error}")
+    logging.debug(f"stdout: \n{output.decode('utf-8')}")
+
+    if returncode != 0:
+        logging.error(f"stderr: \n{error.decode('utf-8')}")
 
 
-def __make_env(airflow_ui_port, airflow_dags_path, airflow_postgres_path):
+def __make_env(airflow_ui_port, airflow_dags_path, airflow_postgres_path, ao_package_path_):
     env = os.environ.copy()
     env['AIRFLOW_UI_PORT'] = str(airflow_ui_port)
     env['AIRFLOW_DAGS_PATH'] = airflow_dags_path
     env['AIRFLOW_POSTGRES_PATH'] = airflow_postgres_path
+    env['ACADEMIC_OBSERVATORY_PACKAGE_PATH'] = ao_package_path_
     return env
+
+
+def ao_package_path() -> str:
+    """ Get the path to the Academic Observatory package root folder.
+
+    :return: the path to the Academic Observatory package root folder.
+    """
+
+    file_path = pathlib.Path(academic_observatory.__file__).resolve()
+    path = pathlib.Path(*file_path.parts[:-2])
+    return str(path.resolve())
 
 
 @cli.command()
@@ -112,10 +128,17 @@ def platform(command, airflow_ui_port, airflow_dags_path, airflow_postgres_path,
     args = ['docker-compose', '-f', compose_postgres_path, '-f', compose_webserver_path]
 
     # Make environment variables for running commands
-    env = __make_env(airflow_ui_port, airflow_dags_path, airflow_postgres_path)
+    ao_package_path_ = ao_package_path()
+    env = __make_env(airflow_ui_port, airflow_dags_path, airflow_postgres_path, ao_package_path_)
 
     # Start the appropriate process
     if command == 'start':
+        # Build the containers first
+        proc = subprocess.Popen(args + ['build'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+        output, error = proc.communicate()
+        __log_output(output, error, proc.returncode)
+
+        # Start the built containers
         proc = subprocess.Popen(args + ['up', '-d'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         output, error = proc.communicate()
         __log_output(output, error, proc.returncode)

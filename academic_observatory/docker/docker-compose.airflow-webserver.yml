@@ -1,15 +1,19 @@
 version: '3.8'
 services:
   airflow-webserver:
-    image: puckel/docker-airflow:1.10.6
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow-webserver
     depends_on:
       - airflow-postgres
     environment:
+      - AIRFLOW_USER_HOME=/usr/local/airflow
       - POSTGRES_HOST=airflow-postgres
       - LOAD_EX=n
       - EXECUTOR=Local
     volumes:
-      - ${AIRFLOW_DAGS_PATH}:/usr/local/airflow/dags
+      - "${AIRFLOW_DAGS_PATH}:/usr/local/airflow/dags"
+      - "${ACADEMIC_OBSERVATORY_PACKAGE_PATH}:/usr/local/airflow/academic-observatory"
     ports:
-      - "${AIRFLOW_UI_PORT}:8080"
+      - '${AIRFLOW_UI_PORT}:8080'
     restart: always
