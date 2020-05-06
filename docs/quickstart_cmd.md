@@ -7,6 +7,8 @@ To start the local Academic Observatory platform:
 observatory platform start
 ```
 
+Once the Academic Observatory has started, you can access the Apache Airflow UI at the following URL: http://localhost:8080.
+
 To stop the local Academic Observatory platform:
 ```bash
 observatory platform stop
@@ -16,6 +18,9 @@ Start the platform with a different Apache Airflow UI port:
 ```bash
 observatory platform start --airflow-ui-port 8081
 ```
+
+Note that if the --airflow-ui-port command is set, then the Airflow UI will be hosted on a different port,
+for example, if you used port 8081 as in the above example then the URL would be http://localhost:8081.
 
 Start the platform with a different Apache Airflow DAGS path:
 ```bash
