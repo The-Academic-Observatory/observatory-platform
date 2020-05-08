@@ -121,11 +121,14 @@ def platform(command, airflow_ui_port, airflow_dags_path, airflow_postgres_path,
     if not __check_dependencies():
         exit(os.EX_CONFIG)
 
-    # Make absolute paths for docker compose files and base docker-compose command
-    docker_configs_path_ = docker_configs_path()
-    compose_postgres_path = os.path.join(docker_configs_path_, 'docker-compose.airflow-postgres.yml')
-    compose_webserver_path = os.path.join(docker_configs_path_, 'docker-compose.airflow-webserver.yml')
-    args = ['docker-compose', '-f', compose_postgres_path, '-f', compose_webserver_path]
+    # Make docker-compose command
+    args = ['docker-compose']
+    compose_files = ['docker-compose.secrets.yml', 'docker-compose.airflow-postgres.yml',
+                     'docker-compose.airflow-webserver.yml']
+    for file_name in compose_files:
+        path = os.path.join(docker_configs_path(), file_name)
+        args.append('-f')
+        args.append(path)
 
     # Make environment variables for running commands
     ao_package_path_ = ao_package_path()
@@ -133,6 +136,20 @@ def platform(command, airflow_ui_port, airflow_dags_path, airflow_postgres_path,
 
     # Start the appropriate process
     if command == 'start':
+        # Check that appropriate paths have been set otherwise log a warning
+        if 'GOOGLE_APPLICATION_CREDENTIALS' not in env:
+            logging.warning(
+                "The environment variable `GOOGLE_APPLICATION_CREDENTIALS` is not set: unable to communicate "
+                "with Google Cloud")
+
+        if 'GOOGLE_BUCKET_NAME' not in env:
+            logging.warning("The environment variable `GOOGLE_BUCKET_NAME` is not set: unable to save data to Google "
+                            "Cloud")
+
+        if 'GOOGLE_PROJECT_ID' not in env:
+            logging.warning("The environment variable `GOOGLE_PROJECT_ID` is not set: unable to save data to Google "
+                            "Cloud")
+
         # Build the containers first
         proc = subprocess.Popen(args + ['build'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         output, error = proc.communicate()

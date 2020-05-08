@@ -43,6 +43,13 @@ The default paths can be listed by typing the above help command, the defaults a
 * Apache Airflow DAGS folder: the `dags` module in the installed academic_observatory Python package.
 * Apache Airflow PostgreSQL data folder: `~/.academic-observatory/mnt/airflow-postgres`.
 
+The following environment variables need to be set to enable workflows to upload data to Google Cloud:
+* GOOGLE_PROJECT_ID: the unique identifier for your Google Cloud project, see 
+[here](https://cloud.google.com/resource-manager/docs/creating-managing-projects) for more details.
+* GOOGLE_APPLICATION_CREDENTIALS: the path to the authentication credentials for the service account associated with 
+your project, see [here](https://cloud.google.com/docs/authentication/getting-started) for more details.
+* GOOGLE_BUCKET_NAME: the name of the Google Cloud Storage Bucket where the processed files will be saved to.
+
 ## GRID
 To download all historical [Global Research Identifier Database (GRID)](https://grid.ac/) releases:
 ```bash
