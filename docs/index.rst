@@ -11,7 +11,6 @@ Contents
     installation
     quickstart_cmd
     license
-    doc_datasets
 
 Indices and tables
 ==================
@@ -23,5 +22,8 @@ Indices and tables
 Methodology and Datasets
 ==================
 
-* :ref:`quickstart_cmd`
-* quickstart_cmd
+.. toctree::
+    :maxdepth: 1
+
+    doc_datasets
+    doc_methods
