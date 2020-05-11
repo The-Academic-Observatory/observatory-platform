@@ -22,9 +22,9 @@ Indices and tables
 
 Methodology and datasets
 ==================
+.. toctree::
+    :maxdepth: 2
 
     doc_datasets
+    doc_methods
     
-doc_datasets
-* doc_datasets.md
-* :doc: doc_datasets.md
