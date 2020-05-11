@@ -20,3 +20,8 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+Methodology and Datasets
+==================
+
+* :ref:`quickstart_cmd`
+* quickstart_cmd
