@@ -19,11 +19,9 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
-Methodology and Datasets
+
+Methodology and datasets
 ==================
 
-.. toctree::
-    :maxdepth: 1
-
-    doc_datasets
-    doc_methods
+* :ref: doc_datasets
+* :doc: doc_datasets
