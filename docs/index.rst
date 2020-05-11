@@ -22,6 +22,7 @@ Indices and tables
 
 Methodology and datasets
 ==================
-
-* :ref: doc_datasets
+    doc_datasets
+doc_datasets
+* doc_datasets
 * :doc: doc_datasets
