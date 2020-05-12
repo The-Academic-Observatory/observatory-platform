@@ -44,7 +44,7 @@ from academic_observatory.analysis.charts import DistributionComparisonChart
 from academic_observatory.utils import test_data_dir
 
 
-class abstract_test_chart(unittest.TestCase):
+class TestAbstractChart(unittest.TestCase):
     test_class = None
     init_args = {}
     plot_args = {}
@@ -71,7 +71,17 @@ class abstract_test_chart(unittest.TestCase):
             self.chart.plot(**self.plot_args)
 
 
-class test_ScatterPlot(abstract_test_chart):
+class TestAbstractChartWithAnimation(TestAbstractChart):
+    animate_args = {}
+
+    def test_animation(self):
+        if self.test_class:
+            self.chart = self.test_class(self.df, **self.init_args)
+            self.chart.process_data()
+            self.chart.animate(**self.animate_args)
+
+
+class TestScatterPlot(TestAbstractChartWithAnimation):
 
     def setUp(self):
         self.test_class = ScatterPlot
@@ -85,7 +95,7 @@ class test_ScatterPlot(abstract_test_chart):
         super().setUp()
 
 
-class test_TimePlot(abstract_test_chart):
+class TestTimePlot(TestAbstractChart):
 
     def setUp(self):
         self.test_class = TimePlot
@@ -101,7 +111,7 @@ class test_TimePlot(abstract_test_chart):
         super().setUp()
 
 
-class test_TimePlotLayout(abstract_test_chart):
+class TestTimePlotLayout(TestAbstractChart):
 
     def setUp(self):
         self.test_class = TimePlotLayout
@@ -130,7 +140,7 @@ class test_TimePlotLayout(abstract_test_chart):
         super().setUp()
 
 
-class test_TimePath(abstract_test_chart):
+class TestTimePath(TestAbstractChartWithAnimation):
 
     def setUp(self):
         self.test_class = TimePath
@@ -147,11 +157,11 @@ class test_TimePath(abstract_test_chart):
         super().setUp()
 
 
-class test_Layout(abstract_test_chart):
+class TestLayout(TestAbstractChart):
     pass
 
 
-class test_RankChart(abstract_test_chart):
+class TestRankChart(TestAbstractChart):
     def setUp(self):
         self.test_class = RankChart
         self.init_args = {
@@ -163,7 +173,7 @@ class test_RankChart(abstract_test_chart):
         super().setUp()
 
 
-class test_ConfidenceInternalRankChart(abstract_test_chart):
+class TestConfidenceInternalRankChart(TestAbstractChart):
     def setUp(self):
         self.test_class = ConfidenceIntervalRank
         self.init_args = {
@@ -176,7 +186,7 @@ class test_ConfidenceInternalRankChart(abstract_test_chart):
         super().setUp()
 
 
-class test_BoxScatter(abstract_test_chart):
+class TestBoxScatter(TestAbstractChart):
     def setUp(self):
         self.test_class = BoxScatter
         self.init_args = {
@@ -188,7 +198,7 @@ class test_BoxScatter(abstract_test_chart):
         super().setUp()
 
 
-class test_OutputTypesPieChart(abstract_test_chart):
+class TestOutputTypesPieChart(TestAbstractChart):
     def setUp(self):
         self.test_class = OutputTypesPieChart
         self.init_args = {
@@ -200,7 +210,7 @@ class test_OutputTypesPieChart(abstract_test_chart):
         super().setUp()
 
 
-class test_GenericTimeChart(abstract_test_chart):
+class TestGenericTimeChart(TestAbstractChart):
     def setUp(self):
         self.test_class = GenericTimeChart
         self.init_args = {
@@ -211,7 +221,7 @@ class test_GenericTimeChart(abstract_test_chart):
         super().setUp()
 
 
-class test_OutputTypesTimeChart(abstract_test_chart):
+class TestOutputTypesTimeChart(TestAbstractChart):
     def setUp(self):
         self.test_class = OutputTypesTimeChart
         self.init_args = {
@@ -222,7 +232,7 @@ class test_OutputTypesTimeChart(abstract_test_chart):
         super().setUp()
 
 
-class test_OApcTimeChart(abstract_test_chart):
+class TestOApcTimeChart(TestAbstractChart):
     def setUp(self):
         self.test_class = OApcTimeChart
         self.init_args = {
@@ -232,7 +242,7 @@ class test_OApcTimeChart(abstract_test_chart):
         super().setUp()
 
 
-class test_CitationCountTimeChart(abstract_test_chart):
+class TestCitationCountTimeChart(TestAbstractChart):
     def setUp(self):
         self.test_class = CitationCountTimeChart
         self.init_args = {
@@ -242,7 +252,7 @@ class test_CitationCountTimeChart(abstract_test_chart):
         super().setUp()
 
 
-class test_OAAdvantageBarChart(abstract_test_chart):
+class TestOAAdvantageBarChart(TestAbstractChart):
     def setUp(self):
         self.test_class = OAAdvantageBarChart
         self.init_args = {
@@ -253,7 +263,7 @@ class test_OAAdvantageBarChart(abstract_test_chart):
         super().setUp()
 
 
-class test_BarComparisonChart(abstract_test_chart):
+class TestBarComparisonChart(TestAbstractChart):
     def setUp(self):
         self.test_class = BarComparisonChart
         self.init_args = {
@@ -267,7 +277,7 @@ class test_BarComparisonChart(abstract_test_chart):
         super().setUp()
 
 
-class test_FunderGraph(abstract_test_chart):
+class TestFunderGraph(TestAbstractChart):
     def setUp(self):
         self.test_class = FunderGraph
         self.init_args = {
@@ -279,7 +289,7 @@ class test_FunderGraph(abstract_test_chart):
         super().setUp()
 
 
-class test_DistributionComparisonChart(abstract_test_chart):
+class TestDistributionComparisonChart(TestAbstractChart):
     def setUp(self):
         self.test_class = DistributionComparisonChart
         self.init_args = {

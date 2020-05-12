@@ -211,6 +211,8 @@ class CitationCountTimeChart(GenericTimeChart):
         super().__init__(df, columns, identifier, year_range)
 
     def process_data(self):
+        if 'total_oa' not in self.df.columns:
+            self.df['total_oa'] = self.df.oa
         if self.chart_type in ['per-article', 'advantage']:
             self.df['Non-OA'] = (self.df.total_citations - self.df.oa_citations
                                  ) / (self.df.total - self.df.total_oa)
@@ -409,7 +411,6 @@ class BarComparisonChart(AbstractObservatoryChart):
 
         for label in ax.get_xticklabels():
             label.set_rotation(30)
-            label.set_size(12)
             label.set_ha('right')
 
         ax.set(ylabel='Percent of all outputs', xlabel=None)
@@ -498,6 +499,10 @@ class DistributionComparisonChart(AbstractObservatoryChart):
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         xlabels = []
+        if not self.region:
+            self.region_name = ''
+        if not self.country:
+            self.country_name = ''
         for label, presence in [('World', self.world),
                                 (self.region_name, self.region),
                                 (self.country_name, self.country),
@@ -505,6 +510,10 @@ class DistributionComparisonChart(AbstractObservatoryChart):
             if presence is not None:
                 xlabels.append(label)
         ax.set_xticklabels(xlabels)
+        for label in ax.get_xticklabels():
+            label.set_rotation(30)
+            label.set_size(12)
+            label.set_ha('right')
         return self.fig
 
 
@@ -517,7 +526,7 @@ class FunderGraph(AbstractObservatoryChart):
                  identifier: str,
                  focus_year: int,
                  num_funders: int = 10,
-                 shorten_names: int = 20
+                 shorten_names: int = 40
                  ):
         """Initialisation Method
 
