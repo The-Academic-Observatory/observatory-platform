@@ -241,6 +241,7 @@ class ScatterPlot(AbstractObservatoryChart):
         if not ax:
             self.fig, self.ax = plt.subplots(**fig_kwargs)
         else:
+            self.ax = ax
             self.fig = ax.get_figure()
 
         if not colorpalette:
@@ -264,7 +265,7 @@ class ScatterPlot(AbstractObservatoryChart):
                             ax=self.ax)
         self.ax.spines['top'].set_visible(False)
         self.ax.spines['right'].set_visible(False)
-        self.ax.legend(loc='upper right', bbox_to_anchor=(1.1, 0.8))
+        self.ax.legend(bbox_to_anchor=(1.1, 0.8))
         self.ax.set(**kwargs)
         return self.fig
 
@@ -598,6 +599,9 @@ class TimePath(AbstractObservatoryChart):
             figsize = kwargs.pop('figsize', None)
             self.fig, ax = plt.subplots(figsize=figsize)
 
+        else:
+            self.fig = ax.get_figure()
+
         figdata = self.df[self.df.published_year.isin(year_range)]
 
         sns.scatterplot(x=self.xcolumn, y=self.ycolumn,
@@ -637,7 +641,7 @@ class TimePath(AbstractObservatoryChart):
 
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        ax.legend(loc='upper right', bbox_to_anchor=(1.1, 0.8))
+        ax.legend(bbox_to_anchor=(1.1, 0.8))
         ax.set(**kwargs)
         return self.fig
 
