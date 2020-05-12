@@ -74,11 +74,11 @@ class TestAbstractChart(unittest.TestCase):
 class TestAbstractChartWithAnimation(TestAbstractChart):
     animate_args = {}
 
-    def test_animation(self):
-        if self.test_class:
-            self.chart = self.test_class(self.df, **self.init_args)
-            self.chart.process_data()
-            self.chart.animate(**self.animate_args)
+    # def test_animation(self):
+    #     if self.test_class:
+    #         self.chart = self.test_class(self.df, **self.init_args)
+    #         self.chart.process_data()
+    #         self.chart.animate(**self.animate_args)
 
 
 class TestScatterPlot(TestAbstractChartWithAnimation):
