@@ -21,3 +21,6 @@ google-cloud-bigquery==1.23.*
 httpretty==0.9.*
 aiohttp==3.6.*
 grpcio==1.26.*
+matplotlib==3.1.*
+jupyter==1.0.*
+seaborn==0.10.*
