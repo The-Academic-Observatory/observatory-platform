@@ -1,0 +1,38 @@
+[
+  {
+    "name": "FieldOfStudyId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "NormalizedName", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "DisplayName", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "MainType", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "Level", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "PaperCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "STRING"
+  }
+]

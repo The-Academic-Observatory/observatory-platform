@@ -1,0 +1,34 @@
+[
+  {
+    "name": "AuthorId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "NormalizedName", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "DisplayName", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "LastKnownAffiliationId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "PaperCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "DATETIME"
+  }
+]

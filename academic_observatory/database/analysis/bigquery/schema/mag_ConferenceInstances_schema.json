@@ -1,0 +1,70 @@
+[
+  {
+    "name": "ConferenceInstanceId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "NormalizedName", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "DisplayName", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "ConferenceSeriesId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Location", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "OfficialUrl", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "StartDate", 
+    "type": "DATETIME"
+  }, 
+  {
+    "name": "EndDate", 
+    "type": "DATETIME"
+  }, 
+  {
+    "name": "AbstractRegistrationDate", 
+    "type": "DATETIME"
+  }, 
+  {
+    "name": "SubmissionDeadlineDate", 
+    "type": "DATETIME"
+  }, 
+  {
+    "name": "NotificationDueDate", 
+    "type": "DATETIME"
+  }, 
+  {
+    "name": "FinalVersionDueDate", 
+    "type": "DATETIME"
+  }, 
+  {
+    "name": "PaperCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Latitude", 
+    "type": "FLOAT"
+  }, 
+  {
+    "name": "Longitude", 
+    "type": "FLOAT"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "DATETIME"
+  }
+]

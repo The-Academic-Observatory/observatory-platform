@@ -1,0 +1,10 @@
+[
+  {
+    "name": "FieldOfStudyId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "ChildFieldOfStudyId", 
+    "type": "INTEGER"
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "ResourceType", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "ResourceUrl", 
+    "type": "STRING"
+  },
+  {
+    "name": "SourceUrl",
+    "type": "STRING"
+  },
+  {
+    "name": "RelationshipType",
+    "type": "INTEGER"
+  }
+]

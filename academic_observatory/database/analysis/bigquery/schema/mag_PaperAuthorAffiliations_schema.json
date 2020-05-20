@@ -1,0 +1,26 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "AuthorId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "AffiliationId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "AuthorSequenceNumber", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "OriginalAuthor", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "OriginalAffiliation", 
+    "type": "STRING"
+  }
+]
