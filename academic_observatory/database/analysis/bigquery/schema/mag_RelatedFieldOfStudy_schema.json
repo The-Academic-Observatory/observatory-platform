@@ -1,0 +1,22 @@
+[
+  {
+    "name": "FieldOfStudyId1", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Type1", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "FieldOfStudyId2", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Type2", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "FLOAT"
+  }
+]

@@ -1,0 +1,30 @@
+[
+  {
+    "name": "ConferenceSeriesId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "NormalizedName", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "DisplayName", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "PaperCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "DATETIME"
+  }
+]

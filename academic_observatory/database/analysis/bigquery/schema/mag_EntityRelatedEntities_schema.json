@@ -1,0 +1,26 @@
+[
+  {
+    "name": "EntityId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "EntityType", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "RelatedEntityId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "RelatedEntityType", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "RelatedType", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Score", 
+    "type": "FLOAT"
+  }
+]
