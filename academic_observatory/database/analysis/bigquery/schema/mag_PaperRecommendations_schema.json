@@ -1,0 +1,14 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "RecommendedPaperId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Score", 
+    "type": "FLOAT"
+  }
+]

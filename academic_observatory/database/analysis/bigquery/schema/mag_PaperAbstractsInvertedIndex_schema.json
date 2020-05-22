@@ -1,0 +1,10 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "IndexedAbstract", 
+    "type": "STRING"
+  }
+]

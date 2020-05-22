@@ -1,0 +1,50 @@
+[
+  {
+    "name": "AffiliationId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "NormalizedName", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "DisplayName", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "GridId", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "OfficialPage", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "WikiPage", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "PaperCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Latitude", 
+    "type": "FLOAT"
+  }, 
+  {
+    "name": "Longitude", 
+    "type": "FLOAT"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "DATETIME"
+  }
+]

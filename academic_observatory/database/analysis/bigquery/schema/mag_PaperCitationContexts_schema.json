@@ -1,0 +1,14 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "PaperReferenceId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CitationContext", 
+    "type": "STRING"
+  }
+]

@@ -1,0 +1,94 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Doi", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "DocType", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "PaperTitle", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "OriginalTitle", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "BookTitle", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "Year", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Date", 
+    "type": "DATETIME"
+  }, 
+  {
+    "name": "Publisher", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "JournalId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "ConferenceSeriesId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "ConferenceInstanceId", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "Volume", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "Issue", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "FirstPage", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "LastPage", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "ReferenceCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "EstimatedCitation", 
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "OriginalVenue", 
+    "type": "STRING"
+  },
+  {
+    "name": "FamilyId",
+    "type": "INTEGER"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "DATETIME"
+  }
+]

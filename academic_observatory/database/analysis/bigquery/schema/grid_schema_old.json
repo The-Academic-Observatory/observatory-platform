@@ -1,0 +1,369 @@
+[
+  {
+    "mode": "NULLABLE", 
+    "name": "redirect", 
+    "type": "STRING"
+  }, 
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE", 
+        "name": "id", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "label", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "type", 
+        "type": "STRING"
+      }
+    ], 
+    "mode": "REPEATED", 
+    "name": "relationships", 
+    "type": "RECORD"
+  }, 
+  {
+    "fields": [
+      {
+        "mode": "REPEATED", 
+        "name": "FundRef", 
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED", 
+        "name": "ISNI", 
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED", 
+        "name": "OrgRef", 
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED", 
+        "name": "Wikidata", 
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED", 
+        "name": "HESA", 
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED", 
+        "name": "UCAS", 
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED", 
+        "name": "UKPRN", 
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED", 
+        "name": "CNRS", 
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED", 
+        "name": "LinkedIn", 
+        "type": "STRING"
+      }
+    ], 
+    "mode": "NULLABLE", 
+    "name": "external_ids", 
+    "type": "RECORD"
+  }, 
+  {
+    "mode": "NULLABLE", 
+    "name": "status", 
+    "type": "STRING"
+  }, 
+  {
+    "mode": "NULLABLE", 
+    "name": "id", 
+    "type": "STRING"
+  }, 
+  {
+    "mode": "NULLABLE", 
+    "name": "wikipedia_url", 
+    "type": "STRING"
+  }, 
+  {
+    "mode": "NULLABLE", 
+    "name": "email_address", 
+    "type": "STRING"
+  }, 
+  {
+    "mode": "REPEATED", 
+    "name": "links", 
+    "type": "STRING"
+  }, 
+  {
+    "mode": "NULLABLE", 
+    "name": "established", 
+    "type": "INTEGER"
+  }, 
+  {
+    "mode": "REPEATED", 
+    "name": "ip_addresses", 
+    "type": "STRING"
+  }, 
+  {
+    "mode": "NULLABLE", 
+    "name": "name", 
+    "type": "STRING"
+  }, 
+  {
+    "mode": "REPEATED", 
+    "name": "aliases", 
+    "type": "STRING"
+  }, 
+  {
+    "mode": "NULLABLE", 
+    "name": "weight", 
+    "type": "INTEGER"
+  }, 
+  {
+    "mode": "REPEATED", 
+    "name": "acronyms", 
+    "type": "STRING"
+  }, 
+  {
+    "mode": "REPEATED", 
+    "name": "types", 
+    "type": "STRING"
+  }, 
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE", 
+                "name": "license", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "attribution", 
+                "type": "STRING"
+              }
+            ], 
+            "mode": "NULLABLE", 
+            "name": "license", 
+            "type": "RECORD"
+          }, 
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE", 
+                "name": "code", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "ascii_name", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "name", 
+                "type": "STRING"
+              }
+            ], 
+            "mode": "NULLABLE", 
+            "name": "geonames_admin2", 
+            "type": "RECORD"
+          }, 
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE", 
+                "name": "code", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "name", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "ascii_name", 
+                "type": "STRING"
+              }
+            ], 
+            "mode": "NULLABLE", 
+            "name": "nuts_level3", 
+            "type": "RECORD"
+          }, 
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE", 
+                "name": "code", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "name", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "ascii_name", 
+                "type": "STRING"
+              }
+            ], 
+            "mode": "NULLABLE", 
+            "name": "nuts_level2", 
+            "type": "RECORD"
+          }, 
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE", 
+                "name": "code", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "ascii_name", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "name", 
+                "type": "STRING"
+              }
+            ], 
+            "mode": "NULLABLE", 
+            "name": "geonames_admin1", 
+            "type": "RECORD"
+          }, 
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE", 
+                "name": "code", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "name", 
+                "type": "STRING"
+              }, 
+              {
+                "mode": "NULLABLE", 
+                "name": "ascii_name", 
+                "type": "STRING"
+              }
+            ], 
+            "mode": "NULLABLE", 
+            "name": "nuts_level1", 
+            "type": "RECORD"
+          }, 
+          {
+            "mode": "NULLABLE", 
+            "name": "city", 
+            "type": "STRING"
+          }, 
+          {
+            "mode": "NULLABLE", 
+            "name": "id", 
+            "type": "INTEGER"
+          }
+        ], 
+        "mode": "NULLABLE", 
+        "name": "geonames_city", 
+        "type": "RECORD"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "country_code", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "line_1", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "country", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "line_3", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "city", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "line_2", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "lng", 
+        "type": "FLOAT"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "postcode", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "primary", 
+        "type": "BOOLEAN"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "lat", 
+        "type": "FLOAT"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "state", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "state_code", 
+        "type": "STRING"
+      }
+    ], 
+    "mode": "REPEATED", 
+    "name": "addresses", 
+    "type": "RECORD"
+  }, 
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE", 
+        "name": "iso639", 
+        "type": "STRING"
+      }, 
+      {
+        "mode": "NULLABLE", 
+        "name": "label", 
+        "type": "STRING"
+      }
+    ], 
+    "mode": "REPEATED", 
+    "name": "labels", 
+    "type": "RECORD"
+  }
+]
