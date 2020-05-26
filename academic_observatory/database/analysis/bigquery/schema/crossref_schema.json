@@ -1178,6 +1178,28 @@
         "mode": "REPEATED",
         "name": "is_original_form_of",
         "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "id_type",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "asserted_by",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "is_varient_form_of",
+        "type": "RECORD"
       }
     ], 
     "mode": "NULLABLE", 
