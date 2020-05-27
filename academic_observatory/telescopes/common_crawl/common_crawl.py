@@ -22,7 +22,8 @@ import pathlib
 from typing import List
 
 from academic_observatory.telescopes.common_crawl.schema import PageInfo
-from academic_observatory.utils import ao_home, to_json_lines
+from academic_observatory.utils import to_json_lines
+from academic_observatory.utils.path_utils import observatory_home
 
 
 def common_crawl_path() -> str:
@@ -31,7 +32,7 @@ def common_crawl_path() -> str:
     :return: the default path to the Common Crawl dataset.
     """
 
-    return ao_home('datasets', 'common_crawl')
+    return observatory_home('datasets', 'common_crawl')
 
 
 def common_crawl_serialize_custom_types(obj) -> str:

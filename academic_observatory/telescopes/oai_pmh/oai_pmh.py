@@ -26,7 +26,9 @@ from sickle import Sickle
 from sickle.oaiexceptions import NoRecordsMatch
 
 from academic_observatory.telescopes.oai_pmh.schema import Endpoint, Record, RecordHeader
-from academic_observatory.utils import strip_query_params, is_url_absolute, retry_session, HtmlParser, ao_home
+from academic_observatory.utils import strip_query_params, is_url_absolute, retry_session, HtmlParser
+from academic_observatory.utils.path_utils import observatory_home
+
 
 __OAI_PMH_ENDPOINTS_FILENAME = 'oai_pmh_endpoints.csv'
 __UTC_DATETIME_PATTERN_FULL = "%Y-%m-%dT%H:%M:%SZ"
@@ -165,7 +167,7 @@ def oai_pmh_path() -> str:
     :return: the default path to the OAI-PMH dataset folder.
     """
 
-    return ao_home('datasets', 'oai_pmh')
+    return observatory_home('datasets', 'oai_pmh')
 
 
 def oai_pmh_endpoints_path() -> str:

@@ -17,34 +17,33 @@
 import os
 import pathlib
 
-from academic_observatory import docker, dags
+import academic_observatory
+from academic_observatory import dags
 
 
-def ao_home(*subdirs) -> str:
+def observatory_home(*subdirs) -> str:
     """Get the Academic Observatory home directory. If the home directory doesn't exist then create it.
 
     :return: the Academic Observatory home directory.
     """
 
     user_home = str(pathlib.Path.home())
-    ao_home_ = os.path.join(user_home, ".academic_observatory", *subdirs)
+    home_ = os.path.join(user_home, ".observatory", *subdirs)
 
-    if not os.path.exists(ao_home_):
-        os.makedirs(ao_home_, exist_ok=True)
+    if not os.path.exists(home_):
+        os.makedirs(home_, exist_ok=True)
 
-    return ao_home_
+    return home_
 
 
-def docker_configs_path() -> str:
-    """ Get the path to the Docker configuration files.
+def observatory_package_path() -> str:
+    """ Get the path to the Academic Observatory package root folder.
 
-    :return: the path for the Docker config files.
+    :return: the path to the Academic Observatory package root folder.
     """
 
-    # Recommended way to add non code files: https://python-packaging.readthedocs.io/en/latest/non-code-files.html
-
-    file_path = pathlib.Path(docker.__file__).resolve()
-    path = pathlib.Path(*file_path.parts[:-1])
+    file_path = pathlib.Path(academic_observatory.__file__).resolve()
+    path = pathlib.Path(*file_path.parts[:-2])
     return str(path.resolve())
 
 

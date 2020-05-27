@@ -21,8 +21,8 @@ import os
 import shutil
 import unittest
 
-from academic_observatory.telescopes.common_crawl import WarcIndex, PageInfo, ao_home, InstitutionIndex, WarcIndexInfo
-from academic_observatory.telescopes.common_crawl import common_crawl_path, common_crawl_serialize_custom_types, save_page_infos
+from academic_observatory.telescopes.common_crawl import WarcIndex, PageInfo, observatory_home, InstitutionIndex, \
+    WarcIndexInfo, common_crawl_path, common_crawl_serialize_custom_types, save_page_infos
 from academic_observatory.utils import test_data_dir
 
 
@@ -84,7 +84,7 @@ class TestCommonCrawl(unittest.TestCase):
         page_infos = [page_info]
 
         # Create other parameters
-        output_path = ao_home('tests')
+        output_path = observatory_home('tests')
         table_name = 'test_table'
         grid_id = 'grid.1032.0'
         start_time = datetime.datetime(year=2020, month=1, day=1, hour=1, minute=0,

@@ -7,5 +7,5 @@ services:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
     volumes:
-      - ${AIRFLOW_POSTGRES_PATH}:/var/lib/postgresql/data
+      - ${HOST_POSTGRES_PATH}:/var/lib/postgresql/data
     restart: always

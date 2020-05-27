@@ -1,10 +1,59 @@
 # Command Line Quick Start
 The following is a quickstart tutorial to get you started with the Academic Observatory command line tool.
 
+## Dependencies
+
+### Docker
+Make sure that Docker Engine or Docker Desktop are installed:
+* [Install Docker Engine](https://docs.docker.com/engine/install/): for Ubuntu.
+* [Install Docker Desktop](https://docs.docker.com/desktop/): for Mac or Windows.
+
+### Fernet key
+Create a Fernet key and set the FERNET_KEY environment variable in ~/.bashrc:
+```bash
+user@computer:~$ echo export FERNET_KEY=`observatory generate fernet-key` >> ~/.bashrc && source ~/.bashrc
+```
+
+### Google account authentication 
+Set the GOOGLE_APPLICATION_CREDENTIALS environment variable:
+* See [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for 
+instructions on how to create a
+service account key and setting the environment variable. 
+
+You can add the GOOGLE_APPLICATION_CREDENTIALS environment variable to `~/.bashrc` if you don't want to keep entering
+it.
+
+### config.yaml
+Generate a config.yaml file:
+```bash
+user@computer:~$ observatory generate config.yaml
+Generating config.yaml...
+config.yaml saved to: "/home/user/.observatory/config.yaml"
+Please customise the following parameters in config.yaml:
+  - project_id
+  - bucket_name
+```
+
+Customise the project_id and bucket_name fields:
+* project_id: the unique identifier for the Google Cloud project that should be used with the Academic Observatory. See 
+[here](https://cloud.google.com/resource-manager/docs/creating-managing-projects) for more details.
+* bucket_name: the name of the Google Cloud Storage Bucket where the processed files will be saved to.
+
 ## Academic Observatory local development environment
 To start the local Academic Observatory platform:
 ```bash
-observatory platform start
+user@computer:~$ observatory platform start
+Academic Observatory: all dependencies found                                    
+ - Docker: installed
+ - Docker Compose: installed
+ - Docker: running
+ - GOOGLE_APPLICATION_CREDENTIALS: environment variable set /home/user/.observatory/creds.json
+ - FERNET_KEY: environment variable set
+ - config.yaml: found '/home/user/.observatory/config.yaml'
+ - config.yaml: valid
+Academic Observatory: built                                                     
+Academic Observatory: started                                                   
+View the Apache Airflow UI at http://localhost:8080
 ```
 
 Once the Academic Observatory has started, you can access the Apache Airflow UI at the following URL: 
@@ -12,43 +61,48 @@ Once the Academic Observatory has started, you can access the Apache Airflow UI 
 
 To stop the local Academic Observatory platform:
 ```bash
-observatory platform stop
+user@computer:~$ observatory platform stop
+Academic Observatory: all dependencies found                                    
+ - Docker: installed
+ - Docker Compose: installed
+ - Docker: running
+ - GOOGLE_APPLICATION_CREDENTIALS: environment variable set /home/user/.observatory/creds.json
+ - FERNET_KEY: environment variable set
+ - config.yaml: found '/home/user/.observatory/config.yaml'
+ - config.yaml: valid
+Academic Observatory: stopped                                                   
 ```
 
-Start the platform with a different Apache Airflow UI port:
+Host the Apache Airflow UI port on a different port, e.g. port 8081:
 ```bash
-observatory platform start --airflow-ui-port 8081
+user@computer:~$ observatory platform start --airflow-ui-port 8081
+Academic Observatory: all dependencies found                                    
+ - Docker: installed
+ - Docker Compose: installed
+ - Docker: running
+ - GOOGLE_APPLICATION_CREDENTIALS: environment variable set /home/user/.observatory/creds.json
+ - FERNET_KEY: environment variable set
+ - config.yaml: found '/home/user/.observatory/config.yaml'
+ - config.yaml: valid
+Academic Observatory: built                                                     
+Academic Observatory: started                                                   
+View the Apache Airflow UI at http://localhost:8081 
 ```
 
-Note that if the --airflow-ui-port command is set, then the Airflow UI will be hosted on a different port,
-for example, if you used port 8081 as in the above example then the URL would be 
-[http://localhost:8081](http://localhost:8081).
-
-Start the platform with a different Apache Airflow DAGS path:
+Start the platform with a different Apache Airflow DAGs path:
 ```bash
-observatory platform start --airflow-dags-path /your/path
+user@computer:~$ observatory platform start --dags-path /your/path
 ```
 
 Start the platform with a different Apache Airflow PostgreSQL data path:
 ```bash
-observatory platform start --airflow-postgres-path /your/path
+user@computer:~$ observatory platform start --airflow-postgres-path /your/path
 ```
 
-To get help with the Academic Observatory platform commands:
+To get help with the Academic Observatory platform commands, including the default DAGs and data paths:
 ```bash
-observatory platform --help
+user@computer:~$ observatory platform --help
 ```
-
-The default paths can be listed by typing the above help command, the defaults are typically:
-* Apache Airflow DAGS folder: the `dags` module in the installed academic_observatory Python package.
-* Apache Airflow PostgreSQL data folder: `~/.academic-observatory/mnt/airflow-postgres`.
-
-The following environment variables need to be set to enable workflows to upload data to Google Cloud:
-* GOOGLE_PROJECT_ID: the unique identifier for your Google Cloud project, see 
-[here](https://cloud.google.com/resource-manager/docs/creating-managing-projects) for more details.
-* GOOGLE_APPLICATION_CREDENTIALS: the path to the authentication credentials for the service account associated with 
-your project, see [here](https://cloud.google.com/docs/authentication/getting-started) for more details.
-* GOOGLE_BUCKET_NAME: the name of the Google Cloud Storage Bucket where the processed files will be saved to.
 
 ## GRID
 To download all historical [Global Research Identifier Database (GRID)](https://grid.ac/) releases:

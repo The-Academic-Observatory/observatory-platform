@@ -22,7 +22,9 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
-from academic_observatory.utils import ao_home, get_url_domain_suffix
+from academic_observatory.utils import get_url_domain_suffix
+from academic_observatory.utils.path_utils import observatory_home
+
 
 __GRID_INDEX_FILENAME = 'grid_index.csv'
 
@@ -32,7 +34,7 @@ def grid_path() -> str:
     :return: the default path to the GRID dataset.
     """
 
-    return ao_home('datasets', 'grid')
+    return observatory_home('datasets', 'grid')
 
 
 def grid_index_path() -> str:
