@@ -23,7 +23,7 @@ from typing import List
 
 from academic_observatory.telescopes.common_crawl.schema import PageInfo
 from academic_observatory.utils import to_json_lines
-from academic_observatory.utils.path_utils import observatory_home
+from academic_observatory.utils.config_utils import observatory_home
 
 
 def common_crawl_path() -> str:

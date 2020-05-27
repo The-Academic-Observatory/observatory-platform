@@ -23,7 +23,7 @@ from typing import List
 from academic_observatory.telescopes.grid import grid_path, grid_index_path, parse_institute, save_grid_index, \
     load_grid_index, parse_grid_release
 from academic_observatory.utils import test_data_dir
-from academic_observatory.utils.path_utils import observatory_home
+from academic_observatory.utils.config_utils import observatory_home
 
 
 class TestGrid(unittest.TestCase):

@@ -16,6 +16,7 @@ services:
       - EXECUTOR=Local
       - FERNET_KEY=${HOST_FERNET_KEY}
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/google_application_credentials.json
+      - CONFIG_PATH=/run/secrets/config.yaml
     volumes:
       - "${HOST_DAGS_PATH}:/usr/local/airflow/dags"
       - "${HOST_DATA_PATH}:/usr/local/airflow/data"

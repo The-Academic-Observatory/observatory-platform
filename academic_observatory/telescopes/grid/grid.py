@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 import pandas as pd
 
 from academic_observatory.utils import get_url_domain_suffix
-from academic_observatory.utils.path_utils import observatory_home
+from academic_observatory.utils.config_utils import observatory_home
 
 
 __GRID_INDEX_FILENAME = 'grid_index.csv'

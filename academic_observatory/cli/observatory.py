@@ -21,19 +21,16 @@ import shutil
 import subprocess
 import time
 import urllib.request
-from enum import Enum
 from subprocess import Popen
-from typing import Tuple, Union, Dict
+from typing import Tuple, Union
 
-import cerberus.validator
 import click
 import docker
 import requests
-import yaml
-from cerberus import Validator
 from cryptography.fernet import Fernet
 
-from academic_observatory.utils.path_utils import observatory_home, observatory_package_path, dags_path
+from academic_observatory.utils.config_utils import observatory_home, observatory_package_path, dags_path, \
+    ObservatoryConfig
 
 
 @click.group()
@@ -155,163 +152,6 @@ def get_fernet_key() -> Union[str, None]:
     :return: the FERNET_KEY environment variable or None if it doesn't exist.
     """
     return os.environ.get('FERNET_KEY')
-
-
-class Environment(Enum):
-    """ The environment being used """
-
-    dev = 'dev'
-    test = 'test'
-    prod = 'prod'
-
-
-class ObservatoryConfig:
-    HOST_DEFAULT_PATH = os.path.join(observatory_home(), 'config.yaml')
-    CONTAINER_DEFAULT_PATH = '/run/secrets/config.yaml'
-    schema = {
-        'project_id': {
-            'required': True,
-            'type': 'string'
-        },
-        'bucket_name': {
-            'required': True,
-            'type': 'string'
-        },
-        'dags_path': {
-            'required': True,
-            'type': 'string'
-        },
-        'data_path': {
-            'required': True,
-            'type': 'string'
-        },
-        'google_application_credentials': {
-            'required': True,
-            'type': 'string'
-        },
-        'environment': {
-            'required': True,
-            'type': 'string',
-            'allowed': ['dev', 'test', 'prod']
-        }
-    }
-
-    def __init__(self, project_id: Union[None, str], bucket_name: Union[None, str], dags_path: str, data_path: str,
-                 google_application_credentials: str, environment: Environment):
-        """ Holds the settings for the Academic Observatory, used by DAGs.
-
-        :param project_id: the Google Cloud project id.
-        :param bucket_name: the Google Cloud bucket where final results will be stored.
-        :param dags_path: the path to the DAGs folder.
-        :param data_path: the path where intermediate data will be saved.
-        :param google_application_credentials: the path to the Google Application Credentials: https://cloud.google.com/docs/authentication/getting-started
-        :param environment: whether the system is running in dev, test or prod mode.
-        """
-
-        self.project_id = project_id
-        self.bucket_name = bucket_name
-        self.dags_path = dags_path
-        self.data_path = data_path
-        self.google_application_credentials = google_application_credentials
-        self.environment = environment
-
-    @staticmethod
-    def __validate(dict_: Dict) -> Tuple[bool, Validator]:
-        """ Validate the input dictionary against the ObservatoryConfig's schema.
-
-        :param dict_: the input dictionary that has been read via yaml.safe_load
-        :return: whether the validation passed or not and the validation object which contains details such as
-        why the validation failed.
-        """
-
-        v = Validator()
-        result = v.validate(dict_, ObservatoryConfig.schema)
-        return result, v
-
-    def save(self, path: str) -> None:
-        """ Save the ObservatoryConfig object to a file.
-
-        :param path: the path to the configuration file.
-        :return: None.
-        """
-
-        with open(path, 'w') as f:
-            yaml.safe_dump(self.to_dict(), f)
-
-    @staticmethod
-    def load(path: str) -> Tuple[bool, Union[None, Validator], Union[ObservatoryConfig, None]]:
-        """ Load an Observatory configuration file.
-
-        :param path: the path to the Observatory configuration file.
-        :return: whether the config file is valid, the validator which contains details such as why the validation
-        failed and the ObservatoryConfig instance.
-        """
-
-        is_valid = False
-        validator = None
-        config = None
-
-        try:
-            with open(path, 'r') as f:
-                dict_ = yaml.safe_load(f)
-                is_valid, validator = ObservatoryConfig.__validate(dict_)
-                if is_valid:
-                    config = ObservatoryConfig.from_dict(dict_)
-        except yaml.YAMLError:
-            print(f'Error parsing {path}')
-        except FileNotFoundError:
-            print(f'No such file or directory: {path}')
-        except cerberus.validator.DocumentError as e:
-            print(f'cerberus.validator.DocumentError: {e}')
-
-        return is_valid, validator, config
-
-    def to_dict(self) -> Dict:
-        """ Converts an ObservatoryConfig instance into a dictionary.
-
-        :return: the dictionary.
-        """
-
-        return {
-            'project_id': self.project_id,
-            'bucket_name': self.bucket_name,
-            'dags_path': self.dags_path,
-            'data_path': self.data_path,
-            'google_application_credentials': self.google_application_credentials,
-            'environment': self.environment.value
-        }
-
-    @staticmethod
-    def make_default() -> ObservatoryConfig:
-        """ Make an ObservatoryConfig instance with default values.
-        :return: the ObservatoryConfig instance.
-        """
-
-        project_id = None
-        bucket_name = None
-        dags_path = '/usr/local/airflow/dags'
-        data_path = '/usr/local/airflow/data'
-        google_application_credentials = '/run/secrets/google_application_credentials.json'
-        environment = Environment.dev
-        return ObservatoryConfig(project_id, bucket_name, dags_path, data_path, google_application_credentials,
-                                 environment)
-
-    @staticmethod
-    def from_dict(dict_: Dict) -> ObservatoryConfig:
-        """ Make an ObservatoryConfig instance from a dictionary.
-
-        :param dict_:  the input dictionary that has been read via yaml.safe_load.
-        :return: the ObservatoryConfig instance.
-        """
-
-        project_id = dict_['project_id']
-        bucket_name = dict_['bucket_name']
-        dags_path = dict_['dags_path']
-        data_path = dict_['data_path']
-        google_application_credentials = dict_['google_application_credentials']
-        environment = Environment(dict_['environment'])
-        return ObservatoryConfig(project_id, bucket_name, dags_path, data_path, google_application_credentials,
-                                 environment)
 
 
 def get_env(config_path: str, dags_path: str, data_path: str, airflow_ui_port: int, airflow_postgres_path: str,
