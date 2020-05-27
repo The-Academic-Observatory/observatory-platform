@@ -21,8 +21,8 @@ Install Python 3.7 with brew:
 brew install python3.7
 ```
 
-Install Docker Desktop by following the [Install Docker Desktop on Mac](https://docs.docker.com/docker-for-mac/install/) 
-tutorial.
+Install Docker Desktop:
+* Follow the [Install Docker Desktop on Mac](https://docs.docker.com/docker-for-mac/install/) tutorial.
 
 ## System dependencies: Ubuntu 18.04
 Update packages list and install software-properties-common:
@@ -42,7 +42,8 @@ Install Python 3.7 and Python 3.7 dev:
 sudo apt install python3-distutils python3-setuptools python3-pip python3.7 python3.7-dev
 ```
 
-Install Docker Engine by following the [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/) tutorial.
+Install Docker Engine:
+* Following the [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/) tutorial.
 
 ## Installing from PyPI with pip
 To install from [PyPI](https://pypi.org/) with `pip`:
