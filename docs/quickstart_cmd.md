@@ -2,6 +2,7 @@
 The following is a quickstart tutorial to get you started with the Academic Observatory command line tool.
 
 ## Dependencies
+Follow these instructions to setup the Academic Observatory dependencies.
 
 ### Docker
 Make sure that Docker Engine or Docker Desktop are installed:
@@ -11,22 +12,25 @@ Make sure that Docker Engine or Docker Desktop are installed:
 ### Fernet key
 Create a Fernet key and set the FERNET_KEY environment variable in ~/.bashrc:
 ```bash
-user@computer:~$ echo export FERNET_KEY=`observatory generate fernet-key` >> ~/.bashrc && source ~/.bashrc
+echo export FERNET_KEY=`observatory generate fernet-key` >> ~/.bashrc && source ~/.bashrc
 ```
 
 ### Google account authentication 
 Set the GOOGLE_APPLICATION_CREDENTIALS environment variable:
 * See [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for 
-instructions on how to create a
-service account key and setting the environment variable. 
+instructions on how to create a service account key and how to set the environment variable. 
 
 You can add the GOOGLE_APPLICATION_CREDENTIALS environment variable to `~/.bashrc` if you don't want to keep entering
 it.
 
-### config.yaml
+### Config file
 Generate a config.yaml file:
 ```bash
-user@computer:~$ observatory generate config.yaml
+observatory generate config.yaml
+```
+
+You should see the following output:
+```bash
 Generating config.yaml...
 config.yaml saved to: "/home/user/.observatory/config.yaml"
 Please customise the following parameters in config.yaml:
@@ -39,10 +43,14 @@ Customise the project_id and bucket_name fields:
 [here](https://cloud.google.com/resource-manager/docs/creating-managing-projects) for more details.
 * bucket_name: the name of the Google Cloud Storage Bucket where the processed files will be saved to.
 
-## Academic Observatory local development environment
+## Local Development Platform
 To start the local Academic Observatory platform:
 ```bash
-user@computer:~$ observatory platform start
+observatory platform start
+```
+
+You should see the following output:
+```bash
 Academic Observatory: all dependencies found                                    
  - Docker: installed
  - Docker Compose: installed
@@ -61,7 +69,11 @@ Once the Academic Observatory has started, you can access the Apache Airflow UI 
 
 To stop the local Academic Observatory platform:
 ```bash
-user@computer:~$ observatory platform stop
+observatory platform stop
+```
+
+You should see the following output:
+```bash
 Academic Observatory: all dependencies found                                    
  - Docker: installed
  - Docker Compose: installed
@@ -75,7 +87,11 @@ Academic Observatory: stopped
 
 Host the Apache Airflow UI port on a different port, e.g. port 8081:
 ```bash
-user@computer:~$ observatory platform start --airflow-ui-port 8081
+observatory platform start --airflow-ui-port 8081
+```
+
+You should see the following output:
+```bash
 Academic Observatory: all dependencies found                                    
  - Docker: installed
  - Docker Compose: installed
@@ -91,17 +107,17 @@ View the Apache Airflow UI at http://localhost:8081
 
 Start the platform with a different Apache Airflow DAGs path:
 ```bash
-user@computer:~$ observatory platform start --dags-path /your/path
+observatory platform start --dags-path /your/path
 ```
 
 Start the platform with a different Apache Airflow PostgreSQL data path:
 ```bash
-user@computer:~$ observatory platform start --airflow-postgres-path /your/path
+observatory platform start --airflow-postgres-path /your/path
 ```
 
 To get help with the Academic Observatory platform commands, including the default DAGs and data paths:
 ```bash
-user@computer:~$ observatory platform --help
+observatory platform --help
 ```
 
 ## GRID
