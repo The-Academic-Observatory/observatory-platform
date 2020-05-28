@@ -1,0 +1,6 @@
+venv
+.venv
+tests
+notebooks
+dist
+.github

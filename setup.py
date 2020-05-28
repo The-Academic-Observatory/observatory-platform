@@ -26,7 +26,11 @@ setup(
     keywords=['science', 'data', 'workflows', 'academic institutes', 'academic-observatory'],
     entry_points={
         'console_scripts': [
-            'aoutil = academic_observatory.scripts.ao_util:main'
+            # The legacy command line interface implemented with argparse
+            'aoutil = academic_observatory.cli.ao_util:main',
+
+            # The new command line interface implemented with Click
+            'observatory = academic_observatory.cli.observatory:cli'
         ]
     },
     classifiers=[
