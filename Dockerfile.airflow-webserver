@@ -1,0 +1,24 @@
+FROM puckel/docker-airflow:1.10.6
+
+ARG AIRFLOW_USER_HOME=/usr/local/airflow
+
+# Install git which is required when installing dependencies with pip
+USER root
+RUN apt-get update -yqq && apt-get install git -y
+
+# Enable airflow user to install packages to Python
+RUN chown -R airflow:airflow /usr/local/lib/python3.7/site-packages/
+
+# Change to airflow user again and add local Python programs to path
+USER airflow
+WORKDIR ${AIRFLOW_USER_HOME}
+ENV PATH="${AIRFLOW_USER_HOME}/.local/bin:${PATH}"
+
+# Install Python dependencies
+COPY ./requirements.txt ${AIRFLOW_USER_HOME}/academic-observatory/requirements.txt
+RUN pip3 install -r ${AIRFLOW_USER_HOME}/academic-observatory/requirements.txt --user
+
+# Copy entry point script which installs new dependencies at runtime and the Academic Observatory Python package
+COPY ./entrypoint.sh /airflow-webserver-entrypoint.sh
+
+ENTRYPOINT ["/airflow-webserver-entrypoint.sh"]

@@ -20,9 +20,10 @@ import os
 import unittest
 from typing import List
 
-from academic_observatory.telescopes.grid import grid_path, grid_index_path, parse_institute, ao_home, save_grid_index, \
+from academic_observatory.telescopes.grid import grid_path, grid_index_path, parse_institute, save_grid_index, \
     load_grid_index, parse_grid_release
 from academic_observatory.utils import test_data_dir
+from academic_observatory.utils.config_utils import observatory_home
 
 
 class TestGrid(unittest.TestCase):
@@ -38,7 +39,7 @@ class TestGrid(unittest.TestCase):
         cls.grid_index_test_path = os.path.join(test_data_dir_, 'grid', 'grid_index_test.csv')
         cls.grid_release_test_path = os.path.join(test_data_dir_, 'grid', 'grid_release_test.json')
         cls.grid_institute_test_path = os.path.join(test_data_dir_, 'grid', 'grid_institute_test.json')
-        cls.grid_index_gen_path = os.path.join(ao_home('tests'), 'grid_index_gen.csv')
+        cls.grid_index_gen_path = os.path.join(observatory_home('tests'), 'grid_index_gen.csv')
         cls.grid_data = [('grid.1001.0', 'Australian National University', 'Education',
                           'http://www.anu.edu.au/', 'www.anu.edu.au', 'anu.edu.au', 'AU'),
                          ('grid.1002.3', 'Monash University', 'Education', 'http://www.monash.edu/',

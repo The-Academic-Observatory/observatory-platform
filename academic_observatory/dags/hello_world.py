@@ -1,4 +1,4 @@
-# Copyright 2019 Curtin University
+# Copyright 2020 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,20 +14,24 @@
 
 # Author: James Diprose
 
-import os
-from pathlib import Path
 
+from datetime import datetime
 
-def ao_home(*subdirs) -> str:
-    """Get the Academic Observatory home directory. If the home directory doesn't exist then create it.
+from airflow import DAG
+from airflow.operators.bash_operator import BashOperator
 
-    :return: the Academic Observatory home directory.
-    """
+default_args = {
+    "owner": "airflow",
+    "start_date": datetime(2020, 1, 1)
+}
 
-    user_home = str(Path.home())
-    ao_home_ = os.path.join(user_home, ".academic_observatory", *subdirs)
-
-    if not os.path.exists(ao_home_):
-        os.makedirs(ao_home_, exist_ok=True)
-
-    return ao_home_
+with DAG(dag_id="hello_world", schedule_interval="@once", default_args=default_args) as dag:
+    task1 = BashOperator(
+        task_id="task1",
+        bash_command="echo 'hello'"
+    )
+    task2 = BashOperator(
+        task_id="task2",
+        bash_command="echo 'world'"
+    )
+    task1 >> task2
