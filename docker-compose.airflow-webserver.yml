@@ -19,7 +19,7 @@ services:
       - CONFIG_PATH=/run/secrets/config.yaml
     volumes:
       - "${HOST_DAGS_PATH}:/usr/local/airflow/dags"
-      - "${HOST_DATA_PATH}:/usr/local/airflow/data"
+      - "${HOST_DATA_PATH}:/usr/local/airflow/.observatory/data"
       - "${HOST_PACKAGE_PATH}:/usr/local/airflow/academic-observatory"
     ports:
       - '${HOST_AIRFLOW_UI_PORT}:8080'

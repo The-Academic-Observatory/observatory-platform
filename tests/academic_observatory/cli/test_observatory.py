@@ -68,15 +68,15 @@ class TestObservatory(unittest.TestCase):
             pass
 
     @unittest.skipIf(not_linux(), "Only runs on Linux")
-    @patch('academic_observatory.cli.observatory.is_docker_installed')
-    @patch('academic_observatory.cli.observatory.is_docker_compose_installed')
+    @patch('academic_observatory.cli.observatory.get_docker_path')
+    @patch('academic_observatory.cli.observatory.get_docker_compose_path')
     @patch('academic_observatory.cli.observatory.is_docker_running')
-    def test_platform_check_dependencies(self, mock_is_docker_installed, mock_is_docker_compose_installed,
-                                         mock_is_docker_running):
+    def test_platform_check_dependencies(self, mock_is_docker_running, mock_get_docker_compose_path,
+                                         mock_get_docker_path):
         # Mock to return None which should make the command line interface print out information
         # about how to install Docker and Docker Compose and exit
-        mock_is_docker_installed.return_value = False
-        mock_is_docker_compose_installed.return_value = False
+        mock_get_docker_path.return_value = None
+        mock_get_docker_compose_path.return_value = None
         mock_is_docker_running.return_value = False
 
         # Make sure no config file
@@ -101,30 +101,45 @@ class TestObservatory(unittest.TestCase):
         # Docker Compose not installed
         self.assertIn('https://docs.docker.com/compose/install/', result.output)
 
-        # Docker not running
-        self.assertIn('Docker: not running, please start', result.output)
-
         # GOOGLE_APPLICATION_CREDENTIALS
         self.assertIn('https://cloud.google.com/docs/authentication/getting-started', result.output)
 
         # Fernet key
-        self.assertIn('FERNET_KEY: environment variable not set', result.output)
+        self.assertIn('- environment variable: not set. See below for command to set it:', result.output)
 
         # config.yaml
-        self.assertIn('config.yaml: not found so generating a default file', result.output)
+        self.assertIn('- file not found, generating a default file', result.output)
 
         # Check return code
         self.assertEqual(result.exit_code, os.EX_CONFIG)
 
         # Test that invalid config errors show up
+        # Test that error message is printed when Docker is installed but not running
+        # Test that error message is printed when Google Credentials env variable is set but file doesn't exist
+        env = {
+            'GOOGLE_APPLICATION_CREDENTIALS': '/path/to/non/existent/file',
+            'FERNET_KEY': None
+        }
+
+        mock_get_docker_path.return_value = '/docker'
+        mock_get_docker_compose_path.return_value = '/docker-compose'
+        mock_is_docker_running.return_value = False
+
         config = ObservatoryConfig.make_default()
         config.save(config_file_path)
         result = runner.invoke(cli, ['platform', 'start', '--config-path', config_file_path], env=env)
 
         # Invalid config and which properties
-        self.assertIn('config.yaml: invalid', result.output)
+        self.assertIn('config.yaml:\n   - path: /tmp/config.yaml\n   - file invalid\n', result.output)
         self.assertIn('bucket_name: null value not allowed', result.output)
         self.assertIn('project_id: null value not allowed', result.output)
+
+        # Check that Docker is not running message printed
+        self.assertIn('Docker:\n   - path: /docker\n   - not running, please start', result.output)
+
+        # Check that google credentials invalid printed
+        self.assertIn('GOOGLE_APPLICATION_CREDENTIALS:\n   - environment variable: '
+                      '/path/to/non/existent/file\n   - file does not exist', result.output)
 
         # Check return code
         self.assertEqual(result.exit_code, os.EX_CONFIG)

@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
+
 
 from __future__ import annotations
 
 import os
 import pathlib
+import socket
 from enum import Enum
 from typing import Tuple, Union, Dict
 
@@ -29,13 +31,31 @@ import academic_observatory
 from academic_observatory import dags
 
 
+def is_vendor_google() -> bool:
+    """ Identify if the system is running in Google Cloud.
+    :return: whether system running in Google Cloud.
+    """
+    result = True
+    try:
+        socket.getaddrinfo('metadata.google.internal', 80)
+    except socket.gaierror:
+        result = False
+    return result
+
+
 def observatory_home(*subdirs) -> str:
-    """Get the Academic Observatory home directory. If the home directory doesn't exist then create it.
+    """Get the Academic Observatory home directory.
+      - If the home directory doesn't exist then create it.
+      - If the system is running in Google Cloud then the home directory will be set to: /usr/local/airflow/gcs/data
 
     :return: the Academic Observatory home directory.
     """
 
-    user_home = str(pathlib.Path.home())
+    if is_vendor_google():
+        user_home = '/usr/local/airflow/gcs/data'
+    else:
+        user_home = str(pathlib.Path.home())
+
     home_ = os.path.join(user_home, ".observatory", *subdirs)
 
     if not os.path.exists(home_):
@@ -84,14 +104,7 @@ def telescope_path(name: str, sub_folder: SubFolder) -> str:
     :return: the path.
     """
 
-    config_path = os.environ.get('CONFIG_PATH')
-    is_valid, validator, config = ObservatoryConfig.load(config_path)
-
-    path = os.path.join(config.data_path, 'telescopes', name, sub_folder.value)
-    if not os.path.exists(path):
-        os.makedirs(path, exist_ok=True)
-
-    return path
+    return observatory_home('data', 'telescopes', name, sub_folder.value)
 
 
 class Environment(Enum):
@@ -118,10 +131,6 @@ class ObservatoryConfig:
             'required': True,
             'type': 'string'
         },
-        'data_path': {
-            'required': True,
-            'type': 'string'
-        },
         'google_application_credentials': {
             'required': True,
             'type': 'string'
@@ -133,14 +142,13 @@ class ObservatoryConfig:
         }
     }
 
-    def __init__(self, project_id: Union[None, str], bucket_name: Union[None, str], dags_path: str, data_path: str,
+    def __init__(self, project_id: Union[None, str], bucket_name: Union[None, str], dags_path: str,
                  google_application_credentials: str, environment: Environment):
         """ Holds the settings for the Academic Observatory, used by DAGs.
 
         :param project_id: the Google Cloud project id.
         :param bucket_name: the Google Cloud bucket where final results will be stored.
         :param dags_path: the path to the DAGs folder.
-        :param data_path: the path where intermediate data will be saved.
         :param google_application_credentials: the path to the Google Application Credentials: https://cloud.google.com/docs/authentication/getting-started
         :param environment: whether the system is running in dev, test or prod mode.
         """
@@ -148,7 +156,6 @@ class ObservatoryConfig:
         self.project_id = project_id
         self.bucket_name = bucket_name
         self.dags_path = dags_path
-        self.data_path = data_path
         self.google_application_credentials = google_application_credentials
         self.environment = environment
 
@@ -213,7 +220,6 @@ class ObservatoryConfig:
             'project_id': self.project_id,
             'bucket_name': self.bucket_name,
             'dags_path': self.dags_path,
-            'data_path': self.data_path,
             'google_application_credentials': self.google_application_credentials,
             'environment': self.environment.value
         }
@@ -227,11 +233,9 @@ class ObservatoryConfig:
         project_id = None
         bucket_name = None
         dags_path = '/usr/local/airflow/dags'
-        data_path = '/usr/local/airflow/data'
         google_application_credentials = '/run/secrets/google_application_credentials.json'
         environment = Environment.dev
-        return ObservatoryConfig(project_id, bucket_name, dags_path, data_path, google_application_credentials,
-                                 environment)
+        return ObservatoryConfig(project_id, bucket_name, dags_path, google_application_credentials, environment)
 
     @staticmethod
     def from_dict(dict_: Dict) -> ObservatoryConfig:
@@ -244,8 +248,6 @@ class ObservatoryConfig:
         project_id = dict_['project_id']
         bucket_name = dict_['bucket_name']
         dags_path = dict_['dags_path']
-        data_path = dict_['data_path']
         google_application_credentials = dict_['google_application_credentials']
         environment = Environment(dict_['environment'])
-        return ObservatoryConfig(project_id, bucket_name, dags_path, data_path, google_application_credentials,
-                                 environment)
+        return ObservatoryConfig(project_id, bucket_name, dags_path, google_application_credentials, environment)

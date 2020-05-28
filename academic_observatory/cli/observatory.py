@@ -106,22 +106,22 @@ def wait_for_process(proc: Popen) -> Tuple[str, str]:
     return output, error
 
 
-def is_docker_installed() -> bool:
-    """ Checks whether Docker is installed or not.
+def get_docker_path() -> str:
+    """ Get the path to Docker.
 
-    :return: whether Docker is installed or not.
+    :return: the path or None.
     """
 
-    return shutil.which("docker") is not None
+    return shutil.which("docker")
 
 
-def is_docker_compose_installed() -> bool:
-    """ Checks whether Docker Compose is installed or not.
+def get_docker_compose_path() -> str:
+    """ Get the path to Docker Compose.
 
-    :return: whether Docker Compose is installed or not.
+    :return: the path or None.
     """
 
-    return shutil.which("docker-compose") is not None
+    return shutil.which("docker-compose")
 
 
 def is_docker_running() -> bool:
@@ -208,6 +208,10 @@ def wait_for_airflow_ui(ui_url: str, timeout=60) -> bool:
     return ui_started
 
 
+def indent(string: str, num_spaces: int) -> str:
+    return string.rjust(len(string) + num_spaces)
+
+
 @cli.command()
 @click.argument('command',
                 type=click.Choice(['start', 'stop']))
@@ -256,64 +260,95 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
     ######################
 
     print("Academic Observatory: checking dependencies...".ljust(min_line_chars), end='\r')
-    docker_installed = is_docker_installed()
-    docker_compose_installed = is_docker_compose_installed()
+
+    # Get all dependencies
+    docker_path = get_docker_path()
+    docker_compose_path = get_docker_compose_path()
     docker_running = is_docker_running()
-    google_application_credentials = get_google_application_credentials()
-    google_application_credentials_exists = google_application_credentials is not None
+    gapp_cred_var = get_google_application_credentials()
+    gapp_cred_file_exists = os.path.exists(gapp_cred_var) if gapp_cred_var is not None else False
     fernet_key = get_fernet_key()
-    fernet_key_exists = fernet_key is not None
     config_exists = os.path.exists(config_path)
     config_valid, config_validator, config = ObservatoryConfig.load(config_path)
-    config_loaded = config is not None
-    all_deps = all([docker_installed, docker_compose_installed, docker_running, google_application_credentials_exists,
-                    fernet_key_exists, config_exists, config_loaded, config_valid])
+
+    # Check that all dependencies are met
+    all_deps = all([docker_path is not None,
+                    docker_compose_path is not None,
+                    docker_running,
+                    gapp_cred_var is not None,
+                    gapp_cred_file_exists,
+                    fernet_key is not None,
+                    config_exists,
+                    config_valid,
+                    config is not None])
+
+    # Indentation variables
+    indent1 = 2
+    indent2 = 3
+    indent3 = 4
 
     if not all_deps:
         print("Academic Observatory: dependencies missing".ljust(min_line_chars))
     else:
         print("Academic Observatory: all dependencies found".ljust(min_line_chars))
 
-    if docker_installed:
-        print(" - Docker: installed")
-    else:
-        print(" - Docker: not installed, please install https://docs.docker.com/get-docker/")
+    print(indent("Docker:", indent1))
+    if docker_path is not None:
+        print(indent(f"- path: {docker_path}", indent2))
 
-    if docker_compose_installed:
-        print(" - Docker Compose: installed")
+        if docker_running:
+            print(indent(f"- running", indent2))
+        else:
+            print(indent("- not running, please start", indent2))
     else:
-        print(" - Docker Compose: not installed, please install https://docs.docker.com/compose/install/")
+        print(indent("- not installed, please install https://docs.docker.com/get-docker/", indent2))
 
-    if docker_running:
-        print(" - Docker: running")
+    print(indent("Host machine settings:", indent1))
+    print(indent(f"- observatory home: {observatory_home()}", indent2))
+    print(indent(f"- data-path: {data_path}", indent2))
+    print(indent(f"- dags-path: {dags_path}", indent2))
+    print(indent(f"- airflow-ui-port: {airflow_ui_port}", indent2))
+    print(indent(f"- airflow-postgres-path: {airflow_postgres_path}", indent2))
+
+    print(indent("Docker Compose:", indent1))
+    if docker_compose_path is not None:
+        print(indent(f"- path: {docker_compose_path}", indent2))
     else:
-        print(" - Docker: not running, please start")
+        print(indent("- not installed, please install https://docs.docker.com/compose/install/", indent2))
 
-    if google_application_credentials:
-        print(f" - GOOGLE_APPLICATION_CREDENTIALS: environment variable set {google_application_credentials}")
+    print(indent("GOOGLE_APPLICATION_CREDENTIALS:", indent1))
+    if gapp_cred_var is not None:
+        print(indent(f"- environment variable: {gapp_cred_var}", indent2))
+
+        if gapp_cred_file_exists:
+            print(indent("- file exists", indent2))
+        else:
+            print(indent("- file does not exist", indent2))
     else:
-        print(" - GOOGLE_APPLICATION_CREDENTIALS: environment variable not set. See "
-              "https://cloud.google.com/docs/authentication/getting-started for instructions on how to set it. "
-              "It is recommended to add it to ~/.bashrc.")
+        print(indent("- environment variable not set. "
+                     "See https://cloud.google.com/docs/authentication/getting-started for instructions on how to set "
+                     "it. Add it to ~/.bashrc.", indent2))
 
-    if fernet_key_exists:
-        print(" - FERNET_KEY: environment variable set")
+    print(indent("FERNET_KEY:", indent1))
+    if fernet_key is not None:
+        print(indent("- environment variable: hidden", indent2))
     else:
-        print(" - FERNET_KEY: environment variable not set. See below for command to set it: \n"
-              "               echo export FERNET_KEY=`observatory generate fernet-key` >> ~/.bashrc && "
-              "source ~/.bashrc")
+        print(indent("- environment variable: not set. See below for command to set it: \n"
+                     "               echo export FERNET_KEY=`observatory generate fernet-key` >> ~/.bashrc && "
+                     "source ~/.bashrc", indent2))
 
+    print(indent("config.yaml:", indent1))
     if config_exists:
-        print(f" - config.yaml: found '{config_path}'")
+        print(indent(f"- path: {config_path}", indent2))
 
         if config_valid:
-            print(f" - config.yaml: valid")
+            print(indent("- file valid", indent2))
         else:
-            print(f" - config.yaml: invalid")
+            print(indent("- file invalid", indent2))
             for key, value in config_validator.errors.items():
-                print(f'    - {key}: {", ".join(value)}')
+                print(indent(f'- {key}: {", ".join(value)}', indent3))
     else:
-        print(f" - config.yaml: not found so generating a default file '{config_path}'")
+        print(indent("- file not found, generating a default file", indent2))
         gen_config_interface()
 
     if not all_deps:
@@ -326,7 +361,7 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
     # Make environment variables for running commands
     package_path = observatory_package_path()
     env = get_env(config_path, dags_path, data_path, airflow_ui_port, airflow_postgres_path,
-                  package_path, fernet_key, google_application_credentials)
+                  package_path, fernet_key, gapp_cred_var)
 
     # Make docker-compose command
     args = ['docker-compose']
