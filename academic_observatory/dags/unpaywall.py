@@ -10,29 +10,29 @@ import pathlib
 import logging
 from pendulum import Pendulum
 from datetime import datetime
+
 from airflow import DAG
 from airflow import settings
 from airflow.models import Connection
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import BranchPythonOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-from airflow.contrib.hooks.bigquery_hook import BigQueryBaseCursor
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
-from airflow.contrib.operators.file_to_gcs import FileToGoogleCloudStorageOperator
-from airflow.contrib.operators.gcs_to_bq import GoogleCloudStorageToBigQueryOperator
-from airflow.contrib.operators.gcs_download_operator import GoogleCloudStorageDownloadOperator
+
 from academic_observatory.telescopes.unpaywall.unpaywall import UnpaywallRelease, list_unpaywall_releases
 
 
 default_args = {
     "owner": "Airflow",
-    "start_date": datetime(2020, 5, 1)
+    "start_date": datetime(2020, 3, 1)
 }
 
 data_source = 'unpaywall'
 TOPIC_NAME = "messages"
 TASK_ID_LIST = f"list_{data_source}_releases"
+TASK_ID_STOP = f"stop_{data_source}_workflow"
 TASK_ID_DOWNLOAD = f"download_{data_source}_releases"
 TASK_ID_DECOMPRESS = f"decompress_{data_source}_releases"
 TASK_ID_TRANSFORM = f"transform_{data_source}_releases"
@@ -56,7 +56,7 @@ def list_releases_last_month(**kwargs):
         # Push messages
         ti: TaskInstance = kwargs['ti']
         ti.xcom_push(TOPIC_NAME, msgs_out)
-        return
+        return TASK_ID_DOWNLOAD if msgs_out else TASK_ID_STOP
 
     execution_date = kwargs['execution_date']
     next_execution_date = kwargs['next_execution_date']
@@ -81,6 +81,7 @@ def list_releases_last_month(**kwargs):
     # Push messages
     ti: TaskInstance = kwargs['ti']
     ti.xcom_push(TOPIC_NAME, msgs_out)
+    return TASK_ID_DOWNLOAD if msgs_out else TASK_ID_STOP
 
 
 def download_releases_local(**kwargs):
@@ -191,6 +192,7 @@ def load_release_to_bq(**kwargs):
             destination_project_dataset_table=f"{DATASET_ID}.{unpaywall_release.table_name}",
             source_uris=f"gs://{BUCKET}/{unpaywall_release.decompressed_file_name}",
             schema_fields=schema_fields,
+            autodetect=True,
             source_format='NEWLINE_DELIMITED_JSON',
         )
 
@@ -223,11 +225,13 @@ def cleanup_releases(**kwargs):
 
 with DAG(dag_id="unpaywall", schedule_interval="@monthly", default_args=default_args) as dag:
     # List of all unpaywall releases for a given month
-    list_releases = PythonOperator(
+    list_releases = BranchPythonOperator(
         task_id=TASK_ID_LIST,
         python_callable=list_releases_last_month,
         provide_context=True
     )
+
+    stop_workflow = DummyOperator(task_id=TASK_ID_STOP)
 
     # Downloads snapshot from url
     download_local = PythonOperator(
@@ -266,4 +270,5 @@ with DAG(dag_id="unpaywall", schedule_interval="@monthly", default_args=default_
         provide_context=True
     )
 
-    list_releases >> download_local >> decompress >> transform >> upload_to_gcs >> load_to_bq >> cleanup_local
+    list_releases >> [download_local, stop_workflow]
+    download_local >> decompress >> transform >> upload_to_gcs >> load_to_bq >> cleanup_local
