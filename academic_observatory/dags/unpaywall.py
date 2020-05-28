@@ -192,7 +192,7 @@ def load_release_to_bq(**kwargs):
             destination_project_dataset_table=f"{DATASET_ID}.{unpaywall_release.table_name}",
             source_uris=f"gs://{BUCKET}/{unpaywall_release.decompressed_file_name}",
             schema_fields=schema_fields,
-            autodetect=True,
+            autodetect=False,
             source_format='NEWLINE_DELIMITED_JSON',
         )
 
