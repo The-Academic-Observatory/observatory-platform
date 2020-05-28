@@ -52,13 +52,7 @@ observatory platform start
 You should see the following output:
 ```bash
 Academic Observatory: all dependencies found                                    
- - Docker: installed
- - Docker Compose: installed
- - Docker: running
- - GOOGLE_APPLICATION_CREDENTIALS: environment variable set /home/user/.observatory/creds.json
- - FERNET_KEY: environment variable set
- - config.yaml: found '/home/user/.observatory/config.yaml'
- - config.yaml: valid
+...
 Academic Observatory: built                                                     
 Academic Observatory: started                                                   
 View the Apache Airflow UI at http://localhost:8080
@@ -75,13 +69,7 @@ observatory platform stop
 You should see the following output:
 ```bash
 Academic Observatory: all dependencies found                                    
- - Docker: installed
- - Docker Compose: installed
- - Docker: running
- - GOOGLE_APPLICATION_CREDENTIALS: environment variable set /home/user/.observatory/creds.json
- - FERNET_KEY: environment variable set
- - config.yaml: found '/home/user/.observatory/config.yaml'
- - config.yaml: valid
+...
 Academic Observatory: stopped                                                   
 ```
 
@@ -93,13 +81,7 @@ observatory platform start --airflow-ui-port 8081
 You should see the following output:
 ```bash
 Academic Observatory: all dependencies found                                    
- - Docker: installed
- - Docker Compose: installed
- - Docker: running
- - GOOGLE_APPLICATION_CREDENTIALS: environment variable set /home/user/.observatory/creds.json
- - FERNET_KEY: environment variable set
- - config.yaml: found '/home/user/.observatory/config.yaml'
- - config.yaml: valid
+...
 Academic Observatory: built                                                     
 Academic Observatory: started                                                   
 View the Apache Airflow UI at http://localhost:8081 
