@@ -179,7 +179,7 @@ def recursive_funders(funders_by_key, funder, depth, direction):
         sub_funder = funders_by_key[funder_id]
         name = sub_funder['pre_label']
 
-        returned, returned_depth = recursive_funders(sub_funder, starting_depth+1, direction)
+        returned, returned_depth = recursive_funders(funders_by_key, sub_funder, starting_depth+1, direction)
         
         if(direction == "narrower"):
             child = {'funder': funder_id, 'name': name, 'children': returned}
