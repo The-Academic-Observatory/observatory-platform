@@ -22,6 +22,18 @@ from academic_observatory.utils.data_utils import get_file
 from academic_observatory.utils.config_utils import ObservatoryConfig, SubFolder, telescope_path, bigquery_schema_path, debug_file_path
 
 
+def xcom_pull_messages(ti):
+    # Pull messages
+    msgs_in = ti.xcom_pull(key=UnpaywallTelescope.XCOM_MESSAGES_NAME, task_ids=UnpaywallTelescope.TASK_ID_LIST,
+                           include_prior_dates=False)
+    config_dict = ti.xcom_pull(key=UnpaywallTelescope.XCOM_CONFIG_NAME, task_ids=UnpaywallTelescope.TASK_ID_SETUP,
+                               include_prior_dates=False)
+    environment = config_dict['environment']
+    bucket = config_dict['bucket']
+    project_id = config_dict['project_id']
+    return msgs_in, environment, bucket, project_id
+
+
 def list_releases(telescope_url):
     snapshot_list = []
 
@@ -86,14 +98,14 @@ class UnpaywallTelescope:
     # example: https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/unpaywall_snapshot_2020-04-27T153236.jsonl.gz
     TELESCOPE_URL = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/'
     TELESCOPE_DEBUG_URL = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
-    SCHEMA_FILE_PATH = bigquery_schema_path('unpaywall_schema.json')
-    DEBUG_FILE_PATH = debug_file_path('unpaywall_debug.jsonl.gz')
+    SCHEMA_FILE_PATH = bigquery_schema_path('unpaywall.json')
+    DEBUG_FILE_PATH = debug_file_path('unpaywall.jsonl.gz')
 
     DAG_ID = 'unpaywall'
     DATASET_ID = DAG_ID
     XCOM_MESSAGES_NAME = "messages"
     XCOM_CONFIG_NAME = "config"
-    TASK_ID_CONFIG = f"get_config_variables"
+    TASK_ID_SETUP = "check_setup_requirements"
     TASK_ID_LIST = f"list_{DAG_ID}_releases"
     TASK_ID_STOP = f"stop_{DAG_ID}_workflow"
     TASK_ID_DOWNLOAD = f"download_{DAG_ID}_releases"
@@ -104,19 +116,8 @@ class UnpaywallTelescope:
     TASK_ID_CLEANUP = f"cleanup_{DAG_ID}_releases"
 
     @staticmethod
-    def xcom_pull_messages(ti):
-        # Pull messages
-        msgs_in = ti.xcom_pull(key=UnpaywallTelescope.XCOM_MESSAGES_NAME, task_ids=UnpaywallTelescope.TASK_ID_LIST,
-                               include_prior_dates=False)
-        config_dict = ti.xcom_pull(key=UnpaywallTelescope.XCOM_CONFIG_NAME, task_ids=UnpaywallTelescope.TASK_ID_CONFIG,
-                                   include_prior_dates=False)
-        environment = config_dict['environment']
-        bucket = config_dict['bucket']
-        project_id = config_dict['project_id']
-        return msgs_in, environment, bucket, project_id
-
-    @staticmethod
-    def get_config_variables(**kwargs):
+    def check_setup_requirements(**kwargs):
+        invalid_list = []
         config_dict = {}
 
         config_path = Variable.get('CONFIG_PATH', default_var=None)
@@ -124,22 +125,25 @@ class UnpaywallTelescope:
             print("'CONFIG_FILE' airflow variable not set, please set in UI")
 
         config_valid, config_validator, config = ObservatoryConfig.load(config_path)
-        if config_valid:
+        if not config_valid:
+            invalid_list.append(f'Config file not valid: {config_validator}')
+
+        if invalid_list:
+            for invalid_reason in invalid_list:
+                print("-", invalid_reason, "\n\n")
+                raise AirflowException
+        else:
             config_dict['environment'] = config.environment.value
             config_dict['bucket'] = config.bucket_name
             config_dict['project_id'] = config.project_id
-        else:
-            print(f'config file not valid: ', config_validator)
-
-        # Push messages
-        ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(UnpaywallTelescope.XCOM_CONFIG_NAME, config_dict)
-        return UnpaywallTelescope.TASK_ID_LIST if config_dict else UnpaywallTelescope.TASK_ID_STOP
+            # Push messages
+            ti: TaskInstance = kwargs['ti']
+            ti.xcom_push(UnpaywallTelescope.XCOM_CONFIG_NAME, config_dict)
 
     @staticmethod
     def list_releases_last_month(**kwargs):
         # Pull messages
-        msgs_in, environment, bucket, project_id = UnpaywallTelescope.xcom_pull_messages(kwargs['ti'])
+        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
 
         if environment == 'dev':
             msgs_out = [UnpaywallTelescope.TELESCOPE_DEBUG_URL]
@@ -177,7 +181,7 @@ class UnpaywallTelescope:
     @staticmethod
     def download_releases_local(**kwargs):
         # Pull messages
-        msgs_in, environment, bucket, project_id = UnpaywallTelescope.xcom_pull_messages(kwargs['ti'])
+        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
 
         for msg_in in msgs_in:
             if environment == 'dev':
@@ -189,7 +193,7 @@ class UnpaywallTelescope:
     @staticmethod
     def decompress_release(**kwargs):
         # Pull messages
-        msgs_in, environment, bucket, project_id = UnpaywallTelescope.xcom_pull_messages(kwargs['ti'])
+        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
 
         for msg_in in msgs_in:
             cmd = f"gunzip -c {filepath_download(msg_in)} > {filepath_extract(msg_in)}"
@@ -206,7 +210,7 @@ class UnpaywallTelescope:
     @staticmethod
     def transform_release(**kwargs):
         # Pull messages
-        msgs_in, environment, bucket, project_id = UnpaywallTelescope.xcom_pull_messages(kwargs['ti'])
+        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
 
         for msg_in in msgs_in:
             cmd = f"sed 's/authenticated-orcid/authenticated_orcid/g' {filepath_extract(msg_in)} > " \
@@ -224,7 +228,7 @@ class UnpaywallTelescope:
     @staticmethod
     def upload_release_to_gcs(**kwargs):
         # Pull messages
-        msgs_in, environment, bucket, project_id = UnpaywallTelescope.xcom_pull_messages(kwargs['ti'])
+        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
 
         gcs_hook = GoogleCloudStorageHook()
 
@@ -239,7 +243,7 @@ class UnpaywallTelescope:
     def load_release_to_bq(**kwargs):
         # Add a project id to the bigquery connection, prevents error 'ValueError: INTERNAL: No default project is
         # specified'
-        msgs_in, environment, bucket, project_id = UnpaywallTelescope.xcom_pull_messages(kwargs['ti'])
+        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
 
         if environment == 'dev':
             session = settings.Session()
@@ -288,7 +292,7 @@ class UnpaywallTelescope:
     @staticmethod
     def cleanup_releases(**kwargs):
         # Pull messages
-        msgs_in, environment, bucket, project_id = UnpaywallTelescope.xcom_pull_messages(kwargs['ti'])
+        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
 
         for msg_in in msgs_in:
             try:

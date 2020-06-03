@@ -14,9 +14,9 @@ default_args = {
 
 with DAG(dag_id="unpaywall", schedule_interval="@monthly", default_args=default_args) as dag:
     # Get config variables
-    get_config = BranchPythonOperator(
-        task_id=UnpaywallTelescope.TASK_ID_CONFIG,
-        python_callable=UnpaywallTelescope.get_config_variables,
+    check_setup = PythonOperator(
+        task_id=UnpaywallTelescope.TASK_ID_SETUP,
+        python_callable=UnpaywallTelescope.check_setup_requirements,
         provide_context=True
     )
 
@@ -66,6 +66,6 @@ with DAG(dag_id="unpaywall", schedule_interval="@monthly", default_args=default_
         provide_context=True
     )
 
-    get_config >> [list_releases, stop_workflow]
+    check_setup >> [list_releases, stop_workflow]
     list_releases >> [download_local, stop_workflow]
     download_local >> decompress >> transform >> upload_to_gcs >> load_to_bq >> cleanup_local
