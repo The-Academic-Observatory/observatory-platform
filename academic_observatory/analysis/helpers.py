@@ -21,6 +21,7 @@ from academic_observatory.analysis.defaults import country_clean, outputs_clean
 
 # --- TODO: cleanup required, mainly on country names #
 def clean_geo_names(df: pd.DataFrame) -> pd.DataFrame:
+    
     """Convenience function for standardising country names
     The input country names can be quite long and for our purposes we want to
     separate Mexico from the rest of North America and treat it as part of
@@ -42,6 +43,7 @@ def clean_geo_names(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def clean_output_type_names(df: pd.DataFrame) -> pd.DataFrame:
+    
     """Convenience function for cleaning up output type names
     The `outputs_clean` dict is located in the defaults submodule
     :param df: Input data frame to be cleaned up
@@ -49,11 +51,13 @@ def clean_output_type_names(df: pd.DataFrame) -> pd.DataFrame:
     :return: DataFrame with output type names cleaned up.
     :rtype: pandas DataFrame
     """
+
     df.replace(to_replace=outputs_clean, inplace=True)
     return df
 
 
 def nice_column_names(df):
+
     """Convenience function to convert standard names from BigQuery to nice names for plotting"""
 
     cols = [
@@ -105,6 +109,7 @@ def calculate_pc_change(df: pd.DataFrame,
                         id_column: str = 'id',
                         year_column: str = 'published_year',
                         column_name_add: str = '_pc_change') -> pd.DataFrame:
+
     """Convenience function for creating a new column giving percentage change
     For some graphs we want to show change vs the previous year. This
     function takes a set of columns which must be numeric and
@@ -140,6 +145,7 @@ def calculate_percentages(df: pd.DataFrame,
                           numer_columns: list,
                           denom_column: str = 'total',
                           column_name_add: str = 'percent_') -> pd.DataFrame:
+
     """Convenience function to calculate percentages based on counts data
     By default the core COKI tables have counts and not percentages. This
     convenience function calculates percentages for a set of columns based on a
@@ -174,6 +180,7 @@ def calculate_confidence_interval(df: pd.DataFrame,
                                   total_column: str = 'total',
                                   column_name_add: str = '_err'
                                   ) -> pd.DataFrame:
+
     """Convenience function for calculating confidence intervals
     For various graphs we calculate a confidence interval as described in
     Huang et al 2020. This function centralises that calculation
@@ -205,6 +212,7 @@ def calculate_confidence_interval(df: pd.DataFrame,
 
 def _collect_kwargs_for(func: callable,
                         input_kwargs: dict) -> dict:
+
     """Convenience function for collecting keywords for functions
     As we are manipulating kwargs for axes, figures and other functions it
     is sometimes useful to pass a larger set of kwargs around and then select
@@ -227,6 +235,7 @@ def _collect_kwargs_for(func: callable,
 
 def id2name(df: pd.DataFrame,
             identifier: str) -> str:
+
     """Convenience function to generate the name of an entity from its identifier
     :param df: Input DataFrame
     :type df: pd.DataFrame
@@ -235,4 +244,5 @@ def id2name(df: pd.DataFrame,
     :return: Returns the name associated with that identifier as a str
     :rtype: str
     """
+
     return df[df.id == identifier].name.unique()[0]
