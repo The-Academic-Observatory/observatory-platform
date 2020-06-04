@@ -16,7 +16,9 @@
 
 import seaborn as sns
 
-# Variable Sets - Column selectors for data frames
+# --- Variable Sets - Column selectors for data frames ---
+
+# List of output types for research publications
 output_types = [
     'Journal Articles',
     'Proceedings',
@@ -27,6 +29,7 @@ output_types = [
     'Datasets‡'
 ]
 
+# List of types of Open Access
 oa_types = [
     'Open Access (%)',
     'Total Gold OA (%)',
@@ -35,8 +38,9 @@ oa_types = [
     # 'Green in IR (%)',
 ]
 
-# Palettes -
+# --- Palettes ---
 
+# Colour palette used in graphics to symbolise global regions
 region_palette = {
     'Asia': 'orange',
     'Europe': 'limegreen',
@@ -47,6 +51,7 @@ region_palette = {
     'Oceania': 'red'
 }
 
+# Colour palette used in graphics to symbolise Open Access types
 oatypes_palette = {
     'Open Access (%)': 'black',
     'Total Gold OA (%)': 'gold',
@@ -56,10 +61,13 @@ oatypes_palette = {
     'Green in IR (%)': 'limegreen'
 }
 
+# Create colour palette used in graphics to symbolise output types
 husl = sns.color_palette(n_colors=len(output_types))
 outputs_palette = dict([(output_type, husl[i])
                         for i, output_type in enumerate(output_types)])
 outputs_palette.update({'Total Outputs': 'black'})
+
+# --- Name Standardisation ---
 
 # Standard Name Changes
 country_clean = {"country": {
@@ -68,9 +76,9 @@ country_clean = {"country": {
         "Iran (Islamic Republic of)": "Iran",
         "Korea, Republic of": "South Korea",
         "Taiwan, Province of China": "Taiwan"
-}
-}
+}}
 
+# Standardisation of the names of output types
 outputs_clean = {'type': {
     'total': 'Total Outputs',
     'journal_articles': 'Journal Articles',
