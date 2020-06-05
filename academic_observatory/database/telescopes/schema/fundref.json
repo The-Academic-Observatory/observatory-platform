@@ -1,0 +1,300 @@
+[
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "fields": [
+                  {
+                    "mode": "REPEATED",
+                    "name": "parent",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "name",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "funder",
+                    "type": "STRING"
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "parent",
+                "type": "RECORD"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "name",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "funder",
+                "type": "STRING"
+              }
+            ],
+            "mode": "REPEATED",
+            "name": "parent",
+            "type": "RECORD"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "funder",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "parent",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "funder",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "parents",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "bottom",
+    "type": "BOOLEAN"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "notation",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "formly_known_as",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "split_from",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "merger_of",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "status",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "fields": [
+                  {
+                    "mode": "REPEATED",
+                    "name": "children",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "name",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "funder",
+                    "type": "STRING"
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "children",
+                "type": "RECORD"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "name",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "funder",
+                "type": "STRING"
+              }
+            ],
+            "mode": "REPEATED",
+            "name": "children",
+            "type": "RECORD"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "funder",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "children",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "funder",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "children",
+    "type": "RECORD"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "split_into",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "region",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "is_replaced_by",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "funder",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "replaces",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "incorporated_into",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "affil_with",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "renamed_as",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "alt_label",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "merged_with",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "tax_id",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "state",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "country",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "incorporates",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "continuation_of",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "country_code",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "funding_body_sub_type",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "pre_label",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "funding_body_type",
+    "type": "STRING"
+  },
+  {
+    "description": "bq-datetime",
+    "mode": "NULLABLE",
+    "name": "created",
+    "type": "TIMESTAMP"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "broader",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "top",
+    "type": "BOOLEAN"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "narrower",
+    "type": "STRING"
+  },
+  {
+    "description": "bq-datetime",
+    "mode": "NULLABLE",
+    "name": "modified",
+    "type": "TIMESTAMP"
+  }
+]
