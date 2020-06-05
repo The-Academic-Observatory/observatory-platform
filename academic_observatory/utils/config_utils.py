@@ -126,11 +126,11 @@ class ObservatoryConfig:
             'type': 'string'
         },
         'dags_path': {
-            'required': True,
+            'required': False,
             'type': 'string'
         },
         'google_application_credentials': {
-            'required': True,
+            'required': False,
             'type': 'string'
         },
         'environment': {
@@ -245,7 +245,7 @@ class ObservatoryConfig:
 
         project_id = dict_['project_id']
         bucket_name = dict_['bucket_name']
+        environment = Environment(dict_['environment'])
         dags_path = dict_['dags_path']
         google_application_credentials = dict_['google_application_credentials']
-        environment = Environment(dict_['environment'])
         return ObservatoryConfig(project_id, bucket_name, dags_path, google_application_credentials, environment)
