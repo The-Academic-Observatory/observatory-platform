@@ -8,7 +8,7 @@ from academic_observatory.telescopes.fundref import FundrefTelescope
 
 default_args = {
     "owner": "Airflow",
-    "start_date": datetime(2020, 3, 1)
+    "start_date": datetime(2020, 1, 1)
 }
 
 

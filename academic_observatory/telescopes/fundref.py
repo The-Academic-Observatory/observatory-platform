@@ -112,10 +112,13 @@ def filepath_geonames():
     return path
 
 
-def download_release(url: str):
-    filename = filepath_download(url)
-    filedir = os.path.basename(filename)
-    get_file(fname=filename, origin=url, cache_dir=filedir)
+def download_release(url: str, date: str):
+    # add browser agent to prevent 403/forbidden error.
+    header = {'User-Agent': 'Mozilla/5.0'}
+    filename = filepath_download(date)
+    with requests.get(url, headers=header, stream=True) as response:
+        with open(filename, 'wb') as file:
+            shutil.copyfileobj(response.raw, file)
 
 
 def download_geonames_dump():
@@ -198,116 +201,126 @@ def parse_fundref_registry_rdf(file_name, geonames_file_path):
     geoname_dict = geonames_dump(geonames_file_path)
 
     for record in root:
-        if(record.tag == "{http://www.w3.org/2004/02/skos/core#}Concept"):
-            funder = new_funder_template()
-            funder['funder'] = record.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about']
+        if record.tag == "{http://www.w3.org/2004/02/skos/core#}ConceptScheme":
+            for nested in record:
+                if nested.tag == '{http://www.w3.org/2004/02/skos/core#}hasTopConcept':
+                    funder_id = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
+                    funders_by_key[funder_id] = new_funder_template()
+
+        if record.tag == "{http://www.w3.org/2004/02/skos/core#}Concept":
+            funder_id = record.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about']
+            funder = funders_by_key[funder_id]
+            funder['funder'] = funder_id
             geoname_country_code = None
             for nested in record:
 
-                if(nested.tag == '{http://www.w3.org/2004/02/skos/core#}inScheme'):
+                if nested.tag == '{http://www.w3.org/2004/02/skos/core#}inScheme':
                     continue
 
-                elif(nested.tag == '{http://www.w3.org/2008/05/skos-xl#}prefLabel'):
+                elif nested.tag == '{http://www.w3.org/2008/05/skos-xl#}prefLabel':
                     funder['pre_label'] = nested[0][0].text
 
-                elif(nested.tag == '{http://www.w3.org/2008/05/skos-xl#}altLabel'):
+                elif nested.tag == '{http://www.w3.org/2008/05/skos-xl#}altLabel':
                     funder['alt_label'].append(nested[0][0].text)
 
-                elif(nested.tag == '{http://www.w3.org/2004/02/skos/core#}narrower'):
+                elif nested.tag == '{http://www.w3.org/2004/02/skos/core#}narrower':
                     funder['narrower'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://www.w3.org/2004/02/skos/core#}broader'):
+                elif nested.tag == '{http://www.w3.org/2004/02/skos/core#}broader':
                     funder['broader'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://purl.org/dc/terms/}modified'):
+                elif nested.tag == '{http://purl.org/dc/terms/}modified':
                     funder['modified'] = nested.text
 
-                elif(nested.tag == '{http://purl.org/dc/terms/}created'):
-                    funder['created'] =  nested.text
+                elif nested.tag == '{http://purl.org/dc/terms/}created':
+                    funder['created'] = nested.text
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}fundingBodySubType'):
-                    funder['funding_body_type'] =  nested.text
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}fundingBodySubType':
+                    funder['funding_body_type'] = nested.text
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}fundingBodyType'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}fundingBodyType':
                     funder['funding_body_sub_type'] = nested.text
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}region'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}region':
                     funder['region'] = nested.text
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}country'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}country':
                     geoname_name, geoname_country_code = get_geoname_data(nested, geoname_dict)
                     funder['country'] = geoname_name
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}state'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}state':
                     geoname_name, _ = get_geoname_data(nested, geoname_dict)
                     funder['state'] = geoname_name
 
-                elif(nested.tag == '{http://schema.org/}address'):
+                elif nested.tag == '{http://schema.org/}address':
                     if geoname_country_code is None:
                         print("Don't know country_code, referenced before country")
                         funder['country_code'] = nested[0][0].text
                     else:
                         funder['country_code'] = geoname_country_code
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}taxId'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}taxId':
                     funder['tax_id'] = nested.text
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}continuationOf'):
-                    funder['continuation_of'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}continuationOf':
+                    funder['continuation_of'].append(
+                        nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}renamedAs'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}renamedAs':
                     funder['renamed_as'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://purl.org/dc/terms/}replaces'):
+                elif nested.tag == '{http://purl.org/dc/terms/}replaces':
                     funder['replaces'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}affilWith'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}affilWith':
                     funder['affil_with'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}mergedWith'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}mergedWith':
                     funder['merged_with'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}incorporatedInto'):
-                    funder['incorporated_into'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}incorporatedInto':
+                    funder['incorporated_into'].append(
+                        nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://purl.org/dc/terms/}isReplacedBy'):
-                    funder['is_replaced_by'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
+                elif nested.tag == '{http://purl.org/dc/terms/}isReplacedBy':
+                    funder['is_replaced_by'].append(
+                        nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}incorporates'):
-                    funder['incorporates'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}incorporates':
+                    funder['incorporates'].append(
+                        nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}splitInto'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}splitInto':
                     funder['split_into'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/terms}status'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/terms}status':
                     funder['status'] = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}mergerOf'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}mergerOf':
                     funder['merger_of'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}splitFrom'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}splitFrom':
                     funder['split_from'] = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
 
-                elif(nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}formerlyKnownAs'):
+                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}formerlyKnownAs':
                     funder['formly_known_as'] = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
 
-                elif(nested.tag == '{http://www.w3.org/2004/02/skos/core#}notation'):
+                elif nested.tag == '{http://www.w3.org/2004/02/skos/core#}notation':
                     funder['notation'] = nested.text
 
                 else:
                     print(nested)
 
             funders.append(funder)
-            funders_by_key[funder['funder']] = funder
 
     for funder in funders:
         children, returned_depth = recursive_funders(funders_by_key, funder, 0, 'narrower')
         funder["children"] = children
-        funder['bottom'] = len(children)>0
+        funder['bottom'] = len(children) > 0
 
         parent, returned_depth = recursive_funders(funders_by_key, funder, 0, 'broader')
         funder["parents"] = parent
-        funder['top'] = len(parent)>0
+        funder['top'] = len(parent) > 0
 
     return funders
 
@@ -408,22 +421,27 @@ class FundrefTelescope:
         execution_date = kwargs['execution_date']
         next_execution_date = kwargs['next_execution_date']
         releases_dict = list_releases(FundrefTelescope.TELESCOPE_URL)
+        logging.info(f'All releases:\n{releases_dict}\n')
 
         bq_hook = BigQueryHook()
         # Select the releases that were published on or after the execution_date and before the next_execution_date
         msgs_out = []
+        logging.info('All releases between this and next execution date:')
         for release_url in releases_dict:
             release_date = releases_dict[release_url]
             published_date: Pendulum = pendulum.parse(release_date)
 
             if execution_date <= published_date < next_execution_date:
+                logging.info(f'{release_url, release_date}')
                 table_exists = bq_hook.table_exists(
                     project_id=project_id,
                     dataset_id=FundrefTelescope.DATASET_ID,
-                    table_id=table_name(release_url)
+                    table_id=table_name(release_date)
                 )
-                print(f'bq table {project_id}.{FundrefTelescope.DATASET_ID}.{table_name(release_date)} already exists.')
-                if not table_exists:
+                if table_exists:
+                    logging.info(f'Table exists: {project_id}.{FundrefTelescope.DATASET_ID}.{table_name(release_date)}')
+                else:
+                    logging.info("Table doesn't exist yet, processing this workflow")
                     msgs_out.append({'url': release_url, 'date': release_date})
 
         # Push messages
@@ -441,7 +459,7 @@ class FundrefTelescope:
                 shutil.copy(FundrefTelescope.DEBUG_FILE_PATH, filepath_download(msg_in['date']))
 
             else:
-                download_release(msg_in['url'])
+                download_release(msg_in['url'], msg_in['date'])
 
     @staticmethod
     def decompress_release(**kwargs):
