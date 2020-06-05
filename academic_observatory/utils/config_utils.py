@@ -27,6 +27,8 @@ from cerberus import Validator
 
 import academic_observatory
 from academic_observatory import dags
+import academic_observatory.database.analysis.bigquery.schema
+import academic_observatory.debug_files
 
 
 def is_vendor_google() -> bool:
@@ -44,13 +46,13 @@ def is_vendor_google() -> bool:
 def observatory_home(*subdirs) -> str:
     """Get the Academic Observatory home directory.
       - If the home directory doesn't exist then create it.
-      - If the system is running in Google Cloud then the home directory will be set to: /usr/local/airflow/gcs/data
+      - If the system is running in Google Cloud then the home directory will be set to: /home/airflow/gcs/data
 
     :return: the Academic Observatory home directory.
     """
 
     if is_vendor_google():
-        user_home = '/usr/local/airflow/gcs/data'
+        user_home = '/home/airflow/gcs/data'
     else:
         user_home = str(pathlib.Path.home())
 
@@ -84,6 +86,32 @@ def dags_path() -> str:
     file_path = pathlib.Path(dags.__file__).resolve()
     path = pathlib.Path(*file_path.parts[:-1])
     return str(path.resolve())
+
+
+def bigquery_schema_path(name: str) -> str:
+    """ Get the relative path to a bigquery schema.
+
+    :return: the path to the bigquery schema.
+    """
+    file_path = pathlib.Path(academic_observatory.database.analysis.bigquery.schema.__file__).resolve()
+    path = pathlib.Path(*file_path.parts[:-1], name)
+    if path.is_file():
+        return str(path.resolve())
+    else:
+        print(f"schema file at {str(path.resolve())} does not exist")
+
+
+def debug_file_path(name: str) -> str:
+    """ Get the relative path to a file used for debugging.
+
+    :return: the path to the debug file.
+    """
+    file_path = pathlib.Path(academic_observatory.debug_files.__file__).resolve()
+    path = pathlib.Path(*file_path.parts[:-1], name)
+    if path.is_file():
+        return str(path.resolve())
+    else:
+        print(f"debug file at {str(path.resolve())} does not exist")
 
 
 class SubFolder(Enum):
@@ -246,6 +274,6 @@ class ObservatoryConfig:
         project_id = dict_['project_id']
         bucket_name = dict_['bucket_name']
         environment = Environment(dict_['environment'])
-        dags_path = dict_['dags_path']
-        google_application_credentials = dict_['google_application_credentials']
+        dags_path = dict_.get('dags_path')
+        google_application_credentials = dict_.get('google_application_credentials')
         return ObservatoryConfig(project_id, bucket_name, dags_path, google_application_credentials, environment)
