@@ -15,8 +15,6 @@
 # Author: James Diprose, Aniek Roelofs
 
 
-from __future__ import annotations
-
 import os
 import pathlib
 import socket
@@ -183,7 +181,7 @@ class ObservatoryConfig:
             yaml.safe_dump(self.to_dict(), f)
 
     @staticmethod
-    def load(path: str) -> Tuple[bool, Union[None, Validator], Union[ObservatoryConfig, None]]:
+    def load(path: str) -> Tuple[bool, Union[None, Validator], Union['ObservatoryConfig', None]]:
         """ Load an Observatory configuration file.
 
         :param path: the path to the Observatory configuration file.
@@ -225,7 +223,7 @@ class ObservatoryConfig:
         }
 
     @staticmethod
-    def make_default() -> ObservatoryConfig:
+    def make_default() -> 'ObservatoryConfig':
         """ Make an ObservatoryConfig instance with default values.
         :return: the ObservatoryConfig instance.
         """
@@ -238,7 +236,7 @@ class ObservatoryConfig:
         return ObservatoryConfig(project_id, bucket_name, dags_path, google_application_credentials, environment)
 
     @staticmethod
-    def from_dict(dict_: Dict) -> ObservatoryConfig:
+    def from_dict(dict_: Dict) -> 'ObservatoryConfig':
         """ Make an ObservatoryConfig instance from a dictionary.
 
         :param dict_:  the input dictionary that has been read via yaml.safe_load.
