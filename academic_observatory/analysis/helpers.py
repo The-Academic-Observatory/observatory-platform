@@ -19,7 +19,7 @@ from inspect import signature
 from academic_observatory.analysis.defaults import country_clean, outputs_clean
 
 
-# --- TODO: cleanup required, mainly on country names #
+#TODO: cleanup required, mainly on country names #
 def clean_geo_names(df: pd.DataFrame) -> pd.DataFrame:
     """Convenience function for standardising country names
     
@@ -170,7 +170,7 @@ def calculate_percentages(df: pd.DataFrame,
     return df
 
 
-# --- TODO: Check that this calculation is up to date with our standard practise
+#TODO: Check that this calculation is up to date with our standard practise
 def calculate_confidence_interval(df: pd.DataFrame,
                                   columns: list,
                                   total_column: str = 'total',
