@@ -14,9 +14,9 @@ default_args = {
 
 with DAG(dag_id=CrossrefTelescope.DAG_ID, schedule_interval="@monthly", default_args=default_args) as dag:
     # Get config variables
-    get_config = PythonOperator(
-        task_id=CrossrefTelescope.TASK_ID_CONFIG,
-        python_callable=CrossrefTelescope.get_config_variables,
+    check_setup = PythonOperator(
+        task_id=CrossrefTelescope.TASK_ID_SETUP,
+        python_callable=CrossrefTelescope.check_setup_requirements,
         provide_context=True
     )
 
@@ -66,5 +66,5 @@ with DAG(dag_id=CrossrefTelescope.DAG_ID, schedule_interval="@monthly", default_
         provide_context=True
     )
 
-    get_config >> list_releases >> [download_local, stop_workflow]
+    check_setup >> list_releases >> [download_local, stop_workflow]
     download_local >> decompress >> transform >> upload_to_gcs >> load_to_bq >> cleanup_local
