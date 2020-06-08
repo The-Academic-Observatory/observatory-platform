@@ -20,7 +20,7 @@ with DAG(dag_id="unpaywall", schedule_interval="@monthly", default_args=default_
         provide_context=True
     )
 
-    # List of all unpaywall releases for a given month
+    # List of all releases for last month
     list_releases = BranchPythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_LIST,
         python_callable=UnpaywallTelescope.list_releases_last_month,
@@ -32,34 +32,40 @@ with DAG(dag_id="unpaywall", schedule_interval="@monthly", default_args=default_
     # Downloads snapshot from url
     download_local = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_DOWNLOAD,
-        python_callable=UnpaywallTelescope.download_releases_local,
+        python_callable=UnpaywallTelescope.download_releases,
         provide_context=True
     )
 
+    # Decompresses download
     decompress = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_DECOMPRESS,
         python_callable=UnpaywallTelescope.decompress_release,
         provide_context=True
     )
 
+    # Transforms download
     transform = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_TRANSFORM,
         python_callable=UnpaywallTelescope.transform_release,
         provide_context=True
     )
 
+    # Upload download to gcs bucket
     upload_to_gcs = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_UPLOAD,
         python_callable=UnpaywallTelescope.upload_release_to_gcs,
         provide_context=True
 
     )
+
+    # Upload download to bigquery table
     load_to_bq = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_BQ_LOAD,
         python_callable=UnpaywallTelescope.load_release_to_bq,
         provide_context=True
     )
 
+    # Delete locally stored files
     cleanup_local = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_CLEANUP,
         python_callable=UnpaywallTelescope.cleanup_releases,
