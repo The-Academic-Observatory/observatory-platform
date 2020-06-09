@@ -15,13 +15,15 @@
 # Author: James Diprose
 
 import os
+import pathlib
 import random
-import unittest
 import unittest
 from unittest.mock import patch
 from unittest.mock import Mock
 from academic_observatory.utils import unique_id
-from academic_observatory.utils.config_utils import observatory_home, telescope_path, SubFolder, ObservatoryConfig
+from academic_observatory.utils.config_utils import observatory_home, telescope_path, bigquery_schema_path, debug_file_path, SubFolder, ObservatoryConfig
+import academic_observatory.database.analysis.bigquery.schema
+import academic_observatory.debug_files
 
 
 class TestConfigUtils(unittest.TestCase):
@@ -65,3 +67,21 @@ class TestConfigUtils(unittest.TestCase):
 
         for path in [path_downloaded, path_extracted, path_transformed]:
             os.removedirs(path)
+
+    def test_bigquery_schema_path(self):
+        schema_name = 'unpaywall.json'
+
+        schema_path = bigquery_schema_path(schema_name)
+        expected = pathlib.Path(academic_observatory.database.analysis.bigquery.schema.__file__).resolve()
+        expected = str(pathlib.Path(*expected.parts[:-1], schema_name).resolve())
+        self.assertEqual(expected, schema_path)
+        self.assertTrue(os.path.exists(schema_path))
+
+    def test_debug_path(self):
+        debug_file = 'unpaywall.jsonl.gz'
+
+        debug_path = debug_file_path(debug_file)
+        expected = pathlib.Path(academic_observatory.debug_files.__file__).resolve()
+        expected = str(pathlib.Path(*expected.parts[:-1], debug_file).resolve())
+        self.assertEqual(expected, debug_path)
+        self.assertTrue(os.path.exists(debug_path))
