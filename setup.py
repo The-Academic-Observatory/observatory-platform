@@ -14,7 +14,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='academic-observatory',
-    version='19.12.0',
+    version='20.6.0',
     description='Telescopes, Workflows and Data Services for the Academic Observatory.',
     long_description=long_description,
     license='Copyright 2019 Curtin University',
@@ -45,5 +45,5 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Utilities"
     ],
-    python_requires='==3.7.*'
+    python_requires='>=3.6.6'
 )

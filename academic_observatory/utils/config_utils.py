@@ -17,30 +17,17 @@
 
 import os
 import pathlib
-import socket
 from enum import Enum
-from typing import Tuple, Union, Dict
+from typing import Union, Dict
 
 import cerberus.validator
 import yaml
 from cerberus import Validator
 
 import academic_observatory
-from academic_observatory import dags
 import academic_observatory.database.analysis.bigquery.schema
 import academic_observatory.debug_files
-
-
-def is_vendor_google() -> bool:
-    """ Identify if the system is running in Google Cloud.
-    :return: whether system running in Google Cloud.
-    """
-    result = True
-    try:
-        socket.getaddrinfo('metadata.google.internal', 80)
-    except socket.gaierror:
-        result = False
-    return result
+from academic_observatory import dags
 
 
 def observatory_home(*subdirs) -> str:
@@ -51,7 +38,7 @@ def observatory_home(*subdirs) -> str:
     :return: the Academic Observatory home directory.
     """
 
-    if is_vendor_google():
+    if os.environ.get('CLOUD_COMPOSER') == 1:
         user_home = '/home/airflow/gcs/data'
     else:
         user_home = str(pathlib.Path.home())
@@ -153,6 +140,10 @@ class ObservatoryConfig:
             'required': True,
             'type': 'string'
         },
+        'location': {
+            'required': True,
+            'type': 'string'
+        },
         'dags_path': {
             'required': False,
             'type': 'string'
@@ -168,12 +159,14 @@ class ObservatoryConfig:
         }
     }
 
-    def __init__(self, project_id: Union[None, str], bucket_name: Union[None, str], dags_path: str,
-                 google_application_credentials: str, environment: Environment):
+    def __init__(self, project_id: Union[None, str] = None, bucket_name: Union[None, str] = None,
+                 location: Union[None, str] = None, dags_path: str = None, google_application_credentials: str = None,
+                 environment: Environment = None, validator: Validator = None):
         """ Holds the settings for the Academic Observatory, used by DAGs.
 
         :param project_id: the Google Cloud project id.
         :param bucket_name: the Google Cloud bucket where final results will be stored.
+        :param location: the Google Cloud location for the project,
         :param dags_path: the path to the DAGs folder.
         :param google_application_credentials: the path to the Google Application Credentials: https://cloud.google.com/docs/authentication/getting-started
         :param environment: whether the system is running in dev, test or prod mode.
@@ -181,22 +174,15 @@ class ObservatoryConfig:
 
         self.project_id = project_id
         self.bucket_name = bucket_name
+        self.location = location
         self.dags_path = dags_path
         self.google_application_credentials = google_application_credentials
         self.environment = environment
+        self.validator: Validator = validator
 
-    @staticmethod
-    def __validate(dict_: Dict) -> Tuple[bool, Validator]:
-        """ Validate the input dictionary against the ObservatoryConfig's schema.
-
-        :param dict_: the input dictionary that has been read via yaml.safe_load
-        :return: whether the validation passed or not and the validation object which contains details such as
-        why the validation failed.
-        """
-
-        v = Validator()
-        result = v.validate(dict_, ObservatoryConfig.schema)
-        return result, v
+    @property
+    def is_valid(self):
+        return self.validator is None or not len(self.validator._errors)
 
     def save(self, path: str) -> None:
         """ Save the ObservatoryConfig object to a file.
@@ -209,24 +195,19 @@ class ObservatoryConfig:
             yaml.safe_dump(self.to_dict(), f)
 
     @staticmethod
-    def load(path: str) -> Tuple[bool, Union[None, Validator], Union['ObservatoryConfig', None]]:
+    def load(path: str) -> 'ObservatoryConfig':
         """ Load an Observatory configuration file.
 
         :param path: the path to the Observatory configuration file.
-        :return: whether the config file is valid, the validator which contains details such as why the validation
-        failed and the ObservatoryConfig instance.
+        :return: the ObservatoryConfig instance.
         """
 
-        is_valid = False
-        validator = None
         config = None
 
         try:
             with open(path, 'r') as f:
                 dict_ = yaml.safe_load(f)
-                is_valid, validator = ObservatoryConfig.__validate(dict_)
-                if is_valid:
-                    config = ObservatoryConfig.from_dict(dict_)
+                config = ObservatoryConfig.from_dict(dict_)
         except yaml.YAMLError:
             print(f'Error parsing {path}')
         except FileNotFoundError:
@@ -234,7 +215,7 @@ class ObservatoryConfig:
         except cerberus.validator.DocumentError as e:
             print(f'cerberus.validator.DocumentError: {e}')
 
-        return is_valid, validator, config
+        return config
 
     def to_dict(self) -> Dict:
         """ Converts an ObservatoryConfig instance into a dictionary.
@@ -245,6 +226,7 @@ class ObservatoryConfig:
         return {
             'project_id': self.project_id,
             'bucket_name': self.bucket_name,
+            'location': self.location,
             'dags_path': self.dags_path,
             'google_application_credentials': self.google_application_credentials,
             'environment': self.environment.value
@@ -258,10 +240,12 @@ class ObservatoryConfig:
 
         project_id = None
         bucket_name = None
+        location = None
         dags_path = '/usr/local/airflow/dags'
         google_application_credentials = '/run/secrets/google_application_credentials.json'
         environment = Environment.dev
-        return ObservatoryConfig(project_id, bucket_name, dags_path, google_application_credentials, environment)
+        return ObservatoryConfig(project_id, bucket_name, location, dags_path, google_application_credentials,
+                                 environment)
 
     @staticmethod
     def from_dict(dict_: Dict) -> 'ObservatoryConfig':
@@ -270,10 +254,18 @@ class ObservatoryConfig:
         :param dict_:  the input dictionary that has been read via yaml.safe_load.
         :return: the ObservatoryConfig instance.
         """
+        validator = Validator()
+        is_valid = validator.validate(dict_, ObservatoryConfig.schema)
 
-        project_id = dict_['project_id']
-        bucket_name = dict_['bucket_name']
-        environment = Environment(dict_['environment'])
-        dags_path = dict_.get('dags_path')
-        google_application_credentials = dict_.get('google_application_credentials')
-        return ObservatoryConfig(project_id, bucket_name, dags_path, google_application_credentials, environment)
+        if is_valid:
+            project_id = dict_['project_id']
+            bucket_name = dict_['bucket_name']
+            location = dict_['location']
+            dags_path = dict_.get('dags_path')
+            google_application_credentials = dict_.get('google_application_credentials')
+            environment = Environment(dict_['environment'])
+            return ObservatoryConfig(project_id=project_id, bucket_name=bucket_name, location=location,
+                                     dags_path=dags_path, google_application_credentials=google_application_credentials,
+                                     environment=environment, validator=validator)
+        else:
+            return ObservatoryConfig(validator=validator)

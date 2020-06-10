@@ -44,6 +44,7 @@ class TestObservatory(unittest.TestCase):
         # Make config file
         config = ObservatoryConfig.make_default()
         config.project_id = 'my-project-id'
+        config.location = 'my-project-location'
         config.bucket_name = 'my-bucket-name'
         config.save(config_file_path)
 
@@ -132,6 +133,7 @@ class TestObservatory(unittest.TestCase):
         # Invalid config and which properties
         self.assertIn('config.yaml:\n   - path: /tmp/config.yaml\n   - file invalid\n', result.output)
         self.assertIn('bucket_name: null value not allowed', result.output)
+        self.assertIn('location: null value not allowed', result.output)
         self.assertIn('project_id: null value not allowed', result.output)
 
         # Check that Docker is not running message printed
