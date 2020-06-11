@@ -25,6 +25,5 @@ Methodology and datasets
 .. toctree::
     :maxdepth: 1
 
-    doc_datasets
-    doc_methods
+    doc_telescopes
 ================== 

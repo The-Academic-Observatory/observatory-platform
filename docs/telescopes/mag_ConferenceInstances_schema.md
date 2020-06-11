@@ -1,0 +1,22 @@
+# Telescope: mag_ConferenceInstances_schema
+- - - 
+## Dataset Schema
+
++ **ConferenceInstanceId** [*Integer*]
++ **NormalizedName** [*String*]
++ **DisplayName** [*String*]
++ **ConferenceSeriesId** [*Integer*]
++ **Location** [*String*]
++ **OfficialUrl** [*String*]
++ **StartDate** [*Datetime*]
++ **EndDate** [*Datetime*]
++ **AbstractRegistrationDate** [*Datetime*]
++ **SubmissionDeadlineDate** [*Datetime*]
++ **NotificationDueDate** [*Datetime*]
++ **FinalVersionDueDate** [*Datetime*]
++ **PaperCount** [*Integer*]
++ **CitationCount** [*Integer*]
++ **Latitude** [*Float*]
++ **Longitude** [*Float*]
++ **CreatedDate** [*Datetime*]
+- - - 

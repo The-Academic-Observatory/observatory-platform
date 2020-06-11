@@ -1,0 +1,349 @@
+# Telescope: crossref_schema
+- - - 
+## Dataset Schema
+
++ **issn_type** [*Record*] Repeated
+    + **type** [*String*] Nullable
+    + **value** [*String*] Nullable
++ **ISSN** [*String*] Repeated
++ **ISBN** [*String*] Repeated
++ **URL** [*String*] Nullable
++ **publisher_location** [*String*] Nullable
++ **references_count** [*Integer*] Nullable
++ **alternative_id** [*String*] Repeated
++ **issued** [*Record*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **posted** [*Record*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **group_title** [*String*] Nullable
++ **score** [*String*] Nullable
++ **subject** [*String*] Repeated
++ **abstract** [*String*] Nullable
++ **deposited** [*Record*] Nullable
+    + **timestamp** [*Integer*] Nullable
+    + **date_time** [*Timestamp*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **link** [*Record*] Repeated
+    + **intended_application** [*String*] Nullable
+    + **content_version** [*String*] Nullable
+    + **content_type** [*String*] Nullable
+    + **URL** [*String*] Nullable
++ **published_print** [*Record*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **accepted** [*Record*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **indexed** [*Record*] Nullable
+    + **timestamp** [*Integer*] Nullable
+    + **date_time** [*Timestamp*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **update_to** [*Record*] Repeated
+    + **updated** [*Record*] Nullable
+        + **timestamp** [*Integer*] Nullable
+        + **date_time** [*String*] Nullable
+        + **date_parts** [*Integer*] Repeated
+    + **DOI** [*String*] Nullable
+    + **type** [*String*] Nullable
+    + **label** [*String*] Nullable
++ **approved** [*Record*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **source** [*String*] Nullable
++ **content_created** [*Record*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **content_updated** [*Record*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **DOI** [*String*] Nullable
++ **content_domain** [*Record*] Nullable
+    + **crossmark_restriction** [*Boolean*] Nullable
+    + **domain** [*String*] Repeated
++ **relation** [*Record*] Nullable
+    + **cites** [*String*] Repeated
+    + **has_preprint** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **has_part** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **has_review** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_supplemented_by** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_part_of** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_identical_to** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **references** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **has_manifestation** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_reply_to** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_based_on** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_review_of** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **has_reply** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_replaced_by** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **has_comment** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **documents** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_version_of** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **has_version** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **has_related_material** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_compiled_by** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **has_translation** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_translation_of** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_preprint_of** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_referenced_by** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_supplement_to** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_variant_form_of** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **replaces** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_manifestation_of** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_related_material** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_basis_for** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_comment_on** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **continues** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_continued_by** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **has_derivation** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_data_basis_for** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_documented_by** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_derived_from** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **has_manuscript** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_manuscript_of** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **based_on_data** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_original_form_of** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
+    + **is_varient_form_of** [*Record*] Repeated
+        + **id_type** [*String*] Nullable
+        + **id** [*String*] Nullable
+        + **asserted_by** [*String*] Nullable
++ **license** [*Record*] Repeated
+    + **content_version** [*String*] Nullable
+    + **delay_in_days** [*Integer*] Nullable
+    + **start** [*Record*] Nullable
+        + **timestamp** [*Integer*] Nullable
+        + **date_time** [*String*] Nullable
+        + **date_parts** [*Integer*] Repeated
+    + **URL** [*String*] Nullable
++ **volume** [*String*] Nullable
++ **funder** [*Record*] Repeated
+    + **DOI** [*String*] Nullable
+    + **name** [*String*] Nullable
+    + **doi_asserted_by** [*String*] Nullable
+    + **award** [*String*] Repeated
++ **is_referenced_by_count** [*Integer*] Nullable
++ **degree** [*String*] Repeated
++ **subtitle** [*String*] Repeated
++ **issue** [*String*] Nullable
++ **reference_count** [*Integer*] Nullable
++ **type** [*String*] Nullable
++ **page** [*String*] Nullable
++ **update_policy** [*String*] Nullable
++ **title** [*String*] Repeated
++ **publisher** [*String*] Nullable
++ **created** [*Record*] Nullable
+    + **timestamp** [*Integer*] Nullable
+    + **date_time** [*Timestamp*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **prefix** [*Float*] Nullable
++ **author** [*Record*] Repeated
+    + **affiliation** [*Record*] Repeated
+        + **name** [*String*] Nullable
+    + **family** [*String*] Nullable
+    + **given** [*String*] Nullable
+    + **name** [*String*] Nullable
+    + **suffix** [*String*] Nullable
+    + **ORCID** [*String*] Nullable
+    + **authenticated_orcid** [*Boolean*] Nullable
++ **editor** [*Record*] Repeated
+    + **affiliation** [*Record*] Repeated
+        + **name** [*String*] Nullable
+    + **family** [*String*] Nullable
+    + **given** [*String*] Nullable
+    + **name** [*String*] Nullable
+    + **suffix** [*String*] Nullable
+    + **ORCID** [*String*] Nullable
+    + **authenticated_orcid** [*Boolean*] Nullable
++ **translator** [*Record*] Repeated
+    + **affiliation** [*Record*] Repeated
+        + **name** [*String*] Nullable
+    + **family** [*String*] Nullable
+    + **given** [*String*] Nullable
+    + **name** [*String*] Nullable
+    + **suffix** [*String*] Nullable
+    + **ORCID** [*String*] Nullable
+    + **authenticated_orcid** [*Boolean*] Nullable
++ **chair** [*Record*] Repeated
+    + **affiliation** [*Record*] Repeated
+        + **name** [*String*] Nullable
+    + **family** [*String*] Nullable
+    + **given** [*String*] Nullable
+    + **name** [*String*] Nullable
+    + **suffix** [*String*] Nullable
+    + **ORCID** [*String*] Nullable
+    + **authenticated_orcid** [*Boolean*] Nullable
++ **member** [*Integer*] Nullable
++ **short_container_title** [*String*] Repeated
++ **reference** [*Record*] Repeated
+    + **unstructured** [*String*] Nullable
+    + **key** [*String*] Nullable
+    + **journal_title** [*String*] Nullable
+    + **first_page** [*String*] Nullable
+    + **ISBN** [*String*] Nullable
+    + **doi_asserted_by** [*String*] Nullable
+    + **series_title** [*String*] Nullable
+    + **article_title** [*String*] Nullable
+    + **volume** [*String*] Nullable
+    + **author** [*String*] Nullable
+    + **year** [*String*] Nullable
+    + **DOI** [*String*] Nullable
+    + **ISSN** [*String*] Nullable
+    + **issn_type** [*String*] Nullable
+    + **isbn_type** [*String*] Nullable
+    + **volume_title** [*String*] Nullable
+    + **issue** [*String*] Nullable
+    + **edition** [*String*] Nullable
+    + **component** [*String*] Nullable
+    + **standards_body** [*String*] Nullable
+    + **standard_designator** [*String*] Nullable
++ **event** [*Record*] Nullable
+    + **name** [*String*] Nullable
+    + **location** [*String*] Nullable
+    + **acronym** [*String*] Nullable
+    + **sponsor** [*String*] Repeated
+    + **number** [*String*] Nullable
+    + **theme** [*String*] Nullable
+    + **start** [*Record*] Nullable
+        + **date_parts** [*Integer*] Repeated
+    + **end** [*Record*] Nullable
+        + **date_parts** [*Integer*] Repeated
++ **standards_body** [*Record*] Nullable
+    + **name** [*String*] Nullable
+    + **acronym** [*String*] Nullable
++ **container_title** [*String*] Repeated
++ **short_title** [*String*] Repeated
++ **original_title** [*String*] Repeated
++ **published_online** [*Record*] Nullable
+    + **date_parts** [*Integer*] Repeated
++ **assertion** [*Record*] Repeated
+    + **value** [*String*] Nullable
+    + **name** [*String*] Nullable
+    + **url** [*String*] Nullable
+    + **group** [*Record*] Nullable
+        + **name** [*String*] Nullable
+        + **label** [*String*] Nullable
+    + **label** [*String*] Nullable
+    + **explanation** [*Record*] Nullable
+        + **URL** [*String*] Nullable
+    + **order** [*Integer*] Nullable
++ **article_number** [*String*] Nullable
++ **archive** [*String*] Repeated
++ **clinical_trial_number** [*Record*] Repeated
+    + **clinical_trial_number** [*String*] Nullable
+    + **registry** [*String*] Nullable
+    + **type** [*String*] Nullable
+- - - 

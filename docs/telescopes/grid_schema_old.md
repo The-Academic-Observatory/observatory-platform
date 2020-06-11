@@ -1,0 +1,74 @@
+# Telescope: grid_schema_old
+- - - 
+## Dataset Schema
+
++ **redirect** [*String*] Nullable
++ **relationships** [*Record*] Repeated
+    + **id** [*String*] Nullable
+    + **label** [*String*] Nullable
+    + **type** [*String*] Nullable
++ **external_ids** [*Record*] Nullable
+    + **FundRef** [*String*] Repeated
+    + **ISNI** [*String*] Repeated
+    + **OrgRef** [*String*] Repeated
+    + **Wikidata** [*String*] Repeated
+    + **HESA** [*String*] Repeated
+    + **UCAS** [*String*] Repeated
+    + **UKPRN** [*String*] Repeated
+    + **CNRS** [*String*] Repeated
+    + **LinkedIn** [*String*] Repeated
++ **status** [*String*] Nullable
++ **id** [*String*] Nullable
++ **wikipedia_url** [*String*] Nullable
++ **email_address** [*String*] Nullable
++ **links** [*String*] Repeated
++ **established** [*Integer*] Nullable
++ **ip_addresses** [*String*] Repeated
++ **name** [*String*] Nullable
++ **aliases** [*String*] Repeated
++ **weight** [*Integer*] Nullable
++ **acronyms** [*String*] Repeated
++ **types** [*String*] Repeated
++ **addresses** [*Record*] Repeated
+    + **geonames_city** [*Record*] Nullable
+        + **license** [*Record*] Nullable
+            + **license** [*String*] Nullable
+            + **attribution** [*String*] Nullable
+        + **geonames_admin2** [*Record*] Nullable
+            + **code** [*String*] Nullable
+            + **ascii_name** [*String*] Nullable
+            + **name** [*String*] Nullable
+        + **nuts_level3** [*Record*] Nullable
+            + **code** [*String*] Nullable
+            + **name** [*String*] Nullable
+            + **ascii_name** [*String*] Nullable
+        + **nuts_level2** [*Record*] Nullable
+            + **code** [*String*] Nullable
+            + **name** [*String*] Nullable
+            + **ascii_name** [*String*] Nullable
+        + **geonames_admin1** [*Record*] Nullable
+            + **code** [*String*] Nullable
+            + **ascii_name** [*String*] Nullable
+            + **name** [*String*] Nullable
+        + **nuts_level1** [*Record*] Nullable
+            + **code** [*String*] Nullable
+            + **name** [*String*] Nullable
+            + **ascii_name** [*String*] Nullable
+        + **city** [*String*] Nullable
+        + **id** [*Integer*] Nullable
+    + **country_code** [*String*] Nullable
+    + **line_1** [*String*] Nullable
+    + **country** [*String*] Nullable
+    + **line_3** [*String*] Nullable
+    + **city** [*String*] Nullable
+    + **line_2** [*String*] Nullable
+    + **lng** [*Float*] Nullable
+    + **postcode** [*String*] Nullable
+    + **primary** [*Boolean*] Nullable
+    + **lat** [*Float*] Nullable
+    + **state** [*String*] Nullable
+    + **state_code** [*String*] Nullable
++ **labels** [*Record*] Repeated
+    + **iso639** [*String*] Nullable
+    + **label** [*String*] Nullable
+- - - 
