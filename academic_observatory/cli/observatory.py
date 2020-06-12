@@ -17,7 +17,6 @@
 import os
 import shutil
 import subprocess
-import time
 import urllib.error
 import urllib.request
 from subprocess import Popen
@@ -26,10 +25,11 @@ from typing import Union
 import click
 import docker
 import requests
+import time
 from cryptography.fernet import Fernet
 
-from academic_observatory.utils.config_utils import observatory_home, observatory_package_path, dags_path, \
-    ObservatoryConfig
+from academic_observatory.utils.config_utils import observatory_home, observatory_package_path, \
+    dags_path as default_dags_path, ObservatoryConfig
 from academic_observatory.utils.proc_utils import wait_for_process
 
 
@@ -142,14 +142,16 @@ def get_fernet_key() -> Union[str, None]:
     return os.environ.get('FERNET_KEY')
 
 
-def get_env(config_path: str, dags_path: str, data_path: str, airflow_ui_port: int, airflow_postgres_path: str,
-            package_path: str, fernet_key: str, google_application_credentials: str, host_uid: int):
+def get_env(config_path: str, dags_path: str, data_path: str, logs_path: str, airflow_ui_port: int,
+            airflow_postgres_path: str, package_path: str, fernet_key: str, google_application_credentials: str,
+            host_uid: int):
     """ Make an environment containing the environment variables that are required to build and start the
     Observatory docker environment.
 
     :param config_path: the path to config.yaml on the host system.
     :param dags_path: the path to the DAGs folder on the host system.
     :param data_path: the path to the data path on the host system.
+    :param logs_path: the path to the logs path on the host system.
     :param airflow_ui_port: the Apache Airflow UI port to expose on the host system.
     :param airflow_postgres_path: the path to the Apache Airflow Postgres data folder on the host system.
     :param package_path: the path to the Academic Observatory Python project on the host system.
@@ -165,6 +167,7 @@ def get_env(config_path: str, dags_path: str, data_path: str, airflow_ui_port: i
     env['HOST_DAGS_PATH'] = dags_path
     env['HOST_POSTGRES_PATH'] = airflow_postgres_path
     env['HOST_DATA_PATH'] = data_path
+    env['HOST_LOGS_PATH'] = logs_path
     env['HOST_PACKAGE_PATH'] = package_path
     env['HOST_FERNET_KEY'] = fernet_key
     env['HOST_GOOGLE_APPLICATION_CREDENTIALS'] = google_application_credentials
@@ -216,13 +219,18 @@ def indent(string: str, num_spaces: int) -> str:
               show_default=True)
 @click.option('--dags-path',
               type=click.Path(exists=True, file_okay=False, dir_okay=True),
-              default=dags_path(),
+              default=default_dags_path(),
               help='The path on the host machine to mount as the Apache Airflow DAGs folder.',
               show_default=True)
 @click.option('--data-path',
               type=click.Path(exists=True, file_okay=False, dir_okay=True),
               default=observatory_home('data'),
               help='The path on the host machine to mount as the data folder.',
+              show_default=True)
+@click.option('--logs-path',
+              type=click.Path(exists=True, file_okay=False, dir_okay=True),
+              default=observatory_home('logs'),
+              help='The path on the host machine to mount as the logs folder.',
               show_default=True)
 @click.option('--airflow-ui-port',
               type=click.INT,
@@ -243,7 +251,8 @@ def indent(string: str, num_spaces: int) -> str:
               is_flag=True,
               default=False,
               help='Print debugging information.')
-def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflow_postgres_path, host_uid, debug):
+def platform(command, config_path, dags_path, data_path, logs_path, airflow_ui_port, airflow_postgres_path, host_uid,
+             debug):
     """ Run the local Academic Observatory platform.\n
 
     COMMAND: the command to give the platform:\n
@@ -309,6 +318,7 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
     print(indent(f"- observatory home: {observatory_home()}", indent2))
     print(indent(f"- data-path: {data_path}", indent2))
     print(indent(f"- dags-path: {dags_path}", indent2))
+    print(indent(f"- logs-path: {logs_path}", indent2))
     print(indent(f"- airflow-ui-port: {airflow_ui_port}", indent2))
     print(indent(f"- airflow-postgres-path: {airflow_postgres_path}", indent2))
     print(indent(f"- host-uid: {host_uid}", indent2))
@@ -363,7 +373,7 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
 
     # Make environment variables for running commands
     package_path = observatory_package_path()
-    env = get_env(config_path, dags_path, data_path, airflow_ui_port, airflow_postgres_path,
+    env = get_env(config_path, dags_path, data_path, logs_path, airflow_ui_port, airflow_postgres_path,
                   package_path, fernet_key, gapp_cred_var, host_uid)
 
     # Make docker-compose command
