@@ -15,6 +15,7 @@
 # Author: James Diprose, Aniek Roelofs
 
 
+import logging
 import os
 import pathlib
 from enum import Enum
@@ -31,24 +32,31 @@ from academic_observatory import dags
 
 
 def observatory_home(*subdirs) -> str:
-    """Get the Academic Observatory home directory.
-      - If the home directory doesn't exist then create it.
-      - If the system is running in Google Cloud then the home directory will be set to: /home/airflow/gcs/data
-
-    :return: the Academic Observatory home directory.
+    """ Get the .observatory Academic Observatory home directory or subdirectory. The home directory and subdirectories
+     will be created if they do not exist. The path given by the OBSERVATORY_PATH environment variable must exist
+     otherwise a NotADirectoryError error will be thrown.
+      - If the OBSERVATORY_PATH environment variable is set: OBSERVATORY_PATH + .observatory + optional subdirs.
+      - If the OBSERVATORY_PATH environment variable is not set: user's home directory + .observatory + optional subdirs.
+    :param: subdirs: an optional list of subdirectories.
+    :return: the path.
     """
 
-    if os.environ.get('CLOUD_COMPOSER') == 1:
-        user_home = '/home/airflow/gcs/data'
-    else:
-        user_home = str(pathlib.Path.home())
+    observatory_path = os.environ.get('OBSERVATORY_PATH')
+    user_home = str(pathlib.Path.home())
 
-    home_ = os.path.join(user_home, ".observatory", *subdirs)
+    if observatory_path is None:
+        observatory_path = user_home
+    elif not os.path.exists(observatory_path):
+        msg = f'The path given by OBSERVATORY_PATH does not exist: {observatory_path}'
+        logging.error(msg)
+        raise FileNotFoundError(msg)
 
-    if not os.path.exists(home_):
-        os.makedirs(home_, exist_ok=True)
+    observatory_home_ = os.path.join(observatory_path, ".observatory", *subdirs)
 
-    return home_
+    if not os.path.exists(observatory_home_):
+        os.makedirs(observatory_home_, exist_ok=True)
+
+    return observatory_home_
 
 
 def observatory_package_path() -> str:
@@ -180,6 +188,16 @@ class ObservatoryConfig:
         self.environment = environment
         self.validator: Validator = validator
 
+    def __eq__(self, other):
+        d1 = dict(self.__dict__)
+        del d1['validator']
+        d2 = dict(other.__dict__)
+        del d2['validator']
+        return isinstance(other, ObservatoryConfig) and d1 == d2
+
+    def __ne__(self, other):
+        return not self == other
+
     @property
     def is_valid(self):
         return self.validator is None or not len(self.validator._errors)
@@ -249,7 +267,9 @@ class ObservatoryConfig:
 
     @staticmethod
     def from_dict(dict_: Dict) -> 'ObservatoryConfig':
-        """ Make an ObservatoryConfig instance from a dictionary.
+        """ Make an ObservatoryConfig instance from a dictionary. If the dictionary is invalid,
+        then an ObservatoryConfig instance will be returned with no properties set, except for the validator,
+        which contains validation errors.
 
         :param dict_:  the input dictionary that has been read via yaml.safe_load.
         :return: the ObservatoryConfig instance.
@@ -258,12 +278,12 @@ class ObservatoryConfig:
         is_valid = validator.validate(dict_, ObservatoryConfig.schema)
 
         if is_valid:
-            project_id = dict_['project_id']
-            bucket_name = dict_['bucket_name']
-            location = dict_['location']
+            project_id = dict_.get('project_id')
+            bucket_name = dict_.get('bucket_name')
+            location = dict_.get('location')
             dags_path = dict_.get('dags_path')
             google_application_credentials = dict_.get('google_application_credentials')
-            environment = Environment(dict_['environment'])
+            environment = Environment(dict_.get('environment'))
             return ObservatoryConfig(project_id=project_id, bucket_name=bucket_name, location=location,
                                      dags_path=dags_path, google_application_credentials=google_application_credentials,
                                      environment=environment, validator=validator)
