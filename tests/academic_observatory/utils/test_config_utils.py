@@ -217,7 +217,7 @@ class TestObservatoryConfig(unittest.TestCase):
         actual_dict = ObservatoryConfig.from_dict(expected_dict).to_dict()
         self.assertEqual(expected_dict, actual_dict)
 
-    def assert_config_equals_dict(self, dict_, config):
+    def assert_dict_equals_config(self, dict_, config):
         self.assertEqual(dict_['project_id'], config.project_id)
         self.assertEqual(dict_['bucket_name'], config.bucket_name)
         self.assertEqual(dict_['location'], config.location)
@@ -228,9 +228,9 @@ class TestObservatoryConfig(unittest.TestCase):
     def test_make_default(self):
         dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_INVALID
         config = ObservatoryConfig.make_default()
-        self.assert_config_equals_dict(dict_, config)
+        self.assert_dict_equals_config(dict_, config)
 
     def test_from_dict(self):
         dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID
         config = ObservatoryConfig.from_dict(dict_)
-        self.assert_config_equals_dict(dict_, config)
+        self.assert_dict_equals_config(dict_, config)
