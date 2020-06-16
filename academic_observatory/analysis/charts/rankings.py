@@ -290,7 +290,7 @@ class ConfidenceIntervalRank(AbstractObservatoryChart):
 
 class BoxScatter(AbstractObservatoryChart):
     """
-    Box and scatter charts for groupings of universitiies
+    Box and scatter charts for groupings of universities
     """
 
     def __init__(self,
