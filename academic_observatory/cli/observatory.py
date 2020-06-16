@@ -211,7 +211,7 @@ def indent(string: str, num_spaces: int) -> str:
 
 @cli.command()
 @click.argument('command',
-                type=click.Choice(['start', 'stop', 'clear']))
+                type=click.Choice(['start', 'stop']))
 @click.option('--config-path',
               type=click.Path(exists=False, file_okay=True, dir_okay=False),
               default=ObservatoryConfig.HOST_DEFAULT_PATH,
@@ -440,8 +440,6 @@ def platform(command, config_path, dags_path, data_path, logs_path, airflow_ui_p
             print('Academic Observatory: error stopping'.ljust(min_line_chars))
             print(error)
             exit(os.EX_CONFIG)
-    elif command == 'clear':
-        pass
     exit(os.EX_OK)
 
 
