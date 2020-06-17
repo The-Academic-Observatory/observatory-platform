@@ -1,6 +1,6 @@
 [
   {
-    "name": "FieldOfStudyId", 
+    "name": "AuthorId", 
     "type": "INTEGER"
   }, 
   {
@@ -16,23 +16,23 @@
     "type": "STRING"
   }, 
   {
-    "name": "MainType", 
-    "type": "STRING"
-  }, 
-  {
-    "name": "Level", 
+    "name": "LastKnownAffiliationId", 
     "type": "INTEGER"
   }, 
   {
     "name": "PaperCount", 
     "type": "INTEGER"
-  }, 
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER"
+  },
   {
     "name": "CitationCount", 
     "type": "INTEGER"
   }, 
   {
     "name": "CreatedDate", 
-    "type": "STRING"
+    "type": "DATETIME"
   }
 ]

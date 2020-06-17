@@ -1,6 +1,6 @@
 [
   {
-    "name": "AffiliationId", 
+    "name": "FieldOfStudyId", 
     "type": "INTEGER"
   }, 
   {
@@ -16,35 +16,27 @@
     "type": "STRING"
   }, 
   {
-    "name": "GridId", 
+    "name": "MainType", 
     "type": "STRING"
   }, 
   {
-    "name": "OfficialPage", 
-    "type": "STRING"
-  }, 
-  {
-    "name": "WikiPage", 
-    "type": "STRING"
+    "name": "Level", 
+    "type": "INTEGER"
   }, 
   {
     "name": "PaperCount", 
     "type": "INTEGER"
-  }, 
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER"
+  },
   {
     "name": "CitationCount", 
     "type": "INTEGER"
   }, 
   {
-    "name": "Latitude", 
-    "type": "FLOAT"
-  }, 
-  {
-    "name": "Longitude", 
-    "type": "FLOAT"
-  }, 
-  {
     "name": "CreatedDate", 
-    "type": "DATETIME"
+    "type": "STRING"
   }
 ]

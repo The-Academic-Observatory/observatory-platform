@@ -1,6 +1,6 @@
 [
   {
-    "name": "JournalId", 
+    "name": "ConferenceSeriesId", 
     "type": "INTEGER"
   }, 
   {
@@ -16,21 +16,13 @@
     "type": "STRING"
   }, 
   {
-    "name": "Issn", 
-    "type": "STRING"
-  }, 
-  {
-    "name": "Publisher", 
-    "type": "STRING"
-  }, 
-  {
-    "name": "Webpage", 
-    "type": "STRING"
-  }, 
-  {
     "name": "PaperCount", 
     "type": "INTEGER"
-  }, 
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER"
+  },
   {
     "name": "CitationCount", 
     "type": "INTEGER"
