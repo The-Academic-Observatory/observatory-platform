@@ -20,14 +20,25 @@ import shutil
 import unittest
 from unittest.mock import patch
 
+import academic_observatory.database
+import academic_observatory.database.telescopes.schema
+
 import yaml
 from click.testing import CliRunner
-
+import academic_observatory.database.telescopes.schema
 import academic_observatory.dags
-import academic_observatory.database.analysis.bigquery.schema
 import academic_observatory.debug_files
-from academic_observatory.utils.config_utils import observatory_home, telescope_path, bigquery_schema_path, \
-    debug_file_path, SubFolder, ObservatoryConfig, Environment, observatory_package_path, dags_path
+from academic_observatory.utils.config_utils import ObservatoryConfig, Environment, observatory_package_path, dags_path
+
+
+import pendulum
+
+import academic_observatory.database
+import academic_observatory.database.telescopes.schema
+import academic_observatory.debug_files
+from academic_observatory.utils.config_utils import observatory_home, telescope_path, SubFolder, find_schema, \
+    schema_path, debug_file_path
+from academic_observatory.utils.test_utils import test_data_dir
 
 
 class TestConfigUtils(unittest.TestCase):
@@ -62,7 +73,6 @@ class TestConfigUtils(unittest.TestCase):
 
         # Test that setting the OBSERVATORY_PATH environment variable works
         path = observatory_home()
-        self.assertTrue(os.path.exists(path))
         self.assertEqual(f'{observatory_home_path}/.observatory', path)
 
         # Test that subdirectories are created
@@ -92,14 +102,6 @@ class TestConfigUtils(unittest.TestCase):
         self.assertEqual(expected_path, actual_path)
         self.assertTrue(os.path.exists(actual_path))
 
-    def test_bigquery_schema_path(self):
-        schema_name = 'unpaywall.json'
-        expected_path = pathlib.Path(academic_observatory.database.analysis.bigquery.schema.__file__).resolve()
-        expected_path = str(pathlib.Path(*expected_path.parts[:-1], schema_name).resolve())
-        actual_path = bigquery_schema_path(schema_name)
-        self.assertEqual(expected_path, actual_path)
-        self.assertTrue(os.path.exists(actual_path))
-
     def test_debug_file_path(self):
         debug_file = 'unpaywall.jsonl.gz'
         expected_path = pathlib.Path(academic_observatory.debug_files.__file__).resolve()
@@ -107,6 +109,94 @@ class TestConfigUtils(unittest.TestCase):
         actual_path = debug_file_path(debug_file)
         self.assertEqual(expected_path, actual_path)
         self.assertTrue(os.path.exists(actual_path))
+
+    def test_schema_path(self):
+        actual_path = schema_path('telescopes')
+        expected_path = pathlib.Path(academic_observatory.database.telescopes.schema.__file__).resolve()
+        expected_path = str(pathlib.Path(*expected_path.parts[:-1]).resolve())
+        self.assertEqual(expected_path, actual_path)
+        self.assertTrue(os.path.exists(actual_path))
+
+    def test_find_schema(self):
+        schemas_path = os.path.join(test_data_dir(__file__), 'schemas')
+
+        # Tests that don't use a prefix
+        table_name = 'grid'
+
+        # 2020-09-21
+        release_date = pendulum.datetime(year=2015, month=9, day=21)
+        result = find_schema(schemas_path, table_name, release_date)
+        self.assertIsNone(result)
+
+        # 2020-09-22
+        expected_schema = 'grid_2015-09-22.json'
+        release_date = pendulum.datetime(year=2015, month=9, day=22)
+        result = find_schema(schemas_path, table_name, release_date)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # 2015-09-23
+        release_date = pendulum.datetime(year=2015, month=9, day=23)
+        result = find_schema(schemas_path, table_name, release_date)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # 2020-04-28
+        expected_schema = 'grid_2016-04-28.json'
+        release_date = pendulum.datetime(year=2016, month=4, day=28)
+        result = find_schema(schemas_path, table_name, release_date)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # 2016-04-29
+        release_date = pendulum.datetime(year=2016, month=4, day=29)
+        result = find_schema(schemas_path, table_name, release_date)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # Tests that use a prefix
+        table_name = 'Papers'
+        prefix = 'Mag'
+
+        # 2020-05-20
+        release_date = pendulum.datetime(year=2020, month=5, day=20)
+        result = find_schema(schemas_path, table_name, release_date, prefix=prefix)
+        self.assertIsNone(result)
+
+        # 2020-05-21
+        expected_schema = 'MagPapers2020-05-21.json'
+        release_date = pendulum.datetime(year=2020, month=5, day=21)
+        result = find_schema(schemas_path, table_name, release_date, prefix=prefix)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # 2020-05-22
+        release_date = pendulum.datetime(year=2020, month=5, day=22)
+        result = find_schema(schemas_path, table_name, release_date, prefix=prefix)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # 2020-06-05
+        expected_schema = 'MagPapers2020-06-05.json'
+        release_date = pendulum.datetime(year=2020, month=6, day=5)
+        result = find_schema(schemas_path, table_name, release_date, prefix=prefix)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # 2020-06-06
+        release_date = pendulum.datetime(year=2020, month=6, day=6)
+        result = find_schema(schemas_path, table_name, release_date, prefix=prefix)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+    def test_debug_path(self):
+        debug_file = 'unpaywall.jsonl.gz'
+
+        debug_path = debug_file_path(debug_file)
+        expected = pathlib.Path(academic_observatory.debug_files.__file__).resolve()
+        expected = str(pathlib.Path(*expected.parts[:-1], debug_file).resolve())
+        self.assertEqual(expected, debug_path)
+        self.assertTrue(os.path.exists(debug_path))
 
     @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
     def test_telescope_path(self, mock_pathlib_home):
