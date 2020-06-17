@@ -14,22 +14,23 @@
 
 # Author: James Diprose
 
-
 import os
 import shutil
 import subprocess
-import time
+import urllib.error
 import urllib.request
 from subprocess import Popen
-from typing import Tuple, Union
+from typing import Union
 
 import click
 import docker
 import requests
+import time
 from cryptography.fernet import Fernet
 
-from academic_observatory.utils.config_utils import observatory_home, observatory_package_path, dags_path, \
-    ObservatoryConfig
+from academic_observatory.utils.config_utils import observatory_home, observatory_package_path, \
+    dags_path as default_dags_path, ObservatoryConfig
+from academic_observatory.utils.proc_utils import wait_for_process
 
 
 @click.group()
@@ -93,18 +94,6 @@ def generate(command):
         gen_config_interface()
 
 
-def wait_for_process(proc: Popen) -> Tuple[str, str]:
-    """ Wait for a process to finish, returning the std output and std error streams as strings.
-
-    :param proc: the process object.
-    :return: std output and std error streams as strings.
-    """
-    output, error = proc.communicate()
-    output = output.decode('utf-8')
-    error = error.decode('utf-8')
-    return output, error
-
-
 def get_docker_path() -> str:
     """ Get the path to Docker.
 
@@ -153,19 +142,22 @@ def get_fernet_key() -> Union[str, None]:
     return os.environ.get('FERNET_KEY')
 
 
-def get_env(config_path: str, dags_path: str, data_path: str, airflow_ui_port: int, airflow_postgres_path: str,
-            package_path: str, fernet_key: str, google_application_credentials: str):
+def get_env(config_path: str, dags_path: str, data_path: str, logs_path: str, airflow_ui_port: int,
+            airflow_postgres_path: str, package_path: str, fernet_key: str, google_application_credentials: str,
+            host_uid: int):
     """ Make an environment containing the environment variables that are required to build and start the
     Observatory docker environment.
 
     :param config_path: the path to config.yaml on the host system.
     :param dags_path: the path to the DAGs folder on the host system.
     :param data_path: the path to the data path on the host system.
+    :param logs_path: the path to the logs path on the host system.
     :param airflow_ui_port: the Apache Airflow UI port to expose on the host system.
     :param airflow_postgres_path: the path to the Apache Airflow Postgres data folder on the host system.
     :param package_path: the path to the Academic Observatory Python project on the host system.
     :param fernet_key: the Fernet key.
     :param google_application_credentials: the path to the Google Application Credentials on the host system.
+    :param host_uid: the user id of the host system.
     :return:
     """
 
@@ -175,9 +167,11 @@ def get_env(config_path: str, dags_path: str, data_path: str, airflow_ui_port: i
     env['HOST_DAGS_PATH'] = dags_path
     env['HOST_POSTGRES_PATH'] = airflow_postgres_path
     env['HOST_DATA_PATH'] = data_path
+    env['HOST_LOGS_PATH'] = logs_path
     env['HOST_PACKAGE_PATH'] = package_path
     env['HOST_FERNET_KEY'] = fernet_key
     env['HOST_GOOGLE_APPLICATION_CREDENTIALS'] = google_application_credentials
+    env['HOST_USER_ID'] = str(host_uid)
     return env
 
 
@@ -203,6 +197,10 @@ def wait_for_airflow_ui(ui_url: str, timeout=60) -> bool:
             time.sleep(0.5)
         except ConnectionResetError:
             pass
+        except ConnectionRefusedError:
+            pass
+        except urllib.error.URLError:
+            pass
 
     return ui_started
 
@@ -221,7 +219,7 @@ def indent(string: str, num_spaces: int) -> str:
               show_default=True)
 @click.option('--dags-path',
               type=click.Path(exists=True, file_okay=False, dir_okay=True),
-              default=dags_path(),
+              default=default_dags_path(),
               help='The path on the host machine to mount as the Apache Airflow DAGs folder.',
               show_default=True)
 @click.option('--data-path',
@@ -229,8 +227,13 @@ def indent(string: str, num_spaces: int) -> str:
               default=observatory_home('data'),
               help='The path on the host machine to mount as the data folder.',
               show_default=True)
+@click.option('--logs-path',
+              type=click.Path(exists=True, file_okay=False, dir_okay=True),
+              default=observatory_home('logs'),
+              help='The path on the host machine to mount as the logs folder.',
+              show_default=True)
 @click.option('--airflow-ui-port',
-              type=int,
+              type=click.INT,
               default=8080,
               help='Apache Airflow external UI port.',
               show_default=True)
@@ -239,11 +242,17 @@ def indent(string: str, num_spaces: int) -> str:
               default=observatory_home('airflow-postgres'),
               help='The path on the host machine to mount as the Apache Airflow PostgreSQL data folder.',
               show_default=True)
+@click.option('--host-uid',
+              type=click.INT,
+              default=os.getuid(),
+              help='The user id of the host system. Used to set the user id in the Docker containers.',
+              show_default=True)
 @click.option('--debug',
               is_flag=True,
               default=False,
               help='Print debugging information.')
-def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflow_postgres_path, debug):
+def platform(command, config_path, dags_path, data_path, logs_path, airflow_ui_port, airflow_postgres_path, host_uid,
+             debug):
     """ Run the local Academic Observatory platform.\n
 
     COMMAND: the command to give the platform:\n
@@ -268,7 +277,10 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
     gapp_cred_file_exists = os.path.exists(gapp_cred_var) if gapp_cred_var is not None else False
     fernet_key = get_fernet_key()
     config_exists = os.path.exists(config_path)
-    config_valid, config_validator, config = ObservatoryConfig.load(config_path)
+    config = ObservatoryConfig.load(config_path)
+    config_is_valid = False
+    if config is not None:
+        config_is_valid = config.is_valid
 
     # Check that all dependencies are met
     all_deps = all([docker_path is not None,
@@ -278,7 +290,7 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
                     gapp_cred_file_exists,
                     fernet_key is not None,
                     config_exists,
-                    config_valid,
+                    config_is_valid,
                     config is not None])
 
     # Indentation variables
@@ -306,8 +318,10 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
     print(indent(f"- observatory home: {observatory_home()}", indent2))
     print(indent(f"- data-path: {data_path}", indent2))
     print(indent(f"- dags-path: {dags_path}", indent2))
+    print(indent(f"- logs-path: {logs_path}", indent2))
     print(indent(f"- airflow-ui-port: {airflow_ui_port}", indent2))
     print(indent(f"- airflow-postgres-path: {airflow_postgres_path}", indent2))
+    print(indent(f"- host-uid: {host_uid}", indent2))
 
     print(indent("Docker Compose:", indent1))
     if docker_compose_path is not None:
@@ -340,11 +354,11 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
     if config_exists:
         print(indent(f"- path: {config_path}", indent2))
 
-        if config_valid:
+        if config.is_valid:
             print(indent("- file valid", indent2))
         else:
             print(indent("- file invalid", indent2))
-            for key, value in config_validator.errors.items():
+            for key, value in config.validator.errors.items():
                 print(indent(f'- {key}: {", ".join(value)}', indent3))
     else:
         print(indent("- file not found, generating a default file", indent2))
@@ -359,8 +373,8 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
 
     # Make environment variables for running commands
     package_path = observatory_package_path()
-    env = get_env(config_path, dags_path, data_path, airflow_ui_port, airflow_postgres_path,
-                  package_path, fernet_key, gapp_cred_var)
+    env = get_env(config_path, dags_path, data_path, logs_path, airflow_ui_port, airflow_postgres_path,
+                  package_path, fernet_key, gapp_cred_var, host_uid)
 
     # Make docker-compose command
     args = ['docker-compose']
@@ -390,7 +404,7 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
             exit(os.EX_CONFIG)
 
         # Start the built containers
-        print('Academic Observatory: starting...                                               ', end='\r')
+        print('Academic Observatory: starting...'.ljust(min_line_chars), end='\r')
         proc: Popen = subprocess.Popen(args + ['up', '-d'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         output, error = wait_for_process(proc)
 
@@ -399,7 +413,7 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
 
         if proc.returncode == 0:
             ui_url = f'http://localhost:{airflow_ui_port}'
-            ui_started = wait_for_airflow_ui(ui_url)
+            ui_started = wait_for_airflow_ui(ui_url, timeout=120)
 
             if ui_started:
                 print('Academic Observatory: started'.ljust(min_line_chars))
@@ -426,7 +440,6 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
             print('Academic Observatory: error stopping'.ljust(min_line_chars))
             print(error)
             exit(os.EX_CONFIG)
-
     exit(os.EX_OK)
 
 
