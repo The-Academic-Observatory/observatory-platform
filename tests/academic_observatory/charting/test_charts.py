@@ -19,27 +19,27 @@ import pandas as pd
 import os.path
 
 # From charts.py
-from academic_observatory.charting.charts.scatter_plot import ScatterPlot
-from academic_observatory.charting.charts.time_plot import TimePlot
-from academic_observatory.charting.charts.time_plot_layout import TimePlotLayout
-from academic_observatory.charting.charts.time_path import TimePath
-from academic_observatory.charting.charts.layout import Layout
+from academic_observatory.charting.charts import ScatterPlot
+from academic_observatory.charting.charts import TimePlot
+from academic_observatory.charting.charts import TimePlotLayout
+from academic_observatory.charting.charts import TimePath
+from academic_observatory.charting.charts import Layout
 
 # From rankings.py
-from academic_observatory.charting.charts.rank_chart import RankChart
-from academic_observatory.charting.charts.confidence_interval_rank import ConfidenceIntervalRank
-from academic_observatory.charting.charts.box_scatter import BoxScatter
+from academic_observatory.charting.charts import RankChart
+from academic_observatory.charting.charts import ConfidenceIntervalRank
+from academic_observatory.charting.charts import BoxScatter
 
 # From reports.py
-from academic_observatory.charting.charts.output_types_pie_chart import OutputTypesPieChart
-from academic_observatory.charting.charts.generic_time_chart import GenericTimeChart
-from academic_observatory.charting.charts.output_types_time_chart import OutputTypesTimeChart
-from academic_observatory.charting.charts.oapc_time_chart import OApcTimeChart
-from academic_observatory.charting.charts.citation_count_time_chart import CitationCountTimeChart
-from academic_observatory.charting.charts.oa_advantage_bar_chart import OAAdvantageBarChart
-from academic_observatory.charting.charts.bar_comparison_chart import BarComparisonChart
-from academic_observatory.charting.charts.funder_graph import FunderGraph
-from academic_observatory.charting.charts.distribution_comparison_chart import DistributionComparisonChart
+from academic_observatory.charting.charts import OutputTypesPieChart
+from academic_observatory.charting.charts import GenericTimeChart
+from academic_observatory.charting.charts import OutputTypesTimeChart
+from academic_observatory.charting.charts import OApcTimeChart
+from academic_observatory.charting.charts import CitationCountTimeChart
+from academic_observatory.charting.charts import OAAdvantageBarChart
+from academic_observatory.charting.charts import BarComparisonChart
+from academic_observatory.charting.charts import FunderGraph
+from academic_observatory.charting.charts import DistributionComparisonChart
 
 import academic_observatory.utils.chart_utils
 
