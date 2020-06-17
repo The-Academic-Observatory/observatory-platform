@@ -1,6 +1,6 @@
 [
   {
-    "name": "AuthorId", 
+    "name": "AffiliationId", 
     "type": "INTEGER"
   }, 
   {
@@ -16,8 +16,16 @@
     "type": "STRING"
   }, 
   {
-    "name": "LastKnownAffiliationId", 
-    "type": "INTEGER"
+    "name": "GridId", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "OfficialPage", 
+    "type": "STRING"
+  }, 
+  {
+    "name": "WikiPage", 
+    "type": "STRING"
   }, 
   {
     "name": "PaperCount", 
@@ -26,6 +34,18 @@
   {
     "name": "CitationCount", 
     "type": "INTEGER"
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER"
+  },
+  {
+    "name": "Latitude", 
+    "type": "FLOAT"
+  }, 
+  {
+    "name": "Longitude", 
+    "type": "FLOAT"
   }, 
   {
     "name": "CreatedDate", 

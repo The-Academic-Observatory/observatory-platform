@@ -50,7 +50,11 @@
   {
     "name": "PaperCount", 
     "type": "INTEGER"
-  }, 
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER"
+  },
   {
     "name": "CitationCount", 
     "type": "INTEGER"

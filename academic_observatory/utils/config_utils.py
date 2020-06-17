@@ -15,6 +15,7 @@
 # Author: James Diprose, Aniek Roelofs
 
 
+import glob
 import logging
 import os
 import pathlib
@@ -22,11 +23,13 @@ from enum import Enum
 from typing import Union, Dict
 
 import cerberus.validator
+import pendulum
 import yaml
 from cerberus import Validator
+from natsort import natsorted
+from pendulum import Pendulum
 
-import academic_observatory
-import academic_observatory.database.analysis.bigquery.schema
+import academic_observatory.database
 import academic_observatory.debug_files
 from academic_observatory import dags
 
@@ -83,17 +86,71 @@ def dags_path() -> str:
     return str(path.resolve())
 
 
-def bigquery_schema_path(name: str) -> str:
-    """ Get the relative path to a bigquery schema.
+def schema_path(database: str) -> str:
+    """ Get the absolute path to a schema folder.
 
-    :return: the path to the bigquery schema.
+    :param database: the name of the database, e.g. telescopes, platform, analysis etc.
+    :return: the schema folder.
     """
-    file_path = pathlib.Path(academic_observatory.database.analysis.bigquery.schema.__file__).resolve()
-    path = pathlib.Path(*file_path.parts[:-1], name)
-    if path.is_file():
-        return str(path.resolve())
-    else:
-        print(f"schema file at {str(path.resolve())} does not exist")
+    file_path = pathlib.Path(academic_observatory.database.__file__).resolve()
+    return str(pathlib.Path(*file_path.parts[:-1], database, 'schema').resolve())
+
+
+def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str = '') -> Union[str, None]:
+    """ Finds a schema file on a given path, with a particular table name, release date and optional prefix.
+    The most recent schema with a date less than or equal to the release date of the dataset is returned.
+    Use the schema_path function to find the path to the folder containing the schemas.
+
+    For example (grid schemas):
+     - grid2015-09-22.json
+     - grid2016-04-28.json
+
+    For GRID releases between 2015-09-22 and 2016-04-28 grid_2015-09-22.json is returned and for GRID releases or after
+    2016-04-28 grid_2016-04-28.json is returned (until a new schema with a later date is added).
+
+    Schemas are named with the following pattern: prefix + table_name + YYYY-MM-DD + .json
+    * prefix: an optional prefix for datasets with multiple tables, for instance the Microsoft Academic Graph (MAG)
+    dataset schema file names are prefixed with Mag, e.g. MagAffiliations2020-05-21.json, MagAuthors2020-05-21.json.
+    The GRID dataset only has one table, so there is no prefix, e.g. grid2015-09-22.json.
+    * table_name: the name of the table.
+    * YYYY-MM-DD: schema file names end in the release date that the particular schema should be used from in YYYY-MM-DD
+    format.
+    * prefix and table_name follow the naming conventions of the dataset, e.g. MAG uses CamelCase for tables and fields
+    so CamelCase is used. When there is no preference from the dataset then lower snake case is used.
+
+    :param path: the path to search within.
+    :param table_name: the name of the table.
+    :param release_date: the release date of the table.
+    :param prefix: an optional prefix.
+    :return: the path to the schema or None if no schema was found.
+    """
+
+    # Make search path for schemas
+    search_path = os.path.join(path, f'{prefix}{table_name}*.json')
+
+    # Find potential schemas with a glob search and sort them naturally
+    schema_paths = glob.glob(search_path)
+    schema_paths = natsorted(schema_paths)
+
+    # Get schemas with dates <= release date
+    prefix_len = len(prefix + table_name)
+    suffix_len = 5
+    selected_paths = []
+    for path in schema_paths:
+        file_name = os.path.basename(path)
+        schema_date = pendulum.parse(file_name[prefix_len:-suffix_len].replace('_', ''))
+
+        if schema_date <= release_date:
+            selected_paths.append(path)
+        else:
+            break
+
+    # Return the schema with the most recent release date
+    if len(selected_paths):
+        return selected_paths[-1]
+
+    # No schemas were found
+    return None
 
 
 def debug_file_path(name: str) -> str:
