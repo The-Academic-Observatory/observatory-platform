@@ -20,24 +20,15 @@ import shutil
 import unittest
 from unittest.mock import patch
 
-import academic_observatory.database
-import academic_observatory.database.telescopes.schema
-
+import pendulum
 import yaml
 from click.testing import CliRunner
-import academic_observatory.database.telescopes.schema
+
 import academic_observatory.dags
-import academic_observatory.debug_files
-from academic_observatory.utils.config_utils import ObservatoryConfig, Environment, observatory_package_path, dags_path
-
-
-import pendulum
-
-import academic_observatory.database
 import academic_observatory.database.telescopes.schema
 import academic_observatory.debug_files
-from academic_observatory.utils.config_utils import observatory_home, telescope_path, SubFolder, find_schema, \
-    schema_path, debug_file_path
+from academic_observatory.utils.config_utils import ObservatoryConfig, Environment, observatory_package_path, \
+    dags_path, observatory_home, telescope_path, SubFolder, find_schema, schema_path, debug_file_path
 from academic_observatory.utils.test_utils import test_data_dir
 
 
