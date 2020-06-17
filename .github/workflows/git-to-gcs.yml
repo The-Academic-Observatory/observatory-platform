@@ -1,0 +1,30 @@
+on:
+  push:
+    branches: [master, develop]
+  repository_dispatch:
+jobs:
+  sync_prod:
+    if: github.event.action == 'prod' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: 'master'
+      - name: Sync to GCS
+        uses: aroelo/sync_to_gcs@20.6.0
+        with:
+          secrets: ${{ secrets.google_credentials }}
+          bucket_suffix: 'prod'
+
+  sync_dev:
+    if: github.event.action == 'dev' || github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: 'develop'
+      - name: Sync to GCS
+        uses: aroelo/sync_to_gcs@20.6.0
+        with:
+          secrets: ${{ secrets.google_credentials }}
+          bucket_suffix: 'dev'
