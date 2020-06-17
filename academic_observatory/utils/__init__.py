@@ -6,3 +6,5 @@ from .json_util import *
 from .ray_utils import *
 from .test_utils import *
 from .url_utils import *
+from .chart_utils import *
+from .report_utils import *
