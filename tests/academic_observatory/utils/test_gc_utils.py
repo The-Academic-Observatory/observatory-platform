@@ -101,6 +101,14 @@ class TestGoogleCloudUtils(unittest.TestCase):
         test_data_path = os.path.join(test_data_dir(__file__), 'gc_utils')
         schema_path = os.path.join(test_data_path, schema_file_name)
 
+        # CSV file
+        csv_file_name = 'people.csv'
+        csv_file_path = os.path.join(test_data_path, csv_file_name)
+
+        # JSON file
+        json_file_name = 'people.jsonl'
+        json_file_path = os.path.join(test_data_path, json_file_name)
+
         try:
             # Create dataset
             create_bigquery_dataset(self.gc_project_id, dataset_name, self.location)
@@ -108,8 +116,6 @@ class TestGoogleCloudUtils(unittest.TestCase):
             self.assertEqual(dataset.dataset_id, dataset_name)
 
             # Upload CSV to storage bucket
-            csv_file_name = 'people.csv'
-            csv_file_path = os.path.join(test_data_path, csv_file_name)
             result = upload_file_to_cloud_storage(self.gc_bucket_name, csv_file_name, csv_file_path)
             self.assertTrue(result)
 
@@ -124,8 +130,6 @@ class TestGoogleCloudUtils(unittest.TestCase):
             self.assertEqual(table.table_id, table_name)
 
             # Upload jsonl to storage bucket
-            json_file_name = 'people.jsonl'
-            json_file_path = os.path.join(test_data_path, json_file_name)
             result = upload_file_to_cloud_storage(self.gc_bucket_name, json_file_name, json_file_path)
             self.assertTrue(result)
 
@@ -139,7 +143,17 @@ class TestGoogleCloudUtils(unittest.TestCase):
             table: Table = client.get_table(table_id)
             self.assertEqual(table.table_id, table_name)
         finally:
+            # Delete dataset
             client.delete_dataset(dataset_name, delete_contents=True, not_found_ok=True)
+
+            # Delete blobs
+            storage_client = storage.Client()
+            bucket = storage_client.get_bucket(self.gc_bucket_name)
+            files = [csv_file_name, json_file_name]
+            for path in files:
+                blob = bucket.blob(path)
+                if blob.exists():
+                    blob.delete()
 
     def test_upload_download_blobs_from_cloud_storage(self):
         runner = CliRunner()
@@ -189,9 +203,10 @@ class TestGoogleCloudUtils(unittest.TestCase):
                     self.assertEqual(self.expected_crc32c, actual_crc32c)
             finally:
                 # Delete blobs
-                blob = bucket.blob(upload_folder_name)
-                if blob.exists():
-                    blob.delete()
+                for blob_path in upload_file_paths:
+                    blob = bucket.blob(blob_path)
+                    if blob.exists():
+                        blob.delete()
 
     def test_upload_download_blob_from_cloud_storage(self):
         runner = CliRunner()
