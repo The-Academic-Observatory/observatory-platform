@@ -33,6 +33,7 @@ from academic_observatory.utils.gc_utils import hex_to_base64_str, crc32c_base64
 
 def make_account_url(account_name: str) -> str:
     """ Make an Azure Storage account URL from an account name.
+    TODO: delete once it can be imported from mag-archiver.
 
     :param account_name: Azure Storage account name.
     :return: the account URL.
@@ -42,6 +43,10 @@ def make_account_url(account_name: str) -> str:
 
 
 def random_id():
+    """ Generate a random id for bucket name.
+
+    :return: a random string id.
+    """
     return str(uuid.uuid4()).replace("-", "")
 
 
@@ -263,7 +268,8 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 include_prefixes=[blob_name],
                 gc_project_id=self.gc_project_id,
                 gc_bucket=self.gc_bucket_name,
-                description='Test transfer'
+                description=f'Test Azure to Google Cloud Storage Transfer '
+                            f'{pendulum.datetime.utcnow().to_datetime_string()}'
             )
 
             # Check that transfer was successful
