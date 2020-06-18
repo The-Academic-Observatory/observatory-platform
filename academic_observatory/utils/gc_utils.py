@@ -21,16 +21,14 @@ import multiprocessing
 import os
 from concurrent.futures import as_completed, ProcessPoolExecutor
 from enum import Enum
-from multiprocessing import BoundedSemaphore
-from multiprocessing import cpu_count
+from multiprocessing import BoundedSemaphore, cpu_count
 from typing import List, Union
 
 import pendulum
 import time
 from crc32c import Checksum as Crc32cChecksum
 from google.api_core.exceptions import Conflict
-from google.cloud import bigquery
-from google.cloud import storage
+from google.cloud import storage, bigquery
 from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
@@ -197,6 +195,7 @@ def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path
     :param file_path: the file path where the blob should be saved.
     :param retries: the number of times to retry downloading the blob.
     :param connection_sem: a BoundedSemaphore to limit the number of download connections that can run at once.
+    :param chunk_size: the chunk size to use when downloading a blob in multiple parts, must be a multiple of 256 KB.
     :return: whether the download was successful or not.
     """
 
@@ -265,6 +264,7 @@ def download_blobs_from_cloud_storage(bucket_name: str, prefix: str, destination
     :param max_processes: the maximum number of processes.
     :param max_connections: the maximum number of download connections at once.
     :param retries: the number of times to retry downloading the blob.
+    :param chunk_size: the chunk size to use when downloading a blob in multiple parts, must be a multiple of 256 KB.
     :return: whether the files were downloaded successfully or not.
     """
 
@@ -326,6 +326,7 @@ def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_
     :param max_processes: the maximum number of processes.
     :param max_connections: the maximum number of upload connections at once.
     :param retries: the number of times to retry uploading a file if an error occurs.
+    :param chunk_size: the chunk size to use when uploading a blob in multiple parts, must be a multiple of 256 KB.
     :return: whether the files were uploaded successfully or not.
     """
 
@@ -370,6 +371,7 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
     :param file_path: the path of the file to upload.
     :param retries: the number of times to retry uploading a file if an error occurs.
     :param connection_sem: a BoundedSemaphore to limit the number of upload connections that can run at once.
+    :param chunk_size: the chunk size to use when uploading a blob in multiple parts, must be a multiple of 256 KB.
     :return: whether the upload was successful or not.
     """
     func_name = upload_file_to_cloud_storage.__name__
