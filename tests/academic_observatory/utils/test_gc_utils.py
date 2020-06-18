@@ -1,4 +1,4 @@
-# Copyright 2019 Curtin University. All Rights Reserved.
+# Copyright 2020 Curtin University. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,10 +21,6 @@ from typing import Optional
 
 import pendulum
 from azure.storage.blob import BlobServiceClient, BlobClient
-# from academic_observatory.utils.gc_utils import hex_to_base64_str, crc32c_base64_hash, TransferStatus, \
-# bigquery_partitioned_table_id, create_bigquery_dataset, download_blob_from_cloud_storage, \
-# download_blobs_from_cloud_storage, azure_to_google_cloud_storage_transfer, load_bigquery_table, \
-#     upload_files_to_cloud_storage
 from click.testing import CliRunner
 from google.cloud import storage, bigquery
 from google.cloud.bigquery import SourceFormat, Table
@@ -53,12 +49,12 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestGoogleCloudUtils, self).__init__(*args, **kwargs)
-        self.az_storage_account_name: str = os.getenv('AZURE_STORAGE_ACCOUNT_NAME')
-        self.az_container_sas_token: str = os.getenv('AZURE_CONTAINER_SAS_TOKEN')
-        self.az_container_name: str = os.getenv('AZURE_CONTAINER_NAME')
-        self.gc_project_id: str = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
-        self.gc_bucket_name: str = os.getenv('GOOGLE_CLOUD_BUCKET_NAME')
-        self.location = "us-west4"
+        self.az_storage_account_name: str = os.getenv('TESTS_AZURE_STORAGE_ACCOUNT_NAME')
+        self.az_container_sas_token: str = os.getenv('TESTS_AZURE_CONTAINER_SAS_TOKEN')
+        self.az_container_name: str = os.getenv('TESTS_AZURE_CONTAINER_NAME')
+        self.gc_project_id: str = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
+        self.gc_bucket_name: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_NAME')
+        self.gc_bucket_location: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_LOCATION')
         self.data = 'hello world'
         self.expected_crc32c = 'yZRlqg=='
 
@@ -87,7 +83,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
         dataset_name = random_id()
         client = bigquery.Client()
         try:
-            create_bigquery_dataset(self.gc_project_id, dataset_name, self.location)
+            create_bigquery_dataset(self.gc_project_id, dataset_name, self.gc_bucket_location)
             # google.api_core.exceptions.NotFound will be raised if the dataset doesn't exist
             dataset: bigquery.Dataset = client.get_dataset(dataset_name)
             self.assertEqual(dataset.dataset_id, dataset_name)
@@ -111,7 +107,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
         try:
             # Create dataset
-            create_bigquery_dataset(self.gc_project_id, dataset_name, self.location)
+            create_bigquery_dataset(self.gc_project_id, dataset_name, self.gc_bucket_location)
             dataset: bigquery.Dataset = client.get_dataset(dataset_name)
             self.assertEqual(dataset.dataset_id, dataset_name)
 
@@ -122,8 +118,8 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Test loading CSV table
             table_name = random_id()
             uri = f"gs://{self.gc_bucket_name}/{csv_file_name}"
-            result = load_bigquery_table(uri, dataset_name, self.location, table_name, schema_file_path=schema_path,
-                                         source_format=SourceFormat.CSV)
+            result = load_bigquery_table(uri, dataset_name, self.gc_bucket_location, table_name,
+                                         schema_file_path=schema_path, source_format=SourceFormat.CSV)
             self.assertTrue(result)
             table_id = f'{dataset_name}.{table_name}'
             table: Table = client.get_table(table_id)
@@ -136,7 +132,8 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Test loading JSON newline table
             table_name = random_id()
             uri = f"gs://{self.gc_bucket_name}/{json_file_name}"
-            result = load_bigquery_table(uri, dataset_name, self.location, table_name, schema_file_path=schema_path,
+            result = load_bigquery_table(uri, dataset_name, self.gc_bucket_location, table_name,
+                                         schema_file_path=schema_path,
                                          source_format=SourceFormat.NEWLINE_DELIMITED_JSON)
             self.assertTrue(result)
             table_id = f'{dataset_name}.{table_name}'
@@ -242,7 +239,6 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 if blob.exists():
                     blob.delete()
 
-    @unittest.skip
     def test_azure_to_google_cloud_storage_transfer(self):
         blob_name = f'{random_id()}.txt'
         az_blob: Optional[BlobClient] = None
