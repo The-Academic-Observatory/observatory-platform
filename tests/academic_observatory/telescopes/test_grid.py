@@ -76,6 +76,14 @@ class TestGrid(unittest.TestCase):
         self.grid_2020_03_15_transform_file_name = 'grid_release_2020_03_15.jsonl.gz'
         self.grid_2020_03_15_transform_crc = '77bc8585'
 
+        logging.warning("Check that test fixtures exist")
+        self.assertTrue(os.path.isfile(self.list_grid_releases_path))
+        self.assertTrue(os.path.isfile(self.grid_2015_09_22_path))
+        self.assertTrue(os.path.isfile(self.grid_2020_03_15_path))
+        self.assertTrue(self.list_grid_releases_hash, _hash_file(self.list_grid_releases_path, algorithm='md5'))
+        self.assertTrue(self.grid_2015_09_22_hash, _hash_file(self.grid_2015_09_22_path, algorithm='md5'))
+        self.assertTrue(self.grid_2020_03_15_hash, _hash_file(self.grid_2020_03_15_path, algorithm='md5'))
+
     def test_fixtures_exist(self):
         self.assertTrue(os.path.isfile(self.list_grid_releases_path))
         self.assertTrue(os.path.isfile(self.grid_2015_09_22_path))
