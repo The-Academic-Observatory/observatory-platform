@@ -35,5 +35,15 @@ jobs:
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Test with unittest
+        env:
+          TESTS_AZURE_CONTAINER_NAME: ${{ secrets.TESTS_AZURE_CONTAINER_NAME }}
+          TESTS_AZURE_CONTAINER_SAS_TOKEN: ${{ secrets.TESTS_AZURE_CONTAINER_SAS_TOKEN }}
+          TESTS_AZURE_STORAGE_ACCOUNT_KEY: ${{ secrets.TESTS_AZURE_STORAGE_ACCOUNT_KEY }}
+          TESTS_AZURE_STORAGE_ACCOUNT_NAME: ${{ secrets.TESTS_AZURE_STORAGE_ACCOUNT_NAME }}
+          TESTS_GOOGLE_CLOUD_BUCKET_NAME: ${{ secrets.TESTS_GOOGLE_CLOUD_BUCKET_NAME }}
+          TESTS_GOOGLE_CLOUD_PROJECT_ID: ${{ secrets.TESTS_GOOGLE_CLOUD_PROJECT_ID }}
+          TESTS_GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.TESTS_GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_application_credentials.json
         run: |
+          echo "${TESTS_GOOGLE_APPLICATION_CREDENTIALS_BASE64}" | base64 --decode > /tmp/google_application_credentials.json
           python -m unittest
