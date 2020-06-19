@@ -21,11 +21,8 @@ import io
 import json
 import logging
 import os
-import pathlib
 from shutil import copyfile
-from shutil import rmtree
-from typing import List, Dict
-from typing import Tuple
+from typing import List, Dict, Tuple
 from zipfile import ZipFile, BadZipFile
 
 import jsonlines
@@ -52,21 +49,22 @@ def list_grid_releases(timeout: float = 30.) -> List[Dict]:
     :return: the list of GRID releases.
     """
 
-    response = retry_session().get(GRID_DATASET_URL, timeout=timeout)
+    response = retry_session().get(GRID_DATASET_URL, timeout=timeout, headers={'Accept-encoding': 'gzip'})
     return json.loads(response.text)
 
 
-def download_grid_release(download_path: str, article_id: str, title: str, timeout: float = 30.) -> List[str]:
+def download_grid_release(download_path: str, article_id: int, title: str, timeout: float = 30.) -> List[str]:
     """ Downloads an individual GRID release from Figshare.
 
     :param download_path: the directory where the downloaded GRID release should be saved.
-    :param article_id: the Figshare article id of the GRID release.
+    :param article_id: the Figshare article id of the GRID release. Called 'id' in the returned dictionary.
     :param title: the title of the Figshare article.
     :param timeout: the timeout in seconds when calling the Figshare API.
     :return: the paths on the system of the downloaded files.
     """
 
-    response = retry_session().get(GRID_FILE_URL.format(article_id=article_id), timeout=timeout)
+    response = retry_session().get(GRID_FILE_URL.format(article_id=article_id), timeout=timeout,
+                                   headers={'Accept-encoding': 'gzip'})
     article_files = json.loads(response.text)
 
     downloads = []
@@ -120,7 +118,7 @@ def extract_grid_release(file_path: str, extraction_path: str) -> str:
     else:
         # File is already uncompressed, so make a directory and copy it into it
         extracted_folder_path = os.path.join(extraction_path, dir_name)
-        extracted_file_path = os.path.join(extracted_folder_path, file_name)
+        extracted_file_path = os.path.join(extracted_folder_path, 'grid.json')
         if not os.path.exists(extracted_folder_path):
             os.makedirs(extracted_folder_path, exist_ok=True)
         copyfile(file_path, extracted_file_path)
@@ -366,39 +364,3 @@ class GridTelescope:
             logging.info(f"URI: {uri}")
             load_bigquery_table(uri, dataset_id, location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
-
-    @staticmethod
-    def cleanup(**kwargs):
-        """ Task to cleanup local files """
-
-        ti: TaskInstance = kwargs['ti']
-
-        # Cleanup downloaded files
-        download_msgs = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_DOWNLOAD,
-                                     include_prior_dates=False)
-        for msg in download_msgs:
-            file_path = msg['download_path']
-            try:
-                pathlib.Path(file_path).unlink()
-            except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {file_path}: {e}")
-
-        # Cleanup extracted files
-        extracted_msgs = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_EXTRACT,
-                                      include_prior_dates=False)
-        for msg in extracted_msgs:
-            extracted_path = msg['extracted_path']
-            try:
-                rmtree(extracted_path)
-            except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {extracted_path}: {e}")
-
-        # Cleanup transformed files
-        transform_msgs = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_TRANSFORM,
-                                      include_prior_dates=False)
-        for msg in transform_msgs:
-            json_gz_file_path = msg['json_gz_file_path']
-            try:
-                pathlib.Path(json_gz_file_path).unlink()
-            except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {json_gz_file_path}: {e}")
