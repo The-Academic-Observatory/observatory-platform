@@ -20,12 +20,14 @@ import logging
 import os
 from typing import Union
 
+import deprecation
 from natsort import natsorted
 
-from academic_observatory.telescopes.grid.grid import parse_grid_release, save_grid_index, grid_index_path, \
+from academic_observatory.telescopes.grid_old.grid import parse_grid_release, save_grid_index, grid_index_path, \
     grid_path
 
 
+@deprecation.deprecated(deprecated_in="20.05.0", details="Replaced by academic_observatory.telescopes.grid")
 def index_grid_dataset(input: Union[str, None] = None, output: Union[io.FileIO, None] = None):
     """ Create an index from the GRID dataset.
 

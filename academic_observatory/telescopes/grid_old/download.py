@@ -22,15 +22,17 @@ from typing import List, Union
 from typing import Tuple
 from zipfile import ZipFile, BadZipFile
 
+import deprecation
 import ray
 
-from academic_observatory.telescopes.grid.grid import grid_path
+from academic_observatory.telescopes.grid_old.grid import grid_path
 from academic_observatory.utils import retry_session, get_file, wait_for_tasks
 
 GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"
 GRID_FILE_URL = "https://api.figshare.com/v2/articles/{article_id}/files"
 
 
+@deprecation.deprecated(deprecated_in="20.05.0", details="Replaced by academic_observatory.telescopes.grid")
 @ray.remote
 def download_grid_release(output: Union[str, None], article_id: str, title: str, timeout: float) \
         -> List[Tuple[str, bool]]:
@@ -82,6 +84,7 @@ def download_grid_release(output: Union[str, None], article_id: str, title: str,
     return downloads
 
 
+@deprecation.deprecated(deprecated_in="20.05.0", details="Replaced by academic_observatory.telescopes.grid")
 def download_grid_dataset(output: Union[str, None] = None, num_processes: int = cpu_count(), local_mode: bool = False,
                           timeout: float = 10.) \
         -> Tuple[str, bool]:
