@@ -57,21 +57,32 @@ class TestGrid(unittest.TestCase):
         # Paths
         self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
         self.list_grid_releases_path = os.path.join(self.vcr_cassettes_path, 'list_grid_releases.yaml')
+        self.list_grid_releases_hash = 'f08806feb7215f78e9fe9292e6319144'
         self.work_dir = '.'
 
         # GRID Release  2015-09-22
         self.grid_2015_09_22_article_id = 1553267
         self.grid_2015_09_22_title = 'GRID release 2015-09-22 in JSON'
         self.grid_2015_09_22_path = os.path.join(self.vcr_cassettes_path, 'download_grid_release_2015-09-22.yaml')
+        self.grid_2015_09_22_hash = 'f8afd953b530bd1a8b6bb0e74ea1991b'
 
         # GRID Release 2020-03-15
         self.grid_2020_03_15_article_id = 12022722
         self.grid_2020_03_15_title = 'GRID release 2020-03-15'
         self.grid_2020_03_15_path = os.path.join(self.vcr_cassettes_path, 'download_grid_release_2020-03-15.yaml')
+        self.grid_2020_03_15_hash = 'c80d8e456597e196c87881371dd80eda'
         self.grid_2020_03_15_download_expected_hash = '3d300affce1666ac50b8d945c6ca4c5a'
         self.grid_2020_03_15_transform_version = 'release_2020_03_15'
         self.grid_2020_03_15_transform_file_name = 'grid_release_2020_03_15.jsonl.gz'
         self.grid_2020_03_15_transform_crc = '77bc8585'
+
+    def test_fixtures_exist(self):
+        self.assertTrue(os.path.isfile(self.list_grid_releases_path))
+        self.assertTrue(os.path.isfile(self.grid_2015_09_22_path))
+        self.assertTrue(os.path.isfile(self.grid_2020_03_15_path))
+        self.assertTrue(self.list_grid_releases_hash, _hash_file(self.list_grid_releases_path, algorithm='md5'))
+        self.assertTrue(self.grid_2015_09_22_hash, _hash_file(self.grid_2015_09_22_path, algorithm='md5'))
+        self.assertTrue(self.grid_2020_03_15_hash, _hash_file(self.grid_2020_03_15_path, algorithm='md5'))
 
     def test_list_grid_releases(self):
         # Check that list grid releases returns a list of dictionaries with keys that we use
