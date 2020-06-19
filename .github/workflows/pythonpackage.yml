@@ -24,7 +24,7 @@ jobs:
           lfs: true
       - name: Checkout Git LFS ${{ matrix.python-version }}
         uses: actions/checkout@v2
-        run: git lfs pull
+      - run: git lfs pull
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
