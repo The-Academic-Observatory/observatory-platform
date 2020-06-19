@@ -20,8 +20,8 @@ jobs:
     steps:
       - name: Checkout ${{ matrix.python-version }}
         uses: actions/checkout@v2
-          with:
-            lfs: true
+        with:
+          lfs: true
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
