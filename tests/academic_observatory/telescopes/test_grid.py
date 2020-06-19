@@ -14,6 +14,7 @@
 
 # Author: James Diprose
 
+import glob
 import logging
 import os
 import subprocess
@@ -104,7 +105,9 @@ class TestGrid(unittest.TestCase):
                                               self.grid_2015_09_22_title)
                 release_extracted_path = extract_grid_release(files[0], self.work_dir)
                 self.assertTrue(os.path.exists(release_extracted_path))
-                self.assertTrue(os.path.exists(os.path.join(release_extracted_path, 'grid.json')))
+                file_paths = glob.glob(os.path.join(release_extracted_path, '*.json'))
+                self.assertTrue(len(file_paths))
+                self.assertTrue(os.path.isfile(file_paths[0]))
 
         # Test with GRID release that is a .zip file (more common)
         with self.runner.isolated_filesystem():
@@ -113,7 +116,7 @@ class TestGrid(unittest.TestCase):
                                               self.grid_2020_03_15_title)
                 release_extracted_path = extract_grid_release(files[0], self.work_dir)
                 self.assertTrue(os.path.exists(release_extracted_path))
-                self.assertTrue(os.path.exists(os.path.join(release_extracted_path, 'grid.json')))
+                self.assertTrue(os.path.isfile(os.path.join(release_extracted_path, 'grid.json')))
 
     def test_transform_grid_release(self):
         # Test that the GRID release is transformed as expected

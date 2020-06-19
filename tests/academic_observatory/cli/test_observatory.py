@@ -44,7 +44,7 @@ class TestObservatory(unittest.TestCase):
         # Make config file
         config = ObservatoryConfig.make_default()
         config.project_id = 'my-project-id'
-        config.location = 'my-project-location'
+        config.data_location = 'my-project-location'
         config.bucket_name = 'my-bucket-name'
         config.save(config_file_path)
 

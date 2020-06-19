@@ -118,7 +118,7 @@ def extract_grid_release(file_path: str, extraction_path: str) -> str:
     else:
         # File is already uncompressed, so make a directory and copy it into it
         extracted_folder_path = os.path.join(extraction_path, dir_name)
-        extracted_file_path = os.path.join(extracted_folder_path, 'grid.json')
+        extracted_file_path = os.path.join(extracted_folder_path, file_name)
         if not os.path.exists(extracted_folder_path):
             os.makedirs(extracted_folder_path, exist_ok=True)
         copyfile(file_path, extracted_file_path)
@@ -333,7 +333,7 @@ class GridTelescope:
         # Upload each release
         config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
         project_id = config.project_id
-        location = config.location
+        location = config.data_location
         bucket_name = config.bucket_name
 
         # Create dataset
