@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  terraform:
+    build:
+      context: .
+      dockerfile: Dockerfile.terraform
+      args:
+        - TERRAFORM_USER_HOME=/usr/local/terraform
+    secrets:
+      - terraform_app_token
+    environment:
+      - TERRAFORM_USER_HOME=/usr/local/terraform
+      - TERRAFORM_WORKSPACES=/usr/local/terraform/workspaces
+      - TERRAFORM_APP_TOKEN=/run/secrets/terraform_app_token
+    volumes:
+      - "${HOST_WORKSPACES_PATH}:/usr/local/terraform/workspaces"
+    restart: always

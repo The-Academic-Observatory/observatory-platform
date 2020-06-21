@@ -1,0 +1,14 @@
+# FROM hashicorp/terraform:latest as terraform-image
+FROM hashicorp/terraform:0.13.0-beta2 as terraform-image
+FROM google/cloud-sdk:alpine as cloud-sdk
+COPY --from=terraform-image /bin /bin
+ENV PATH="/bin/terraform:${PATH}"
+ARG TERRAFORM_USER_HOME
+ENV HOME=${TERRAFORM_USER_HOME}
+
+# copy credentials file, api token still has to be filled in.
+COPY ./terraform_credentials.json $HOME/.terraform.d/credentials.tfrc.json
+
+COPY ./entrypoint.terraform.sh /terraform-entrypoint.sh
+
+ENTRYPOINT ["/terraform-entrypoint.sh"]

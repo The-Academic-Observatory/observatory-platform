@@ -27,6 +27,7 @@ from cerberus import Validator
 
 import academic_observatory
 from academic_observatory import dags
+import dockerfiles
 import academic_observatory.database.analysis.bigquery.schema
 import academic_observatory.debug_files
 
@@ -62,6 +63,17 @@ def observatory_home(*subdirs) -> str:
         os.makedirs(home_, exist_ok=True)
 
     return home_
+
+
+def dockerfiles_path() -> str:
+    """ Get the path to the Academic Observatory dockerfiles folder.
+
+    :return: the path to the Academic Observatory dockerfiles folder.
+    """
+
+    file_path = pathlib.Path(dockerfiles.__file__).resolve()
+    path = pathlib.Path(*file_path.parts[:-1])
+    return str(path.resolve())
 
 
 def observatory_package_path() -> str:

@@ -5,3 +5,4 @@ dist
 .vscode
 docs/_build
 config.yaml
+*.terraform*

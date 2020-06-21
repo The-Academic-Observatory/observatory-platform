@@ -4,3 +4,4 @@ tests
 notebooks
 dist
 .github
+*.terraform*

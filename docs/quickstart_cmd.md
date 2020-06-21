@@ -102,6 +102,66 @@ To get help with the Academic Observatory platform commands, including the defau
 observatory platform --help
 ```
 
+## Github action
+Create "google_credentials" secret in this github repository that contains a json key for the service account that can modify buckets. 
+The credentials are used to sign in with gcloud. The content of this repository is then uploaded to a 'dev' or 'prod' bucket.
+The github action will look for a bucket that contains the given pattern and ends with 'dev' or 'prod'. 
+ 
+The pattern that can be used with the terraform setup is 'github-'
+
+## Terraform / cloud composer platform
+### First time setting-up terraform workspaces
+This only has to be done for the 'coki' organisation once. If someone already completed these steps,
+there is no need to do them as well.
+
+You can check if the workspaces are already set-up by going to the 'coki' organisation at https://app.terraform.io
+and see if there are any workspaces listed.
+
+To set-up workspaces:
+- Create/get personal acccess github token that is used for github clone.
+- Create/get google credentials file  
+Sign in to terraform cloud at https://app.terraform.io and make sure you have access to the 'coki' organisation.
+- Create terraform personal user token and save this to a file.
+
+Build the docker image:
+```bash
+observatory terraform build --terraform_token_file=<token.txt>
+```
+Initialise the workspaces:  
+```
+observatory terraform setup_workspaces --google_credentials_file=<file.json> --terraform_token_file=<token.txt> --github_token=<token_string>
+```
+
+###General usage:  
+#### First time set-up
+Sign in to terraform cloud at https://app.terraform.io and make sure you have access to the 'coki' organisation.
+- Create terraform personal user token and save this to a file: https://app.terraform.io/app/settings/tokens?source=terraform-login  
+- Build the docker image:  
+```
+observatory terraform build --terraform_token_file=<token.txt>
+```
+  
+#### Controlling composer environments
+To turn composer environments on or off:  
+```bash
+observatory terraform ao-dev --on/off --plan/apply --terraform_token_file=<token.txt>
+observatory terraform ao-prod --on/off --plan/apply --terraform_token_file=<token.txt>
+```
+Use `--on` or `--off` to turn on/off the respective composer environment.  
+Use `--plan` to see which resources terraform will create/update/destroy.  
+Use `--apply` to create/update/destroy resources.  
+
+Note that it can sometimes take up to 30 minutes to create the composer environment.
+
+#### Changing variables
+Variables such as machine-instance and disk-size can be changed inside the composer workspaces at https://app.terraform.io/.  
+After changing any variables, re-run `observatory terraform` for the respective environment with `--on` and `--apply`.
+
+#### Workspace locking
+The state of a workspace can be manually locked at https://app.terraform.io/app/COKI-project/workspaces/composer_dev/settings/lock.  
+This can be useful for example if you want to prevent others from turning off the composer environment while you're using it.  
+Please don't forget to unlock it when you are finished.
+
 ## GRID
 To download all historical [Global Research Identifier Database (GRID)](https://grid.ac/) releases:
 ```bash

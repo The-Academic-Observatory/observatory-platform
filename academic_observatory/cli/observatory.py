@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
-
+import json
 import os
+import pathlib
 import shutil
 import subprocess
 import time
 import urllib.request
+from functools import partial
 from subprocess import Popen
 from typing import Tuple, Union
 
@@ -28,7 +30,9 @@ import docker
 import requests
 from cryptography.fernet import Fernet
 
-from academic_observatory.utils.config_utils import observatory_home, observatory_package_path, dags_path, \
+import academic_observatory.terraform
+from academic_observatory.utils.config_utils import observatory_home, observatory_package_path, dockerfiles_path, \
+    dags_path, \
     ObservatoryConfig
 
 
@@ -91,6 +95,32 @@ def generate(command):
         print(gen_fernet_key())
     elif command == 'config.yaml':
         gen_config_interface()
+
+
+def stream_process(proc: Popen, info: str, min_line_chars: int, verbose: int) -> Tuple[str, str]:
+    """ Print output while a process is running, returning the std output and std error streams as strings.
+
+    :param proc: the process object.
+    :return: std output and std error streams as strings.
+    """
+    print(f'{info}'.ljust(min_line_chars))
+    output_concat = ''
+    error_concat = ''
+    if verbose >= 2:
+        print(f"Command executed:\n{subprocess.list2cmdline(proc.args)}")
+    while True:
+        for line in proc.stdout:
+            output = line.decode('utf-8')
+            if verbose >= 1:
+                print(output, end='')
+            output_concat += output
+        for line in proc.stderr:
+            error = line.decode('utf-8')
+            print(error, end='')
+            error_concat += error
+        if proc.poll() is not None:
+            break
+    return output_concat, error_concat
 
 
 def wait_for_process(proc: Popen) -> Tuple[str, str]:
@@ -366,8 +396,9 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
     args = ['docker-compose']
     compose_files = ['docker-compose.secrets.yml', 'docker-compose.airflow-postgres.yml',
                      'docker-compose.airflow-webserver.yml']
+    docker_path = dockerfiles_path()
     for file_name in compose_files:
-        path = os.path.join(package_path, file_name)
+        path = os.path.join(docker_path, 'platform', file_name)
         args.append('-f')
         args.append(path)
 
@@ -428,6 +459,494 @@ def platform(command, config_path, dags_path, data_path, airflow_ui_port, airflo
             exit(os.EX_CONFIG)
 
     exit(os.EX_OK)
+
+
+def get_terraform_env(terraform_app_token: str, terraform_dir: str):
+    """
+    """
+    env = os.environ.copy()
+    env['HOST_TERRAFORM_APP_TOKEN'] = terraform_app_token
+    env['HOST_WORKSPACES_PATH'] = terraform_dir
+    return env
+
+
+def terraform_build(docker_args: list, env, min_line_chars: int, verbose: int):
+    info = 'Building docker container...'
+    proc: Popen = subprocess.Popen(docker_args + ['build'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    output, error = stream_process(proc, info, min_line_chars, verbose)
+    return output, error
+
+
+def terraform_run_cmd(terraform_args: list, info: str, docker_args: list, env, min_line_chars: int, verbose: int):
+    proc: Popen = subprocess.Popen(docker_args + ['run', 'terraform', 'terraform'] + terraform_args,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    output, error = stream_process(proc, info, min_line_chars, verbose)
+    if proc.returncode == 0:
+        print('Finished.\n'.ljust(min_line_chars))
+    else:
+        print('Error.\n'.ljust(min_line_chars))
+        exit(os.EX_CONFIG)
+    return output, error
+
+
+def bash_run_cmd(bash_cmd: str, info: str, docker_args: list, env, min_line_chars: int, verbose: int):
+    proc: Popen = subprocess.Popen(docker_args + ['run', 'terraform', 'bash', '-c'] + [bash_cmd],
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    output, error = stream_process(proc, info, min_line_chars, verbose)
+    if proc.returncode == 0:
+        print('Finished.\n'.ljust(min_line_chars))
+    else:
+        print('Error.\n'.ljust(min_line_chars))
+        exit(os.EX_CONFIG)
+    return output, error
+
+
+class TerraformConfig:
+    # hardcoded in terraform backend configuration. Can't be obtained from variables
+    prefix = 'ao-'
+    organisation = 'coki'
+
+    # api url
+    api_url = 'https://app.terraform.io/api/v2'
+
+    # workspaces that will be created and the relative directory where their configuration files are hosted
+    workspaces = {'dev': None,
+                  'prod': None,
+                  'shared': 'shared'}
+    # workspaces = {'shared': 'shared'}
+    # terraform variables
+    project = 'workflows-dev'
+    region = 'us-east1'
+    zone = 'us-east1-b'
+    composer_prefix = 'composer-instance-'
+
+    # names of terraform outputs
+    output_dags_bucket = 'dags_bucket'
+    output_credentials = 'google_credentials'
+    output_github_bucket_dev = 'github_bucket_dev'
+    output_github_bucket_prod = 'github_bucket_prod'
+    output_github_token = 'github_token'
+    # TODO create github token and change to academic observatory
+    github_repo = 'aroelo/academic-observatory'
+
+
+class TerraformWorkspace:
+    def __init__(self, name, token):
+        self.name = name
+        self.token = token
+        self.workspace = TerraformConfig.prefix + name
+
+        self.headers = {
+            'Content-Type': 'application/vnd.api+json',
+            'Authorization': f'Bearer {token}'
+        }
+
+    def is_workspace_locked(self):
+        response = requests.get(
+            f'{TerraformConfig.api_url}/organizations/{TerraformConfig.organisation}/workspaces/{self.workspace}',
+            headers=self.headers)
+        lock = json.loads(response.text)['data']['attributes']['locked']
+        return lock
+
+    def workspace_id(self):
+        response = requests.get(
+            f'{TerraformConfig.api_url}/organizations/{TerraformConfig.organisation}/workspaces/{self.workspace}',
+            headers=self.headers)
+        workspace_id = json.loads(response.text)['data']['id']
+        return workspace_id
+
+    def list_workspace_variables(self, workspace_id):
+        response = requests.get(f'{TerraformConfig.api_url}/workspaces/{workspace_id}/vars', headers=self.headers)
+
+        if not response:
+            print(response.text)
+            exit(os.EX_CONFIG)
+
+        return json.loads(response.text)
+
+    def update_workspace_variable(self, key, value, description=None, sensitive=None, category=None):
+        workspace_id = self.workspace_id()
+        vars = self.list_workspace_variables(workspace_id)['data']
+        var_id = None
+        for var in vars:
+            attributes = var['attributes']
+            var_key = attributes['key']
+            if var_key == key:
+                var_id = var["id"]
+        if var_id is None:
+            print(f"Variable '{key}' does not exist yet, create variable first.")
+            return
+
+        attributes = {"key": key, "value": value}
+        if description:
+            attributes["description"] = description
+        if sensitive:
+            if sensitive != "false" and sensitive != "true":
+                print('Sensitive has to be either "true" or "false"')
+                exit(os.EX_CONFIG)
+            else:
+                attributes["sensitive"] = sensitive
+        if category:
+            if category != 'env' and category != 'terraform':
+                print('Category has to be either "env" or "terraform"')
+                exit(os.EX_CONFIG)
+            else:
+                attributes["category"] = category
+
+        data = {"data": {"type": "vars", "id": var_id, "attributes": attributes}}
+        response = requests.patch(f'{TerraformConfig.api_url}/workspaces/{workspace_id}/vars/{var_id}',
+                                  headers=self.headers, json=data)
+
+        if not response:
+            print(response.text)
+            exit(os.EX_CONFIG)
+
+        return json.loads(response.text)
+
+    def add_workspace_variable(self, key, value, description, sensitive, category):
+        workspace_id = self.workspace_id()
+        vars = self.list_workspace_variables(workspace_id)['data']
+        for var in vars:
+            attributes = var['attributes']
+            var_key = attributes['key']
+            if var_key == key:
+                print(f"Variable '{key}' already exists.")
+                return
+
+        attributes = {"key": key, "value": value, "description": description, "hcl": "false"}
+        if sensitive != "false" and sensitive != "true":
+            print('Sensitive has to be either "true" or "false"')
+            exit(os.EX_CONFIG)
+        else:
+            attributes["sensitive"] = sensitive
+        if category:
+            if category != 'env' and category != 'terraform':
+                print('Category has to be either "env" or "terraform"')
+                exit(os.EX_CONFIG)
+            else:
+                attributes["category"] = category
+
+        data = {"data": {"type": "vars", "attributes": attributes}}
+        response = requests.post(f'{TerraformConfig.api_url}/workspaces/{workspace_id}/vars',
+                                 headers=self.headers, json=data)
+
+        if not response:
+            print(response.text)
+            exit(os.EX_CONFIG)
+
+        return json.loads(response.text)
+
+
+def terraform_setup_workspaces(docker_args, env, min_line_chars, verbose, github_token, google_application_credentials,
+                               terraform_user_token):
+    print(f'Terraform setting up workspaces'.ljust(min_line_chars))
+    for workspace in TerraformConfig.workspaces:
+        # # init workspace
+        # info = f'Initialising workspace {workspace}..'
+        # args = ['init', '-reconfigure', '-input=false']
+        # terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
+
+        # init/create new workspace
+        # init fails if there are no workspaces created yet
+        info = f'Init/create new workspace "{workspace}"...'
+        cmd = f'terraform init -reconfigure -input=false || terraform workspace new {workspace}'
+        bash_run_cmd(cmd, info, docker_args, env, min_line_chars, verbose)
+
+        # select workspace
+        # workspace new fails if the workspace doesn't exist yet
+        info = f'Selecting workspace "{workspace}"...'
+        cmd = f'terraform workspace new {workspace} || terraform workspace select {workspace}'
+        bash_run_cmd(cmd, info, docker_args, env, min_line_chars, verbose)
+        #
+        # # select workspace
+        # info = f'Selecting workspace "{workspace}"...'
+        # args = ['workspace', 'select', workspace]
+        # terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
+
+        # add variables to workspace
+        if workspace == 'dev':
+            machine_type = 'n1-standard-1'
+            composer_disk_size = '120'
+        else:
+            machine_type = 'e2-standard-16'
+            composer_disk_size = '600'
+
+        terraform_workspace = TerraformWorkspace(workspace, terraform_user_token)
+        vars = workspace_variables(workspace, google_application_credentials, github_token, machine_type,
+                                             composer_disk_size)
+        for var in vars:
+            var_attr = vars[var]
+            terraform_workspace.add_workspace_variable(var, var_attr['value'], var_attr['description'],
+                                                       var_attr['sensitive'], var_attr['category'])
+
+        if workspace == 'shared':
+            # apply workspace
+            info = f'Applying workspace {workspace}..'
+            args = ['apply', '-auto-approve', TerraformConfig.workspaces[workspace]]
+            terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
+
+            # clone github repo to bucket
+            info = f'Cloning github repository to bucket'
+            cmd = f'cd {TerraformConfig.workspaces[workspace]}; ' \
+                  f'terraform output {TerraformConfig.output_credentials} > /temp.json; ' \
+                  f'gcloud auth activate-service-account --key-file=/temp.json; ' \
+                  f'github_token=$(terraform output {TerraformConfig.output_github_token}); ' \
+                  f'mkdir tmpgithub; ' \
+                  f'git -C tmpgithub clone --single-branch --branch develop https://$github_token@github.com/{TerraformConfig.github_repo}; ' \
+                  f'github_bucket=$(terraform output {TerraformConfig.output_github_bucket_dev}); ' \
+                  f'gsutil -m rsync -r -c -d tmpgithub $github_bucket; rm -rf tmpgithub;' \
+                  f'mkdir tmpgithub; ' \
+                  f'git -C tmpgithub clone --single-branch --branch master https://$github_token@github.com/{TerraformConfig.github_repo}; ' \
+                  f'github_bucket=$(terraform output {TerraformConfig.output_github_bucket_prod}); ' \
+                  f'gsutil -m rsync -r -c -d tmpgithub $github_bucket; rm -rf tmpgithub;'
+            bash_run_cmd(cmd, info, docker_args, env, min_line_chars, verbose)
+
+        print(f'Terraform set-up workspace {workspace}.\n'.ljust(min_line_chars))
+
+
+def workspace_variables(workspace_name, google_credentials, github_token, machine_type, composer_disk_size):
+    variables = {}
+    variables['google-credentials_'] = {"value": google_credentials,
+                                        "description": 'Determines whether composer environment should be '
+                                                       'created/destroyed',
+                                        "sensitive": 'true',
+                                        "category": 'terraform'}
+    variables['github-token_'] = {"value": github_token,
+                                  "description": 'Personal access token used to run github action',
+                                  "sensitive": 'true',
+                                  "category": 'terraform'}
+    variables['project_'] = {"value": TerraformConfig.project,
+                             "description": 'Google project name',
+                             "sensitive": 'false',
+                             "category": 'terraform'}
+    variables['region_'] = {"value": TerraformConfig.region,
+                            "description": 'The location or Compute Engine region for the environment.',
+                            "sensitive": 'false',
+                            "category": 'terraform'}
+    variables['zone_'] = {"value": TerraformConfig.zone,
+                          "description": 'The Compute Engine zone in which to deploy the VMs running the '
+                                         'Apache Airflow software, specified as the zone name or relative '
+                                         'resource name',
+                          "sensitive": 'false',
+                          "category": 'terraform'}
+    if workspace_name == 'dev' or workspace_name == 'prod':
+        variables['machine-type'] = {"value": machine_type,
+                                     "description": 'The Compute Engine machine type used for cluster instances, '
+                                                    'specified as a name or relative resource name.',
+                                     "sensitive": 'false',
+                                     "category": 'terraform'}
+        variables['composer-disk-size-gb'] = {"value": composer_disk_size,
+                                              "description": 'The disk size in GB used for node VMs. Minimum size '
+                                                             'is 20GB. If unspecified, defaults to 100GB.',
+                                              "sensitive": 'false',
+                                              "category": 'terraform'}
+        variables['composer-prefix_'] = {"value": TerraformConfig.composer_prefix,
+                                         "description": 'Prefix for composer environment name. Followed by '
+                                                        'either dev or prod',
+                                         "sensitive": 'false',
+                                         "category": 'terraform'}
+        variables['composer-status_'] = {"value": "off",
+                                         "description": 'Determines whether composer environment should be '
+                                                        'created/destroyed',
+                                         "sensitive": "false", "category": "terraform"}
+    return variables
+
+
+def get_dags_bucket(docker_args, env, min_line_chars, verbose):
+    info = 'Retrieving dags bucket name'
+    # get bucket name
+    args = ['output', TerraformConfig.output_dags_bucket]
+    output, error = terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
+    dags_bucket = output.strip('\r\n')
+
+    if not dags_bucket.startswith('gs://'):
+        print(f'Could not find bucket name in output'.ljust(min_line_chars))
+    return dags_bucket
+
+
+class OptionRequiredIf(click.Option):
+    def full_process_value(self, ctx, value):
+        value = super(OptionRequiredIf, self).full_process_value(ctx, value)
+        if value is None and ctx.params['command'] == 'init_workspaces':
+            msg = "Required if command is 'init_workspaces'"
+            raise click.MissingParameter(ctx=ctx, param=self, message=msg)
+
+        return value
+
+
+@cli.command()
+@click.argument('command',
+                type=click.Choice(
+                    ['build', 'setup_workspaces', TerraformConfig.prefix + 'dev', TerraformConfig.prefix + 'prod']))
+@click.option('--plan/--apply', default=True)
+@click.option('--on/--off')
+@click.option('--google_credentials_file',
+              type=click.Path(exists=False, file_okay=True, dir_okay=False),
+              cls=OptionRequiredIf,
+              help='')
+@click.option('--github_token',
+              type=click.STRING,
+              cls=OptionRequiredIf,
+              help='')
+@click.option('--terraform_token_file',
+              type=click.Path(exists=False, file_okay=True, dir_okay=False),
+              help='',
+              required=True)
+@click.option('-v', '--verbose', count=True)
+def terraform(command, google_credentials_file, github_token, terraform_token_file, verbose, on, plan):
+    # The minimum number of characters per line
+    min_line_chars = 80
+
+    ######################
+    # Check dependencies #
+    ######################
+
+    print("Academic Observatory: checking dependencies...".ljust(min_line_chars), end='\r')
+
+    # Get all dependencies
+    docker_path = get_docker_path()
+    docker_compose_path = get_docker_compose_path()
+    docker_running = is_docker_running()
+
+    # Check that all dependencies are met
+    all_deps = all([docker_path is not None,
+                    docker_compose_path is not None,
+                    docker_running])
+
+    # Indentation variables
+    indent1 = 2
+    indent2 = 3
+
+    if not all_deps:
+        print("Academic Observatory: dependencies missing".ljust(min_line_chars))
+    else:
+        print("Academic Observatory: all dependencies found".ljust(min_line_chars))
+
+    print(indent("Docker:", indent1))
+    if docker_path is not None:
+        print(indent(f"- path: {docker_path}", indent2))
+
+        if docker_running:
+            print(indent(f"- running", indent2))
+        else:
+            print(indent("- not running, please start", indent2))
+    else:
+        print(indent("- not installed, please install https://docs.docker.com/get-docker/", indent2))
+
+    print(indent("Docker Compose:", indent1))
+    if docker_compose_path is not None:
+        print(indent(f"- path: {docker_compose_path}", indent2))
+    else:
+        print(indent("- not installed, please install https://docs.docker.com/compose/install/", indent2))
+
+    if not all_deps:
+        exit(os.EX_CONFIG)
+
+    ##################
+    # Run commands   #
+    ##################
+
+    file_path = pathlib.Path(academic_observatory.terraform.__file__).resolve()
+    terraform_dir = pathlib.Path(*file_path.parts[:-1])
+    # Make environment variables for running commands
+    env = get_terraform_env(terraform_token_file, terraform_dir)
+    print(docker_path)
+    # Make docker-compose command
+    docker_args = ['docker-compose']
+    compose_files = ['docker-compose.terraform.secrets.yml', 'docker-compose.terraform.yml']
+    docker_path = dockerfiles_path()
+    for file_name in compose_files:
+        path = os.path.join(docker_path, 'terraform', file_name)
+        docker_args.append('-f')
+        docker_args.append(path)
+
+    with open(terraform_token_file, 'r') as f:
+        terraform_user_token = f.read()
+
+    # Start the appropriate process
+    if command == 'build':
+        terraform_build(docker_args, env, min_line_chars, verbose)
+
+    elif command == 'setup_workspaces':
+        with open(google_credentials_file, "r") as f:
+            google_application_credentials = f.read().replace('\n', '')
+
+        terraform_setup_workspaces(docker_args, env, min_line_chars, verbose, github_token,
+                                   google_application_credentials, terraform_user_token)
+
+    elif TerraformConfig.prefix in command:
+        if on:
+            composer_status = 'on'
+        else:
+            composer_status = 'off'
+        if 'dev' in command:
+            workspace = 'dev'
+        else:
+            workspace = 'prod'
+
+        # select workspace
+        info = f'Selecting workspace {workspace}..'
+        args = ['workspace', 'select', workspace]
+        terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
+
+        # init workspace
+        info = f'Initialising workspace {workspace}..'
+        args = ['init', '-reconfigure', '-input=false']
+        terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
+
+        # update variable
+        terraform_workspace = TerraformWorkspace(workspace, terraform_user_token)
+        terraform_workspace.update_workspace_variable('composer-status_', composer_status)
+
+        # plan
+        if plan:
+            info = f'Planning workspace {workspace}..'
+            args = ['plan', '-input=false']
+            terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
+            if not on:
+                print(f'WARNING: Bucket linked to composer environment will be deleted.'.ljust(min_line_chars))
+        # apply
+        else:
+            state_lock = terraform_workspace.is_workspace_locked()
+            if state_lock:
+                print(f'Terraform state is locked, go to '
+                      f'https://app.terraform.io/app/{TerraformConfig.organisation}/workspaces/{terraform_workspace.workspace}'
+                      f' to see who locked it.'.ljust(min_line_chars))
+                exit(os.EX_CONFIG)
+
+            # copy dag 'sync_github.py'
+            if on:
+                info = f'Applying workspace {workspace}..'
+                args = ['apply', '-auto-approve']
+                terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
+
+                # bash_cmd = f'terraform output {TerraformConfig.output_credentials} > /temp.json;' \
+                #            f'gcloud auth activate-service-account --key-file=/temp.json;' \
+                #            f'dags_bucket_path=$(gcloud composer environments describe {composer_environment_name} ' \
+                #            f"--location {TerraformConfig.region} --format='get(config.dagGcsPrefix)')" \
+                #            f'gsutil cp sync_github.py $dags_bucket_path'
+                dags_bucket = get_dags_bucket(docker_args, env, min_line_chars, verbose)
+
+                info = f'Copying dag to dags bucket of {workspace}...'
+                bash_cmd = f'terraform output {TerraformConfig.output_credentials} > /temp.json; ' \
+                           'gcloud auth activate-service-account --key-file=/temp.json; ' \
+                           f'gsutil cp sync_github.py {dags_bucket}'
+                bash_run_cmd(bash_cmd, info, docker_args, env, min_line_chars, verbose)
+
+            # Delete storage bucket linked to composer environment
+            else:
+                dags_bucket = get_dags_bucket(docker_args, env, min_line_chars, verbose)
+                composer_bucket = os.path.dirname(dags_bucket)
+
+                info = f'Applying workspace {workspace}..'
+                args = ['apply', '-auto-approve']
+                terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
+
+                info = f'Removing composer bucket of {workspace}...'
+                bash_cmd = f'terraform output {TerraformConfig.output_credentials} > /temp.json; ' \
+                           'gcloud auth activate-service-account --key-file=/temp.json; ' \
+                           f'gsutil -m rm -r {composer_bucket}'
+                bash_run_cmd(bash_cmd, info, docker_args, env, min_line_chars, verbose)
 
 
 if __name__ == "__main__":
