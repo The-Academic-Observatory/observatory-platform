@@ -45,11 +45,16 @@ def gzip_file_crc(file_path: str) -> str:
 
 
 class TestGrid(unittest.TestCase):
+    """ Tests for the functions used by the GRID telescope """
 
     def __init__(self, *args, **kwargs):
-        super(TestGrid, self).__init__(*args, **kwargs)
+        """ Constructor which sets up variables used by tests.
 
-        self.runner = CliRunner()
+        :param args: arguments.
+        :param kwargs: keyword arguments.
+        """
+
+        super(TestGrid, self).__init__(*args, **kwargs)
 
         # Paths
         self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
@@ -86,7 +91,11 @@ class TestGrid(unittest.TestCase):
         logging.getLogger().setLevel(logging.WARNING)
 
     def test_list_grid_releases(self):
-        # Check that list grid releases returns a list of dictionaries with keys that we use
+        """ Check that list grid releases returns a list of dictionaries with keys that we use.
+
+        :return: None.
+        """
+
         with vcr.use_cassette(self.list_grid_releases_path):
             releases = list_grid_releases()
             self.assertIsInstance(releases, List)
@@ -96,8 +105,12 @@ class TestGrid(unittest.TestCase):
                 self.assertIn('title', release)
 
     def test_download_grid_release(self):
-        # Download a specific GRID release and check that it has expected md5 sum
-        with self.runner.isolated_filesystem():
+        """ Download a specific GRID release and check that it has expected md5 sum.
+
+        :return: None.
+        """
+
+        with CliRunner().isolated_filesystem():
             with vcr.use_cassette(self.grid_2020_03_15_path):
                 files = download_grid_release(self.work_dir, self.grid_2020_03_15_article_id,
                                               self.grid_2020_03_15_title)
@@ -110,8 +123,12 @@ class TestGrid(unittest.TestCase):
                 self.assertEqual(self.grid_2020_03_15_download_expected_hash, _hash_file(file_path, algorithm='md5'))
 
     def test_extract_grid_release(self):
-        # Test with a GRID release that is an unzipped JSON file (some of the earlier releases)
-        with self.runner.isolated_filesystem():
+        """ Test with a GRID release that is an unzipped JSON file (some of the earlier releases).
+
+        :return: None.
+        """
+
+        with CliRunner().isolated_filesystem():
             with vcr.use_cassette(self.grid_2015_09_22_path):
                 files = download_grid_release(self.work_dir, self.grid_2015_09_22_article_id,
                                               self.grid_2015_09_22_title)
@@ -122,7 +139,7 @@ class TestGrid(unittest.TestCase):
                 self.assertTrue(os.path.isfile(file_paths[0]))
 
         # Test with GRID release that is a .zip file (more common)
-        with self.runner.isolated_filesystem():
+        with CliRunner().isolated_filesystem():
             with vcr.use_cassette(self.grid_2020_03_15_path):
                 files = download_grid_release(self.work_dir, self.grid_2020_03_15_article_id,
                                               self.grid_2020_03_15_title)
@@ -131,8 +148,12 @@ class TestGrid(unittest.TestCase):
                 self.assertTrue(os.path.isfile(os.path.join(release_extracted_path, 'grid.json')))
 
     def test_transform_grid_release(self):
-        # Test that the GRID release is transformed as expected
-        with self.runner.isolated_filesystem():
+        """ Test that the GRID release is transformed as expected.
+
+        :return: None.
+        """
+
+        with CliRunner().isolated_filesystem():
             with vcr.use_cassette(self.grid_2020_03_15_path):
                 # Get data
                 files = download_grid_release(self.work_dir, self.grid_2020_03_15_article_id,

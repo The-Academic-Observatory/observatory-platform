@@ -17,19 +17,19 @@
 
 import glob
 import gzip
-import io
-import json
-import logging
-import os
-from shutil import copyfile
-from typing import List, Dict, Tuple
 from zipfile import ZipFile, BadZipFile
 
+import io
+import json
 import jsonlines
+import logging
+import os
 import pendulum
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
+from shutil import copyfile
+from typing import List, Dict, Tuple
 
 from academic_observatory.utils.config_utils import telescope_path, SubFolder, schema_path, ObservatoryConfig, \
     find_schema
@@ -173,7 +173,17 @@ class GridTelescope:
 
     @staticmethod
     def list_releases(**kwargs):
-        """ Task to lists all GRID releases for a given month """
+        """ Task to lists all GRID releases for a given month.
+
+        Pushes the following xcom:
+            article_id (str): the Figshare article id.
+            title (str): the Figshare article title.
+            published_date (Pendulum): the published date of the Figshare article.
+
+        :param kwargs: the context passed from the BranchPythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: the identifier of the task to execute next.
+        """
 
         execution_date = kwargs['execution_date']
         next_execution_date = kwargs['next_execution_date']
@@ -199,7 +209,15 @@ class GridTelescope:
 
     @staticmethod
     def download(**kwargs):
-        """ Task to download the GRID releases for a given month """
+        """ Task to download the GRID releases for a given month.
+
+        Pushes the following xcom:
+            download_path (str): the path to the downloaded GRID release.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
@@ -228,7 +246,15 @@ class GridTelescope:
 
     @staticmethod
     def extract(**kwargs):
-        """ Task to extract the GRID releases for a given month """
+        """ Task to extract the GRID releases for a given month.
+
+        Pushes the following xcom:
+            extracted_path (str): the path to the extracted GRID release.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
@@ -255,7 +281,17 @@ class GridTelescope:
 
     @staticmethod
     def transform(**kwargs):
-        """ Task to transform the GRID releases for a given month """
+        """ Task to transform the GRID releases for a given month.
+
+        Pushes the following xcom:
+            version (str): the version of the GRID release.
+            json_gz_file_name (str): the file name for the transformed GRID release.
+            json_gz_file_path (str): the path to the transformed GRID release (including file name).
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
 
         # Pull GRID releases to transform
         ti: TaskInstance = kwargs['ti']
@@ -293,7 +329,16 @@ class GridTelescope:
 
     @staticmethod
     def upload(**kwargs):
-        """ Task to upload the transformed GRID releases for a given month to Google Cloud Storage """
+        """ Task to upload the transformed GRID releases for a given month to Google Cloud Storage .
+
+        Pushes the following xcom:
+            release_date (str): the release date of the GRID release.
+            blob_name (str): the name of the blob on the Google Cloud storage bucket.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
@@ -325,7 +370,13 @@ class GridTelescope:
 
     @staticmethod
     def db_load(**kwargs):
-        """ Task to load the transformed GRID releases for a given month to BigQuery """
+        """ Task to load the transformed GRID releases for a given month to BigQuery.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
         ti: TaskInstance = kwargs['ti']
         msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_UPLOAD,
                                include_prior_dates=False)
