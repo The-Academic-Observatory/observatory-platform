@@ -57,6 +57,22 @@ institutions_scope = """and
   institutions.id in (SELECT id FROM `open-knowledge-publications.institutional_oa_evaluation_2020.grids_in_scope`)"""
 
 
+def create_new_report(dir):
+    """ Create a new blank report in the specified directory.
+
+    :param dir: the target directory.
+    """
+    a = 1
+
+
+def execute_report():
+    """ Execute the report in the specified directory.
+
+    :param dir: the target directory.
+    """
+    a = 2
+
+
 def generate_table_data(batch,
                         title,
                         df: pd.DataFrame,
