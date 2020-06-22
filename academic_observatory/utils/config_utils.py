@@ -205,7 +205,7 @@ class ObservatoryConfig:
             'required': True,
             'type': 'string'
         },
-        'location': {
+        'data_location': {
             'required': True,
             'type': 'string'
         },
@@ -225,13 +225,13 @@ class ObservatoryConfig:
     }
 
     def __init__(self, project_id: Union[None, str] = None, bucket_name: Union[None, str] = None,
-                 location: Union[None, str] = None, dags_path: str = None, google_application_credentials: str = None,
+                 data_location: Union[None, str] = None, dags_path: str = None, google_application_credentials: str = None,
                  environment: Environment = None, validator: Validator = None):
         """ Holds the settings for the Academic Observatory, used by DAGs.
 
         :param project_id: the Google Cloud project id.
         :param bucket_name: the Google Cloud bucket where final results will be stored.
-        :param location: the Google Cloud location for the project,
+        :param data_location: the Google Cloud location for the project,
         :param dags_path: the path to the DAGs folder.
         :param google_application_credentials: the path to the Google Application Credentials: https://cloud.google.com/docs/authentication/getting-started
         :param environment: whether the system is running in dev, test or prod mode.
@@ -239,7 +239,7 @@ class ObservatoryConfig:
 
         self.project_id = project_id
         self.bucket_name = bucket_name
-        self.location = location
+        self.data_location = data_location
         self.dags_path = dags_path
         self.google_application_credentials = google_application_credentials
         self.environment = environment
@@ -301,7 +301,7 @@ class ObservatoryConfig:
         return {
             'project_id': self.project_id,
             'bucket_name': self.bucket_name,
-            'location': self.location,
+            'data_location': self.data_location,
             'dags_path': self.dags_path,
             'google_application_credentials': self.google_application_credentials,
             'environment': self.environment.value
@@ -315,11 +315,11 @@ class ObservatoryConfig:
 
         project_id = None
         bucket_name = None
-        location = None
+        data_location = None
         dags_path = '/usr/local/airflow/dags'
         google_application_credentials = '/run/secrets/google_application_credentials.json'
         environment = Environment.dev
-        return ObservatoryConfig(project_id, bucket_name, location, dags_path, google_application_credentials,
+        return ObservatoryConfig(project_id, bucket_name, data_location, dags_path, google_application_credentials,
                                  environment)
 
     @staticmethod
@@ -337,11 +337,11 @@ class ObservatoryConfig:
         if is_valid:
             project_id = dict_.get('project_id')
             bucket_name = dict_.get('bucket_name')
-            location = dict_.get('location')
+            data_location = dict_.get('data_location')
             dags_path = dict_.get('dags_path')
             google_application_credentials = dict_.get('google_application_credentials')
             environment = Environment(dict_.get('environment'))
-            return ObservatoryConfig(project_id=project_id, bucket_name=bucket_name, location=location,
+            return ObservatoryConfig(project_id=project_id, bucket_name=bucket_name, data_location=data_location,
                                      dags_path=dags_path, google_application_credentials=google_application_credentials,
                                      environment=environment, validator=validator)
         else:

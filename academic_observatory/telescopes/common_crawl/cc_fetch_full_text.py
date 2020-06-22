@@ -29,7 +29,7 @@ from academic_observatory.telescopes.common_crawl.cc_fetcher import CCFullTextFe
 from academic_observatory.telescopes.common_crawl.common_crawl import common_crawl_path, save_page_infos
 from academic_observatory.telescopes.common_crawl.db import get_grid_ids, get_page_infos
 from academic_observatory.telescopes.common_crawl.schema import PageInfo
-from academic_observatory.telescopes.grid import download_grid_dataset, index_grid_dataset, grid_index_path
+from academic_observatory.telescopes.grid_old import download_grid_dataset, index_grid_dataset, grid_index_path
 
 RECORD_SAVE_THRESHOLD = 10000
 

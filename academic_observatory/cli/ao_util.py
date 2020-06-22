@@ -20,7 +20,7 @@ import logging
 from multiprocessing import cpu_count
 
 from academic_observatory.telescopes.common_crawl import cc_fetch_full_text
-from academic_observatory.telescopes.grid import download_grid_dataset, index_grid_dataset
+from academic_observatory.telescopes.grid_old import download_grid_dataset, index_grid_dataset
 from academic_observatory.telescopes.oai_pmh import fetch_endpoints, FETCH_ENDPOINTS_PROCESS_MULTIPLIER, fetch_records
 from academic_observatory.utils import validate_path, validate_datetime
 

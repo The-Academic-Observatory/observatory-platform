@@ -35,7 +35,7 @@ from warcio.archiveiterator import ArchiveIterator
 from warcio.recordloader import ArchiveLoadFailed
 
 from academic_observatory.telescopes.common_crawl.schema import WarcIndex, Link
-from academic_observatory.telescopes.grid import load_grid_index
+from academic_observatory.telescopes.grid_old import load_grid_index
 from academic_observatory.utils import HtmlParser, get_url_domain_suffix
 
 

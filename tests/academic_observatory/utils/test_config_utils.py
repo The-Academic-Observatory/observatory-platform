@@ -224,7 +224,7 @@ class TestObservatoryConfig(unittest.TestCase):
     CONFIG_DICT_COMPLETE_VALID = {
         'project_id': 'my-project',
         'bucket_name': 'my-bucket',
-        'location': 'us-west4',
+        'data_location': 'us-west4',
         'dags_path': '/usr/local/airflow/dags',
         'google_application_credentials': '/run/secrets/google_application_credentials.json',
         'environment': 'dev'
@@ -233,7 +233,7 @@ class TestObservatoryConfig(unittest.TestCase):
     CONFIG_DICT_COMPLETE_INVALID = {
         'project_id': None,
         'bucket_name': None,
-        'location': None,
+        'data_location': None,
         'dags_path': '/usr/local/airflow/dags',
         'google_application_credentials': '/run/secrets/google_application_credentials.json',
         'environment': 'dev'
@@ -242,7 +242,7 @@ class TestObservatoryConfig(unittest.TestCase):
     CONFIG_DICT_INCOMPLETE_VALID = {
         'project_id': 'my-project',
         'bucket_name': 'my-bucket',
-        'location': 'us-west4',
+        'data_location': 'us-west4',
         'environment': 'dev'
     }
 
@@ -301,7 +301,7 @@ class TestObservatoryConfig(unittest.TestCase):
     def assert_dict_equals_config(self, dict_, config):
         self.assertEqual(dict_['project_id'], config.project_id)
         self.assertEqual(dict_['bucket_name'], config.bucket_name)
-        self.assertEqual(dict_['location'], config.location)
+        self.assertEqual(dict_['data_location'], config.data_location)
         self.assertEqual(dict_['dags_path'], config.dags_path)
         self.assertEqual(dict_['google_application_credentials'], config.google_application_credentials)
         self.assertEqual(Environment(dict_['environment']), config.environment)

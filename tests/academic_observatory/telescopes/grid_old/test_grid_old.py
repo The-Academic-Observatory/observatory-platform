@@ -20,13 +20,13 @@ import os
 import unittest
 from typing import List
 
-from academic_observatory.telescopes.grid import grid_path, grid_index_path, parse_institute, save_grid_index, \
+from academic_observatory.telescopes.grid_old import grid_path, grid_index_path, parse_institute, save_grid_index, \
     load_grid_index, parse_grid_release
 from academic_observatory.utils import test_data_dir
 from academic_observatory.utils.config_utils import observatory_home
 
 
-class TestGrid(unittest.TestCase):
+class TestGridOld(unittest.TestCase):
     grid_index_test_path: str
     grid_release_test_path: str
     grid_institute_test_path: str
@@ -56,27 +56,27 @@ class TestGrid(unittest.TestCase):
         self.assertEqual(path, os.path.join(grid_path(), "grid_index.csv"))
 
     def test_load_grid_index(self):
-        grid_index = load_grid_index(TestGrid.grid_index_test_path)
+        grid_index = load_grid_index(TestGridOld.grid_index_test_path)
         grid_index_expected = {'anu.edu.au': 'grid.1001.0', 'monash.edu': 'grid.1002.3',
                                'uq.edu.au': 'grid.1003.2'}
         self.assertDictEqual(grid_index, grid_index_expected)
 
     def test_parse_institute(self):
-        with open(TestGrid.grid_institute_test_path) as fp:
+        with open(TestGridOld.grid_institute_test_path) as fp:
             institute = json.load(fp)
         result = parse_institute(institute)
-        expected_result = TestGrid.grid_data[0]
+        expected_result = TestGridOld.grid_data[0]
         self.assertEqual(result, expected_result)
 
     def test_parse_grid_release(self):
-        with open(TestGrid.grid_release_test_path) as fp:
+        with open(TestGridOld.grid_release_test_path) as fp:
             grid_release = json.load(fp)
         version, results = parse_grid_release(grid_release)
         expected_version = '2016_06_30'
         self.assertEqual(version, expected_version)
-        self.assertListEqual(results, TestGrid.grid_data)
+        self.assertListEqual(results, TestGridOld.grid_data)
 
     def test_save_grid_index(self):
-        save_grid_index(TestGrid.grid_index_gen_path, TestGrid.grid_data)
-        self.assertTrue(filecmp.cmp(TestGrid.grid_index_gen_path, TestGrid.grid_index_test_path))
-        os.remove(TestGrid.grid_index_gen_path)
+        save_grid_index(TestGridOld.grid_index_gen_path, TestGridOld.grid_data)
+        self.assertTrue(filecmp.cmp(TestGridOld.grid_index_gen_path, TestGridOld.grid_index_test_path))
+        os.remove(TestGridOld.grid_index_gen_path)
