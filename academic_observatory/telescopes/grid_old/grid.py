@@ -20,15 +20,16 @@ import os
 from typing import Tuple, List, Union
 from urllib.parse import urlparse
 
+import deprecation
 import pandas as pd
 
 from academic_observatory.utils import get_url_domain_suffix
 from academic_observatory.utils.config_utils import observatory_home
 
-
 __GRID_INDEX_FILENAME = 'grid_index.csv'
 
 
+@deprecation.deprecated(deprecated_in="20.05.0", details="Replaced by academic_observatory.telescopes.grid")
 def grid_path() -> str:
     """ Get the default path to the GRID dataset.
     :return: the default path to the GRID dataset.
@@ -37,6 +38,7 @@ def grid_path() -> str:
     return observatory_home('datasets', 'grid')
 
 
+@deprecation.deprecated(deprecated_in="20.05.0", details="Replaced by academic_observatory.telescopes.grid")
 def grid_index_path() -> str:
     """ Get default grid dataset path
     :return:
@@ -46,6 +48,7 @@ def grid_index_path() -> str:
     return path
 
 
+@deprecation.deprecated(deprecated_in="20.05.0", details="Replaced by academic_observatory.telescopes.grid")
 def load_grid_index(grid_index_path: Union[str, io.FileIO]) -> dict:
     """ Load the GRID Index.
 
@@ -68,6 +71,7 @@ def load_grid_index(grid_index_path: Union[str, io.FileIO]) -> dict:
     return grid_index
 
 
+@deprecation.deprecated(deprecated_in="20.05.0", details="Replaced by academic_observatory.telescopes.grid")
 def parse_institute(institute: dict) -> Union[None, Tuple]:
     """ Parse an institute from the GRID.ac dataset.
 
@@ -107,6 +111,7 @@ def parse_institute(institute: dict) -> Union[None, Tuple]:
     return result
 
 
+@deprecation.deprecated(deprecated_in="20.05.0", details="Replaced by academic_observatory.telescopes.grid")
 def parse_grid_release(grid_release: dict) -> Tuple[str, List[Tuple]]:
     """ Parse an entire GRID release.
 
@@ -126,6 +131,7 @@ def parse_grid_release(grid_release: dict) -> Tuple[str, List[Tuple]]:
     return version, results
 
 
+@deprecation.deprecated(deprecated_in="20.05.0", details="Replaced by academic_observatory.telescopes.grid")
 def save_grid_index(path: Union[str, io.FileIO], data: List) -> None:
     """ Save the GRID Index as a CSV.
 
