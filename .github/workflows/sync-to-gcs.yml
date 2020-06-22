@@ -14,6 +14,7 @@ jobs:
         uses: aroelo/sync_to_gcs@20.6.0
         with:
           secrets: ${{ secrets.google_credentials }}
+          bucket_pattern: 'github-'
           bucket_suffix: 'prod'
 
   sync_dev:
@@ -27,4 +28,5 @@ jobs:
         uses: aroelo/sync_to_gcs@20.6.0
         with:
           secrets: ${{ secrets.google_credentials }}
+          bucket_pattern: 'github-'
           bucket_suffix: 'dev'
