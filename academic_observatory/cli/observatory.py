@@ -30,6 +30,7 @@ from cryptography.fernet import Fernet
 
 from academic_observatory.utils.config_utils import observatory_home, observatory_package_path, dags_path, \
     ObservatoryConfig
+from academic_observatory.utils.report_utils import create_new_report, execute_report
 
 
 @click.group()
@@ -39,6 +40,7 @@ def cli():
     COMMAND: the commands to run include:\n
       - platform: start and stop the local Academic Observatory platform.\n
       - generate: generate a variety of outputs\n.
+      - report: report creation and generation\n.
     """
 
     pass
@@ -91,6 +93,29 @@ def generate(command):
         print(gen_fernet_key())
     elif command == 'config.yaml':
         gen_config_interface()
+
+
+
+@cli.command()
+@click.argument('command',
+                type=click.Choice(['create', 'run']))
+@click.option('--directory',
+              type=click.Path(exists=True, file_okay=False, dir_okay=True),
+              default=os.getcwd(),
+              help='The path to either create or run the report.',
+              show_default=True)
+def report(command, directory):
+    """ Generate information for the Academic Observatory platform.\n
+
+    COMMAND: the command to give the generator:\n
+      - create: creates a new report in the current directory.\n
+      - run: executes the report in the current directory.\n
+    """
+
+    if command == 'create':
+        create_new_report(directory)
+    elif command == 'run':
+        execute_report(directory)
 
 
 def wait_for_process(proc: Popen) -> Tuple[str, str]:
