@@ -21,7 +21,6 @@ import shutil
 import subprocess
 import time
 import urllib.request
-from functools import partial
 from subprocess import Popen
 from typing import Tuple, Union
 
@@ -513,7 +512,6 @@ class TerraformConfig:
     workspaces = {'dev': None,
                   'prod': None,
                   'shared': 'shared'}
-    # workspaces = {'shared': 'shared'}
     # terraform variables
     project = 'workflows-dev'
     region = 'us-east1'
@@ -634,6 +632,7 @@ class TerraformWorkspace:
             print(response.text)
             exit(os.EX_CONFIG)
 
+        print(f"Added variable '{key}'.")
         return json.loads(response.text)
 
 
@@ -641,11 +640,6 @@ def terraform_setup_workspaces(docker_args, env, min_line_chars, verbose, github
                                terraform_user_token):
     print(f'Terraform setting up workspaces'.ljust(min_line_chars))
     for workspace in TerraformConfig.workspaces:
-        # # init workspace
-        # info = f'Initialising workspace {workspace}..'
-        # args = ['init', '-reconfigure', '-input=false']
-        # terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
-
         # init/create new workspace
         # init fails if there are no workspaces created yet
         info = f'Init/create new workspace "{workspace}"...'
@@ -657,11 +651,6 @@ def terraform_setup_workspaces(docker_args, env, min_line_chars, verbose, github
         info = f'Selecting workspace "{workspace}"...'
         cmd = f'terraform workspace new {workspace} || terraform workspace select {workspace}'
         bash_run_cmd(cmd, info, docker_args, env, min_line_chars, verbose)
-        #
-        # # select workspace
-        # info = f'Selecting workspace "{workspace}"...'
-        # args = ['workspace', 'select', workspace]
-        # terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
 
         # add variables to workspace
         if workspace == 'dev':
@@ -687,7 +676,7 @@ def terraform_setup_workspaces(docker_args, env, min_line_chars, verbose, github
 
             # clone github repo to bucket
             info = f'Cloning github repository to bucket'
-            cmd = f'cd {TerraformConfig.workspaces[workspace]}; ' \
+            cmd = f'cd {TerraformConfig.workspaces[workspace]}; terraform init -reconfigure -input=false; ' \
                   f'terraform output {TerraformConfig.output_credentials} > /temp.json; ' \
                   f'gcloud auth activate-service-account --key-file=/temp.json; ' \
                   f'github_token=$(terraform output {TerraformConfig.output_github_token}); ' \
@@ -920,11 +909,7 @@ def terraform(command, google_credentials_file, github_token, terraform_token_fi
                 args = ['apply', '-auto-approve']
                 terraform_run_cmd(args, info, docker_args, env, min_line_chars, verbose)
 
-                # bash_cmd = f'terraform output {TerraformConfig.output_credentials} > /temp.json;' \
-                #            f'gcloud auth activate-service-account --key-file=/temp.json;' \
-                #            f'dags_bucket_path=$(gcloud composer environments describe {composer_environment_name} ' \
-                #            f"--location {TerraformConfig.region} --format='get(config.dagGcsPrefix)')" \
-                #            f'gsutil cp sync_github.py $dags_bucket_path'
+
                 dags_bucket = get_dags_bucket(docker_args, env, min_line_chars, verbose)
 
                 info = f'Copying dag to dags bucket of {workspace}...'
