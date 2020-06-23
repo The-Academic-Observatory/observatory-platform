@@ -28,13 +28,9 @@ click==7.1.*
 docker-compose==1.25.*
 apache-airflow==1.10.6
 Cerberus==1.3.*
-
-precipy>=0.2.2
-xhtml2pdf>=0.2.4
+precipy==0.2.2
 num2words>=0.5.9
-pydata-google-auth>=1.1.0
-geopandas>=0.7.0
-ipython>=7.15.0
-pandas-gbq>=0.13.2
-tables>=3.6.1
+pandas-gbq
+pydata-google-auth
+xhtml2pdf
 weasyprint

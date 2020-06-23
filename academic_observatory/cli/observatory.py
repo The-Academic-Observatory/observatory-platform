@@ -30,7 +30,7 @@ from cryptography.fernet import Fernet
 
 from academic_observatory.utils.config_utils import observatory_home, observatory_package_path, dags_path, \
     ObservatoryConfig
-from academic_observatory.utils.report_utils import create_new_report, execute_report
+from academic_observatory.reports.report_utils import create_new_report, execute_report
 
 
 @click.group()

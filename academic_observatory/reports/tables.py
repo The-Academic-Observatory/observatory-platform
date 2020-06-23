@@ -17,7 +17,7 @@
 import pandas as pd
 import pydata_google_auth
 
-from utils import chart_utils
+from academic_observatory.reports.chart_utils import *
 
 class GenericOpenAccessTable(AbstractObservatoryTable):
     sql_template = """
