@@ -14,6 +14,8 @@
 
 # Author: Cameron Neylon & Richard Hosing 
 
+from academic_observatory.reports import defaults
+
 import pandas as pd
 import numpy as np
 import pydata_google_auth

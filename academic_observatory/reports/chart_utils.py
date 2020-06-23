@@ -22,16 +22,8 @@ from inspect import signature
 
 # --- Variable Sets - Column selectors for data frames ---
 
-# List of output types for research publications
-output_types = [
-    'Journal Articles',
-    'Proceedings',
-    'Books',
-    'Book Sections',
-    'Edited Volumes',
-    'Reports‡',
-    'Datasets‡'
-]
+
+#TODO output types moved to defaults as it is part of palette creation. Delete this TODO if that is OK
 
 
 # List of types of Open Access
@@ -69,11 +61,7 @@ oatypes_palette = {
 }
 
 
-# Create colour palette used in graphics to symbolise output types
-husl = sns.color_palette(n_colors=len(output_types))
-outputs_palette = dict([(output_type, husl[i])
-                        for i, output_type in enumerate(output_types)])
-outputs_palette.update({'Total Outputs': 'black'})
+#TODO Moved the palette creation from charts_utils to defaults. Remove this TODO
 
 
 # --- Name Standardisation ---
