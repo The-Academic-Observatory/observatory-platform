@@ -102,7 +102,7 @@ class DistributionComparisonChart(AbstractObservatoryChart):
         ax.set_ylabel(self.plot_column)
         lineargs = {'color': 'black',
                     'linewidth': 2}
-        lineargs.update(helpers._collect_kwargs_for(lines.Line2D, kwargs))
+        lineargs.update(chart_utils._collect_kwargs_for(lines.Line2D, kwargs))
         ax.axhline(self.own_value, 0.05, 0.95, **lineargs)
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
