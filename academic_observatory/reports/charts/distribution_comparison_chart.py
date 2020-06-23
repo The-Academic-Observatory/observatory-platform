@@ -23,7 +23,7 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports import chart_utils
+from academic_observatory.reports.chart_utils import *
 
 
 class DistributionComparisonChart(AbstractObservatoryChart):
@@ -40,8 +40,6 @@ class DistributionComparisonChart(AbstractObservatoryChart):
                  country: bool = True,
                  comparison: list = None,
                  color=None):
-        """Initialisation function
-        """
 
         self.df = df
         self.identifier = identifier
@@ -55,9 +53,6 @@ class DistributionComparisonChart(AbstractObservatoryChart):
         super().__init__(df)
 
     def process_data(self, **kwargs):
-        """Data selection and processing function
-        """
-
         self.figdata = []
         if self.world:
             world = self.df[
@@ -70,7 +65,7 @@ class DistributionComparisonChart(AbstractObservatoryChart):
             region = self.df[
                 (self.df.region == self.region_name) &
                 (self.df.published_year == self.focus_year)
-                ][self.plot_column].values
+            ][self.plot_column].values
             self.figdata.append(region)
         if self.country:
             self.country_name = self.df[
@@ -78,25 +73,22 @@ class DistributionComparisonChart(AbstractObservatoryChart):
             country = self.df[
                 (self.df.country == self.country_name) &
                 (self.df.published_year == self.focus_year)
-                ][self.plot_column].values
+            ][self.plot_column].values
             self.figdata.append(country)
 
         if self.comparison is not None:
             comparison = self.df[
                 (self.df.id.isin(self.comparison)) &
                 (self.df.published_year == self.focus_year)
-                ][self.plot_column].values
+            ][self.plot_column].values
             self.figdata.append(comparison)
 
         self.own_value = self.df[
             (self.df.id == self.identifier) &
             (self.df.published_year == self.focus_year)
-            ][self.plot_column].values[0]
+        ][self.plot_column].values[0]
 
     def plot(self, ax=None, ylim=None, **kwargs):
-        """Plotting function
-        """
-
         if not ax:
             self.fig, ax = plt.subplots()
         else:
@@ -110,7 +102,7 @@ class DistributionComparisonChart(AbstractObservatoryChart):
         ax.set_ylabel(self.plot_column)
         lineargs = {'color': 'black',
                     'linewidth': 2}
-        lineargs.update(chart_utils._collect_kwargs_for(lines.Line2D, kwargs))
+        lineargs.update(helpers._collect_kwargs_for(lines.Line2D, kwargs))
         ax.axhline(self.own_value, 0.05, 0.95, **lineargs)
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)

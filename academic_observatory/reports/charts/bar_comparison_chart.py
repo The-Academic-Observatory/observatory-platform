@@ -23,7 +23,7 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports import chart_utils
+from academic_observatory.reports.chart_utils import *
 
 
 class BarComparisonChart(AbstractObservatoryChart):
@@ -31,6 +31,9 @@ class BarComparisonChart(AbstractObservatoryChart):
 
     Produces a standard bar plot with appropriate colors for
     Bronze, Hybrid, DOAJ_Gold and Green OA.
+
+    TODO Greater flexibility for color palettes and options
+    for other variations on OA.
     """
 
     def __init__(self,
@@ -57,6 +60,10 @@ class BarComparisonChart(AbstractObservatoryChart):
         """Data selection and processing function
 
         param: kwargs: Keyword arguments, currently unused
+
+        TODO: Current hardcodes the location of uni ids
+        and the year in the dataframe. Generalise this and allow
+        for more flexibility of data types
         """
 
         figdata = self.df[(self.df.published_year == self.focus_year) &
@@ -71,6 +78,9 @@ class BarComparisonChart(AbstractObservatoryChart):
 
         param: kwargs: Any keywords to be sent to plt.figure or ax.set
                        during the plotting process.
+
+        TODO: Currently hardcodes the kinds of OA to be plotted. This should
+        be abstracted to allow greater flexibility.
         """
 
         if not ax:

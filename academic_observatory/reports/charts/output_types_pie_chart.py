@@ -23,8 +23,7 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports import chart_utils
-from academic_observatory.reports import defaults
+from academic_observatory.reports.chart_utils import *
 
 
 class OutputTypesPieChart(AbstractObservatoryChart):
@@ -35,17 +34,11 @@ class OutputTypesPieChart(AbstractObservatoryChart):
                  df: pd.DataFrame,
                  identifier: str,
                  focus_year: int):
-        """Initialisation function
-        """
-
         self.df = df
         self.focus_year = focus_year
         self.identifier = identifier
 
     def process_data(self):
-        """Data selection and processing function
-        """
-
         type_categories = defaults.output_types
         figdata = self.df[(self.df.id == self.identifier) &
                           (self.df.published_year == self.focus_year) &
@@ -60,9 +53,6 @@ class OutputTypesPieChart(AbstractObservatoryChart):
         return self.figdata
 
     def plot(self, ax=None, **kwargs):
-        """Plotting function
-        """
-
         if not ax:
             self.fig, ax = plt.subplots()
         else:

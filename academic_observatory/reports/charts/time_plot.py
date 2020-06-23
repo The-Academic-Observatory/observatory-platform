@@ -24,8 +24,7 @@ from IPython.display import HTML
 from abc import ABC, abstractmethod
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import _collect_kwargs_for
-from academic_observatory.reports.defaults import *
+from academic_observatory.reports.chart_utils import *
 
 
 class TimePlot(AbstractObservatoryChart):
@@ -40,7 +39,7 @@ class TimePlot(AbstractObservatoryChart):
                  hue_column: str = 'name',
                  size_column: str = None,
                  **kwargs):
-        """Initialisation function
+        """Init Function
 
         param: year_range: tuple with two elements for range of years to plot
         param: unis: list of grid_ids to include
@@ -53,13 +52,9 @@ class TimePlot(AbstractObservatoryChart):
         self.plot_column = plot_column
         self.hue_column = hue_column
         self.size_column = size_column
-        self.kwargs = kwargs
         super().__init__(df)
 
     def process_data(self, *kwargs):
-        """Data selection and processing function
-        """
-
         figdata = self.df
         columnorder = [figdata[figdata.id == grid].iloc[0]['name']
                        for grid in self.unis]
@@ -73,8 +68,6 @@ class TimePlot(AbstractObservatoryChart):
 
     def plot(self, ax=None, xticks=None, marker_line=None,
              ylim=None, **kwargs):
-        """Plotting function
-        """
 
         plot_kwargs = _collect_kwargs_for(plt.subplots, kwargs)
         if not ax:
@@ -91,7 +84,7 @@ class TimePlot(AbstractObservatoryChart):
         [ax.spines[loc].set_visible(False) for ax, loc in itertools.product(
             axes, ['top', 'right', 'bottom'])]
         [ax.tick_params(axis='x', which='both', bottom=False, top=False,
-                        labelbottom=False) for ax in axes[0:len(self.unis) - 1]]
+                        labelbottom=False) for ax in axes[0:len(self.unis)-1]]
         if ylim:
             if len(ylim) == 2:
                 b, t = ylim

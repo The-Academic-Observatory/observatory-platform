@@ -23,12 +23,12 @@ from matplotlib import animation, rc
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports import chart_utils
-from academic_observatory.reports import defaults
+from academic_observatory.reports.chart_utils import *
 
 
 class BoxScatter(AbstractObservatoryChart):
-    """Box and scatter charts for groupings of universitiies
+    """
+    Box and scatter charts for groupings of universitiies
     """
 
     def __init__(self,
@@ -39,7 +39,7 @@ class BoxScatter(AbstractObservatoryChart):
                  sort: bool = True,
                  sortfunc: callable = pd.DataFrame.median,
                  **kwargs):
-        """Initialisation function
+        """
 
         param: df: pd.DataFrame containing data to be plotted
         param: year: int for the year to be plotted
@@ -59,8 +59,6 @@ class BoxScatter(AbstractObservatoryChart):
         super().__init__(df)
 
     def process_data(self, *kwargs):
-        """Data selection and processing function
-        """
 
         figdata = self.df
         figdata = figdata[figdata.published_year == self.year]
@@ -86,7 +84,7 @@ class BoxScatter(AbstractObservatoryChart):
              dodge: bool = False,
              hue: str = 'region',
              xticks: list = [0, 20, 40, 60, 80],
-             colorpalette: sns.color_palette = defaults.region_palette,
+             colorpalette: sns.color_palette = region_palette,
              alpha: float = 0.5,
              **kwargs):
         """Plot Method

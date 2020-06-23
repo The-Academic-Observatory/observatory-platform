@@ -18,17 +18,19 @@ import unittest
 import pandas as pd
 import os.path
 
-
+# From charts.py
 from academic_observatory.reports.charts import ScatterPlot
 from academic_observatory.reports.charts import TimePlot
 from academic_observatory.reports.charts import TimePlotLayout
 from academic_observatory.reports.charts import TimePath
 from academic_observatory.reports.charts import Layout
 
+# From rankings.py
 from academic_observatory.reports.charts import RankChart
 from academic_observatory.reports.charts import ConfidenceIntervalRank
 from academic_observatory.reports.charts import BoxScatter
 
+# From reports.py
 from academic_observatory.reports.charts import OutputTypesPieChart
 from academic_observatory.reports.charts import GenericTimeChart
 from academic_observatory.reports.charts import OutputTypesTimeChart
@@ -38,7 +40,8 @@ from academic_observatory.reports.charts import OAAdvantageBarChart
 from academic_observatory.reports.charts import BarComparisonChart
 from academic_observatory.reports.charts import FunderGraph
 from academic_observatory.reports.charts import DistributionComparisonChart
-from academic_observatory.reports import chart_utils
+
+from academic_observatory.reports.chart_utils import *
 
 
 class TestAbstractChart(unittest.TestCase):
@@ -49,7 +52,7 @@ class TestAbstractChart(unittest.TestCase):
 
     def setUp(self):
         test_data_file = os.path.join(test_data_dir(__file__),
-                                      'reports', self.test_data)
+                                      'analysis', self.test_data)
         self.df = pd.read_csv(test_data_file)
 
     def test_init(self):
@@ -157,17 +160,17 @@ class TestTimePath(TestAbstractChartWithAnimation):
 class TestLayout(TestAbstractChart):
     pass
 
-# TODO: fix as fails intermittently
-# class TestRankChart(TestAbstractChart):
-#     def setUp(self):
-#         self.test_class = RankChart
-#         self.init_args = {
-#             'rankcol': 'percent_gold',
-#             'filter_name': 'published_year',
-#             'filter_value': 2017
-#         }
-#         self.plot_args = {}
-#         super().setUp()
+
+class TestRankChart(TestAbstractChart):
+    def setUp(self):
+        self.test_class = RankChart
+        self.init_args = {
+            'rankcol': 'percent_gold',
+            'filter_name': 'published_year',
+            'filter_value': 2017
+        }
+        self.plot_args = {}
+        super().setUp()
 
 
 class TestConfidenceInternalRankChart(TestAbstractChart):

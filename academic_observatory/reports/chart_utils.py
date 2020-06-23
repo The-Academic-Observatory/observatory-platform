@@ -16,9 +16,90 @@
 
 import pandas as pd
 import seaborn as sns
+import pydata_google_auth
 from inspect import signature
 
-from academic_observatory.reports.defaults import *
+
+# --- Variable Sets - Column selectors for data frames ---
+
+# List of output types for research publications
+output_types = [
+    'Journal Articles',
+    'Proceedings',
+    'Books',
+    'Book Sections',
+    'Edited Volumes',
+    'Reports‡',
+    'Datasets‡'
+]
+
+
+# List of types of Open Access
+oa_types = [
+    'Open Access (%)',
+    'Total Gold OA (%)',
+    'Total Green OA (%)',
+    'Hybrid OA (%)',
+    # 'Green in IR (%)',
+]
+
+
+# --- Palettes ---
+
+# Colour palette used in graphics to symbolise global regions
+region_palette = {
+    'Asia': 'orange',
+    'Europe': 'limegreen',
+    'North America': 'dodgerblue',
+    'Latin America': 'brown',
+    'Americas': 'dodgerblue',
+    'Africa': 'magenta',
+    'Oceania': 'red'
+}
+
+
+# Colour palette used in graphics to symbolise Open Access types
+oatypes_palette = {
+    'Open Access (%)': 'black',
+    'Total Gold OA (%)': 'gold',
+    'Total Green OA (%)': 'darkgreen',
+    'Hybrid OA (%)': 'orange',
+    'Bronze (%)': 'brown',
+    'Green in IR (%)': 'limegreen'
+}
+
+
+# Create colour palette used in graphics to symbolise output types
+husl = sns.color_palette(n_colors=len(output_types))
+outputs_palette = dict([(output_type, husl[i])
+                        for i, output_type in enumerate(output_types)])
+outputs_palette.update({'Total Outputs': 'black'})
+
+
+# --- Name Standardisation ---
+
+# Standard Name Changes
+country_clean = {"country": {
+    "United Kingdom of Great Britain and Northern Ireland":
+    "United Kingdom",
+        "Iran (Islamic Republic of)": "Iran",
+        "Korea, Republic of": "South Korea",
+        "Taiwan, Province of China": "Taiwan"
+}}
+
+
+# Standardisation of the names of output types
+outputs_clean = {'type': {
+    'total': 'Total Outputs',
+    'journal_articles': 'Journal Articles',
+    'proceedings_articles': 'Proceedings',
+    'authored_books': 'Books',
+    'book_sections': 'Book Sections',
+                     'edited_volumes': 'Edited Volumes',
+                     'reports': 'Reports‡',
+                     'datasets': 'Datasets‡'
+}}
+
 
 
 def _coki_standard_format(style='seaborn-white',
@@ -30,6 +111,7 @@ def _coki_standard_format(style='seaborn-white',
     sns.set_context(context)
 
 
+#TODO: cleanup required, mainly on country names #
 def clean_geo_names(df: pd.DataFrame) -> pd.DataFrame:
     """Convenience function for standardising country names
     
@@ -144,7 +226,7 @@ def calculate_pc_change(df: pd.DataFrame,
     for column in columns:
         new_column_name = column + column_name_add
         df[new_column_name] = list(df.groupby(
-            id_column)[column].pct_change() * 100)
+            id_column)[column].pct_change()*100)
     return df
 
 
@@ -180,6 +262,7 @@ def calculate_percentages(df: pd.DataFrame,
     return df
 
 
+#TODO: Check that this calculation is up to date with our standard practise
 def calculate_confidence_interval(df: pd.DataFrame,
                                   columns: list,
                                   total_column: str = 'total',
@@ -204,13 +287,13 @@ def calculate_confidence_interval(df: pd.DataFrame,
 
     for column in columns:
         new_column_name = column + column_name_add
-        df[new_column_name] = 100 * 1.96 * (
-                df[column] / 100 *
-                (
-                        1 - df[column] / 100
-                ) /
-                df[total_column]
-        ) ** (.5)
+        df[new_column_name] = 100*1.96*(
+            df[column] / 100 *
+            (
+                1 - df[column] / 100
+            ) /
+            df[total_column]
+        )**(.5)
     return df
 
 

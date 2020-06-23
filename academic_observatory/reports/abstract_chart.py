@@ -23,8 +23,7 @@ from matplotlib import animation, rc, artist
 from IPython.display import HTML
 from abc import ABC, abstractmethod
 
-from academic_observatory.reports.chart_utils import _collect_kwargs_for, id2name
-from academic_observatory.reports import defaults
+from academic_observatory.reports.chart_utils import _collect_kwargs_for, id2name, region_palette
 
 
 class AbstractObservatoryChart(ABC):
@@ -48,15 +47,11 @@ class AbstractObservatoryChart(ABC):
     """
 
     def __init__(self, df, **kwargs):
-        """Initialisation function
-        """
-
         self.df = df
 
     def _check_df(self):
-        """Error checking on df being in right form
-        """
-
+        #
+        # TODO Some error checking on df being in right form
         return
 
     @abstractmethod

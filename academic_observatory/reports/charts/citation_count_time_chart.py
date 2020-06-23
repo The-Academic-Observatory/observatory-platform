@@ -23,9 +23,7 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports import chart_utils
-from academic_observatory.reports.charts import output_types_time_chart
-from academic_observatory.reports.charts.generic_time_chart import *
+from academic_observatory.reports.chart_utils import *
 
 
 class CitationCountTimeChart(GenericTimeChart):
@@ -37,8 +35,6 @@ class CitationCountTimeChart(GenericTimeChart):
                  identifier: str,
                  year_range: tuple = (2000, 2020),
                  chart_type: str = 'count'):
-        """Initialisation function
-        """
 
         self.chart_type = chart_type
         columns = [
@@ -52,9 +48,6 @@ class CitationCountTimeChart(GenericTimeChart):
         super().__init__(df, columns, identifier, year_range)
 
     def process_data(self):
-        """Data selection and processing function
-        """
-
         if 'total_oa' not in self.df.columns:
             self.df['total_oa'] = self.df.oa
         if self.chart_type in ['per-article', 'advantage']:
@@ -67,11 +60,16 @@ class CitationCountTimeChart(GenericTimeChart):
             self.df['Hybrid OA'] = self.df.hybrid_citations / self.df.hybrid
 
             if self.chart_type == 'advantage':
-                self.df['Non-Open Access'] = self.df['Non-OA'] / self.df['All Outputs']
-                self.df['Open Access'] = self.df['Open Access'] / self.df['All Outputs']
-                self.df['Gold OA'] = self.df['Gold OA'] / self.df['All Outputs']
-                self.df['Green OA'] = self.df['Green OA'] / self.df['All Outputs']
-                self.df['Hybrid OA'] = self.df['Hybrid OA'] / self.df['All Outputs']
+                self.df['Non-Open Access'] = self.df['Non-OA'] /   \
+                    self.df['All Outputs']
+                self.df['Open Access'] = self.df['Open Access'] /  \
+                    self.df['All Outputs']
+                self.df['Gold OA'] = self.df['Gold OA'] /          \
+                    self.df['All Outputs']
+                self.df['Green OA'] = self.df['Green OA'] /        \
+                    self.df['All Outputs']
+                self.df['Hybrid OA'] = self.df['Hybrid OA'] /      \
+                    self.df['All Outputs']
                 self.columns = ['Non-Open Access',
                                 'Open Access',
                                 'Gold OA',
@@ -90,9 +88,6 @@ class CitationCountTimeChart(GenericTimeChart):
         return self.figdata
 
     def plot(self, palette=None, ax=None, **kwargs):
-        """Plotting function
-        """
-
         if not palette:
             if self.chart_type == 'count':
                 palette = ['blue', 'orange',

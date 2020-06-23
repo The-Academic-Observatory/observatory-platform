@@ -24,16 +24,17 @@ from IPython.display import HTML
 from abc import ABC, abstractmethod
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports import chart_utils
+from academic_observatory.reports.chart_utils import *
 
 
 class Layout(AbstractObservatoryChart):
     """General Class for handling multi-chart layouts
+
+
     """
 
     def __init__(self, df, charts):
-        """Initialisation function
-
+        """
         :param df: A data frame conforming to the COKI table format
         :param charts: A list of dictionaries containing the
                initiatialisation params and kwargs for the sub-charts
@@ -45,9 +46,6 @@ class Layout(AbstractObservatoryChart):
         super().__init__(df)
 
     def process_data(self):
-        """Data selection and processing function
-        """
-
         for params in self.chart_params:
             params['df'] = self.df
             chart_class = params.pop('chart_class')
@@ -60,9 +58,6 @@ class Layout(AbstractObservatoryChart):
     def plot(self,
              figsize=(15, 20),
              **kwargs):
-        """Plotting function
-        """
-
         fig, axes = plt.subplots(1, len(self.charts),
                                  figsize=figsize,
                                  sharey=False,

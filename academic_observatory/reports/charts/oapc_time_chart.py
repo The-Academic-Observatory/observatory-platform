@@ -23,7 +23,7 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.charts.output_types_time_chart import *
+from academic_observatory.reports.chart_utils import *
 
 
 class OApcTimeChart(GenericTimeChart):
@@ -38,8 +38,6 @@ class OApcTimeChart(GenericTimeChart):
                  identifier: str,
                  year_range: tuple = (2000, 2020),
                  ):
-        """Initialisation function
-        """
 
         columns = defaults.oa_types
         super().__init__(df, columns, identifier, year_range)
@@ -47,8 +45,5 @@ class OApcTimeChart(GenericTimeChart):
 
     def plot(self, palette=defaults.oatypes_palette,
              ax=None, **kwargs):
-        """Plotting function
-        """
-
         self.fig = super().plot(palette, ax=ax, **kwargs)
         return self.fig

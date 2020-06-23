@@ -23,12 +23,12 @@ from matplotlib import animation, rc
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports import chart_utils
-from academic_observatory.reports import defaults
+from academic_observatory.reports.chart_utils import *
 
 
 class ConfidenceIntervalRank(AbstractObservatoryChart):
     """Ranking chart with confidence intervals plotted
+
     """
 
     def __init__(self,
@@ -40,7 +40,8 @@ class ConfidenceIntervalRank(AbstractObservatoryChart):
                  rank_length: int = 100,
                  valcol: str = None,
                  colordict: dict = None):
-        """Initialisation Function
+        """
+        Initialisation Function
 
         param: df: pd.DataFrame in the standard COKI format
         param: rankcol: <str> with the name of column containing values to
@@ -67,9 +68,6 @@ class ConfidenceIntervalRank(AbstractObservatoryChart):
         self.rank_length = rank_length
 
     def process_data(self, **kwargs):
-        """Data selection and processing function
-        """
-
         figdata = self.df
         figdata = figdata[figdata[self.filter_name] == self.filter_value]
         if not self.valcol:
@@ -79,8 +77,9 @@ class ConfidenceIntervalRank(AbstractObservatoryChart):
                                       ascending=False)[0:self.rank_length]
         figdata['Rank'] = figdata[self.rankcol].rank(ascending=False)
 
+        # TODO Abstract the coloring
         if 'region' in figdata.columns:
-            figdata['color'] = figdata['region'].map(defaults.region_palette)
+            figdata['color'] = figdata['region'].map(region_palette)
         else:
             figdata['color'] = 'grey'
         self.df = figdata
@@ -90,8 +89,6 @@ class ConfidenceIntervalRank(AbstractObservatoryChart):
              ax: matplotlib.axis = None,
              show_rank_axis: bool = True,
              **kwargs):
-        """Plotting function
-        """
 
         if ax is None:
             yaxis = plt.gca()
