@@ -22,9 +22,9 @@ import itertools
 from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
-from academic_observatory.charting import (
-    AbstractObservatoryChart)
-import utils.chart_utils
+from academic_observatory.reports import AbstractObservatoryChart
+from academic_observatory.reports.chart_utils import *
+
 
 class OutputTypesPieChart(AbstractObservatoryChart):
     """Generate a Pie Graph based on Output Types
