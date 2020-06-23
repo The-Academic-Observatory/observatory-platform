@@ -72,7 +72,6 @@ class FunderCountBarGraph(AbstractObservatoryChart):
         # Shorten funder names to avoid an issue that can arise where
         # the length of the axis labels leads to a matplotlib error
         # when the figure is drawn ValueError: left cannot be >= right
-
         data.loc[:, 'name'] = data['name'].apply(
             lambda s: s[0:self.shorten_names])
         self.figdata = data
