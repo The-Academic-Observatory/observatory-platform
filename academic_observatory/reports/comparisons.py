@@ -1,7 +1,7 @@
 import pandas as pd
 from num2words import num2words
 
-import modules.defaults as defaults
+from academic_observatory.reports import defaults
 
 
 def close_comparators(df: pd.DataFrame,

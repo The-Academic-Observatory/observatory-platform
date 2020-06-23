@@ -1,4 +1,5 @@
-print("y")
+import seaborn as sns
+
 
 comptext_larger = [
     'substantialy lower than',
@@ -35,3 +36,22 @@ scope = ''
 funder_scope = ''
 institutions_scope = """and
   institutions.id in (SELECT id FROM `open-knowledge-publications.institutional_oa_evaluation_2020.grids_in_scope`)"""
+
+
+#List of output types for research publications
+output_types = [
+    'Journal Articles',
+    'Proceedings',
+    'Books',
+    'Book Sections',
+    'Edited Volumes',
+    'Reports‡',
+    'Datasets‡'
+]
+
+
+# Create colour palette used in graphics to symbolise output types
+husl = sns.color_palette(n_colors=len(output_types))
+outputs_palette = dict([(output_type, husl[i])
+                        for i, output_type in enumerate(output_types)])
+outputs_palette.update({'Total Outputs': 'black'})
