@@ -23,7 +23,7 @@ from matplotlib import animation, rc, artist
 from IPython.display import HTML
 from abc import ABC, abstractmethod
 
-from utils.chart_utils import _collect_kwargs_for, id2name, region_palette
+from academic_observatory.reports.chart_utils import _collect_kwargs_for, id2name, region_palette
 
 
 class AbstractObservatoryChart(ABC):

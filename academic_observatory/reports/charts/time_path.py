@@ -23,7 +23,9 @@ from matplotlib import animation, rc, artist
 from IPython.display import HTML
 from abc import ABC, abstractmethod
 
-from utils.chart_utils import _collect_kwargs_for, id2name, region_palette
+from academic_observatory.reports import AbstractObservatoryChart
+from academic_observatory.reports.chart_utils import *
+
 
 class TimePath(AbstractObservatoryChart):
     """Charts to illustrate movement over time in two dimensions
