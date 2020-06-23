@@ -49,8 +49,8 @@ pandas-gbq>=0.13.2
 pydata-google-auth>=1.1.0
 xhtml2pdf>=0.2.4
 weasyprint==51
-precipy>=0.2.3
+precipy>=0.2.2
 geopandas>=0.7.0
 ipython>=7.15.0
 tables>=3.6.1
-descartes==1.1.0
+descartes>=1.1.0
