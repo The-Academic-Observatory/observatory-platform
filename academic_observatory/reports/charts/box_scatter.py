@@ -22,8 +22,8 @@ import itertools
 from matplotlib import animation, rc
 from IPython.display import HTML
 
-from academic_observatory.charting.charts import AbstractObservatoryChart
-from utils.chart_utils import region_palette, _collect_kwargs_for
+from academic_observatory.reports import AbstractObservatoryChart
+from academic_observatory.reports.chart_utils import *
 
 
 class BoxScatter(AbstractObservatoryChart):

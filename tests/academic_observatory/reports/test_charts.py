@@ -12,36 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Cameron Neylon
+# Author: Cameron Neylon & Richard Hosking
 
 import unittest
 import pandas as pd
 import os.path
 
 # From charts.py
-from academic_observatory.charting.charts import ScatterPlot
-from academic_observatory.charting.charts import TimePlot
-from academic_observatory.charting.charts import TimePlotLayout
-from academic_observatory.charting.charts import TimePath
-from academic_observatory.charting.charts import Layout
+from academic_observatory.reports.charts import ScatterPlot
+from academic_observatory.reports.charts import TimePlot
+from academic_observatory.reports.charts import TimePlotLayout
+from academic_observatory.reports.charts import TimePath
+from academic_observatory.reports.charts import Layout
 
 # From rankings.py
-from academic_observatory.charting.charts import RankChart
-from academic_observatory.charting.charts import ConfidenceIntervalRank
-from academic_observatory.charting.charts import BoxScatter
+from academic_observatory.reports.charts import RankChart
+from academic_observatory.reports.charts import ConfidenceIntervalRank
+from academic_observatory.reports.charts import BoxScatter
 
 # From reports.py
-from academic_observatory.charting.charts import OutputTypesPieChart
-from academic_observatory.charting.charts import GenericTimeChart
-from academic_observatory.charting.charts import OutputTypesTimeChart
-from academic_observatory.charting.charts import OApcTimeChart
-from academic_observatory.charting.charts import CitationCountTimeChart
-from academic_observatory.charting.charts import OAAdvantageBarChart
-from academic_observatory.charting.charts import BarComparisonChart
-from academic_observatory.charting.charts import FunderGraph
-from academic_observatory.charting.charts import DistributionComparisonChart
+from academic_observatory.reports.charts import OutputTypesPieChart
+from academic_observatory.reports.charts import GenericTimeChart
+from academic_observatory.reports.charts import OutputTypesTimeChart
+from academic_observatory.reports.charts import OApcTimeChart
+from academic_observatory.reports.charts import CitationCountTimeChart
+from academic_observatory.reports.charts import OAAdvantageBarChart
+from academic_observatory.reports.charts import BarComparisonChart
+from academic_observatory.reports.charts import FunderGraph
+from academic_observatory.reports.charts import DistributionComparisonChart
 
-import academic_observatory.utils.chart_utils
+from academic_observatory.reports.chart_utils import *
 
 
 class TestAbstractChart(unittest.TestCase):
