@@ -16,6 +16,7 @@
 
 import logging
 import os
+import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
@@ -28,32 +29,56 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud import storage
 from google.cloud.bigquery import SourceFormat
 from google.cloud.storage import Blob
+from natsort import natsorted
+from pendulum import Pendulum
 
-from academic_observatory.utils.config_utils import ObservatoryConfig
-from academic_observatory.utils.config_utils import telescope_path, SubFolder, schema_path, find_schema
+from academic_observatory.utils.config_utils import telescope_path, SubFolder, schema_path, find_schema, \
+    ObservatoryConfig
 from academic_observatory.utils.gc_utils import azure_to_google_cloud_storage_transfer, TransferStatus, \
     download_blobs_from_cloud_storage, upload_files_to_cloud_storage, load_bigquery_table, create_bigquery_dataset, \
-    bigquery_partitioned_table_id
+    bigquery_partitioned_table_id, table_name_from_blob
 from academic_observatory.utils.proc_utils import wait_for_process
 from mag_archiver.mag import MagArchiverClient, MagDateType, MagRelease, MagState
 
 
 def pull_mag_releases(ti: TaskInstance) -> List[MagRelease]:
+    """ Pull a list of MagRelease instances with xcom.
+
+    :param ti: the Apache Airflow task instance.
+    :return: the list of MagRelease instances.
+    """
+
     return ti.xcom_pull(key=MagTelescope.TOPIC_NAME, task_ids=MagTelescope.TASK_ID_LIST, include_prior_dates=False)
 
 
-def list_mag_release_files(release_path) -> List[PosixPath]:
+def list_mag_release_files(release_path: str) -> List[PosixPath]:
+    """ List the MAG release file paths in a particular folder. Excludes the samples directory.
+
+    :param release_path: the path to the MAG release.
+    :return: a list of PosixPath files.
+    """
+
     exclude_path = os.path.join(release_path, 'samples')
-    paths = list(Path(release_path).rglob("*.txt"))
-    paths = [path for path in paths if not str(path).startswith(exclude_path)]
-    return paths
+    types = ['*.txt', '*.txt.[0-9]']
+    files = []
+    for file_type in types:
+        paths = list(Path(release_path).rglob(file_type))
+        for path in paths:
+            if not str(path).startswith(exclude_path):
+                files.append(path)
+    files = natsorted(files, key=lambda x: str(x))
+    return files
 
 
 def transform_mag_file(input_file_path: str, output_file_path: str) -> bool:
-    # Transform files
-    # Remove \x0 and \r characters \r is the ^M windows character
-    # TODO: see if we can get rid of shell=True
+    r""" Transform MAG files, removing the \x0 and \r characters. \r is the ^M windows character.
 
+    :param input_file_path: the path of the file to transform.
+    :param output_file_path: where to save the transformed file.
+    :return: whether the transformation was successful or not.
+    """
+
+    # TODO: see if we can get rid of shell=True
     bash_command = fr"sed 's/\r//g; s/\x0//g' {str(input_file_path)} > {output_file_path}"
     logging.info(f"transform_mag_file bash command: {bash_command}")
     proc: Popen = subprocess.Popen(bash_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -68,23 +93,26 @@ def transform_mag_file(input_file_path: str, output_file_path: str) -> bool:
     return success
 
 
-def transform_mag_release(release: MagRelease, max_workers: int = cpu_count()) -> bool:
+def transform_mag_release(input_release_path: str, output_release_path: str, max_workers: int = cpu_count()) -> bool:
+    """ Transform a MAG release into a form that can be loaded into BigQuery.
+
+    :param input_release_path: the path to the folder containing the files for the MAG release.
+    :param output_release_path: the path where the transformed files will be saved.
+    :param max_workers: the number of processes to use when transforming files (one process per file).
+    :return: whether the transformation was successful or not.
+    """
+
     # Transform each file in parallel
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Create tasks
         futures = []
         futures_msgs = {}
 
-        release_extracted_path = os.path.join(telescope_path(MagTelescope.DAG_ID, SubFolder.extracted),
-                                              release.source_container)
-        release_transformed_path = os.path.join(telescope_path(MagTelescope.DAG_ID, SubFolder.transformed),
-                                                release.source_container)
-
-        paths = list_mag_release_files(release_extracted_path)
+        paths = list_mag_release_files(input_release_path)
         for path in paths:
             # Make path to save file
-            os.makedirs(release_transformed_path, exist_ok=True)
-            output_path = os.path.join(release_transformed_path, path.name)
+            os.makedirs(input_release_path, exist_ok=True)
+            output_path = os.path.join(output_release_path, path.name)
             msg = f'input_file_path={path}, output_file_path={output_path}'
             logging.info(f'transform_mag_release: {msg}')
             future = executor.submit(transform_mag_file, path, output_path)
@@ -105,87 +133,15 @@ def transform_mag_release(release: MagRelease, max_workers: int = cpu_count()) -
     return all(results)
 
 
-def db_load_mag_release(release: MagRelease) -> bool:
-    settings = {
-        'Authors': {'quote': '', 'allow_quoted_newlines': True},
-        'FieldsOfStudy': {'quote': '', 'allow_quoted_newlines': False},
-        'PaperAuthorAffiliations': {'quote': '', 'allow_quoted_newlines': False},
-        'PaperCitationContexts': {'quote': '', 'allow_quoted_newlines': True},
-        'Papers': {'quote': '', 'allow_quoted_newlines': True}
-    }
-
-    # Get Observatory Config
-    config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
-    project_id = config.project_id
-    location = config.data_location
-    bucket_name = config.bucket_name
-
-    # Create dataset
-    dataset_id = MagTelescope.DAG_ID
-    create_bigquery_dataset(project_id, dataset_id, location, MagTelescope.DESCRIPTION)
-
-    # Get bucket
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
-
-    # List release blobs
-    blobs_path = f'telescopes/{MagTelescope.DAG_ID}/transformed/{release.source_container}'
-    blobs: List[Blob] = list(bucket.list_blobs(prefix=blobs_path))
-    max_workers = len(blobs)
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Create tasks
-        futures = []
-        futures_msgs = {}
-        analysis_schema_path = schema_path('telescopes')
-        prefix = 'Mag'
-
-        for blob in blobs:
-            # Make table name and id
-            table_name = blob.name.split('/')[-1].replace('.txt', '')
-            table_id = bigquery_partitioned_table_id(table_name, release.release_date)
-
-            # Get schema for table
-            schema_file_path = find_schema(analysis_schema_path, table_name, release.release_date, prefix=prefix)
-            if schema_file_path is None:
-                logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
-                              f'table_name={table_name}, release_date={release.release_date}, prefix={prefix}')
-                exit(os.EX_CONFIG)
-
-            uri = f'gs://{blob.bucket.name}/{blob.name}'
-            msg = f'uri={uri}, table_id={table_id}, schema_file_path={schema_file_path}'
-            logging.info(f'db_load_mag_release: {msg}')
-
-            if table_name in settings:
-                csv_quote_character = settings[table_name]['quote']
-                csv_allow_quoted_newlines = settings[table_name]['allow_quoted_newlines']
-            else:
-                csv_quote_character = '"'
-                csv_allow_quoted_newlines = False
-
-            future = executor.submit(load_bigquery_table, uri, dataset_id, location, table_id, schema_file_path,
-                                     SourceFormat.CSV, csv_field_delimiter='\t',
-                                     csv_quote_character=csv_quote_character,
-                                     csv_allow_quoted_newlines=csv_allow_quoted_newlines)
-            futures_msgs[future] = msg
-            futures.append(future)
-
-        # Wait for completed tasks
-        results = []
-        for future in as_completed(futures):
-            success = future.result()
-            msg = futures_msgs[future]
-            results.append(success)
-            if success:
-                logging.info(f'db_load_mag_release success: {msg}')
-            else:
-                logging.error(f'db_load_mag_release failed: {msg}')
-
-    return all(results)
-
-
 class MagTelescope:
-    """ A container for holding the constants and static functions for the Microsoft Academic Graph (MAG) telescope. """
+    """ A container for holding the constants and static functions for the Microsoft Academic Graph (MAG) telescope.
+
+        Requires the following connections to be added to Airflow:
+            mag_releases_table: the Azure account name (login) and sas token (password) for the MagReleases table in
+            Azure.
+            mag_snapshots_container: the Azure Storage Account name (login) and the sas token (password) for the
+            Azure storage blob container that contains the MAG releases.
+    """
 
     DAG_ID = 'mag'
     DESCRIPTION = 'The Microsoft Academic Graph (MAG) dataset: https://www.microsoft.com/en-us/research/project/' \
@@ -204,7 +160,19 @@ class MagTelescope:
 
     @staticmethod
     def list_releases(**kwargs):
-        """ Task to list all MAG releases for a given month """
+        """ Task to list all MAG releases for a given month.
+
+        Requires the following connection to be added to Airflow:
+            mag_releases_table: the Azure account name (login) and the sas token (password) for the MagReleases table in
+            Azure.
+
+        Pushes the following xcom:
+            a list of MagRelease instances.
+
+        :param kwargs: the context passed from the BranchPythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: the identifier of the task to execute next.
+        """
 
         connection = BaseHook.get_connection("mag_releases_table")
         account_name = connection.login
@@ -227,6 +195,17 @@ class MagTelescope:
 
     @staticmethod
     def transfer(**kwargs):
+        """ Task to transfer a MAG release from Azure to Google Cloud Storage.
+
+        Requires the following connection to be added to Airflow:
+            mag_snapshots_container: the Azure Storage Account name (login) and the sas token (password) for the
+            Azure storage blob container that contains the MAG releases.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
         # Get Azure connection information
         connection = BaseHook.get_connection("mag_snapshots_container")
         azure_account_name = connection.login
@@ -270,6 +249,13 @@ class MagTelescope:
 
     @staticmethod
     def download(**kwargs):
+        """ Downloads the MAG release from Google Cloud Storage.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
         # Get Observatory Config
         config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
         bucket_name = config.bucket_name
@@ -296,6 +282,13 @@ class MagTelescope:
 
     @staticmethod
     def transform(**kwargs):
+        """ Transforms the MAG release into a form that can be uploaded to BigQuery.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
         releases = pull_mag_releases(ti)
@@ -303,7 +296,11 @@ class MagTelescope:
         # For each release and folder to include, transform the files with sed and save into the transformed directory
         for release in releases:
             logging.info(f'Transforming MAG release: {release}')
-            success = transform_mag_release(release)
+            release_extracted_path = os.path.join(telescope_path(MagTelescope.DAG_ID, SubFolder.extracted),
+                                                  release.source_container)
+            release_transformed_path = os.path.join(telescope_path(MagTelescope.DAG_ID, SubFolder.transformed),
+                                                    release.source_container)
+            success = transform_mag_release(release_extracted_path, release_transformed_path)
 
             if success:
                 logging.info(f'Success transforming MAG release: {release}')
@@ -313,6 +310,13 @@ class MagTelescope:
 
     @staticmethod
     def upload(**kwargs):
+        """ Uploads the transformed MAG release files to Google Cloud Storage for loading into BigQuery.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
         # Get Observatory Config
         config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
         bucket_name = config.bucket_name
@@ -342,16 +346,127 @@ class MagTelescope:
 
     @staticmethod
     def db_load(**kwargs):
+        """ Loads a MAG release into BigQuery.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
         releases = pull_mag_releases(ti)
 
-        # For each release, load into
+        # Get Observatory Config
+        config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
+        project_id = config.project_id
+        data_location = config.data_location
+        bucket_name = config.bucket_name
+
+        # For each release, load into BigQuery
         for release in releases:
-            success = db_load_mag_release(release)
+            release_path = f'telescopes/{MagTelescope.DAG_ID}/transformed/{release.source_container}'
+            success = db_load_mag_release(project_id, bucket_name, data_location, release_path, release.release_date)
 
             if success:
                 logging.info(f'Success loading MAG release: {release}')
             else:
                 logging.error(f"Error loading MAG release: {release}")
                 exit(os.EX_DATAERR)
+
+
+def db_load_mag_release(project_id: str, bucket_name: str, data_location: str, release_path: str,
+                        release_date: Pendulum, dataset_id: str = MagTelescope.DAG_ID) -> bool:
+    """ Load a MAG release into BigQuery.
+
+    :param project_id: the Google Cloud project id.
+    :param bucket_name: the Google Cloud bucket name where the transformed files are stored.
+    :param data_location: the location where the BigQuery dataset will be created.
+    :param release_path: the path on the Google Cloud storage bucket where the particular MAG release is located.
+    :param release_date: the release date of the MAG release.
+    :param dataset_id: the identifier of the dataset.
+    :return: whether the MAG release was loaded into BigQuery successfully.
+    """
+
+    settings = {
+        'Authors': {'quote': '', 'allow_quoted_newlines': True},
+        'FieldsOfStudy': {'quote': '', 'allow_quoted_newlines': False},
+        'PaperAuthorAffiliations': {'quote': '', 'allow_quoted_newlines': False},
+        'PaperCitationContexts': {'quote': '', 'allow_quoted_newlines': True},
+        'Papers': {'quote': '', 'allow_quoted_newlines': True}
+    }
+
+    # Create dataset
+    create_bigquery_dataset(project_id, dataset_id, data_location, MagTelescope.DESCRIPTION)
+
+    # Get bucket
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_name)
+
+    # List release blobs
+    blobs: List[Blob] = list(bucket.list_blobs(prefix=release_path))
+    max_workers = len(blobs)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Create tasks
+        futures = []
+        futures_msgs = {}
+        analysis_schema_path = schema_path('telescopes')
+        prefix = 'Mag'
+        file_extension = '.txt'
+
+        # De-duplicate blobs, i.e. for tables where there are more than one file:
+        # e.g. PaperAbstractsInvertedIndex.txt.1 and PaperAbstractsInvertedIndex.txt.2 become
+        # PaperAbstractsInvertedIndex.txt.* so that both are loaded into the same table.
+        blob_names = set()
+        for blob in blobs:
+            blob_name = blob.name
+            if not blob_name.endswith(file_extension):
+                blob_name_sans_index = re.match(r'^.+?(?=([0-9]+)?$)', blob_name).group(0)
+                blob_name_with_wildcard = f'{blob_name_sans_index}*'
+                blob_names.add(blob_name_with_wildcard)
+            else:
+                blob_names.add(blob_name)
+
+        for blob_name in blob_names:
+            # Make table name and id
+            table_name = table_name_from_blob(blob_name, file_extension)
+            table_id = bigquery_partitioned_table_id(table_name, release_date)
+
+            # Get schema for table
+            schema_file_path = find_schema(analysis_schema_path, table_name, release_date, prefix=prefix)
+            if schema_file_path is None:
+                logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
+                              f'table_name={table_name}, release_date={release_date}, prefix={prefix}')
+                exit(os.EX_CONFIG)
+
+            uri = f'gs://{bucket_name}/{blob_name}'
+            msg = f'uri={uri}, table_id={table_id}, schema_file_path={schema_file_path}'
+            logging.info(f'db_load_mag_release: {msg}')
+
+            if table_name in settings:
+                csv_quote_character = settings[table_name]['quote']
+                csv_allow_quoted_newlines = settings[table_name]['allow_quoted_newlines']
+            else:
+                csv_quote_character = '"'
+                csv_allow_quoted_newlines = False
+
+            future = executor.submit(load_bigquery_table, uri, dataset_id, data_location, table_id, schema_file_path,
+                                     SourceFormat.CSV, csv_field_delimiter='\t',
+                                     csv_quote_character=csv_quote_character,
+                                     csv_allow_quoted_newlines=csv_allow_quoted_newlines)
+            futures_msgs[future] = msg
+            futures.append(future)
+
+        # Wait for completed tasks
+        results = []
+        for future in as_completed(futures):
+            success = future.result()
+            msg = futures_msgs[future]
+            results.append(success)
+            if success:
+                logging.info(f'db_load_mag_release success: {msg}')
+            else:
+                logging.error(f'db_load_mag_release failed: {msg}')
+
+    return all(results)

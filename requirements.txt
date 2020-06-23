@@ -35,3 +35,4 @@ azure-storage-blob==12.3.*
 vcrpy==4.0.*
 jsonlines==1.2.*
 deprecation==2.1.*
+git+git://github.com/The-Academic-Observatory/mag-archiver@develop#egg=mag-archiver

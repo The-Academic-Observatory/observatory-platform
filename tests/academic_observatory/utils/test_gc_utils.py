@@ -16,7 +16,6 @@
 
 import os
 import unittest
-import uuid
 from typing import Optional
 
 import pendulum
@@ -28,7 +27,9 @@ from google.cloud.bigquery import SourceFormat, Table
 from academic_observatory.utils import test_data_dir
 from academic_observatory.utils.gc_utils import hex_to_base64_str, crc32c_base64_hash, bigquery_partitioned_table_id, \
     azure_to_google_cloud_storage_transfer, create_bigquery_dataset, load_bigquery_table, upload_file_to_cloud_storage, \
-    download_blob_from_cloud_storage, upload_files_to_cloud_storage, download_blobs_from_cloud_storage
+    download_blob_from_cloud_storage, upload_files_to_cloud_storage, download_blobs_from_cloud_storage, \
+    table_name_from_blob
+from tests.academic_observatory.config import random_id
 
 
 def make_account_url(account_name: str) -> str:
@@ -42,26 +43,59 @@ def make_account_url(account_name: str) -> str:
     return f'https://{account_name}.blob.core.windows.net'
 
 
-def random_id():
-    """ Generate a random id for bucket name.
-
-    :return: a random string id.
-    """
-    return str(uuid.uuid4()).replace("-", "")
-
-
-class TestGoogleCloudUtils(unittest.TestCase):
+class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(TestGoogleCloudUtils, self).__init__(*args, **kwargs)
-        self.az_storage_account_name: str = os.getenv('TESTS_AZURE_STORAGE_ACCOUNT_NAME')
-        self.az_container_sas_token: str = os.getenv('TESTS_AZURE_CONTAINER_SAS_TOKEN')
-        self.az_container_name: str = os.getenv('TESTS_AZURE_CONTAINER_NAME')
-        self.gc_project_id: str = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        self.gc_bucket_name: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_NAME')
-        self.gc_bucket_location: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_LOCATION')
+        super(TestGoogleCloudUtilsNoAuth, self).__init__(*args, **kwargs)
         self.data = 'hello world'
         self.expected_crc32c = 'yZRlqg=='
+
+    def test_table_name_from_blob(self):
+        # .txt extension
+        file_extension = '.txt'
+        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/ConferenceInstances.txt'
+        expected_table_name = 'ConferenceInstances'
+        actual_table_name = table_name_from_blob(blob_path, file_extension)
+        self.assertEqual(expected_table_name, actual_table_name)
+
+        # txt.1 extension
+        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.1'
+        expected_table_name = 'PaperAbstractsInvertedIndex'
+        actual_table_name = table_name_from_blob(blob_path, file_extension)
+        self.assertEqual(expected_table_name, actual_table_name)
+
+        # txt.2 extension
+        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.2'
+        expected_table_name = 'PaperAbstractsInvertedIndex'
+        actual_table_name = table_name_from_blob(blob_path, file_extension)
+        self.assertEqual(expected_table_name, actual_table_name)
+
+        # txt.* extension
+        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.*'
+        expected_table_name = 'PaperAbstractsInvertedIndex'
+        actual_table_name = table_name_from_blob(blob_path, file_extension)
+        self.assertEqual(expected_table_name, actual_table_name)
+
+        # More than 1 digit
+        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.100'
+        expected_table_name = 'PaperAbstractsInvertedIndex'
+        actual_table_name = table_name_from_blob(blob_path, file_extension)
+        self.assertEqual(expected_table_name, actual_table_name)
+
+        # No match
+        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/ConferenceInstances.jsonl'
+        with self.assertRaises(ValueError):
+            table_name_from_blob(blob_path, file_extension)
+
+        # Another extension
+        file_extension = '.jsonl'
+        expected_table_name = 'ConferenceInstances'
+        actual_table_name = table_name_from_blob(blob_path, file_extension)
+        self.assertEqual(expected_table_name, actual_table_name)
+
+        # Check that assertion raised when no . in file extension
+        with self.assertRaises(AssertionError):
+            table_name_from_blob(blob_path, 'txt')
 
     def test_hex_to_base64_str(self):
         data = b'c99465aa'
@@ -83,6 +117,20 @@ class TestGoogleCloudUtils(unittest.TestCase):
         expected = 'my_table20200315'
         actual = bigquery_partitioned_table_id('my_table', pendulum.datetime(year=2020, month=3, day=15))
         self.assertEqual(expected, actual)
+
+
+class TestGoogleCloudUtils(unittest.TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super(TestGoogleCloudUtils, self).__init__(*args, **kwargs)
+        self.az_storage_account_name: str = os.getenv('TESTS_AZURE_STORAGE_ACCOUNT_NAME')
+        self.az_container_sas_token: str = os.getenv('TESTS_AZURE_CONTAINER_SAS_TOKEN')
+        self.az_container_name: str = os.getenv('TESTS_AZURE_CONTAINER_NAME')
+        self.gc_project_id: str = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
+        self.gc_bucket_name: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_NAME')
+        self.gc_bucket_location: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_LOCATION')
+        self.data = 'hello world'
+        self.expected_crc32c = 'yZRlqg=='
 
     def test_create_bigquery_dataset(self):
         dataset_name = random_id()
