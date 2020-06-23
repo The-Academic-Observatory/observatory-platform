@@ -1,3 +1,5 @@
+print("y")
+
 comptext_larger = [
     'substantialy lower than',
     'somewhat lower than',
@@ -33,5 +35,3 @@ scope = ''
 funder_scope = ''
 institutions_scope = """and
   institutions.id in (SELECT id FROM `open-knowledge-publications.institutional_oa_evaluation_2020.grids_in_scope`)"""
-
-print("y")
