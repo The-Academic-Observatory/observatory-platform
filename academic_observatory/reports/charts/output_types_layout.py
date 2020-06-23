@@ -25,6 +25,8 @@ from IPython.display import HTML
 from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports.chart_utils import *
 
+from academic_observatory.reports.charts import output_types_time_chart
+
 class OutputTypesLayout(AbstractObservatoryChart):
     """A Layout containing graph of output types over time and pie chart"""
 

@@ -14,6 +14,10 @@
 
 # Author: Cameron Neylon & Richard Hosking
 
+from academic_observatory.reports import defaults
+import pandas as pd
+from academic_observatory.reports import chart_utils
+
 class AbstractObservatoryTable:
     sql_template = ''
     bq_table = ''
@@ -62,5 +66,5 @@ class AbstractObservatoryTable:
         return self.df
 
     def clean_data(self):
-        helpers.clean_geo_names(self.df)
-        helpers.nice_column_names(self.df)
+        chart_utils.clean_geo_names(self.df)
+        chart_utils.nice_column_names(self.df)

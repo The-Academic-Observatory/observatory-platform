@@ -75,7 +75,7 @@ class FunderCountBarGraph(AbstractObservatoryChart):
         return self.figdata
 
     def plot(self, ax = None, **kwargs):
-        fig_kwargs = helpers._collect_kwargs_for(plt.figure, kwargs)
+        fig_kwargs = chart_utils._collect_kwargs_for(plt.figure, kwargs)
         if not ax:
             self.fig, ax = plt.subplots(**fig_kwargs)
         else:
