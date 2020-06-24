@@ -24,7 +24,7 @@ from IPython.display import HTML
 from abc import ABC, abstractmethod
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
 
 
 class TimePlotLayout(AbstractObservatoryChart):

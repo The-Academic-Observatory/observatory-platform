@@ -27,7 +27,6 @@ import academic_observatory.reports.chart_utils
 from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports.charts import generic_time_chart
 from .generic_time_chart import GenericTimeChart
-from academic_observatory.reports.charts import output_types_time_chart
 
 class OutputTypesTimeChart(GenericTimeChart):
     """Generate a Plot of Output Types Over Time

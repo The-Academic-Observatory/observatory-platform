@@ -21,9 +21,13 @@ import matplotlib.pyplot as plt
 import itertools
 from matplotlib import animation, rc, lines
 from IPython.display import HTML
+import matplotlib.gridspec as gs
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
+from academic_observatory.reports.charts.coordinates_map import *
+from academic_observatory.reports.charts.collaborations_bar import *
+
 
 class CollaborationsLayout(AbstractObservatoryChart):
     def __init__(self,
