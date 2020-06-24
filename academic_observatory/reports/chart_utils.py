@@ -16,77 +16,11 @@
 
 import pandas as pd
 import seaborn as sns
-import pydata_google_auth
 from inspect import signature
 
 
-# --- Variable Sets - Column selectors for data frames ---
 
-
-#TODO output types moved to defaults as it is part of palette creation. Delete this TODO if that is OK
-
-
-# List of types of Open Access
-oa_types = [
-    'Open Access (%)',
-    'Total Gold OA (%)',
-    'Total Green OA (%)',
-    'Hybrid OA (%)',
-    # 'Green in IR (%)',
-]
-
-
-# --- Palettes ---
-
-# Colour palette used in graphics to symbolise global regions
-region_palette = {
-    'Asia': 'orange',
-    'Europe': 'limegreen',
-    'North America': 'dodgerblue',
-    'Latin America': 'brown',
-    'Americas': 'dodgerblue',
-    'Africa': 'magenta',
-    'Oceania': 'red'
-}
-
-
-# Colour palette used in graphics to symbolise Open Access types
-oatypes_palette = {
-    'Open Access (%)': 'black',
-    'Total Gold OA (%)': 'gold',
-    'Total Green OA (%)': 'darkgreen',
-    'Hybrid OA (%)': 'orange',
-    'Bronze (%)': 'brown',
-    'Green in IR (%)': 'limegreen'
-}
-
-
-#TODO Moved the palette creation from charts_utils to defaults. Remove this TODO
-
-
-# --- Name Standardisation ---
-
-# Standard Name Changes
-country_clean = {"country": {
-    "United Kingdom of Great Britain and Northern Ireland":
-    "United Kingdom",
-        "Iran (Islamic Republic of)": "Iran",
-        "Korea, Republic of": "South Korea",
-        "Taiwan, Province of China": "Taiwan"
-}}
-
-
-# Standardisation of the names of output types
-outputs_clean = {'type': {
-    'total': 'Total Outputs',
-    'journal_articles': 'Journal Articles',
-    'proceedings_articles': 'Proceedings',
-    'authored_books': 'Books',
-    'book_sections': 'Book Sections',
-                     'edited_volumes': 'Edited Volumes',
-                     'reports': 'Reports‡',
-                     'datasets': 'Datasets‡'
-}}
+from academic_observatory.reports.defaults import *
 
 
 

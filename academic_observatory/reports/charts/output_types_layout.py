@@ -23,9 +23,10 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
+from academic_observatory.reports.charts.output_types_time_chart import *
+from academic_observatory.reports.charts.output_types_pie_chart import *
 
-from academic_observatory.reports.charts import output_types_time_chart
 
 class OutputTypesLayout(AbstractObservatoryChart):
     """A Layout containing graph of output types over time and pie chart"""

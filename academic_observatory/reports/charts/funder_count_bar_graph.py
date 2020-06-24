@@ -23,7 +23,8 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
+
 
 class FunderCountBarGraph(AbstractObservatoryChart):
     """Single Part Funder Graph of Top 10 Funders

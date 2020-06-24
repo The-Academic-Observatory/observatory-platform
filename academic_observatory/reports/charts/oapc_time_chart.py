@@ -23,7 +23,7 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports.charts.output_types_time_chart import *
 
 
 class OApcTimeChart(GenericTimeChart):
