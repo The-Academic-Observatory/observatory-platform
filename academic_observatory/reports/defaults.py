@@ -1,5 +1,14 @@
 import seaborn as sns
 
+#TODO Tidy this up # General BQ Defaults
+project_id = 'academic-observatory-sandbox'
+scope = ''
+funder_scope = ''
+institutions_scope = """and
+  institutions.id in (SELECT id FROM `open-knowledge-publications.institutional_oa_evaluation_2020.grids_in_scope`)"""
+
+
+# --- Text expansion defaults ---
 
 comptext_larger = [
     'substantialy lower than',
@@ -23,22 +32,38 @@ comptext_quartiles = [
     'second quartile',
     'first quartile'
 ]
-
 comptext_higherlower = [
     'lower than',
     'roughly the same as',
     'higher than'
 ]
 
-#TODO Tidy this up # General BQ Defaults
-project_id = 'academic-observatory-sandbox'
-scope = ''
-funder_scope = ''
-institutions_scope = """and
-  institutions.id in (SELECT id FROM `open-knowledge-publications.institutional_oa_evaluation_2020.grids_in_scope`)"""
+
+# --- Name Standardisation ---
+
+# Standard Name Changes
+country_clean = {"country": {
+    "United Kingdom of Great Britain and Northern Ireland":
+    "United Kingdom",
+        "Iran (Islamic Republic of)": "Iran",
+        "Korea, Republic of": "South Korea",
+        "Taiwan, Province of China": "Taiwan"
+}}
+
+# Standardisation of the names of output types
+outputs_clean = {'type': {
+    'total': 'Total Outputs',
+    'journal_articles': 'Journal Articles',
+    'proceedings_articles': 'Proceedings',
+    'authored_books': 'Books',
+    'book_sections': 'Book Sections',
+                     'edited_volumes': 'Edited Volumes',
+                     'reports': 'Reports‡',
+                     'datasets': 'Datasets‡'
+}}
 
 
-#List of output types for research publications
+# List of output types for research publications
 output_types = [
     'Journal Articles',
     'Proceedings',
@@ -49,6 +74,38 @@ output_types = [
     'Datasets‡'
 ]
 
+# List of types of Open Access
+oa_types = [
+    'Open Access (%)',
+    'Total Gold OA (%)',
+    'Total Green OA (%)',
+    'Hybrid OA (%)',
+    # 'Green in IR (%)',
+]
+
+
+# --- Palettes ---
+
+# Colour palette used in graphics to symbolise global regions
+region_palette = {
+    'Asia': 'orange',
+    'Europe': 'limegreen',
+    'North America': 'dodgerblue',
+    'Latin America': 'brown',
+    'Americas': 'dodgerblue',
+    'Africa': 'magenta',
+    'Oceania': 'red'
+}
+
+# Colour palette used in graphics to symbolise Open Access types
+oatypes_palette = {
+    'Open Access (%)': 'black',
+    'Total Gold OA (%)': 'gold',
+    'Total Green OA (%)': 'darkgreen',
+    'Hybrid OA (%)': 'orange',
+    'Bronze (%)': 'brown',
+    'Green in IR (%)': 'limegreen'
+}
 
 # Create colour palette used in graphics to symbolise output types
 husl = sns.color_palette(n_colors=len(output_types))

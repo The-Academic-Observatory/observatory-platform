@@ -17,7 +17,7 @@
 import pandas as pd
 import pydata_google_auth
 
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
 from .abstract_table import AbstractObservatoryTable
 from academic_observatory.reports import chart_utils
 
