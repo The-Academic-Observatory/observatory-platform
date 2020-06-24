@@ -40,8 +40,7 @@ from academic_observatory.reports.charts import OAAdvantageBarChart
 from academic_observatory.reports.charts import BarComparisonChart
 from academic_observatory.reports.charts import FunderGraph
 from academic_observatory.reports.charts import DistributionComparisonChart
-
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
 
 
 class TestAbstractChart(unittest.TestCase):

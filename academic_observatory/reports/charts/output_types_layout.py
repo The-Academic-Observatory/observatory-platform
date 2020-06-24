@@ -28,8 +28,6 @@ from academic_observatory.reports.charts.output_types_time_chart import *
 from academic_observatory.reports.charts.output_types_pie_chart import *
 
 
-from academic_observatory.reports.charts import output_types_time_chart
-
 class OutputTypesLayout(AbstractObservatoryChart):
     """A Layout containing graph of output types over time and pie chart
     """

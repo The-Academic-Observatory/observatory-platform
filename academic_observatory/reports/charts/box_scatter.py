@@ -23,7 +23,8 @@ from matplotlib import animation, rc
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
+from academic_observatory.reports import defaults
 
 
 class BoxScatter(AbstractObservatoryChart):
@@ -84,7 +85,7 @@ class BoxScatter(AbstractObservatoryChart):
              dodge: bool = False,
              hue: str = 'region',
              xticks: list = [0, 20, 40, 60, 80],
-             colorpalette: sns.color_palette = region_palette,
+             colorpalette: sns.color_palette = defaults.region_palette,
              alpha: float = 0.5,
              **kwargs):
         """Plot Method
