@@ -1,94 +1,7 @@
-# Copyright 2019 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: Cameron Neylon & Richard Hosing 
-
 import pandas as pd
-import numpy as np
-import pydata_google_auth
-
 from num2words import num2words
 
-from precipy.main import render_file
-from precipy.storage import GoogleCloudStorage
-
 from academic_observatory.reports import defaults
-from academic_observatory.reports.charts.oapc_time_chart import *
-
-
-def create_new_report(dir):
-    """ Create a new blank report in the specified directory.
-
-    :param dir: the target directory.
-    """
-    a = 1
-
-
-def execute_report():
-    """ Execute the report in the specified directory.
-
-    :param dir: the target directory.
-    """
-    render_file(report_template, analytics_modules, storages=storages)
-
-
-def generate_table_data(batch,
-                        title,
-                        df: pd.DataFrame,
-                        identifier: str,
-                        columns: list,
-                        identifier_column: str = 'id',
-                        sort_column: str = 'Year of Publication',
-                        sort_ascending: bool = True,
-                        decimals: int = 0,
-                        short_column_names: list = None,
-                        column_alignments=None) -> dict:
-
-    table_data = pd.DataFrame()
-    df = df[df[identifier_column] == identifier]
-    df.sort_values('Year of Publication', inplace=True)
-    for i, column in enumerate(columns):
-        col_data = df[column]
-        if short_column_names:
-            column = short_column_names[i]
-        if col_data.dtype == 'float64':
-            col_data = np.int_(col_data.round(decimals=decimals))
-        table_data[column] = col_data
-    table_data.sort_values(sort_column, ascending=sort_ascending, inplace=True)
-    table_data_list = table_data.to_dict(orient='records')
-
-    if short_column_names:
-        columns = short_column_names
-    if not column_alignments:
-        column_alignments = ['center'] * len(columns)
-    column_list = [{'name': name, 'alignment': alignment}
-                   for name, alignment in zip(columns, column_alignments)]
-    return {'title': title,
-            'columns': column_list,
-            'rows': table_data_list}
-
-
-def get_gcp_credentials():
-    SCOPES = [
-        'https://www.googleapis.com/auth/cloud-platform',
-        'https://www.googleapis.com/auth/drive',
-    ]
-
-    credentials = pydata_google_auth.get_user_credentials(
-        SCOPES,
-    )
-    return credentials
 
 
 def close_comparators(df: pd.DataFrame,
@@ -98,6 +11,7 @@ def close_comparators(df: pd.DataFrame,
                       variables: list = [],
                       filter_column: str = 'country') -> list:
     """Generate a comparison group based on an identifier
+
     :param df: DataFrame containing COKI standard data
     :type df: pd.DataFrame
     :param identifier: Identifier for the organisation of interest
@@ -144,8 +58,10 @@ def get_biggest(df: pd.DataFrame,
                 total_column: str = 'total',
                 filter_column: str = 'country') -> str:
     """Provide the identifier for the biggest org in the dataset within the filtergroup
+
     Generally used to identify the largest university in the country as part
     of a comparison set for reports.
+
     :param df: DataFrame containing report data
     :type df: pd.DataFrame
     :param focus_year: The year for defining the largest organisation
@@ -181,6 +97,7 @@ def generate_comparison_group(df: pd.DataFrame,
                               filter_column: str = 'country',
                               average=pd.Series.median) -> list:
     """Convenience function for generating a comparison group
+
     :param df: DataFrame for analysis
     :type df: pd.DataFrame
     :param identifier: Identifier for the report
@@ -237,8 +154,10 @@ def general_text_comparison(df: pd.DataFrame,
                             average=pd.Series.median,
                             output: list = defaults.comptext_larger) -> str:
     """Generate a basic comparison on one variable
+
     Compares the value for `identifier` to the median and variance of the other
     organisations where `filter_column` == `filter_value`
+
     :param df: DataFrame containing report data
     :type df: pd.DataFrame
     :param focus_year: The year for calculating the comparison
@@ -292,6 +211,7 @@ def is_ranked(df: pd.DataFrame,
               num2words_kwargs: dict = {'to': 'ordinal'},
               verbose: bool = False):
     """Return the ranking for an org for a given column
+
     :param df: DataFrame containing report data
     :type df: pd.DataFrame
     :param focus_year: The year for defining the ranking position

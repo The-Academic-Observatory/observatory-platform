@@ -22,8 +22,11 @@ import itertools
 from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
+from academic_observatory.reports import defaults
+import academic_observatory.reports.chart_utils
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports.charts import generic_time_chart
+from .generic_time_chart import GenericTimeChart
 
 class OutputTypesTimeChart(GenericTimeChart):
     """Generate a Plot of Output Types Over Time

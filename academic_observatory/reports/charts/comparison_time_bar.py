@@ -23,7 +23,8 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
+
 
 class ComparisonTimeBar(AbstractObservatoryChart):
     def __init__(self,
@@ -63,9 +64,9 @@ class ComparisonTimeBar(AbstractObservatoryChart):
 
     def plot(self, ax=None, **kwargs):
         
-        name = helpers.id2name(self.df, self.identifier)
+        name = chart_utils.id2name(self.df, self.identifier)
         if not ax:
-            fig_kwargs = helpers._collect_kwargs_for(plt.figure, kwargs)
+            fig_kwargs = chart_utils._collect_kwargs_for(plt.figure, kwargs)
             self.fig, ax = plt.subplots(**fig_kwargs)
         else:
             self.fig = ax.get_figure()

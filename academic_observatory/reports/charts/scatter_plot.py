@@ -24,8 +24,8 @@ from IPython.display import HTML
 from abc import ABC, abstractmethod
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
-
+from academic_observatory.reports.chart_utils import _collect_kwargs_for
+from academic_observatory.reports.defaults import *
 
 class ScatterPlot(AbstractObservatoryChart):
     """

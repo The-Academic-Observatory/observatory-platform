@@ -23,7 +23,10 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
+from academic_observatory.reports.charts.citation_count_time_chart import *
+from academic_observatory.reports.charts.oa_advantage_bar_chart import *
+
 
 class OACitationsLayout(AbstractObservatoryChart):
     """Layout with Citations by OA class and OA Advantage Bar Chart"""

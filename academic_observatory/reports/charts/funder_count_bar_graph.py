@@ -23,7 +23,8 @@ from matplotlib import animation, rc, lines
 from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
+
 
 class FunderCountBarGraph(AbstractObservatoryChart):
     """Single Part Funder Graph of Top 10 Funders
@@ -75,7 +76,7 @@ class FunderCountBarGraph(AbstractObservatoryChart):
         return self.figdata
 
     def plot(self, ax = None, **kwargs):
-        fig_kwargs = helpers._collect_kwargs_for(plt.figure, kwargs)
+        fig_kwargs = chart_utils._collect_kwargs_for(plt.figure, kwargs)
         if not ax:
             self.fig, ax = plt.subplots(**fig_kwargs)
         else:

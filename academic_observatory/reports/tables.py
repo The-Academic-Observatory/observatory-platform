@@ -17,7 +17,9 @@
 import pandas as pd
 import pydata_google_auth
 
-from academic_observatory.reports.chart_utils import *
+from academic_observatory.reports import chart_utils
+from .abstract_table import AbstractObservatoryTable
+from academic_observatory.reports import chart_utils
 
 class GenericOpenAccessTable(AbstractObservatoryTable):
     sql_template = """
@@ -78,10 +80,10 @@ WHERE
 """
 
     def clean_data(self):
-        helpers.calculate_percentages(self.df,
+        chart_utils.calculate_percentages(self.df,
                                       ['oa', 'green', 'gold'],
                                       'total')
-        helpers.clean_output_type_names(self.df)
+        chart_utils.clean_output_type_names(self.df)
         super().clean_data()
 
 
@@ -133,7 +135,7 @@ WHERE
 """
 
     def clean_data(self):
-        helpers.calculate_percentages(self.df,
+        chart_utils.calculate_percentages(self.df,
                                       ['oa', 'green', 'gold'],
                                       'count')
         super().clean_data()
@@ -165,7 +167,7 @@ WHERE
 """
 
     def clean_data(self):
-        helpers.calculate_percentages(self.df,
+        chart_utils.calculate_percentages(self.df,
                                       ['oa', 'green', 'gold'],
                                       'count')
         super().clean_data()
@@ -197,7 +199,7 @@ WHERE
 """
 
     def clean_data(self):
-        helpers.calculate_percentages(self.df,
+        chart_utils.calculate_percentages(self.df,
                                       ['oa', 'green', 'gold'],
                                       'count')
         super().clean_data()
