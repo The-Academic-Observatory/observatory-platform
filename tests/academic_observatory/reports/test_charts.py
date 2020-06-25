@@ -18,19 +18,17 @@ import unittest
 import pandas as pd
 import os.path
 
-# From charts.py
+
 from academic_observatory.reports.charts import ScatterPlot
 from academic_observatory.reports.charts import TimePlot
 from academic_observatory.reports.charts import TimePlotLayout
 from academic_observatory.reports.charts import TimePath
 from academic_observatory.reports.charts import Layout
 
-# From rankings.py
 from academic_observatory.reports.charts import RankChart
 from academic_observatory.reports.charts import ConfidenceIntervalRank
 from academic_observatory.reports.charts import BoxScatter
 
-# From reports.py
 from academic_observatory.reports.charts import OutputTypesPieChart
 from academic_observatory.reports.charts import GenericTimeChart
 from academic_observatory.reports.charts import OutputTypesTimeChart
@@ -51,7 +49,7 @@ class TestAbstractChart(unittest.TestCase):
 
     def setUp(self):
         test_data_file = os.path.join(test_data_dir(__file__),
-                                      'analysis', self.test_data)
+                                      'reports', self.test_data)
         self.df = pd.read_csv(test_data_file)
 
     def test_init(self):
