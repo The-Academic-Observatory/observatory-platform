@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import pathlib
@@ -142,19 +141,6 @@ def release_date(url: str) -> str:
     date = re.search(r'\d{4}-\d{2}-\d{2}', url).group()
 
     return date
-
-
-# def table_name(url: str) -> str:
-#     """
-#     Creates a table name that can be used in bigquery.
-#
-#     :param url: url of specific release
-#     :return: table name
-#     """
-#     date = release_date(url)
-#     table = f"{UnpaywallTelescope.DAG_ID}_{date}".replace('-', '_')
-#
-#     return table
 
 
 def filepath_download(url: str) -> str:
@@ -307,13 +293,12 @@ class UnpaywallTelescope:
         release_urls_out = []
         logging.info('Releases between current and next execution date:')
         for release_url in releases_list:
-            logging.info(release_url)
-
             date = release_date(release_url)
             released_date: Pendulum = pendulum.parse(date)
             table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, released_date)
 
             if execution_date <= released_date < next_execution_date:
+                logging.info(release_url)
                 table_exists = bq_hook.table_exists(
                     project_id=project_id,
                     dataset_id=UnpaywallTelescope.DATASET_ID,
