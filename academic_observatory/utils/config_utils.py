@@ -34,6 +34,16 @@ import academic_observatory.debug_files
 from academic_observatory import dags
 
 
+def is_composer():
+    """ Should return true if run from composer environment, set-up by terraform.
+    Terraform sets the 'OBSERVATORY_PATH' environment variable to "/home/airflow/gcs/data"
+
+    :return: True or False
+    """
+    observatory_path = os.environ.get('OBSERVATORY_PATH')
+    return True if observatory_path == "/home/airflow/gcs/data" else False
+
+
 def observatory_home(*subdirs) -> str:
     """ Get the .observatory Academic Observatory home directory or subdirectory. The home directory and subdirectories
      will be created if they do not exist. The path given by the OBSERVATORY_PATH environment variable must exist

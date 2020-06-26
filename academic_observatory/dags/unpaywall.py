@@ -32,28 +32,28 @@ with DAG(dag_id="unpaywall", schedule_interval="@monthly", default_args=default_
     # Downloads snapshot from url
     download_local = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_DOWNLOAD,
-        python_callable=UnpaywallTelescope.download_releases,
+        python_callable=UnpaywallTelescope.download,
         provide_context=True
     )
 
     # Decompresses download
     decompress = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_DECOMPRESS,
-        python_callable=UnpaywallTelescope.decompress_release,
+        python_callable=UnpaywallTelescope.decompress,
         provide_context=True
     )
 
     # Transforms download
     transform = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_TRANSFORM,
-        python_callable=UnpaywallTelescope.transform_release,
+        python_callable=UnpaywallTelescope.transform,
         provide_context=True
     )
 
     # Upload download to gcs bucket
     upload_to_gcs = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_UPLOAD,
-        python_callable=UnpaywallTelescope.upload_release_to_gcs,
+        python_callable=UnpaywallTelescope.upload_to_gcs,
         provide_context=True
 
     )
@@ -61,7 +61,7 @@ with DAG(dag_id="unpaywall", schedule_interval="@monthly", default_args=default_
     # Upload download to bigquery table
     load_to_bq = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_BQ_LOAD,
-        python_callable=UnpaywallTelescope.load_release_to_bq,
+        python_callable=UnpaywallTelescope.load_to_bq,
         provide_context=True
     )
 

@@ -9,25 +9,32 @@ import xml.etree.ElementTree as ET
 from typing import Tuple
 
 import pendulum
-from airflow import settings
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
+from google.cloud import storage
+from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
 
 from academic_observatory.utils.config_utils import (
-    bigquery_schema_path,
     debug_file_path,
-    is_vendor_google,
+    is_composer,
+    find_schema,
     ObservatoryConfig,
     SubFolder,
+    schema_path,
     telescope_path,
 )
 from academic_observatory.utils.data_utils import get_file
+from academic_observatory.utils.gc_utils import (
+    bigquery_partitioned_table_id,
+    create_bigquery_dataset,
+    load_bigquery_table,
+    upload_file_to_cloud_storage
+)
+from academic_observatory.utils.proc_utils import wait_for_process
 from academic_observatory.utils.url_utils import retry_session
 
 
@@ -69,6 +76,62 @@ def list_releases(telescope_url: str) -> list:
     return snapshot_list
 
 
+def download_release(url: str):
+    """
+    Downloads release from url.
+
+    :param url: url of specific release
+    """
+
+    filename = filepath_download(url)
+    download_dir = os.path.dirname(filename)
+
+    # Download
+    logging.info(f"Downloading file: {filename}, url: {url}")
+    file_path, updated = get_file(fname=filename, origin=url, cache_dir=download_dir)
+
+    if file_path:
+        logging.info(f'Success downloading release: {filename}')
+    else:
+        logging.error(f"Error downloading release: {filename}")
+        exit(os.EX_DATAERR)
+
+    return file_path
+
+
+def decompress_release(url: str):
+    logging.info(f"Extracting file: {filepath_download(url)}")
+
+    cmd = f"gunzip -c {filepath_download(url)} > {filepath_extract(url)}"
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         executable='/bin/bash')
+    stdout, stderr = wait_for_process(p)
+    if stdout:
+        logging.info(stdout)
+    if stderr:
+        raise AirflowException(f"bash command failed for {url}: {stderr}")
+    logging.info(f"File extracted to: {filepath_extract(url)}")
+
+    return filepath_extract(url)
+
+
+def transform_release(url: str):
+    cmd = f"sed 's/authenticated-orcid/authenticated_orcid/g' {filepath_extract(url)} > " \
+          f"{filepath_transform(url)}"
+
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         executable='/bin/bash')
+
+    stdout, stderr = wait_for_process(p)
+    if stdout:
+        logging.info(stdout)
+    if stderr:
+        raise AirflowException(f"bash command failed for {url}: {stderr}")
+    logging.info(f'Success transforming release: {url}')
+
+    return filepath_transform(url)
+
+
 def release_date(url: str) -> str:
     """
     Finds date in a given url.
@@ -81,17 +144,17 @@ def release_date(url: str) -> str:
     return date
 
 
-def table_name(url: str) -> str:
-    """
-    Creates a table name that can be used in bigquery.
-
-    :param url: url of specific release
-    :return: table name
-    """
-    date = release_date(url)
-    table = f"{UnpaywallTelescope.DAG_ID}_{date}".replace('-', '_')
-
-    return table
+# def table_name(url: str) -> str:
+#     """
+#     Creates a table name that can be used in bigquery.
+#
+#     :param url: url of specific release
+#     :return: table name
+#     """
+#     date = release_date(url)
+#     table = f"{UnpaywallTelescope.DAG_ID}_{date}".replace('-', '_')
+#
+#     return table
 
 
 def filepath_download(url: str) -> str:
@@ -139,25 +202,14 @@ def filepath_transform(url: str) -> str:
     return path
 
 
-def download_release(url: str):
-    """
-    Downloads release from url.
-
-    :param url: url of specific release
-    """
-    filename = filepath_download(url)
-    download_dir = os.path.dirname(filename)
-    get_file(fname=filename, origin=url, cache_dir=download_dir)
-
-
 class UnpaywallTelescope:
     DAG_ID = 'unpaywall'
+    DESCRIPTION = 'Unpaywall'
     DATASET_ID = DAG_ID
     XCOM_MESSAGES_NAME = "messages"
     XCOM_CONFIG_NAME = "config"
     TELESCOPE_URL = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/'
     TELESCOPE_DEBUG_URL = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
-    SCHEMA_FILE_PATH = bigquery_schema_path('unpaywall.json')
     DEBUG_FILE_PATH = debug_file_path('unpaywall.jsonl.gz')
 
     TASK_ID_SETUP = "check_setup_requirements"
@@ -173,11 +225,12 @@ class UnpaywallTelescope:
     @staticmethod
     def check_setup_requirements(**kwargs):
         """
-        Checks two set-up requirements:
-        - 'CONFIG_PATH' airflow variable available
-        - existing/valid config file
-        If these are both valid it will store the values from the config file in dict and push them to xcom, so they can
-        be accessed in consequent tasks.
+        Depending on whether run from inside or outside a composer environment:
+        If run from outside, checks if 'CONFIG_PATH' airflow variable is available and points to a valid config file.
+        If run from inside, check if airflow variables for 'env', 'bucket' and 'project_id' are set.
+
+        The corresponding values will be stored in a dict and pushed with xcom, so they can be accessed in consequent
+        tasks.
 
         kwargs is required to access task instance
         :param kwargs: NA
@@ -185,27 +238,39 @@ class UnpaywallTelescope:
         invalid_list = []
         config_dict = {}
 
-        if is_vendor_google():
-            default_config = None
+        if is_composer():
+            environment = Variable.get('ENV', default_var=None)
+            bucket = Variable.get('BUCKET', default_var=None)
+            project_id = Variable.get('PROJECT_ID', default_var=None)
+
+            for var in [(environment, 'ENV'), (bucket, 'BUCKET'), (project_id, 'PROJECT_ID')]:
+                if var[0] is None:
+                    invalid_list.append(f"Airflow variable '{var[1]}' not set with terraform.")
+
         else:
             default_config = ObservatoryConfig.CONTAINER_DEFAULT_PATH
+            config_path = Variable.get('CONFIG_PATH', default_var=default_config)
 
-        config_path = Variable.get('CONFIG_PATH', default_var=default_config)
-        if config_path is None:
-            logging.info("'CONFIG_PATH' airflow variable not set, please set in UI")
+            config = ObservatoryConfig.load(config_path)
+            if config is not None:
+                config_is_valid = config.is_valid
+                if not config_is_valid:
+                    invalid_list.append(f'Config file not valid: {config_is_valid}')
+            if not config:
+                invalid_list.append(f'Config file does not exist')
 
-        config_valid, config_validator, config = ObservatoryConfig.load(config_path)
-        if not config_valid:
-            invalid_list.append(f'Config file not valid: {config_validator}')
+            environment = config.environment.value
+            bucket = config.bucket_name
+            project_id = config.project_id
 
         if invalid_list:
             for invalid_reason in invalid_list:
-                logging.info("-", invalid_reason, "\n\n")
-                raise AirflowException
+                logging.warning("-" + invalid_reason + "\n\n")
+            raise AirflowException
         else:
-            config_dict['environment'] = config.environment.value
-            config_dict['bucket'] = config.bucket_name
-            config_dict['project_id'] = config.project_id
+            config_dict['environment'] = environment
+            config_dict['bucket'] = bucket
+            config_dict['project_id'] = project_id
             # Push messages
             ti: TaskInstance = kwargs['ti']
             ti.xcom_push(UnpaywallTelescope.XCOM_CONFIG_NAME, config_dict)
@@ -240,21 +305,25 @@ class UnpaywallTelescope:
         bq_hook = BigQueryHook()
         # Select the releases that were published on or after the execution_date and before the next_execution_date
         release_urls_out = []
-        logging.info('All releases between current and next execution date:')
+        logging.info('Releases between current and next execution date:')
         for release_url in releases_list:
-            date = release_date(release_url)
-            published_date: Pendulum = pendulum.parse(date)
+            logging.info(release_url)
 
-            if execution_date <= published_date < next_execution_date:
+            date = release_date(release_url)
+            released_date: Pendulum = pendulum.parse(date)
+            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, released_date)
+
+            if execution_date <= released_date < next_execution_date:
                 table_exists = bq_hook.table_exists(
                     project_id=project_id,
                     dataset_id=UnpaywallTelescope.DATASET_ID,
-                    table_id=table_name(release_url)
+                    table_id=table_id
                 )
+                logging.info('Checking if bigquery table already exists:')
                 if table_exists:
-                    logging.info(f'Table exists: {project_id}.{UnpaywallTelescope.DATASET_ID}.{table_name(release_url)}')
+                    logging.info(f'- Table exists for {release_url}: {project_id}.{UnpaywallTelescope.DATASET_ID}.{table_id}')
                 else:
-                    logging.info(f"Table doesn't exist yet, processing {release_url} in this workflow")
+                    logging.info(f"- Table doesn't exist yet, processing {release_url} in this workflow")
                     release_urls_out.append(release_url)
 
         # Push messages
@@ -263,7 +332,7 @@ class UnpaywallTelescope:
         return UnpaywallTelescope.TASK_ID_DOWNLOAD if release_urls_out else UnpaywallTelescope.TASK_ID_STOP
 
     @staticmethod
-    def download_releases(**kwargs):
+    def download(**kwargs):
         """
         Download release to file.
         If dev environment, copy debug file from this repository to the right location. Else download from url.
@@ -281,7 +350,7 @@ class UnpaywallTelescope:
                 download_release(url)
 
     @staticmethod
-    def decompress_release(**kwargs):
+    def decompress(**kwargs):
         """
         Unzip release to new file.
 
@@ -291,18 +360,10 @@ class UnpaywallTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
-            cmd = f"gunzip -c {filepath_download(url)} > {filepath_extract(url)}"
-
-            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                 executable='/bin/bash')
-            stdout, stderr = p.communicate()
-            if stdout:
-                logging.info(stdout)
-            if stderr:
-                raise AirflowException(f"bash command failed for {url}: {stderr}")
+            decompress_release(url)
 
     @staticmethod
-    def transform_release(**kwargs):
+    def transform(**kwargs):
         """
         Transform release with sed command and save to new file.
 
@@ -312,19 +373,10 @@ class UnpaywallTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
-            cmd = f"sed 's/authenticated-orcid/authenticated_orcid/g' {filepath_extract(url)} > " \
-                  f"{filepath_transform(url)}"
-
-            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                 executable='/bin/bash')
-            stdout, stderr = p.communicate()
-            if stdout:
-                logging.info(stdout)
-            if stderr:
-                raise AirflowException(f"bash command failed for {url}: {stderr}")
+            transform_release(url)
 
     @staticmethod
-    def upload_release_to_gcs(**kwargs):
+    def upload_to_gcs(**kwargs):
         """
         Upload transformed release to a google cloud storage bucket.
 
@@ -333,17 +385,16 @@ class UnpaywallTelescope:
         # Pull messages
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        gcs_hook = GoogleCloudStorageHook()
-
         for url in release_urls:
-            gcs_hook.upload(
-                bucket=bucket,
-                object=os.path.basename(filepath_transform(url)),
-                filename=filepath_transform(url)
-            )
+            blob_name = f'telescopes/unpaywall/transformed/{os.path.basename(filepath_transform(url))}'
+            upload_file_to_cloud_storage(bucket, blob_name, file_path=filepath_transform(url))
+
+            # Push messages
+            ti: TaskInstance = kwargs['ti']
+            ti.xcom_push('blob_name', blob_name)
 
     @staticmethod
-    def load_release_to_bq(**kwargs):
+    def load_to_bq(**kwargs):
         """
         Upload transformed release to a bigquery table.
 
@@ -351,53 +402,40 @@ class UnpaywallTelescope:
         """
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        if environment == 'dev':
-            # Create custom bq hook with a project id added to the bigquery connection, prevents error
-            # 'ValueError: INTERNAL: No default project is specified'
-            session = settings.Session()
-            bq_conn = Connection(
-                conn_id='bigquery_custom',
-                conn_type='google_cloud_platform',
-            )
+        # Get bucket location
+        storage_client = storage.Client()
+        bucket_object = storage_client.get_bucket(bucket)
+        location = bucket_object.location
 
-            conn_extra_json = json.dumps({'extra__google_cloud_platform__project': project_id})
-            bq_conn.set_extra(conn_extra_json)
-
-            session.query(Connection).filter(Connection.conn_id == bq_conn.conn_id).delete()
-            session.add(bq_conn)
-            session.commit()
-
-            bq_hook = BigQueryHook(bigquery_conn_id='bigquery_custom')
-        else:
-            bq_hook = BigQueryHook()
-
-        with open(UnpaywallTelescope.SCHEMA_FILE_PATH, 'r') as json_file:
-            schema_fields = json.loads(json_file.read())
-
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
+        # Create dataset
+        dataset_id = UnpaywallTelescope.DAG_ID
+        create_bigquery_dataset(project_id, dataset_id, location, UnpaywallTelescope.DESCRIPTION)
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        release_urls = ti.xcom_pull(key=UnpaywallTelescope.XCOM_MESSAGES_NAME, task_ids=UnpaywallTelescope.TASK_ID_LIST, include_prior_dates=False)
+        release_urls = ti.xcom_pull(key=UnpaywallTelescope.XCOM_MESSAGES_NAME, task_ids=UnpaywallTelescope.TASK_ID_LIST,
+                                    include_prior_dates=False)
+        blob_name = ti.xcom_pull(key='blob_name', task_ids=UnpaywallTelescope.TASK_ID_UPLOAD,
+                                 include_prior_dates=False)
         for url in release_urls:
-            # Check if dataset already exists and create dataset if it doesn't exist yet.
-            try:
-                cursor.create_empty_dataset(
-                    dataset_id=UnpaywallTelescope.DATASET_ID,
-                    project_id=project_id
-                )
-            except AirflowException as e:
-                logging.info(f"Dataset already exists, continuing to create table. See traceback:\n{e}")
+            # get release_date
+            date = release_date(url)
+            released_date: Pendulum = pendulum.parse(date)
+            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, released_date)
 
-            # Upload to bigquery
-            cursor.run_load(
-                destination_project_dataset_table=f"{UnpaywallTelescope.DATASET_ID}.{table_name(url)}",
-                source_uris=f"gs://{bucket}/{os.path.basename(filepath_transform(url))}",
-                schema_fields=schema_fields,
-                autodetect=False,
-                source_format='NEWLINE_DELIMITED_JSON',
-            )
+            # Select schema file based on release date
+            analysis_schema_path = schema_path('telescopes')
+            schema_file_path = find_schema(analysis_schema_path, UnpaywallTelescope.DAG_ID, released_date)
+            if schema_file_path is None:
+                logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
+                              f'table_name={UnpaywallTelescope.DAG_ID}, release_date={release_date}')
+                exit(os.EX_CONFIG)
+
+            # Load BigQuery table
+            uri = f"gs://{bucket}/{blob_name}"
+            logging.info(f"URI: {uri}")
+            load_bigquery_table(uri, dataset_id, location, table_id, schema_file_path,
+                                SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod
     def cleanup_releases(**kwargs):
