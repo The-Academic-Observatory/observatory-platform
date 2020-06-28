@@ -19,13 +19,14 @@ import json
 import logging
 import multiprocessing
 import os
+import re
+import time
 from concurrent.futures import as_completed, ProcessPoolExecutor
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
 from typing import List, Union
 
 import pendulum
-import time
 from crc32c import Checksum as Crc32cChecksum
 from google.api_core.exceptions import Conflict
 from google.cloud import storage, bigquery
@@ -64,6 +65,22 @@ def crc32c_base64_hash(file_path: str, chunk_size: int = 8 * 1024) -> str:
             hash_alg.update(chunk)
             chunk = f.read(chunk_size)
     return hex_to_base64_str(hash_alg.hexdigest())
+
+
+def table_name_from_blob(blob_name: str, file_extension: str):
+    """ Make a BigQuery table name from a blob name.
+
+    :param blob_name: the blob name.
+    :param file_extension: the file extension of the blob.
+    :return: the table name.
+    """
+
+    assert '.' in file_extension, 'file_extension must contain a .'
+    file_name = os.path.basename(blob_name)
+    match = re.match(fr'.+?(?={file_extension})', file_name)
+    if match is None:
+        raise ValueError(f'Could not find table name from blob_name={blob_name}')
+    return match.group(0)
 
 
 class TransferStatus(Enum):

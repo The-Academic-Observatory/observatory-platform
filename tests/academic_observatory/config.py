@@ -15,8 +15,17 @@
 # Author: James Diprose
 
 import pathlib
+import uuid
 
 import tests.fixtures
+
+
+def random_id():
+    """ Generate a random id for bucket name.
+
+    :return: a random string id.
+    """
+    return str(uuid.uuid4()).replace("-", "")
 
 
 def test_fixtures_path() -> str:
