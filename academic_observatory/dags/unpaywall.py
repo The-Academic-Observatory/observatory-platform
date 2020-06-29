@@ -1,8 +1,8 @@
 from datetime import datetime
 from airflow import DAG
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
 from airflow.operators.python_operator import PythonOperator
-from airflow.operators.dummy_operator import DummyOperator
 
 from academic_observatory.telescopes.unpaywall import UnpaywallTelescope
 
@@ -10,7 +10,6 @@ default_args = {
     "owner": "Airflow",
     "start_date": datetime(2020, 3, 1)
 }
-
 
 with DAG(dag_id="unpaywall", schedule_interval="@monthly", default_args=default_args) as dag:
     # Get config variables
