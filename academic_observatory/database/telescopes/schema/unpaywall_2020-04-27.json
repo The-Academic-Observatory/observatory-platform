@@ -303,5 +303,10 @@
     "mode": "NULLABLE", 
     "name": "journal_name", 
     "type": "STRING"
+  },
+  {
+  "mode": "NULLABLE",
+  "name": "is_paratext",
+  "type": "BOOLEAN"
   }
 ]
