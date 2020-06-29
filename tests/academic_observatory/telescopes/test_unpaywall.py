@@ -24,14 +24,11 @@ from click.testing import CliRunner
 from typing import List
 from unittest.mock import patch
 
-from academic_observatory.telescopes.unpaywall import(
+from academic_observatory.telescopes.unpaywall import (
+    UnpaywallRelease,
     UnpaywallTelescope,
     decompress_release,
-    filepath_download,
-    filepath_extract,
-    filepath_transform,
     list_releases,
-    release_date,
     transform_release
 )
 from academic_observatory.utils.config_utils import telescope_path, SubFolder
@@ -51,26 +48,27 @@ class TestUnpaywall(unittest.TestCase):
 
         super(TestUnpaywall, self).__init__(*args, **kwargs)
 
-        # Paths
-        self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
-        self.list_unpaywall_releases_path = os.path.join(self.vcr_cassettes_path, 'list_unpaywall_releases.yaml')
+        # Unpaywall releases list
+        self.list_unpaywall_releases_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
+                                                         'list_unpaywall_releases.yaml')
         self.list_unpaywall_releases_hash = '78d1a129cb0aba072ca49e2599f60c10'
 
-        # Unpaywall Test Release
+        # Unpaywall test release
+        self.unpaywall_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'unpaywall.jsonl.gz')
         self.unpaywall_test_url = UnpaywallTelescope.TELESCOPE_DEBUG_URL
-        self.unpaywall_test_path = UnpaywallTelescope.DEBUG_FILE_PATH
         self.unpaywall_test_date = '3000-01-27'
-        self.unpaywall_test_download_hash = '90051478f7b6689838d58edfc2450cb3'
-        self.unpaywall_test_decompress_hash = 'fe4e72ce54c4bb236802ddbb3dbee905'
-        self.unpaywall_test_transform_hash = '62cbb5af5a78d2e0769a28d976971cba'
         self.unpaywall_test_download_file_name = 'unpaywall_3000_01_27.jsonl.gz'
         self.unpaywall_test_decompress_file_name = 'unpaywall_3000_01_27.jsonl'
         self.unpaywall_test_transform_file_name = 'unpaywall_3000_01_27.jsonl'
+        self.unpaywall_test_download_hash = '90051478f7b6689838d58edfc2450cb3'
+        self.unpaywall_test_decompress_hash = 'fe4e72ce54c4bb236802ddbb3dbee905'
+        self.unpaywall_test_transform_hash = '62cbb5af5a78d2e0769a28d976971cba'
 
         logging.info("Check that test fixtures exist")
         self.assertTrue(os.path.isfile(self.list_unpaywall_releases_path))
         self.assertTrue(os.path.isfile(self.unpaywall_test_path))
-        self.assertTrue(self.list_unpaywall_releases_hash, _hash_file(self.list_unpaywall_releases_path, algorithm='md5'))
+        self.assertTrue(self.list_unpaywall_releases_hash,
+                        _hash_file(self.list_unpaywall_releases_path, algorithm='md5'))
         self.assertTrue(self.unpaywall_test_download_hash, _hash_file(self.unpaywall_test_path, algorithm='md5'))
 
         # Turn logging to warning because vcr prints too much at info level
@@ -95,8 +93,9 @@ class TestUnpaywall(unittest.TestCase):
         """
         with vcr.use_cassette(self.list_unpaywall_releases_path):
             releases = list_releases(UnpaywallTelescope.TELESCOPE_URL)
-            for release in releases:
-                date = release_date(release)
+            for release_url in releases:
+                unpaywall_release = UnpaywallRelease(release_url)
+                date = unpaywall_release.date
                 self.assertIsInstance(date, str)
                 self.assertTrue(datetime.datetime.strptime(date, "%Y-%m-%d"))
 
@@ -114,7 +113,8 @@ class TestUnpaywall(unittest.TestCase):
             home_mock.return_value = home_path
 
             with CliRunner().isolated_filesystem():
-                file_path_download = filepath_download(self.unpaywall_test_url)
+                unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
+                file_path_download = unpaywall_release.filepath_download
                 path = telescope_path(UnpaywallTelescope.DAG_ID, SubFolder.downloaded)
                 self.assertEqual(os.path.join(path, self.unpaywall_test_download_file_name), file_path_download)
 
@@ -132,7 +132,8 @@ class TestUnpaywall(unittest.TestCase):
             home_mock.return_value = home_path
 
             with CliRunner().isolated_filesystem():
-                file_path_extract = filepath_extract(self.unpaywall_test_url)
+                unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
+                file_path_extract = unpaywall_release.filepath_extract
                 path = telescope_path(UnpaywallTelescope.DAG_ID, SubFolder.extracted)
                 self.assertEqual(os.path.join(path, self.unpaywall_test_decompress_file_name), file_path_extract)
 
@@ -150,7 +151,8 @@ class TestUnpaywall(unittest.TestCase):
             home_mock.return_value = home_path
 
             with CliRunner().isolated_filesystem():
-                file_path_transform = filepath_transform(self.unpaywall_test_url)
+                unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
+                file_path_transform = unpaywall_release.filepath_transform
                 path = telescope_path(UnpaywallTelescope.DAG_ID, SubFolder.transformed)
                 self.assertEqual(os.path.join(path, self.unpaywall_test_transform_file_name), file_path_transform)
 
@@ -160,7 +162,8 @@ class TestUnpaywall(unittest.TestCase):
         :return: None.
         """
         with CliRunner().isolated_filesystem():
-            self.assertEqual(self.unpaywall_test_date, release_date(self.unpaywall_test_url))
+            unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
+            self.assertEqual(self.unpaywall_test_date, unpaywall_release.date)
 
     def test_decompress_release(self):
         """ Test that the release is decompressed as expected.
@@ -169,10 +172,11 @@ class TestUnpaywall(unittest.TestCase):
         """
 
         with CliRunner().isolated_filesystem():
+            unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
             # 'download' release
-            shutil.copyfile(self.unpaywall_test_path, filepath_download(self.unpaywall_test_url))
+            shutil.copyfile(self.unpaywall_test_path, unpaywall_release.filepath_download)
 
-            decompress_file_path = decompress_release(self.unpaywall_test_url)
+            decompress_file_path = decompress_release(unpaywall_release)
             decompress_file_name = os.path.basename(decompress_file_path)
 
             self.assertTrue(os.path.exists(decompress_file_path))
@@ -186,10 +190,11 @@ class TestUnpaywall(unittest.TestCase):
         """
 
         with CliRunner().isolated_filesystem():
-            shutil.copyfile(self.unpaywall_test_path, filepath_download(self.unpaywall_test_url))
+            unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
+            shutil.copyfile(self.unpaywall_test_path, unpaywall_release.filepath_download)
 
-            decompress_file_path = decompress_release(self.unpaywall_test_url)
-            transform_file_path = transform_release(self.unpaywall_test_url)
+            decompress_release(unpaywall_release)
+            transform_file_path = transform_release(unpaywall_release)
             transform_file_name = os.path.basename(transform_file_path)
 
             self.assertTrue(os.path.exists(transform_file_path))

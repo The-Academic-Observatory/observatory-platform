@@ -1,9 +1,24 @@
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Aniek Roelofs
 import logging
 import os
 import pathlib
 import re
-import subprocess
 import shutil
+import subprocess
 import xml.etree.ElementTree as ET
 from typing import Tuple
 
@@ -16,9 +31,7 @@ from google.cloud import storage
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
-
 from academic_observatory.utils.config_utils import (
-    debug_file_path,
     is_composer,
     find_schema,
     ObservatoryConfig,
@@ -35,6 +48,7 @@ from academic_observatory.utils.gc_utils import (
 )
 from academic_observatory.utils.proc_utils import wait_for_process
 from academic_observatory.utils.url_utils import retry_session
+from tests.academic_observatory.config import test_fixtures_path
 
 
 def xcom_pull_info(ti: TaskInstance) -> Tuple[list, str, str, str]:
@@ -75,19 +89,18 @@ def list_releases(telescope_url: str) -> list:
     return snapshot_list
 
 
-def download_release(url: str):
+def download_release(unpaywall_release: 'UnpaywallRelease') -> str:
     """
     Downloads release from url.
 
-    :param url: url of specific release
+    :param unpaywall_release: Instance of UnpaywallRelease class
     """
-
-    filename = filepath_download(url)
+    filename = unpaywall_release.get_filepath_download()
     download_dir = os.path.dirname(filename)
 
     # Download
-    logging.info(f"Downloading file: {filename}, url: {url}")
-    file_path, updated = get_file(fname=filename, origin=url, cache_dir=download_dir)
+    logging.info(f"Downloading file: {filename}, url: {unpaywall_release.url}")
+    file_path, updated = get_file(fname=filename, origin=unpaywall_release.url, cache_dir=download_dir)
 
     if file_path:
         logging.info(f'Success downloading release: {filename}')
@@ -98,25 +111,35 @@ def download_release(url: str):
     return file_path
 
 
-def decompress_release(url: str):
-    logging.info(f"Extracting file: {filepath_download(url)}")
+def decompress_release(unpaywall_release: 'UnpaywallRelease') -> str:
+    """
+    Decompresses release.
 
-    cmd = f"gunzip -c {filepath_download(url)} > {filepath_extract(url)}"
+    :param unpaywall_release: Instance of UnpaywallRelease class
+    """
+    logging.info(f"Extracting file: {unpaywall_release.filepath_download}")
+
+    cmd = f"gunzip -c {unpaywall_release.filepath_download} > {unpaywall_release.filepath_extract}"
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          executable='/bin/bash')
     stdout, stderr = wait_for_process(p)
     if stdout:
         logging.info(stdout)
     if stderr:
-        raise AirflowException(f"bash command failed for {url}: {stderr}")
-    logging.info(f"File extracted to: {filepath_extract(url)}")
+        raise AirflowException(f"bash command failed for {unpaywall_release.url}: {stderr}")
+    logging.info(f"File extracted to: {unpaywall_release.filepath_extract}")
 
-    return filepath_extract(url)
+    return unpaywall_release.filepath_extract
 
 
-def transform_release(url: str):
-    cmd = f"sed 's/authenticated-orcid/authenticated_orcid/g' {filepath_extract(url)} > " \
-          f"{filepath_transform(url)}"
+def transform_release(unpaywall_release: 'UnpaywallRelease') -> str:
+    """
+    Transforms release by replacing a specific '-' with '_'.
+
+    :param unpaywall_release: Instance of UnpaywallRelease class
+    """
+    cmd = f"sed 's/authenticated-orcid/authenticated_orcid/g' {unpaywall_release.filepath_extract} > " \
+          f"{unpaywall_release.filepath_transform}"
 
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          executable='/bin/bash')
@@ -125,67 +148,65 @@ def transform_release(url: str):
     if stdout:
         logging.info(stdout)
     if stderr:
-        raise AirflowException(f"bash command failed for {url}: {stderr}")
-    logging.info(f'Success transforming release: {url}')
+        raise AirflowException(f"bash command failed for {unpaywall_release.url}: {stderr}")
+    logging.info(f'Success transforming release: {unpaywall_release.url}')
 
-    return filepath_transform(url)
-
-
-def release_date(url: str) -> str:
-    """
-    Finds date in a given url.
-
-    :param url: url of specific release
-    :return: date in 'YYYY-MM-DD' format
-    """
-    date = re.search(r'\d{4}-\d{2}-\d{2}', url).group()
-
-    return date
+    return unpaywall_release.filepath_transform
 
 
-def filepath_download(url: str) -> str:
-    """
-    Gives path to downloaded release.
+class UnpaywallRelease:
+    def __init__(self, url):
+        self.url = url
+        self.date = self.release_date()
+        self.filepath_download = self.get_filepath_download()
+        self.filepath_extract = self.get_filepath_extract()
+        self.filepath_transform = self.get_filepath_transform()
 
-    :param url: url of specific release
-    :return: absolute file path
-    """
-    date = release_date(url)
-    compressed_file_name = f"{UnpaywallTelescope.DAG_ID}_{date}.jsonl.gz".replace('-', '_')
-    download_dir = telescope_path(UnpaywallTelescope.DAG_ID, SubFolder.downloaded)
-    path = os.path.join(download_dir, compressed_file_name)
+    def release_date(self) -> str:
+        """
+        Finds date in a given url.
 
-    return path
+        :return: date in 'YYYY-MM-DD' format
+        """
+        date = re.search(r'\d{4}-\d{2}-\d{2}', self.url).group()
 
+        return date
 
-def filepath_extract(url: str) -> str:
-    """
-    Gives path to extracted and decompressed release.
+    def get_filepath_download(self) -> str:
+        """
+        Gives path to downloaded release.
 
-    :param url: url of specific release
-    :return: absolute file path
-    """
-    date = release_date(url)
-    decompressed_file_name = f"{UnpaywallTelescope.DAG_ID}_{date}.jsonl".replace('-', '_')
-    extract_dir = telescope_path(UnpaywallTelescope.DAG_ID, SubFolder.extracted)
-    path = os.path.join(extract_dir, decompressed_file_name)
+        :return: absolute file path
+        """
+        compressed_file_name = f"{UnpaywallTelescope.DAG_ID}_{self.date}.jsonl.gz".replace('-', '_')
+        download_dir = telescope_path(UnpaywallTelescope.DAG_ID, SubFolder.downloaded)
+        path = os.path.join(download_dir, compressed_file_name)
 
-    return path
+        return path
 
+    def get_filepath_extract(self) -> str:
+        """
+        Gives path to extracted and decompressed release.
 
-def filepath_transform(url: str) -> str:
-    """
-    Gives path to transformed release.
+        :return: absolute file path
+        """
+        decompressed_file_name = f"{UnpaywallTelescope.DAG_ID}_{self.date}.jsonl".replace('-', '_')
+        extract_dir = telescope_path(UnpaywallTelescope.DAG_ID, SubFolder.extracted)
+        path = os.path.join(extract_dir, decompressed_file_name)
 
-    :param url: url of specific release
-    :return: absolute file path
-    """
-    date = release_date(url)
-    decompressed_file_name = f"{UnpaywallTelescope.DAG_ID}_{date}.jsonl".replace('-', '_')
-    transform_dir = telescope_path(UnpaywallTelescope.DAG_ID, SubFolder.transformed)
-    path = os.path.join(transform_dir, decompressed_file_name)
+        return path
 
-    return path
+    def get_filepath_transform(self) -> str:
+        """
+        Gives path to transformed release.
+
+        :return: absolute file path
+        """
+        decompressed_file_name = f"{UnpaywallTelescope.DAG_ID}_{self.date}.jsonl".replace('-', '_')
+        transform_dir = telescope_path(UnpaywallTelescope.DAG_ID, SubFolder.transformed)
+        path = os.path.join(transform_dir, decompressed_file_name)
+
+        return path
 
 
 class UnpaywallTelescope:
@@ -196,7 +217,8 @@ class UnpaywallTelescope:
     XCOM_CONFIG_NAME = "config"
     TELESCOPE_URL = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/'
     TELESCOPE_DEBUG_URL = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
-    DEBUG_FILE_PATH = debug_file_path('unpaywall.jsonl.gz')
+    # DEBUG_FILE_PATH = debug_file_path('unpaywall.jsonl.gz')
+    DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'unpaywall.jsonl.gz')
 
     TASK_ID_SETUP = "check_setup_requirements"
     TASK_ID_LIST = f"list_{DAG_ID}_releases"
@@ -293,8 +315,8 @@ class UnpaywallTelescope:
         release_urls_out = []
         logging.info('Releases between current and next execution date:')
         for release_url in releases_list:
-            date = release_date(release_url)
-            released_date: Pendulum = pendulum.parse(date)
+            unpaywall_release = UnpaywallRelease(release_url)
+            released_date: Pendulum = pendulum.parse(unpaywall_release.date)
             table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, released_date)
 
             if execution_date <= released_date < next_execution_date:
@@ -306,7 +328,8 @@ class UnpaywallTelescope:
                 )
                 logging.info('Checking if bigquery table already exists:')
                 if table_exists:
-                    logging.info(f'- Table exists for {release_url}: {project_id}.{UnpaywallTelescope.DATASET_ID}.{table_id}')
+                    logging.info(
+                        f'- Table exists for {release_url}: {project_id}.{UnpaywallTelescope.DATASET_ID}.{table_id}')
                 else:
                     logging.info(f"- Table doesn't exist yet, processing {release_url} in this workflow")
                     release_urls_out.append(release_url)
@@ -328,11 +351,12 @@ class UnpaywallTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
+            unpaywall_release = UnpaywallRelease(url)
             if environment == 'dev':
-                shutil.copy(UnpaywallTelescope.DEBUG_FILE_PATH, filepath_download(url))
+                shutil.copy(UnpaywallTelescope.DEBUG_FILE_PATH, unpaywall_release.filepath_download)
 
             else:
-                download_release(url)
+                download_release(unpaywall_release)
 
     @staticmethod
     def decompress(**kwargs):
@@ -345,7 +369,8 @@ class UnpaywallTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
-            decompress_release(url)
+            unpaywall_release = UnpaywallRelease(url)
+            decompress_release(unpaywall_release)
 
     @staticmethod
     def transform(**kwargs):
@@ -358,7 +383,8 @@ class UnpaywallTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
-            transform_release(url)
+            unpaywall_release = UnpaywallRelease(url)
+            transform_release(unpaywall_release)
 
     @staticmethod
     def upload_to_gcs(**kwargs):
@@ -371,8 +397,9 @@ class UnpaywallTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
-            blob_name = f'telescopes/unpaywall/transformed/{os.path.basename(filepath_transform(url))}'
-            upload_file_to_cloud_storage(bucket, blob_name, file_path=filepath_transform(url))
+            unpaywall_release = UnpaywallRelease(url)
+            blob_name = f'telescopes/unpaywall/transformed/{os.path.basename(unpaywall_release.filepath_transform)}'
+            upload_file_to_cloud_storage(bucket, blob_name, file_path=unpaywall_release.filepath_transform)
 
             # Push messages
             ti: TaskInstance = kwargs['ti']
@@ -403,9 +430,9 @@ class UnpaywallTelescope:
         blob_name = ti.xcom_pull(key='blob_name', task_ids=UnpaywallTelescope.TASK_ID_UPLOAD,
                                  include_prior_dates=False)
         for url in release_urls:
+            unpaywall_release = UnpaywallRelease(url)
             # get release_date
-            date = release_date(url)
-            released_date: Pendulum = pendulum.parse(date)
+            released_date: Pendulum = pendulum.parse(unpaywall_release.date)
             table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, released_date)
 
             # Select schema file based on release date
@@ -413,7 +440,7 @@ class UnpaywallTelescope:
             schema_file_path = find_schema(analysis_schema_path, UnpaywallTelescope.DAG_ID, released_date)
             if schema_file_path is None:
                 logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
-                              f'table_name={UnpaywallTelescope.DAG_ID}, release_date={release_date}')
+                              f'table_name={UnpaywallTelescope.DAG_ID}, release_date={released_date}')
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table
@@ -433,17 +460,18 @@ class UnpaywallTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
+            unpaywall_release = UnpaywallRelease(url)
             try:
-                pathlib.Path(filepath_download(url)).unlink()
+                pathlib.Path(unpaywall_release.filepath_download).unlink()
             except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {filepath_download(url)}: {e}")
+                logging.warning(f"No such file or directory {unpaywall_release.filepath_download}: {e}")
 
             try:
-                pathlib.Path(filepath_extract(url)).unlink()
+                pathlib.Path(unpaywall_release.filepath_extract).unlink()
             except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {filepath_extract(url)}: {e}")
+                logging.warning(f"No such file or directory {unpaywall_release.filepath_extract}: {e}")
 
             try:
-                pathlib.Path(filepath_transform(url)).unlink()
+                pathlib.Path(unpaywall_release.filepath_transform).unlink()
             except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {filepath_transform(url)}: {e}")
+                logging.warning(f"No such file or directory {unpaywall_release.filepath_transform}: {e}")
