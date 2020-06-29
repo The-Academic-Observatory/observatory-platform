@@ -162,20 +162,6 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
     # No schemas were found
     return None
 
-
-def debug_file_path(name: str) -> str:
-    """ Get the relative path to a file used for debugging.
-
-    :return: the path to the debug file.
-    """
-    file_path = pathlib.Path(academic_observatory.debug_files.__file__).resolve()
-    path = pathlib.Path(*file_path.parts[:-1], name)
-    if path.is_file():
-        return str(path.resolve())
-    else:
-        print(f"debug file at {str(path.resolve())} does not exist")
-
-
 class SubFolder(Enum):
     """ The type of subfolder to create for telescope data """
 
