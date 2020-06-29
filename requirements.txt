@@ -35,6 +35,9 @@ azure-storage-blob==12.3.*
 vcrpy==4.0.*
 jsonlines==1.2.*
 deprecation==2.1.*
+httplib2==0.18.1
+google-auth-httplib2==0.0.3
+pandas-gbq==0.13.2
 azure-functions==1.2.*
 azure-cosmosdb-table==1.0.*
 azure-storage-blob==12.3.*
