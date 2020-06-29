@@ -30,7 +30,6 @@ from natsort import natsorted
 from pendulum import Pendulum
 
 import academic_observatory.database
-import academic_observatory.debug_files
 from academic_observatory import dags
 
 
