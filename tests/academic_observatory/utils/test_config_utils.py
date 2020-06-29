@@ -26,7 +26,6 @@ from click.testing import CliRunner
 
 import academic_observatory.dags
 import academic_observatory.database.telescopes.schema
-import academic_observatory.debug_files
 from academic_observatory.utils.config_utils import ObservatoryConfig, Environment, observatory_package_path, \
     dags_path, observatory_home, telescope_path, SubFolder, find_schema, schema_path
 from academic_observatory.utils.test_utils import test_data_dir
@@ -90,14 +89,6 @@ class TestConfigUtils(unittest.TestCase):
         expected_path = pathlib.Path(academic_observatory.dags.__file__).resolve()
         expected_path = str(pathlib.Path(*expected_path.parts[:-1]).resolve())
         actual_path = dags_path()
-        self.assertEqual(expected_path, actual_path)
-        self.assertTrue(os.path.exists(actual_path))
-
-    def test_debug_file_path(self):
-        debug_file = 'unpaywall.jsonl.gz'
-        expected_path = pathlib.Path(academic_observatory.debug_files.__file__).resolve()
-        expected_path = str(pathlib.Path(*expected_path.parts[:-1], debug_file).resolve())
-        actual_path = debug_file_path(debug_file)
         self.assertEqual(expected_path, actual_path)
         self.assertTrue(os.path.exists(actual_path))
 
