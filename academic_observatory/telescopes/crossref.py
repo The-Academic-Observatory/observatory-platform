@@ -1,36 +1,83 @@
-import os
-import re
-import json
-import pendulum
-import subprocess
-import requests
-import pathlib
-import shutil
-import logging
-import functools
-from pendulum import Pendulum
-from datetime import datetime
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-from airflow import settings
+# Author: Aniek Roelofs
+import functools
+import logging
+import os
+import pathlib
+import re
+import requests
+import shutil
+import subprocess
+from datetime import datetime
+from typing import Tuple
+
+import pendulum
+from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.hooks.base_hook import BaseHook
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
-from airflow.hooks.base_hook import BaseHook
-from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from google.cloud import storage
+from google.cloud.bigquery import SourceFormat
+from pendulum import Pendulum
 
+from academic_observatory.utils.config_utils import (
+    is_composer,
+    find_schema,
+    ObservatoryConfig,
+    SubFolder,
+    schema_path,
+    telescope_path,
+)
+from academic_observatory.utils.gc_utils import (
+    bigquery_partitioned_table_id,
+    create_bigquery_dataset,
+    load_bigquery_table,
+    upload_file_to_cloud_storage
+)
+from academic_observatory.utils.proc_utils import wait_for_process
 from academic_observatory.utils.url_utils import retry_session
-from academic_observatory.utils.config_utils import ObservatoryConfig, SubFolder, telescope_path, bigquery_schema_path, debug_file_path
+from tests.academic_observatory.config import test_fixtures_path
+
+
+def xcom_pull_info(ti: TaskInstance) -> Tuple[list, str, str, str]:
+    """
+    Pulls xcom messages, release_urls and config_dict.
+    Parses retrieved config_dict and returns those values next to release_urls.
+
+    :param ti:
+    :return: release_urls, environment, bucket, project_id
+    """
+    release_urls = ti.xcom_pull(key=CrossrefTelescope.XCOM_MESSAGES_NAME, task_ids=CrossrefTelescope.TASK_ID_LIST,
+                                include_prior_dates=False)
+    config_dict = ti.xcom_pull(key=CrossrefTelescope.XCOM_CONFIG_NAME, task_ids=CrossrefTelescope.TASK_ID_SETUP,
+                               include_prior_dates=False)
+    environment = config_dict['environment']
+    bucket = config_dict['bucket']
+    project_id = config_dict['project_id']
+    return release_urls, environment, bucket, project_id
 
 
 def list_releases(telescope_url):
     snapshot_list = []
 
     # Loop through years and months
-    for year in range(2018, int(datetime.today().strftime("%Y"))+1):
+    for year in range(2018, int(datetime.today().strftime("%Y")) + 1):
         for month in range(1, 12 + 1):
-            snapshot_url = f"{os.path.join(telescope_url,str(year),f'{month:02d}','all.json.tar.gz')}"
+            snapshot_url = f"{os.path.join(telescope_url, str(year), f'{month:02d}', 'all.json.tar.gz')}"
             response = retry_session().head(snapshot_url)
             if response:
                 snapshot_list.append(snapshot_url)
@@ -38,69 +85,128 @@ def list_releases(telescope_url):
     return snapshot_list
 
 
-def release_date_from_url(url: str):
-    date = re.search(r'\d{4}/\d{2}', url).group()
-
-    # create date string that can be parsed by pendulum
-    date = date.replace('/', '-')
-
-    return date
-
-
-def table_name_from_url(url: str):
-    release_date = release_date_from_url(url)
-    table_name = f"{CrossrefTelescope.DAG_ID}_{release_date}".replace('-', '_')
-
-    return table_name
-
-
-def filepath_download(url: str):
-    release_date = release_date_from_url(url)
-    compressed_file_name = f"{CrossrefTelescope.DAG_ID}_{release_date}.json.tar.gz".replace('-', '_')
-    download_dir = telescope_path(CrossrefTelescope.DAG_ID, SubFolder.downloaded)
-    path = os.path.join(download_dir, compressed_file_name)
-
-    return path
-
-
-def filepath_extract(url: str):
-    release_date = release_date_from_url(url)
-    decompressed_file_name = f"{CrossrefTelescope.DAG_ID}_{release_date}.json".replace('-', '_')
-    extract_dir = telescope_path(CrossrefTelescope.DAG_ID, SubFolder.extracted)
-    path = os.path.join(extract_dir, decompressed_file_name)
-
-    return path
-
-
-def filepath_transform(url: str):
-    release_date = release_date_from_url(url)
-    decompressed_file_name = f"{CrossrefTelescope.DAG_ID}_{release_date}.json".replace('-', '_')
-    transform_dir = telescope_path(CrossrefTelescope.DAG_ID, SubFolder.transformed)
-    path = os.path.join(transform_dir, decompressed_file_name)
-
-    return path
-
-
-def download_release(url: str, api_token: str):
+def download_release(crossref_release: 'CrossrefRelease', api_token: str):
     header = {'Crossref-Plus-API-Token': api_token}
-    filename = filepath_download(url)
-    with requests.get(url, headers=header, stream=True) as response:
+    filename = crossref_release.filepath_download
+    with requests.get(crossref_release.url, headers=header, stream=True) as response:
         with open(filename, 'wb') as file:
             response.raw.read = functools.partial(response.raw.read, decode_content=True)
             shutil.copyfileobj(response.raw, file)
 
 
-class CrossrefTelescope:
-    # example: https://api.crossref.org/snapshots/monthly/2019/12/all.json.tar.gz
-    TELESCOPE_URL = 'https://api.crossref.org/snapshots/monthly/'
-    TELESCOPE_DEBUG_URL = 'https://api.crossref.org/snapshots/monthly/3000/01/all.json.tar.gz'
-    SCHEMA_FILE_PATH = bigquery_schema_path('crossref_schema.json')
-    DEBUG_FILE_PATH = debug_file_path('crossref_debug.json.tar.gz')
+def decompress_release(crossref_release: 'CrossrefRelease') -> str:
+    """
+    Decompresses release.
 
-    DAG_ID = 'crossref'
+    :param crossref_release: Instance of UnpaywallRelease class
+    """
+    logging.info(f"Extracting file: {crossref_release.filepath_download}")
+
+    cmd = f"tar -xOzf {crossref_release.filepath_download} > {crossref_release.filepath_extract}"
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         executable='/bin/bash')
+    stdout, stderr = wait_for_process(p)
+    if stdout:
+        logging.info(stdout)
+    if stderr:
+        raise AirflowException(f"bash command failed for {crossref_release.url}: {stderr}")
+    logging.info(f"File extracted to: {crossref_release.filepath_extract}")
+
+    return crossref_release.filepath_extract
+
+
+def transform_release(crossref_release: 'CrossrefRelease') -> str:
+    """
+    Transforms release by replacing a specific '-' with '_'.
+
+    :param crossref_release: Instance of UnpaywallRelease class
+    """
+    cmd = "sed -E -e 's/\]\]/\]/g' -e 's/\[\[/\[/g' -e 's/,[[:blank:]]*$//g'  -e 's/([[:alpha:]])-([[" \
+          ":alpha:]])/\\1_\\2/g' -e 's/\"timestamp\":_/\"timestamp\":/g' -e 's/\"date_parts\":\[" \
+          "null\]/\"date_parts\":\[\]/g' -e 's/^\{\"items\":\[//g' -e '/^\}$/d' -e '/^\]$/d' " \
+          f"{crossref_release.filepath_extract} >> {crossref_release.filepath_transform}"
+
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         executable='/bin/bash')
+
+    stdout, stderr = wait_for_process(p)
+    if stdout:
+        logging.info(stdout)
+    if stderr:
+        raise AirflowException(f"bash command failed for {crossref_release.url}: {stderr}")
+    logging.info(f'Success transforming release: {crossref_release.url}')
+
+    return crossref_release.filepath_transform
+
+
+class CrossrefRelease:
+    def __init__(self, url):
+        self.url = url
+        self.date = self.release_date()
+        self.filepath_download = self.get_filepath_download()
+        self.filepath_extract = self.get_filepath_extract()
+        self.filepath_transform = self.get_filepath_transform()
+
+    def release_date(self) -> str:
+        """
+        Finds date in a given url.
+
+        :return: date in 'YYYY-MM' format
+        """
+        date = re.search(r'\d{4}/\d{2}', self.url).group()
+
+        # create date string that can be parsed by pendulum
+        date = date.replace('/', '-')
+
+        return date
+
+    def get_filepath_download(self) -> str:
+        """
+        Gives path to downloaded release.
+
+        :return: absolute file path
+        """
+        compressed_file_name = f"{CrossrefTelescope.DAG_ID}_{self.date}.json.tar.gz".replace('-', '_')
+        download_dir = telescope_path(CrossrefTelescope.DAG_ID, SubFolder.downloaded)
+        path = os.path.join(download_dir, compressed_file_name)
+
+        return path
+
+    def get_filepath_extract(self) -> str:
+        """
+        Gives path to extracted and decompressed release.
+
+        :return: absolute file path
+        """
+        decompressed_file_name = f"{CrossrefTelescope.DAG_ID}_{self.date}.json".replace('-', '_')
+        extract_dir = telescope_path(CrossrefTelescope.DAG_ID, SubFolder.extracted)
+        path = os.path.join(extract_dir, decompressed_file_name)
+
+        return path
+
+    def get_filepath_transform(self) -> str:
+        """
+        Gives path to transformed release.
+
+        :return: absolute file path
+        """
+        decompressed_file_name = f"{CrossrefTelescope.DAG_ID}_{self.date}.json".replace('-', '_')
+        transform_dir = telescope_path(CrossrefTelescope.DAG_ID, SubFolder.transformed)
+        path = os.path.join(transform_dir, decompressed_file_name)
+
+        return path
+
+
+class CrossrefTelescope:
+    DAG_ID = 'crossref_metadata'
+    DESCRIPTION = 'Crossref metadata'
     DATASET_ID = DAG_ID
     XCOM_MESSAGES_NAME = "messages"
     XCOM_CONFIG_NAME = "config"
+    TELESCOPE_URL = 'https://api.crossref.org/snapshots/monthly/'
+    TELESCOPE_DEBUG_URL = 'https://api.crossref.org/snapshots/monthly/3000/01/all.json.tar.gz'
+    DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'crossref.json.tar.gz')
+
     TASK_ID_SETUP = f"check_setup_requirements"
     TASK_ID_LIST = f"list_{DAG_ID}_releases"
     TASK_ID_STOP = f"stop_{DAG_ID}_workflow"
@@ -112,25 +218,45 @@ class CrossrefTelescope:
     TASK_ID_CLEANUP = f"cleanup_{DAG_ID}_releases"
 
     @staticmethod
-    def xcom_pull_messages(ti):
-        # Pull messages
-        msgs_in = ti.xcom_pull(key=CrossrefTelescope.XCOM_MESSAGES_NAME, task_ids=CrossrefTelescope.TASK_ID_LIST,
-                               include_prior_dates=False)
-        config_dict = ti.xcom_pull(key=CrossrefTelescope.XCOM_CONFIG_NAME, task_ids=CrossrefTelescope.TASK_ID_SETUP,
-                                   include_prior_dates=False)
-        environment = config_dict['environment']
-        bucket = config_dict['bucket']
-        project_id = config_dict['project_id']
-        return msgs_in, environment, bucket, project_id
-
-    @staticmethod
     def check_setup_requirements(**kwargs):
+        """
+        Depending on whether run from inside or outside a composer environment:
+        If run from outside, checks if 'CONFIG_PATH' airflow variable is available and points to a valid config file.
+        If run from inside, check if airflow variables for 'env', 'bucket' and 'project_id' are set.
+
+        The corresponding values will be stored in a dict and pushed with xcom, so they can be accessed in consequent
+        tasks.
+
+        kwargs is required to access task instance
+        :param kwargs: NA
+        """
         invalid_list = []
         config_dict = {}
 
-        config_path = Variable.get('CONFIG_PATH', default_var=None)
-        if config_path is None:
-            logging.info("'CONFIG_FILE' airflow variable not set, please set in UI")
+        if is_composer():
+            environment = Variable.get('ENV', default_var=None)
+            bucket = Variable.get('BUCKET', default_var=None)
+            project_id = Variable.get('PROJECT_ID', default_var=None)
+
+            for var in [(environment, 'ENV'), (bucket, 'BUCKET'), (project_id, 'PROJECT_ID')]:
+                if var[0] is None:
+                    invalid_list.append(f"Airflow variable '{var[1]}' not set with terraform.")
+
+        else:
+            default_config = ObservatoryConfig.CONTAINER_DEFAULT_PATH
+            config_path = Variable.get('CONFIG_PATH', default_var=default_config)
+
+            config = ObservatoryConfig.load(config_path)
+            if config is not None:
+                config_is_valid = config.is_valid
+                if not config_is_valid:
+                    invalid_list.append(f'Config file not valid: {config_is_valid}')
+            if not config:
+                invalid_list.append(f'Config file does not exist')
+
+            environment = config.environment.value
+            bucket = config.bucket_name
+            project_id = config.project_id
 
         # check if crossref connection and password exists
         try:
@@ -139,202 +265,209 @@ class CrossrefTelescope:
             if not password:
                 invalid_list.append("No crossref connection password set, please set api_token as password.")
         except AirflowException:
-            invalid_list.append('No crossref connection set, please set crossref connection with api_token as password.')
-
-        config_valid, config_validator, config = ObservatoryConfig.load(config_path)
-        if not config_valid:
-            invalid_list.append(f'Config file not valid: {config_validator}')
+            invalid_list.append(
+                'No crossref connection set, please set "crossref" connection with api_token as password.')
 
         if invalid_list:
             for invalid_reason in invalid_list:
-                logging.info("-", invalid_reason, "\n\n")
-                raise AirflowException
+                logging.warning("-" + invalid_reason + "\n\n")
+            raise AirflowException
         else:
-            config_dict['environment'] = config.environment.value
-            config_dict['bucket'] = config.bucket_name
-            config_dict['project_id'] = config.project_id
+            config_dict['environment'] = environment
+            config_dict['bucket'] = bucket
+            config_dict['project_id'] = project_id
             # Push messages
             ti: TaskInstance = kwargs['ti']
             ti.xcom_push(CrossrefTelescope.XCOM_CONFIG_NAME, config_dict)
 
-
     @staticmethod
     def list_releases_last_month(**kwargs):
+        """
+        Based on a list of all releases, checks which ones were released between this and the next execution date of the
+        DAG.
+        If the release falls within the time period mentioned above, checks if a bigquery table doesn't exist yet for
+        the release.
+        A list of releases that passed both checks is passed to the next tasks. If the list is empty the workflow will
+        stop.
+
+        kwargs is required to access task instance
+        """
         # Pull messages
-        msgs_in, environment, bucket, project_id = CrossrefTelescope.xcom_pull_messages(kwargs['ti'])
+        release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         if environment == 'dev':
-            msgs_out = [CrossrefTelescope.TELESCOPE_DEBUG_URL]
+            release_urls_out = [CrossrefTelescope.TELESCOPE_DEBUG_URL]
             # Push messages
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(CrossrefTelescope.XCOM_MESSAGES_NAME, msgs_out)
-            return CrossrefTelescope.TASK_ID_DOWNLOAD if msgs_out else CrossrefTelescope.TASK_ID_STOP
+            ti.xcom_push(CrossrefTelescope.XCOM_MESSAGES_NAME, release_urls_out)
+            return CrossrefTelescope.TASK_ID_DOWNLOAD if release_urls_out else CrossrefTelescope.TASK_ID_STOP
 
         execution_date = kwargs['execution_date']
         next_execution_date = kwargs['next_execution_date']
         releases_list = list_releases(CrossrefTelescope.TELESCOPE_URL)
-        logging.info(f'All releases:\n{releases_list}')
+        logging.info(f'All releases:\n{releases_list}\n')
 
         bq_hook = BigQueryHook()
         # Select the releases that were published on or after the execution_date and before the next_execution_date
-        msgs_out = []
-        logging.info('All releases between current and next execution date:')
+        release_urls_out = []
+        logging.info('Releases between current and next execution date:')
         for release_url in releases_list:
-            release_date = release_date_from_url(release_url)
-            published_date: Pendulum = pendulum.parse(release_date)
+            crossref_release = CrossrefRelease(release_url)
+            released_date: Pendulum = pendulum.parse(crossref_release.date)
+            table_id = bigquery_partitioned_table_id(CrossrefTelescope.DAG_ID, released_date)
 
-            if execution_date <= published_date < next_execution_date:
-                logging.info(f'{release_url, release_date}')
+            if execution_date <= released_date < next_execution_date:
+                logging.info(release_url)
                 table_exists = bq_hook.table_exists(
                     project_id=project_id,
                     dataset_id=CrossrefTelescope.DATASET_ID,
-                    table_id=table_name_from_url(release_url)
+                    table_id=table_id
                 )
+                logging.info('Checking if bigquery table already exists:')
                 if table_exists:
-                    logging.info(f'Table exists: {project_id}.{CrossrefTelescope.DATASET_ID}.{table_name_from_url(release_url)}')
+                    logging.info(
+                        f'- Table exists for {release_url}: {project_id}.{CrossrefTelescope.DATASET_ID}.{table_id}')
                 else:
-                    logging.info(f"Table for {release_url} doesn't exist yet, processing url in current run")
-                    msgs_out.append(release_url)
+                    logging.info(f"- Table doesn't exist yet, processing {release_url} in this workflow")
+                    release_urls_out.append(release_url)
 
         # Push messages
         ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(CrossrefTelescope.XCOM_MESSAGES_NAME, msgs_out)
-        return CrossrefTelescope.TASK_ID_DOWNLOAD if msgs_out else CrossrefTelescope.TASK_ID_STOP
+        ti.xcom_push(CrossrefTelescope.XCOM_MESSAGES_NAME, release_urls_out)
+        return CrossrefTelescope.TASK_ID_DOWNLOAD if release_urls_out else CrossrefTelescope.TASK_ID_STOP
 
     @staticmethod
-    def download_releases_local(**kwargs):
+    def download(**kwargs):
+        """
+        Download release to file.
+        If dev environment, copy debug file from this repository to the right location. Else download from url.
+
+        kwargs is required to access task instance
+        """
         # Pull messages
-        msgs_in, environment, bucket, project_id = CrossrefTelescope.xcom_pull_messages(kwargs['ti'])
+        release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         connection = BaseHook.get_connection("crossref")
         api_token = connection.password
 
-        for msg_in in msgs_in:
+        for url in release_urls:
+            crossref_release = CrossrefRelease(url)
             if environment == 'dev':
-                shutil.copy(CrossrefTelescope.DEBUG_FILE_PATH, filepath_download(msg_in))
+                shutil.copy(CrossrefTelescope.DEBUG_FILE_PATH, crossref_release.filepath_download)
 
             else:
-                download_release(msg_in, api_token)
+                download_release(crossref_release, api_token)
 
     @staticmethod
-    def decompress_release(**kwargs):
+    def decompress(**kwargs):
         # Pull messages
-        msgs_in, environment, bucket, project_id = CrossrefTelescope.xcom_pull_messages(kwargs['ti'])
+        release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        for msg_in in msgs_in:
-            extract_path = filepath_extract(msg_in)
-            downloaded_path = filepath_download(msg_in)
-            cmd = f"tar -xOzf {downloaded_path} > {extract_path}"
-            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                 executable='/bin/bash')
-            stdout, stderr = p.communicate()
-            if stdout:
-                logging.info(stdout)
-            if stderr:
-                raise AirflowException(f"bash command failed for {msg_in}: {stderr}")
+        for url in release_urls:
+            crossref_release = CrossrefRelease(url)
+            decompress_release(crossref_release)
 
     @staticmethod
-    def transform_release(**kwargs):
+    def transform(**kwargs):
+        """
+        Transform release with sed command and save to new file.
+
+        kwargs is required to access task instance
+        """
         # Pull messages
-        msgs_in, environment, bucket, project_id = CrossrefTelescope.xcom_pull_messages(kwargs['ti'])
+        release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        for msg_in in msgs_in:
-            extracted_path = filepath_extract(msg_in)
-            transform_path = filepath_transform(msg_in)
-            cmd = "sed -E -e 's/\]\]/\]/g' -e 's/\[\[/\[/g' -e 's/,[[:blank:]]*$//g'  -e 's/([[:alpha:]])-([[" \
-                  ":alpha:]])/\\1_\\2/g' -e 's/\"timestamp\":_/\"timestamp\":/g' -e 's/\"date_parts\":\[" \
-                  "null\]/\"date_parts\":\[\]/g' -e 's/^\{\"items\":\[//g' -e '/^\}$/d' -e '/^\]$/d' " \
-                  f"{extracted_path} >> {transform_path}"
-
-            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                 executable='/bin/bash')
-            stdout, stderr = p.communicate()
-            if stdout:
-                logging.info(stdout)
-            if stderr:
-                raise AirflowException(f"bash command failed for {msg_in}: {stderr}")
+        for url in release_urls:
+            crossref_release = CrossrefRelease(url)
+            transform_release(crossref_release)
 
     @staticmethod
-    def upload_release_to_gcs(**kwargs):
+    def upload_to_gcs(**kwargs):
+        """
+        Upload transformed release to a google cloud storage bucket.
+
+        kwargs is required to access task instance
+        """
         # Pull messages
-        msgs_in, environment, bucket, project_id = CrossrefTelescope.xcom_pull_messages(kwargs['ti'])
+        release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        gcs_hook = GoogleCloudStorageHook()
+        for url in release_urls:
+            crossref_release = CrossrefRelease(url)
+            blob_name = f'telescopes/crossrefmetadata/transformed/{os.path.basename(crossref_release.filepath_transform)}'
+            upload_file_to_cloud_storage(bucket, blob_name, file_path=crossref_release.filepath_transform)
 
-        for msg_in in msgs_in:
-            gcs_hook.upload(
-                bucket=bucket,
-                object=os.path.basename(filepath_transform(msg_in)),
-                filename=filepath_transform(msg_in)
-            )
+            # Push messages
+            ti: TaskInstance = kwargs['ti']
+            ti.xcom_push('blob_name', blob_name)
 
     @staticmethod
-    def load_release_to_bq(**kwargs):
-        # Add a project id to the bigquery connection, prevents error 'ValueError: INTERNAL: No default project is
-        # specified'
-        msgs_in, environment, bucket, project_id = CrossrefTelescope.xcom_pull_messages(kwargs['ti'])
+    def load_to_bq(**kwargs):
+        """
+        Upload transformed release to a bigquery table.
 
-        if environment == 'dev':
-            session = settings.Session()
-            bq_conn = Connection(
-                conn_id='bigquery_custom',
-                conn_type='google_cloud_platform',
-            )
+        kwargs is required to access task instance
+        """
+        release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-            conn_extra_json = json.dumps({'extra__google_cloud_platform__project': project_id})
-            bq_conn.set_extra(conn_extra_json)
+        # Get bucket location
+        storage_client = storage.Client()
+        bucket_object = storage_client.get_bucket(bucket)
+        location = bucket_object.location
 
-            session.query(Connection).filter(Connection.conn_id == bq_conn.conn_id).delete()
-            session.add(bq_conn)
-            session.commit()
-
-            bq_hook = BigQueryHook(bigquery_conn_id='bigquery_custom')
-        else:
-            bq_hook = BigQueryHook()
-
-        with open(CrossrefTelescope.SCHEMA_FILE_PATH, 'r') as json_file:
-            schema_fields = json.loads(json_file.read())
-
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
+        # Create dataset
+        dataset_id = CrossrefTelescope.DAG_ID
+        create_bigquery_dataset(project_id, dataset_id, location, CrossrefTelescope.DESCRIPTION)
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=CrossrefTelescope.XCOM_MESSAGES_NAME, task_ids=CrossrefTelescope.TASK_ID_LIST, include_prior_dates=False)
-        for msg_in in msgs_in:
-            try:
-                cursor.create_empty_dataset(
-                    dataset_id=CrossrefTelescope.DATASET_ID,
-                    project_id=project_id
-                )
-            except AirflowException as e:
-                logging.info(f"Dataset already exists, continuing to create table. See info message:\n{e}")
+        release_urls = ti.xcom_pull(key=CrossrefTelescope.XCOM_MESSAGES_NAME, task_ids=CrossrefTelescope.TASK_ID_LIST,
+                                    include_prior_dates=False)
+        blob_name = ti.xcom_pull(key='blob_name', task_ids=CrossrefTelescope.TASK_ID_UPLOAD,
+                                 include_prior_dates=False)
+        for url in release_urls:
+            crossref_release = CrossrefRelease(url)
+            # get release_date
+            released_date: Pendulum = pendulum.parse(crossref_release.date)
+            table_id = bigquery_partitioned_table_id(CrossrefTelescope.DAG_ID, released_date)
 
-            cursor.run_load(
-                destination_project_dataset_table=f"{CrossrefTelescope.DATASET_ID}.{table_name_from_url(msg_in)}",
-                source_uris=f"gs://{bucket}/{os.path.basename(filepath_transform(msg_in))}",
-                schema_fields=schema_fields,
-                autodetect=False,
-                source_format='NEWLINE_DELIMITED_JSON',
-            )
+            # Select schema file based on release date
+            analysis_schema_path = schema_path('telescopes')
+            schema_file_path = find_schema(analysis_schema_path, CrossrefTelescope.DAG_ID, released_date)
+            if schema_file_path is None:
+                logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
+                              f'table_name={CrossrefTelescope.DAG_ID}, release_date={released_date}')
+                exit(os.EX_CONFIG)
+
+            # Load BigQuery table
+            uri = f"gs://{bucket}/{blob_name}"
+            logging.info(f"URI: {uri}")
+            load_bigquery_table(uri, dataset_id, location, table_id, schema_file_path,
+                                SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod
     def cleanup_releases(**kwargs):
+        """
+        Delete files of downloaded, extracted and transformed release.
+
+        kwargs is required to access task instance
+        """
         # Pull messages
-        msgs_in, environment, bucket, project_id = CrossrefTelescope.xcom_pull_messages(kwargs['ti'])
+        release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        for msg_in in msgs_in:
+        for url in release_urls:
+            crossref_release = CrossrefRelease(url)
             try:
-                pathlib.Path(filepath_download(msg_in)).unlink()
+                pathlib.Path(crossref_release.filepath_download).unlink()
             except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {filepath_download(msg_in)}: {e}")
-
-            try:
-                pathlib.Path(filepath_extract(msg_in)).unlink()
-            except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {filepath_extract(msg_in)}: {e}")
+                logging.warning(f"No such file or directory {crossref_release.filepath_download}: {e}")
 
             try:
-                pathlib.Path(filepath_transform(msg_in)).unlink()
+                pathlib.Path(crossref_release.filepath_extract).unlink()
             except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {filepath_transform(msg_in)}: {e}")
+                logging.warning(f"No such file or directory {crossref_release.filepath_extract}: {e}")
+
+            try:
+                pathlib.Path(crossref_release.filepath_transform).unlink()
+            except FileNotFoundError as e:
+                logging.warning(f"No such file or directory {crossref_release.filepath_transform}: {e}")
+
