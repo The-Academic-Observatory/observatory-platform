@@ -17,11 +17,14 @@
 import pandas as pd
 import pydata_google_auth
 
-from academic_observatory.reports import chart_utils
 from .abstract_table import AbstractObservatoryTable
 from academic_observatory.reports import chart_utils
 
+
 class GenericOpenAccessTable(AbstractObservatoryTable):
+    """Generic table class for OpenAccess
+    """
+
     sql_template = """
 SELECT
   table.id as id,
@@ -54,6 +57,9 @@ WHERE
 
 
 class GenericOutputsTable(AbstractObservatoryTable):
+    """Generic table class for Outputs
+    """
+
     sql_template = """
 SELECT
   table.id as id,
@@ -80,14 +86,20 @@ WHERE
 """
 
     def clean_data(self):
+        """Clean data
+        """
+
         chart_utils.calculate_percentages(self.df,
-                                      ['oa', 'green', 'gold'],
-                                      'total')
+                                          ['oa', 'green', 'gold'],
+                                          'total')
         chart_utils.clean_output_type_names(self.df)
         super().clean_data()
 
 
 class GenericCollaborationsTable(AbstractObservatoryTable):
+    """Generic table class for Collaborations
+    """
+
     sql_template = """
 SELECT
   table.id as id,
@@ -110,6 +122,9 @@ WHERE
 
 
 class GenericPublishersTable(AbstractObservatoryTable):
+    """Generic table class for Publishers
+    """
+
     sql_template = """
 SELECT
   table.id as id,
@@ -135,13 +150,19 @@ WHERE
 """
 
     def clean_data(self):
+        """Clean data
+        """
+
         chart_utils.calculate_percentages(self.df,
-                                      ['oa', 'green', 'gold'],
-                                      'count')
+                                          ['oa', 'green', 'gold'],
+                                          'count')
         super().clean_data()
 
 
 class GenericJournalsTable(AbstractObservatoryTable):
+    """Generic table class for Journals
+    """
+
     sql_template = """
 SELECT
   table.id as id,
@@ -167,13 +188,19 @@ WHERE
 """
 
     def clean_data(self):
+        """Clean data
+        """
+
         chart_utils.calculate_percentages(self.df,
-                                      ['oa', 'green', 'gold'],
-                                      'count')
+                                          ['oa', 'green', 'gold'],
+                                          'count')
         super().clean_data()
 
 
 class GenericFundersTable(AbstractObservatoryTable):
+    """Generic table class for Funders
+    """
+
     sql_template = """
 SELECT
   table.id as id,
@@ -199,13 +226,19 @@ WHERE
 """
 
     def clean_data(self):
+        """Clean data
+        """
+
         chart_utils.calculate_percentages(self.df,
-                                      ['oa', 'green', 'gold'],
-                                      'count')
+                                          ['oa', 'green', 'gold'],
+                                          'count')
         super().clean_data()
 
 
 class GenericCitationsTable(AbstractObservatoryTable):
+    """Generic table class for Citations
+    """
+
     sql_template = """
 SELECT
   table.id as id,
@@ -242,138 +275,234 @@ WHERE
 """
 
     def clean_data(self):
-        self.df['citations_per_output'] = self.df.total_citations / \
-            self.df.total
-        self.df['citations_per_oa_output'] = self.df.oa_citations / \
-            self.df.oa
-        self.df['oa_citation_advantage'] = self.df.citations_per_oa_output / \
-            self.df.citations_per_output
+        """Clean data
+        """
+
+        self.df['citations_per_output'] = self.df.total_citations / self.df.total
+        self.df['citations_per_oa_output'] = self.df.oa_citations / self.df.oa
+        self.df['oa_citation_advantage'] = self.df.citations_per_oa_output / self.df.citations_per_output
         super().clean_data()
 
 
 class InstitutionReportTable(object):
+    """Table class for Institution Reports
+    """
+
     bq_table = 'academic-observatory-sandbox.institution.institutions_latest'
 
 
 class InstitutionOpenAccessTable(InstitutionReportTable, GenericOpenAccessTable):
+    """Table class for Institution Open Access
+    """
+
     pass
 
 
 class InstitutionOutputsTable(InstitutionReportTable, GenericOutputsTable):
+    """Table class for Institution Outputs
+    """
+
     pass
 
 
 class InstitutionCitationsTable(InstitutionReportTable, GenericCitationsTable):
+    """Table class for Institution Citations
+    """
+
     pass
 
 
 class InstitutionPublishersTable(InstitutionReportTable, GenericPublishersTable):
+    """Table class for Institution Publishers
+    """
+
     pass
 
 
 class InstitutionJournalsTable(InstitutionReportTable, GenericJournalsTable):
+    """Table class for Institution Journals
+    """
+
     pass
 
 
 class InstitutionCollaborationsTable(InstitutionReportTable, GenericCollaborationsTable):
+    """Table class for Institution Collaborations
+    """
+
     pass
 
 
 class InstitutionFundersTable(InstitutionReportTable, GenericFundersTable):
+    """Table class for Institution Funders
+    """
+
     pass
 
 
 class FunderReportTable(object):
+    """Table class for Funders Reports
+    """
+
     bq_table = 'academic-observatory-sandbox.funder.funders_latest'
 
 
 class FunderOpenAccessTable(FunderReportTable, GenericOpenAccessTable):
+    """Table class for Funders Open Access
+    """
+
     pass
 
 
 class FunderOutputsTable(FunderReportTable, GenericOutputsTable):
+    """Table class for Funders Outputs
+    """
+
     pass
 
 
 class FunderCitationsTable(FunderReportTable, GenericCitationsTable):
+    """Table class for Funders Citations
+    """
+
     pass
 
 
 class FunderPublishersTable(FunderReportTable, GenericPublishersTable):
+    """Table class for Funders Publishers
+    """
+
     pass
 
 
 class FunderJournalsTable(FunderReportTable, GenericJournalsTable):
+    """Table class for Funders Journals
+    """
+
     pass
 
 
 class FunderCollaborationsTable(FunderReportTable, GenericCollaborationsTable):
+    """Table class for Funders Collaborations
+    """
+
     pass
 
 
 class FunderFundersTable(FunderReportTable, GenericFundersTable):
+    """Table class for Funders
+    """
+
     pass
 
 
 class CountryReportTable(object):
+    """Table class for Country Reports
+    """
+
     bq_table = 'academic-observatory-sandbox.country.countries_latest'
 
 
 class CountryOpenAccessTable(CountryReportTable, GenericOpenAccessTable):
+    """Table class for Country Open Access
+    """
+
     pass
 
 
 class CountryOutputsTable(CountryReportTable, GenericOutputsTable):
+    """Table class for Country Outputs
+    """
+
     pass
 
 
 class CountryCitationsTable(CountryReportTable, GenericCitationsTable):
+    """Table class for Country Citations
+    """
+
     pass
 
 
 class CountryPublishersTable(CountryReportTable, GenericPublishersTable):
+    """Table class for Country Publishers
+    """
+
     pass
 
 
 class CountryJournalsTable(CountryReportTable, GenericJournalsTable):
+    """Table class for Country Journals
+    """
+
     pass
 
 
 class CountryCollaborationsTable(CountryReportTable, GenericCollaborationsTable):
+    """Table class for Country Collaborations
+    """
+
     pass
 
 
 class CountryFundersTable(CountryReportTable, GenericFundersTable):
+    """Table class for Country Funders
+    """
+
     pass
 
 
 class GroupReportTable(object):
+    """Table class for Group Reports
+    """
+
     bq_table = 'academic-observatory-sandbox.group.groups_latest'
 
 
 class GroupOpenAccessTable(GroupReportTable, GenericOpenAccessTable):
+    """Table class for Group Open Access
+    """
+
     pass
 
 
 class GroupOutputsTable(GroupReportTable, GenericOutputsTable):
+    """Table class for Group Outputs
+    """
+
     pass
 
 
 class GroupCitationsTable(GroupReportTable, GenericCitationsTable):
+    """Table class for Group Citations
+    """
+
     pass
 
 
 class GroupPublishersTable(GroupReportTable, GenericPublishersTable):
+    """Table class for Group Publishers
+    """
+
     pass
 
 
 class GroupJournalsTable(GroupReportTable, GenericJournalsTable):
+    """Table class for Group Journals
+    """
+
     pass
 
 
 class GroupCollaborationsTable(GroupReportTable, GenericCollaborationsTable):
+    """Table class for Group Collaborations
+    """
+
     pass
 
 
 class GroupFundersTable(GroupReportTable, GenericFundersTable):
+    """Table class for Group Funders
+    """
+
     pass

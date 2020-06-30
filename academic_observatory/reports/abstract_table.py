@@ -14,11 +14,16 @@
 
 # Author: Cameron Neylon & Richard Hosking
 
-from academic_observatory.reports import defaults
 import pandas as pd
+
+from academic_observatory.reports import defaults
 from academic_observatory.reports import chart_utils
 
+
 class AbstractObservatoryTable:
+    """Abstract Base Class for Tables
+    """
+
     sql_template = ''
     bq_table = ''
 
@@ -28,8 +33,10 @@ class AbstractObservatoryTable:
                  scope: str = defaults.scope,
                  focus_year: int = None,
                  year_range: tuple = None,
-                 collect_and_run: bool=True,
+                 collect_and_run: bool = True,
                  **kwargs):
+        """Initialisation function
+        """
 
         if not credentials:
             credentials = report_utils.get_gcp_credentials()
@@ -44,18 +51,26 @@ class AbstractObservatoryTable:
             self.clean_data()
 
     def __repr__(self):
+        """Return string for the object
+        """
+
         return self.df
 
     def format_sql(self):
+        """Format SQL data
+        """
+
         sql = self.sql_template.format(bq_table=self.bq_table,
-                                  year_range=self.year_range,
-                                  focus_year=self.focus_year,
-                                  scope=self.scope)
-        return sql 
+                                       year_range=self.year_range,
+                                       focus_year=self.focus_year,
+                                       scope=self.scope)
+        return sql
 
     def collect_data(self,
                      dialect='standard',
                      verbose=False):
+        """Get the data from BigQuery
+        """
 
         self.df = pd.io.gbq.read_gbq(self.format_sql(),
                                      project_id=self.project_id,

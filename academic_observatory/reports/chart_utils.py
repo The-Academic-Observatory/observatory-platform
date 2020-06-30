@@ -18,10 +18,7 @@ import pandas as pd
 import seaborn as sns
 from inspect import signature
 
-
-
 from academic_observatory.reports.defaults import *
-
 
 
 def _coki_standard_format(style='seaborn-white',
@@ -33,7 +30,6 @@ def _coki_standard_format(style='seaborn-white',
     sns.set_context(context)
 
 
-#TODO: cleanup required, mainly on country names #
 def clean_geo_names(df: pd.DataFrame) -> pd.DataFrame:
     """Convenience function for standardising country names
     
@@ -148,7 +144,7 @@ def calculate_pc_change(df: pd.DataFrame,
     for column in columns:
         new_column_name = column + column_name_add
         df[new_column_name] = list(df.groupby(
-            id_column)[column].pct_change()*100)
+            id_column)[column].pct_change() * 100)
     return df
 
 
@@ -184,7 +180,6 @@ def calculate_percentages(df: pd.DataFrame,
     return df
 
 
-#TODO: Check that this calculation is up to date with our standard practise
 def calculate_confidence_interval(df: pd.DataFrame,
                                   columns: list,
                                   total_column: str = 'total',
@@ -209,13 +204,13 @@ def calculate_confidence_interval(df: pd.DataFrame,
 
     for column in columns:
         new_column_name = column + column_name_add
-        df[new_column_name] = 100*1.96*(
-            df[column] / 100 *
-            (
-                1 - df[column] / 100
-            ) /
-            df[total_column]
-        )**(.5)
+        df[new_column_name] = 100 * 1.96 * (
+                df[column] / 100 *
+                (
+                        1 - df[column] / 100
+                ) /
+                df[total_column]
+        ) ** (.5)
     return df
 
 
