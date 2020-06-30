@@ -31,9 +31,12 @@ class CoordinatesMap(AbstractObservatoryChart):
     def __init__(self,
                  df: pd.DataFrame,
                  identifier: str,
-                 focus_year: int=None,
+                 focus_year: int = None,
                  xlim: tuple = (-170, 180),
                  ylim: tuple = (-60, 85)):
+        """Initialisation function
+        """
+
         self.df = df
         self.identifier = identifier
         self.focus_year = focus_year
@@ -41,11 +44,13 @@ class CoordinatesMap(AbstractObservatoryChart):
         self.ylim = ylim
 
     def process_data(self, **kwargs):
+        """Data selection and processing function
+        """
+
         figdata = self.df[(self.df.published_year == self.focus_year) &
                           (self.df.id == self.identifier)]
         figdata.dropna(inplace=True)
-        figdata[['latitude', 'longitude']
-                ] = figdata.coordinates.str.split(', ', expand=True)
+        figdata[['latitude', 'longitude']] = figdata.coordinates.str.split(', ', expand=True)
         figdata['latitude'] = figdata.latitude.apply(float)
         figdata['longitude'] = figdata.longitude.apply(float)
         self.collab_gdf = geopandas.GeoDataFrame(
@@ -56,6 +61,9 @@ class CoordinatesMap(AbstractObservatoryChart):
         self.collab_gdf.crs = self.world.crs
 
     def plot(self, ax=None, **kwargs):
+        """Plotting function
+        """
+
         if not ax:
             self.fig, ax = plt.subplots()
         else:

@@ -60,6 +60,9 @@ class FunderGraph(AbstractObservatoryChart):
         super().__init__(df)
 
     def process_data(self):
+        """Data selection and processing function
+        """
+
         data = self.df[self.df.published_year == self.focus_year]
         if self.identifier:
             data = data[data.id == self.identifier]
@@ -67,16 +70,16 @@ class FunderGraph(AbstractObservatoryChart):
 
         data = data.melt(id_vars=['published_year', 'name'],
                          var_name='variables')
-        # Shorten funder names to avoid an issue that can arise where
-        # the length of the axis labels leads to a matplotlib error
-        # when the figure is drawn ValueError: left cannot be >= right
-        # TODO mapping of nicely formatted funder names
+
         data.loc[:, 'name'] = data['name'].apply(
             lambda s: s[0:self.shorten_names])
         self.figdata = data
         return self.figdata
 
     def plot(self):
+        """Plotting function
+        """
+
         self.fig, axes = plt.subplots(
             nrows=1, ncols=2, sharey=True, figsize=(8, 4))
         sns.barplot(y="name",

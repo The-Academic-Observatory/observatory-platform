@@ -48,11 +48,15 @@ class AbstractObservatoryChart(ABC):
     """
 
     def __init__(self, df, **kwargs):
+        """Initialisation function
+        """
+
         self.df = df
 
     def _check_df(self):
-        #
-        # TODO Some error checking on df being in right form
+        """Error checking on df being in right form
+        """
+
         return
 
     @abstractmethod

@@ -35,6 +35,9 @@ class GenericTimeChart(AbstractObservatoryChart):
                  columns: list,
                  identifier: str,
                  year_range: tuple = (2005, 2020)):
+        """Initialisation function
+        """
+
         self.df = df
         self.year_range = year_range
         self.columns = columns
@@ -42,6 +45,9 @@ class GenericTimeChart(AbstractObservatoryChart):
         self.melt_var_name = 'variable'
 
     def process_data(self):
+        """Data selection and processing function
+        """
+
         columns = ['id', 'Year of Publication'] + self.columns
         figdata = self.df[columns]
         figdata = self.df.melt(
@@ -53,7 +59,7 @@ class GenericTimeChart(AbstractObservatoryChart):
             (figdata[self.melt_var_name].isin(self.columns)) &
             (figdata.id == self.identifier) &
             (figdata['Year of Publication'].isin(range(*self.year_range)))
-        ]
+            ]
         figdata.value = figdata.value.astype('float64')
 
         figdata.sort_values('Year of Publication', inplace=True)
@@ -61,6 +67,9 @@ class GenericTimeChart(AbstractObservatoryChart):
         return self.figdata
 
     def plot(self, palette=None, ax=None, lines=None, **kwargs):
+        """Plotting function
+        """
+
         if not palette:
             palette = sns.color_palette('husl', n_colors=len(self.columns))
         if not ax:

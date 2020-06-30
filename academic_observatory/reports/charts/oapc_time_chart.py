@@ -38,6 +38,8 @@ class OApcTimeChart(GenericTimeChart):
                  identifier: str,
                  year_range: tuple = (2000, 2020),
                  ):
+        """Initialisation function
+        """
 
         columns = defaults.oa_types
         super().__init__(df, columns, identifier, year_range)
@@ -45,5 +47,8 @@ class OApcTimeChart(GenericTimeChart):
 
     def plot(self, palette=defaults.oatypes_palette,
              ax=None, **kwargs):
+        """Plotting function
+        """
+
         self.fig = super().plot(palette, ax=ax, **kwargs)
         return self.fig

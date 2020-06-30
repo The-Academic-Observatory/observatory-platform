@@ -28,12 +28,16 @@ from academic_observatory.reports.charts.scatter_plot import *
 
 
 class GlobalComparisonLayout(AbstractObservatoryChart):
-    """Layout containing global and regional comparison scatter plot"""
+    """Layout containing global and regional comparison scatter plot
+    """
 
     def __init__(self,
                  df: pd.DataFrame,
                  identifier: str,
                  focus_year: int):
+        """Initialisation function
+        """
+
         self.df = df
         self.identifier = identifier
         self.focus_year = focus_year
@@ -57,10 +61,16 @@ class GlobalComparisonLayout(AbstractObservatoryChart):
                                          focus_id=self.identifier)
 
     def process_data(self):
+        """Data selection and processing function
+        """
+
         self.globalscatter.process_data()
         self.regionscatter.process_data()
 
     def plot(self):
+        """Plotting function
+        """
+
         self.fig, axes = plt.subplots(nrows=1,
                                       ncols=2,
                                       figsize=(8, 3))
