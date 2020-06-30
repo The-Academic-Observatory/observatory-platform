@@ -24,6 +24,7 @@ from IPython.display import HTML
 
 from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports import chart_utils
+from academic_observatory.reports import defaults
 
 
 class RankChart(AbstractObservatoryChart):
@@ -71,8 +72,6 @@ class RankChart(AbstractObservatoryChart):
         """Data selection and processing function
 
         param: kwargs: Keyword arguments, currently unused
-
-        TODO: Abstraction of the coloring for the error bars
         """
         figdata = self.df
         figdata = figdata[figdata[self.filter_name] == self.filter_value]
@@ -83,8 +82,7 @@ class RankChart(AbstractObservatoryChart):
                                       ascending=False)[0:self.rank_length]
         figdata['Rank'] = figdata[self.rankcol].rank(ascending=False)
 
-        # TODO Abstract the coloring
-        figdata['color'] = figdata['region'].map(region_palette)
+        figdata['color'] = figdata['region'].map(defaults.region_palette)
 
         if not self.colordict:
             if 'color' in figdata.columns:
@@ -148,8 +146,8 @@ class RankChart(AbstractObservatoryChart):
             right_yaxis.set_ylim(*forcerange)
         else:
             right_yaxis.set_ylim(
-                self.df.iloc[-1].min()-valaxpad,
-                self.df.iloc[-1].max()+valaxpad)
+                self.df.iloc[-1].min() - valaxpad,
+                self.df.iloc[-1].max() + valaxpad)
 
         def scale(y, lines=len(self.df.columns),
                   dataymin=self.df.iloc[-1].min(),
@@ -157,16 +155,13 @@ class RankChart(AbstractObservatoryChart):
                   padding=valaxpad,
                   forcerange=forcerange):
             """Function to scale the value column to plot correctly
-
-            TODO: Figure out if this can be done more cleanly with
-            matplotlib transform methods.
             """
             if len(forcerange) == 2:
                 ymin, ymax = forcerange
             else:
                 ymin = dataymin - padding
                 ymax = dataymax + padding
-            return (0.5 + (ymax-y)/(ymax-ymin)*lines)
+            return (0.5 + (ymax - y) / (ymax - ymin) * lines)
 
         self.df.iloc[1] = self.df.iloc[1].apply(scale)
         for col in self.df.columns:
@@ -195,7 +190,7 @@ class RankChart(AbstractObservatoryChart):
         y_ticks = [*range(1, lines + 1)]
         left_yaxis.invert_yaxis()
         left_yaxis.set_yticks(y_ticks)
-        left_yaxis.set_ylim((lines+0.5, 0.5))
+        left_yaxis.set_ylim((lines + 0.5, 0.5))
         left_yaxis.set_xticks([-0.1, 1])
 
         left_yaxis.spines['left'].set_position(('data', -0.1))
@@ -212,7 +207,7 @@ class RankChart(AbstractObservatoryChart):
         if show_rank_axis:
             rank_yaxis.spines["right"].set_position(('data', -0.05))
             rank_yaxis.set_yticks(y_ticks)
-            rank_yaxis.set_ylim((lines+0.5, 0.5))
+            rank_yaxis.set_ylim((lines + 0.5, 0.5))
             rank_yaxis.spines['top'].set_visible(False)
             rank_yaxis.spines['bottom'].set_visible(False)
             rank_yaxis.spines['left'].set_visible(False)

@@ -59,6 +59,9 @@ class FunderCountBarGraph(AbstractObservatoryChart):
         super().__init__(df)
 
     def process_data(self):
+        """Data selection and processing function
+        """
+
         data = self.df[self.df.published_year == self.focus_year]
         if self.identifier:
             data = data[data.id == self.identifier]
@@ -69,13 +72,16 @@ class FunderCountBarGraph(AbstractObservatoryChart):
         # Shorten funder names to avoid an issue that can arise where
         # the length of the axis labels leads to a matplotlib error
         # when the figure is drawn ValueError: left cannot be >= right
-        # TODO mapping of nicely formatted funder names
+
         data.loc[:, 'name'] = data['name'].apply(
             lambda s: s[0:self.shorten_names])
         self.figdata = data
         return self.figdata
 
-    def plot(self, ax = None, **kwargs):
+    def plot(self, ax=None, **kwargs):
+        """Plotting function
+        """
+
         fig_kwargs = chart_utils._collect_kwargs_for(plt.figure, kwargs)
         if not ax:
             self.fig, ax = plt.subplots(**fig_kwargs)

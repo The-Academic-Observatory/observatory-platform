@@ -27,13 +27,19 @@ from academic_observatory.reports import chart_utils
 
 
 class CollaborationsBar(AbstractObservatoryChart):
+    """Generates a bar chart of Collaborations
+    """
+
     def __init__(self,
                  df: pd.DataFrame,
                  identifier: str,
                  focus_year: int,
                  own_count: int,
-                 type:str = 'percent',
+                 type: str = 'percent',
                  number: int = 10):
+        """Initialisation function
+        """
+
         self.df = df
         self.identifier = identifier
         self.focus_year = focus_year
@@ -42,6 +48,9 @@ class CollaborationsBar(AbstractObservatoryChart):
         self.number = number
 
     def process_data(self, **kwargs):
+        """Data selection and processing function
+        """
+
         figdata = self.df[(self.df.published_year == self.focus_year) &
                           (self.df.id == self.identifier)
                           ].sort_values('count', ascending=False)[['name', 'count']][0:self.number]
@@ -55,6 +64,9 @@ class CollaborationsBar(AbstractObservatoryChart):
         return self.figdata
 
     def plot(self, ax=None, **kwargs):
+        """Plotting function
+        """
+
         if not ax:
             self.fig, ax = plt.subplots()
         else:
@@ -68,8 +80,8 @@ class CollaborationsBar(AbstractObservatoryChart):
             label.set_rotation(45)
             label.set_ha('right')
         ax.get_legend().set_visible(False)
-        if self.type == 'percent' :
-            ax.set(ylabel = 'Collaborations (% of outputs)', xlabel=None)
+        if self.type == 'percent':
+            ax.set(ylabel='Collaborations (% of outputs)', xlabel=None)
         else:
             ax.set(ylabel='Count of collaborative outputs', xlabel=None)
         return self.fig

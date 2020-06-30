@@ -36,7 +36,7 @@ def hex2rgb(c):
     return tuple(int(c[i:i + 2], 16) / 256.0 for i in (1, 3, 5))
 
 
-def IdeogramArc(start=0, end=60, radius=1.0, width=0.2, ax=None, color=(1, 0, 0)):
+def ideogram_arc(start=0, end=60, radius=1.0, width=0.2, ax=None, color=(1, 0, 0)):
     # start, end should be in [0, 360)
     if start > end:
         start, end = end, start
@@ -69,7 +69,7 @@ def IdeogramArc(start=0, end=60, radius=1.0, width=0.2, ax=None, color=(1, 0, 0)
              Path.CLOSEPOLY,
              ]
 
-    if ax == None:
+    if ax is None:
         return verts, codes
     else:
         path = Path(verts, codes)
@@ -77,7 +77,7 @@ def IdeogramArc(start=0, end=60, radius=1.0, width=0.2, ax=None, color=(1, 0, 0)
         ax.add_patch(patch)
 
 
-def ChordArc(start1=0, end1=60, start2=180, end2=240, radius=1.0, chordwidth=0.7, ax=None, color=(1, 0, 0)):
+def chord_arc(start1=0, end1=60, start2=180, end2=240, radius=1.0, chordwidth=0.7, ax=None, color=(1, 0, 0)):
     # start, end should be in [0, 360)
     if start1 > end1:
         start1, end1 = end1, start1
@@ -121,7 +121,7 @@ def ChordArc(start1=0, end1=60, start2=180, end2=240, radius=1.0, chordwidth=0.7
              Path.CURVE4,
              ]
 
-    if ax == None:
+    if ax is None:
         return verts, codes
     else:
         path = Path(verts, codes)
@@ -129,7 +129,7 @@ def ChordArc(start1=0, end1=60, start2=180, end2=240, radius=1.0, chordwidth=0.7
         ax.add_patch(patch)
 
 
-def selfChordArc(start=0, end=60, radius=1.0, chordwidth=0.7, ax=None, color=(1, 0, 0)):
+def self_chord_arc(start=0, end=60, radius=1.0, chordwidth=0.7, ax=None, color=(1, 0, 0)):
     # start, end should be in [0, 360)
     if start > end:
         start, end = end, start
@@ -156,7 +156,7 @@ def selfChordArc(start=0, end=60, radius=1.0, chordwidth=0.7, ax=None, color=(1,
              Path.CURVE4,
              ]
 
-    if ax == None:
+    if ax is None:
         return verts, codes
     else:
         path = Path(verts, codes)
@@ -164,16 +164,17 @@ def selfChordArc(start=0, end=60, radius=1.0, chordwidth=0.7, ax=None, color=(1,
         ax.add_patch(patch)
 
 
-def chordDiagram(X, ax, colors=None, width=0.1, pad=2, chordwidth=0.7):
+def chord_diagram(x, ax, colors=None, width=0.1, pad=2, chordwidth=0.7):
     """Plot a chord diagram
     Parameters
     ----------
-    X :
+    x :
         flux data, X[i, j] is the flux from i to j
     ax :
         matplotlib `axes` to show the plot
     colors : optional
-        user defined colors in rgb format. Use function hex2rgb() to convert hex color to rgb color. Default: d3.js category10
+        user defined colors in rgb format. Use function hex2rgb() to convert hex color to rgb color.
+        Default: d3.js category10
     width : optional
         width/thickness of the ideogram arc
     pad : optional
@@ -182,7 +183,7 @@ def chordDiagram(X, ax, colors=None, width=0.1, pad=2, chordwidth=0.7):
         position of the control points for the chords, controlling the shape of the chords
     """
     # X[i, j]:  i -> j
-    x = X.sum(axis=1)  # sum over rows
+    x = x.sum(axis=1)  # sum over rows
     ax.set_xlim(-1.1, 1.1)
     ax.set_ylim(-1.1, 1.1)
 
@@ -199,7 +200,7 @@ def chordDiagram(X, ax, colors=None, width=0.1, pad=2, chordwidth=0.7):
 
     pos = {}
     arc = []
-    nodePos = []
+    nodepos = []
     start = 0
     for i in range(len(x)):
         end = start + y[i]
@@ -210,8 +211,8 @@ def chordDiagram(X, ax, colors=None, width=0.1, pad=2, chordwidth=0.7):
             angle -= 90
         else:
             angle -= 270
-        nodePos.append(tuple(polar2xy(1.1, 0.5 * (start + end) * np.pi / 180.)) + (angle,))
-        z = (X[i, :] / x[i].astype(float)) * (end - start)
+        nodepos.append(tuple(polar2xy(1.1, 0.5 * (start + end) * np.pi / 180.)) + (angle,))
+        z = (x[i, :] / x[i].astype(float)) * (end - start)
         ids = np.argsort(z)
         z0 = start
         for j in ids:
@@ -221,17 +222,16 @@ def chordDiagram(X, ax, colors=None, width=0.1, pad=2, chordwidth=0.7):
 
     for i in range(len(x)):
         start, end = arc[i]
-        IdeogramArc(start=start, end=end, radius=1.0, ax=ax, color=colors[i], width=width)
+        ideogram_arc(start=start, end=end, radius=1.0, ax=ax, color=colors[i], width=width)
         start, end = pos[(i, i)]
-        selfChordArc(start, end, radius=1. - width, color=colors[i], chordwidth=chordwidth * 0.7, ax=ax)
+        self_chord_arc(start, end, radius=1. - width, color=colors[i], chordwidth=chordwidth * 0.7, ax=ax)
         for j in range(i):
             color = colors[i]
-            if X[i, j] > X[j, i]:
+            if x[i, j] > x[j, i]:
                 color = colors[j]
             start1, end1 = pos[(i, j)]
             start2, end2 = pos[(j, i)]
-            ChordArc(start1, end1, start2, end2,
-                     radius=1. - width, color=colors[i], chordwidth=chordwidth, ax=ax)
+            chord_arc(start1, end1, start2, end2,
+                      radius=1. - width, color=colors[i], chordwidth=chordwidth, ax=ax)
 
-    # print(nodePos)
-    return nodePos
+    return nodepos

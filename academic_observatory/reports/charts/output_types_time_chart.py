@@ -28,6 +28,7 @@ from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports.charts import generic_time_chart
 from .generic_time_chart import GenericTimeChart
 
+
 class OutputTypesTimeChart(GenericTimeChart):
     """Generate a Plot of Output Types Over Time
 
@@ -39,11 +40,17 @@ class OutputTypesTimeChart(GenericTimeChart):
                  identifier: str,
                  year_range: tuple = (2000, 2020)
                  ):
+        """Initialisation function
+        """
+
         columns = ['Output Types', 'value']
         super().__init__(df, columns, identifier, year_range)
         self.melt_var_name = 'Output Types'
 
     def process_data(self):
+        """Data selection and processing function
+        """
+
         self.df['Output Types'] = self.df.type
         self.df['value'] = self.df.total
         columns = ['id', 'Year of Publication'] + self.columns
@@ -57,6 +64,9 @@ class OutputTypesTimeChart(GenericTimeChart):
              palette=defaults.outputs_palette,
              ax=None,
              **kwargs):
+        """Plotting function
+        """
+
         super().plot(palette=defaults.outputs_palette,
                      ax=ax, **kwargs)
         plt.ylabel('Number of Outputs')

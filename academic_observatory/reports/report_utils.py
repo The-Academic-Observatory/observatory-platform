@@ -21,9 +21,6 @@ import pydata_google_auth
 from num2words import num2words
 
 from precipy.main import render_file
-from precipy.storage import GoogleCloudStorage
-
-from academic_observatory.reports import defaults
 from academic_observatory.reports.charts.oapc_time_chart import *
 
 
@@ -38,7 +35,6 @@ def create_new_report(dir):
 def execute_report():
     """ Execute the report in the specified directory.
 
-    :param dir: the target directory.
     """
     render_file(report_template, analytics_modules, storages=storages)
 
@@ -54,6 +50,8 @@ def generate_table_data(batch,
                         decimals: int = 0,
                         short_column_names: list = None,
                         column_alignments=None) -> dict:
+    """Generate and tidy table data
+    """
 
     table_data = pd.DataFrame()
     df = df[df[identifier_column] == identifier]
@@ -80,13 +78,16 @@ def generate_table_data(batch,
 
 
 def get_gcp_credentials():
-    SCOPES = [
+    """Get credentials for Google Cloud Platform
+    """
+
+    scopes = [
         'https://www.googleapis.com/auth/cloud-platform',
         'https://www.googleapis.com/auth/drive',
     ]
 
     credentials = pydata_google_auth.get_user_credentials(
-        SCOPES,
+        scopes,
     )
     return credentials
 
@@ -123,19 +124,19 @@ def close_comparators(df: pd.DataFrame,
     unique_ids = comparison_data.id.unique()
     comparison_data = comparison_data.set_index('id')
 
-    #unique_years = comparison_data.published_year.unique()
+    # unique_years = comparison_data.published_year.unique()
 
     comptable = pd.DataFrame(index=unique_ids)
     for variable in variables:
         org_value = comparison_data.loc[identifier, variable]
         scale = comparison_data[variable].max()
         comptable[variable] = (
-            (comparison_data[variable] - org_value)/scale)**2
+                                      (comparison_data[variable] - org_value) / scale) ** 2
     comptable['sum'] = comptable.sum(axis=1)
-    comptable['diff'] = (comptable.sum())**2
+    comptable['diff'] = (comptable.sum()) ** 2
     comptable.sort_values('sum', inplace=True, ascending=True)
 
-    return list(comptable[0:number+1].index.values)
+    return list(comptable[0:number + 1].index.values)
 
 
 def get_biggest(df: pd.DataFrame,
@@ -207,24 +208,24 @@ def generate_comparison_group(df: pd.DataFrame,
     if 'percent_total_oa' not in df.columns:
         df['percent_total_oa'] = df.percent_oa
     comparators = close_comparators(
-        df, identifier, focus_year, number=number, 
+        df, identifier, focus_year, number=number,
         variables=variables, filter_column=filter_column)
 
     extras = []
     if include_biggest:
         biggest = get_biggest(df, identifier, focus_year,
                               total_column='total', filter_column=filter_column)
-        comparators.pop(len(comparators)-1)
+        comparators.pop(len(comparators) - 1)
         extras.append(biggest)
 
     if include_topoa:
         try:
             topoa = get_biggest(df, identifier, focus_year,
-                            total_column='percent_total_oa', filter_column=filter_column)
-        except KeyError: # changing over to 'percent_oa' as preferred name
+                                total_column='percent_total_oa', filter_column=filter_column)
+        except KeyError:  # changing over to 'percent_oa' as preferred name
             topoa = get_biggest(df, identifier, focus_year,
-                            total_column='percent_oa', filter_column=filter_column)
-        comparators.pop(len(comparators)-1)
+                                total_column='percent_oa', filter_column=filter_column)
+        comparators.pop(len(comparators) - 1)
         extras.append(topoa)
     return comparators + extras
 
@@ -307,7 +308,7 @@ def is_ranked(df: pd.DataFrame,
 
     try:
         df.sort_values(column, inplace=True, ascending=False)
-    except KeyError: #switching from percent_total_oa to percent_oa
+    except KeyError:  # switching from percent_total_oa to percent_oa
         return None
     if filter_column:
         same = df[df.id == identifier][filter_column].unique()[0]
@@ -325,7 +326,7 @@ def is_ranked(df: pd.DataFrame,
         return rank
 
     if rank_kwargs.get('pct', False):
-        text = f"""{num2words(int(rank*100), **num2words_kwargs)} percentile"""
+        text = f"""{num2words(int(rank * 100), **num2words_kwargs)} percentile"""
     else:
         text = num2words(rank, **num2words_kwargs)
     if verbose:
@@ -337,18 +338,17 @@ def is_ranked(df: pd.DataFrame,
 def generate_highlights(df: pd.DataFrame,
                         identifier: str,
                         focus_year: int,
-                        number: int = 5, 
+                        number: int = 5,
                         filter_column='country',
-                        measures = ['percent_total_oa', 'percent_gold', 'percent_green',
-                'citations_per_output', 'oa_citation_advantage', 'total']):
-
+                        measures=['percent_total_oa', 'percent_gold', 'percent_green',
+                                  'citations_per_output', 'oa_citation_advantage', 'total']):
     nice_text = {
-        'percent_total_oa': 'overall percentage of open access', 
-        'percent_oa' : 'overall percentage of open access',
-        'percent_gold': 'proportion of outputs published open access', 
+        'percent_total_oa': 'overall percentage of open access',
+        'percent_oa': 'overall percentage of open access',
+        'percent_gold': 'proportion of outputs published open access',
         'percent_green': 'proportion of outputs available through a repository',
-        'citations_per_output': 'average citations per output', 
-        'oa_citation_advantage': 'increase in citations for open access outputs', 
+        'citations_per_output': 'average citations per output',
+        'oa_citation_advantage': 'increase in citations for open access outputs',
         'total': 'overall output count'
     }
     highlights = []
@@ -358,35 +358,36 @@ def generate_highlights(df: pd.DataFrame,
             continue
         if rank < 201:
             highlights.append({'type': 'Ranked',
-                               'measure' : measure,
+                               'measure': measure,
                                'scope': 'in the world',
                                'value': num2words(rank, to='ordinal')})
 
         rank = is_ranked(df, identifier, focus_year, measure, filter_column, do_num2words=False)
         if rank < 26 and (filter_column is not None):
             highlights.append({'type': 'Ranked',
-                               'measure' : measure,
+                               'measure': measure,
                                'scope': f'in the {filter_column}',
                                'value': num2words(rank, to='ordinal')})
 
         position = general_text_comparison(df, identifier, focus_year, measure, None)
         if position in ['somewhat larger than', 'substantially larger than']:
             highlights.append({'type': 'Has',
-                               'measure' : measure,
+                               'measure': measure,
                                'scope': 'the global average',
                                'value': position})
-        
+
         position = general_text_comparison(df, identifier, focus_year, measure, filter_column)
         if position in ['somewhat larger than', 'substantially larger than'] and (
-            filter_column is not None):
+                filter_column is not None):
             highlights.append({'type': 'Has',
-                               'measure' : measure,
+                               'measure': measure,
                                'scope': f'the average for the {filter_column}',
                                'value': position})
 
     highlight_strings = []
     for highlight in highlights:
-        string = f"""{highlight['type']} {highlight['value']} {highlight['scope']} on {nice_text[highlight['measure']]}"""
+        string = f"""{highlight['type']} {highlight['value']} {highlight['scope']} 
+on {nice_text[highlight['measure']]}"""
         string = string.capitalize()
         highlight_strings.append(string)
     return highlight_strings

@@ -25,6 +25,7 @@ from abc import ABC, abstractmethod
 
 from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports import chart_utils
+from academic_observatory.reports.chart_utils import _collect_kwargs_for
 
 
 class TimePlotLayout(AbstractObservatoryChart):
@@ -34,7 +35,7 @@ class TimePlotLayout(AbstractObservatoryChart):
     def __init__(self, df,
                  plots,
                  **kwargs):
-        """Init function
+        """Initialisation function
 
         param: df: pd.DataFrame in COKI standard format
         param: plots: a list of dicts, each of which must
@@ -61,6 +62,9 @@ class TimePlotLayout(AbstractObservatoryChart):
         super().__init__(df)
 
     def process_data(self, **kwargs):
+        """Data selection and processing function
+        """
+
         self.plot_data = [None for _ in range(len(self.plots))]
         for i, plot in enumerate(self.plots):
             year_range = plot.get('year_range')
@@ -68,13 +72,15 @@ class TimePlotLayout(AbstractObservatoryChart):
             self.plot_data[i] = self.df[
                 self.df.published_year.isin(years) &
                 self.df.id.isin(plot.get('unis'))
-            ].sort_values('published_year')
+                ].sort_values('published_year')
 
     def plot(self, fig=None,
              ylabel_adjustment=0.025,
              panel_labels=False,
              panellable_adjustment=0.01,
              **kwargs):
+        """Plotting function
+        """
 
         figure_kwargs = {k: kwargs[k] for k in kwargs.keys() &
                          {'figsize', 'sharey', 'sharex'}}
@@ -92,7 +98,7 @@ class TimePlotLayout(AbstractObservatoryChart):
                 ax_df = self.plot_data[i]
                 ax_data = ax_df[ax_df.id == uni]
                 ax_data.plot(x='published_year', y=plot.get('y_column'),
-                             ax=ax, legend=False, title=id2name(self.df, uni))
+                             ax=ax, legend=False, title=chart_utils.id2name(self.df, uni))
                 if plot.get('markerline'):
                     if ax.is_first_row():
                         ax.axvline(plot.get('markerline'),

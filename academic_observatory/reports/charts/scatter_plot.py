@@ -27,6 +27,7 @@ from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports.chart_utils import _collect_kwargs_for
 from academic_observatory.reports.defaults import *
 
+
 class ScatterPlot(AbstractObservatoryChart):
     """
     Scatterplot based on sns.scatterplot for COKI data
@@ -101,16 +102,14 @@ class ScatterPlot(AbstractObservatoryChart):
 
         Currently is hard-coded to sort based on region and
         set an order that works reasonably well for the OA plots.
-
-        TODO Abstract the ordering and colors for better flexibility
         """
 
         figdata = self.df
         figdata = figdata[figdata[self.filter_name].isin(self.filter_value)]
         sorter = ['Asia', 'Europe', 'North America',
                   'Latin America', 'Africa', 'Oceania']
-        sorterIndex = dict(zip(sorter, range(len(sorter))))
-        figdata.loc[:, 'order'] = figdata.region.map(sorterIndex)
+        sorter_index = dict(zip(sorter, range(len(sorter))))
+        figdata.loc[:, 'order'] = figdata.region.map(sorter_index)
         figdata = figdata.sort_values('order', ascending=True)
         self.df = figdata
         return self.df
@@ -200,9 +199,6 @@ class ScatterPlot(AbstractObservatoryChart):
         :type frameinterval: int, optional
         :return: HTML5 video representation of the animation
         :rtype:
-
-        TODO Generalise the output form to allow for JS and other
-        representations of the animation.
         """
 
         fig_kwargs = _collect_kwargs_for(plt.figure, kwargs)
@@ -255,4 +251,3 @@ class ScatterPlot(AbstractObservatoryChart):
                      fontsize=14,
                      verticalalignment='top')
         plt.close()
-
