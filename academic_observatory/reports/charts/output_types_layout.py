@@ -29,13 +29,17 @@ from academic_observatory.reports.charts.output_types_pie_chart import *
 
 
 class OutputTypesLayout(AbstractObservatoryChart):
-    """A Layout containing graph of output types over time and pie chart"""
+    """A Layout containing graph of output types over time and pie chart
+    """
 
     def __init__(self,
                  df: pd.DataFrame,
                  identifier: str,
                  focus_year: int,
                  year_range: tuple = (2000, 2020)):
+        """Initialisation function
+        """
+
         self.df = df
         self.focus_year = focus_year
         self.identifier = identifier
@@ -49,10 +53,16 @@ class OutputTypesLayout(AbstractObservatoryChart):
                                                    self.focus_year)
 
     def process_data(self, **kwargs):
+        """Data selection and processing function
+        """
+
         self.outputstimechart.process_data()
         self.outputspiechart.process_data()
 
     def plot(self, **kwargs):
+        """Plotting function
+        """
+
         self.fig, axes = plt.subplots(nrows=1,
                                       ncols=2,
                                       figsize=(8, 3))

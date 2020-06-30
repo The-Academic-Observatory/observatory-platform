@@ -29,7 +29,8 @@ from academic_observatory.reports.charts.bar_comparison_chart import *
 
 
 class OpenAccessDetailsLayout(AbstractObservatoryChart):
-    """A Layout containing the OA levels over time and a comparison bar chart"""
+    """A Layout containing the OA levels over time and a comparison bar chart
+    """
 
     def __init__(self,
                  df: pd.DataFrame,
@@ -37,6 +38,9 @@ class OpenAccessDetailsLayout(AbstractObservatoryChart):
                  comparison: list,
                  focus_year: int,
                  year_range: tuple = (2000, 2020)):
+        """Initialisation function
+        """
+
         self.df = df
         self.identifier = identifier
         self.comparison = comparison
@@ -51,10 +55,16 @@ class OpenAccessDetailsLayout(AbstractObservatoryChart):
                                                      self.focus_year)
 
     def process_data(self, **kwargs):
+        """Data selection and processing function
+        """
+
         self.oapctimechart.process_data()
         self.barcomparisonchart.process_data()
 
     def plot(self, **kwargs):
+        """Plotting function
+        """
+
         self.fig, axes = plt.subplots(nrows=1,
                                       ncols=2,
                                       figsize=(8, 3))
