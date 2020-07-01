@@ -38,6 +38,9 @@ class GroupingComparisonsLayout(AbstractObservatoryChart):
                  focus_year: int,
                  country=True,
                  region=True):
+        """Initialisation function
+        """
+
         self.df = df
         self.identifier = identifier
         self.comparison = comparison
@@ -69,11 +72,17 @@ class GroupingComparisonsLayout(AbstractObservatoryChart):
                                                  region=region)
 
     def process_data(self):
+        """Data selection and processing function
+        """
+
         self.total.process_data()
         self.gold.process_data()
         self.green.process_data()
 
     def plot(self):
+        """Plotting function
+        """
+
         self.fig, axes = plt.subplots(nrows=1,
                                       ncols=3,
                                       figsize=(8, 3))

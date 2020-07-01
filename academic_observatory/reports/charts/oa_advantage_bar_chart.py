@@ -34,35 +34,29 @@ class OAAdvantageBarChart(AbstractObservatoryChart):
                  df: pd.DataFrame,
                  identifier: str,
                  focus_year: int):
+        """Initialisation function
+        """
+
         self.df = df
         self.focus_year = focus_year
         self.identifier = identifier
 
     def process_data(self):
+        """Data selection and processing function
+        """
+
         self.df['Citations per non-OA Output'] = (self.df.total_citations -
-                                                  self.df.oa_citations
-                                                  ) / (self.df.total -
-                                                       self.df.total_oa)
-        self.df['Citations per Output (all)'] = self.df.total_citations /     \
-            self.df.total
-        self.df['Citations per OA Output'] = self.df.oa_citations /           \
-            self.df.total_oa
-        self.df['Citations per Gold OA Output'] = self.df.gold_citations /    \
-            self.df.gold
-        self.df['Citations per Green OA Output'] = self.df.green_citations /  \
-            self.df.green
-        self.df['Citations per Hybrid OA Output'] = self.df.hybrid_citations /\
-            self.df.hybrid
-        self.df['Non-Open Access'] = self.df['Citations per non-OA Output'] / \
-            self.df['Citations per Output (all)']
-        self.df['Open Access'] = self.df['Citations per OA Output'] /         \
-            self.df['Citations per Output (all)']
-        self.df['Gold OA'] = self.df['Citations per Gold OA Output'] /        \
-            self.df['Citations per Output (all)']
-        self.df['Green OA'] = self.df['Citations per Green OA Output'] /      \
-            self.df['Citations per Output (all)']
-        self.df['Hybrid OA'] = self.df['Citations per Hybrid OA Output'] /    \
-            self.df['Citations per Output (all)']
+                                                  self.df.oa_citations) / (self.df.total - self.df.total_oa)
+        self.df['Citations per Output (all)'] = self.df.total_citations / self.df.total
+        self.df['Citations per OA Output'] = self.df.oa_citations / self.df.total_oa
+        self.df['Citations per Gold OA Output'] = self.df.gold_citations / self.df.gold
+        self.df['Citations per Green OA Output'] = self.df.green_citations / self.df.green
+        self.df['Citations per Hybrid OA Output'] = self.df.hybrid_citations / self.df.hybrid
+        self.df['Non-Open Access'] = self.df['Citations per non-OA Output'] / self.df['Citations per Output (all)']
+        self.df['Open Access'] = self.df['Citations per OA Output'] / self.df['Citations per Output (all)']
+        self.df['Gold OA'] = self.df['Citations per Gold OA Output'] / self.df['Citations per Output (all)']
+        self.df['Green OA'] = self.df['Citations per Green OA Output'] / self.df['Citations per Output (all)']
+        self.df['Hybrid OA'] = self.df['Citations per Hybrid OA Output'] / self.df['Citations per Output (all)']
         self.columns = ['Non-Open Access',
                         'Open Access',
                         'Gold OA',
@@ -77,6 +71,9 @@ class OAAdvantageBarChart(AbstractObservatoryChart):
         return self.figdata
 
     def plot(self, ax=None, **kwargs):
+        """Plotting function
+        """
+
         if not ax:
             self.fig, ax = plt.subplots()
         else:

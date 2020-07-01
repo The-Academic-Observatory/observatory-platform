@@ -1,12 +1,10 @@
 import seaborn as sns
 
-#TODO Tidy this up # General BQ Defaults
-project_id = 'academic-observatory-sandbox'
+project_id = None
 scope = ''
 funder_scope = ''
 institutions_scope = """and
   institutions.id in (SELECT id FROM `open-knowledge-publications.institutional_oa_evaluation_2020.grids_in_scope`)"""
-
 
 # --- Text expansion defaults ---
 
@@ -38,16 +36,15 @@ comptext_higherlower = [
     'higher than'
 ]
 
-
 # --- Name Standardisation ---
 
 # Standard Name Changes
 country_clean = {"country": {
     "United Kingdom of Great Britain and Northern Ireland":
-    "United Kingdom",
-        "Iran (Islamic Republic of)": "Iran",
-        "Korea, Republic of": "South Korea",
-        "Taiwan, Province of China": "Taiwan"
+        "United Kingdom",
+    "Iran (Islamic Republic of)": "Iran",
+    "Korea, Republic of": "South Korea",
+    "Taiwan, Province of China": "Taiwan"
 }}
 
 # Standardisation of the names of output types
@@ -57,11 +54,10 @@ outputs_clean = {'type': {
     'proceedings_articles': 'Proceedings',
     'authored_books': 'Books',
     'book_sections': 'Book Sections',
-                     'edited_volumes': 'Edited Volumes',
-                     'reports': 'Reports‡',
-                     'datasets': 'Datasets‡'
+    'edited_volumes': 'Edited Volumes',
+    'reports': 'Reports‡',
+    'datasets': 'Datasets‡'
 }}
-
 
 # List of output types for research publications
 output_types = [
@@ -82,7 +78,6 @@ oa_types = [
     'Hybrid OA (%)',
     # 'Green in IR (%)',
 ]
-
 
 # --- Palettes ---
 

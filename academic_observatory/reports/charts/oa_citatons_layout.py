@@ -36,6 +36,9 @@ class OACitationsLayout(AbstractObservatoryChart):
                  identifier: str,
                  focus_year: int,
                  year_range: tuple = (2001, 2019)):
+        """Initialisation function
+        """
+
         self.df = df
         self.identifier = identifier
         self.focus_year = focus_year
@@ -50,10 +53,16 @@ class OACitationsLayout(AbstractObservatoryChart):
                                                   self.focus_year)
 
     def process_data(self):
+        """Data selection and processing function
+        """
+
         self.citationsovertime.process_data()
         self.oaadvantagebar.process_data()
 
     def plot(self, **kwargs):
+        """Plotting function
+        """
+
         self.fig, axes = plt.subplots(nrows=1,
                                       ncols=2,
                                       figsize=(8, 3))

@@ -40,7 +40,8 @@ class TimePath(AbstractObservatoryChart):
                  hue_column: str = 'name',
                  size_column: str = None,
                  **kwargs):
-        """
+        """Initialisation function
+
         param: df: input data frame
         param: year_range: duple containing first and last+1 year
         param: unis: a list of ids
@@ -57,6 +58,9 @@ class TimePath(AbstractObservatoryChart):
         super().__init__(df)
 
     def process_data(self, **kwargs):
+        """Data selection and processing function
+        """
+
         figdata = self.df
         for uni in self.unis:
             try:
@@ -76,6 +80,9 @@ class TimePath(AbstractObservatoryChart):
         return self.df
 
     def plot(self, year_range=None, colorpalette=None, ax=None, **kwargs):
+        """Plotting function
+        """
+
         if not year_range:
             year_range = self.year_range
         if not colorpalette:
@@ -106,19 +113,19 @@ class TimePath(AbstractObservatoryChart):
                 x = figdata[
                     (figdata.id == uni) &
                     (figdata.published_year == year_range[-2])
-                ][self.xcolumn].iloc[0]
+                    ][self.xcolumn].iloc[0]
                 y = figdata[
                     (figdata.id == uni) &
                     (figdata.published_year == year_range[-2])
-                ][self.ycolumn].iloc[0]
+                    ][self.ycolumn].iloc[0]
                 dx = figdata[
-                    (figdata.id == uni) &
-                    (figdata.published_year == year_range[-1])
-                ][self.xcolumn].iloc[0] - x
+                         (figdata.id == uni) &
+                         (figdata.published_year == year_range[-1])
+                         ][self.xcolumn].iloc[0] - x
                 dy = figdata[
-                    (figdata.id == uni) &
-                    (figdata.published_year == year_range[-1])
-                ][self.ycolumn].iloc[0] - y
+                         (figdata.id == uni) &
+                         (figdata.published_year == year_range[-1])
+                         ][self.ycolumn].iloc[0] - y
                 try:
                     color = colorpalette[i]
                 except TypeError:
@@ -132,6 +139,9 @@ class TimePath(AbstractObservatoryChart):
         return self.fig
 
     def animate(self, colorpalette=None, year_range=None, **kwargs):
+        """Animation plotting function
+        """
+
         self.plot_kwargs = kwargs
         self.color_palette = colorpalette
         if not year_range:
@@ -141,13 +151,16 @@ class TimePath(AbstractObservatoryChart):
         fig, self.ax = plt.subplots(figsize=figsize)
 
         self.anim = animation.FuncAnimation(fig, self.anim_frame,
-                                            (len(year_range)+5), interval=1000)
+                                            (len(year_range) + 5), interval=1000)
 
         return HTML(self.anim.to_html5_video())
 
     def anim_frame(self, i):
+        """Plot animation frame
+        """
+
         self.ax.clear()
-        self.plot(self.year_range[0:i+2], colorpalette=self.color_palette,
+        self.plot(self.year_range[0:i + 2], colorpalette=self.color_palette,
                   ax=self.ax, **self.plot_kwargs)
         year = self.year_range[0] + i + 1
         if year in self.year_range:

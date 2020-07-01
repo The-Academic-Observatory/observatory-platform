@@ -28,8 +28,7 @@ from academic_observatory.reports import defaults
 
 
 class BoxScatter(AbstractObservatoryChart):
-    """
-    Box and scatter charts for groupings of universitiies
+    """Box and scatter charts for groupings of universitiies
     """
 
     def __init__(self,
@@ -40,7 +39,7 @@ class BoxScatter(AbstractObservatoryChart):
                  sort: bool = True,
                  sortfunc: callable = pd.DataFrame.median,
                  **kwargs):
-        """
+        """Initialisation function
 
         param: df: pd.DataFrame containing data to be plotted
         param: year: int for the year to be plotted
@@ -60,6 +59,8 @@ class BoxScatter(AbstractObservatoryChart):
         super().__init__(df)
 
     def process_data(self, *kwargs):
+        """Data selection and processing function
+        """
 
         figdata = self.df
         figdata = figdata[figdata.published_year == self.year]

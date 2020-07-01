@@ -15,26 +15,34 @@
 # Author: Cameron Neylon
 
 import pandas as pd
+import geopandas
 import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 import itertools
 from matplotlib import animation, rc, lines
 from IPython.display import HTML
+import numpy as np
 
 from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports import chart_utils
 
 
 class ChloroplethMap(AbstractObservatoryChart):
+    """Generates a Chloropleth Map plot
+    """
+
     def __init__(self,
                  df: pd.DataFrame,
                  identifier: str,
                  focus_year: int,
-                 geocolumn: str='collab_id',
-                 countcolumn: str='count',
+                 geocolumn: str = 'collab_id',
+                 countcolumn: str = 'count',
                  xlim: tuple = (-170, 180),
                  ylim: tuple = (-60, 85)):
+        """Initialisation function
+        """
+
         self.df = df
         self.identifier = identifier
         self.focus_year = focus_year
@@ -44,8 +52,11 @@ class ChloroplethMap(AbstractObservatoryChart):
         self.ylim = ylim
 
     def process_data(self):
+        """Data selection and processing function
+        """
+
         filtered = self.df[(self.df.published_year == self.focus_year) &
-                          (self.df.id == self.identifier)]
+                           (self.df.id == self.identifier)]
         filtered.set_index(self.geocolumn, inplace=True)
         self.world = geopandas.read_file(
             geopandas.datasets.get_path('naturalearth_lowres')
@@ -54,6 +65,9 @@ class ChloroplethMap(AbstractObservatoryChart):
         self.logcounts = np.log(self.figdata[self.countcolumn])
 
     def plot(self, ax=None, **kwargs):
+        """Plotting function
+        """
+
         if not ax:
             self.fig, ax = plt.subplots()
         else:
