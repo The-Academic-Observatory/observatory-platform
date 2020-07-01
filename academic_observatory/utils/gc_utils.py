@@ -203,6 +203,48 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     return result.state == 'DONE'
 
 
+def create_bigquery_table_from_query(project_id: str, dataset_id: str, location: str, description: str = '') -> bool:
+    """ Create a BigQuery dataset from a provided query.
+
+    :param project_id: the Google Cloud project id
+    :param dataset_id: the BigQuery dataset id
+    :param location: the location where the dataset will be stored:
+    https://cloud.google.com/compute/docs/regions-zones/#locations
+    :param description: a description for the dataset
+    :return:
+    """
+
+    func_name = create_bigquery_dataset.__name__
+
+    # Make the dataset reference
+    dataset_ref = f'{project_id}.{dataset_id}'
+
+    # Make dataset handle
+    client = bigquery.Client()
+    dataset = bigquery.Dataset(dataset_ref)
+
+    # Set properties
+    dataset.location = location
+    dataset.description = description
+
+    job_config = bigquery.QueryJobConfig(
+        allow_large_results=True,
+        destination=table_id
+        use_legacy_sql=False
+        )
+
+    # optional use of clustering and partitioning
+    # likely always making use of parameterized queries
+
+    # labels
+    # policy tags
+
+
+    # Write all the SQL queries with placeholders in them
+    # always import the sql file, then fill in those parameters, before calling this function directly?
+    # or perhaps the sql files themselves are python scripts, with the methods defining what paraters are allowed/required?
+
+
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
                                      connection_sem: BoundedSemaphore = None, chunk_size: int = 256 * 1024 * 4) -> bool:
     """ Download a blob to a file.
