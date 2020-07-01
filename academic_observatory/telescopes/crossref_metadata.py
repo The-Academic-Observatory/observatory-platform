@@ -18,13 +18,13 @@ import logging
 import os
 import pathlib
 import re
-import requests
 import shutil
 import subprocess
 from datetime import datetime
 from typing import Tuple
 
 import pendulum
+import requests
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -98,7 +98,7 @@ def decompress_release(crossref_release: 'CrossrefRelease') -> str:
     """
     Decompresses release.
 
-    :param crossref_release: Instance of UnpaywallRelease class
+    :param crossref_release: Instance of CrossrefRelease class
     """
     logging.info(f"Extracting file: {crossref_release.filepath_download}")
 
@@ -117,14 +117,14 @@ def decompress_release(crossref_release: 'CrossrefRelease') -> str:
 
 def transform_release(crossref_release: 'CrossrefRelease') -> str:
     """
-    Transforms release by replacing a specific '-' with '_'.
+    Transforms release with sed command.
 
-    :param crossref_release: Instance of UnpaywallRelease class
+    :param crossref_release: Instance of CrossrefRelease class
     """
     cmd = "sed -E -e 's/\]\]/\]/g' -e 's/\[\[/\[/g' -e 's/,[[:blank:]]*$//g'  -e 's/([[:alpha:]])-([[" \
           ":alpha:]])/\\1_\\2/g' -e 's/\"timestamp\":_/\"timestamp\":/g' -e 's/\"date_parts\":\[" \
           "null\]/\"date_parts\":\[\]/g' -e 's/^\{\"items\":\[//g' -e '/^\}$/d' -e '/^\]$/d' " \
-          f"{crossref_release.filepath_extract} >> {crossref_release.filepath_transform}"
+          f"{crossref_release.filepath_extract} > {crossref_release.filepath_transform}"
 
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          executable='/bin/bash')
@@ -200,7 +200,7 @@ class CrossrefRelease:
 class CrossrefTelescope:
     DAG_ID = 'crossref_metadata'
     DESCRIPTION = 'Crossref metadata'
-    DATASET_ID = DAG_ID
+    DATASET_ID = 'crossref'
     XCOM_MESSAGES_NAME = "messages"
     XCOM_CONFIG_NAME = "config"
     TELESCOPE_URL = 'https://api.crossref.org/snapshots/monthly/'
@@ -393,7 +393,7 @@ class CrossrefTelescope:
 
         for url in release_urls:
             crossref_release = CrossrefRelease(url)
-            blob_name = f'telescopes/crossrefmetadata/transformed/{os.path.basename(crossref_release.filepath_transform)}'
+            blob_name = f'telescopes/crossref_metadata/transformed/{os.path.basename(crossref_release.filepath_transform)}'
             upload_file_to_cloud_storage(bucket, blob_name, file_path=crossref_release.filepath_transform)
 
             # Push messages
@@ -415,7 +415,7 @@ class CrossrefTelescope:
         location = bucket_object.location
 
         # Create dataset
-        dataset_id = CrossrefTelescope.DAG_ID
+        dataset_id = CrossrefTelescope.DATASET_ID
         create_bigquery_dataset(project_id, dataset_id, location, CrossrefTelescope.DESCRIPTION)
 
         # Pull messages
@@ -470,4 +470,3 @@ class CrossrefTelescope:
                 pathlib.Path(crossref_release.filepath_transform).unlink()
             except FileNotFoundError as e:
                 logging.warning(f"No such file or directory {crossref_release.filepath_transform}: {e}")
-

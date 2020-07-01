@@ -1,10 +1,11 @@
 from datetime import datetime
+
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
 from airflow.operators.python_operator import PythonOperator
 
-from academic_observatory.telescopes.crossref import CrossrefTelescope
+from academic_observatory.telescopes.crossref_metadata import CrossrefTelescope
 
 default_args = {
     "owner": "Airflow",
