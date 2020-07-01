@@ -42,3 +42,12 @@ azure-functions==1.2.*
 azure-cosmosdb-table==1.0.*
 azure-storage-blob==12.3.*
 git+git://github.com/The-Academic-Observatory/mag-archiver@develop#egg=mag-archiver
+precipy>=0.2.2
+xhtml2pdf>=0.2.4
+num2words>=0.5.9
+pydata-google-auth>=1.1.0
+geopandas>=0.7.0
+ipython>=7.15.0
+pandas-gbq>=0.13.2
+tables>=3.6.1
+weasyprint

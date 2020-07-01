@@ -20,6 +20,9 @@ import pydata_google_auth
 
 from num2words import num2words
 
+from precipy.main import render_file
+from precipy.storage import GoogleCloudStorage
+
 comptext_larger = [
     'substantialy lower than',
     'somewhat lower than',
@@ -70,7 +73,7 @@ def execute_report():
 
     :param dir: the target directory.
     """
-    a = 2
+    render_file(report_template, analytics_modules, storages=storages)
 
 
 def generate_table_data(batch,
