@@ -12,53 +12,75 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs, Richard Hosking
-
-import os
+# Author: Aniek Roelofs
 import json
-import pendulum
-import subprocess
-import pathlib
-import shutil
 import logging
+import os
+import pathlib
 import requests
-import functools
+import shutil
+import subprocess
 import xml.etree.ElementTree as ET
-from pendulum import Pendulum
+from typing import Tuple
 
-from airflow import settings
-from airflow.exceptions import AirflowException
-from airflow.models import Connection
-from airflow.models import Variable
-from airflow.models.taskinstance import TaskInstance
+import pendulum
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.exceptions import AirflowException
+from airflow.models import Variable
+from airflow.models.taskinstance import TaskInstance
+from google.api_core.exceptions import NotFound
+from google.cloud import storage
+from google.cloud.bigquery import SourceFormat
+from pendulum import Pendulum
 
-from academic_observatory.utils.url_utils import retry_session
+from academic_observatory.utils.config_utils import (
+    is_composer,
+    find_schema,
+    ObservatoryConfig,
+    SubFolder,
+    schema_path,
+    telescope_path,
+)
 from academic_observatory.utils.data_utils import get_file
-from academic_observatory.utils.config_utils import ObservatoryConfig, SubFolder, telescope_path, bigquery_schema_path, \
-    debug_file_path, is_vendor_google
+from academic_observatory.utils.gc_utils import (
+    bigquery_partitioned_table_id,
+    create_bigquery_dataset,
+    download_blob_from_cloud_storage,
+    load_bigquery_table,
+    upload_file_to_cloud_storage
+)
+from academic_observatory.utils.proc_utils import wait_for_process
+from academic_observatory.utils.url_utils import retry_session
+from tests.academic_observatory.config import test_fixtures_path
 
 
-def xcom_pull_messages(ti):
-    # Pull messages
-    msgs_in = ti.xcom_pull(key=FundrefTelescope.XCOM_MESSAGES_NAME, task_ids=FundrefTelescope.TASK_ID_LIST,
-                           include_prior_dates=False)
+def xcom_pull_info(ti: TaskInstance) -> Tuple[list, str, str, str]:
+    """
+    Pulls xcom messages, releases_list and config_dict.
+    Parses retrieved config_dict and returns those values next to releases_list.
+
+    :param ti:
+    :return: releases_list, environment, bucket, project_id
+    """
+    releases_list = ti.xcom_pull(key=FundrefTelescope.XCOM_MESSAGES_NAME, task_ids=FundrefTelescope.TASK_ID_LIST,
+                                 include_prior_dates=False)
     config_dict = ti.xcom_pull(key=FundrefTelescope.XCOM_CONFIG_NAME, task_ids=FundrefTelescope.TASK_ID_SETUP,
                                include_prior_dates=False)
     environment = config_dict['environment']
     bucket = config_dict['bucket']
     project_id = config_dict['project_id']
-    return msgs_in, environment, bucket, project_id
+    return releases_list, environment, bucket, project_id
 
 
 def list_releases(telescope_url):
     """
+    List all available fundref releases
 
     :param telescope_url:
-    :return: snapshot_dict with 'url' and 'release_date' in format 'YYYY-MM-DD'
+    :return: list of dictionaries that contain 'url' and 'release_date' in format 'YYYY-MM-DD'
     """
-    snapshot_dict = {}
+    releases_list = []
 
     response = retry_session().get(telescope_url).text
 
@@ -66,45 +88,120 @@ def list_releases(telescope_url):
         json_response = json.loads(response)
 
         for release in json_response:
+            release_dict = {}
             for source in release['assets']['sources']:
                 if source['format'] == 'tar.gz':
                     release_date = pendulum.parse(release['released_at']).to_date_string()
-                    snapshot_dict[source['url']] = release_date
+                    release_dict['date'] = release_date
+                    release_dict['url'] = source['url']
+                    releases_list.append(release_dict)
 
-    return snapshot_dict
-
-
-def table_name(date: str):
-    table_name = f"{FundrefTelescope.DAG_ID}_{date}".replace('-', '_')
-
-    return table_name
+    return releases_list
 
 
-def filepath_download(date: str):
-    compressed_file_name = f"{FundrefTelescope.DAG_ID}_{date}.tar.gz".replace('-', '_')
-    download_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.downloaded)
-    path = os.path.join(download_dir, compressed_file_name)
+def download_release(fundref_release: 'FundrefRelease') -> str:
+    """
+    Downloads release from url.
 
-    return path
+    :param fundref_release: Instance of FundrefRelease class
+    """
+    file_path = fundref_release.get_filepath_download()
 
+    # Download
+    logging.info(f"Downloading file: {file_path}, url: {fundref_release.url}")
+    # add browser agent to prevent 403/forbidden error.
+    header = {'User-Agent': 'Mozilla/5.0'}
+    with requests.get(fundref_release.url, headers=header, stream=True) as response:
+        with open(file_path, 'wb') as file:
+            shutil.copyfileobj(response.raw, file)
 
-def filepath_extract(date: str):
-    decompressed_file_name = f"{FundrefTelescope.DAG_ID}_{date}.rdf".replace('-', '_')
-    extract_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.extracted)
-    path = os.path.join(extract_dir, decompressed_file_name)
-
-    return path
-
-
-def filepath_transform(date: str):
-    decompressed_file_name = f"{FundrefTelescope.DAG_ID}_{date}.rdf".replace('-', '_')
-    transform_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.transformed)
-    path = os.path.join(transform_dir, decompressed_file_name)
-
-    return path
+    return file_path
 
 
-def filepath_geonames():
+def decompress_release(fundref_release: 'FundrefRelease') -> str:
+    """
+    Decompresses release.
+
+    :param fundref_release: Instance of FundrefRelease class
+    """
+    logging.info(f"Extracting file: {fundref_release.filepath_download}")
+    # tar file contains both README.md and registry.rdf, use tar -ztf to get path of 'registry.rdf'
+    # Use this path to extract only registry.rdf to a new file.
+    cmd = f"registry_path=$(tar -ztf {fundref_release.filepath_download} | grep -m1 '/registry.rdf'); " \
+          f"tar -xOzf {fundref_release.filepath_download} $registry_path > {fundref_release.filepath_extract}"
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         executable='/bin/bash')
+    stdout, stderr = wait_for_process(p)
+    if stdout:
+        logging.info(stdout)
+    if stderr:
+        raise AirflowException(f"bash command failed for {fundref_release.url}: {stderr}")
+    logging.info(f"File extracted to: {fundref_release.filepath_extract}")
+
+    return fundref_release.filepath_extract
+
+
+def transform_release(fundref_release: 'FundrefRelease') -> str:
+    """
+    Transform release by parsing the raw rdf file, transforming it into a json file and replacing geoname associated
+    ids with their geoname name.
+
+    :param fundref_release: Instance of FundrefRelease class
+    """
+    funders_list = parse_fundref_registry_rdf(fundref_release.filepath_extract)
+    with open(fundref_release.filepath_transform, 'w') as jsonl_out:
+        jsonl_out.write('\n'.join(json.dumps(obj) for obj in funders_list))
+    logging.info(f'Success transforming release: {fundref_release.url}')
+
+    return fundref_release.filepath_transform
+
+
+class FundrefRelease:
+    def __init__(self, url, date):
+        self.url = url
+        self.date = date
+        self.filepath_download = self.get_filepath_download()
+        self.filepath_extract = self.get_filepath_extract()
+        self.filepath_transform = self.get_filepath_transform()
+
+    def get_filepath_download(self) -> str:
+        """
+        Gives path to downloaded release.
+
+        :return: absolute file path
+        """
+        compressed_file_name = f"{FundrefTelescope.DAG_ID}_{self.date}.tar.gz".replace('-', '_')
+        download_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.downloaded)
+        path = os.path.join(download_dir, compressed_file_name)
+
+        return path
+
+    def get_filepath_extract(self) -> str:
+        """
+        Gives path to extracted and decompressed release.
+
+        :return: absolute file path
+        """
+        decompressed_file_name = f"{FundrefTelescope.DAG_ID}_{self.date}.rdf".replace('-', '_')
+        extract_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.extracted)
+        path = os.path.join(extract_dir, decompressed_file_name)
+
+        return path
+
+    def get_filepath_transform(self) -> str:
+        """
+        Gives path to transformed release.
+
+        :return: absolute file path
+        """
+        decompressed_file_name = f"{FundrefTelescope.DAG_ID}_{self.date}.rdf".replace('-', '_')
+        transform_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.transformed)
+        path = os.path.join(transform_dir, decompressed_file_name)
+
+        return path
+
+
+def get_filepath_geonames():
     file_name = FundrefTelescope.GEONAMES_FILE_NAME
     transform_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.transformed)
     path = os.path.join(transform_dir, file_name)
@@ -112,24 +209,25 @@ def filepath_geonames():
     return path
 
 
-def download_release(url: str, date: str):
-    # add browser agent to prevent 403/forbidden error.
-    header = {'User-Agent': 'Mozilla/5.0'}
-    filename = filepath_download(date)
-    with requests.get(url, headers=header, stream=True) as response:
-        with open(filename, 'wb') as file:
-            shutil.copyfileobj(response.raw, file)
-
-
 def download_geonames_dump():
-    filename = filepath_geonames().strip('.txt')
+    filename = get_filepath_geonames().strip('.txt')
     filedir = os.path.dirname(filename)
-    get_file(fname=filename, origin=FundrefTelescope.GEONAMES_URL, cache_subdir=filedir,
+    logging.info(f"Downloading file: {filename}, url: {FundrefTelescope.GEONAMES_URL}")
+    # extract zip file named 'filename' which contains 'allCountries.txt'
+    file_path, updated = get_file(fname=filename, origin=FundrefTelescope.GEONAMES_URL, cache_subdir=filedir,
              extract=True, archive_format='zip')
 
+    if file_path:
+        logging.info(f'Success downloading release: {file_path}')
+    else:
+        logging.error(f"Error downloading release: {file_path}")
+        exit(os.EX_DATAERR)
 
-def geonames_dump(geonames_dump_path):
+
+def geonames_dump():
     geonames_dict = {}
+
+    geonames_dump_path = get_filepath_geonames()
     with open(geonames_dump_path, 'r') as file:
         for line in file:
             id = line.split('\t')[0]
@@ -140,7 +238,8 @@ def geonames_dump(geonames_dump_path):
 
 
 def get_geoname_data(nested, geoname_dict):
-    geonameid = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'].split('sws.geonames.org')[-1].strip('/')
+    geonameid = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'].split('sws.geonames.org')[
+        -1].strip('/')
     try:
         name = geoname_dict[geonameid][0]
         country_code = geoname_dict[geonameid][1]
@@ -187,7 +286,7 @@ def new_funder_template():
     }
 
 
-def parse_fundref_registry_rdf(file_name, geonames_file_path):
+def parse_fundref_registry_rdf(file_name):
     """ Helper function to parse a fundref registry rdf file and to return a python list containing each funder.
     :param file_name: the filename of the registry.rdf file to be parsed.
     :return: A python list containing all the funders parsed from the input rdf
@@ -198,7 +297,7 @@ def parse_fundref_registry_rdf(file_name, geonames_file_path):
     tree = ET.parse(file_name)
     root = tree.getroot()
 
-    geoname_dict = geonames_dump(geonames_file_path)
+    geoname_dict = geonames_dump()
 
     for record in root:
         if record.tag == "{http://www.w3.org/2004/02/skos/core#}ConceptScheme":
@@ -347,24 +446,20 @@ def recursive_funders(funders_by_key, funder, depth, direction):
     return children, depth
 
 
-def write_list_to_jsonl(list, jsonl_path):
-    with open(jsonl_path, 'w') as jsonl_out:
-        jsonl_out.write('\n'.join(json.dumps(obj) for obj in list))
-
-
 class FundrefTelescope:
-    # example:
-    TELESCOPE_URL = 'https://gitlab.com/api/v4/projects/crossref%2Fopen_funder_registry/releases'
-    TELESCOPE_DEBUG_URL = 'debug_fundref_url'
-    GEONAMES_FILE_NAME = 'allCountries.txt'
-    GEONAMES_URL = 'https://download.geonames.org/export/dump/allCountries.zip'
-    SCHEMA_FILE_PATH = bigquery_schema_path('fundref.json')
-    DEBUG_FILE_PATH = debug_file_path('fundref.tar.gz')
-
     DAG_ID = 'fundref'
+    DESCRIPTION = 'Fundref'
     DATASET_ID = DAG_ID
     XCOM_MESSAGES_NAME = "messages"
     XCOM_CONFIG_NAME = "config"
+    TELESCOPE_URL = 'https://gitlab.com/api/v4/projects/crossref%2Fopen_funder_registry/releases'
+    TELESCOPE_DEBUG_URL = 'debug_fundref_url'
+    DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'fundref.tar.gz')
+
+    GEONAMES_FILE_NAME = 'allCountries.txt'
+    GEONAMES_URL = 'https://download.geonames.org/export/dump/allCountries.zip'
+    DEBUG_GEONAMES_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'allCountries.txt')
+
     TASK_ID_SETUP = "check_setup_requirements"
     TASK_ID_LIST = f"list_{DAG_ID}_releases"
     TASK_ID_STOP = f"stop_{DAG_ID}_workflow"
@@ -377,230 +472,283 @@ class FundrefTelescope:
     TASK_ID_CLEANUP = f"cleanup_{DAG_ID}_releases"
 
     @staticmethod
-    def setup_requirements(**kwargs):
+    def check_setup_requirements(**kwargs):
+        """
+        Depending on whether run from inside or outside a composer environment:
+        If run from outside, checks if 'CONFIG_PATH' airflow variable is available and points to a valid config file.
+        If run from inside, check if airflow variables for 'env', 'bucket' and 'project_id' are set.
+
+        The corresponding values will be stored in a dict and pushed with xcom, so they can be accessed in consequent
+        tasks.
+
+        kwargs is required to access task instance
+        :param kwargs: NA
+        """
         invalid_list = []
         config_dict = {}
 
-        if is_vendor_google():
-            default_config = None
+        if is_composer():
+            environment = Variable.get('ENV', default_var=None)
+            bucket = Variable.get('BUCKET', default_var=None)
+            project_id = Variable.get('PROJECT_ID', default_var=None)
+
+            for var in [(environment, 'ENV'), (bucket, 'BUCKET'), (project_id, 'PROJECT_ID')]:
+                if var[0] is None:
+                    invalid_list.append(f"Airflow variable '{var[1]}' not set with terraform.")
+
         else:
             default_config = ObservatoryConfig.CONTAINER_DEFAULT_PATH
-        config_path = Variable.get('CONFIG_PATH', default_var=default_config)
+            config_path = Variable.get('CONFIG_PATH', default_var=default_config)
 
-        if config_path is None:
-            print("'CONFIG_FILE' airflow variable not set, please set in UI")
+            config = ObservatoryConfig.load(config_path)
+            if config is not None:
+                config_is_valid = config.is_valid
+                if not config_is_valid:
+                    invalid_list.append(f'Config file not valid: {config_is_valid}')
+            if not config:
+                invalid_list.append(f'Config file does not exist')
 
-        config_valid, config_validator, config = ObservatoryConfig.load(config_path)
-        if not config_valid:
-            invalid_list.append(f'Config file not valid: {config_validator}')
+            environment = config.environment.value
+            bucket = config.bucket_name
+            project_id = config.project_id
 
         if invalid_list:
             for invalid_reason in invalid_list:
-                print("-", invalid_reason, "\n\n")
-                raise AirflowException
+                logging.warning("-" + invalid_reason + "\n\n")
+            raise AirflowException
         else:
-            config_dict['environment'] = config.environment.value
-            config_dict['bucket'] = config.bucket_name
-            config_dict['project_id'] = config.project_id
+            config_dict['environment'] = environment
+            config_dict['bucket'] = bucket
+            config_dict['project_id'] = project_id
             # Push messages
             ti: TaskInstance = kwargs['ti']
             ti.xcom_push(FundrefTelescope.XCOM_CONFIG_NAME, config_dict)
 
     @staticmethod
     def list_releases_last_month(**kwargs):
+        """
+        Based on a list of all releases, checks which ones were released between this and the next execution date of the
+        DAG.
+        If the release falls within the time period mentioned above, checks if a bigquery table doesn't exist yet for
+        the release.
+        A list of releases that passed both checks is passed to the next tasks. If the list is empty the workflow will
+        stop.
+
+        kwargs is required to access task instance
+        """
         # Pull messages
-        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
+        releases_list, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         if environment == 'dev':
-            msgs_out = [{'url': FundrefTelescope.TELESCOPE_DEBUG_URL, 'date': '3000-01-01'}]
+            releases_list_out = [{'url': FundrefTelescope.TELESCOPE_DEBUG_URL, 'date': '3000-01-01'}]
             # Push messages
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(FundrefTelescope.XCOM_MESSAGES_NAME, msgs_out)
-            return FundrefTelescope.TASK_ID_DOWNLOAD if msgs_out else FundrefTelescope.TASK_ID_STOP
+            ti.xcom_push(FundrefTelescope.XCOM_MESSAGES_NAME, releases_list_out)
+            return FundrefTelescope.TASK_ID_DOWNLOAD if releases_list_out else FundrefTelescope.TASK_ID_STOP
 
         execution_date = kwargs['execution_date']
         next_execution_date = kwargs['next_execution_date']
-        releases_dict = list_releases(FundrefTelescope.TELESCOPE_URL)
-        logging.info(f'All releases:\n{releases_dict}\n')
+        releases_list = list_releases(FundrefTelescope.TELESCOPE_URL)
+        logging.info(f'All releases:\n{releases_list}\n')
 
         bq_hook = BigQueryHook()
         # Select the releases that were published on or after the execution_date and before the next_execution_date
-        msgs_out = []
-        logging.info('All releases between this and next execution date:')
-        for release_url in releases_dict:
-            release_date = releases_dict[release_url]
-            published_date: Pendulum = pendulum.parse(release_date)
+        releases_list_out = []
+        logging.info('Releases between current and next execution date:')
+        for release in releases_list:
+            fundref_release = FundrefRelease(release['url'], release['date'])
+            released_date: Pendulum = pendulum.parse(fundref_release.date)
+            table_id = bigquery_partitioned_table_id(FundrefTelescope.DAG_ID, released_date)
 
-            if execution_date <= published_date < next_execution_date:
-                logging.info(f'{release_url, release_date}')
+            if execution_date <= released_date < next_execution_date:
+                logging.info(fundref_release.url)
                 table_exists = bq_hook.table_exists(
                     project_id=project_id,
                     dataset_id=FundrefTelescope.DATASET_ID,
-                    table_id=table_name(release_date)
+                    table_id=table_id
                 )
+                logging.info('Checking if bigquery table already exists:')
                 if table_exists:
-                    logging.info(f'Table exists: {project_id}.{FundrefTelescope.DATASET_ID}.{table_name(release_date)}')
+                    logging.info(
+                        f'- Table exists for {fundref_release.url}: {project_id}.{FundrefTelescope.DATASET_ID}.{table_id}')
                 else:
-                    logging.info("Table doesn't exist yet, processing this workflow")
-                    msgs_out.append({'url': release_url, 'date': release_date})
+                    logging.info(f"- Table doesn't exist yet, processing {fundref_release.url} in this workflow")
+                    releases_list_out.append(release)
 
         # Push messages
         ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(FundrefTelescope.XCOM_MESSAGES_NAME, msgs_out)
-        return FundrefTelescope.TASK_ID_DOWNLOAD if msgs_out else FundrefTelescope.TASK_ID_STOP
+        ti.xcom_push(FundrefTelescope.XCOM_MESSAGES_NAME, releases_list_out)
+        return FundrefTelescope.TASK_ID_DOWNLOAD if releases_list_out else FundrefTelescope.TASK_ID_STOP
 
     @staticmethod
-    def download_releases_local(**kwargs):
-        # Pull messages
-        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
+    def download(**kwargs):
+        """
+        Download release to file.
+        If dev environment, copy debug file from this repository to the right location. Else download from url.
 
-        for msg_in in msgs_in:
+        kwargs is required to access task instance
+        """
+        # Pull messages
+        releases_list, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
+
+        for release in releases_list:
+            fundref_release = FundrefRelease(release['url'], release['date'])
             if environment == 'dev':
-                shutil.copy(FundrefTelescope.DEBUG_FILE_PATH, filepath_download(msg_in['date']))
+                shutil.copy(FundrefTelescope.DEBUG_FILE_PATH, fundref_release.filepath_download)
 
             else:
-                download_release(msg_in['url'], msg_in['date'])
+                download_release(fundref_release)
 
     @staticmethod
-    def decompress_release(**kwargs):
+    def decompress(**kwargs):
+        """
+        Extract release to new file.
+
+        kwargs is required to access task instance
+        """
         # Pull messages
-        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
+        releases_list, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        for msg_in in msgs_in:
-            cmd = f"registry_path=$(tar -ztf {filepath_download(msg_in['date'])} | grep -m1 '/registry.rdf'); " \
-                  f"tar -xOzf {filepath_download(msg_in['date'])} $registry_path > {filepath_extract(msg_in['date'])}"
-
-            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                 executable='/bin/bash')
-            stdout, stderr = p.communicate()
-            if stdout:
-                logging.info(stdout)
-            if stderr:
-                raise AirflowException(f"bash command failed for {msg_in}: {stderr}")
+        for release in releases_list:
+            fundref_release = FundrefRelease(release['url'], release['date'])
+            decompress_release(fundref_release)
 
     @staticmethod
     def geonames_dump(**kwargs):
-        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
+        msgs_in, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        gcs_hook = GoogleCloudStorageHook()
-        geonames_exists = gcs_hook.exists(
-                            bucket=bucket,
-                            object=FundrefTelescope.GEONAMES_FILE_NAME
-                         )
-
-        if geonames_exists:
-            gcs_hook.download(
-                bucket=bucket,
-                object=FundrefTelescope.GEONAMES_FILE_NAME,
-                filename=filepath_geonames()
-            )
-
-        else:
-            # download geonames
-            download_geonames_dump()
-
-            # upload to gcs for future use
-            gcs_hook.upload(
-                bucket=bucket,
-                object=FundrefTelescope.GEONAMES_FILE_NAME,
-                filename=filepath_geonames()
-            )
-
-    @staticmethod
-    def transform_release(**kwargs):
-        # Pull messages
-        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
-
-        for msg_in in msgs_in:
-            funders_list = parse_fundref_registry_rdf(filepath_extract(msg_in['date']), filepath_geonames())
-            write_list_to_jsonl(funders_list, filepath_transform(msg_in['date']))
-
-    @staticmethod
-    def upload_release_to_gcs(**kwargs):
-        # Pull messages
-        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
-
-        gcs_hook = GoogleCloudStorageHook()
-
-        for msg_in in msgs_in:
-            gcs_hook.upload(
-                bucket=bucket,
-                object=os.path.basename(filepath_transform(msg_in['date'])),
-                filename=filepath_transform(msg_in['date'])
-            )
-
-    @staticmethod
-    def load_release_to_bq(**kwargs):
-        # Add a project id to the bigquery connection, prevents error 'ValueError: INTERNAL: No default project is
-        # specified'
-        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
+        # use blob_dir_name for fundref release later
+        blob_dir_name = 'telescopes/fundref/transformed'
+        blob_name = os.path.join(blob_dir_name, FundrefTelescope.GEONAMES_FILE_NAME)
+        file_path = get_filepath_geonames()
 
         if environment == 'dev':
-            session = settings.Session()
-            bq_conn = Connection(
-                conn_id='bigquery_custom',
-                conn_type='google_cloud_platform',
-            )
-
-            conn_extra_json = json.dumps({'extra__google_cloud_platform__project': project_id})
-            bq_conn.set_extra(conn_extra_json)
-
-            session.query(Connection).filter(Connection.conn_id == bq_conn.conn_id).delete()
-            session.add(bq_conn)
-            session.commit()
-
-            bq_hook = BigQueryHook(bigquery_conn_id='bigquery_custom')
+            shutil.copy(FundrefTelescope.DEBUG_GEONAMES_FILE_PATH, file_path)
         else:
-            bq_hook = BigQueryHook()
+            logging.info(f"Trying to download geonames_dump from bucket. bucket: {bucket}, blob_name: {blob_name}, "
+                         f"file_path:{file_path}")
+            try:
+                success = download_blob_from_cloud_storage(bucket, blob_name, file_path)
+            # except AirflowException:
+            except NotFound:
+                success = False
 
-        with open(FundrefTelescope.SCHEMA_FILE_PATH, 'r') as json_file:
-            schema_fields = json.loads(json_file.read())
+            if success:
+                logging.info("Successfully downloaded geonames_dump file")
+            else:
+                logging.info(f"Could not download geonames_dump file from bucket. Downloading from "
+                             f"{FundrefTelescope.GEONAMES_URL} instead")
+                # download geonames
+                download_geonames_dump()
+                # upload to bucket for later usage
+                upload_file_to_cloud_storage(bucket, blob_name, file_path=file_path)
 
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
+        # Push messages
+        ti: TaskInstance = kwargs['ti']
+        ti.xcom_push('blob_dir_name', blob_dir_name)
+
+    @staticmethod
+    def transform(**kwargs):
+        """
+        Transform release by parsing the raw rdf file, transforming it into a json file and replacing geoname associated
+        ids with their geoname name.
+
+        kwargs is required to access task instance
+        """
+        # Pull messages
+        releases_list, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
+
+        for release in releases_list:
+            fundref_release = FundrefRelease(release['url'], release['date'])
+            transform_release(fundref_release)
+
+    @staticmethod
+    def upload_to_gcs(**kwargs):
+        """
+        Upload transformed release to a google cloud storage bucket.
+
+        kwargs is required to access task instance
+        """
+        # Pull messages
+        releases_list, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
+
+        ti: TaskInstance = kwargs['ti']
+        blob_dir_name = ti.xcom_pull(key='blob_dir_name', task_ids=FundrefTelescope.TASK_ID_GEONAMES,
+                                     include_prior_dates=False)
+
+        for release in releases_list:
+            fundref_release = FundrefRelease(release['url'], release['date'])
+            blob_name = os.path.join(blob_dir_name, os.path.basename(fundref_release.filepath_transform))
+            upload_file_to_cloud_storage(bucket, blob_name, file_path=fundref_release.filepath_transform)
+
+    @staticmethod
+    def load_to_bq(**kwargs):
+        """
+        Upload transformed release to a bigquery table.
+
+        kwargs is required to access task instance
+        """
+        releases_list, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
+
+        # Get bucket location
+        storage_client = storage.Client()
+        bucket_object = storage_client.get_bucket(bucket)
+        location = bucket_object.location
+
+        # Create dataset
+        dataset_id = FundrefTelescope.DAG_ID
+        create_bigquery_dataset(project_id, dataset_id, location, FundrefTelescope.DESCRIPTION)
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=FundrefTelescope.XCOM_MESSAGES_NAME, task_ids=FundrefTelescope.TASK_ID_LIST, include_prior_dates=False)
-        for msg_in in msgs_in:
-            try:
-                cursor.create_empty_dataset(
-                    dataset_id=FundrefTelescope.DATASET_ID,
-                    project_id=project_id
-                )
-            except AirflowException as e:
-                print(f"Dataset already exists, continuing to create table. See traceback:\n{e}")
+        releases_list = ti.xcom_pull(key=FundrefTelescope.XCOM_MESSAGES_NAME, task_ids=FundrefTelescope.TASK_ID_LIST,
+                                     include_prior_dates=False)
+        blob_dir_name = ti.xcom_pull(key='blob_dir_name', task_ids=FundrefTelescope.TASK_ID_GEONAMES,
+                                     include_prior_dates=False)
+        for release in releases_list:
+            fundref_release = FundrefRelease(release['url'], release['date'])
+            # get release_date
+            released_date: Pendulum = pendulum.parse(fundref_release.date)
+            table_id = bigquery_partitioned_table_id(FundrefTelescope.DAG_ID, released_date)
 
-            cursor.run_load(
-                destination_project_dataset_table=f"{FundrefTelescope.DATASET_ID}.{table_name(msg_in['date'])}",
-                source_uris=f"gs://{bucket}/{os.path.basename(filepath_transform(msg_in['date']))}",
-                schema_fields=schema_fields,
-                autodetect=False,
-                source_format='NEWLINE_DELIMITED_JSON',
-            )
+            # Select schema file based on release date
+            analysis_schema_path = schema_path('telescopes')
+            schema_file_path = find_schema(analysis_schema_path, FundrefTelescope.DAG_ID, released_date)
+            if schema_file_path is None:
+                logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
+                              f'table_name={FundrefTelescope.DAG_ID}, release_date={released_date}')
+                exit(os.EX_CONFIG)
+
+            # Load BigQuery table
+            blob_name = os.path.join(blob_dir_name, os.path.basename(fundref_release.filepath_transform))
+            uri = f"gs://{bucket}/{blob_name}"
+            logging.info(f"URI: {uri}")
+            load_bigquery_table(uri, dataset_id, location, table_id, schema_file_path,
+                                SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod
     def cleanup_releases(**kwargs):
+        """
+        Delete files of downloaded, extracted and transformed release.
+
+        kwargs is required to access task instance
+        """
         # Pull messages
-        msgs_in, environment, bucket, project_id = xcom_pull_messages(kwargs['ti'])
+        releases_list, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        try:
-            pathlib.Path(filepath_geonames()).unlink()
-        except FileNotFoundError as e:
-            logging.warning(f"No such file or directory {filepath_geonames()}: {e}")
-
-        for msg_in in msgs_in:
+        for release in releases_list:
+            fundref_release = FundrefRelease(release['url'], release['date'])
             try:
-                pathlib.Path(filepath_download(msg_in['date'])).unlink()
+                pathlib.Path(fundref_release.filepath_download).unlink()
             except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {filepath_download(msg_in['date'])}: {e}")
+                logging.warning(f"No such file or directory {fundref_release.filepath_download}: {e}")
 
             try:
-                pathlib.Path(filepath_extract(msg_in['date'])).unlink()
+                pathlib.Path(fundref_release.filepath_extract).unlink()
             except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {filepath_extract(msg_in['date'])}: {e}")
+                logging.warning(f"No such file or directory {fundref_release.filepath_extract}: {e}")
 
             try:
-                pathlib.Path(filepath_transform(msg_in['date'])).unlink()
+                pathlib.Path(fundref_release.filepath_transform).unlink()
             except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {filepath_transform(msg_in['date'])}: {e}")
+                logging.warning(f"No such file or directory {fundref_release.filepath_transform}: {e}")

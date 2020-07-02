@@ -16,7 +16,7 @@ with DAG(dag_id="fundref", schedule_interval="@monthly", default_args=default_ar
     # Get config variables
     check_setup = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_SETUP,
-        python_callable=FundrefTelescope.setup_requirements,
+        python_callable=FundrefTelescope.check_setup_requirements,
         provide_context=True
     )
 
@@ -32,13 +32,13 @@ with DAG(dag_id="fundref", schedule_interval="@monthly", default_args=default_ar
     # Downloads snapshot from url
     download_local = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_DOWNLOAD,
-        python_callable=FundrefTelescope.download_releases_local,
+        python_callable=FundrefTelescope.download,
         provide_context=True
     )
 
     decompress = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_DECOMPRESS,
-        python_callable=FundrefTelescope.decompress_release,
+        python_callable=FundrefTelescope.decompress,
         provide_context=True
     )
 
@@ -50,19 +50,19 @@ with DAG(dag_id="fundref", schedule_interval="@monthly", default_args=default_ar
 
     transform = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_TRANSFORM,
-        python_callable=FundrefTelescope.transform_release,
+        python_callable=FundrefTelescope.transform,
         provide_context=True
     )
 
     upload_to_gcs = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_UPLOAD,
-        python_callable=FundrefTelescope.upload_release_to_gcs,
+        python_callable=FundrefTelescope.upload_to_gcs,
         provide_context=True
 
     )
     load_to_bq = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_BQ_LOAD,
-        python_callable=FundrefTelescope.load_release_to_bq,
+        python_callable=FundrefTelescope.load_to_bq,
         provide_context=True
     )
 
@@ -72,5 +72,6 @@ with DAG(dag_id="fundref", schedule_interval="@monthly", default_args=default_ar
         provide_context=True
     )
 
-    check_setup >> list_releases >> [download_local, stop_workflow]
+    check_setup >> [list_releases, stop_workflow]
+    list_releases >> [download_local, stop_workflow]
     download_local >> decompress >> geonames >> transform >> upload_to_gcs >> load_to_bq >> cleanup_local
