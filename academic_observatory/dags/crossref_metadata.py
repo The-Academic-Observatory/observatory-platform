@@ -12,7 +12,7 @@ default_args = {
     "start_date": datetime(2020, 3, 1)
 }
 
-with DAG(dag_id="crossref", schedule_interval="@monthly", default_args=default_args) as dag:
+with DAG(dag_id="crossref_metadata", schedule_interval="@monthly", default_args=default_args) as dag:
     # Get config variables
     check_setup = PythonOperator(
         task_id=CrossrefTelescope.TASK_ID_SETUP,

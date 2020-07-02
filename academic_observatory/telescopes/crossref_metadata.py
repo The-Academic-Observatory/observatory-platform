@@ -224,6 +224,8 @@ class CrossrefTelescope:
         If run from outside, checks if 'CONFIG_PATH' airflow variable is available and points to a valid config file.
         If run from inside, check if airflow variables for 'env', 'bucket' and 'project_id' are set.
 
+        Also checks if crossref api token is given as the password of a 'crossref' connection.
+
         The corresponding values will be stored in a dict and pushed with xcom, so they can be accessed in consequent
         tasks.
 
@@ -360,6 +362,11 @@ class CrossrefTelescope:
 
     @staticmethod
     def decompress(**kwargs):
+        """
+        Decompresses release
+
+        kwargs is required to access task instance
+        """
         # Pull messages
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
