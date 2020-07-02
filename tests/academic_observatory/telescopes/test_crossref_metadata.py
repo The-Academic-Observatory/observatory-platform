@@ -87,7 +87,6 @@ class TestCrossref(unittest.TestCase):
             self.assertIsInstance(releases, List)
             for release in releases:
                 self.assertIsInstance(release, str)
-                print(release)
 
     def test_release_date(self):
         """ Test that date obtained from url is string and in correct format.
