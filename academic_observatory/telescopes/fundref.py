@@ -12,24 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs
+# Author: Aniek Roelofs, Richard Hosking
 import json
 import logging
 import os
 import pathlib
-import requests
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
-from typing import Tuple
+from typing import Dict, List, Tuple, Union
 
 import pendulum
+import requests
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
-from google.api_core.exceptions import NotFound
 from google.cloud import storage
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
@@ -46,7 +44,6 @@ from academic_observatory.utils.data_utils import get_file
 from academic_observatory.utils.gc_utils import (
     bigquery_partitioned_table_id,
     create_bigquery_dataset,
-    download_blob_from_cloud_storage,
     load_bigquery_table,
     upload_file_to_cloud_storage
 )
@@ -73,7 +70,7 @@ def xcom_pull_info(ti: TaskInstance) -> Tuple[list, str, str, str]:
     return releases_list, environment, bucket, project_id
 
 
-def list_releases(telescope_url):
+def list_releases(telescope_url: str) -> Dict:
     """
     List all available fundref releases
 
@@ -105,7 +102,7 @@ def download_release(fundref_release: 'FundrefRelease') -> str:
 
     :param fundref_release: Instance of FundrefRelease class
     """
-    file_path = fundref_release.get_filepath_download()
+    file_path = fundref_release.filepath_download
 
     # Download
     logging.info(f"Downloading file: {file_path}, url: {fundref_release.url}")
@@ -148,9 +145,10 @@ def transform_release(fundref_release: 'FundrefRelease') -> str:
 
     :param fundref_release: Instance of FundrefRelease class
     """
-    funders_list = parse_fundref_registry_rdf(fundref_release.filepath_extract)
+    funders, funders_by_key = parse_fundref_registry_rdf(fundref_release.filepath_extract, get_filepath_geonames())
+    funders = add_funders_relationships(funders, funders_by_key)
     with open(fundref_release.filepath_transform, 'w') as jsonl_out:
-        jsonl_out.write('\n'.join(json.dumps(obj) for obj in funders_list))
+        jsonl_out.write('\n'.join(json.dumps(obj) for obj in funders))
     logging.info(f'Success transforming release: {fundref_release.url}')
 
     return fundref_release.filepath_transform
@@ -160,48 +158,46 @@ class FundrefRelease:
     def __init__(self, url, date):
         self.url = url
         self.date = date
-        self.filepath_download = self.get_filepath_download()
-        self.filepath_extract = self.get_filepath_extract()
-        self.filepath_transform = self.get_filepath_transform()
+        self.filepath_download = self.get_filepath(SubFolder.downloaded)
+        self.filepath_extract = self.get_filepath(SubFolder.extracted)
+        self.filepath_transform = self.get_filepath(SubFolder.transformed)
 
-    def get_filepath_download(self) -> str:
+    def get_filepath(self, sub_folder: SubFolder) -> str:
         """
-        Gives path to downloaded release.
+        Gets complete path of file for download/extract/transform directory
 
-        :return: absolute file path
+        :param sub_folder: name of subfolder
+        :return:
         """
-        compressed_file_name = f"{FundrefTelescope.DAG_ID}_{self.date}.tar.gz".replace('-', '_')
-        download_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.downloaded)
-        path = os.path.join(download_dir, compressed_file_name)
+        if sub_folder == SubFolder.downloaded:
+            file_name = f"{FundrefTelescope.DAG_ID}_{self.date}.tar.gz".replace('-', '_')
+        else:
+            file_name = f"{FundrefTelescope.DAG_ID}_{self.date}.rdf".replace('-', '_')
+
+        file_dir = telescope_path(FundrefTelescope.DAG_ID, sub_folder)
+        path = os.path.join(file_dir, file_name)
 
         return path
 
-    def get_filepath_extract(self) -> str:
+    def get_blob_name(self, sub_folder: SubFolder) -> str:
         """
-        Gives path to extracted and decompressed release.
+        Gives blob name that is used to determine path inside storage bucket
 
-        :return: absolute file path
+        :param sub_folder: name of subfolder
+        :return: blob name
         """
-        decompressed_file_name = f"{FundrefTelescope.DAG_ID}_{self.date}.rdf".replace('-', '_')
-        extract_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.extracted)
-        path = os.path.join(extract_dir, decompressed_file_name)
+        file_name = os.path.basename(self.get_filepath(sub_folder))
+        blob_name = os.path.join(f'telescopes/{FundrefTelescope.DAG_ID}/{sub_folder}', file_name)
 
-        return path
-
-    def get_filepath_transform(self) -> str:
-        """
-        Gives path to transformed release.
-
-        :return: absolute file path
-        """
-        decompressed_file_name = f"{FundrefTelescope.DAG_ID}_{self.date}.rdf".replace('-', '_')
-        transform_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.transformed)
-        path = os.path.join(transform_dir, decompressed_file_name)
-
-        return path
+        return blob_name
 
 
-def get_filepath_geonames():
+def get_filepath_geonames() -> str:
+    """
+    Gets file path of the geonames file containing country data
+
+    :return: complete file path
+    """
     file_name = FundrefTelescope.GEONAMES_FILE_NAME
     transform_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.transformed)
     path = os.path.join(transform_dir, file_name)
@@ -209,13 +205,20 @@ def get_filepath_geonames():
     return path
 
 
-def download_geonames_dump():
-    filename = get_filepath_geonames().strip('.txt')
+def download_geonames_dump(file_path: str):
+    """
+    Downloads geonames dump file containing country data. The file is in zip format and will be extracted
+    after downloading, saving the unzipped content.
+
+    :param file_path: complete file path on where to store the extracted geonames dump file
+    :return: None.
+    """
+    filename = file_path.strip('.txt')
     filedir = os.path.dirname(filename)
     logging.info(f"Downloading file: {filename}, url: {FundrefTelescope.GEONAMES_URL}")
     # extract zip file named 'filename' which contains 'allCountries.txt'
     file_path, updated = get_file(fname=filename, origin=FundrefTelescope.GEONAMES_URL, cache_subdir=filedir,
-             extract=True, archive_format='zip')
+                                  extract=True, archive_format='zip')
 
     if file_path:
         logging.info(f'Success downloading release: {file_path}')
@@ -224,11 +227,17 @@ def download_geonames_dump():
         exit(os.EX_DATAERR)
 
 
-def geonames_dump():
+def geonames_to_dict(file_path: str) -> Dict:
+    """
+    Reads the geonames text file and stores info of specific columns in a dict.
+
+    :param file_path: complete file path of geonames dump file
+    :return: Dictionary containing 'id' as key and a tuple of name & country_code as value
+    """
     geonames_dict = {}
 
-    geonames_dump_path = get_filepath_geonames()
-    with open(geonames_dump_path, 'r') as file:
+    logging.info(f'Opening geonames file "{file_path}" and transforming to python dict.')
+    with open(file_path, 'r') as file:
         for line in file:
             id = line.split('\t')[0]
             name = line.split('\t')[1]
@@ -237,7 +246,15 @@ def geonames_dump():
     return geonames_dict
 
 
-def get_geoname_data(nested, geoname_dict):
+def get_geoname_data(nested, geoname_dict) -> Tuple[str, str]:
+    """
+    Given a nested xml element it will get the corresponding geoname id. Will then look up the associated name and
+    country code from the geoname dictionary.
+
+    :param nested: nested xml element obtained from the registry.rdf file
+    :param geoname_dict: dictionary mapping geoname id to country code and country name
+    :return: country name and country code
+    """
     geonameid = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'].split('sws.geonames.org')[
         -1].strip('/')
     try:
@@ -251,7 +268,8 @@ def get_geoname_data(nested, geoname_dict):
 
 
 def new_funder_template():
-    """ Helper Function for creating a new Funder.
+    """
+    Helper Function for creating a new Funder.
     :return: a blank funder object.
     """
     return {
@@ -286,18 +304,22 @@ def new_funder_template():
     }
 
 
-def parse_fundref_registry_rdf(file_name):
-    """ Helper function to parse a fundref registry rdf file and to return a python list containing each funder.
-    :param file_name: the filename of the registry.rdf file to be parsed.
-    :return: A python list containing all the funders parsed from the input rdf
+def parse_fundref_registry_rdf(registry_file_path: str, geonames_file_path: str) -> Tuple[List, Dict]:
+    """
+    Helper function to parse a fundref registry rdf file and to return a python list containing each funder.
+
+    :param registry_file_path: the filename of the registry.rdf file to be parsed.
+    :param geonames_file_path: the path of the geonames allCountries.txt dump file
+    :return: funders list containing all the funders parsed from the input rdf and dictionary of funders with their
+    id as key.
     """
     funders = []
     funders_by_key = {}
 
-    tree = ET.parse(file_name)
+    tree = ET.parse(registry_file_path)
     root = tree.getroot()
 
-    geoname_dict = geonames_dump()
+    geoname_dict = geonames_to_dict(geonames_file_path)
 
     for record in root:
         if record.tag == "{http://www.w3.org/2004/02/skos/core#}ConceptScheme":
@@ -312,106 +334,88 @@ def parse_fundref_registry_rdf(file_name):
             funder['funder'] = funder_id
             geoname_country_code = None
             for nested in record:
-
                 if nested.tag == '{http://www.w3.org/2004/02/skos/core#}inScheme':
                     continue
-
                 elif nested.tag == '{http://www.w3.org/2008/05/skos-xl#}prefLabel':
                     funder['pre_label'] = nested[0][0].text
-
                 elif nested.tag == '{http://www.w3.org/2008/05/skos-xl#}altLabel':
                     funder['alt_label'].append(nested[0][0].text)
-
                 elif nested.tag == '{http://www.w3.org/2004/02/skos/core#}narrower':
                     funder['narrower'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://www.w3.org/2004/02/skos/core#}broader':
                     funder['broader'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://purl.org/dc/terms/}modified':
                     funder['modified'] = nested.text
-
                 elif nested.tag == '{http://purl.org/dc/terms/}created':
                     funder['created'] = nested.text
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}fundingBodySubType':
                     funder['funding_body_type'] = nested.text
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}fundingBodyType':
                     funder['funding_body_sub_type'] = nested.text
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}region':
                     funder['region'] = nested.text
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}country':
                     geoname_name, geoname_country_code = get_geoname_data(nested, geoname_dict)
                     funder['country'] = geoname_name
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}state':
                     geoname_name, _ = get_geoname_data(nested, geoname_dict)
                     funder['state'] = geoname_name
-
                 elif nested.tag == '{http://schema.org/}address':
                     if geoname_country_code is None:
                         print("Don't know country_code, referenced before country")
                         funder['country_code'] = nested[0][0].text
                     else:
                         funder['country_code'] = geoname_country_code
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}taxId':
                     funder['tax_id'] = nested.text
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}continuationOf':
                     funder['continuation_of'].append(
                         nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}renamedAs':
                     funder['renamed_as'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://purl.org/dc/terms/}replaces':
                     funder['replaces'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}affilWith':
                     funder['affil_with'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}mergedWith':
                     funder['merged_with'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}incorporatedInto':
                     funder['incorporated_into'].append(
                         nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://purl.org/dc/terms/}isReplacedBy':
                     funder['is_replaced_by'].append(
                         nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}incorporates':
                     funder['incorporates'].append(
                         nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}splitInto':
                     funder['split_into'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/terms}status':
                     funder['status'] = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}mergerOf':
                     funder['merger_of'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}splitFrom':
                     funder['split_from'] = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
-
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}formerlyKnownAs':
                     funder['formly_known_as'] = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
-
                 elif nested.tag == '{http://www.w3.org/2004/02/skos/core#}notation':
                     funder['notation'] = nested.text
-
                 else:
-                    print(nested)
+                    print(f"Unrecognized tag for element: {nested}")
 
             funders.append(funder)
 
+    return funders, funders_by_key
+
+
+def add_funders_relationships(funders: List, funders_by_key: Dict) -> List:
+    """
+    Adds any children/parent relationships to funder instances in the funders list.
+
+    :param funders: List of funders
+    :param funders_by_key: Dictionary of funders with their id as key.
+    :return: funders with added relationships.
+    """
     for funder in funders:
         children, returned_depth = recursive_funders(funders_by_key, funder, 0, 'narrower')
         funder["children"] = children
@@ -424,7 +428,19 @@ def parse_fundref_registry_rdf(file_name):
     return funders
 
 
-def recursive_funders(funders_by_key, funder, depth, direction):
+def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction: str) -> Tuple[List, int]:
+    """
+    Recursively goes through a funder/sub_funder dict. The funder properties can be looked up with the funders_by_key
+    dictionary that stores the properties per funder id. Any children/parents for the funder are already given in the
+    xml element with the 'narrower' and 'broader' tags. For each funder in the list, it will recursively add any children/
+    parents for those funders in 'narrower'/'broader' and their funder properties.
+
+    :param funders_by_key: dictionary with id as key and funders object as value
+    :param funder: dictionary of a given funder containing 'narrower' and 'broader' info
+    :param depth: keeping track of nested depth
+    :param direction: either 'narrower' or 'broader' to get 'children' or 'parents'
+    :return:
+    """
     starting_depth = depth
 
     children = []
@@ -458,7 +474,7 @@ class FundrefTelescope:
 
     GEONAMES_FILE_NAME = 'allCountries.txt'
     GEONAMES_URL = 'https://download.geonames.org/export/dump/allCountries.zip'
-    DEBUG_GEONAMES_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'allCountries.txt')
+    DEBUG_GEONAMES_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'geonames_subset.txt')
 
     TASK_ID_SETUP = "check_setup_requirements"
     TASK_ID_LIST = f"list_{DAG_ID}_releases"
@@ -554,7 +570,7 @@ class FundrefTelescope:
         bq_hook = BigQueryHook()
         # Select the releases that were published on or after the execution_date and before the next_execution_date
         releases_list_out = []
-        logging.info('Releases between current and next execution date:')
+        logging.info(f'Releases between current ({execution_date}) and next ({next_execution_date}) execution date:')
         for release in releases_list:
             fundref_release = FundrefRelease(release['url'], release['date'])
             released_date: Pendulum = pendulum.parse(fundref_release.date)
@@ -617,35 +633,13 @@ class FundrefTelescope:
     def geonames_dump(**kwargs):
         msgs_in, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        # use blob_dir_name for fundref release later
-        blob_dir_name = 'telescopes/fundref/transformed'
-        blob_name = os.path.join(blob_dir_name, FundrefTelescope.GEONAMES_FILE_NAME)
         file_path = get_filepath_geonames()
 
         if environment == 'dev':
             shutil.copy(FundrefTelescope.DEBUG_GEONAMES_FILE_PATH, file_path)
         else:
-            logging.info(f"Trying to download geonames_dump from bucket. bucket: {bucket}, blob_name: {blob_name}, "
-                         f"file_path:{file_path}")
-            try:
-                success = download_blob_from_cloud_storage(bucket, blob_name, file_path)
-            # except AirflowException:
-            except NotFound:
-                success = False
-
-            if success:
-                logging.info("Successfully downloaded geonames_dump file")
-            else:
-                logging.info(f"Could not download geonames_dump file from bucket. Downloading from "
-                             f"{FundrefTelescope.GEONAMES_URL} instead")
-                # download geonames
-                download_geonames_dump()
-                # upload to bucket for later usage
-                upload_file_to_cloud_storage(bucket, blob_name, file_path=file_path)
-
-        # Push messages
-        ti: TaskInstance = kwargs['ti']
-        ti.xcom_push('blob_dir_name', blob_dir_name)
+            # download geonames
+            download_geonames_dump(file_path)
 
     @staticmethod
     def transform(**kwargs):
@@ -672,14 +666,11 @@ class FundrefTelescope:
         # Pull messages
         releases_list, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        ti: TaskInstance = kwargs['ti']
-        blob_dir_name = ti.xcom_pull(key='blob_dir_name', task_ids=FundrefTelescope.TASK_ID_GEONAMES,
-                                     include_prior_dates=False)
-
         for release in releases_list:
             fundref_release = FundrefRelease(release['url'], release['date'])
-            blob_name = os.path.join(blob_dir_name, os.path.basename(fundref_release.filepath_transform))
-            upload_file_to_cloud_storage(bucket, blob_name, file_path=fundref_release.filepath_transform)
+
+            upload_file_to_cloud_storage(bucket, fundref_release.filepath_transform,
+                                         file_path=fundref_release.filepath_transform)
 
     @staticmethod
     def load_to_bq(**kwargs):
@@ -703,8 +694,7 @@ class FundrefTelescope:
         ti: TaskInstance = kwargs['ti']
         releases_list = ti.xcom_pull(key=FundrefTelescope.XCOM_MESSAGES_NAME, task_ids=FundrefTelescope.TASK_ID_LIST,
                                      include_prior_dates=False)
-        blob_dir_name = ti.xcom_pull(key='blob_dir_name', task_ids=FundrefTelescope.TASK_ID_GEONAMES,
-                                     include_prior_dates=False)
+
         for release in releases_list:
             fundref_release = FundrefRelease(release['url'], release['date'])
             # get release_date
@@ -720,8 +710,7 @@ class FundrefTelescope:
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table
-            blob_name = os.path.join(blob_dir_name, os.path.basename(fundref_release.filepath_transform))
-            uri = f"gs://{bucket}/{blob_name}"
+            uri = f"gs://{bucket}/{fundref_release.get_blob_name(SubFolder.transformed)}"
             logging.info(f"URI: {uri}")
             load_bigquery_table(uri, dataset_id, location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
