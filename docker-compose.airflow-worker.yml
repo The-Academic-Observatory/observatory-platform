@@ -1,0 +1,21 @@
+version: "3.8"
+x-airflow-environment: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres://airflow:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
+  AIRFLOW__CORE__FERNET_KEY: "${FERNET_KEY}"
+  AIRFLOW__CORE__AIRFLOW_HOME: "/opt/airflow/"
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
+  AIRFLOW__WEBSERVER__RBAC: "True"
+  AIRFLOW__CELERY__BROKER_URL: "redis://:@${REDIS_HOSTNAME}:6379/0"
+  AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
+
+services:
+  worker_remote:
+    image: apache/airflow:1.10.10
+    restart: always
+    environment:
+      <<: *airflow-env
+    volumes:
+      - "./dags:/opt/airflow/dags"
+    command: worker -q remote_queue
