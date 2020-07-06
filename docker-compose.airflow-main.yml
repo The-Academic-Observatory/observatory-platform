@@ -10,6 +10,11 @@ x-airflow-environment: &airflow-env
   AIRFLOW__WEBSERVER__RBAC: "True"
   AIRFLOW__CELERY__BROKER_URL: "redis://:@redis:6379/0"
   AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
+  AIRFLOW__SECRETS__BACKEND: "airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend"
+  AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
+  GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
+  AIRFLOW_VAR_DOWNLOAD_BUCKET_NAME: "download-bucket"
+  AIRFLOW_VAR_TRANSFORM_BUCKET_NAME: "transform-bucket"
 
 services:
   redis:
@@ -19,7 +24,7 @@ services:
       - 6379:6379
 
   flower:
-    image: apache/airflow:1.10.10
+    image: apache/airflow:1.10.10-2-python3.7
     restart: always
     depends_on:
       - redis
@@ -30,7 +35,7 @@ services:
     command: flower
 
   init_db:
-    image: apache/airflow:1.10.10
+    image: apache/airflow:1.10.10-2-python3.7
     environment:
       <<: *airflow-env
     volumes:
@@ -42,10 +47,12 @@ services:
     restart: on-failure
 
   webserver:
-    image: apache/airflow:1.10.10
+    image: apache/airflow:1.10.10-2-python3.7
     restart: always
     depends_on:
       - redis
+    secrets:
+      - google_application_credentials.json
     environment:
       <<: *airflow-env
     ports:
@@ -60,10 +67,12 @@ services:
       retries: 3
 
   scheduler:
-    image: apache/airflow:1.10.10
+    image: apache/airflow:1.10.10-2-python3.7
     restart: always
     depends_on:
       - webserver
+    secrets:
+      - google_application_credentials.json
     environment:
       <<: *airflow-env
     volumes:
@@ -71,10 +80,12 @@ services:
     command: scheduler
 
   worker_local:
-    image: apache/airflow:1.10.10
+    image: apache/airflow:1.10.10-2-python3.7
     restart: always
     depends_on:
       - scheduler
+    secrets:
+      - google_application_credentials.json
     environment:
       <<: *airflow-env
     volumes:

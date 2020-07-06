@@ -44,7 +44,7 @@ variable "airflow_worker_machine_type" {
   type = string
 }
 
-# Secret variables
+# Airflow secret variables
 variable "fernet_key" {
   description = "The fernet key which is used to encrypt the secrets in the airflow database"
   type = string
@@ -65,3 +65,18 @@ variable "redis_password" {
   type = string
 }
 
+# Airflow connection variables
+variable "mag_releases_table_conn" {
+  description = "The mag_releases_table connection"
+  type = string
+}
+
+variable "mag_snapshots_container_conn" {
+  description = "The mag_snapshots_container connection"
+  type = string
+}
+
+variable "crossref_conn" {
+  description = "The crossref connection"
+  type = string
+}

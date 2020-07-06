@@ -16,7 +16,199 @@ data "google_project" "project" {
 locals {
   secret_accessor_role = "roles/secretmanager.secretAccessor"
   compute_service_account_email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
-  transfer_service_account_email = "project-${data.google_project.project.number}@storage-transfer-service.iam.gserviceaccount.com"
+//  transfer_service_account_email = "project-${data.google_project.project.number}@storage-transfer-service.iam.gserviceaccount.com"
+}
+
+data "google_storage_transfer_project_service_account" "default" {
+}
+
+########################################################################################################################
+# Create a service account and add permissions
+########################################################################################################################
+
+resource "google_service_account" "ao_service_account" {
+  account_id   = "${var.project_id}-airflow"
+  display_name = "Apache Airflow Service Account"
+  description = "The Google Service Account used by Apache Airflow"
+}
+
+# Create service account key, save to Google Secrets Manager and give compute service account access to the secret
+resource "google_service_account_key" "ao_service_account_key" {
+  service_account_id = google_service_account.ao_service_account.name
+}
+
+resource "google_secret_manager_secret" "google_application_credentials" {
+  secret_id = "google_application_credentials"
+
+  replication {
+    automatic = true
+  }
+}
+
+resource "google_secret_manager_secret_version" "google_application_credentials_version" {
+  depends_on = [google_secret_manager_secret.google_application_credentials]
+  secret = google_secret_manager_secret.google_application_credentials.id
+  secret_data = google_service_account_key.ao_service_account_key.private_key
+}
+
+resource "google_secret_manager_secret_iam_member" "google_application_credentials_member" {
+  depends_on = [google_secret_manager_secret_version.google_application_credentials_version]
+  project = google_secret_manager_secret.google_application_credentials.project
+  secret_id = google_secret_manager_secret.google_application_credentials.secret_id
+  role = local.secret_accessor_role
+  member = "serviceAccount:${local.compute_service_account_email}"
+}
+
+data "google_iam_policy" "ao_service_account_permissions" {
+  binding {
+    role = "roles/bigquery.admin"
+
+    members = [
+      "serviceAccount:${google_service_account.ao_service_account.email}"
+    ]
+  }
+
+  binding {
+    role = "roles/storagetransfer.admin"
+
+    members = [
+      "serviceAccount:${google_service_account.ao_service_account.email}"
+    ]
+  }
+}
+
+########################################################################################################################
+# Storage Buckets
+########################################################################################################################
+
+# Bucket for storing downloaded files
+resource "random_id" "ao_download_bucket_suffix" {
+  byte_length = 8
+}
+
+resource "google_storage_bucket" "ao_download_bucket" {
+  name = "${var.project_id}-download-${random_id.ao_download_bucket_suffix.hex}"
+  force_destroy = true
+  location =  var.data_location
+  project = var.project_id
+  lifecycle_rule {
+    condition {
+      age = "31"
+      matches_storage_class = ["STANDARD"]
+    }
+    action {
+      type = "SetStorageClass"
+      storage_class = "NEARLINE"
+    }
+  }
+  lifecycle_rule {
+    condition {
+      age = "62"
+      matches_storage_class = ["NEARLINE"]
+    }
+    action {
+      type = "SetStorageClass"
+      storage_class = "COLDLINE"
+    }
+  }
+  lifecycle_rule {
+    condition {
+      age = "153"
+      matches_storage_class = ["COLDLINE"]
+    }
+    action {
+      type = "SetStorageClass"
+      storage_class = "ARCHIVE"
+    }
+  }
+}
+
+# Permissions so that transfer service account can read / write files to bucket
+resource "google_storage_bucket_iam_member" "ao_download_bucket_transfer_service_account_legacy_bucket_reader" {
+  bucket = google_storage_bucket.ao_download_bucket.name
+  role = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${data.google_storage_transfer_project_service_account.default.email}"
+}
+
+resource "google_storage_bucket_iam_member" "ao_download_bucket_transfer_service_account_object_creator" {
+  bucket = google_storage_bucket.ao_download_bucket.name
+  role = "roles/storage.objectCreator"
+  member = "serviceAccount:${data.google_storage_transfer_project_service_account.default.email}"
+}
+
+resource "google_storage_bucket_iam_member" "ao_download_bucket_transfer_service_account_object_viewer" {
+  bucket = google_storage_bucket.ao_download_bucket.name
+  role = "roles/storage.objectViewer"
+  member = "serviceAccount:${data.google_storage_transfer_project_service_account.default.email}"
+}
+
+# Permissions so that Academic Observatory service account can read and write
+resource "google_storage_bucket_iam_member" "ao_download_bucket_ao_service_account_legacy_bucket_reader" {
+  bucket = google_storage_bucket.ao_download_bucket.name
+  role = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
+resource "google_storage_bucket_iam_member" "ao_download_bucket_ao_service_account_object_creator" {
+  bucket = google_storage_bucket.ao_download_bucket.name
+  role = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
+resource "google_storage_bucket_iam_member" "ao_download_bucket_ao_service_account_object_reader" {
+  bucket = google_storage_bucket.ao_download_bucket.name
+  role = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
+# Bucket for storing transformed files
+resource "random_id" "ao_transform_bucket_suffix" {
+  byte_length = 8
+}
+
+resource "google_storage_bucket" "ao_transform_bucket" {
+  name = "${var.project_id}-transform-${random_id.ao_transform_bucket_suffix.hex}"
+  force_destroy = true
+  location =  var.data_location
+  project = var.project_id
+  lifecycle_rule {
+    condition {
+      age = "31"
+      matches_storage_class = ["STANDARD"]
+    }
+    action {
+      type = "SetStorageClass"
+      storage_class = "NEARLINE"
+    }
+  }
+  lifecycle_rule {
+    condition {
+      age = "62"
+      matches_storage_class = ["NEARLINE"]
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+
+# Permissions so that Academic Observatory service account can read and write
+resource "google_storage_bucket_iam_member" "ao_transform_bucket_ao_service_account_legacy_bucket_reader" {
+  bucket = google_storage_bucket.ao_transform_bucket.name
+  role = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
+resource "google_storage_bucket_iam_member" "ao_transform_bucket_ao_service_account_object_creator" {
+  bucket = google_storage_bucket.ao_transform_bucket.name
+  role = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
+resource "google_storage_bucket_iam_member" "ao_transform_bucket_ao_service_account_object_viewer" {
+  bucket = google_storage_bucket.ao_transform_bucket.name
+  role = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
 }
 
 ########################################################################################################################
@@ -92,8 +284,7 @@ resource "google_compute_global_address" "airflow_db_private_ip" {
 resource "google_service_networking_connection" "private_vpc_connection" {
   network = google_compute_network.ao_network.id
   service = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [
-    google_compute_global_address.airflow_db_private_ip.name]
+  reserved_peering_ranges = [google_compute_global_address.airflow_db_private_ip.name]
 }
 
 resource "random_id" "airflow_db_name_suffix" {
@@ -132,9 +323,8 @@ resource "google_sql_user" "users" {
   password = var.postgres_password
 }
 
-
 ########################################################################################################################
-# Secrets
+# Airflow Secrets
 ########################################################################################################################
 
 # Fernet key
@@ -227,6 +417,129 @@ resource "google_secret_manager_secret_iam_member" "redis_password_member" {
   secret_id = google_secret_manager_secret.redis_password.secret_id
   role = local.secret_accessor_role
   member = "serviceAccount:${local.compute_service_account_email}"
+}
+
+########################################################################################################################
+# Telescope Secrets
+########################################################################################################################
+
+# mag_releases_table connection
+resource "google_secret_manager_secret" "mag_releases_table_conn" {
+  secret_id = "airflow-connections-mag_releases_table"
+
+  replication {
+    automatic = true
+  }
+}
+
+resource "google_secret_manager_secret_version" "mag_releases_table_conn_version" {
+  depends_on = [google_secret_manager_secret.mag_releases_table_conn]
+  secret = google_secret_manager_secret.mag_releases_table_conn.id
+  secret_data = var.mag_releases_table_conn
+}
+
+resource "google_secret_manager_secret_iam_member" "mag_releases_table_conn_member" {
+  depends_on = [google_secret_manager_secret_version.mag_releases_table_conn_version]
+  project = google_secret_manager_secret.mag_releases_table_conn.project
+  secret_id = google_secret_manager_secret.mag_releases_table_conn.secret_id
+  role = local.secret_accessor_role
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
+# mag_snapshots_container connection
+resource "google_secret_manager_secret" "mag_snapshots_container_conn" {
+  secret_id = "airflow-connections-mag_snapshots_container"
+
+  replication {
+    automatic = true
+  }
+}
+
+resource "google_secret_manager_secret_version" "mag_snapshots_container_conn_version" {
+  depends_on = [google_secret_manager_secret.mag_snapshots_container_conn]
+  secret = google_secret_manager_secret.mag_snapshots_container_conn.id
+  secret_data = var.mag_snapshots_container_conn
+}
+
+resource "google_secret_manager_secret_iam_member" "mag_snapshots_container_conn_member" {
+  depends_on = [google_secret_manager_secret_version.mag_snapshots_container_conn_version]
+  project = google_secret_manager_secret.mag_snapshots_container_conn.project
+  secret_id = google_secret_manager_secret.mag_snapshots_container_conn.secret_id
+  role = local.secret_accessor_role
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
+# crossref connection
+resource "google_secret_manager_secret" "crossref_conn" {
+  secret_id = "airflow-connections-crossref"
+
+  replication {
+    automatic = true
+  }
+}
+
+resource "google_secret_manager_secret_version" "crossref_conn_version" {
+  depends_on = [google_secret_manager_secret.crossref_conn]
+  secret = google_secret_manager_secret.crossref_conn.id
+  secret_data = var.crossref_conn
+}
+
+resource "google_secret_manager_secret_iam_member" "crossref_conn_member" {
+  depends_on = [google_secret_manager_secret_version.crossref_conn_version]
+  project = google_secret_manager_secret.crossref_conn.project
+  secret_id = google_secret_manager_secret.crossref_conn.secret_id
+  role = local.secret_accessor_role
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
+########################################################################################################################
+# Variables
+########################################################################################################################
+
+# Download bucket name
+resource "google_secret_manager_secret" "download_bucket_name_variable" {
+  secret_id = "airflow-variables-download_bucket_name"
+
+  replication {
+    automatic = true
+  }
+}
+
+resource "google_secret_manager_secret_version" "download_bucket_name_variable_version" {
+  depends_on = [google_secret_manager_secret.download_bucket_name_variable]
+  secret = google_secret_manager_secret.download_bucket_name_variable.id
+  secret_data = google_storage_bucket.ao_download_bucket.name
+}
+
+resource "google_secret_manager_secret_iam_member" "download_bucket_name_variable_member" {
+  depends_on = [google_secret_manager_secret_version.download_bucket_name_variable_version]
+  project = google_secret_manager_secret.download_bucket_name_variable.project
+  secret_id = google_secret_manager_secret.download_bucket_name_variable.secret_id
+  role = local.secret_accessor_role
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
+# Transform bucket name
+resource "google_secret_manager_secret" "transform_bucket_name_variable" {
+  secret_id = "airflow-variables-transform_bucket_name"
+
+  replication {
+    automatic = true
+  }
+}
+
+resource "google_secret_manager_secret_version" "transform_bucket_name_variable_version" {
+  depends_on = [google_secret_manager_secret.transform_bucket_name_variable]
+  secret = google_secret_manager_secret.transform_bucket_name_variable.id
+  secret_data = google_storage_bucket.ao_transform_bucket.name
+}
+
+resource "google_secret_manager_secret_iam_member" "transform_bucket_name_variable_member" {
+  depends_on = [google_secret_manager_secret_version.transform_bucket_name_variable_version]
+  project = google_secret_manager_secret.transform_bucket_name_variable.project
+  secret_id = google_secret_manager_secret.transform_bucket_name_variable.secret_id
+  role = local.secret_accessor_role
+  member = "serviceAccount:${google_service_account.ao_service_account.email}"
 }
 
 ########################################################################################################################

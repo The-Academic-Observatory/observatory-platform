@@ -28,7 +28,7 @@ build {
   # Upload the Academic Observatory project files. Have to specify each file because the file provisioner doesn't
   # let you exclude files. Don't want folders e.g. venv or secrets to be uploaded.
   provisioner "shell" {
-    inline = ["mkdir /tmp/academic-observatory"]
+    inline = ["mkdir -p /tmp/academic-observatory/dags"]
   }
 
   provisioner "file" {
@@ -42,6 +42,11 @@ build {
   }
 
   provisioner "file" {
+    source = "docker-compose.airflow-secrets.yml"
+    destination = "/tmp/academic-observatory/docker-compose.airflow-secrets.yml"
+  }
+
+  provisioner "file" {
     source = "docker-compose.airflow-main.yml"
     destination = "/tmp/academic-observatory/docker-compose.airflow-main.yml"
   }
@@ -49,6 +54,11 @@ build {
   provisioner "file" {
     source = "docker-compose.airflow-worker.yml"
     destination = "/tmp/academic-observatory/docker-compose.airflow-worker.yml"
+  }
+
+  provisioner "file" {
+    source = "terraform/hello_world.py"
+    destination = "/tmp/academic-observatory/dags/hello_world.py"
   }
 
   provisioner "file" {

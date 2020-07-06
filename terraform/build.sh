@@ -16,7 +16,7 @@ sudo curl -L "https://github.com/docker/compose/releases/download/1.26.0/docker-
 sudo chmod +x /usr/local/bin/docker-compose
 
 # Install berglas v0.5.3
-sudo curl -L "https://storage.googleapis.com/berglas/master/linux_amd64/berglas" -o /usr/local/bin/berglas
+sudo curl -L "https://storage.googleapis.com/berglas/0.5.0/linux_amd64/berglas" -o /usr/local/bin/berglas
 sudo chmod +x /usr/local/bin/berglas
 
 # Move Academic Observatory onto a permanent path
