@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # Author: Aniek Roelofs
+
 import functools
 import logging
 import os
@@ -20,8 +21,7 @@ import pathlib
 import re
 import shutil
 import subprocess
-from datetime import datetime
-from typing import Tuple
+from typing import List, Tuple
 
 import pendulum
 import requests
@@ -71,21 +71,31 @@ def xcom_pull_info(ti: TaskInstance) -> Tuple[list, str, str, str]:
     return release_urls, environment, bucket, project_id
 
 
-def list_releases(telescope_url):
+def list_releases(telescope_url: str, start_date: Pendulum, end_date: Pendulum) -> List:
+    """
+    List releases between start and end date
+    :param telescope_url: url of crossref api
+    :param start_date: start date
+    :param end_date: end date
+    :return: list of url releases
+    """
     snapshot_list = []
-
-    # Loop through years and months
-    for year in range(2018, int(datetime.today().strftime("%Y")) + 1):
-        for month in range(1, 12 + 1):
-            snapshot_url = f"{os.path.join(telescope_url, str(year), f'{month:02d}', 'all.json.tar.gz')}"
-            response = retry_session().head(snapshot_url)
-            if response:
-                snapshot_list.append(snapshot_url)
+    for month in pendulum.period(start_date, end_date.subtract(days=1)).range('months'):
+        snapshot_url = f"{os.path.join(telescope_url, month.format('%Y'), month.format('%m'), 'all.json.tar.gz')}"
+        response = retry_session().head(snapshot_url)
+        if response:
+            snapshot_list.append(snapshot_url)
 
     return snapshot_list
 
 
 def download_release(crossref_release: 'CrossrefRelease', api_token: str):
+    """
+    Downloads release
+    :param crossref_release: Instance of CrossrefRelease class
+    :param api_token: token used to access crossref data
+    :return:  None.
+    """
     header = {'Crossref-Plus-API-Token': api_token}
     filename = crossref_release.filepath_download
     with requests.get(crossref_release.url, headers=header, stream=True) as response:
@@ -140,6 +150,9 @@ def transform_release(crossref_release: 'CrossrefRelease') -> str:
 
 
 class CrossrefRelease:
+    """
+    Used to store info on a given crossref release
+    """
     def __init__(self, url):
         self.url = url
         self.date = self.release_date()
@@ -205,7 +218,7 @@ class CrossrefTelescope:
     XCOM_CONFIG_NAME = "config"
     TELESCOPE_URL = 'https://api.crossref.org/snapshots/monthly/'
     TELESCOPE_DEBUG_URL = 'https://api.crossref.org/snapshots/monthly/3000/01/all.json.tar.gz'
-    DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'crossref.json.tar.gz')
+    DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
 
     TASK_ID_SETUP = f"check_setup_requirements"
     TASK_ID_LIST = f"list_{DAG_ID}_releases"
@@ -234,6 +247,9 @@ class CrossrefTelescope:
         """
         invalid_list = []
         config_dict = {}
+        environment = None
+        bucket = None
+        project_id = None
 
         if is_composer():
             environment = Variable.get('ENV', default_var=None)
@@ -251,14 +267,14 @@ class CrossrefTelescope:
             config = ObservatoryConfig.load(config_path)
             if config is not None:
                 config_is_valid = config.is_valid
-                if not config_is_valid:
+                if config_is_valid:
+                    environment = config.environment.value
+                    bucket = config.bucket_name
+                    project_id = config.project_id
+                else:
                     invalid_list.append(f'Config file not valid: {config_is_valid}')
             if not config:
                 invalid_list.append(f'Config file does not exist')
-
-            environment = config.environment.value
-            bucket = config.bucket_name
-            project_id = config.project_id
 
         # check if crossref connection and password exists
         try:
@@ -306,32 +322,29 @@ class CrossrefTelescope:
 
         execution_date = kwargs['execution_date']
         next_execution_date = kwargs['next_execution_date']
-        releases_list = list_releases(CrossrefTelescope.TELESCOPE_URL)
-        logging.info(f'All releases:\n{releases_list}\n')
+        releases_list = list_releases(CrossrefTelescope.TELESCOPE_URL, execution_date, next_execution_date)
+        logging.info(f'Listed releases:\n{releases_list}\n')
 
         bq_hook = BigQueryHook()
         # Select the releases that were published on or after the execution_date and before the next_execution_date
         release_urls_out = []
-        logging.info('Releases between current and next execution date:')
         for release_url in releases_list:
             crossref_release = CrossrefRelease(release_url)
             released_date: Pendulum = pendulum.parse(crossref_release.date)
             table_id = bigquery_partitioned_table_id(CrossrefTelescope.DAG_ID, released_date)
 
-            if execution_date <= released_date < next_execution_date:
-                logging.info(release_url)
-                table_exists = bq_hook.table_exists(
-                    project_id=project_id,
-                    dataset_id=CrossrefTelescope.DATASET_ID,
-                    table_id=table_id
-                )
-                logging.info('Checking if bigquery table already exists:')
-                if table_exists:
-                    logging.info(
-                        f'- Table exists for {release_url}: {project_id}.{CrossrefTelescope.DATASET_ID}.{table_id}')
-                else:
-                    logging.info(f"- Table doesn't exist yet, processing {release_url} in this workflow")
-                    release_urls_out.append(release_url)
+            table_exists = bq_hook.table_exists(
+                project_id=project_id,
+                dataset_id=CrossrefTelescope.DATASET_ID,
+                table_id=table_id
+            )
+            logging.info(f'Checking if bigquery table exists for release: {release_url}')
+            if table_exists:
+                logging.info(
+                    f'Found table: {project_id}.{CrossrefTelescope.DATASET_ID}.{table_id}')
+            else:
+                logging.info(f"Didn't find table. Processing {release_url} in this workflow")
+                release_urls_out.append(release_url)
 
         # Push messages
         ti: TaskInstance = kwargs['ti']
