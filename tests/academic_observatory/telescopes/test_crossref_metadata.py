@@ -17,6 +17,7 @@
 import datetime
 import logging
 import os
+import pendulum
 import shutil
 import unittest
 from typing import List
@@ -27,7 +28,7 @@ from click.testing import CliRunner
 
 from academic_observatory.telescopes.crossref_metadata import (
     CrossrefRelease,
-    CrossrefTelescope,
+    CrossrefMetadataTelescope,
     decompress_release,
     list_releases,
     transform_release
@@ -37,8 +38,8 @@ from academic_observatory.utils.data_utils import _hash_file
 from tests.academic_observatory.config import test_fixtures_path
 
 
-class TestCrossref(unittest.TestCase):
-    """ Tests for the functions used by the crossref telescope """
+class TestCrossrefMetadata(unittest.TestCase):
+    """ Tests for the functions used by the crossref metadata telescope """
 
     def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
@@ -47,7 +48,7 @@ class TestCrossref(unittest.TestCase):
         :param kwargs: keyword arguments.
         """
 
-        super(TestCrossref, self).__init__(*args, **kwargs)
+        super(TestCrossrefMetadata, self).__init__(*args, **kwargs)
 
         # Crossref releases list
         self.list_crossref_releases_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
@@ -56,7 +57,7 @@ class TestCrossref(unittest.TestCase):
 
         # Crossref test release
         self.crossref_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
-        self.crossref_test_url = CrossrefTelescope.TELESCOPE_DEBUG_URL
+        self.crossref_test_url = CrossrefMetadataTelescope.TELESCOPE_DEBUG_URL
 
         self.crossref_test_date = '3000-01'
         self.crossref_test_download_file_name = 'crossref_metadata_3000_01.json.tar.gz'
@@ -83,7 +84,8 @@ class TestCrossref(unittest.TestCase):
         :return: None.
         """
         with vcr.use_cassette(self.list_crossref_releases_path):
-            releases = list_releases(CrossrefTelescope.TELESCOPE_URL)
+            releases = list_releases(CrossrefMetadataTelescope.TELESCOPE_URL, pendulum.datetime(2018, 4, 1),
+                                     pendulum.now())
             self.assertIsInstance(releases, List)
             for release in releases:
                 self.assertIsInstance(release, str)
@@ -94,7 +96,8 @@ class TestCrossref(unittest.TestCase):
         :return: None.
         """
         with vcr.use_cassette(self.list_crossref_releases_path):
-            releases = list_releases(CrossrefTelescope.TELESCOPE_URL)
+            releases = list_releases(CrossrefMetadataTelescope.TELESCOPE_URL, pendulum.datetime(2018, 4, 1),
+                                     pendulum.now())
             for release_url in releases:
                 release = CrossrefRelease(release_url)
                 date = release.date
@@ -117,7 +120,7 @@ class TestCrossref(unittest.TestCase):
             with CliRunner().isolated_filesystem():
                 release = CrossrefRelease(self.crossref_test_url)
                 file_path_download = release.filepath_download
-                path = telescope_path(CrossrefTelescope.DAG_ID, SubFolder.downloaded)
+                path = telescope_path(CrossrefMetadataTelescope.DAG_ID, SubFolder.downloaded)
                 self.assertEqual(os.path.join(path, self.crossref_test_download_file_name), file_path_download)
 
     @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
@@ -136,7 +139,7 @@ class TestCrossref(unittest.TestCase):
             with CliRunner().isolated_filesystem():
                 release = CrossrefRelease(self.crossref_test_url)
                 file_path_extract = release.filepath_extract
-                path = telescope_path(CrossrefTelescope.DAG_ID, SubFolder.extracted)
+                path = telescope_path(CrossrefMetadataTelescope.DAG_ID, SubFolder.extracted)
                 self.assertEqual(os.path.join(path, self.crossref_test_decompress_file_name), file_path_extract)
 
     @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
@@ -155,7 +158,7 @@ class TestCrossref(unittest.TestCase):
             with CliRunner().isolated_filesystem():
                 release = CrossrefRelease(self.crossref_test_url)
                 file_path_transform = release.filepath_transform
-                path = telescope_path(CrossrefTelescope.DAG_ID, SubFolder.transformed)
+                path = telescope_path(CrossrefMetadataTelescope.DAG_ID, SubFolder.transformed)
                 self.assertEqual(os.path.join(path, self.crossref_test_transform_file_name), file_path_transform)
 
     def test_download_release_date(self):
