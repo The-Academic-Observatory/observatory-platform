@@ -2,6 +2,14 @@ variable "google-credentials"{
   type = string
 }
 variable "vm-status"{
-  default = "off"
+  type = string
+}
+variable "project" {
+  type = string
+}
+variable "region" {
+  type = string
+}
+variable "zone" {
   type = string
 }

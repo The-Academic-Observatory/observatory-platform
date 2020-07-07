@@ -4,10 +4,20 @@ terraform {
     organization = "coki"
 
     workspaces {
-      prefix = "ao-"
+      prefix = "observatory-"
     }
   }
 }
+# credentials set with environment variable GOOGLE_CREDENTIALS=json key
+provider "google" {
+  version = "3.5.0"
+  credentials = var.google-credentials
+
+  project = var.project
+  region  = var.region
+  zone    = var.zone
+}
+
 variable "TFC_WORKSPACE_NAME" {
   type = string
   default = "" # An error occurs when you are running TF backend other than Terraform Cloud
@@ -16,37 +26,54 @@ variable "TFC_WORKSPACE_NAME" {
 locals {
   # If your backend is not Terraform Cloud, the value is terraform.workspace
   # otherwise the value retrieved is that of the TFC_WORKSPACE_NAME with trimprefix
-  workspace_name = var.TFC_WORKSPACE_NAME != "" ? trimprefix(var.TFC_WORKSPACE_NAME, "ao-") : terraform.workspace
-  module = element(split("-", local.workspace_name), 0)
-  environment = element(split("-", local.workspace_name), 1)
+  workspace_name = var.TFC_WORKSPACE_NAME != "" ? trimprefix(var.TFC_WORKSPACE_NAME, "observatory-") : terraform.workspace
 }
 
-data "terraform_remote_state" "shared" {
-  backend = "remote"
+resource "google_compute_instance" "airflow-main" {
+  name = "airflow-main-${local.workspace_name}"
+  machine_type = "n1-standard-1"
+  zone = var.zone
 
-  config = {
-    organization = "coki"
+  tags = [
+    "foo",
+    "bar"]
 
-    workspaces = {
-      name = "ao-shared-${local.environment}"
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-9"
+    }
+  }
+
+  network_interface {
+    network = "default"
+
+    access_config {
+      // Ephemeral IP
     }
   }
 }
 
-provider "google" {
-  version = "3.5.0"
-  credentials = var.google-credentials
-  project = data.terraform_remote_state.shared.outputs.project
-  region  = data.terraform_remote_state.shared.outputs.region
-  zone    = data.terraform_remote_state.shared.outputs.zone
-}
+resource "google_compute_instance" "airflow-worker" {
+  count = var.vm-status == "on" ? 1 : 0
+  name = "airflow-worker-${local.workspace_name}"
+  machine_type = "n1-standard-1"
+  zone = var.zone
 
-module "virtual_machine" {
-  #TODO wait for cloud version 0.13.0
-//  count = var.vm-status_ == "on" ? 1 : 0
-  source = "./vm"
-  status = var.vm-status == "on" ? "on" : "off"
-  environment = local.environment
+  tags = [
+    "foo",
+    "bar"]
 
-  zone    = data.terraform_remote_state.shared.outputs.zone
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-9"
+    }
+  }
+
+  network_interface {
+    network = "default"
+
+    access_config {
+      // Ephemeral IP
+    }
+  }
 }

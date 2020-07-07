@@ -28,6 +28,11 @@ default_args = {
     "start_date": datetime(2020, 1, 1)
 }
 
+class TerraformWorkspace:
+    organisation = 'coki'
+    prefix = 'ao-'
+    suffix = 'staging'
+    workspace = prefix + suffix
 
 class TerraformApi:
     def __init__(self, token):
@@ -89,12 +94,15 @@ class TerraformApi:
 
         return json.loads(response.text)
 
-    def create_run(self, workspace_id):
+    def create_run(self, workspace_id, target_addrs=None):
         data = {"data": {"attributes": {"message": f"Triggered from airflow DAG at {datetime.now()}"},
                          "type": "runs",
-                         "relationships": {"workspace": {"data": {"type": "workspaces", "id": workspace_id}}}
+                         "relationships": {"workspace": {"data": {"type": "workspaces", "id": workspace_id}}},
                          }
                 }
+        if target_addrs:
+            data['data']['attributes']['target-addrs'] = [target_addrs]
+
         response = requests.post(f'{self.api_url}/runs', headers=self.headers, json=data)
         if response.status_code == 201:
             logging.info(f"Successfully created run, response: {response.text}")
@@ -110,15 +118,16 @@ class TerraformApi:
 def update_status_variable():
     token = Variable.get('TERRAFORM_TOKEN')
     terraform_api = TerraformApi(token)
-    workspace_id = terraform_api.workspace_id('coki', 'ao-vm-dev')
+    workspace_id = terraform_api.workspace_id(TerraformWorkspace.organisation, TerraformWorkspace.workspace)
     terraform_api.update_workspace_variable('vm-status', 'on', workspace_id)
 
 
 def turn_vm_on():
     token = Variable.get('TERRAFORM_TOKEN')
     terraform_api = TerraformApi(token)
-    workspace_id = terraform_api.workspace_id('coki', 'ao-vm-dev')
-    run_id = terraform_api.create_run(workspace_id)
+    workspace_id = terraform_api.workspace_id('coki', 'ao-staging')
+    target_addrs = f"google_compute_instance.airflow-worker-{TerraformWorkspace.suffix}"
+    run_id = terraform_api.create_run(workspace_id, target_addrs)
     logging.info(run_id)
 
 
