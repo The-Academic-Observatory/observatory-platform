@@ -35,7 +35,6 @@ from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
 from academic_observatory.utils.config_utils import (
-    is_composer,
     find_schema,
     ObservatoryConfig,
     SubFolder,
@@ -61,9 +60,9 @@ def xcom_pull_info(ti: TaskInstance) -> Tuple[list, str, str, str]:
     :param ti:
     :return: release_urls, environment, bucket, project_id
     """
-    release_urls = ti.xcom_pull(key=CrossrefMetadataTelescope.XCOM_MESSAGES_NAME, task_ids=CrossrefMetadataTelescope.TASK_ID_LIST,
+    release_urls = ti.xcom_pull(key=CrossrefMetaTelescope.XCOM_MESSAGES_NAME, task_ids=CrossrefMetaTelescope.TASK_ID_LIST,
                                 include_prior_dates=False)
-    config_dict = ti.xcom_pull(key=CrossrefMetadataTelescope.XCOM_CONFIG_NAME, task_ids=CrossrefMetadataTelescope.TASK_ID_SETUP,
+    config_dict = ti.xcom_pull(key=CrossrefMetaTelescope.XCOM_CONFIG_NAME, task_ids=CrossrefMetaTelescope.TASK_ID_SETUP,
                                include_prior_dates=False)
     environment = config_dict['environment']
     bucket = config_dict['bucket']
@@ -89,7 +88,7 @@ def list_releases(telescope_url: str, start_date: Pendulum, end_date: Pendulum) 
     return snapshot_list
 
 
-def download_release(crossref_release: 'CrossrefRelease', api_token: str):
+def download_release(crossref_release: 'CrossrefMetaRelease', api_token: str):
     """
     Downloads release
     :param crossref_release: Instance of CrossrefRelease class
@@ -106,7 +105,7 @@ def download_release(crossref_release: 'CrossrefRelease', api_token: str):
     logging.info(f"Successfully download url to {filename}")
 
 
-def decompress_release(crossref_release: 'CrossrefRelease') -> str:
+def decompress_release(crossref_release: 'CrossrefMetaRelease') -> str:
     """
     Decompresses release.
 
@@ -127,7 +126,7 @@ def decompress_release(crossref_release: 'CrossrefRelease') -> str:
     return crossref_release.filepath_extract
 
 
-def transform_release(crossref_release: 'CrossrefRelease') -> str:
+def transform_release(crossref_release: 'CrossrefMetaRelease') -> str:
     """
     Transforms release with sed command.
 
@@ -151,16 +150,16 @@ def transform_release(crossref_release: 'CrossrefRelease') -> str:
     return crossref_release.filepath_transform
 
 
-class CrossrefRelease:
+class CrossrefMetaRelease:
     """
     Used to store info on a given crossref release
     """
     def __init__(self, url):
         self.url = url
         self.date = self.release_date()
-        self.filepath_download = self.get_filepath_download()
-        self.filepath_extract = self.get_filepath_extract()
-        self.filepath_transform = self.get_filepath_transform()
+        self.filepath_download = self.get_filepath(SubFolder.downloaded)
+        self.filepath_extract = self.get_filepath(SubFolder.extracted)
+        self.filepath_transform = self.get_filepath(SubFolder.transformed)
 
     def release_date(self) -> str:
         """
@@ -175,64 +174,55 @@ class CrossrefRelease:
 
         return date
 
-    def get_filepath_download(self) -> str:
+    def get_filepath(self, sub_folder: SubFolder) -> str:
         """
-        Gives path to downloaded release.
+        Gets complete path of file for download/extract/transform directory
+        :param sub_folder: name of subfolder
+        :return:
+        """
+        if sub_folder == SubFolder.downloaded:
+            file_name = f"{CrossrefMetaTelescope.DAG_ID}_{self.date}.json.tar.gz".replace('-', '_')
+        else:
+            file_name = f"{CrossrefMetaTelescope.DAG_ID}_{self.date}.json".replace('-', '_')
 
-        :return: absolute file path
-        """
-        compressed_file_name = f"{CrossrefMetadataTelescope.DAG_ID}_{self.date}.json.tar.gz".replace('-', '_')
-        download_dir = telescope_path(CrossrefMetadataTelescope.DAG_ID, SubFolder.downloaded)
-        path = os.path.join(download_dir, compressed_file_name)
+        file_dir = telescope_path(CrossrefMetaTelescope.DAG_ID, sub_folder)
+        path = os.path.join(file_dir, file_name)
 
         return path
 
-    def get_filepath_extract(self) -> str:
+    def get_blob_name(self, sub_folder: SubFolder) -> str:
         """
-        Gives path to extracted and decompressed release.
-
-        :return: absolute file path
+        Gives blob name that is used to determine path inside storage bucket
+        :param sub_folder: name of subfolder
+        :return: blob name
         """
-        decompressed_file_name = f"{CrossrefMetadataTelescope.DAG_ID}_{self.date}.json".replace('-', '_')
-        extract_dir = telescope_path(CrossrefMetadataTelescope.DAG_ID, SubFolder.extracted)
-        path = os.path.join(extract_dir, decompressed_file_name)
+        file_name = os.path.basename(self.get_filepath(sub_folder))
+        blob_name = os.path.join(f'telescopes/{CrossrefMetaTelescope.DAG_ID}/{sub_folder.value}', file_name)
 
-        return path
-
-    def get_filepath_transform(self) -> str:
-        """
-        Gives path to transformed release.
-
-        :return: absolute file path
-        """
-        decompressed_file_name = f"{CrossrefMetadataTelescope.DAG_ID}_{self.date}.json".replace('-', '_')
-        transform_dir = telescope_path(CrossrefMetadataTelescope.DAG_ID, SubFolder.transformed)
-        path = os.path.join(transform_dir, decompressed_file_name)
-
-        return path
+        return blob_name
 
 
-class CrossrefMetadataTelescope:
+class CrossrefMetaTelescope:
     """ A container for holding the constants and static functions for the crossref metadata telescope. """
 
     DAG_ID = 'crossref_metadata'
-    DESCRIPTION = 'Crossref metadata'
     DATASET_ID = 'crossref'
+    DESCRIPTION = 'Crossref metadata'
     XCOM_MESSAGES_NAME = "messages"
     XCOM_CONFIG_NAME = "config"
     TELESCOPE_URL = 'https://api.crossref.org/snapshots/monthly/'
     TELESCOPE_DEBUG_URL = 'https://api.crossref.org/snapshots/monthly/{year}/{month:02d}/all.json.tar.gz'
     DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
 
-    TASK_ID_SETUP = f"check_setup_requirements"
-    TASK_ID_LIST = f"list_{DAG_ID}_releases"
-    TASK_ID_STOP = f"stop_{DAG_ID}_workflow"
-    TASK_ID_DOWNLOAD = f"download_{DAG_ID}_releases"
-    TASK_ID_DECOMPRESS = f"decompress_{DAG_ID}_releases"
-    TASK_ID_TRANSFORM = f"transform_{DAG_ID}_releases"
-    TASK_ID_UPLOAD = f"upload_{DAG_ID}_releases"
-    TASK_ID_BQ_LOAD = f"bq_load_{DAG_ID}_releases"
-    TASK_ID_CLEANUP = f"cleanup_{DAG_ID}_releases"
+    TASK_ID_SETUP = "check_setup_requirements"
+    TASK_ID_LIST = "list_releases"
+    TASK_ID_STOP = "stop_workflow"
+    TASK_ID_DOWNLOAD = "download_releases"
+    TASK_ID_DECOMPRESS = "decompress_releases"
+    TASK_ID_TRANSFORM = "transform_releases"
+    TASK_ID_UPLOAD = "upload_releases"
+    TASK_ID_BQ_LOAD = "bq_load_releases"
+    TASK_ID_CLEANUP = "cleanup_releases"
 
     @staticmethod
     def check_setup_requirements(**kwargs):
@@ -255,40 +245,32 @@ class CrossrefMetadataTelescope:
         bucket = None
         project_id = None
 
-        if is_composer():
-            environment = Variable.get('ENV', default_var=None)
-            bucket = Variable.get('BUCKET', default_var=None)
-            project_id = Variable.get('PROJECT_ID', default_var=None)
+        default_config = ObservatoryConfig.CONTAINER_DEFAULT_PATH
+        config_path = Variable.get('CONFIG_PATH', default_var=default_config)
 
-            for var in [(environment, 'ENV'), (bucket, 'BUCKET'), (project_id, 'PROJECT_ID')]:
-                if var[0] is None:
-                    invalid_list.append(f"Airflow variable '{var[1]}' not set with terraform.")
+        config = ObservatoryConfig.load(config_path)
+        if config is not None:
+            config_is_valid = config.is_valid
+            if config_is_valid:
+                environment = config.environment.value
+                bucket = config.bucket_name
+                project_id = config.project_id
 
-        else:
-            default_config = ObservatoryConfig.CONTAINER_DEFAULT_PATH
-            config_path = Variable.get('CONFIG_PATH', default_var=default_config)
-
-            config = ObservatoryConfig.load(config_path)
-            if config is not None:
-                config_is_valid = config.is_valid
-                if config_is_valid:
-                    environment = config.environment.value
-                    bucket = config.bucket_name
-                    project_id = config.project_id
-                else:
-                    invalid_list.append(f'Config file not valid: {config_is_valid}')
-            if not config:
-                invalid_list.append(f'Config file does not exist')
-
-        # check if crossref connection and password exists
-        try:
-            connection = BaseHook.get_connection("crossref")
-            password = connection.password
-            if not password:
-                invalid_list.append("No crossref connection password set, please set api_token as password.")
-        except AirflowException:
-            invalid_list.append(
-                'No crossref connection set, please set "crossref" connection with api_token as password.')
+                if environment != 'dev':
+                    # check if crossref connection and password exists
+                    try:
+                        connection = BaseHook.get_connection("crossref")
+                        password = connection.password
+                        if not password:
+                            invalid_list.append(
+                                "No crossref connection password set, please set api_token as password.")
+                    except AirflowException:
+                        invalid_list.append(
+                            'No crossref connection set, please set "crossref" connection with api_token as password.')
+            else:
+                invalid_list.append(f'Config file not valid: {config_is_valid}')
+        if not config:
+            invalid_list.append(f'Config file does not exist')
 
         if invalid_list:
             for invalid_reason in invalid_list:
@@ -298,9 +280,10 @@ class CrossrefMetadataTelescope:
             config_dict['environment'] = environment
             config_dict['bucket'] = bucket
             config_dict['project_id'] = project_id
+            logging.info(f'environment: {environment}, bucket: {bucket}, project_id: {project_id}')
             # Push messages
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(CrossrefMetadataTelescope.XCOM_CONFIG_NAME, config_dict)
+            ti.xcom_push(CrossrefMetaTelescope.XCOM_CONFIG_NAME, config_dict)
 
     @staticmethod
     def list_releases_last_month(**kwargs):
@@ -320,41 +303,41 @@ class CrossrefMetadataTelescope:
         next_execution_date = kwargs['next_execution_date']
 
         if environment == 'dev':
-            release_urls_out = [CrossrefMetadataTelescope.TELESCOPE_DEBUG_URL.format(year=execution_date.year,
-                                                                                     month=execution_date.month)]
+            release_urls_out = [CrossrefMetaTelescope.TELESCOPE_DEBUG_URL.format(year=execution_date.year,
+                                                                                 month=execution_date.month)]
             # Push messages
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(CrossrefMetadataTelescope.XCOM_MESSAGES_NAME, release_urls_out)
-            return CrossrefMetadataTelescope.TASK_ID_DOWNLOAD if release_urls_out else CrossrefMetadataTelescope.TASK_ID_STOP
+            ti.xcom_push(CrossrefMetaTelescope.XCOM_MESSAGES_NAME, release_urls_out)
+            return CrossrefMetaTelescope.TASK_ID_DOWNLOAD if release_urls_out else CrossrefMetaTelescope.TASK_ID_STOP
 
-        releases_list = list_releases(CrossrefMetadataTelescope.TELESCOPE_URL, execution_date, next_execution_date)
+        releases_list = list_releases(CrossrefMetaTelescope.TELESCOPE_URL, execution_date, next_execution_date)
         logging.info(f'Listed releases:\n{releases_list}\n')
 
         bq_hook = BigQueryHook()
         # Select the releases that were published on or after the execution_date and before the next_execution_date
         release_urls_out = []
         for release_url in releases_list:
-            crossref_release = CrossrefRelease(release_url)
+            crossref_release = CrossrefMetaRelease(release_url)
             released_date: Pendulum = pendulum.parse(crossref_release.date)
-            table_id = bigquery_partitioned_table_id(CrossrefMetadataTelescope.DAG_ID, released_date)
+            table_id = bigquery_partitioned_table_id(CrossrefMetaTelescope.DAG_ID, released_date)
 
             table_exists = bq_hook.table_exists(
                 project_id=project_id,
-                dataset_id=CrossrefMetadataTelescope.DATASET_ID,
+                dataset_id=CrossrefMetaTelescope.DATASET_ID,
                 table_id=table_id
             )
             logging.info(f'Checking if bigquery table exists for release: {release_url}')
             if table_exists:
                 logging.info(
-                    f'Found table: {project_id}.{CrossrefMetadataTelescope.DATASET_ID}.{table_id}')
+                    f'Found table: {project_id}.{CrossrefMetaTelescope.DATASET_ID}.{table_id}')
             else:
                 logging.info(f"Didn't find table. Processing {release_url} in this workflow")
                 release_urls_out.append(release_url)
 
         # Push messages
         ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(CrossrefMetadataTelescope.XCOM_MESSAGES_NAME, release_urls_out)
-        return CrossrefMetadataTelescope.TASK_ID_DOWNLOAD if release_urls_out else CrossrefMetadataTelescope.TASK_ID_STOP
+        ti.xcom_push(CrossrefMetaTelescope.XCOM_MESSAGES_NAME, release_urls_out)
+        return CrossrefMetaTelescope.TASK_ID_DOWNLOAD if release_urls_out else CrossrefMetaTelescope.TASK_ID_STOP
 
     @staticmethod
     def download(**kwargs):
@@ -367,15 +350,13 @@ class CrossrefMetadataTelescope:
         # Pull messages
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
-        connection = BaseHook.get_connection("crossref")
-        api_token = connection.password
-
         for url in release_urls:
-            crossref_release = CrossrefRelease(url)
+            crossref_release = CrossrefMetaRelease(url)
             if environment == 'dev':
-                shutil.copy(CrossrefMetadataTelescope.DEBUG_FILE_PATH, crossref_release.filepath_download)
-
+                shutil.copy(CrossrefMetaTelescope.DEBUG_FILE_PATH, crossref_release.filepath_download)
             else:
+                connection = BaseHook.get_connection("crossref")
+                api_token = connection.password
                 download_release(crossref_release, api_token)
 
     @staticmethod
@@ -389,7 +370,7 @@ class CrossrefMetadataTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
-            crossref_release = CrossrefRelease(url)
+            crossref_release = CrossrefMetaRelease(url)
             decompress_release(crossref_release)
 
     @staticmethod
@@ -403,7 +384,7 @@ class CrossrefMetadataTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
-            crossref_release = CrossrefRelease(url)
+            crossref_release = CrossrefMetaRelease(url)
             transform_release(crossref_release)
 
     @staticmethod
@@ -417,13 +398,9 @@ class CrossrefMetadataTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
-            crossref_release = CrossrefRelease(url)
-            blob_name = f'telescopes/crossref_metadata/transformed/{os.path.basename(crossref_release.filepath_transform)}'
-            upload_file_to_cloud_storage(bucket, blob_name, file_path=crossref_release.filepath_transform)
-
-            # Push messages
-            ti: TaskInstance = kwargs['ti']
-            ti.xcom_push('blob_name', blob_name)
+            crossref_release = CrossrefMetaRelease(url)
+            upload_file_to_cloud_storage(bucket, crossref_release.get_blob_name(SubFolder.transformed),
+                                         file_path=crossref_release.filepath_transform)
 
     @staticmethod
     def load_to_bq(**kwargs):
@@ -440,31 +417,29 @@ class CrossrefMetadataTelescope:
         location = bucket_object.location
 
         # Create dataset
-        dataset_id = CrossrefMetadataTelescope.DATASET_ID
-        create_bigquery_dataset(project_id, dataset_id, location, CrossrefMetadataTelescope.DESCRIPTION)
+        dataset_id = CrossrefMetaTelescope.DATASET_ID
+        create_bigquery_dataset(project_id, dataset_id, location, CrossrefMetaTelescope.DESCRIPTION)
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        release_urls = ti.xcom_pull(key=CrossrefMetadataTelescope.XCOM_MESSAGES_NAME, task_ids=CrossrefMetadataTelescope.TASK_ID_LIST,
-                                    include_prior_dates=False)
-        blob_name = ti.xcom_pull(key='blob_name', task_ids=CrossrefMetadataTelescope.TASK_ID_UPLOAD,
-                                 include_prior_dates=False)
+        release_urls = ti.xcom_pull(key=CrossrefMetaTelescope.XCOM_MESSAGES_NAME,
+                                    task_ids=CrossrefMetaTelescope.TASK_ID_LIST, include_prior_dates=False)
         for url in release_urls:
-            crossref_release = CrossrefRelease(url)
+            crossref_release = CrossrefMetaRelease(url)
             # get release_date
             released_date: Pendulum = pendulum.parse(crossref_release.date)
-            table_id = bigquery_partitioned_table_id(CrossrefMetadataTelescope.DAG_ID, released_date)
+            table_id = bigquery_partitioned_table_id(CrossrefMetaTelescope.DAG_ID, released_date)
 
             # Select schema file based on release date
             analysis_schema_path = schema_path('telescopes')
-            schema_file_path = find_schema(analysis_schema_path, CrossrefMetadataTelescope.DAG_ID, released_date)
+            schema_file_path = find_schema(analysis_schema_path, CrossrefMetaTelescope.DAG_ID, released_date)
             if schema_file_path is None:
                 logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
-                              f'table_name={CrossrefMetadataTelescope.DAG_ID}, release_date={released_date}')
+                              f'table_name={CrossrefMetaTelescope.DAG_ID}, release_date={released_date}')
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table
-            uri = f"gs://{bucket}/{blob_name}"
+            uri = f"gs://{bucket}/{crossref_release.get_blob_name(SubFolder.transformed)}"
             logging.info(f"URI: {uri}")
             load_bigquery_table(uri, dataset_id, location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
@@ -480,7 +455,7 @@ class CrossrefMetadataTelescope:
         release_urls, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
 
         for url in release_urls:
-            crossref_release = CrossrefRelease(url)
+            crossref_release = CrossrefMetaRelease(url)
             try:
                 pathlib.Path(crossref_release.filepath_download).unlink()
             except FileNotFoundError as e:
