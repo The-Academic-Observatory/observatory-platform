@@ -33,7 +33,6 @@ jobs:
       - name: Check licenses
         run: |
           pip install liccheck==0.4.*
-          liccheck --help
           liccheck --sfile strategy.ini --rfile requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
       - name: Lint with flake8
         run: |
