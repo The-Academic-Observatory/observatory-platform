@@ -32,10 +32,11 @@ jobs:
           pip install -r requirements.txt
       - name: Check licenses
         run: |
+          ls -l
           pip install liccheck==0.4.*
-          liccheck --sfile strategy.ini --rfile requirements.txt --level CAUTIOUS --reporting liccheck-output.txt
-          if grep -q 'check unknown packages...'; then echo 'Packages with unknown licences found in requirements.txt' && exit 1; fi
-          if grep -q 'check unauthorized packages...'; then echo 'Packages with unauthorized licences found in requirements.txt' && exit 1; fi
+          #liccheck --sfile strategy.ini --rfile requirements.txt --level CAUTIOUS --reporting liccheck-output.txt
+          #if grep -q 'check unknown packages...'; then echo 'Packages with unknown licences found in requirements.txt' && exit 1; fi
+          #if grep -q 'check unauthorized packages...'; then echo 'Packages with unauthorized licences found in requirements.txt' && exit 1; fi
       - name: Lint with flake8
         run: |
           pip install flake8
