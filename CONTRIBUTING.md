@@ -338,5 +338,44 @@ make html
 The documentation should be generated in the `docs/_build` directory. You can open the file `docs_/build/index.html`
 in a browser to preview what the documentation will look like.
 
-#### Deploy with Read the Docs
+### Build and deploy to the cloud
+Install Packer:
+```bash
+sudo curl -L "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_linux_amd64.zip" -o /usr/local/bin/packer
+sudo chmod +x /usr/local/bin/packer
+```
+
+Install Terraform:
+```bash
+sudo curl -L "https://releases.hashicorp.com/terraform/0.13.0-beta3/terraform_0.13.0-beta3_linux_amd64.zip" -o /usr/local/bin/terraform
+sudo chmod +x /usr/local/bin/terraform
+```
+
+Clone the version of the Academic Observatory that you would like to deploy and enter the academic-observatory 
+project folder:
+```bash
+cd academic-observatory
+```
+
+Build the image with Packer:
+```bash
+packer build -var-file=dev.pkrvars.hcl -force terraform/ao-image.pkr.hcl
+```
+
+Initialize Terraform:
+```bash
+terraform init terraform
+```
+
+To deploy with Terraform:
+```bash
+terraform apply -var-file=dev.tfvars terraform
+```
+
+To destroy the infrastructure with Terraform:
+```bash
+terraform destroy -var-file=dev.tfvars terraform
+```
+
+### Deploy with Read the Docs
 Coming soon.

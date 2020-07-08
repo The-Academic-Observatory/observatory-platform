@@ -66,17 +66,17 @@ variable "redis_password" {
 }
 
 # Airflow connection variables
-variable "mag_releases_table_conn" {
+variable "mag_releases_table_connection" {
   description = "The mag_releases_table connection"
   type = string
 }
 
-variable "mag_snapshots_container_conn" {
+variable "mag_snapshots_container_connection" {
   description = "The mag_snapshots_container connection"
   type = string
 }
 
-variable "crossref_conn" {
+variable "crossref_connection" {
   description = "The crossref connection"
   type = string
 }

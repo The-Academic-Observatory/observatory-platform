@@ -5,22 +5,22 @@ output "airflow_db_ip_address" {
 }
 
 output "airflow_main_vm_ip_address" {
-  value = google_compute_address.airflow_main_vm_private_ip.address
+  value = module.airflow_main_vm.private_ip_address
   description = "The private IP address of the Airflow Main VM."
 }
 
 output "airflow_worker_vm_ip_address" {
-  value = google_compute_address.airflow_worker_vm_private_ip.address
+  value = module.airflow_worker_vm.private_ip_address
   description = "The private IP address of the Airflow Worker VM."
 }
 
 output "airflow_main_vm_script" {
-  value = data.template_file.ao_main_vm_startup.rendered
+  value = data.template_file.airflow_main_vm_startup.rendered
   description = "Rendered template file"
 }
 
 output "airflow_worker_vm_script" {
-  value = data.template_file.ao_worker_vm_startup.rendered
+  value = data.template_file.airflow_worker_vm_startup.rendered
   description = "Rendered template file"
 }
 

@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 
-# Save google application credentials to file
-sudo -E bash -c "berglas access sm://${project_id}/google_application_credentials | base64 --decode > /academic-observatory/google_application_credentials.json"
-
 # Set environment variables
+export AO_HOME=${ao_home} # Used in Docker Compose file as path to Docker secret
+export HOST_USER_ID=$(id -u airflow)
+export HOST_LOGS_PATH="${ao_home}/logs"
+export HOST_DAGS_PATH="${ao_home}/academic-observatory/academic_observatory/dags"
+export HOST_DATA_PATH="${ao_home}/data"
+export HOST_PACKAGE_PATH="${ao_home}/academic-observatory"
 export POSTGRES_HOSTNAME="${postgres_hostname}"
 export POSTGRES_PASSWORD="sm://${project_id}/postgres_password"
 export FERNET_KEY="sm://${project_id}/fernet_key"
+export REDIS_HOSTNAME="redis"
+
+# Save google application credentials to file
+berglas access sm://${project_id}/google_application_credentials | base64 --decode > ${ao_home}/google_application_credentials.json
 
 # Run program
-cd /academic-observatory
-sudo -E bash -c "berglas exec -- docker-compose -f docker-compose.airflow-secrets.yml -f docker-compose.airflow-main.yml pull"
-sudo -E bash -c "berglas exec -- docker-compose -f docker-compose.airflow-secrets.yml -f docker-compose.airflow-main.yml up -d"
+cd $HOST_PACKAGE_PATH
+gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory.yml pull redis flower init_db webserver scheduler worker_local"
+gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory.yml build redis flower init_db webserver scheduler worker_local"
+gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory.yml up -d redis flower init_db webserver scheduler worker_local"

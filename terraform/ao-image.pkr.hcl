@@ -42,18 +42,18 @@ build {
   }
 
   provisioner "file" {
-    source = "docker-compose.airflow-secrets.yml"
-    destination = "/tmp/academic-observatory/docker-compose.airflow-secrets.yml"
+    source = "docker-compose.observatory.yml"
+    destination = "/tmp/academic-observatory/docker-compose.observatory.yml"
   }
 
   provisioner "file" {
-    source = "docker-compose.airflow-main.yml"
-    destination = "/tmp/academic-observatory/docker-compose.airflow-main.yml"
+    source = "Dockerfile.observatory"
+    destination = "/tmp/academic-observatory/Dockerfile.observatory"
   }
 
   provisioner "file" {
-    source = "docker-compose.airflow-worker.yml"
-    destination = "/tmp/academic-observatory/docker-compose.airflow-worker.yml"
+    source = "entrypoint.sh"
+    destination = "/tmp/academic-observatory/entrypoint.sh"
   }
 
   provisioner "file" {

@@ -13,13 +13,15 @@ data "google_project" "project" {
   project_id = var.project_id
 }
 
-locals {
-  secret_accessor_role = "roles/secretmanager.secretAccessor"
-  compute_service_account_email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
-//  transfer_service_account_email = "project-${data.google_project.project.number}@storage-transfer-service.iam.gserviceaccount.com"
+data "google_compute_default_service_account" "default" {
 }
 
 data "google_storage_transfer_project_service_account" "default" {
+}
+
+locals {
+  compute_service_account_email = data.google_compute_default_service_account.default.email
+  transfer_service_account_email = data.google_storage_transfer_project_service_account.default.email
 }
 
 ########################################################################################################################
@@ -37,26 +39,11 @@ resource "google_service_account_key" "ao_service_account_key" {
   service_account_id = google_service_account.ao_service_account.name
 }
 
-resource "google_secret_manager_secret" "google_application_credentials" {
+module "google_application_credentials_secret" {
+  source = "./secret"
   secret_id = "google_application_credentials"
-
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "google_application_credentials_version" {
-  depends_on = [google_secret_manager_secret.google_application_credentials]
-  secret = google_secret_manager_secret.google_application_credentials.id
   secret_data = google_service_account_key.ao_service_account_key.private_key
-}
-
-resource "google_secret_manager_secret_iam_member" "google_application_credentials_member" {
-  depends_on = [google_secret_manager_secret_version.google_application_credentials_version]
-  project = google_secret_manager_secret.google_application_credentials.project
-  secret_id = google_secret_manager_secret.google_application_credentials.secret_id
-  role = local.secret_accessor_role
-  member = "serviceAccount:${local.compute_service_account_email}"
+  service_account_email = data.google_compute_default_service_account.default.email
 }
 
 data "google_iam_policy" "ao_service_account_permissions" {
@@ -326,327 +313,147 @@ resource "google_sql_user" "users" {
 ########################################################################################################################
 # Airflow Secrets
 ########################################################################################################################
-
+# These secrets are used by the VMs
 # Fernet key
-resource "google_secret_manager_secret" "fernet_key" {
+module "fernet_key_secret" {
+  source = "./secret"
   secret_id = "fernet_key"
-
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "fernet_key_version" {
-  depends_on = [google_secret_manager_secret.fernet_key]
-  secret = google_secret_manager_secret.fernet_key.id
   secret_data = var.fernet_key
-}
-
-resource "google_secret_manager_secret_iam_member" "fernet_key_member" {
-  depends_on = [google_secret_manager_secret_version.fernet_key_version]
-  project = google_secret_manager_secret.fernet_key.project
-  secret_id = google_secret_manager_secret.fernet_key.secret_id
-  role = local.secret_accessor_role
-  member = "serviceAccount:${local.compute_service_account_email}"
+  service_account_email = local.compute_service_account_email
 }
 
 # Postgres password
-resource "google_secret_manager_secret" "postgres_password" {
+module "postgres_password_secret" {
+  source = "./secret"
   secret_id = "postgres_password"
-
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "postgres_password_version" {
-  depends_on = [google_secret_manager_secret.postgres_password]
-  secret = google_secret_manager_secret.postgres_password.id
   secret_data = urlencode(var.postgres_password)
-}
-
-resource "google_secret_manager_secret_iam_member" "postgres_password_member" {
-  depends_on = [google_secret_manager_secret_version.postgres_password_version]
-  project = google_secret_manager_secret.postgres_password.project
-  secret_id = google_secret_manager_secret.postgres_password.secret_id
-  role = local.secret_accessor_role
-  member = "serviceAccount:${local.compute_service_account_email}"
+  service_account_email = local.compute_service_account_email
 }
 
 # Airflow UI airflow user password
-resource "google_secret_manager_secret" "airflow_ui_user_password" {
+module "airflow_ui_user_password_secret" {
+  source = "./secret"
   secret_id = "airflow_ui_user_password"
-
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "airflow_ui_user_password_version" {
-  depends_on = [google_secret_manager_secret.airflow_ui_user_password]
-  secret = google_secret_manager_secret.airflow_ui_user_password.id
   secret_data = var.airflow_ui_user_password
-}
-
-resource "google_secret_manager_secret_iam_member" "airflow_ui_user_password_member" {
-  depends_on = [google_secret_manager_secret_version.airflow_ui_user_password_version]
-  project = google_secret_manager_secret.airflow_ui_user_password.project
-  secret_id = google_secret_manager_secret.airflow_ui_user_password.secret_id
-  role = local.secret_accessor_role
-  member = "serviceAccount:${local.compute_service_account_email}"
+  service_account_email = local.compute_service_account_email
 }
 
 # Redis password
-resource "google_secret_manager_secret" "redis_password" {
+module "redis_password_secret" {
+  source = "./secret"
   secret_id = "redis_password"
-
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "redis_password_version" {
-  depends_on = [google_secret_manager_secret.redis_password]
-  secret = google_secret_manager_secret.redis_password.id
   secret_data = var.redis_password
-}
-
-resource "google_secret_manager_secret_iam_member" "redis_password_member" {
-  depends_on = [google_secret_manager_secret_version.redis_password_version]
-  project = google_secret_manager_secret.redis_password.project
-  secret_id = google_secret_manager_secret.redis_password.secret_id
-  role = local.secret_accessor_role
-  member = "serviceAccount:${local.compute_service_account_email}"
+  service_account_email = local.compute_service_account_email
 }
 
 ########################################################################################################################
-# Telescope Secrets
+# Airflow Connection Secrets
 ########################################################################################################################
 
 # mag_releases_table connection
-resource "google_secret_manager_secret" "mag_releases_table_conn" {
+module "mag_releases_table_connection_secret" {
+  source = "./secret"
   secret_id = "airflow-connections-mag_releases_table"
-
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "mag_releases_table_conn_version" {
-  depends_on = [google_secret_manager_secret.mag_releases_table_conn]
-  secret = google_secret_manager_secret.mag_releases_table_conn.id
-  secret_data = var.mag_releases_table_conn
-}
-
-resource "google_secret_manager_secret_iam_member" "mag_releases_table_conn_member" {
-  depends_on = [google_secret_manager_secret_version.mag_releases_table_conn_version]
-  project = google_secret_manager_secret.mag_releases_table_conn.project
-  secret_id = google_secret_manager_secret.mag_releases_table_conn.secret_id
-  role = local.secret_accessor_role
-  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+  secret_data = var.mag_releases_table_connection
+  service_account_email = google_service_account.ao_service_account.email
 }
 
 # mag_snapshots_container connection
-resource "google_secret_manager_secret" "mag_snapshots_container_conn" {
+module "mag_snapshots_container_connection_secret" {
+  source = "./secret"
   secret_id = "airflow-connections-mag_snapshots_container"
-
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "mag_snapshots_container_conn_version" {
-  depends_on = [google_secret_manager_secret.mag_snapshots_container_conn]
-  secret = google_secret_manager_secret.mag_snapshots_container_conn.id
-  secret_data = var.mag_snapshots_container_conn
-}
-
-resource "google_secret_manager_secret_iam_member" "mag_snapshots_container_conn_member" {
-  depends_on = [google_secret_manager_secret_version.mag_snapshots_container_conn_version]
-  project = google_secret_manager_secret.mag_snapshots_container_conn.project
-  secret_id = google_secret_manager_secret.mag_snapshots_container_conn.secret_id
-  role = local.secret_accessor_role
-  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+  secret_data = var.mag_snapshots_container_connection
+  service_account_email = google_service_account.ao_service_account.email
 }
 
 # crossref connection
-resource "google_secret_manager_secret" "crossref_conn" {
+module "crossref_conn_secret" {
+  source = "./secret"
   secret_id = "airflow-connections-crossref"
-
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "crossref_conn_version" {
-  depends_on = [google_secret_manager_secret.crossref_conn]
-  secret = google_secret_manager_secret.crossref_conn.id
-  secret_data = var.crossref_conn
-}
-
-resource "google_secret_manager_secret_iam_member" "crossref_conn_member" {
-  depends_on = [google_secret_manager_secret_version.crossref_conn_version]
-  project = google_secret_manager_secret.crossref_conn.project
-  secret_id = google_secret_manager_secret.crossref_conn.secret_id
-  role = local.secret_accessor_role
-  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+  secret_data = var.crossref_connection
+  service_account_email = google_service_account.ao_service_account.email
 }
 
 ########################################################################################################################
-# Variables
+# Airflow Variables Secrets
 ########################################################################################################################
 
 # Download bucket name
-resource "google_secret_manager_secret" "download_bucket_name_variable" {
+module "download_bucket_name_variable_secret" {
+  source = "./secret"
   secret_id = "airflow-variables-download_bucket_name"
-
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "download_bucket_name_variable_version" {
-  depends_on = [google_secret_manager_secret.download_bucket_name_variable]
-  secret = google_secret_manager_secret.download_bucket_name_variable.id
   secret_data = google_storage_bucket.ao_download_bucket.name
-}
-
-resource "google_secret_manager_secret_iam_member" "download_bucket_name_variable_member" {
-  depends_on = [google_secret_manager_secret_version.download_bucket_name_variable_version]
-  project = google_secret_manager_secret.download_bucket_name_variable.project
-  secret_id = google_secret_manager_secret.download_bucket_name_variable.secret_id
-  role = local.secret_accessor_role
-  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+  service_account_email = google_service_account.ao_service_account.email
 }
 
 # Transform bucket name
-resource "google_secret_manager_secret" "transform_bucket_name_variable" {
+module "transform_bucket_name_variable_secret" {
+  source = "./secret"
   secret_id = "airflow-variables-transform_bucket_name"
-
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "transform_bucket_name_variable_version" {
-  depends_on = [google_secret_manager_secret.transform_bucket_name_variable]
-  secret = google_secret_manager_secret.transform_bucket_name_variable.id
   secret_data = google_storage_bucket.ao_transform_bucket.name
-}
-
-resource "google_secret_manager_secret_iam_member" "transform_bucket_name_variable_member" {
-  depends_on = [google_secret_manager_secret_version.transform_bucket_name_variable_version]
-  project = google_secret_manager_secret.transform_bucket_name_variable.project
-  secret_id = google_secret_manager_secret.transform_bucket_name_variable.secret_id
-  role = local.secret_accessor_role
-  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+  service_account_email = google_service_account.ao_service_account.email
 }
 
 ########################################################################################################################
 # Academic Observatory Main VM
 ########################################################################################################################
 
-# Compute Image
+# Compute Image shared by both VMs
 data "google_compute_image" "ao_image" {
   name = "ao-image"
 }
 
-# Static ip addresses
-resource "google_compute_address" "airflow_main_vm_private_ip" {
-  name = "airflow-main-vm-private-ip"
-  address_type = "INTERNAL"
-  subnetwork = google_compute_network.ao_network.id
-  region = var.region
-}
-
-data "template_file" "ao_main_vm_startup" {
+# Airflow Main VM
+data "template_file" "airflow_main_vm_startup" {
   template = file("terraform/startup-main.tpl")
   vars = {
+    ao_home = "/opt/observatory"
     project_id = var.project_id
     postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
   }
 }
 
-resource "google_compute_instance" "airflow_main_vm_instance" {
-  name = "airflow-main"
-  machine_type = var.airflow_main_machine_type
-  allow_stopping_for_update = true
+module "airflow_main_vm" {
+  source = "./vm"
+  name = "airflow-main-vm"
   depends_on = [
-    google_secret_manager_secret_iam_member.fernet_key_member,
-    google_secret_manager_secret_iam_member.postgres_password_member,
-    google_secret_manager_secret_iam_member.airflow_ui_user_password_member,
-    google_secret_manager_secret_iam_member.redis_password_member,
-    google_sql_database_instance.ao_db_instance]
-
-  boot_disk {
-    initialize_params {
-      image = data.google_compute_image.ao_image.self_link
-    }
-  }
-  network_interface {
-    network = google_compute_network.ao_network.name
-    network_ip = google_compute_address.airflow_main_vm_private_ip.address
-    access_config {
-    }
-  }
-
-  service_account {
-    email = local.compute_service_account_email
-    scopes = ["cloud-platform"]
-  }
-
-  metadata_startup_script = data.template_file.ao_main_vm_startup.rendered
+    google_sql_database_instance.ao_db_instance,
+    module.google_application_credentials_secret,
+    module.fernet_key_secret,
+    module.postgres_password_secret,
+    module.airflow_ui_user_password_secret,
+    module.redis_password_secret
+  ]
+  network = google_compute_network.ao_network
+  image = data.google_compute_image.ao_image
+  region = var.region
+  machine_type = var.airflow_main_machine_type
+  service_account_email = local.compute_service_account_email
+  metadata_startup_script = data.template_file.airflow_main_vm_startup.rendered
 }
 
 ########################################################################################################################
 # Academic Observatory Worker VM
 ########################################################################################################################
 
-resource "google_compute_address" "airflow_worker_vm_private_ip" {
-  name = "airflow-worker-vm-private-ip"
-  address_type = "INTERNAL"
-  subnetwork = google_compute_network.ao_network.id
-  region = var.region
-}
-
-data "template_file" "ao_worker_vm_startup" {
+data "template_file" "airflow_worker_vm_startup" {
   template = file("terraform/startup-worker.tpl")
   vars = {
+    ao_home = "/opt/observatory"
     project_id = var.project_id
     postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
-    redis_hostname = google_compute_address.airflow_main_vm_private_ip.address
+    redis_hostname = module.airflow_main_vm.private_ip_address
   }
 }
 
-resource "google_compute_instance" "airflow_worker_vm_instance" {
-  name = "airflow-worker"
+module "airflow_worker_vm" {
+  source = "./vm"
+  name = "airflow-worker-vm"
+  depends_on = [module.airflow_main_vm]
+  network = google_compute_network.ao_network
+  image = data.google_compute_image.ao_image
+  region = var.region
   machine_type = var.airflow_worker_machine_type
-  allow_stopping_for_update = true
-  depends_on = [
-    google_secret_manager_secret_iam_member.fernet_key_member,
-    google_secret_manager_secret_iam_member.postgres_password_member,
-    google_secret_manager_secret_iam_member.airflow_ui_user_password_member,
-    google_secret_manager_secret_iam_member.redis_password_member,
-    google_sql_database_instance.ao_db_instance,
-    google_compute_instance.airflow_main_vm_instance]
-
-  boot_disk {
-    initialize_params {
-      image = data.google_compute_image.ao_image.self_link
-    }
-  }
-
-  network_interface {
-    network = google_compute_network.ao_network.name
-    network_ip = google_compute_address.airflow_worker_vm_private_ip.address
-    access_config {
-    }
-  }
-
-  service_account {
-    email = local.compute_service_account_email
-    scopes = ["cloud-platform"]
-  }
-
-  metadata_startup_script = data.template_file.ao_worker_vm_startup.rendered
+  service_account_email = local.compute_service_account_email
+  metadata_startup_script = data.template_file.airflow_worker_vm_startup.rendered
 }
