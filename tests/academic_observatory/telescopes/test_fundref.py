@@ -31,9 +31,6 @@ from academic_observatory.telescopes.fundref import (
     FundrefTelescope,
     add_funders_relationships,
     decompress_release,
-    geonames_to_dict,
-    get_filepath_geonames,
-    get_geoname_data,
     list_releases,
     parse_fundref_registry_rdf,
     recursive_funders,
@@ -59,7 +56,7 @@ class TestFundref(unittest.TestCase):
         # Fundref releases list
         self.list_fundref_releases_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
                                                        'list_fundref_releases.yaml')
-        self.list_fundref_releases_hash = '5ddd47c136277f58876b1a1d2d7a6379'
+        self.list_fundref_releases_hash = 'b077646f7bbc1ee3c82394cf7bc125a6'
 
         # Fundref test release
         self.fundref_test_path = FundrefTelescope.DEBUG_FILE_PATH
@@ -74,23 +71,14 @@ class TestFundref(unittest.TestCase):
         self.fundref_test_transform_file_name = 'fundref_3000_01_01.rdf'
         self.fundref_test_download_hash = 'c9c61c5053208752e8926f159d58b101'
         self.fundref_test_decompress_hash = 'ed14c816d89b4334675bd11514f9cac2'
-        self.fundref_test_transform_hash = 'eb609adaa7fc9f0ba948a29490ceaa2d'
-
-        # Geonames file
-        self.geonames_file_name = FundrefTelescope.GEONAMES_FILE_NAME
-        self.geonames_test_path = FundrefTelescope.DEBUG_GEONAMES_FILE_PATH
-        self.geonames_test_dict = {'4361885': ('Maryland', 'US'), '6252001': ('United States', 'US'),
-                                   '6254928': ('Virginia', 'US')}
-        self.geonames_test_hash = '01c88dadbdd964bd9191063a28e3b6e6'
+        self.fundref_test_transform_hash = '7967c2416c93ffde411f4c37464f6b0d'
 
         logging.info("Check that test fixtures exist")
         self.assertTrue(os.path.isfile(self.list_fundref_releases_path))
         self.assertTrue(os.path.isfile(self.fundref_test_path))
-        self.assertTrue(os.path.isfile(self.geonames_test_path))
         self.assertTrue(self.list_fundref_releases_hash,
                         _hash_file(self.list_fundref_releases_path, algorithm='md5'))
         self.assertTrue(self.fundref_test_download_hash, _hash_file(self.fundref_test_path, algorithm='md5'))
-        self.assertTrue(self.geonames_test_hash, _hash_file(self.geonames_test_path, algorithm='md5'))
 
         # Turn logging to warning because vcr prints too much at info level
         logging.basicConfig()
@@ -216,8 +204,6 @@ class TestFundref(unittest.TestCase):
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
-            # 'download' geonames
-            shutil.copyfile(self.geonames_test_path, get_filepath_geonames())
             # decompress
             decompress_release(release)
             # transform
@@ -227,56 +213,6 @@ class TestFundref(unittest.TestCase):
             self.assertTrue(os.path.exists(transform_file_path))
             self.assertEqual(self.fundref_test_transform_file_name, transform_file_name)
             self.assertEqual(self.fundref_test_transform_hash, _hash_file(transform_file_path, algorithm='md5'))
-
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_get_filepath_geonames(self, home_mock):
-        """ Test that path of geonames countries file is correct.
-
-        :param home_mock: Mock observatory home path
-        :return: None.
-        """
-        with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
-
-            with CliRunner().isolated_filesystem():
-                file_path_geonames = get_filepath_geonames()
-                path = telescope_path(FundrefTelescope.DAG_ID, SubFolder.transformed)
-                self.assertEqual(os.path.join(path, self.geonames_file_name), file_path_geonames)
-
-    def test_geonames_to_dict(self):
-        """ Test that correct dictionary is created from geonames dump.
-
-        :return: None.
-        """
-        with CliRunner().isolated_filesystem():
-            # 'download' geonames
-            shutil.copyfile(self.geonames_test_path, get_filepath_geonames())
-            # create dict from geonames dump
-            geonames_dict = geonames_to_dict(get_filepath_geonames())
-
-            self.assertIsInstance(geonames_dict, Dict)
-            self.assertDictEqual(self.geonames_test_dict, geonames_dict)
-
-    def test_get_geoname_data(self):
-        """ Test that correct geoname data is returned for given xml element.
-
-        :return: None.
-        """
-        with CliRunner().isolated_filesystem():
-            # 'download' geonames
-            shutil.copyfile(self.geonames_test_path, get_filepath_geonames())
-            # create dict from geonames dump
-            geonames_dict = geonames_to_dict(get_filepath_geonames())
-            # get geoname data from a xml element from fundref registry
-            name, country_code = get_geoname_data(self.fundref_nested_element, geonames_dict)
-
-            self.assertIsInstance(name, str)
-            self.assertIsInstance(country_code, str)
-            self.assertEqual('United States', name)
-            self.assertEqual('US', country_code)
 
     def test_parse_fundref_registry_rdf(self):
         """ Test that correct funders list and dictionary are returned when parsing funders registry.
@@ -289,10 +225,8 @@ class TestFundref(unittest.TestCase):
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
             # decompress release
             decompress_file_path = decompress_release(release)
-            # 'download' geonames
-            shutil.copyfile(self.geonames_test_path, get_filepath_geonames())
             # parse fundref registry
-            funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path, get_filepath_geonames())
+            funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path)
 
             self.assertIsInstance(funders, List)
             self.assertListEqual(funders, [
@@ -310,10 +244,10 @@ class TestFundref(unittest.TestCase):
                               'http://dx.doi.org/10.13039/100014071'], 'broader': [],
                  'modified': '2020-02-28T20:45:11.000000', 'created': '2009-07-06T18:53:11.000000',
                  'funding_body_type': 'National government', 'funding_body_sub_type': 'gov', 'region': 'Americas',
-                 'country': 'United States', 'country_code': 'US', 'state': 'Virginia', 'tax_id': None,
-                 'continuation_of': [], 'renamed_as': [], 'replaces': [], 'affil_with': [], 'merged_with': [],
-                 'incorporated_into': [], 'is_replaced_by': [], 'incorporates': [], 'split_into': [], 'status': None,
-                 'merger_of': [], 'split_from': None, 'formly_known_as': None, 'notation': None},
+                 'country': None, 'country_code': 'usa', 'state': None, 'tax_id': None, 'continuation_of': [],
+                 'renamed_as': [], 'replaces': [], 'affil_with': [], 'merged_with': [], 'incorporated_into': [],
+                 'is_replaced_by': [], 'incorporates': [], 'split_into': [], 'status': None, 'merger_of': [],
+                 'split_from': None, 'formly_known_as': None, 'notation': None},
                 {'funder': 'http://dx.doi.org/10.13039/100000002', 'pre_label': 'National Institutes of Health',
                  'alt_label': ['NIH'],
                  'narrower': ['http://dx.doi.org/10.13039/100006545', 'http://dx.doi.org/10.13039/100012893',
@@ -338,8 +272,8 @@ class TestFundref(unittest.TestCase):
                               'http://dx.doi.org/10.13039/100000062', 'http://dx.doi.org/10.13039/100000050'],
                  'broader': ['http://dx.doi.org/10.13039/100000016'], 'modified': '2020-03-12T22:59:31.000000',
                  'created': '2009-07-06T18:53:11.000000', 'funding_body_type': 'National government',
-                 'funding_body_sub_type': 'gov', 'region': 'Americas', 'country': 'United States', 'country_code': 'US',
-                 'state': 'Maryland', 'tax_id': None, 'continuation_of': [], 'renamed_as': [], 'replaces': [],
+                 'funding_body_sub_type': 'gov', 'region': 'Americas', 'country': None, 'country_code': 'usa',
+                 'state': None, 'tax_id': None, 'continuation_of': [], 'renamed_as': [], 'replaces': [],
                  'affil_with': [], 'merged_with': [], 'incorporated_into': [], 'is_replaced_by': [], 'incorporates': [],
                  'split_into': [], 'status': None, 'merger_of': [], 'split_from': None, 'formly_known_as': None,
                  'notation': None}])
@@ -360,10 +294,8 @@ class TestFundref(unittest.TestCase):
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
             # decompress release
             decompress_file_path = decompress_release(release)
-            # 'download' geonames
-            shutil.copyfile(self.geonames_test_path, get_filepath_geonames())
             # parse fundref registry
-            funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path, get_filepath_geonames())
+            funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path)
             # iterate through funders recursively
             children, returned_depth = recursive_funders(funders_by_key, funders[1], 0, 'narrower')
 
@@ -389,10 +321,8 @@ class TestFundref(unittest.TestCase):
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
             # decompress release
             decompress_file_path = decompress_release(release)
-            # 'download' geonames
-            shutil.copyfile(self.geonames_test_path, get_filepath_geonames())
             # parse fundref registry
-            funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path, get_filepath_geonames())
+            funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path)
             # add funders relationships
             funders = add_funders_relationships(funders, funders_by_key)
 
@@ -411,10 +341,10 @@ class TestFundref(unittest.TestCase):
                               'http://dx.doi.org/10.13039/100014071'], 'broader': [],
                  'modified': '2020-02-28T20:45:11.000000', 'created': '2009-07-06T18:53:11.000000',
                  'funding_body_type': 'National government', 'funding_body_sub_type': 'gov', 'region': 'Americas',
-                 'country': 'United States', 'country_code': 'US', 'state': 'Virginia', 'tax_id': None,
-                 'continuation_of': [], 'renamed_as': [], 'replaces': [], 'affil_with': [], 'merged_with': [],
-                 'incorporated_into': [], 'is_replaced_by': [], 'incorporates': [], 'split_into': [], 'status': None,
-                 'merger_of': [], 'split_from': None, 'formly_known_as': None, 'notation': None,
+                 'country': None, 'country_code': 'usa', 'state': None, 'tax_id': None, 'continuation_of': [],
+                 'renamed_as': [], 'replaces': [], 'affil_with': [], 'merged_with': [], 'incorporated_into': [],
+                 'is_replaced_by': [], 'incorporates': [], 'split_into': [], 'status': None, 'merger_of': [],
+                 'split_from': None, 'formly_known_as': None, 'notation': None,
                  'children': [{'funder': 'http://dx.doi.org/10.13039/100005447', 'name': None, 'children': []},
                               {'funder': 'http://dx.doi.org/10.13039/100014591', 'name': None, 'children': []},
                               {'funder': 'http://dx.doi.org/10.13039/100014073', 'name': None, 'children': []},
@@ -459,8 +389,8 @@ class TestFundref(unittest.TestCase):
                               'http://dx.doi.org/10.13039/100000062', 'http://dx.doi.org/10.13039/100000050'],
                  'broader': ['http://dx.doi.org/10.13039/100000016'], 'modified': '2020-03-12T22:59:31.000000',
                  'created': '2009-07-06T18:53:11.000000', 'funding_body_type': 'National government',
-                 'funding_body_sub_type': 'gov', 'region': 'Americas', 'country': 'United States', 'country_code': 'US',
-                 'state': 'Maryland', 'tax_id': None, 'continuation_of': [], 'renamed_as': [], 'replaces': [],
+                 'funding_body_sub_type': 'gov', 'region': 'Americas', 'country': None, 'country_code': 'usa',
+                 'state': None, 'tax_id': None, 'continuation_of': [], 'renamed_as': [], 'replaces': [],
                  'affil_with': [], 'merged_with': [], 'incorporated_into': [], 'is_replaced_by': [], 'incorporates': [],
                  'split_into': [], 'status': None, 'merger_of': [], 'split_from': None, 'formly_known_as': None,
                  'notation': None,

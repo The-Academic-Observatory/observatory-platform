@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # Author: Aniek Roelofs, Richard Hosking
+
 import json
 import logging
 import os
@@ -33,14 +34,12 @@ from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
 from academic_observatory.utils.config_utils import (
-    is_composer,
     find_schema,
     ObservatoryConfig,
     SubFolder,
     schema_path,
     telescope_path,
 )
-from academic_observatory.utils.data_utils import get_file
 from academic_observatory.utils.gc_utils import (
     bigquery_partitioned_table_id,
     create_bigquery_dataset,
@@ -70,7 +69,7 @@ def xcom_pull_info(ti: TaskInstance) -> Tuple[list, str, str, str]:
     return releases_list, environment, bucket, project_id
 
 
-def list_releases(telescope_url: str) -> Dict:
+def list_releases(telescope_url: str) -> List:
     """
     List all available fundref releases
 
@@ -78,20 +77,33 @@ def list_releases(telescope_url: str) -> Dict:
     :return: list of dictionaries that contain 'url' and 'release_date' in format 'YYYY-MM-DD'
     """
     releases_list = []
-
-    response = retry_session().get(telescope_url).text
+    response = retry_session().get(telescope_url+'?per_page=100')
 
     if response:
-        json_response = json.loads(response)
-
-        for release in json_response:
-            release_dict = {}
-            for source in release['assets']['sources']:
-                if source['format'] == 'tar.gz':
-                    release_date = pendulum.parse(release['released_at']).to_date_string()
-                    release_dict['date'] = release_date
-                    release_dict['url'] = source['url']
-                    releases_list.append(release_dict)
+        no_pages = int(response.headers['X-Total-Pages'])
+        current_page = int(response.headers['X-Page'])
+        while no_pages >= current_page:
+            response = retry_session().get(telescope_url+f'?per_page=100&page={current_page}')
+            json_response = json.loads(response.text)
+            for release in json_response:
+                release_dict = {}
+                version = float(release['tag_name'].strip('v'))
+                for source in release['assets']['sources']:
+                    if source['format'] == 'tar.gz':
+                        if version == 0.1:
+                            release_date = pendulum.parse('2014-03-01').to_date_string()
+                        elif version < 1.0:
+                            date_string = release['description'].split('\n')[0]
+                            release_date = pendulum.parse('01' + date_string).to_date_string()
+                        else:
+                            release_date = pendulum.parse(release['released_at']).to_date_string()
+                        release_dict['date'] = release_date
+                        release_dict['url'] = source['url']
+                        releases_list.append(release_dict)
+            current_page += 1
+    else:
+        logging.error(f"Error retrieving response from url {telescope_url}")
+        exit(os.EX_DATAERR)
 
     return releases_list
 
@@ -145,7 +157,7 @@ def transform_release(fundref_release: 'FundrefRelease') -> str:
 
     :param fundref_release: Instance of FundrefRelease class
     """
-    funders, funders_by_key = parse_fundref_registry_rdf(fundref_release.filepath_extract, get_filepath_geonames())
+    funders, funders_by_key = parse_fundref_registry_rdf(fundref_release.filepath_extract)
     funders = add_funders_relationships(funders, funders_by_key)
     with open(fundref_release.filepath_transform, 'w') as jsonl_out:
         jsonl_out.write('\n'.join(json.dumps(obj) for obj in funders))
@@ -155,6 +167,7 @@ def transform_release(fundref_release: 'FundrefRelease') -> str:
 
 
 class FundrefRelease:
+    """ Used to store info on a given fundref release """
     def __init__(self, url, date):
         self.url = url
         self.date = date
@@ -187,84 +200,9 @@ class FundrefRelease:
         :return: blob name
         """
         file_name = os.path.basename(self.get_filepath(sub_folder))
-        blob_name = os.path.join(f'telescopes/{FundrefTelescope.DAG_ID}/{sub_folder}', file_name)
+        blob_name = os.path.join(f'telescopes/{FundrefTelescope.DAG_ID}/{sub_folder.value}', file_name)
 
         return blob_name
-
-
-def get_filepath_geonames() -> str:
-    """
-    Gets file path of the geonames file containing country data
-
-    :return: complete file path
-    """
-    file_name = FundrefTelescope.GEONAMES_FILE_NAME
-    transform_dir = telescope_path(FundrefTelescope.DAG_ID, SubFolder.transformed)
-    path = os.path.join(transform_dir, file_name)
-
-    return path
-
-
-def download_geonames_dump(file_path: str):
-    """
-    Downloads geonames dump file containing country data. The file is in zip format and will be extracted
-    after downloading, saving the unzipped content.
-
-    :param file_path: complete file path on where to store the extracted geonames dump file
-    :return: None.
-    """
-    filename = file_path.strip('.txt')
-    filedir = os.path.dirname(filename)
-    logging.info(f"Downloading file: {filename}, url: {FundrefTelescope.GEONAMES_URL}")
-    # extract zip file named 'filename' which contains 'allCountries.txt'
-    file_path, updated = get_file(fname=filename, origin=FundrefTelescope.GEONAMES_URL, cache_subdir=filedir,
-                                  extract=True, archive_format='zip')
-
-    if file_path:
-        logging.info(f'Success downloading release: {file_path}')
-    else:
-        logging.error(f"Error downloading release: {file_path}")
-        exit(os.EX_DATAERR)
-
-
-def geonames_to_dict(file_path: str) -> Dict:
-    """
-    Reads the geonames text file and stores info of specific columns in a dict.
-
-    :param file_path: complete file path of geonames dump file
-    :return: Dictionary containing 'id' as key and a tuple of name & country_code as value
-    """
-    geonames_dict = {}
-
-    logging.info(f'Opening geonames file "{file_path}" and transforming to python dict.')
-    with open(file_path, 'r') as file:
-        for line in file:
-            id = line.split('\t')[0]
-            name = line.split('\t')[1]
-            country_code = line.split('\t')[8]
-            geonames_dict[id] = (name, country_code)
-    return geonames_dict
-
-
-def get_geoname_data(nested, geoname_dict) -> Tuple[str, str]:
-    """
-    Given a nested xml element it will get the corresponding geoname id. Will then look up the associated name and
-    country code from the geoname dictionary.
-
-    :param nested: nested xml element obtained from the registry.rdf file
-    :param geoname_dict: dictionary mapping geoname id to country code and country name
-    :return: country name and country code
-    """
-    geonameid = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'].split('sws.geonames.org')[
-        -1].strip('/')
-    try:
-        name = geoname_dict[geonameid][0]
-        country_code = geoname_dict[geonameid][1]
-    except KeyError:
-        name = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
-        country_code = None
-        print(f'KeyError for {geonameid}')
-    return name, country_code
 
 
 def new_funder_template():
@@ -304,12 +242,11 @@ def new_funder_template():
     }
 
 
-def parse_fundref_registry_rdf(registry_file_path: str, geonames_file_path: str) -> Tuple[List, Dict]:
+def parse_fundref_registry_rdf(registry_file_path: str) -> Tuple[List, Dict]:
     """
     Helper function to parse a fundref registry rdf file and to return a python list containing each funder.
 
     :param registry_file_path: the filename of the registry.rdf file to be parsed.
-    :param geonames_file_path: the path of the geonames allCountries.txt dump file
     :return: funders list containing all the funders parsed from the input rdf and dictionary of funders with their
     id as key.
     """
@@ -318,8 +255,6 @@ def parse_fundref_registry_rdf(registry_file_path: str, geonames_file_path: str)
 
     tree = ET.parse(registry_file_path)
     root = tree.getroot()
-
-    geoname_dict = geonames_to_dict(geonames_file_path)
 
     for record in root:
         if record.tag == "{http://www.w3.org/2004/02/skos/core#}ConceptScheme":
@@ -332,7 +267,6 @@ def parse_fundref_registry_rdf(registry_file_path: str, geonames_file_path: str)
             funder_id = record.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about']
             funder = funders_by_key[funder_id]
             funder['funder'] = funder_id
-            geoname_country_code = None
             for nested in record:
                 if nested.tag == '{http://www.w3.org/2004/02/skos/core#}inScheme':
                     continue
@@ -355,17 +289,11 @@ def parse_fundref_registry_rdf(registry_file_path: str, geonames_file_path: str)
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}region':
                     funder['region'] = nested.text
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}country':
-                    geoname_name, geoname_country_code = get_geoname_data(nested, geoname_dict)
-                    funder['country'] = geoname_name
+                    funder['country'] = nested.text
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}state':
-                    geoname_name, _ = get_geoname_data(nested, geoname_dict)
-                    funder['state'] = geoname_name
+                    funder['state'] = nested.text
                 elif nested.tag == '{http://schema.org/}address':
-                    if geoname_country_code is None:
-                        print("Don't know country_code, referenced before country")
-                        funder['country_code'] = nested[0][0].text
-                    else:
-                        funder['country_code'] = geoname_country_code
+                    funder['country_code'] = nested[0][0].text
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}taxId':
                     funder['tax_id'] = nested.text
                 elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}continuationOf':
@@ -432,8 +360,8 @@ def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction:
     """
     Recursively goes through a funder/sub_funder dict. The funder properties can be looked up with the funders_by_key
     dictionary that stores the properties per funder id. Any children/parents for the funder are already given in the
-    xml element with the 'narrower' and 'broader' tags. For each funder in the list, it will recursively add any children/
-    parents for those funders in 'narrower'/'broader' and their funder properties.
+    xml element with the 'narrower' and 'broader' tags. For each funder in the list, it will recursively add any
+    children/parents for those funders in 'narrower'/'broader' and their funder properties.
 
     :param funders_by_key: dictionary with id as key and funders object as value
     :param funder: dictionary of a given funder containing 'narrower' and 'broader' info
@@ -463,6 +391,7 @@ def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction:
 
 
 class FundrefTelescope:
+    """ A container for holding the constants and static functions for the Fundref telescope. """
     DAG_ID = 'fundref'
     DESCRIPTION = 'Fundref'
     DATASET_ID = DAG_ID
@@ -472,20 +401,15 @@ class FundrefTelescope:
     TELESCOPE_DEBUG_URL = 'debug_fundref_url'
     DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'fundref.tar.gz')
 
-    GEONAMES_FILE_NAME = 'allCountries.txt'
-    GEONAMES_URL = 'https://download.geonames.org/export/dump/allCountries.zip'
-    DEBUG_GEONAMES_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'geonames_subset.txt')
-
     TASK_ID_SETUP = "check_setup_requirements"
-    TASK_ID_LIST = f"list_{DAG_ID}_releases"
-    TASK_ID_STOP = f"stop_{DAG_ID}_workflow"
-    TASK_ID_DOWNLOAD = f"download_{DAG_ID}_releases"
-    TASK_ID_DECOMPRESS = f"decompress_{DAG_ID}_releases"
-    TASK_ID_GEONAMES = "get_geonames_dump"
-    TASK_ID_TRANSFORM = f"transform_{DAG_ID}_releases"
-    TASK_ID_UPLOAD = f"upload_{DAG_ID}_releases"
-    TASK_ID_BQ_LOAD = f"bq_load_{DAG_ID}_releases"
-    TASK_ID_CLEANUP = f"cleanup_{DAG_ID}_releases"
+    TASK_ID_LIST = f"list_releases"
+    TASK_ID_STOP = f"stop_workflow"
+    TASK_ID_DOWNLOAD = f"download_releases"
+    TASK_ID_DECOMPRESS = f"decompress_releases"
+    TASK_ID_TRANSFORM = f"transform_releases"
+    TASK_ID_UPLOAD = f"upload_releases"
+    TASK_ID_BQ_LOAD = f"bq_load_releases"
+    TASK_ID_CLEANUP = f"cleanup_releases"
 
     @staticmethod
     def check_setup_requirements(**kwargs):
@@ -502,31 +426,24 @@ class FundrefTelescope:
         """
         invalid_list = []
         config_dict = {}
+        environment = None
+        bucket = None
+        project_id = None
 
-        if is_composer():
-            environment = Variable.get('ENV', default_var=None)
-            bucket = Variable.get('BUCKET', default_var=None)
-            project_id = Variable.get('PROJECT_ID', default_var=None)
+        default_config = ObservatoryConfig.CONTAINER_DEFAULT_PATH
+        config_path = Variable.get('CONFIG_PATH', default_var=default_config)
 
-            for var in [(environment, 'ENV'), (bucket, 'BUCKET'), (project_id, 'PROJECT_ID')]:
-                if var[0] is None:
-                    invalid_list.append(f"Airflow variable '{var[1]}' not set with terraform.")
-
-        else:
-            default_config = ObservatoryConfig.CONTAINER_DEFAULT_PATH
-            config_path = Variable.get('CONFIG_PATH', default_var=default_config)
-
-            config = ObservatoryConfig.load(config_path)
-            if config is not None:
-                config_is_valid = config.is_valid
-                if not config_is_valid:
-                    invalid_list.append(f'Config file not valid: {config_is_valid}')
-            if not config:
-                invalid_list.append(f'Config file does not exist')
-
-            environment = config.environment.value
-            bucket = config.bucket_name
-            project_id = config.project_id
+        config = ObservatoryConfig.load(config_path)
+        if config is not None:
+            config_is_valid = config.is_valid
+            if config_is_valid:
+                environment = config.environment.value
+                bucket = config.bucket_name
+                project_id = config.project_id
+            else:
+                invalid_list.append(f'Config file not valid: {config_is_valid}')
+        if not config:
+            invalid_list.append(f'Config file does not exist')
 
         if invalid_list:
             for invalid_reason in invalid_list:
@@ -536,6 +453,7 @@ class FundrefTelescope:
             config_dict['environment'] = environment
             config_dict['bucket'] = bucket
             config_dict['project_id'] = project_id
+            logging.info(f'environment: {environment}, bucket: {bucket}, project_id: {project_id}')
             # Push messages
             ti: TaskInstance = kwargs['ti']
             ti.xcom_push(FundrefTelescope.XCOM_CONFIG_NAME, config_dict)
@@ -554,18 +472,19 @@ class FundrefTelescope:
         """
         # Pull messages
         releases_list, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
+        execution_date = kwargs['execution_date']
+        next_execution_date = kwargs['next_execution_date']
 
         if environment == 'dev':
-            releases_list_out = [{'url': FundrefTelescope.TELESCOPE_DEBUG_URL, 'date': '3000-01-01'}]
+            releases_list_out = [{'url': FundrefTelescope.TELESCOPE_DEBUG_URL, 'date': kwargs['ds']}]
             # Push messages
             ti: TaskInstance = kwargs['ti']
             ti.xcom_push(FundrefTelescope.XCOM_MESSAGES_NAME, releases_list_out)
             return FundrefTelescope.TASK_ID_DOWNLOAD if releases_list_out else FundrefTelescope.TASK_ID_STOP
 
-        execution_date = kwargs['execution_date']
-        next_execution_date = kwargs['next_execution_date']
         releases_list = list_releases(FundrefTelescope.TELESCOPE_URL)
-        logging.info(f'All releases:\n{releases_list}\n')
+        logging.info('All releases:\n')
+        print(*releases_list, sep='\n')
 
         bq_hook = BigQueryHook()
         # Select the releases that were published on or after the execution_date and before the next_execution_date
@@ -585,8 +504,8 @@ class FundrefTelescope:
                 )
                 logging.info('Checking if bigquery table already exists:')
                 if table_exists:
-                    logging.info(
-                        f'- Table exists for {fundref_release.url}: {project_id}.{FundrefTelescope.DATASET_ID}.{table_id}')
+                    logging.info(f'- Table exists for {fundref_release.url}: '
+                                 f'{project_id}.{FundrefTelescope.DATASET_ID}.{table_id}')
                 else:
                     logging.info(f"- Table doesn't exist yet, processing {fundref_release.url} in this workflow")
                     releases_list_out.append(release)
@@ -630,18 +549,6 @@ class FundrefTelescope:
             decompress_release(fundref_release)
 
     @staticmethod
-    def geonames_dump(**kwargs):
-        msgs_in, environment, bucket, project_id = xcom_pull_info(kwargs['ti'])
-
-        file_path = get_filepath_geonames()
-
-        if environment == 'dev':
-            shutil.copy(FundrefTelescope.DEBUG_GEONAMES_FILE_PATH, file_path)
-        else:
-            # download geonames
-            download_geonames_dump(file_path)
-
-    @staticmethod
     def transform(**kwargs):
         """
         Transform release by parsing the raw rdf file, transforming it into a json file and replacing geoname associated
@@ -669,7 +576,7 @@ class FundrefTelescope:
         for release in releases_list:
             fundref_release = FundrefRelease(release['url'], release['date'])
 
-            upload_file_to_cloud_storage(bucket, fundref_release.filepath_transform,
+            upload_file_to_cloud_storage(bucket, fundref_release.get_blob_name(SubFolder.transformed),
                                          file_path=fundref_release.filepath_transform)
 
     @staticmethod
