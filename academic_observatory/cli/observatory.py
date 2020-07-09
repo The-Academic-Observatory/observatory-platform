@@ -378,8 +378,7 @@ def platform(command, config_path, dags_path, data_path, logs_path, airflow_ui_p
 
     # Make docker-compose command
     args = ['docker-compose']
-    compose_files = ['docker-compose.secrets.yml', 'docker-compose.airflow-postgres.yml',
-                     'docker-compose.airflow-webserver.yml']
+    compose_files = ['docker-compose.postgres.yml', 'docker-compose.observatory.yml']
     for file_name in compose_files:
         path = os.path.join(package_path, file_name)
         args.append('-f')
