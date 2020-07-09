@@ -56,7 +56,7 @@ class TestFundref(unittest.TestCase):
         # Fundref releases list
         self.list_fundref_releases_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
                                                        'list_fundref_releases.yaml')
-        self.list_fundref_releases_hash = 'b077646f7bbc1ee3c82394cf7bc125a6'
+        self.list_fundref_releases_hash = 'a7cf8190dcbda7992e3ae839ebab9f95'
 
         # Fundref test release
         self.fundref_test_path = FundrefTelescope.DEBUG_FILE_PATH
