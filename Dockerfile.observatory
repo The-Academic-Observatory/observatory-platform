@@ -3,7 +3,6 @@ FROM apache/airflow:1.10.10-2-python3.7
 ARG HOST_USER_ID
 ARG AIRFLOW_HOME=/opt/airflow
 ARG AO_HOME=/opt/observatory
-ENV AIRFLOW_HOME=${AIRFLOW_HOME}
 
 # Install git which is required when installing dependencies with pip and gosu
 USER root

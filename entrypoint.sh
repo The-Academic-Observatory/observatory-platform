@@ -10,11 +10,15 @@ cd ${AO_HOME}/academic-observatory
 gosu airflow bash -c "pip3 install --user -r requirements.txt"
 
 # Remove tests directory which other packages install to sometimes
-rm -r /home/airflow/.local/lib/python3.7/site-packages/tests
+TESTS_DIRECTORY='/home/airflow/.local/lib/python3.7/site-packages/tests'
+if [ -d ${TESTS_DIRECTORY} ]; then
+  rm -r ${TESTS_DIRECTORY}
+fi
 
 # Install the Academic Observatory Python package
 gosu airflow bash -c "pip3 install -e . --user"
 
 # Start the airflow webserver
 cd ${AIRFLOW_HOME}
+echo 'Entrypoint: $@'
 gosu airflow bash -c "/usr/bin/dumb-init -- /entrypoint $@"

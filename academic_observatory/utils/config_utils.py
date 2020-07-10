@@ -26,21 +26,12 @@ import cerberus.validator
 import pendulum
 import yaml
 from cerberus import Validator
+from cryptography.fernet import Fernet
 from natsort import natsorted
 from pendulum import Pendulum
 
 import academic_observatory.database
 from academic_observatory import dags
-
-
-def is_composer():
-    """ Should return true if run from composer environment, set-up by terraform.
-    Terraform sets the 'OBSERVATORY_PATH' environment variable to "/home/airflow/gcs/data"
-
-    :return: True or False
-    """
-    observatory_path = os.environ.get('OBSERVATORY_PATH')
-    return True if observatory_path == "/home/airflow/gcs/data" else False
 
 
 def observatory_home(*subdirs) -> str:
@@ -195,54 +186,80 @@ class Environment(Enum):
 
 class ObservatoryConfig:
     HOST_DEFAULT_PATH = os.path.join(observatory_home(), 'config.yaml')
-    CONTAINER_DEFAULT_PATH = '/run/secrets/config.yaml'
     schema = {
         'project_id': {
             'required': True,
             'type': 'string'
         },
-        'bucket_name': {
+        'download_bucket_name': {
             'required': True,
             'type': 'string'
         },
-        'data_location': {
+        'transform_bucket_name': {
             'required': True,
-            'type': 'string'
-        },
-        'dags_path': {
-            'required': False,
-            'type': 'string'
-        },
-        'google_application_credentials': {
-            'required': False,
             'type': 'string'
         },
         'environment': {
             'required': True,
             'type': 'string',
             'allowed': ['dev', 'test', 'prod']
+        },
+        'google_application_credentials': {
+            'required': True,
+            'type': 'string'
+        },
+        'fernet_key': {
+            'required': True,
+            'type': 'string'
+        },
+        'mag_releases_table_connection': {
+            'required': True,
+            'type': 'string'
+        },
+        'mag_snapshots_container_connection': {
+            'required': True,
+            'type': 'string'
+        },
+        'crossref_connection': {
+            'required': True,
+            'type': 'string'
         }
     }
 
-    def __init__(self, project_id: Union[None, str] = None, bucket_name: Union[None, str] = None,
-                 data_location: Union[None, str] = None, dags_path: str = None, google_application_credentials: str = None,
-                 environment: Environment = None, validator: Validator = None):
+    def __init__(self,
+                 project_id: Union[None, str] = None,
+                 download_bucket_name: Union[None, str] = None,
+                 transform_bucket_name: Union[None, str] = None,
+                 environment: Environment = None,
+                 google_application_credentials: Union[None, str] = None,
+                 fernet_key: Union[None, str] = None,
+                 mag_releases_table_connection: Union[None, str] = None,
+                 mag_snapshots_container_connection: Union[None, str] = None,
+                 crossref_connection: Union[None, str] = None,
+                 validator: Validator = None):
         """ Holds the settings for the Academic Observatory, used by DAGs.
 
         :param project_id: the Google Cloud project id.
-        :param bucket_name: the Google Cloud bucket where final results will be stored.
-        :param data_location: the Google Cloud location for the project,
-        :param dags_path: the path to the DAGs folder.
-        :param google_application_credentials: the path to the Google Application Credentials: https://cloud.google.com/docs/authentication/getting-started
+        :param download_bucket_name:
+        :param transform_bucket_name: the Google Cloud bucket where final results will be stored.
         :param environment: whether the system is running in dev, test or prod mode.
+        :param google_application_credentials: the path to the Google Application Credentials: https://cloud.google.com/docs/authentication/getting-started
+        :param fernet_key:
+        :param mag_releases_table_connection:
+        :param mag_snapshots_container_connection:
+        :param crossref_connection:
+        :param validator:
         """
 
         self.project_id = project_id
-        self.bucket_name = bucket_name
-        self.data_location = data_location
-        self.dags_path = dags_path
-        self.google_application_credentials = google_application_credentials
+        self.download_bucket_name = download_bucket_name
+        self.transform_bucket_name = transform_bucket_name
         self.environment = environment
+        self.google_application_credentials = google_application_credentials
+        self.fernet_key = fernet_key
+        self.mag_releases_table_connection = mag_releases_table_connection
+        self.mag_snapshots_container_connection = mag_snapshots_container_connection
+        self.crossref_connection = crossref_connection
         self.validator: Validator = validator
 
     def __eq__(self, other):
@@ -300,11 +317,14 @@ class ObservatoryConfig:
 
         return {
             'project_id': self.project_id,
-            'bucket_name': self.bucket_name,
-            'data_location': self.data_location,
-            'dags_path': self.dags_path,
+            'download_bucket_name': self.download_bucket_name,
+            'transform_bucket_name': self.transform_bucket_name,
+            'environment': self.environment.value,
             'google_application_credentials': self.google_application_credentials,
-            'environment': self.environment.value
+            'fernet_key': self.fernet_key,
+            'mag_releases_table_connection': self.mag_releases_table_connection,
+            'mag_snapshots_container_connection': self.mag_snapshots_container_connection,
+            'crossref_connection': self.crossref_connection
         }
 
     @staticmethod
@@ -314,13 +334,17 @@ class ObservatoryConfig:
         """
 
         project_id = None
-        bucket_name = None
-        data_location = None
-        dags_path = '/usr/local/airflow/dags'
-        google_application_credentials = '/run/secrets/google_application_credentials.json'
+        download_bucket_name = None
+        transform_bucket_name = None
         environment = Environment.dev
-        return ObservatoryConfig(project_id, bucket_name, data_location, dags_path, google_application_credentials,
-                                 environment)
+        google_application_credentials = None
+        fernet_key = Fernet.generate_key().decode()
+        mag_releases_table_connection = 'mysql://azure-storage-account-name:url-encoded-sas-token@'
+        mag_snapshots_container_connection = 'mysql://azure-storage-account-name:url-encoded-sas-token@'
+        crossref_connection = 'mysql://:crossref-token@'
+        return ObservatoryConfig(project_id, download_bucket_name, transform_bucket_name, environment,
+                                 google_application_credentials, fernet_key, mag_releases_table_connection,
+                                 mag_snapshots_container_connection, crossref_connection)
 
     @staticmethod
     def from_dict(dict_: Dict) -> 'ObservatoryConfig':
@@ -336,13 +360,17 @@ class ObservatoryConfig:
 
         if is_valid:
             project_id = dict_.get('project_id')
-            bucket_name = dict_.get('bucket_name')
-            data_location = dict_.get('data_location')
-            dags_path = dict_.get('dags_path')
-            google_application_credentials = dict_.get('google_application_credentials')
+            download_bucket_name = dict_.get('download_bucket_name')
+            transform_bucket_name = dict_.get('transform_bucket_name')
             environment = Environment(dict_.get('environment'))
-            return ObservatoryConfig(project_id=project_id, bucket_name=bucket_name, data_location=data_location,
-                                     dags_path=dags_path, google_application_credentials=google_application_credentials,
-                                     environment=environment, validator=validator)
+            google_application_credentials = dict_.get('google_application_credentials')
+            fernet_key = dict_.get('fernet_key')
+            mag_releases_table_connection = dict_.get('mag_releases_table_connection')
+            mag_snapshots_container_connection = dict_.get('mag_snapshots_container_connection')
+            crossref_connection = dict_.get('crossref_connection')
+
+            return ObservatoryConfig(project_id, download_bucket_name, transform_bucket_name, environment,
+                                     google_application_credentials, fernet_key, mag_releases_table_connection,
+                                     mag_snapshots_container_connection, crossref_connection, validator)
         else:
             return ObservatoryConfig(validator=validator)

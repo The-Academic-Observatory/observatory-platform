@@ -407,7 +407,6 @@ data "google_compute_image" "ao_image" {
 data "template_file" "airflow_main_vm_startup" {
   template = file("terraform/startup-main.tpl")
   vars = {
-    ao_home = "/opt/observatory"
     project_id = var.project_id
     postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
   }
@@ -439,7 +438,6 @@ module "airflow_main_vm" {
 data "template_file" "airflow_worker_vm_startup" {
   template = file("terraform/startup-worker.tpl")
   vars = {
-    ao_home = "/opt/observatory"
     project_id = var.project_id
     postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
     redis_hostname = module.airflow_main_vm.private_ip_address

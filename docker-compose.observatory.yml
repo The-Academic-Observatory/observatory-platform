@@ -1,24 +1,3 @@
-version: "3.8"
-x-environment: &environment
-  AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres://airflow:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
-  AIRFLOW__CORE__FERNET_KEY: "${FERNET_KEY}"
-  AIRFLOW__CORE__AIRFLOW_HOME: "/opt/airflow/"
-  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-  AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
-  AIRFLOW__WEBSERVER__RBAC: "True"
-  AIRFLOW__CELERY__BROKER_URL: "redis://:@${REDIS_HOSTNAME}:6379/0"
-  AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
-  AIRFLOW__SECRETS__BACKEND: "airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend"
-  AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
-  GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
-  AO_HOME: ${AO_HOME}
-
-x-volumes: &volumes
-  - "${HOST_LOGS_PATH}:/opt/airflow/logs"
-  - "${HOST_DAGS_PATH}:/opt/airflow/dags"
-  - "${HOST_DATA_PATH}:/opt/observatory/data"
-  - "${HOST_PACKAGE_PATH}:/opt/observatory/academic-observatory"
 
 x-build: &build
   context: .
@@ -102,6 +81,16 @@ services:
       - google_application_credentials.json
     command: worker -q remote_queue
 
+  postgres:
+    image: postgres:12.2
+    environment:
+      - POSTGRES_DB=airflow
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+    volumes:
+      - ${HOST_POSTGRES_PATH}:/var/lib/postgresql/data
+    restart: always
+
 secrets:
   google_application_credentials.json:
-    file: ${HOST_GOOGLE_APPLICATION_CREDENTIALS}
+    file: ${GOOGLE_APPLICATION_CREDENTIALS}

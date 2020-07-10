@@ -1,0 +1,34 @@
+version: '3.8'
+
+x-environment: &environment
+  # Airflow settings
+  AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres://airflow:airflow@postgres:5432/airflow"
+  AIRFLOW__CORE__FERNET_KEY: "${FERNET_KEY}"
+  AIRFLOW__CORE__AIRFLOW_HOME: "/opt/airflow"
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
+  AIRFLOW__WEBSERVER__RBAC: "True"
+  AIRFLOW__CELERY__BROKER_URL: "redis://:@redis:6379/0"
+  AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:airflow@postgres:5432/airflow"
+
+  # Paths to google credentials and observatory folder
+  GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
+  AO_HOME: "/opt/observatory"
+
+  # Connections
+  AIRFLOW_CONN_MAG_RELEASES_TABLE: ${AIRFLOW_CONN_MAG_RELEASES_TABLE}
+  AIRFLOW_CONN_MAG_SNAPSHOTS_CONTAINER: ${AIRFLOW_CONN_MAG_SNAPSHOTS_CONTAINER}
+  AIRFLOW_CONN_CROSSREF: ${AIRFLOW_CONN_CROSSREF}
+
+  # Variables
+  AIRFLOW_VAR_PROJECT_ID: ${AIRFLOW_VAR_PROJECT_ID}
+  AIRFLOW_VAR_DOWNLOAD_BUCKET_NAME: ${AIRFLOW_VAR_DOWNLOAD_BUCKET_NAME}
+  AIRFLOW_VAR_TRANSFORM_BUCKET_NAME: ${AIRFLOW_VAR_TRANSFORM_BUCKET_NAME}
+  AIRFLOW_VAR_ENVIRONMENT: ${AIRFLOW_VAR_ENVIRONMENT}
+
+x-volumes: &volumes
+  - "${HOST_LOGS_PATH}:/opt/airflow/logs"
+  - "${HOST_DAGS_PATH}:/opt/airflow/dags"
+  - "${HOST_DATA_PATH}:/opt/observatory/data"
+  - "${HOST_PACKAGE_PATH}:/opt/observatory/academic-observatory"
