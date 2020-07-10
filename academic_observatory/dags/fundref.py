@@ -28,7 +28,7 @@ default_args = {
 }
 
 
-with DAG(dag_id="fundref", schedule_interval="@monthly", default_args=default_args, max_active_runs=1) as dag:
+with DAG(dag_id="fundref", schedule_interval="@monthly", default_args=default_args) as dag:
     # Get config variables
     check_setup = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_SETUP,

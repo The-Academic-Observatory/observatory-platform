@@ -150,6 +150,19 @@ def decompress_release(fundref_release: 'FundrefRelease') -> str:
     return fundref_release.filepath_extract
 
 
+def strip_whitespace(file_path):
+    with open(file_path, 'r') as f_in, open(file_path + '.tmp', 'w') as f_out:
+        first_line = True
+        for line in f_in:
+            if first_line and not line.startswith(' '):
+                return
+            elif first_line and line.startswith(' '):
+                line = line.lstrip()
+            f_out.write(line)
+            first_line = False
+    os.rename(file_path + '.tmp', file_path)
+
+
 def transform_release(fundref_release: 'FundrefRelease') -> str:
     """
     Transform release by parsing the raw rdf file, transforming it into a json file and replacing geoname associated
@@ -157,6 +170,8 @@ def transform_release(fundref_release: 'FundrefRelease') -> str:
 
     :param fundref_release: Instance of FundrefRelease class
     """
+    # strip leading whitespace from first line if present.
+    strip_whitespace(fundref_release.filepath_extract)
     funders, funders_by_key = parse_fundref_registry_rdf(fundref_release.filepath_extract)
     funders = add_funders_relationships(funders, funders_by_key)
     with open(fundref_release.filepath_transform, 'w') as jsonl_out:
@@ -255,78 +270,77 @@ def parse_fundref_registry_rdf(registry_file_path: str) -> Tuple[List, Dict]:
 
     tree = ET.parse(registry_file_path)
     root = tree.getroot()
-
+    tag_prefix = root.tag.split('}')[0] + '}'
     for record in root:
-        if record.tag == "{http://www.w3.org/2004/02/skos/core#}ConceptScheme":
+        tag = record.tag.split('}')[-1]
+        if tag == "ConceptScheme":
             for nested in record:
-                if nested.tag == '{http://www.w3.org/2004/02/skos/core#}hasTopConcept':
-                    funder_id = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
+                tag = nested.tag.split('}')[-1]
+                if tag == 'hasTopConcept':
+                    funder_id = nested.attrib[tag_prefix + 'resource']
                     funders_by_key[funder_id] = new_funder_template()
 
-        if record.tag == "{http://www.w3.org/2004/02/skos/core#}Concept":
-            funder_id = record.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about']
+        if tag == "Concept":
+            funder_id = record.attrib[tag_prefix + 'about']
             funder = funders_by_key[funder_id]
             funder['funder'] = funder_id
             for nested in record:
-                if nested.tag == '{http://www.w3.org/2004/02/skos/core#}inScheme':
+                tag = nested.tag.split('}')[-1]
+                if tag == 'inScheme':
                     continue
-                elif nested.tag == '{http://www.w3.org/2008/05/skos-xl#}prefLabel':
+                elif tag == 'prefLabel':
                     funder['pre_label'] = nested[0][0].text
-                elif nested.tag == '{http://www.w3.org/2008/05/skos-xl#}altLabel':
+                elif tag == 'altLabel':
                     funder['alt_label'].append(nested[0][0].text)
-                elif nested.tag == '{http://www.w3.org/2004/02/skos/core#}narrower':
-                    funder['narrower'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://www.w3.org/2004/02/skos/core#}broader':
-                    funder['broader'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://purl.org/dc/terms/}modified':
+                elif tag == 'narrower':
+                    funder['narrower'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'broader':
+                    funder['broader'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'modified':
                     funder['modified'] = nested.text
-                elif nested.tag == '{http://purl.org/dc/terms/}created':
+                elif tag == 'created':
                     funder['created'] = nested.text
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}fundingBodySubType':
+                elif tag == 'fundingBodySubType':
                     funder['funding_body_type'] = nested.text
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}fundingBodyType':
+                elif tag == 'fundingBodyType':
                     funder['funding_body_sub_type'] = nested.text
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}region':
+                elif tag == 'region':
                     funder['region'] = nested.text
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}country':
+                elif tag == 'country':
                     funder['country'] = nested.text
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}state':
+                elif tag == 'state':
                     funder['state'] = nested.text
-                elif nested.tag == '{http://schema.org/}address':
+                elif tag == 'address':
                     funder['country_code'] = nested[0][0].text
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}taxId':
+                elif tag == 'taxId':
                     funder['tax_id'] = nested.text
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}continuationOf':
-                    funder['continuation_of'].append(
-                        nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}renamedAs':
-                    funder['renamed_as'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://purl.org/dc/terms/}replaces':
-                    funder['replaces'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}affilWith':
-                    funder['affil_with'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}mergedWith':
-                    funder['merged_with'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}incorporatedInto':
-                    funder['incorporated_into'].append(
-                        nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://purl.org/dc/terms/}isReplacedBy':
-                    funder['is_replaced_by'].append(
-                        nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}incorporates':
-                    funder['incorporates'].append(
-                        nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}splitInto':
-                    funder['split_into'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://data.crossref.org/fundingdata/terms}status':
-                    funder['status'] = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}mergerOf':
-                    funder['merger_of'].append(nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource'])
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}splitFrom':
-                    funder['split_from'] = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
-                elif nested.tag == '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}formerlyKnownAs':
-                    funder['formly_known_as'] = nested.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource']
-                elif nested.tag == '{http://www.w3.org/2004/02/skos/core#}notation':
+                elif tag == 'continuationOf':
+                    funder['continuation_of'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'renamedAs':
+                    funder['renamed_as'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'replaces':
+                    funder['replaces'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'affilWith':
+                    funder['affil_with'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'mergedWith':
+                    funder['merged_with'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'incorporatedInto':
+                    funder['incorporated_into'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'isReplacedBy':
+                    funder['is_replaced_by'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'incorporates':
+                    funder['incorporates'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'splitInto':
+                    funder['split_into'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'status':
+                    funder['status'] = nested.attrib[tag_prefix + 'resource']
+                elif tag == 'mergerOf':
+                    funder['merger_of'].append(nested.attrib[tag_prefix + 'resource'])
+                elif tag == 'splitFrom':
+                    funder['split_from'] = nested.attrib[tag_prefix + 'resource']
+                elif tag == 'formerlyKnownAs':
+                    funder['formly_known_as'] = nested.attrib[tag_prefix + 'resource']
+                elif tag == 'notation':
                     funder['notation'] = nested.text
                 else:
                     print(f"Unrecognized tag for element: {nested}")
@@ -345,18 +359,18 @@ def add_funders_relationships(funders: List, funders_by_key: Dict) -> List:
     :return: funders with added relationships.
     """
     for funder in funders:
-        children, returned_depth = recursive_funders(funders_by_key, funder, 0, 'narrower')
+        children, returned_depth = recursive_funders(funders_by_key, funder, 0, 'narrower', [])
         funder["children"] = children
         funder['bottom'] = len(children) > 0
 
-        parent, returned_depth = recursive_funders(funders_by_key, funder, 0, 'broader')
+        parent, returned_depth = recursive_funders(funders_by_key, funder, 0, 'broader', [])
         funder["parents"] = parent
         funder['top'] = len(parent) > 0
 
     return funders
 
 
-def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction: str) -> Tuple[List, int]:
+def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction: str, parents: List) -> Tuple[List, int]:
     """
     Recursively goes through a funder/sub_funder dict. The funder properties can be looked up with the funders_by_key
     dictionary that stores the properties per funder id. Any children/parents for the funder are already given in the
@@ -370,21 +384,33 @@ def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction:
     :return:
     """
     starting_depth = depth
-
     children = []
-
     for funder_id in funder[direction]:
-        sub_funder = funders_by_key[funder_id]
-        name = sub_funder['pre_label']
+        if funder_id in parents:
+            print(f"funder {funder_id} is it's own parent/child, skipping..")
+            name = 'NA'
+            returned = []
+            returned_depth = depth
+        else:
+            try:
+                sub_funder = funders_by_key[funder_id]
+                parents.append(sub_funder['funder'])
+                name = sub_funder['pre_label']
 
-        returned, returned_depth = recursive_funders(funders_by_key, sub_funder, starting_depth + 1, direction)
+                returned, returned_depth = recursive_funders(funders_by_key, sub_funder, starting_depth + 1, direction,
+                                                             parents)
+            except KeyError:
+                print(f'Could not find funder by id: {funder_id}, skipping..')
+                name = 'NA'
+                returned = []
+                returned_depth = depth
 
         if direction == "narrower":
             child = {'funder': funder_id, 'name': name, 'children': returned}
         else:
             child = {'funder': funder_id, 'name': name, 'parent': returned}
         children.append(child)
-
+        parents = []
         if returned_depth > depth:
             depth = returned_depth
     return children, depth
