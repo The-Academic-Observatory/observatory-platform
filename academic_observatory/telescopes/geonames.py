@@ -14,8 +14,7 @@
 
 # Author: Aniek Roelofs
 
-import csv
-import json
+import gzip
 import logging
 import os
 import pathlib
@@ -90,18 +89,13 @@ def download_release(geonames_release: 'GeonamesRelease') -> str:
 
 def transform_release(geonames_release: 'GeonamesRelease') -> str:
     """
-    Transforms release by storing file content in dict, and transforming dict to jsonl file.
-
+    Transforms release by storing file content in gzipped csv format.
     :param geonames_release: Instance of GeonamesRelease class
+    :return: file path of transformed file
     """
-    with open(geonames_release.filepath_extract, 'r') as f_in, open(geonames_release.filepath_transform, 'w') as f_out:
-        fieldnames = ['geonameid', 'name', 'asciiname', 'alternatenames', 'latitude', 'longitude', 'featureclass',
-                      'featurecode', 'countrycode', 'cc2', 'admin1code', 'admin2code', 'admin3code', 'admin4code',
-                      'population', 'elevation', 'dem', 'timezone', 'modificationdate']
-        reader = csv.DictReader(f_in, fieldnames=fieldnames, delimiter='\t')
-        for row in reader:
-            json.dump(row, f_out)
-            f_out.write('\n')
+    with open(geonames_release.filepath_extract, 'rb') as file_in:
+        with gzip.open(geonames_release.filepath_transform, 'wb') as file_out:
+            shutil.copyfileobj(file_in, file_out)
 
     return geonames_release.filepath_transform
 
@@ -120,14 +114,14 @@ class GeonamesRelease:
         """
         Gets complete path of file for download/extract/transform directory
         :param sub_folder: name of subfolder
-        :return:
+        :return: complete path of file.
         """
         if sub_folder == SubFolder.downloaded:
             file_name = f"{GeonamesTelescope.DAG_ID}_{self.date}".replace('-', '_')
         elif sub_folder == SubFolder.extracted:
             file_name = f"{GeonamesTelescope.DAG_ID}_{self.date}.txt".replace('-', '_')
         else:
-            file_name = f"{GeonamesTelescope.DAG_ID}_{self.date}.jsonl".replace('-', '_')
+            file_name = f"{GeonamesTelescope.DAG_ID}_{self.date}.csv.gz".replace('-', '_')
 
         file_dir = telescope_path(GeonamesTelescope.DAG_ID, sub_folder)
         path = os.path.join(file_dir, file_name)
@@ -288,7 +282,7 @@ class GeonamesTelescope:
         uri = f"gs://{bucket}/{geonames_release.get_blob_name(SubFolder.transformed)}"
         logging.info(f"URI: {uri}")
         load_bigquery_table(uri, dataset_id, location, table_id, schema_file_path,
-                            SourceFormat.NEWLINE_DELIMITED_JSON)
+                            SourceFormat.CSV, csv_field_delimiter='\t', csv_quote_character="")
 
     @staticmethod
     def cleanup_releases(**kwargs):

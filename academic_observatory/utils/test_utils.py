@@ -15,7 +15,23 @@
 # Author: James Diprose
 
 import os
+import subprocess
 from pathlib import Path
+from subprocess import Popen
+
+from academic_observatory.utils.proc_utils import wait_for_process
+
+
+def gzip_file_crc(file_path: str) -> str:
+    """ Get the crc of a gzip file.
+
+    :param file_path: the path to the file.
+    :return: the crc.
+    """
+
+    proc: Popen = subprocess.Popen(['gzip', '-vl', file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, error = wait_for_process(proc)
+    return output.splitlines()[1].split(' ')[1].strip()
 
 
 def test_data_dir(current_file):

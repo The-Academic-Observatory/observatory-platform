@@ -29,6 +29,7 @@ from academic_observatory.telescopes.geonames import (
 )
 from academic_observatory.utils.config_utils import telescope_path, SubFolder
 from academic_observatory.utils.data_utils import _hash_file
+from academic_observatory.utils.test_utils import gzip_file_crc
 from tests.academic_observatory.config import test_fixtures_path
 
 
@@ -46,13 +47,12 @@ class TestGeonames(unittest.TestCase):
 
         # Geonames test release
         self.geonames_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'geonames.txt')
-        # self.geonames_test_url = GeonamesTelescope.TELESCOPE_DEBUG_URL
         self.geonames_test_date = '3000-01-01'
         self.geonames_test_download_file_name = 'geonames_3000_01_01'
         self.geonames_test_decompress_file_name = 'geonames_3000_01_01.txt'
-        self.geonames_test_transform_file_name = 'geonames_3000_01_01.jsonl'
+        self.geonames_test_transform_file_name = 'geonames_3000_01_01.csv.gz'
         self.geonames_test_decompress_hash = 'de1bf005df4840d16faf598999d72051'
-        self.geonames_test_transform_hash = 'aa8089bb450010f55eaa2fcfbd52fcd5'
+        self.geonames_test_transform_crc = '26c14e16'
 
         logging.info("Check that test fixtures exist")
         self.assertTrue(os.path.isfile(self.geonames_test_path))
@@ -153,4 +153,5 @@ class TestGeonames(unittest.TestCase):
 
             self.assertTrue(os.path.exists(transform_file_path))
             self.assertEqual(self.geonames_test_transform_file_name, transform_file_name)
-            self.assertEqual(self.geonames_test_transform_hash, _hash_file(transform_file_path, algorithm='md5'))
+            gzip_crc = gzip_file_crc(transform_file_path)
+            self.assertEqual(self.geonames_test_transform_crc, gzip_crc)
