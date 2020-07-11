@@ -18,7 +18,6 @@ import unittest
 import pandas as pd
 import os.path
 
-
 from academic_observatory.reports.charts import ScatterPlot
 from academic_observatory.reports.charts import TimePlot
 from academic_observatory.reports.charts import TimePlotLayout
