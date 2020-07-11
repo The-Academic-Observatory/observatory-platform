@@ -34,39 +34,31 @@ class TestObservatory(unittest.TestCase):
     @unittest.skipIf(not_linux(), "Only runs on Linux")
     def test_platform_start_stop(self):
         runner = CliRunner()
-        config_file_path = '/tmp/config.yaml'
-        credentials_file_path = '/tmp/cred.json'
-        env = {
-            'FERNET_KEY': gen_fernet_key(),
-            'GOOGLE_APPLICATION_CREDENTIALS': config_file_path
-        }
+        with runner.isolated_filesystem():
+            # File paths
+            working_dir = pathlib.Path().absolute()
+            config_file_path = os.path.join(working_dir, 'config.yaml')
+            credentials_file_path = os.path.join(working_dir, 'google_application_credentials.json')
 
-        # Make config file
-        config = ObservatoryConfig.make_default()
-        config.project_id = 'my-project-id'
-        config.data_location = 'my-project-location'
-        config.bucket_name = 'my-bucket-name'
-        config.save(config_file_path)
+            # Make config file
+            config = ObservatoryConfig.make_default()
+            config.project_id = 'my-project-id'
+            config.download_bucket_name = 'my-project-download-bucket'
+            config.transform_bucket_name = 'my-project-transform-bucket'
+            config.google_application_credentials = credentials_file_path
+            config.save(config_file_path)
 
-        # Make a fake google application credentials
-        with open(credentials_file_path, 'w') as f:
-            f.write('')
+            # Make a fake google application credentials as it is required by the secret
+            with open(credentials_file_path, 'w') as f:
+                f.write('')
 
-        result = runner.invoke(cli, ['platform', 'start', '--config-path', config_file_path], env=env)
-        self.assertEqual(result.exit_code, os.EX_OK)
+            # Test that start command works
+            result = runner.invoke(cli, ['platform', 'start', '--config-path', config_file_path])
+            self.assertEqual(result.exit_code, os.EX_OK)
 
-        result = runner.invoke(cli, ['platform', 'stop', '--config-path', config_file_path], env=env)
-        self.assertEqual(result.exit_code, os.EX_OK)
-
-        try:
-            pathlib.Path(config_file_path).unlink()
-        except FileNotFoundError:
-            pass
-
-        try:
-            pathlib.Path(credentials_file_path).unlink()
-        except FileNotFoundError:
-            pass
+            # Test that stop command works
+            result = runner.invoke(cli, ['platform', 'stop', '--config-path', config_file_path])
+            self.assertEqual(result.exit_code, os.EX_OK)
 
     @unittest.skipIf(not_linux(), "Only runs on Linux")
     @patch('academic_observatory.cli.observatory.get_docker_path')

@@ -202,9 +202,9 @@ def indent(string: str, num_spaces: int) -> str:
     return string.rjust(len(string) + num_spaces)
 
 
-def build_compose_files():
+def build_compose_files(working_dir: str):
     return subprocess.Popen(['cat', 'docker-compose.local.yml', 'docker-compose.observatory.yml'],
-                            stdout=subprocess.PIPE)
+                            stdout=subprocess.PIPE, cwd=working_dir)
 
 
 @cli.command()
@@ -335,8 +335,10 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
     # Run commands   #
     ##################
 
-    # Make environment variables for running commands
+    # Working directory for running the build etc
     package_path = observatory_package_path()
+
+    # Make environment variables for running commands
     env = get_env(dags_path, data_path, logs_path, postgres_path, host_uid, package_path, config)
 
     # Docker compose commands
@@ -347,9 +349,9 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
         print('Academic Observatory: building...'.ljust(min_line_chars), end="\r")
 
         # Build the containers first
-        cat_proc = build_compose_files()
-        proc: Popen = subprocess.Popen(compose_args + ['build'], stdin=cat_proc.stdout,
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+        cat_proc = build_compose_files(package_path)
+        proc: Popen = subprocess.Popen(compose_args + ['build'], stdin=cat_proc.stdout, stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE, env=env, cwd=package_path)
         output, error = wait_for_process(proc)
 
         if debug:
@@ -364,9 +366,9 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
 
         # Start the built containers
         print('Academic Observatory: starting...'.ljust(min_line_chars), end='\r')
-        cat_proc = build_compose_files()
-        proc: Popen = subprocess.Popen(compose_args + ['up', '-d'], stdin=cat_proc.stdout,
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+        cat_proc = build_compose_files(package_path)
+        proc: Popen = subprocess.Popen(compose_args + ['up', '-d'], stdin=cat_proc.stdout, stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE, env=env, cwd=package_path)
         output, error = wait_for_process(proc)
 
         if debug:
@@ -389,9 +391,9 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
 
     elif command == 'stop':
         print('Academic Observatory: stopping...'.ljust(min_line_chars), end='\r')
-        cat_proc = build_compose_files()
-        proc = subprocess.Popen(compose_args + ['down'], stdin=cat_proc.stdout,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+        cat_proc = build_compose_files(package_path)
+        proc = subprocess.Popen(compose_args + ['down'], stdin=cat_proc.stdout, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, env=env, cwd=package_path)
         output, error = wait_for_process(proc)
 
         if debug:

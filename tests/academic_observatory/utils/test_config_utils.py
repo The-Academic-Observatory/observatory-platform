@@ -26,7 +26,7 @@ from click.testing import CliRunner
 
 import academic_observatory.dags
 import academic_observatory.database.telescopes.schema
-from academic_observatory.utils.config_utils import ObservatoryConfig, Environment, observatory_package_path, \
+from academic_observatory.utils.config_utils import ObservatoryConfig, observatory_package_path, \
     dags_path, observatory_home, telescope_path, SubFolder, find_schema, schema_path
 from academic_observatory.utils.test_utils import test_data_dir
 
@@ -205,27 +205,35 @@ class TestConfigUtils(unittest.TestCase):
 class TestObservatoryConfig(unittest.TestCase):
     CONFIG_DICT_COMPLETE_VALID = {
         'project_id': 'my-project',
-        'bucket_name': 'my-bucket',
-        'data_location': 'us-west4',
-        'dags_path': '/usr/local/airflow/dags',
-        'google_application_credentials': '/run/secrets/google_application_credentials.json',
-        'environment': 'dev'
+        'download_bucket_name': 'my-download-bucket',
+        'transform_bucket_name': 'my-transform-bucket',
+        'environment': 'dev',
+        'google_application_credentials': '/path/to/google_application_credentials.json',
+        'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
+        'mag_releases_table_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+        'mag_snapshots_container_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+        'crossref_connection': 'mysql://:crossref-token@'
     }
 
     CONFIG_DICT_COMPLETE_INVALID = {
         'project_id': None,
-        'bucket_name': None,
-        'data_location': None,
-        'dags_path': '/usr/local/airflow/dags',
-        'google_application_credentials': '/run/secrets/google_application_credentials.json',
-        'environment': 'dev'
+        'download_bucket_name': None,
+        'transform_bucket_name': None,
+        'environment': 'dev',
+        'google_application_credentials': None,
+        'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
+        'mag_releases_table_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+        'mag_snapshots_container_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+        'crossref_connection': 'mysql://:crossref-token@'
     }
 
     CONFIG_DICT_INCOMPLETE_VALID = {
         'project_id': 'my-project',
-        'bucket_name': 'my-bucket',
-        'data_location': 'us-west4',
-        'environment': 'dev'
+        'download_bucket_name': 'my-download-bucket',
+        'transform_bucket_name': 'my-transform-bucket',
+        'environment': 'dev',
+        'google_application_credentials': '/path/to/google_application_credentials.json',
+        'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE='
     }
 
     def setUp(self) -> None:
@@ -245,8 +253,7 @@ class TestObservatoryConfig(unittest.TestCase):
         self.assertTrue(incomplete_valid.is_valid)
 
     def test_save(self):
-        runner = CliRunner()
-        with runner.isolated_filesystem():
+        with CliRunner().isolated_filesystem():
             # Create test config and save
             dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID
             config = ObservatoryConfig.from_dict(dict_)
@@ -262,8 +269,7 @@ class TestObservatoryConfig(unittest.TestCase):
             self.assertEqual(expected_data, actual_data)
 
     def test_load(self):
-        runner = CliRunner()
-        with runner.isolated_filesystem():
+        with CliRunner().isolated_filesystem():
             # Save actual config
             with open(self.config_file_name, 'w') as f:
                 data = yaml.safe_dump(TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID)
@@ -280,20 +286,21 @@ class TestObservatoryConfig(unittest.TestCase):
         actual_dict = ObservatoryConfig.from_dict(expected_dict).to_dict()
         self.assertEqual(expected_dict, actual_dict)
 
-    def assert_dict_equals_config(self, dict_, config):
-        self.assertEqual(dict_['project_id'], config.project_id)
-        self.assertEqual(dict_['bucket_name'], config.bucket_name)
-        self.assertEqual(dict_['data_location'], config.data_location)
-        self.assertEqual(dict_['dags_path'], config.dags_path)
-        self.assertEqual(dict_['google_application_credentials'], config.google_application_credentials)
-        self.assertEqual(Environment(dict_['environment']), config.environment)
-
     def test_make_default(self):
         dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_INVALID
         config = ObservatoryConfig.make_default()
-        self.assert_dict_equals_config(dict_, config)
+        config_dict = config.to_dict()
+
+        # Check that fernet key has been set
+        self.assertIsNotNone(config.fernet_key)
+
+        # Check that generated dictionary matches original. Remove fernet key because it should be different
+        # every time
+        del config_dict['fernet_key']
+        del dict_['fernet_key']
+        self.assertDictEqual(dict_, config_dict)
 
     def test_from_dict(self):
         dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID
         config = ObservatoryConfig.from_dict(dict_)
-        self.assert_dict_equals_config(dict_, config)
+        self.assertDictEqual(dict_, config.to_dict())
