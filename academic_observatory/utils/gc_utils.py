@@ -203,7 +203,10 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     return result.state == 'DONE'
 
 
-def create_bigquery_table_from_query(project_id: str, dataset_id: str, location: str, description: str = '') -> bool:
+def create_bigquery_table_from_query(sql: str, query_parameters: List[bigquery.ScalarQueryParameter], labels: dict, project_id: str, 
+                                     dataset_id: str, table_id: str, location: str, description: str = '',
+                                     partition: bool = False, partition_field: Union[None, str] = None,
+                                     partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True,) -> bool:
     """ Create a BigQuery dataset from a provided query.
 
     :param project_id: the Google Cloud project id
@@ -215,6 +218,8 @@ def create_bigquery_table_from_query(project_id: str, dataset_id: str, location:
     """
 
     func_name = create_bigquery_dataset.__name__
+    msg = f'project_id={project_id}, dataset_id={dataset_id}, location={location}, table={table_id}'
+    logging.info(f"{func_name}: create bigquery table from query, {msg}")
 
     # Make the dataset reference
     dataset_ref = f'{project_id}.{dataset_id}'
@@ -228,21 +233,33 @@ def create_bigquery_table_from_query(project_id: str, dataset_id: str, location:
     dataset.description = description
 
     job_config = bigquery.QueryJobConfig(
-        allow_large_results=True,
-        destination=table_id
-        use_legacy_sql=False
+        allow_large_results = True,
+        destination = table_id
+        use_legacy_sql = False,
+        query_parameters = query_parameters
         )
 
-    # optional use of clustering and partitioning
-    # likely always making use of parameterized queries
+    # Set partitioning settings
+    if partition:
+        job_config.time_partitioning = bigquery.TimePartitioning(
+            type_=partition_type,
+            field=partition_field,
+            require_partition_filter=require_partition_filter
+        )
 
-    # labels
-    # policy tags
+    # Set Clustering Settings
 
+    # Set Labels
+    if labels:
+        job_config.labels = labels
 
-    # Write all the SQL queries with placeholders in them
-    # always import the sql file, then fill in those parameters, before calling this function directly?
-    # or perhaps the sql files themselves are python scripts, with the methods defining what paraters are allowed/required?
+    # Set Policy Tags
+
+    query_job: QueryJob = client.query(sql, job_config = job_config)
+
+    result = load_job.result()
+    logging.info(f"{func_name}: create bigquery table from query, result.state={result.state}, {msg}")
+    return result.state == 'DONE'
 
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
