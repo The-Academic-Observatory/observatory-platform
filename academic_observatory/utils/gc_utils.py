@@ -210,7 +210,7 @@ def sql_builder(sql_file: str, sql_params: dict):
     :param sql_params: the key,value pairs of what will be replaced in the sql file
     """
 
-    sql_file_path = os.path.join(os.path.dirname(path.abspath(__file__)), "..", "sql", sql_file )
+    sql_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sql", sql_file )
 
     with open(sql_file_path) as f:
         sql = f.read()
