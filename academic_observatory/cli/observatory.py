@@ -40,7 +40,6 @@ def cli():
     COMMAND: the commands to run include:\n
       - platform: start and stop the local Academic Observatory platform.\n
       - generate: generate a variety of outputs\n.
-      - report: report creation and generation\n.
     """
 
     pass
