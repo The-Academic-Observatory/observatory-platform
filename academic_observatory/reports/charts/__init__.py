@@ -23,3 +23,7 @@ from .scatter_plot import ScatterPlot
 from .time_path import TimePath
 from .time_plot import TimePlot
 from .time_plot_layout import TimePlotLayout
+from .generic_time_chart import GenericTimeChart
+from .output_types_time_chart import OutputTypesTimeChart
+from .oapc_time_chart import OApcTimeChart
+from .citation_count_time_chart import CitationCountTimeChart

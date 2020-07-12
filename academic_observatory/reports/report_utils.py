@@ -20,23 +20,7 @@ import pydata_google_auth
 
 from num2words import num2words
 
-from precipy.main import render_file
 from academic_observatory.reports.charts.oapc_time_chart import *
-
-
-def create_new_report(dir):
-    """ Create a new blank report in the specified directory.
-
-    :param dir: the target directory.
-    """
-    a = 1
-
-
-def execute_report():
-    """ Execute the report in the specified directory.
-
-    """
-    render_file(report_template, analytics_modules, storages=storages)
 
 
 def generate_table_data(batch,
