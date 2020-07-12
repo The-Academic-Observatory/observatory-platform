@@ -39,6 +39,7 @@ from academic_observatory.reports.charts import FunderGraph
 from academic_observatory.reports.charts import DistributionComparisonChart
 from academic_observatory.reports import chart_utils
 
+from academic_observatory.utils.test_utils import fixtures_data_dir
 
 class TestAbstractChart(unittest.TestCase):
     test_class = None
@@ -47,7 +48,7 @@ class TestAbstractChart(unittest.TestCase):
     test_data = 'test_oa_data.csv'
 
     def setUp(self):
-        test_data_file = os.path.join(test_data_dir(__file__),
+        test_data_file = os.path.join(fixtures_data_dir(__file__),
                                       'reports', self.test_data)
         self.df = pd.read_csv(test_data_file)
 
