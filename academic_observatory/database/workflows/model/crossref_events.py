@@ -25,15 +25,15 @@ def aggregate_crossref_events(from_project, from_dataset, from_table):
 
     with open(sql_path) as f:
         sql_input = f.read()
-        sql = sql_input.replace("##TABLE_FROM##", from_table)
+
+        from_table = '.'.join([from_project, from_dataset, from_table])
+        sql = sql_input.replace("##CROSSREF_EVENTS_RAW##", from_table)
 
     destiniation_project = "coki-214004"
     destiniation_dataset = "global"
     destiniation_table  = "crossref_events"
     destiniation_location = "US"
     description = "description test"
-
-    from_table = '.'.join([from_project, from_dataset, from_table])
 
     labels = {"test": "label"}
 
