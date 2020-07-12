@@ -215,7 +215,7 @@ def sql_builder(sql_file: str, sql_params: dict):
     with open(sql_file_path) as f:
         sql = f.read()
         for key, value in sql_params:
-            sql = sql_input.replace("@"+key, value))
+            sql = sql_input.replace("@"+key, value)
 
     return sql
 
