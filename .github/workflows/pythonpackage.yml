@@ -30,6 +30,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Check licenses
+        run: |
+          pip install liccheck==0.4.*
+          liccheck --sfile strategy.ini --rfile requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
       - name: Lint with flake8
         run: |
           pip install flake8
