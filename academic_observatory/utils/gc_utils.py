@@ -203,17 +203,23 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     return result.state == 'DONE'
 
 
-def create_bigquery_table_from_query(sql: str, query_parameters: List[bigquery.ScalarQueryParameter], labels: dict, project_id: str, 
-                                     dataset_id: str, table_id: str, location: str, description: str = '',
+def create_bigquery_table_from_query(sql: str, labels: dict, project_id: str, dataset_id: str, table_id: str, 
+                                     location: str, description: str = '', query_parameters: List[bigquery.ScalarQueryParameter] = [],
                                      partition: bool = False, partition_field: Union[None, str] = None,
-                                     partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True,) -> bool:
+                                     partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True) -> bool:
     """ Create a BigQuery dataset from a provided query.
 
+    :param sql: the sql query to be executed
+    :param labels: labels to place on the new table
     :param project_id: the Google Cloud project id
     :param dataset_id: the BigQuery dataset id
     :param location: the location where the dataset will be stored:
     https://cloud.google.com/compute/docs/regions-zones/#locations
     :param description: a description for the dataset
+    :param partition: whether to partition the table.
+    :param partition_field: the name of the partition field.
+    :param partition_type: the type of partitioning.
+    :param require_partition_filter: whether the partition filter is required or not when querying the table.
     :return:
     """
 
@@ -231,10 +237,13 @@ def create_bigquery_table_from_query(sql: str, query_parameters: List[bigquery.S
     # Set properties
     dataset.location = location
     dataset.description = description
+    
 
     job_config = bigquery.QueryJobConfig(
         allow_large_results = True,
-        destination = table_id
+        destination = dataset.table(table_id),
+        description = description,
+        labels = labels,
         use_legacy_sql = False,
         query_parameters = query_parameters
         )
@@ -247,19 +256,11 @@ def create_bigquery_table_from_query(sql: str, query_parameters: List[bigquery.S
             require_partition_filter=require_partition_filter
         )
 
-    # Set Clustering Settings
-
-    # Set Labels
-    if labels:
-        job_config.labels = labels
-
-    # Set Policy Tags
-
     query_job: QueryJob = client.query(sql, job_config = job_config)
 
-    result = load_job.result()
-    logging.info(f"{func_name}: create bigquery table from query, result.state={result.state}, {msg}")
-    return result.state == 'DONE'
+    result = query_job.result()
+    logging.info(f"{func_name}: create bigquery table from query, table={table_id}, {msg}")
+    return True
 
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,

@@ -16,6 +16,6 @@ SELECT
     STRUCT("web" as source, COUNTIF(source_id = 'web') as count),
     STRUCT("crossref" as source, COUNTIF(source_id = 'crossref') as count)
    ] as events
-FROM `academic-observatory-telescope.crossref_events.crossref_events` 
+FROM `##TABLE_FROM##` 
 GROUP BY
 obj_id
