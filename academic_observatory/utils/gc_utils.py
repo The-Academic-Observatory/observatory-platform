@@ -30,7 +30,7 @@ import pendulum
 from crc32c import Checksum as Crc32cChecksum
 from google.api_core.exceptions import Conflict
 from google.cloud import storage, bigquery
-from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob
+from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob, QueryJob
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
 from pendulum import Pendulum
@@ -210,12 +210,12 @@ def sql_builder(sql_file: str, sql_params: dict):
     :param sql_params: the key,value pairs of what will be replaced in the sql file
     """
 
-    sql_file_path = path.join(path.dirname(path.abspath(__file__)), "..", "sql", sql_file )
+    sql_file_path = os.path.join(os.path.dirname(path.abspath(__file__)), "..", "sql", sql_file )
 
     with open(sql_file_path) as f:
         sql = f.read()
         for key, value in sql_params:
-            sql = sql_input.replace("@"+key, value)
+            sql = sql.replace("@"+key, value)
 
     return sql
 

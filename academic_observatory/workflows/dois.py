@@ -16,7 +16,7 @@
 
 from os import path
 
-from academic_observatory.utils.gc_utils import create_bigquery_table_from_query
+from academic_observatory.utils.gc_utils import create_bigquery_table_from_query, sql_builder
 
 def run_all():
 
@@ -113,9 +113,9 @@ def extend_grid_with_iso3166_and_home_repos(from_project, from_dataset, from_tab
     """
 
     sql_params = {
-        "GRID": '.'.join([from_project, "mag", "Papers" + release]),
-        "ISO_3166": '.'.join([from_project, "mag", "PaperAbstractsInvertedIndex" + release]),
-        "GRID_HOME_REPOS": '.'.join([from_project, "mag", "PaperFieldsOfStudy" + release]),
+        "GRID": '.'.join([from_project, "mag", "Papers"]),
+        "ISO_3166": '.'.join([from_project, "mag", "PaperAbstractsInvertedIndex"]),
+        "GRID_HOME_REPOS": '.'.join([from_project, "mag", "PaperFieldsOfStudy"]),
         }
 
     sql = sql_builder("extend_grid_with_iso3166_and_home_repos.sql", sql_params)
