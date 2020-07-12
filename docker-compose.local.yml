@@ -26,9 +26,3 @@ x-environment: &environment
   AIRFLOW_VAR_DOWNLOAD_BUCKET_NAME: ${AIRFLOW_VAR_DOWNLOAD_BUCKET_NAME}
   AIRFLOW_VAR_TRANSFORM_BUCKET_NAME: ${AIRFLOW_VAR_TRANSFORM_BUCKET_NAME}
   AIRFLOW_VAR_ENVIRONMENT: ${AIRFLOW_VAR_ENVIRONMENT}
-
-x-volumes: &volumes
-  - "${HOST_LOGS_PATH}:/opt/airflow/logs"
-  - "${HOST_DAGS_PATH}:/opt/airflow/dags"
-  - "${HOST_DATA_PATH}:/opt/observatory/data"
-  - "${HOST_PACKAGE_PATH}:/opt/observatory/academic-observatory"

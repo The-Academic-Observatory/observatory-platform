@@ -203,91 +203,109 @@ class TestConfigUtils(unittest.TestCase):
 
 
 class TestObservatoryConfig(unittest.TestCase):
-    CONFIG_DICT_COMPLETE_VALID = {
-        'project_id': 'my-project',
-        'download_bucket_name': 'my-download-bucket',
-        'transform_bucket_name': 'my-transform-bucket',
-        'environment': 'dev',
-        'google_application_credentials': '/path/to/google_application_credentials.json',
-        'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
-        'mag_releases_table_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
-        'mag_snapshots_container_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
-        'crossref_connection': 'mysql://:crossref-token@'
-    }
-
-    CONFIG_DICT_COMPLETE_INVALID = {
-        'project_id': None,
-        'download_bucket_name': None,
-        'transform_bucket_name': None,
-        'environment': 'dev',
-        'google_application_credentials': None,
-        'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
-        'mag_releases_table_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
-        'mag_snapshots_container_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
-        'crossref_connection': 'mysql://:crossref-token@'
-    }
-
-    CONFIG_DICT_INCOMPLETE_VALID = {
-        'project_id': 'my-project',
-        'download_bucket_name': 'my-download-bucket',
-        'transform_bucket_name': 'my-transform-bucket',
-        'environment': 'dev',
-        'google_application_credentials': '/path/to/google_application_credentials.json',
-        'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE='
-    }
 
     def setUp(self) -> None:
         self.config_file_name = 'config.yaml'
+        self.config_dict_complete_valid = {
+            'project_id': 'my-project',
+            'download_bucket_name': 'my-download-bucket',
+            'transform_bucket_name': 'my-transform-bucket',
+            'environment': 'dev',
+            'google_application_credentials': '/path/to/google_application_credentials.json',
+            'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
+            'mag_releases_table_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+            'mag_snapshots_container_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+            'crossref_connection': 'mysql://:crossref-token@'
+        }
+
+        self.config_dict_complete_invalid = {
+            'project_id': None,
+            'download_bucket_name': None,
+            'transform_bucket_name': None,
+            'environment': 'dev',
+            'google_application_credentials': None,
+            'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
+            'mag_releases_table_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+            'mag_snapshots_container_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+            'crossref_connection': 'mysql://:crossref-token@'
+        }
+
+        self.config_dict_incomplete_valid = {
+            'project_id': 'my-project',
+            'download_bucket_name': 'my-download-bucket',
+            'transform_bucket_name': 'my-transform-bucket',
+            'environment': 'dev',
+            'google_application_credentials': '/path/to/google_application_credentials.json',
+            'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE='
+        }
 
     def test_is_valid(self):
-        # All properties specified and valid
-        complete_valid = ObservatoryConfig.from_dict(TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID)
-        self.assertTrue(complete_valid.is_valid)
+        with CliRunner().isolated_filesystem():
+            # Set google application credentials
+            TestObservatoryConfig.set_google_application_credentials(self.config_dict_complete_valid)
+            google_application_credentials_path = TestObservatoryConfig.set_google_application_credentials(
+                self.config_dict_incomplete_valid)
 
-        # All properties specified but some that are required are None so invalid
-        complete_invalid = ObservatoryConfig.from_dict(TestObservatoryConfig.CONFIG_DICT_COMPLETE_INVALID)
-        self.assertFalse(complete_invalid.is_valid)
+            # All properties specified and valid
+            complete_valid = ObservatoryConfig.from_dict(self.config_dict_complete_valid)
+            self.assertTrue(complete_valid.is_valid)
 
-        # Some properties missing, but they are not required so still valid
-        incomplete_valid = ObservatoryConfig.from_dict(TestObservatoryConfig.CONFIG_DICT_INCOMPLETE_VALID)
-        self.assertTrue(incomplete_valid.is_valid)
+            # All properties specified but some that are required are None so invalid
+            complete_invalid = ObservatoryConfig.from_dict(self.config_dict_complete_invalid)
+            self.assertFalse(complete_invalid.is_valid)
+
+            # Some properties missing, but they are not required so still valid
+            incomplete_valid = ObservatoryConfig.from_dict(self.config_dict_incomplete_valid)
+            self.assertTrue(incomplete_valid.is_valid)
+
+            # All properties specified but google_application_credentials doesn't exist
+            os.remove(google_application_credentials_path)
+            google_app_cred_not_exist = ObservatoryConfig.from_dict(self.config_dict_complete_valid)
+            self.assertFalse(google_app_cred_not_exist.is_valid)
 
     def test_save(self):
         with CliRunner().isolated_filesystem():
+            # Set google application credentials
+            TestObservatoryConfig.set_google_application_credentials(self.config_dict_complete_valid)
+
             # Create test config and save
-            dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID
-            config = ObservatoryConfig.from_dict(dict_)
+            config = ObservatoryConfig.from_dict(self.config_dict_complete_valid)
             config.save(self.config_file_name)
 
             # Check file exists
-            self.assertTrue(os.path.exists(self.config_file_name))
+            self.assertTrue(os.path.isfile(self.config_file_name))
 
             # Check file contents is as expected
             with open(self.config_file_name, 'r') as f:
                 actual_data = f.read()
-            expected_data = yaml.safe_dump(TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID)
+            expected_data = yaml.safe_dump(self.config_dict_complete_valid)
             self.assertEqual(expected_data, actual_data)
 
     def test_load(self):
         with CliRunner().isolated_filesystem():
+            # Set google application credentials
+            TestObservatoryConfig.set_google_application_credentials(self.config_dict_complete_valid)
+
             # Save actual config
             with open(self.config_file_name, 'w') as f:
-                data = yaml.safe_dump(TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID)
+                data = yaml.safe_dump(self.config_dict_complete_valid)
                 f.write(data)
 
             # Test that loaded config matches expected config
-            expected_config = ObservatoryConfig.from_dict(TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID)
+            expected_config = ObservatoryConfig.from_dict(self.config_dict_complete_valid)
             actual_config = ObservatoryConfig.load(self.config_file_name)
             self.assertEqual(expected_config, actual_config)
 
     def test_to_dict(self):
-        # Check that to_dict works
-        expected_dict = TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID
-        actual_dict = ObservatoryConfig.from_dict(expected_dict).to_dict()
-        self.assertEqual(expected_dict, actual_dict)
+        with CliRunner().isolated_filesystem():
+            # Set google application credentials
+            TestObservatoryConfig.set_google_application_credentials(self.config_dict_complete_valid)
+
+            # Check that to_dict works
+            actual_dict = ObservatoryConfig.from_dict(self.config_dict_complete_valid).to_dict()
+            self.assertEqual(self.config_dict_complete_valid, actual_dict)
 
     def test_make_default(self):
-        dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_INVALID
         config = ObservatoryConfig.make_default()
         config_dict = config.to_dict()
 
@@ -297,10 +315,23 @@ class TestObservatoryConfig(unittest.TestCase):
         # Check that generated dictionary matches original. Remove fernet key because it should be different
         # every time
         del config_dict['fernet_key']
-        del dict_['fernet_key']
-        self.assertDictEqual(dict_, config_dict)
+        del self.config_dict_complete_invalid['fernet_key']
+        self.assertDictEqual(self.config_dict_complete_invalid, config_dict)
 
     def test_from_dict(self):
-        dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID
-        config = ObservatoryConfig.from_dict(dict_)
-        self.assertDictEqual(dict_, config.to_dict())
+        with CliRunner().isolated_filesystem():
+            # Set google application credentials
+            TestObservatoryConfig.set_google_application_credentials(self.config_dict_complete_valid)
+
+            config = ObservatoryConfig.from_dict(self.config_dict_complete_valid)
+            self.assertDictEqual(self.config_dict_complete_valid, config.to_dict())
+
+    @staticmethod
+    def set_google_application_credentials(dict_) -> str:
+        # Make google application credentials
+        credentials_file_path = os.path.join(pathlib.Path().absolute(), 'google_application_credentials.json')
+        with open(credentials_file_path, 'w') as f:
+            f.write('')
+        dict_['google_application_credentials'] = credentials_file_path
+
+        return credentials_file_path

@@ -9,3 +9,4 @@ config.yaml
 *.tfvars
 *.tfstate
 *.tfstate.*
+.terraform.tfstate.lock.info

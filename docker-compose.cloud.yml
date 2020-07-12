@@ -17,9 +17,3 @@ x-environment: &environment
   # Paths to google credentials and observatory folder
   GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
   AO_HOME: "/opt/observatory"
-
-x-volumes: &volumes
-  - "${HOST_LOGS_PATH}:/opt/airflow/logs"
-  - "${HOST_DAGS_PATH}:/opt/airflow/dags"
-  - "${HOST_DATA_PATH}:/opt/observatory/data"
-  - "${HOST_PACKAGE_PATH}:/opt/observatory/academic-observatory"

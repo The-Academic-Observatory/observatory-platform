@@ -184,6 +184,20 @@ class Environment(Enum):
     prod = 'prod'
 
 
+class ObservatoryConfigValidator(Validator):
+
+    def _validate_google_application_credentials(self, google_application_credentials, field, value):
+        """ Validate that the Google Application Credentials file exists.
+
+        The rule's arguments are validated against this schema: {'type': 'boolean'}
+        """
+        if google_application_credentials and value is not None and isinstance(value, str) and \
+                not os.path.isfile(value):
+            self._error(field, f"the file {value} does not exist. See "
+                               f"https://cloud.google.com/docs/authentication/getting-started for instructions on "
+                               f"how to create a service account and save the JSON key to your workstation.")
+
+
 class ObservatoryConfig:
     HOST_DEFAULT_PATH = os.path.join(observatory_home(), 'config.yaml')
     schema = {
@@ -205,23 +219,24 @@ class ObservatoryConfig:
             'allowed': ['dev', 'test', 'prod']
         },
         'google_application_credentials': {
-            'required': True,
-            'type': 'string'
+            'type': 'string',
+            'google_application_credentials': True,
+            'required': True
         },
         'fernet_key': {
             'required': True,
             'type': 'string'
         },
         'mag_releases_table_connection': {
-            'required': True,
+            'required': False,
             'type': 'string'
         },
         'mag_snapshots_container_connection': {
-            'required': True,
+            'required': False,
             'type': 'string'
         },
         'crossref_connection': {
-            'required': True,
+            'required': False,
             'type': 'string'
         }
     }
@@ -236,7 +251,7 @@ class ObservatoryConfig:
                  mag_releases_table_connection: Union[None, str] = None,
                  mag_snapshots_container_connection: Union[None, str] = None,
                  crossref_connection: Union[None, str] = None,
-                 validator: Validator = None):
+                 validator: ObservatoryConfigValidator = None):
         """ Holds the settings for the Academic Observatory, used by DAGs.
 
         :param project_id: the Google Cloud project id.
@@ -260,7 +275,7 @@ class ObservatoryConfig:
         self.mag_releases_table_connection = mag_releases_table_connection
         self.mag_snapshots_container_connection = mag_snapshots_container_connection
         self.crossref_connection = crossref_connection
-        self.validator: Validator = validator
+        self.validator: ObservatoryConfigValidator = validator
 
     def __eq__(self, other):
         d1 = dict(self.__dict__)
@@ -355,7 +370,7 @@ class ObservatoryConfig:
         :param dict_:  the input dictionary that has been read via yaml.safe_load.
         :return: the ObservatoryConfig instance.
         """
-        validator = Validator()
+        validator = ObservatoryConfigValidator()
         is_valid = validator.validate(dict_, ObservatoryConfig.schema)
 
         if is_valid:
