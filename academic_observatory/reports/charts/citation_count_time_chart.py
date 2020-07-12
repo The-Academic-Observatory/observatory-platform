@@ -25,7 +25,7 @@ from IPython.display import HTML
 from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports import chart_utils
 from academic_observatory.reports.charts import output_types_time_chart
-from academic_observatory.reports.charts.generic_time_chart import *
+from academic_observatory.reports.charts.generic_time_chart import GenericTimeChart
 
 
 class CitationCountTimeChart(GenericTimeChart):

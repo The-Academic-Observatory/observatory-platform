@@ -31,7 +31,7 @@ from cryptography.fernet import Fernet
 from academic_observatory.utils.config_utils import observatory_home, observatory_package_path, \
     dags_path as default_dags_path, ObservatoryConfig
 from academic_observatory.utils.proc_utils import wait_for_process
-from academic_observatory.utils.report_utils import create_new_report, execute_report
+
 
 @click.group()
 def cli():
@@ -40,7 +40,6 @@ def cli():
     COMMAND: the commands to run include:\n
       - platform: start and stop the local Academic Observatory platform.\n
       - generate: generate a variety of outputs\n.
-      - report: report creation and generation\n.
     """
 
     pass
