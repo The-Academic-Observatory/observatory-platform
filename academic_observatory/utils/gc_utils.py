@@ -203,8 +203,25 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     return result.state == 'DONE'
 
 
-def create_bigquery_table_from_query(sql: str, labels: dict, project_id: str, dataset_id: str, table_id: str, 
-                                     location: str, description: str = '', query_parameters: List[bigquery.ScalarQueryParameter] = [],
+def sql_builder(sql_file: str, sql_params: dict):
+    """ Build a SQL query from a base sql file and provided parameters.
+
+    :param sql_file: the sql file that forms the base of the query
+    :param sql_params: the key,value pairs of what will be replaced in the sql file
+    """
+
+    sql_file_path = path.join(path.dirname(path.abspath(__file__)), "..", "sql", sql_file )
+
+    with open(sql_file_path) as f:
+        sql = f.read()
+        for key, value in sql_params:
+            sql = sql_input.replace("@"+key, value))
+
+    return sql
+
+
+def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str, 
+                                     description: str = '', labels: dict = {}, query_parameters: List[bigquery.ScalarQueryParameter] = [],
                                      partition: bool = False, partition_field: Union[None, str] = None,
                                      partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True) -> bool:
     """ Create a BigQuery dataset from a provided query.

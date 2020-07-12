@@ -39,4 +39,4 @@ SELECT
   best_oa_location.url_for_landing_page,
   best_oa_location.url_for_pdf
 FROM 
-  `academic-observatory-telescope.unpaywall.unpaywall_2018_09_24`
+  `@UNPAYWALL`

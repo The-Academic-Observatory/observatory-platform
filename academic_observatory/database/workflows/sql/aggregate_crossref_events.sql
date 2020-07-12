@@ -32,6 +32,6 @@ SELECT
     STRUCT("web" as source, COUNTIF(source_id = 'web') as count),
     STRUCT("crossref" as source, COUNTIF(source_id = 'crossref') as count)
    ] as events
-FROM `##CROSSREF_EVENTS_RAW##` 
+FROM `@CROSSREF_EVENTS` 
 GROUP BY
 obj_id
