@@ -44,7 +44,6 @@ git+git://github.com/The-Academic-Observatory/mag-archiver@develop#egg=mag-archi
 precipy>=0.2.2
 xhtml2pdf>=0.2.4
 num2words>=0.5.9
-pandas-gbq>=0.13.2
 pydata-google-auth>=1.1.0
 xhtml2pdf>=0.2.4
 weasyprint==51
