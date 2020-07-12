@@ -21,15 +21,6 @@ from inspect import signature
 from academic_observatory.reports.defaults import *
 
 
-def _coki_standard_format(style='seaborn-white',
-                          context='paper'):
-    """Convenience function for defining the COKI standard formats for plots"""
-
-    plt.style.use(style)
-    sns.set_style('ticks')
-    sns.set_context(context)
-
-
 def clean_geo_names(df: pd.DataFrame) -> pd.DataFrame:
     """Convenience function for standardising country names
     
