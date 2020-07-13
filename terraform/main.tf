@@ -375,26 +375,6 @@ module "crossref_conn_secret" {
 }
 
 ########################################################################################################################
-# Airflow Variables Secrets
-########################################################################################################################
-
-# Download bucket name
-module "download_bucket_name_variable_secret" {
-  source = "./secret"
-  secret_id = "airflow-variables-download_bucket_name"
-  secret_data = google_storage_bucket.ao_download_bucket.name
-  service_account_email = google_service_account.ao_service_account.email
-}
-
-# Transform bucket name
-module "transform_bucket_name_variable_secret" {
-  source = "./secret"
-  secret_id = "airflow-variables-transform_bucket_name"
-  secret_data = google_storage_bucket.ao_transform_bucket.name
-  service_account_email = google_service_account.ao_service_account.email
-}
-
-########################################################################################################################
 # Academic Observatory Main VM
 ########################################################################################################################
 
@@ -409,8 +389,13 @@ data "template_file" "airflow_main_vm_startup" {
   vars = {
     project_id = var.project_id
     postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
+    data_location = var.data_location
+    download_bucket_name = google_storage_bucket.ao_download_bucket.name
+    transform_bucket_name = google_storage_bucket.ao_transform_bucket.name
+    environment =var.environment
   }
 }
+
 
 module "airflow_main_vm" {
   source = "./vm"
@@ -441,6 +426,10 @@ data "template_file" "airflow_worker_vm_startup" {
     project_id = var.project_id
     postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
     redis_hostname = module.airflow_main_vm.private_ip_address
+    data_location = var.data_location
+    download_bucket_name = google_storage_bucket.ao_download_bucket.name
+    transform_bucket_name = google_storage_bucket.ao_transform_bucket.name
+    environment =var.environment
   }
 }
 

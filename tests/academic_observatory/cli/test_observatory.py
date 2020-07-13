@@ -43,6 +43,7 @@ class TestObservatory(unittest.TestCase):
             # Make config file
             config = ObservatoryConfig.make_default()
             config.project_id = 'my-project-id'
+            config.data_location = 'us'
             config.download_bucket_name = 'my-project-download-bucket'
             config.transform_bucket_name = 'my-project-transform-bucket'
             config.google_application_credentials = credentials_file_path
@@ -110,6 +111,7 @@ class TestObservatory(unittest.TestCase):
             # Invalid config and which properties
             self.assertIn(f'config.yaml:\n   - path: {config_file_path}\n   - file invalid\n', result.output)
             self.assertIn('project_id: null value not allowed', result.output)
+            self.assertIn('data_location: null value not allowed', result.output)
             self.assertIn('download_bucket_name: null value not allowed', result.output)
             self.assertIn('transform_bucket_name: null value not allowed', result.output)
             self.assertIn('google_application_credentials: null value not allowed', result.output)

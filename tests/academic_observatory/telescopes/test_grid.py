@@ -51,17 +51,17 @@ class TestGrid(unittest.TestCase):
         # GRID Release  2015-09-22
         self.grid_2015_09_22_article_id = 1553267
         self.grid_2015_09_22_title = 'GRID release 2015-09-22 in JSON'
-        self.grid_2015_09_22_path = os.path.join(self.vcr_cassettes_path, 'download_grid_release_2015-09-22.yaml')
+        self.grid_2015_09_22_path = os.path.join(self.vcr_cassettes_path, 'grid_2015-09-22.yaml')
         self.grid_2015_09_22_hash = 'f8afd953b530bd1a8b6bb0e74ea1991b'
 
         # GRID Release 2020-03-15
         self.grid_2020_03_15_article_id = 12022722
         self.grid_2020_03_15_title = 'GRID release 2020-03-15'
-        self.grid_2020_03_15_path = os.path.join(self.vcr_cassettes_path, 'download_grid_release_2020-03-15.yaml')
+        self.grid_2020_03_15_path = os.path.join(self.vcr_cassettes_path, 'grid_2020-03-15.yaml')
         self.grid_2020_03_15_hash = 'c80d8e456597e196c87881371dd80eda'
         self.grid_2020_03_15_download_expected_hash = '3d300affce1666ac50b8d945c6ca4c5a'
         self.grid_2020_03_15_transform_version = 'release_2020_03_15'
-        self.grid_2020_03_15_transform_file_name = 'grid_release_2020_03_15.jsonl.gz'
+        self.grid_2020_03_15_transform_file_name = 'grid_2020_03_15.jsonl.gz'
         self.grid_2020_03_15_transform_crc = '77bc8585'
 
         logging.info("Check that test fixtures exist")

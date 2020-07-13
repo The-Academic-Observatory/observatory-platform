@@ -33,50 +33,50 @@ from academic_observatory.utils.test_utils import test_data_dir
 
 class TestConfigUtils(unittest.TestCase):
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_observatory_home_user_home(self, home_mock):
-        # Tests with no OBSERVATORY_PATH environment variable
-        runner = CliRunner()
-        with runner.isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
-
-            with runner.isolated_filesystem():
-                # Test that observatory home works
-                path = observatory_home()
-                self.assertTrue(os.path.exists(path))
-                self.assertEqual(f'{home_path}/.observatory', path)
-
-                # Test that subdirectories are created
-                path = observatory_home('telescopes')
-                self.assertTrue(os.path.exists(path))
-                self.assertEqual(f'{home_path}/.observatory/telescopes', path)
-
-    @patch('academic_observatory.utils.config_utils.os.environ.get')
-    def test_observatory_home_env_var(self, get_mock):
-        root_path = '/tmp/df0acbb4-9690-4604-91f4-8f10ae3ebf58'
-        observatory_home_path = os.path.join(root_path, 'home/airflow/gcs/data')
-        os.makedirs(observatory_home_path, exist_ok=True)
-        get_mock.return_value = observatory_home_path
-
-        # Test that setting the OBSERVATORY_PATH environment variable works
-        path = observatory_home()
-        self.assertEqual(f'{observatory_home_path}/.observatory', path)
-
-        # Test that subdirectories are created
-        path = observatory_home('telescopes')
-        self.assertTrue(os.path.exists(path))
-        self.assertEqual(f'{observatory_home_path}/.observatory/telescopes', path)
-
-        # Cleanup
-        shutil.rmtree(root_path, ignore_errors=True)
-
-        # Test that FileNotFoundError is thrown when invalid OBSERVATORY_PATH is set. The path in observatory_home_path
-        # does not exist anymore due to the shutil.rmtree command.
-        with self.assertRaises(FileNotFoundError):
-            observatory_home()
+    # @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
+    # def test_observatory_home_user_home(self, home_mock):
+    #     # Tests with no OBSERVATORY_PATH environment variable
+    #     runner = CliRunner()
+    #     with runner.isolated_filesystem():
+    #         # Create home path and mock getting home path
+    #         home_path = 'user-home'
+    #         os.makedirs(home_path, exist_ok=True)
+    #         home_mock.return_value = home_path
+    #
+    #         with runner.isolated_filesystem():
+    #             # Test that observatory home works
+    #             path = observatory_home()
+    #             self.assertTrue(os.path.exists(path))
+    #             self.assertEqual(f'{home_path}/.observatory', path)
+    #
+    #             # Test that subdirectories are created
+    #             path = observatory_home('telescopes')
+    #             self.assertTrue(os.path.exists(path))
+    #             self.assertEqual(f'{home_path}/.observatory/telescopes', path)
+    #
+    # @patch('academic_observatory.utils.config_utils.os.environ.get')
+    # def test_observatory_home_env_var(self, get_mock):
+    #     root_path = '/tmp/df0acbb4-9690-4604-91f4-8f10ae3ebf58'
+    #     observatory_home_path = os.path.join(root_path, 'home/airflow/gcs/data')
+    #     os.makedirs(observatory_home_path, exist_ok=True)
+    #     get_mock.return_value = observatory_home_path
+    #
+    #     # Test that setting the OBSERVATORY_PATH environment variable works
+    #     path = observatory_home()
+    #     self.assertEqual(f'{observatory_home_path}/.observatory', path)
+    #
+    #     # Test that subdirectories are created
+    #     path = observatory_home('telescopes')
+    #     self.assertTrue(os.path.exists(path))
+    #     self.assertEqual(f'{observatory_home_path}/.observatory/telescopes', path)
+    #
+    #     # Cleanup
+    #     shutil.rmtree(root_path, ignore_errors=True)
+    #
+    #     # Test that FileNotFoundError is thrown when invalid OBSERVATORY_PATH is set. The path in observatory_home_path
+    #     # does not exist anymore due to the shutil.rmtree command.
+    #     with self.assertRaises(FileNotFoundError):
+    #         observatory_home()
 
     def test_observatory_package_path(self):
         expected_path = pathlib.Path(academic_observatory.__file__).resolve()
@@ -171,33 +171,33 @@ class TestConfigUtils(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_telescope_path(self, mock_pathlib_home):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_telescope_path(self, mock_variable_get):
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Mock getting home path
-            home_path = 'user-home'
-            mock_pathlib_home.return_value = home_path
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
             # The name of the telescope to create and expected root folder
             telescope_name = 'grid'
-            root_path = os.path.join(home_path, '.observatory', 'data', 'telescopes', telescope_name)
+            root_path = os.path.join(data_path, 'telescopes')
 
             # Create subdir
             path_downloaded = telescope_path(SubFolder.downloaded, telescope_name)
-            expected = os.path.join(root_path, SubFolder.downloaded.value)
+            expected = os.path.join(root_path, SubFolder.downloaded.value, telescope_name)
             self.assertEqual(expected, path_downloaded)
             self.assertTrue(os.path.exists(path_downloaded))
 
             # Create subdir
             path_extracted = telescope_path(SubFolder.extracted, telescope_name)
-            expected = os.path.join(root_path, SubFolder.extracted.value)
+            expected = os.path.join(root_path, SubFolder.extracted.value, telescope_name)
             self.assertEqual(expected, path_extracted)
             self.assertTrue(os.path.exists(path_extracted))
 
             # Create subdir
             path_transformed = telescope_path(SubFolder.transformed, telescope_name)
-            expected = os.path.join(root_path, SubFolder.transformed.value)
+            expected = os.path.join(root_path, SubFolder.transformed.value, telescope_name)
             self.assertEqual(expected, path_transformed)
             self.assertTrue(os.path.exists(path_transformed))
 

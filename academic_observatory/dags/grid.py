@@ -107,7 +107,7 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
 
     # Load the transformed GRID releases for a given interval to BigQuery
     # Depends on past so that BigQuery load jobs are not all created at once
-    task_db_load = PythonOperator(
+    task_bq_load = PythonOperator(
         task_id=GridTelescope.TASK_ID_BQ_LOAD,
         provide_context=True,
         python_callable=GridTelescope.db_load,
@@ -118,4 +118,4 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
 
     # Task dependencies
     task_check >> task_list >> [task_download, task_stop]
-    task_download >> task_upload_downloaded >> task_extract >> task_transform >> task_upload_transformed >> task_db_load
+    task_download >> task_upload_downloaded >> task_extract >> task_transform >> task_upload_transformed >> task_bq_load

@@ -23,9 +23,11 @@ from enum import Enum
 from typing import Union, Dict
 
 import cerberus.validator
+from airflow.hooks.base_hook import BaseHook
 import pendulum
 import yaml
-from airflow.models import Variable
+import airflow
+# from airflow.models import Variable
 from cerberus import Validator
 from cryptography.fernet import Fernet
 from natsort import natsorted
@@ -45,16 +47,7 @@ def observatory_home(*subdirs) -> str:
     :return: the path.
     """
 
-    # observatory_path = os.environ.get('OBSERVATORY_PATH')
     user_home = str(pathlib.Path.home())
-    #
-    # if observatory_path is None:
-    #     observatory_path = user_home
-    # elif not os.path.exists(observatory_path):
-    #     msg = f'The path given by OBSERVATORY_PATH does not exist: {observatory_path}'
-    #     logging.error(msg)
-    #     raise FileNotFoundError(msg)
-
     observatory_home_ = os.path.join(user_home, ".observatory", *subdirs)
 
     if not os.path.exists(observatory_home_):
@@ -162,6 +155,28 @@ class SubFolder(Enum):
     transformed = 'transform'
 
 
+def check_variables(*variables):
+    is_valid = True
+    for name in variables:
+        try:
+            airflow.models.Variable.get(name)
+        except KeyError:
+            logging.error(f"Airflow variable '{name}' not set.")
+            is_valid = False
+    return is_valid
+
+
+def check_connections(*connections):
+    is_valid = True
+    for name in connections:
+        try:
+            BaseHook.get_connection(name)
+        except KeyError:
+            logging.error(f"Airflow connection '{name}' not set.")
+            is_valid = False
+    return is_valid
+
+
 def telescope_path(sub_folder: SubFolder, name: str) -> str:
     """ Return a path for saving telescope data. Create it if it doesn't exist.
 
@@ -170,7 +185,7 @@ def telescope_path(sub_folder: SubFolder, name: str) -> str:
     :return: the path.
     """
 
-    data_path = Variable.get("data_path")
+    data_path = airflow.models.Variable.get("data_path")
     path = os.path.join(data_path, 'telescopes', sub_folder.value, name)
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)

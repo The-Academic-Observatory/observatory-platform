@@ -13,6 +13,11 @@ export POSTGRES_HOSTNAME="${postgres_hostname}"
 export POSTGRES_PASSWORD="sm://${project_id}/postgres_password"
 export FERNET_KEY="sm://${project_id}/fernet_key"
 export REDIS_HOSTNAME="${redis_hostname}"
+export AIRFLOW_VAR_PROJECT_ID=${project_id}
+export AIRFLOW_VAR_DATA_LOCATION=${data_location}
+export AIRFLOW_VAR_DOWNLOAD_BUCKET_NAME=${download_bucket_name}
+export AIRFLOW_VAR_TRANSFORM_BUCKET_NAME=${transform_bucket_name}
+export AIRFLOW_VAR_ENVIRONMENT=${environment}
 
 # Save google application credentials to file
 berglas access sm://${project_id}/google_application_credentials | base64 --decode > $HOST_AO_HOME/google_application_credentials.json

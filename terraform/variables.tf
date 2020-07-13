@@ -9,6 +9,11 @@ variable "credentials_file" {
   type = string
 }
 
+variable "environment" {
+  description = "The environment type"
+  type = string
+}
+
 variable "region" {
   description = "The Google Cloud region where the resources will be deployed"
   type = string

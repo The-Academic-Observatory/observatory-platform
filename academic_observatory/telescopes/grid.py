@@ -27,11 +27,13 @@ from zipfile import ZipFile, BadZipFile
 
 import jsonlines
 import pendulum
+from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
+from academic_observatory.utils.config_utils import check_variables
 from academic_observatory.utils.config_utils import telescope_path, SubFolder, schema_path, find_schema
 from academic_observatory.utils.data_utils import get_file
 from academic_observatory.utils.gc_utils import upload_file_to_cloud_storage, load_bigquery_table, \
@@ -182,11 +184,10 @@ class GridTelescope:
         :return:
         """
 
-        Variable.get("data_path")
-        Variable.get("project_id")
-        Variable.get("data_location")
-        Variable.get("download_bucket_name")
-        Variable.get("transform_bucket_name")
+        vars_valid = check_variables("data_path", "project_id", "data_location",
+                                     "download_bucket_name", "transform_bucket_name")
+        if not vars_valid:
+            raise AirflowException('Required variables are missing')
 
     @staticmethod
     def list_releases(**kwargs):
