@@ -203,19 +203,34 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     return result.state == 'DONE'
 
 
-def sql_builder(sql_file: str, sql_params: dict):
-    """ Build a SQL query from a base sql file and provided parameters.
+def load_sql_file(sql_file: str) -> str:
+    """ Load a sql file to a string variable
 
-    :param sql_file: the sql file that forms the base of the query
-    :param sql_params: the key,value pairs of what will be replaced in the sql file
+    :param sql_file: the sql file too be loaded
+    :return 
     """
 
     sql_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sql", sql_file )
-
+    
     with open(sql_file_path) as f:
         sql = f.read()
-        for key, value in sql_params:
-            sql = sql.replace("@"+key, value)
+
+    return sql
+
+def sql_builder(sql: str, project: str, dataset: str, tables: List(str), is_release: bool = False, release: str = '') -> str:
+    """ Build a SQL query from a base sql file and provided parameters.
+
+    :param sql_file: the sql file that forms the base of the query
+    :param project: the Google Cloud project id
+    :param dataset: the Bigquerydataset id
+    :param tables: the list of base table names
+    :param is_release: whether the dataset is one with dated releases
+    :param release: the release date
+    """
+
+    for table in tables:
+        table_id = '.'.join([project, dataset, if is_release: table + release else table])
+        sql = sql.replace("@"+table_id, table_id)
 
     return sql
 

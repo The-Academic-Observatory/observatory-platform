@@ -16,7 +16,7 @@
 
 from os import path
 
-from academic_observatory.utils.gc_utils import create_bigquery_table_from_query, sql_builder
+from academic_observatory.utils.gc_utils import create_bigquery_table_from_query, sql_builder, load_sql_file
 
 def run_all():
 
@@ -26,11 +26,11 @@ def run_all():
     destiniation_location = "US"
 
     # Crossref events
-    aggregate_crossref_events("academic-observatory-telescope", "crossref_events", "crossref_events", 
+    aggregate_crossref_events("academic-observatory-telescope", 
                               destiniation_project, destiniation_dataset, destiniation_table, destiniation_location)
     
     # Unpaywall
-    aggregate_crossref_events("academic-observatory-telescope", "unpaywall", "unpaywall", 
+    aggregate_crossref_events("academic-observatory-telescope", 
                               destiniation_project, destiniation_dataset, destiniation_table, destiniation_location)
 
     # MAG
@@ -38,52 +38,44 @@ def run_all():
                   destiniation_project, destiniation_dataset, destiniation_table, destiniation_location)
 
 
-def aggregate_crossref_events(from_project, from_dataset, from_table, destiniation_project, 
-                              destiniation_dataset, destiniation_table, destiniation_location):
+def aggregate_crossref_events(from_project, destiniation_project, destiniation_dataset, destiniation_table, destiniation_location):
     """ Aggregrate the current state of crossref_events into a table keyed by DOI
 
     """
 
-    sql_params = {"CROSSREF_EVENTS": '.'.join([from_project, from_dataset, from_table])}
-    sql = sql_builder("aggregate_crossref_events.sql", sql_params)
+    sql = load_sql_file("aggregate_crossref_events.sql")
+    sql = sql_builder(sql = sql, project = from_project, dataset = "crossref_events", tables = ["crossref_events"])
 
     create_bigquery_table_from_query(sql = sql, project_id = destiniation_project, 
                                      dataset_id = destiniation_dataset, table_id = destiniation_table, 
                                      location = destiniation_location)
 
 
-def compute_oa_colours_from_unpaywall(from_project, from_dataset, from_table, destiniation_project, 
+def compute_oa_colours_from_unpaywall(from_project, from_release, destiniation_project, 
                                       destiniation_dataset, destiniation_table, destiniation_location):
     """ Compute the Colour-based Opened access designation of each entry in Unpaywall
 
     """
 
-    sql_params = {"UNPAYWALL": '.'.join([from_project, from_dataset, from_table])}
-    sql = sql_builder("compute_oa_colours_from_unpaywall.sql", sql_params)
+    sql = load_sql_file("compute_oa_colours_from_unpaywall.sql")
+    sql = sql_builder(sql = sql, project = from_project, dataset = "unpaywall", tables = ["unpaywall"], is_release = True, release = from_release)
 
     create_bigquery_table_from_query(sql = sql, project_id = destiniation_project, 
                                      dataset_id = destiniation_dataset, table_id = destiniation_table, 
                                      location = destiniation_location)
 
 
-def aggregate_mag(from_project, release, destiniation_project, 
+def aggregate_mag(from_project, from_release, destiniation_project, 
                   destiniation_dataset, destiniation_table, destiniation_location):
     """ Aggregate all the various MAG tables into one keyed off of a DOI
 
     """
 
-    sql_params = {
-        "PAPERS": '.'.join([from_project, "mag", "Papers" + release]),
-        "PAPER_ABSTRACTS_INVERTED_INDEX": '.'.join([from_project, "mag", "PaperAbstractsInvertedIndex" + release]),
-        "PAPER_FIELDS_OF_STUDY": '.'.join([from_project, "mag", "PaperFieldsOfStudy" + release]),
-        "FIELDS_OF_STUDY": '.'.join([from_project, "mag", "FieldsOfStudy" + release]),
-        "FIELDS_OF_STUDY_EXTENDED_ATTRIBUTES": '.'.join([from_project, "mag", "FieldOfStudyExtendedAttributes" + release]),
-        "PAPER_AUTHOR_AFFILIATIONS": '.'.join([from_project, "mag", "PaperAuthorAffiliations" + release]),
-        "AFFILIATIONS": '.'.join([from_project, "mag", "Affiliations" + release]),
-        "PAPER_EXTENDED_ATTRIBUTES": '.'.join([from_project, "mag", "PaperExtendedAttributes" + release]),
-        "PAPER_RESOURCES": '.'.join([from_project, "mag", "PaperResources" + release])
-        }
-    sql = sql_builder("aggregate_mag.sql", sql_params)
+    sql = load_sql_file("aggregate_mag.sql")
+    sql = sql_builder(sql = sql, project = from_project, dataset = "mag", 
+                      tables = ["Papers", "PaperAbstractsInvertedIndex", "PaperFieldsOfStudy", "FieldsOfStudy", "FieldOfStudyExtendedAttributes", 
+                               "PaperAuthorAffiliations", "Affiliations", "PaperExtendedAttributes", "PaperResources"], 
+                      is_release = True, release = from_release)
 
     create_bigquery_table_from_query(sql = sql, project_id = destiniation_project, 
                                      dataset_id = destiniation_dataset, table_id = destiniation_table, 
@@ -97,8 +89,8 @@ def supplment_crossref_funders(from_project, from_dataset, from_table, destiniat
 
     """
 
-    sql_params = {"CROSSREF": '.'.join([from_project, from_dataset, from_table])}
-    sql = sql_builder("extend_crossref_funders.sql", sql_params)
+    sql = load_sql_file("extend_crossref_funders.sql")
+    sql = sql_builder(sql = sql, project = from_project, dataset = from_dataset, tables = [from_table], is_release = True, release = from_release)
 
     create_bigquery_table_from_query(sql = sql, project_id = destiniation_project, 
                                      dataset_id = destiniation_dataset, table_id = destiniation_table, 
@@ -112,13 +104,10 @@ def extend_grid_with_iso3166_and_home_repos(from_project, from_dataset, from_tab
 
     """
 
-    sql_params = {
-        "GRID": '.'.join([from_project, "mag", "Papers"]),
-        "ISO_3166": '.'.join([from_project, "mag", "PaperAbstractsInvertedIndex"]),
-        "GRID_HOME_REPOS": '.'.join([from_project, "mag", "PaperFieldsOfStudy"]),
-        }
-
-    sql = sql_builder("extend_grid_with_iso3166_and_home_repos.sql", sql_params)
+    sql = load_sql_file("extend_grid_with_iso3166_and_home_repos.sql")
+    sql = sql_builder(sql = sql, project = from_project, dataset = "grid", tables = ["grid"], is_release = True, release = from_release)
+    sql = sql_builder(sql = sql, project = from_project, dataset = "iso3611", tables = ["iso_3611"], is_release = True, release = from_release)
+    sql = sql_builder(sql = sql, project = from_project, dataset = "coki", tables = ["grid_home_repo"], is_release = True, release = from_release)
 
     create_bigquery_table_from_query(sql = sql, project_id = destiniation_project, 
                                      dataset_id = destiniation_dataset, table_id = destiniation_table, 
