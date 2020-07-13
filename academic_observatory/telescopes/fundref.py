@@ -21,7 +21,7 @@ import pathlib
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple
 
 import pendulum
 import requests
@@ -77,13 +77,13 @@ def list_releases(telescope_url: str) -> List:
     :return: list of dictionaries that contain 'url' and 'release_date' in format 'YYYY-MM-DD'
     """
     releases_list = []
-    response = retry_session().get(telescope_url+'?per_page=100')
+    response = retry_session().get(telescope_url + '?per_page=100')
 
     if response:
         no_pages = int(response.headers['X-Total-Pages'])
         current_page = int(response.headers['X-Page'])
         while no_pages >= current_page:
-            response = retry_session().get(telescope_url+f'?per_page=100&page={current_page}')
+            response = retry_session().get(telescope_url + f'?per_page=100&page={current_page}')
             json_response = json.loads(response.text)
             for release in json_response:
                 release_dict = {}
@@ -150,11 +150,18 @@ def decompress_release(fundref_release: 'FundrefRelease') -> str:
     return fundref_release.filepath_extract
 
 
-def strip_whitespace(file_path):
+def strip_whitespace(file_path: str):
+    """
+    Strip leading white space from the first line of the file.
+    This is present in fundref release 2019-06-01. If not removed it will give a XML ParseError.
+    :param file_path: Path to file from which to trim leading white space.
+    :return: None.
+    """
     with open(file_path, 'r') as f_in, open(file_path + '.tmp', 'w') as f_out:
         first_line = True
         for line in f_in:
             if first_line and not line.startswith(' '):
+                os.remove(file_path + '.tmp')
                 return
             elif first_line and line.startswith(' '):
                 line = line.lstrip()
@@ -183,6 +190,7 @@ def transform_release(fundref_release: 'FundrefRelease') -> str:
 
 class FundrefRelease:
     """ Used to store info on a given fundref release """
+
     def __init__(self, url, date):
         self.url = url
         self.date = date
@@ -370,7 +378,8 @@ def add_funders_relationships(funders: List, funders_by_key: Dict) -> List:
     return funders
 
 
-def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction: str, parents: List) -> Tuple[List, int]:
+def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction: str, parents: List) -> Tuple[
+    List, int]:
     """
     Recursively goes through a funder/sub_funder dict. The funder properties can be looked up with the funders_by_key
     dictionary that stores the properties per funder id. Any children/parents for the funder are already given in the
@@ -381,7 +390,8 @@ def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction:
     :param funder: dictionary of a given funder containing 'narrower' and 'broader' info
     :param depth: keeping track of nested depth
     :param direction: either 'narrower' or 'broader' to get 'children' or 'parents'
-    :return:
+    :param parents: list to keep track of which funder ids are parents
+    :return: list of children and current depth
     """
     starting_depth = depth
     children = []

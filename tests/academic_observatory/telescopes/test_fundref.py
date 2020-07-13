@@ -297,14 +297,14 @@ class TestFundref(unittest.TestCase):
             # parse fundref registry
             funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path)
             # iterate through funders recursively
-            children, returned_depth = recursive_funders(funders_by_key, funders[1], 0, 'narrower')
+            children, returned_depth = recursive_funders(funders_by_key, funders[1], 0, 'narrower', [])
 
             self.assertIsInstance(children, List)
             self.assertEqual(returned_depth, 1)
             for child in children:
                 self.assertIn('children', child)
 
-            parents, returned_depth = recursive_funders(funders_by_key, funders[1], 0, 'broader')
+            parents, returned_depth = recursive_funders(funders_by_key, funders[1], 0, 'broader', [])
             self.assertIsInstance(parents, List)
             self.assertEqual(returned_depth, 1)
             for parent in parents:
