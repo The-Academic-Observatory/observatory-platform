@@ -20,5 +20,4 @@ gosu airflow bash -c "pip3 install -e . --user"
 
 # Start the airflow webserver
 cd ${AIRFLOW_HOME}
-echo 'Entrypoint: $@'
-gosu airflow bash -c "/usr/bin/dumb-init -- /entrypoint $@"
+gosu airflow /entrypoint $@

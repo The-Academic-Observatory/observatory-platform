@@ -184,19 +184,19 @@ class TestConfigUtils(unittest.TestCase):
             root_path = os.path.join(home_path, '.observatory', 'data', 'telescopes', telescope_name)
 
             # Create subdir
-            path_downloaded = telescope_path(telescope_name, SubFolder.downloaded)
+            path_downloaded = telescope_path(SubFolder.downloaded, telescope_name)
             expected = os.path.join(root_path, SubFolder.downloaded.value)
             self.assertEqual(expected, path_downloaded)
             self.assertTrue(os.path.exists(path_downloaded))
 
             # Create subdir
-            path_extracted = telescope_path(telescope_name, SubFolder.extracted)
+            path_extracted = telescope_path(SubFolder.extracted, telescope_name)
             expected = os.path.join(root_path, SubFolder.extracted.value)
             self.assertEqual(expected, path_extracted)
             self.assertTrue(os.path.exists(path_extracted))
 
             # Create subdir
-            path_transformed = telescope_path(telescope_name, SubFolder.transformed)
+            path_transformed = telescope_path(SubFolder.transformed, telescope_name)
             expected = os.path.join(root_path, SubFolder.transformed.value)
             self.assertEqual(expected, path_transformed)
             self.assertTrue(os.path.exists(path_transformed))
@@ -208,6 +208,7 @@ class TestObservatoryConfig(unittest.TestCase):
         self.config_file_name = 'config.yaml'
         self.config_dict_complete_valid = {
             'project_id': 'my-project',
+            'data_location': 'us',
             'download_bucket_name': 'my-download-bucket',
             'transform_bucket_name': 'my-transform-bucket',
             'environment': 'dev',
@@ -220,6 +221,7 @@ class TestObservatoryConfig(unittest.TestCase):
 
         self.config_dict_complete_invalid = {
             'project_id': None,
+            'data_location': None,
             'download_bucket_name': None,
             'transform_bucket_name': None,
             'environment': 'dev',
@@ -232,6 +234,7 @@ class TestObservatoryConfig(unittest.TestCase):
 
         self.config_dict_incomplete_valid = {
             'project_id': 'my-project',
+            'data_location': 'us',
             'download_bucket_name': 'my-download-bucket',
             'transform_bucket_name': 'my-transform-bucket',
             'environment': 'dev',

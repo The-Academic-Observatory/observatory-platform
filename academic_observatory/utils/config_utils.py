@@ -25,6 +25,7 @@ from typing import Union, Dict
 import cerberus.validator
 import pendulum
 import yaml
+from airflow.models import Variable
 from cerberus import Validator
 from cryptography.fernet import Fernet
 from natsort import natsorted
@@ -44,21 +45,17 @@ def observatory_home(*subdirs) -> str:
     :return: the path.
     """
 
-    observatory_path = os.environ.get('OBSERVATORY_PATH')
+    # observatory_path = os.environ.get('OBSERVATORY_PATH')
     user_home = str(pathlib.Path.home())
+    #
+    # if observatory_path is None:
+    #     observatory_path = user_home
+    # elif not os.path.exists(observatory_path):
+    #     msg = f'The path given by OBSERVATORY_PATH does not exist: {observatory_path}'
+    #     logging.error(msg)
+    #     raise FileNotFoundError(msg)
 
-    if observatory_path is None:
-        observatory_path = user_home
-    elif is_composer():
-        msg = f'The path given by OBSERVATORY_PATH is: {observatory_path}. This should exist inside the workers, but ' \
-              f'cannot be found by the webserver, because this folder isn\'t synchronized. '
-        logging.info(msg)
-    elif not os.path.exists(observatory_path):
-        msg = f'The path given by OBSERVATORY_PATH does not exist: {observatory_path}'
-        logging.error(msg)
-        raise FileNotFoundError(msg)
-
-    observatory_home_ = os.path.join(observatory_path, ".observatory", *subdirs)
+    observatory_home_ = os.path.join(user_home, ".observatory", *subdirs)
 
     if not os.path.exists(observatory_home_):
         os.makedirs(observatory_home_, exist_ok=True)
@@ -160,20 +157,25 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
 class SubFolder(Enum):
     """ The type of subfolder to create for telescope data """
 
-    downloaded = 'downloaded'
-    extracted = 'extracted'
-    transformed = 'transformed'
+    downloaded = 'download'
+    extracted = 'extract'
+    transformed = 'transform'
 
 
-def telescope_path(name: str, sub_folder: SubFolder) -> str:
+def telescope_path(sub_folder: SubFolder, name: str) -> str:
     """ Return a path for saving telescope data. Create it if it doesn't exist.
 
-    :param name: the name of the telescope.
     :param sub_folder: the name of the sub folder for the telescope
+    :param name: the name of the telescope.
     :return: the path.
     """
 
-    return observatory_home('data', 'telescopes', name, sub_folder.value)
+    data_path = Variable.get("data_path")
+    path = os.path.join(data_path, 'telescopes', sub_folder.value, name)
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+
+    return path
 
 
 class Environment(Enum):
@@ -202,6 +204,10 @@ class ObservatoryConfig:
     HOST_DEFAULT_PATH = os.path.join(observatory_home(), 'config.yaml')
     schema = {
         'project_id': {
+            'required': True,
+            'type': 'string'
+        },
+        'data_location': {
             'required': True,
             'type': 'string'
         },
@@ -243,6 +249,7 @@ class ObservatoryConfig:
 
     def __init__(self,
                  project_id: Union[None, str] = None,
+                 data_location: Union[None, str] = None,
                  download_bucket_name: Union[None, str] = None,
                  transform_bucket_name: Union[None, str] = None,
                  environment: Environment = None,
@@ -255,6 +262,7 @@ class ObservatoryConfig:
         """ Holds the settings for the Academic Observatory, used by DAGs.
 
         :param project_id: the Google Cloud project id.
+        :param data_location: the location to store data.
         :param download_bucket_name:
         :param transform_bucket_name: the Google Cloud bucket where final results will be stored.
         :param environment: whether the system is running in dev, test or prod mode.
@@ -267,6 +275,7 @@ class ObservatoryConfig:
         """
 
         self.project_id = project_id
+        self.data_location = data_location
         self.download_bucket_name = download_bucket_name
         self.transform_bucket_name = transform_bucket_name
         self.environment = environment
@@ -332,6 +341,7 @@ class ObservatoryConfig:
 
         return {
             'project_id': self.project_id,
+            'data_location': self.data_location,
             'download_bucket_name': self.download_bucket_name,
             'transform_bucket_name': self.transform_bucket_name,
             'environment': self.environment.value,
@@ -349,6 +359,7 @@ class ObservatoryConfig:
         """
 
         project_id = None
+        data_location = None
         download_bucket_name = None
         transform_bucket_name = None
         environment = Environment.dev
@@ -357,7 +368,7 @@ class ObservatoryConfig:
         mag_releases_table_connection = 'mysql://azure-storage-account-name:url-encoded-sas-token@'
         mag_snapshots_container_connection = 'mysql://azure-storage-account-name:url-encoded-sas-token@'
         crossref_connection = 'mysql://:crossref-token@'
-        return ObservatoryConfig(project_id, download_bucket_name, transform_bucket_name, environment,
+        return ObservatoryConfig(project_id, data_location, download_bucket_name, transform_bucket_name, environment,
                                  google_application_credentials, fernet_key, mag_releases_table_connection,
                                  mag_snapshots_container_connection, crossref_connection)
 
@@ -375,6 +386,7 @@ class ObservatoryConfig:
 
         if is_valid:
             project_id = dict_.get('project_id')
+            data_location = dict_.get('data_location')
             download_bucket_name = dict_.get('download_bucket_name')
             transform_bucket_name = dict_.get('transform_bucket_name')
             environment = Environment(dict_.get('environment'))
@@ -384,8 +396,9 @@ class ObservatoryConfig:
             mag_snapshots_container_connection = dict_.get('mag_snapshots_container_connection')
             crossref_connection = dict_.get('crossref_connection')
 
-            return ObservatoryConfig(project_id, download_bucket_name, transform_bucket_name, environment,
-                                     google_application_credentials, fernet_key, mag_releases_table_connection,
-                                     mag_snapshots_container_connection, crossref_connection, validator)
+            return ObservatoryConfig(project_id, data_location, download_bucket_name, transform_bucket_name,
+                                     environment, google_application_credentials, fernet_key,
+                                     mag_releases_table_connection, mag_snapshots_container_connection,
+                                     crossref_connection, validator)
         else:
             return ObservatoryConfig(validator=validator)

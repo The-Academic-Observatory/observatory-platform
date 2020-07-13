@@ -161,6 +161,7 @@ def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, 
 
     # Set variables
     env['AIRFLOW_VAR_PROJECT_ID'] = config.project_id
+    env['AIRFLOW_VAR_DATA_LOCATION'] = config.data_location
     env['AIRFLOW_VAR_DOWNLOAD_BUCKET_NAME'] = config.download_bucket_name
     env['AIRFLOW_VAR_TRANSFORM_BUCKET_NAME'] = config.transform_bucket_name
     env['AIRFLOW_VAR_ENVIRONMENT'] = config.environment.value
