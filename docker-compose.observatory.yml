@@ -28,16 +28,6 @@ services:
       - 5555:5555
     command: flower
 
-  init_db:
-    image: apache/airflow:1.10.11-python3.7
-    environment: *environment
-    volumes: *volumes
-    restart: on-failure
-    entrypoint: /bin/bash
-    command: >
-      -c "airflow list_users || (airflow initdb
-      && airflow create_user --role Admin --username airflow --password airflow -e airflow@airflow.com -f airflow -l airflow)"
-
   webserver:
     build: *build
     environment: *environment
@@ -99,4 +89,4 @@ services:
 
 secrets:
   google_application_credentials.json:
-    file: ${GOOGLE_APPLICATION_CREDENTIALS}
+    file: ${HOST_GOOGLE_APPLICATION_CREDENTIALS}

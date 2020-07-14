@@ -151,7 +151,7 @@ def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, 
     env['HOST_PACKAGE_PATH'] = package_path
 
     # Secrets
-    env['GOOGLE_APPLICATION_CREDENTIALS'] = config.google_application_credentials
+    env['HOST_GOOGLE_APPLICATION_CREDENTIALS'] = config.google_application_credentials
     env['FERNET_KEY'] = config.fernet_key
 
     # Set connections

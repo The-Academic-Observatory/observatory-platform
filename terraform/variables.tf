@@ -85,6 +85,11 @@ variable "airflow_ui_user_password" {
   type = string
 }
 
+variable "airflow_ui_user_email" {
+  description = "The email for the Apache Airflow UI's airflow user"
+  type = string
+}
+
 variable "redis_password" {
   description = "The password for redis, which is used by Celery to send messages, e.g. task messages"
   type = string

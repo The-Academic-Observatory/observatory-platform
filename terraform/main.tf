@@ -39,29 +39,25 @@ resource "google_service_account_key" "ao_service_account_key" {
   service_account_id = google_service_account.ao_service_account.name
 }
 
+# BigQuery admin
+resource "google_project_iam_member" "ao_service_account_bigquery_iam" {
+  project = var.project_id
+  role    = "roles/bigquery.admin"
+  member  = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
+# Storage Transfer Admin
+resource "google_project_iam_member" "ao_service_account_storage_iam" {
+  project = var.project_id
+  role    = "roles/storagetransfer.admin"
+  member  = "serviceAccount:${google_service_account.ao_service_account.email}"
+}
+
 module "google_application_credentials_secret" {
   source = "./secret"
   secret_id = "google_application_credentials"
   secret_data = google_service_account_key.ao_service_account_key.private_key
   service_account_email = data.google_compute_default_service_account.default.email
-}
-
-data "google_iam_policy" "ao_service_account_permissions" {
-  binding {
-    role = "roles/bigquery.admin"
-
-    members = [
-      "serviceAccount:${google_service_account.ao_service_account.email}"
-    ]
-  }
-
-  binding {
-    role = "roles/storagetransfer.admin"
-
-    members = [
-      "serviceAccount:${google_service_account.ao_service_account.email}"
-    ]
-  }
 }
 
 ########################################################################################################################
@@ -338,6 +334,14 @@ module "airflow_ui_user_password_secret" {
   service_account_email = local.compute_service_account_email
 }
 
+# Airflow UI airflow user email
+module "airflow_ui_user_email_secret" {
+  source = "./secret"
+  secret_id = "airflow_ui_user_email"
+  secret_data = var.airflow_ui_user_email
+  service_account_email = local.compute_service_account_email
+}
+
 # Redis password
 module "redis_password_secret" {
   source = "./secret"
@@ -375,6 +379,52 @@ module "crossref_conn_secret" {
 }
 
 ########################################################################################################################
+# Airflow Variables Secrets
+########################################################################################################################
+
+module "data_path_var_secret" {
+  source = "./secret"
+  secret_id = "airflow-variables-data_path"
+  secret_data = "/opt/observatory/data"
+  service_account_email = google_service_account.ao_service_account.email
+}
+
+module "project_id_var_secret" {
+  source = "./secret"
+  secret_id = "airflow-variables-project_id"
+  secret_data = var.project_id
+  service_account_email = google_service_account.ao_service_account.email
+}
+
+module "data_location_var_secret" {
+  source = "./secret"
+  secret_id = "airflow-variables-data_location"
+  secret_data = var.data_location
+  service_account_email = google_service_account.ao_service_account.email
+}
+
+module "download_bucket_name_var_secret" {
+  source = "./secret"
+  secret_id = "airflow-variables-download_bucket_name"
+  secret_data = google_storage_bucket.ao_download_bucket.name
+  service_account_email = google_service_account.ao_service_account.email
+}
+
+module "transform_bucket_name_var_secret" {
+  source = "./secret"
+  secret_id = "airflow-variables-transform_bucket_name"
+  secret_data = google_storage_bucket.ao_transform_bucket.name
+  service_account_email = google_service_account.ao_service_account.email
+}
+
+module "environment_var_secret" {
+  source = "./secret"
+  secret_id = "airflow-variables-environment"
+  secret_data = var.environment
+  service_account_email = google_service_account.ao_service_account.email
+}
+
+########################################################################################################################
 # Academic Observatory Main VM
 ########################################################################################################################
 
@@ -387,15 +437,12 @@ data "google_compute_image" "ao_image" {
 data "template_file" "airflow_main_vm_startup" {
   template = file("terraform/startup-main.tpl")
   vars = {
+    host_airflow_home = "/opt/airflow"
+    host_ao_home = "/opt/observatory"
     project_id = var.project_id
     postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
-    data_location = var.data_location
-    download_bucket_name = google_storage_bucket.ao_download_bucket.name
-    transform_bucket_name = google_storage_bucket.ao_transform_bucket.name
-    environment =var.environment
   }
 }
-
 
 module "airflow_main_vm" {
   source = "./vm"
@@ -425,13 +472,11 @@ module "airflow_main_vm" {
 data "template_file" "airflow_worker_vm_startup" {
   template = file("terraform/startup-worker.tpl")
   vars = {
+    host_airflow_home = "/opt/airflow"
+    host_ao_home = "/opt/observatory"
     project_id = var.project_id
     postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
     redis_hostname = module.airflow_main_vm.private_ip_address
-    data_location = var.data_location
-    download_bucket_name = google_storage_bucket.ao_download_bucket.name
-    transform_bucket_name = google_storage_bucket.ao_transform_bucket.name
-    environment =var.environment
   }
 }
 
@@ -442,7 +487,7 @@ module "airflow_worker_vm" {
   network = google_compute_network.ao_network
   image = data.google_compute_image.ao_image
   machine_type = var.airflow_worker_machine_type
-  disk_size = var.airflow_main_disk_size
+  disk_size = var.airflow_worker_disk_size
   disk_type = var.airflow_worker_disk_type
   region = var.region
   service_account_email = local.compute_service_account_email

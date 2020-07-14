@@ -16,6 +16,10 @@ x-environment: &environment
   GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
   AO_HOME: "/opt/observatory"
 
+  # UI user settings
+  AIRFLOW_UI_USER_EMAIL: "airflow@airflow.com"
+  AIRFLOW_UI_USER_PASSWORD: "airflow"
+
   # Connections
   AIRFLOW_CONN_MAG_RELEASES_TABLE: ${AIRFLOW_CONN_MAG_RELEASES_TABLE}
   AIRFLOW_CONN_MAG_SNAPSHOTS_CONTAINER: ${AIRFLOW_CONN_MAG_SNAPSHOTS_CONTAINER}

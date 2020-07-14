@@ -39,5 +39,6 @@ sudo chown -R airflow:airflow /opt/airflow/
 # Build the Docker containers
 cd /opt/observatory/academic-observatory
 export HOST_USER_ID=$(id -u airflow)
-sudo -u airflow -E -H bash -c "cat docker-compose.cloud.yml docker-compose.observatory.yml | docker-compose -f - pull"
-sudo -u airflow -E -H bash -c "cat docker-compose.cloud.yml docker-compose.observatory.yml | docker-compose -f - build"
+sudo -u airflow -E -H bash -c "cat docker-compose.cloud.yml docker-compose.observatory.yml > docker-compose.observatory-cloud.yml"
+sudo -u airflow -E -H bash -c "docker-compose -f docker-compose.observatory-cloud.yml pull"
+sudo -u airflow -E -H bash -c "docker-compose -f docker-compose.observatory-cloud.yml build"
