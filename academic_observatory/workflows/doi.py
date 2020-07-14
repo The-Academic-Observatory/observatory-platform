@@ -112,3 +112,24 @@ def extend_grid_with_iso3166_and_home_repos(from_project, from_dataset, from_tab
     create_bigquery_table_from_query(sql = sql, project_id = destiniation_project, 
                                      dataset_id = destiniation_dataset, table_id = destiniation_table, 
                                      location = destiniation_location)
+
+
+
+class DoiWorkflow():
+    """
+
+    """
+
+    DAG_ID = 'doi'
+    DESCRIPTION = 'Combining all raw data sources into a linked DOIs dataset'
+    TASK_ID_LIST = f'{DAG_ID}_list_releases'
+    TASK_ID_TRANSFER = f'{DAG_ID}_transfer'
+    TASK_ID_DOWNLOAD = f'{DAG_ID}_download'
+    TASK_ID_TRANSFORM = f'{DAG_ID}_transform'
+    TASK_ID_UPLOAD = f'{DAG_ID}_upload'
+    TASK_ID_DB_LOAD = f'{DAG_ID}_db_load'
+    TASK_ID_STOP = f'{DAG_ID}_stop'
+    TOPIC_NAME = 'message'
+    MAX_PROCESSES = cpu_count()
+    MAX_CONNECTIONS = cpu_count()
+    MAX_RETRIES = 3
