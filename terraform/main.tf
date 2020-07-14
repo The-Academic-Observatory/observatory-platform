@@ -29,7 +29,7 @@ locals {
 ########################################################################################################################
 
 resource "google_service_account" "ao_service_account" {
-  account_id   = "${var.project_id}-airflow"
+  account_id   = var.project_id
   display_name = "Apache Airflow Service Account"
   description = "The Google Service Account used by Apache Airflow"
 }
@@ -410,8 +410,10 @@ module "airflow_main_vm" {
   ]
   network = google_compute_network.ao_network
   image = data.google_compute_image.ao_image
-  region = var.region
   machine_type = var.airflow_main_machine_type
+  disk_size = var.airflow_main_disk_size
+  disk_type = var.airflow_main_disk_type
+  region = var.region
   service_account_email = local.compute_service_account_email
   metadata_startup_script = data.template_file.airflow_main_vm_startup.rendered
 }
@@ -439,8 +441,10 @@ module "airflow_worker_vm" {
   depends_on = [module.airflow_main_vm]
   network = google_compute_network.ao_network
   image = data.google_compute_image.ao_image
-  region = var.region
   machine_type = var.airflow_worker_machine_type
+  disk_size = var.airflow_main_disk_size
+  disk_type = var.airflow_worker_disk_type
+  region = var.region
   service_account_email = local.compute_service_account_email
   metadata_startup_script = data.template_file.airflow_worker_vm_startup.rendered
 }

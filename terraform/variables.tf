@@ -40,12 +40,32 @@ variable "backup_start_time" {
 }
 
 variable "airflow_main_machine_type" {
-  description = "The machine type for the Airflow Coordinator virtual machine"
+  description = "The machine type for the Airflow Main virtual machine"
+  type = string
+}
+
+variable "airflow_main_disk_size" {
+  description = "The disk size for the Airflow Main virtual machine(s)"
+  type = number
+}
+
+variable "airflow_main_disk_type" {
+  description = "The disk type for the Airflow Main virtual machine(s)"
   type = string
 }
 
 variable "airflow_worker_machine_type" {
   description = "The machine type for the Airflow Worker virtual machine(s)"
+  type = string
+}
+
+variable "airflow_worker_disk_size" {
+  description = "The disk size for the Airflow Worker virtual machine(s)"
+  type = number
+}
+
+variable "airflow_worker_disk_type" {
+  description = "The disk type for the Airflow Worker virtual machine(s)"
   type = string
 }
 

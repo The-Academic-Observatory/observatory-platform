@@ -29,6 +29,16 @@ variable "machine_type" {
   description = ""
 }
 
+variable "disk_size" {
+  type = number
+  description = "Disk size in GB"
+}
+
+variable "disk_type" {
+  type = string
+  description = "Disk type"
+}
+
 variable "service_account_email" {
   type = string
   description = ""

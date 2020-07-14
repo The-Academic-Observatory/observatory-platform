@@ -13,6 +13,7 @@ variable "zone" {
 
 # Builder
 source "googlecompute" "ao_builder" {
+  account_file = var.credentials_file
   project_id = var.project_id
   ssh_username = "packer"
   source_image_family = "ubuntu-1804-lts"

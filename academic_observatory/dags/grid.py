@@ -18,8 +18,8 @@
 from datetime import datetime
 
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python_operator import ShortCircuitOperator
 
 from academic_observatory.telescopes.grid import GridTelescope
 
@@ -35,23 +35,15 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
         provide_context=True,
         python_callable=GridTelescope.check_dependencies,
         dag=dag,
-        depends_on_past=False,
         queue=GridTelescope.QUEUE
     )
 
-    # List all GRID releases for a given interval
-    task_list = BranchPythonOperator(
+    # List releases and skip all subsequent tasks if there is no release to process
+    task_list = ShortCircuitOperator(
         task_id=GridTelescope.TASK_ID_LIST,
         provide_context=True,
         python_callable=GridTelescope.list_releases,
         dag=dag,
-        depends_on_past=False,
-        queue=GridTelescope.QUEUE
-    )
-
-    # Stop if nothing to process
-    task_stop = DummyOperator(
-        task_id=GridTelescope.TASK_ID_STOP,
         queue=GridTelescope.QUEUE
     )
 
@@ -61,7 +53,6 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
         provide_context=True,
         python_callable=GridTelescope.download,
         dag=dag,
-        depends_on_past=False,
         queue=GridTelescope.QUEUE
     )
 
@@ -71,7 +62,6 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
         provide_context=True,
         python_callable=GridTelescope.upload_downloaded,
         dag=dag,
-        depends_on_past=False,
         queue=GridTelescope.QUEUE
     )
 
@@ -81,7 +71,6 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
         provide_context=True,
         python_callable=GridTelescope.extract,
         dag=dag,
-        depends_on_past=False,
         queue=GridTelescope.QUEUE
     )
 
@@ -91,7 +80,6 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
         provide_context=True,
         python_callable=GridTelescope.transform,
         dag=dag,
-        depends_on_past=False,
         queue=GridTelescope.QUEUE
     )
 
@@ -101,7 +89,6 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
         provide_context=True,
         python_callable=GridTelescope.upload_transformed,
         dag=dag,
-        depends_on_past=False,
         queue=GridTelescope.QUEUE
     )
 
@@ -112,10 +99,17 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
         provide_context=True,
         python_callable=GridTelescope.db_load,
         dag=dag,
+        queue=GridTelescope.QUEUE
+    )
+
+    task_cleanup = PythonOperator(
+        task_id=GridTelescope.TASK_ID_CLEANUP,
+        provide_context=True,
+        python_callable=GridTelescope.cleanup,
+        dag=dag,
         depends_on_past=True,
         queue=GridTelescope.QUEUE
     )
 
     # Task dependencies
-    task_check >> task_list >> [task_download, task_stop]
-    task_download >> task_upload_downloaded >> task_extract >> task_transform >> task_upload_transformed >> task_bq_load
+    task_check >> task_list >> task_download >> task_upload_downloaded >> task_extract >> task_transform >> task_upload_transformed >> task_bq_load >> task_cleanup

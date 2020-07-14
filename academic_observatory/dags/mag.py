@@ -17,17 +17,17 @@
 from datetime import datetime
 
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python_operator import ShortCircuitOperator
 
 from academic_observatory.telescopes.mag import MagTelescope
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2020, 5, 28)
+    "start_date": datetime(2020, 7, 1)
 }
 
-with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@daily", default_args=default_args) as dag:
+with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=default_args) as dag:
     # Check that dependencies exist before starting
     task_check = PythonOperator(
         task_id=MagTelescope.TASK_ID_CHECK_DEPENDENCIES,
@@ -38,19 +38,12 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@daily", default_args=de
         queue=MagTelescope.QUEUE
     )
 
-    # List all MAG releases that were processed in a given interval
-    task_list = BranchPythonOperator(
+    # List releases and skip all subsequent tasks if there is no release to process
+    task_list = ShortCircuitOperator(
         task_id=MagTelescope.TASK_ID_LIST,
         provide_context=True,
         python_callable=MagTelescope.list_releases,
         dag=dag,
-        depends_on_past=False,
-        queue=MagTelescope.QUEUE
-    )
-
-    # Skip all other tasks if there are no releases to process
-    task_stop = DummyOperator(
-        task_id=MagTelescope.TASK_ID_STOP,
         queue=MagTelescope.QUEUE
     )
 
@@ -60,7 +53,6 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@daily", default_args=de
         provide_context=True,
         python_callable=MagTelescope.transfer,
         dag=dag,
-        depends_on_past=False,
         queue=MagTelescope.QUEUE
     )
 
@@ -70,7 +62,6 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@daily", default_args=de
         provide_context=True,
         python_callable=MagTelescope.download,
         dag=dag,
-        depends_on_past=False,
         queue=MagTelescope.QUEUE
     )
 
@@ -80,7 +71,6 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@daily", default_args=de
         provide_context=True,
         python_callable=MagTelescope.transform,
         dag=dag,
-        depends_on_past=False,
         queue=MagTelescope.QUEUE
     )
 
@@ -90,7 +80,6 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@daily", default_args=de
         provide_context=True,
         python_callable=MagTelescope.upload_transformed,
         dag=dag,
-        depends_on_past=False,
         queue=MagTelescope.QUEUE
     )
 
@@ -100,9 +89,16 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@daily", default_args=de
         provide_context=True,
         python_callable=MagTelescope.bq_load,
         dag=dag,
-        depends_on_past=True,
         queue=MagTelescope.QUEUE
     )
 
-    task_check >> task_list >> [task_transfer, task_stop]
-    task_transfer >> task_download >> task_transform >> task_upload_transformed >> task_bq_load
+    # Cleanup local files
+    task_cleanup = PythonOperator(
+        task_id=MagTelescope.TASK_ID_CLEANUP,
+        provide_context=True,
+        python_callable=MagTelescope.cleanup,
+        dag=dag,
+        queue=MagTelescope.QUEUE
+    )
+
+    task_check >> task_list >> task_transfer >> task_download >> task_transform >> task_upload_transformed >> task_bq_load >> task_cleanup

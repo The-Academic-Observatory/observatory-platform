@@ -24,7 +24,6 @@ import xml.etree.ElementTree as ET
 from typing import List
 
 import pendulum
-from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
@@ -243,15 +242,15 @@ class UnpaywallTelescope:
 
         # Get variables
         project_id = Variable.get("project_id")
-        environment = Variable.get("environment")
+        # environment = Variable.get("environment")
 
-        if environment == 'dev':
-            release_urls_out = [UnpaywallTelescope.TELESCOPE_DEBUG_URL]
-
-            # Push messages
-            ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(UnpaywallTelescope.RELEASES_TOPIC_NAME, release_urls_out)
-            return UnpaywallTelescope.TASK_ID_DOWNLOAD if release_urls_out else UnpaywallTelescope.TASK_ID_STOP
+        # if environment == 'dev':
+        #     release_urls_out = [UnpaywallTelescope.TELESCOPE_DEBUG_URL]
+        #
+        #     # Push messages
+        #     ti: TaskInstance = kwargs['ti']
+        #     ti.xcom_push(UnpaywallTelescope.RELEASES_TOPIC_NAME, release_urls_out)
+        #     return UnpaywallTelescope.TASK_ID_DOWNLOAD if release_urls_out else UnpaywallTelescope.TASK_ID_STOP
 
         execution_date = kwargs['execution_date']
         next_execution_date = kwargs['next_execution_date']
@@ -259,33 +258,35 @@ class UnpaywallTelescope:
         logging.info(f'All releases:\n{releases_list}\n')
 
         # Select the releases that were published on or after the execution_date and before the next_execution_date
-        bq_hook = BigQueryHook()
+        # bq_hook = BigQueryHook()
         release_urls_out = []
         logging.info('Releases between current and next execution date:')
         for release_url in releases_list:
             unpaywall_release = UnpaywallRelease(release_url)
             released_date: Pendulum = pendulum.parse(unpaywall_release.date)
-            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, released_date)
+            # table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, released_date)
 
             if execution_date <= released_date < next_execution_date:
                 logging.info(release_url)
-                table_exists = bq_hook.table_exists(
-                    project_id=project_id,
-                    dataset_id=UnpaywallTelescope.DATASET_ID,
-                    table_id=table_id
-                )
-                logging.info('Checking if bigquery table already exists:')
-                if table_exists:
-                    logging.info(
-                        f'- Table exists for {release_url}: {project_id}.{UnpaywallTelescope.DATASET_ID}.{table_id}')
-                else:
-                    logging.info(f"- Table doesn't exist yet, processing {release_url} in this workflow")
-                    release_urls_out.append(release_url)
+                # table_exists = bq_hook.table_exists(
+                #     project_id=project_id,
+                #     dataset_id=UnpaywallTelescope.DATASET_ID,
+                #     table_id=table_id
+                # )
+                # logging.info('Checking if bigquery table already exists:')
+                # if table_exists:
+                #     logging.info(
+                #         f'- Table exists for {release_url}: {project_id}.{UnpaywallTelescope.DATASET_ID}.{table_id}')
+                # else:
+                #     logging.info(f"- Table doesn't exist yet, processing {release_url} in this workflow")
+                release_urls_out.append(release_url)
 
-        # Push messages
-        ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(UnpaywallTelescope.RELEASES_TOPIC_NAME, release_urls_out)
-        return UnpaywallTelescope.TASK_ID_DOWNLOAD if release_urls_out else UnpaywallTelescope.TASK_ID_STOP
+        continue_dag = len(release_urls_out)
+        if continue_dag:
+            # Push messages
+            ti: TaskInstance = kwargs['ti']
+            ti.xcom_push(UnpaywallTelescope.RELEASES_TOPIC_NAME, release_urls_out)
+        return continue_dag
 
     @staticmethod
     def download(**kwargs):
@@ -439,7 +440,7 @@ class UnpaywallTelescope:
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod
-    def cleanup_releases(**kwargs):
+    def cleanup(**kwargs):
         """ Delete files of downloaded, extracted and transformed release.
 
         :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html

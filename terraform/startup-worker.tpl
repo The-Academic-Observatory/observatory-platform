@@ -24,6 +24,6 @@ berglas access sm://${project_id}/google_application_credentials | base64 --deco
 
 # Run program
 cd $HOST_PACKAGE_PATH
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory.yml pull worker_remote"
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory.yml build worker_remote"
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory.yml up -d worker_remote"
+gosu airflow bash -c "berglas exec -- cat docker-compose.cloud.yml docker-compose.observatory.yml | docker-compose -f - pull worker_remote"
+gosu airflow bash -c "berglas exec -- cat docker-compose.cloud.yml docker-compose.observatory.yml | docker-compose -f - build worker_remote"
+gosu airflow bash -c "berglas exec -- cat docker-compose.cloud.yml docker-compose.observatory.yml | docker-compose -f - up -d worker_remote"

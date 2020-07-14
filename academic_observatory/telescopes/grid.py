@@ -21,6 +21,8 @@ import io
 import json
 import logging
 import os
+import pathlib
+import shutil
 from shutil import copyfile
 from typing import List, Dict, Tuple
 from zipfile import ZipFile, BadZipFile
@@ -174,7 +176,7 @@ class GridTelescope:
     TASK_ID_BQ_LOAD = 'bq_load'
     TASK_ID_CLEANUP = 'cleanup'
     TASK_ID_STOP = 'stop_dag'
-    TOPIC_NAME = 'message'
+    RELEASES_TOPIC_NAME = 'releases'
 
     @staticmethod
     def check_dependencies(**kwargs):
@@ -219,11 +221,12 @@ class GridTelescope:
                 msg['published_date'] = published_date
                 msgs_out.append(msg)
 
-        # Push messages
-        ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(GridTelescope.TOPIC_NAME, msgs_out, execution_date)
-
-        return GridTelescope.TASK_ID_DOWNLOAD if msgs_out else GridTelescope.TASK_ID_STOP
+        continue_dag = len(msgs_out)
+        if continue_dag:
+            # Push messages
+            ti: TaskInstance = kwargs['ti']
+            ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, execution_date)
+        return continue_dag
 
     @staticmethod
     def download(**kwargs):
@@ -239,7 +242,7 @@ class GridTelescope:
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_LIST,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_LIST,
                                include_prior_dates=False)
 
         # Prepare paths
@@ -260,7 +263,7 @@ class GridTelescope:
                 msgs_out.append(msg_out)
 
         # Push the selected GRID releases to an XCOM so that the next task knows which releases to download
-        ti.xcom_push(GridTelescope.TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
 
     @staticmethod
     def upload_downloaded(**kwargs):
@@ -276,7 +279,7 @@ class GridTelescope:
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_DOWNLOAD,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_DOWNLOAD,
                                include_prior_dates=False)
 
         # Upload each release
@@ -300,7 +303,7 @@ class GridTelescope:
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_DOWNLOAD,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_DOWNLOAD,
                                include_prior_dates=False)
 
         # Prepare paths
@@ -318,7 +321,7 @@ class GridTelescope:
             msgs_out.append(msg_out)
 
         # Push the selected GRID releases to an XCOM so that the next task knows which releases to download
-        ti.xcom_push(GridTelescope.TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
 
     @staticmethod
     def transform(**kwargs):
@@ -336,7 +339,7 @@ class GridTelescope:
 
         # Pull GRID releases to transform
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_EXTRACT,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_EXTRACT,
                                include_prior_dates=False)
 
         # Prepare paths
@@ -366,7 +369,7 @@ class GridTelescope:
 
         # Push messages for next task to consume
         ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(GridTelescope.TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
 
     @staticmethod
     def upload_transformed(**kwargs):
@@ -383,7 +386,7 @@ class GridTelescope:
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_TRANSFORM,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_TRANSFORM,
                                include_prior_dates=False)
 
         # Upload each release
@@ -406,7 +409,7 @@ class GridTelescope:
 
         # Push messages for next task to consume
         ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(GridTelescope.TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
 
     @staticmethod
     def db_load(**kwargs):
@@ -418,7 +421,7 @@ class GridTelescope:
         """
 
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_UPLOAD_TRANSFORMED,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_UPLOAD_TRANSFORMED,
                                include_prior_dates=False)
 
         # Upload each release
@@ -454,3 +457,45 @@ class GridTelescope:
             logging.info(f"URI: {uri}")
             load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
+
+    @staticmethod
+    def cleanup(**kwargs):
+        """ Delete files of downloaded, extracted and transformed releases.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Pull releases
+        ti: TaskInstance = kwargs['ti']
+
+        # Remove downloaded files
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_DOWNLOAD,
+                               include_prior_dates=False)
+        for msg_in in msgs_in:
+            file_path = msg_in['download_path']
+            try:
+                pathlib.Path(file_path).unlink()
+            except FileNotFoundError as e:
+                logging.warning(f"No such file or directory {file_path}: {e}")
+
+        # Remove extracted files
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_EXTRACT,
+                               include_prior_dates=False)
+        for msg_in in msgs_in:
+            file_path = msg_in['extracted_path']
+            try:
+                shutil.rmtree(file_path)
+            except FileNotFoundError as e:
+                logging.warning(f"No such file or directory {file_path}: {e}")
+
+        # Remove transformed files
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_TRANSFORM,
+                               include_prior_dates=False)
+        for msg_in in msgs_in:
+            file_path = msg_in['json_gz_file_path']
+            try:
+                pathlib.Path(file_path).unlink()
+            except FileNotFoundError as e:
+                logging.warning(f"No such file or directory {file_path}: {e}")

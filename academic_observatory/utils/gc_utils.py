@@ -92,6 +92,14 @@ class TransferStatus(Enum):
     failed = 'FAILED'
 
 
+# def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str):
+#     # Make dataset handle
+#     client = bigquery.Client()
+#     dataset = bigquery.Dataset(dataset_id)
+#
+#     try:
+#     dataset.table(table_name)
+
 def bigquery_partitioned_table_id(table_name, datetime: Pendulum) -> str:
     """ Create a partitioned table identifier for a BigQuery table.
 

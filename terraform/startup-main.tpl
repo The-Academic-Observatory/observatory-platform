@@ -24,6 +24,6 @@ berglas access sm://${project_id}/google_application_credentials | base64 --deco
 
 # Run program
 cd $HOST_PACKAGE_PATH
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory.yml pull redis flower init_db webserver scheduler worker_local"
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory.yml build redis flower init_db webserver scheduler worker_local"
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory.yml up -d redis flower init_db webserver scheduler worker_local"
+gosu airflow bash -c "berglas exec -- cat docker-compose.cloud.yml docker-compose.observatory.yml | docker-compose -f - pull redis flower init_db webserver scheduler worker_local"
+gosu airflow bash -c "berglas exec -- cat docker-compose.cloud.yml docker-compose.observatory.yml | docker-compose -f - build redis flower init_db webserver scheduler worker_local"
+gosu airflow bash -c "berglas exec -- cat docker-compose.cloud.yml docker-compose.observatory.yml | docker-compose -f - up -d redis flower init_db webserver scheduler worker_local"
