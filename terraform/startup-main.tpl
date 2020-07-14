@@ -16,11 +16,11 @@ export AIRFLOW_UI_USER_PASSWORD="sm://${project_id}/airflow_ui_user_password"
 export AIRFLOW_UI_USER_EMAIL="sm://${project_id}/airflow_ui_user_email"
 
 # Save google application credentials to file
-gosu airflow bash -c "berglas access sm://${project_id}/google_application_credentials | base64 --decode > ${host_ao_home}/google_application_credentials.json"
+sudo -u airflow -EH bash -c "berglas access sm://${project_id}/google_application_credentials | base64 --decode > ${host_ao_home}/google_application_credentials.json"
 
 # Run program
 cd $HOST_PACKAGE_PATH
-gosu airflow bash -c "cat docker-compose.cloud.yml docker-compose.observatory.yml > docker-compose.observatory-cloud.yml"
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml pull redis flower webserver scheduler worker_local"
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml build redis flower webserver scheduler worker_local"
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml up -d redis flower webserver scheduler worker_local"
+sudo -u airflow -EH bash -c "cat docker-compose.cloud.yml docker-compose.observatory.yml > docker-compose.observatory-cloud.yml"
+sudo -u airflow -EH bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml pull redis flower webserver scheduler worker_local"
+sudo -u airflow -EH bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml build redis flower webserver scheduler worker_local"
+sudo -u airflow -EH bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml up -d redis flower webserver scheduler worker_local"

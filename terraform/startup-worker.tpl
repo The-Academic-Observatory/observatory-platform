@@ -14,11 +14,11 @@ export FERNET_KEY="sm://${project_id}/fernet_key"
 export REDIS_HOSTNAME="${redis_hostname}"
 
 # Save google application credentials to file
-gosu airflow bash -c "berglas access sm://${project_id}/google_application_credentials | base64 --decode > ${host_ao_home}/google_application_credentials.json"
+sudo -u airflow -EH bash -c "berglas access sm://${project_id}/google_application_credentials | base64 --decode > ${host_ao_home}/google_application_credentials.json"
 
 # Run program
 cd $HOST_PACKAGE_PATH
-gosu airflow bash -c "cat docker-compose.cloud.yml docker-compose.observatory.yml > docker-compose.observatory-cloud.yml"
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml pull worker_remote"
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml build worker_remote"
-gosu airflow bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml up -d worker_remote"
+sudo -u airflow -EH bash -c "cat docker-compose.cloud.yml docker-compose.observatory.yml > docker-compose.observatory-cloud.yml"
+sudo -u airflow -EH bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml pull worker_remote"
+sudo -u airflow -EH bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml build worker_remote"
+sudo -u airflow -EH bash -c "berglas exec -- docker-compose -f docker-compose.observatory-cloud.yml up -d worker_remote"
