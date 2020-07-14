@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Cameron Neylon & Richard Hosing 
+# Author: Cameron Neylon & Richard Hosking 
 
 import pandas as pd
 import seaborn as sns
