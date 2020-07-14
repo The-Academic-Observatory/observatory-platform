@@ -17,7 +17,7 @@
 import pandas as pd
 
 from academic_observatory.reports import defaults
-from academic_observatory.reports import chart_utils
+from academic_observatory.reports import chart_utils, report_utils
 
 
 class AbstractObservatoryTable:
