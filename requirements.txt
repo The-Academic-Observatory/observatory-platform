@@ -1,3 +1,4 @@
+apache-airflow==1.10.11
 ray==0.8.*
 lxml==4.4.*
 beautifulsoup4==4.8.*
