@@ -12,37 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Cameron Neylon
+# Author: Cameron Neylon & Richard Hosking
 
 import unittest
 import pandas as pd
 import os.path
 
-# From charts.py
-from academic_observatory.analysis.charts import ScatterPlot
-from academic_observatory.analysis.charts import TimePlot
-from academic_observatory.analysis.charts import TimePlotLayout
-from academic_observatory.analysis.charts import TimePath
-from academic_observatory.analysis.charts import Layout
+from academic_observatory.reports.charts import ScatterPlot
+from academic_observatory.reports.charts import TimePlot
+from academic_observatory.reports.charts import TimePlotLayout
+from academic_observatory.reports.charts import TimePath
+from academic_observatory.reports.charts import Layout
 
-# From rankings.py
-from academic_observatory.analysis.charts import RankChart
-from academic_observatory.analysis.charts import ConfidenceIntervalRank
-from academic_observatory.analysis.charts import BoxScatter
+from academic_observatory.reports.charts import RankChart
+from academic_observatory.reports.charts import ConfidenceIntervalRank
+from academic_observatory.reports.charts import BoxScatter
 
-# From reports.py
-from academic_observatory.analysis.charts import OutputTypesPieChart
-from academic_observatory.analysis.charts import GenericTimeChart
-from academic_observatory.analysis.charts import OutputTypesTimeChart
-from academic_observatory.analysis.charts import OApcTimeChart
-from academic_observatory.analysis.charts import CitationCountTimeChart
-from academic_observatory.analysis.charts import OAAdvantageBarChart
-from academic_observatory.analysis.charts import BarComparisonChart
-from academic_observatory.analysis.charts import FunderGraph
-from academic_observatory.analysis.charts import DistributionComparisonChart
+from academic_observatory.reports.charts import OutputTypesPieChart
+from academic_observatory.reports.charts import GenericTimeChart
+from academic_observatory.reports.charts import OutputTypesTimeChart
+from academic_observatory.reports.charts import OApcTimeChart
+from academic_observatory.reports.charts import CitationCountTimeChart
+from academic_observatory.reports.charts import OAAdvantageBarChart
+from academic_observatory.reports.charts import BarComparisonChart
+from academic_observatory.reports.charts import FunderGraph
+from academic_observatory.reports.charts import DistributionComparisonChart
+from academic_observatory.reports import chart_utils
 
-from academic_observatory.utils import test_data_dir
-
+from academic_observatory.utils.test_utils import fixtures_data_dir
 
 class TestAbstractChart(unittest.TestCase):
     test_class = None
@@ -51,8 +48,8 @@ class TestAbstractChart(unittest.TestCase):
     test_data = 'test_oa_data.csv'
 
     def setUp(self):
-        test_data_file = os.path.join(test_data_dir(__file__),
-                                      'analysis', self.test_data)
+        test_data_file = os.path.join(fixtures_data_dir(__file__),
+                                      'reports', self.test_data)
         self.df = pd.read_csv(test_data_file)
 
     def test_init(self):
@@ -160,17 +157,17 @@ class TestTimePath(TestAbstractChartWithAnimation):
 class TestLayout(TestAbstractChart):
     pass
 
-# TODO: fix as fails intermittently
-# class TestRankChart(TestAbstractChart):
-#     def setUp(self):
-#         self.test_class = RankChart
-#         self.init_args = {
-#             'rankcol': 'percent_gold',
-#             'filter_name': 'published_year',
-#             'filter_value': 2017
-#         }
-#         self.plot_args = {}
-#         super().setUp()
+
+class TestRankChart(TestAbstractChart):
+    def setUp(self):
+        self.test_class = RankChart
+        self.init_args = {
+            'rankcol': 'percent_gold',
+            'filter_name': 'published_year',
+            'filter_value': 2017
+        }
+        self.plot_args = {}
+        super().setUp()
 
 
 class TestConfidenceInternalRankChart(TestAbstractChart):
