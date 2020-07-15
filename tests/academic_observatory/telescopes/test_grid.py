@@ -15,33 +15,19 @@
 # Author: James Diprose
 
 import glob
-
 import logging
 import os
-import subprocess
 import unittest
+from typing import List, Dict
+
 import vcr
 from click.testing import CliRunner
-from subprocess import Popen
-from typing import List, Dict
 
 from academic_observatory.telescopes.grid import list_grid_releases, download_grid_release, extract_grid_release, \
     transform_grid_release
 from academic_observatory.utils.data_utils import _hash_file
-from academic_observatory.utils.proc_utils import wait_for_process
+from academic_observatory.utils.test_utils import gzip_file_crc
 from tests.academic_observatory.config import test_fixtures_path
-
-
-def gzip_file_crc(file_path: str) -> str:
-    """ Get the crc of a gzip file.
-
-    :param file_path: the path to the file.
-    :return: the crc.
-    """
-
-    proc: Popen = subprocess.Popen(['gzip', '-vl', file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    output, error = wait_for_process(proc)
-    return output.splitlines()[1].split(' ')[1].strip()
 
 
 class TestGrid(unittest.TestCase):
