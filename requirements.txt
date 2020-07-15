@@ -13,7 +13,7 @@ numpy==1.18.*
 certifi>=2019.11.28
 python-dateutil==2.8.*
 requests-file==1.4.*
-git+git://github.com/jdddog/sickle@503_error_fix#egg=sickle
+sickle @ git+git://github.com/jdddog/sickle@503_error_fix#egg=sickle
 six==1.13.*
 boto3==1.10.*
 warcio==1.7.*
@@ -37,7 +37,8 @@ google-auth-httplib2
 pandas-gbq==0.13.2
 azure-functions==1.2.*
 azure-cosmosdb-table==1.0.*
-git+git://github.com/The-Academic-Observatory/mag-archiver@develop#egg=mag-archiver
+azure-storage-blob==12.3.*
+mag-archiver @ git+git://github.com/The-Academic-Observatory/mag-archiver@develop#egg=mag-archiver
 precipy==0.2.*
 xhtml2pdf>=0.2.4
 num2words>=0.5.9

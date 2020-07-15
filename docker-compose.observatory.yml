@@ -10,6 +10,12 @@ x-build: &build
   dockerfile: Dockerfile.observatory
   args:
     - HOST_USER_ID=${HOST_USER_ID}
+    - HOST_GROUP_ID=${HOST_GROUP_ID}
+
+networks:
+  observatory-network:
+    name: observatory-network
+    driver: bridge
 
 services:
   redis:
@@ -17,11 +23,15 @@ services:
     restart: always
     ports:
       - 6379:6379
+    networks:
+      - observatory-network
 
   flower:
     image: apache/airflow:1.10.11-python3.7
     environment: *environment
     restart: always
+    networks:
+      - observatory-network
     depends_on:
       - redis
     ports:
@@ -33,6 +43,8 @@ services:
     environment: *environment
     volumes: *volumes
     restart: always
+    networks:
+      - observatory-network
     depends_on:
       - redis
     secrets:
@@ -51,6 +63,8 @@ services:
     environment: *environment
     volumes: *volumes
     restart: always
+    networks:
+      - observatory-network
     depends_on:
       - webserver
     secrets:
@@ -62,6 +76,7 @@ services:
     environment: *environment
     volumes: *volumes
     restart: always
+    <<: *networks
     depends_on:
       - scheduler
     secrets:
@@ -73,6 +88,7 @@ services:
     environment: *environment
     volumes: *volumes
     restart: always
+    <<: *networks
     secrets:
       - google_application_credentials.json
     command: worker -q remote_queue
@@ -86,6 +102,8 @@ services:
     volumes:
       - ${HOST_POSTGRES_PATH}:/var/lib/postgresql/data
     restart: always
+    networks:
+      - observatory-network
 
 secrets:
   google_application_credentials.json:

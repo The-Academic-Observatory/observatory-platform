@@ -320,14 +320,14 @@ Overview of the documentation:
 * API reference documentation is automatically generated from docstrings with [sphinx-autoapi](https://github.com/readthedocs/sphinx-autoapi).
 
 #### Building documentation
+Make sure that the Academic Observatory is installed with the development requirements:
+```bash
+pip install -e .[dev]
+```
+
 Navigate to the `docs` directory:
 ```bash
 cd docs
-```
-
-Install the requirements for building the documentation:
-```bash
-pip install -r requirements.txt
 ```
 
 Build the documentation with the following command:

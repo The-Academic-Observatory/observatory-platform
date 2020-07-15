@@ -59,8 +59,13 @@ build {
   }
 
   provisioner "file" {
-    source = "entrypoint.sh"
-    destination = "/tmp/academic-observatory/entrypoint.sh"
+    source = "entrypoint-root.sh"
+    destination = "/tmp/academic-observatory/entrypoint-root.sh"
+  }
+
+  provisioner "file" {
+    source = "entrypoint-airflow.sh"
+    destination = "/tmp/academic-observatory/entrypoint-airflow.sh"
   }
 
   provisioner "file" {

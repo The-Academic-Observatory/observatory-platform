@@ -125,8 +125,8 @@ def is_docker_running() -> bool:
     return is_running
 
 
-def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, host_uid: int, package_path: str,
-            config: ObservatoryConfig):
+def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, host_uid: int, host_gid: int,
+            package_path: str, config: ObservatoryConfig):
     """ Make an environment containing the environment variables that are required to build and start the
     Observatory docker environment.
 
@@ -136,6 +136,7 @@ def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, 
     :param postgres_path: the path to the Apache Airflow Postgres data folder on the host system.
     :param package_path: the path to the Academic Observatory Python project on the host system.
     :param host_uid: the user id of the host system.
+    :param host_gid: the group id of the host system.
     :param config: the config file.
     :return:
     """
@@ -144,6 +145,7 @@ def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, 
 
     # Host settings
     env['HOST_USER_ID'] = str(host_uid)
+    env['HOST_GROUP_ID'] = str(host_gid)
     env['HOST_LOGS_PATH'] = logs_path
     env['HOST_DAGS_PATH'] = dags_path
     env['HOST_DATA_PATH'] = data_path
@@ -241,11 +243,16 @@ def build_compose_files(working_dir: str):
               default=os.getuid(),
               help='The user id of the host system. Used to set the user id in the Docker containers.',
               show_default=True)
+@click.option('--host-gid',
+              type=click.INT,
+              default=os.getgid(),
+              help='The group id of the host system. Used to set the group id in the Docker containers.',
+              show_default=True)
 @click.option('--debug',
               is_flag=True,
               default=False,
               help='Print debugging information.')
-def platform(command, config_path, dags_path, data_path, logs_path, postgres_path, host_uid, debug):
+def platform(command, config_path, dags_path, data_path, logs_path, postgres_path, host_uid, host_gid, debug):
     """ Run the local Academic Observatory platform.\n
 
     COMMAND: the command to give the platform:\n
@@ -340,7 +347,7 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
     package_path = observatory_package_path()
 
     # Make environment variables for running commands
-    env = get_env(dags_path, data_path, logs_path, postgres_path, host_uid, package_path, config)
+    env = get_env(dags_path, data_path, logs_path, postgres_path, host_uid, host_gid, package_path, config)
 
     # Docker compose commands
     compose_args = ['docker-compose', '-f', '-']

@@ -5,7 +5,7 @@ x-environment: &environment
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres://airflow:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
   AIRFLOW__CORE__FERNET_KEY: "${FERNET_KEY}"
-  AIRFLOW__CORE__AIRFLOW_HOME: "/opt/airflow"
+  AIRFLOW__CORE__AIRFLOW_HOME: ${AIRFLOW_HOME}
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
   AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
   AIRFLOW__WEBSERVER__RBAC: "True"
@@ -14,10 +14,10 @@ x-environment: &environment
   AIRFLOW__SECRETS__BACKEND: "airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend"
   AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
 
-  # Paths to google credentials and observatory folder
+  # Paths to google credentials and UI user settings
   GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
-  AO_HOME: "/opt/observatory"
-
-  # UI user settings
   AIRFLOW_UI_USER_EMAIL: ${AIRFLOW_UI_USER_EMAIL}
   AIRFLOW_UI_USER_PASSWORD: ${AIRFLOW_UI_USER_PASSWORD}
+
+x-network-mode: &networks
+  network_mode: "host"

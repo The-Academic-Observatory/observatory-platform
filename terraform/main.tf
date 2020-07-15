@@ -441,6 +441,7 @@ data "template_file" "airflow_main_vm_startup" {
     host_ao_home = "/opt/observatory"
     project_id = var.project_id
     postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
+    redis_hostname = module.airflow_main_vm.private_ip_address
   }
 }
 

@@ -24,6 +24,15 @@ setup(
     packages=find_packages(),
     download_url='https://github.com/The-Academic-Observatory/academic-observatory/v19.12.0.tar.gz',
     keywords=['science', 'data', 'workflows', 'academic institutes', 'academic-observatory'],
+    install_requires=install_requires,
+    extras_require={
+        'dev': [
+            'apache-airflow==1.10.11',
+            'Sphinx==2.4.*',
+            'sphinx-rtd-theme==0.4.*',
+            'sphinx-autoapi==1.2.*',
+            'recommonmark==0.6.*']
+    },
     entry_points={
         'console_scripts': [
             # The legacy command line interface implemented with argparse
@@ -45,5 +54,5 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Utilities"
     ],
-    python_requires='>=3.6.6'
+    python_requires='>=3.7'
 )
