@@ -28,7 +28,7 @@ default_args = {
     "start_date": datetime(2018, 4, 1)
 }
 
-with DAG(dag_id="crossref_metadata", schedule_interval="@monthly", default_args=default_args, max_active_runs=1) as dag:
+with DAG(dag_id="crossref_metadata", schedule_interval="@monthly", default_args=default_args) as dag:
     # Get config variables
     check_setup = PythonOperator(
         task_id=CrossrefMetaTelescope.TASK_ID_SETUP,

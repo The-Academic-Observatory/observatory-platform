@@ -131,12 +131,20 @@ def transform_release(crossref_release: 'CrossrefMetaRelease') -> str:
     Transforms release with sed command.
 
     :param crossref_release: Instance of CrossrefRelease class
-    """
-    cmd = "sed -E -e 's/\]\]/\]/g' -e 's/\[\[/\[/g' -e 's/,[[:blank:]]*$//g'  -e 's/([[:alpha:]])-([[" \
-          ":alpha:]])/\\1_\\2/g' -e 's/\"timestamp\":_/\"timestamp\":/g' -e 's/\"date_parts\":\[" \
-          "null\]/\"date_parts\":\[\]/g' -e 's/^\{\"items\":\[//g' -e '/^\}$/d' -e '/^\]$/d' " \
-          f"{crossref_release.filepath_extract} > {crossref_release.filepath_transform}"
-
+    # """
+    # cmd = 'mawk \'BEGIN {FS="-"}{for (i=1; i<=NF; i++) if($i ~ /[[:alpha:]]$/ && $(i+1) ~ /^[[:alpha:]]/) printf "%s_", $i;' \
+    #       ' else if(i+1 > NF) printf "%s\\n", $i; else printf "%s-", $i}\' ' \
+    #       f'{crossref_release.filepath_extract} | ' \
+    #       'mawk \'!/^\}$|^\]$|^\\":$/{gsub("\[\[", "[");gsub("]]", "]");gsub(/,[ \\t]*$/,"");' \
+    #       'gsub("\\"timestamp\\":_", "\\"timestamp\\":");gsub("\\"date_parts\\":\[null]", "\\"date_parts\\":[]");' \
+    #       'gsub(/^\{\\"items\\":\[/,"");print}\' > ' \
+    #       f'{crossref_release.filepath_transform}'
+    cmd = 'mawk \'BEGIN {FS="\\":";RS=",\\"";OFS=FS;ORS=RS} {for (i=1; i<=NF;i++) if(i != NF) gsub("-", "_", $i)}1\'' \
+          f' {crossref_release.filepath_extract} | ' \
+          'mawk \'!/^\}$|^\]$|,\\"$/{gsub("\[\[", "[");gsub("]]", "]");gsub(/,[ \\t]*$/,"");' \
+          'gsub("\\"timestamp\\":_", "\\"timestamp\\":");gsub("\\"date_parts\\":\[null]", "\\"date_parts\\":[]");' \
+          'gsub(/^\{\\"items\\":\[/,"");print}\' > ' \
+          f'{crossref_release.filepath_transform}'
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          executable='/bin/bash')
 
