@@ -39,7 +39,7 @@ from pendulum import Pendulum
 
 from academic_observatory.utils.config_utils import check_variables, check_connections
 from academic_observatory.utils.config_utils import telescope_path, SubFolder, schema_path, find_schema
-from academic_observatory.utils.gc_utils import azure_to_google_cloud_storage_transfer, TransferStatus, \
+from academic_observatory.utils.gc_utils import azure_to_google_cloud_storage_transfer, \
     download_blobs_from_cloud_storage, upload_files_to_cloud_storage, load_bigquery_table, create_bigquery_dataset, \
     bigquery_partitioned_table_id, table_name_from_blob
 from academic_observatory.utils.proc_utils import wait_for_process
@@ -287,11 +287,9 @@ class MagTelescope:
             if len(row_keys) > 0:
                 description = 'Transfer MAG Releases: ' + ', '.join(row_keys)
                 logging.info(description)
-                transfer_job_name, status = azure_to_google_cloud_storage_transfer(azure_account_name, azure_sas_token,
-                                                                                   azure_container, include_prefixes,
-                                                                                   gcp_project_id, gcp_bucket_name,
-                                                                                   description)
-                success = status == TransferStatus.success
+                success = azure_to_google_cloud_storage_transfer(azure_account_name, azure_sas_token, azure_container,
+                                                                 include_prefixes, gcp_project_id, gcp_bucket_name,
+                                                                 description)
                 releases_str = ', '.join(row_keys)
                 if success:
                     logging.info(f'Success transferring MAG releases: {releases_str}')
