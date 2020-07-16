@@ -48,10 +48,10 @@ Reports
 .. toctree::
     :maxdepth: 3
 
-    reports/index
+    reports
 
 
-API Reference
+API Reference - 1
 =======================
 .. toctree::
     :maxdepth: 1
