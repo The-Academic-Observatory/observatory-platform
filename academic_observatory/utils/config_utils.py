@@ -58,6 +58,10 @@ def observatory_home(*subdirs) -> str:
 
     if observatory_path is None:
         observatory_path = user_home
+    elif is_composer():
+        msg = f'The path given by OBSERVATORY_PATH is: {observatory_path}. This should exist inside the workers, but ' \
+              f'cannot be found by the webserver, because this folder isn\'t synchronized. '
+        logging.info(msg)
     elif not os.path.exists(observatory_path):
         msg = f'The path given by OBSERVATORY_PATH does not exist: {observatory_path}'
         logging.error(msg)
@@ -160,6 +164,7 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
 
     # No schemas were found
     return None
+
 
 class SubFolder(Enum):
     """ The type of subfolder to create for telescope data """
