@@ -4,7 +4,7 @@ Add dataset description here
 
 ---
 
-## Schema
+**Schema**
 
 **MAG Authors**
 

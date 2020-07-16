@@ -1,11 +1,9 @@
-# Geonames
+# GRID
 
 Add data source description here
 
 **Link:** xx
 
----
-
 **Datasets**
-- [Geonames](dataset_geonames.md)
+- [GRID](dataset_grid.md)
 

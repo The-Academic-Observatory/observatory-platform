@@ -1,11 +1,9 @@
-# GRID
+# Unpaywall
 
 Add data source description here
 
 **Link:** xx
 
----
-
 **Datasets**
-- [GRID](dataset_grid.md)
+- [Unpaywall](dataset_unpaywall.md)
 

@@ -1,8 +1,8 @@
-# Dataset: Crossref Events
+# Dataset: Fundref
 
 Add dataset description here
 
 ---
 
-## Schema
+**Schema**
 xx

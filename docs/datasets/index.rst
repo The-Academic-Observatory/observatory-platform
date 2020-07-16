@@ -1,11 +1,12 @@
 Datasets
-=================
+----------------------------
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 4
 
-    crossref
-    geonames
-    grid
-    mag
-    unpaywall
+    provider_crossref/index
+    provider_geonames.md
+    provider_grid.md
+    provider_mag.md
+    provider_unpaywall.md
+
 

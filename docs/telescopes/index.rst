@@ -1,5 +1,5 @@
-Telescopes
-=================
+Telecopes
+----------------------------
 .. toctree::
     :maxdepth: 3
 
@@ -10,4 +10,3 @@ Telescopes
     grid
     mag
     unpaywall
-
