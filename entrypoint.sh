@@ -1,7 +1,4 @@
 #!/bin/bash
-# install mawk
-sudo apt-get install -y mawk
-
 # Make airflow user own everything in home directory
 chown -R airflow:airflow ${AIRFLOW_USER_HOME}
 

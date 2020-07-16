@@ -5,7 +5,10 @@ ARG AIRFLOW_USER_HOME=/usr/local/airflow
 
 # Install git which is required when installing dependencies with pip and gosu
 USER root
-RUN apt-get update -yqq && apt-get install git gosu -y
+RUN apt-get update -yqq && apt-get install -y \
+    git \
+    gosu \
+    mawk
 
 # Remove airflow user defined in inherited Docker container, because we need to customise the user id
 RUN userdel airflow

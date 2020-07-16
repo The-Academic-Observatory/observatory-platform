@@ -21,7 +21,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
 from airflow.operators.python_operator import PythonOperator
 
-from academic_observatory.telescopes.crossref_metadata import CrossrefMetaTelescope
+from academic_observatory.telescopes.crossref_metadata import CrossrefMetadataTelescope
 
 default_args = {
     "owner": "Airflow",
@@ -31,60 +31,60 @@ default_args = {
 with DAG(dag_id="crossref_metadata", schedule_interval="@monthly", default_args=default_args) as dag:
     # Get config variables
     check_setup = PythonOperator(
-        task_id=CrossrefMetaTelescope.TASK_ID_SETUP,
-        python_callable=CrossrefMetaTelescope.check_setup_requirements,
+        task_id=CrossrefMetadataTelescope.TASK_ID_SETUP,
+        python_callable=CrossrefMetadataTelescope.check_setup_requirements,
         provide_context=True
     )
 
     # List of all releases for last month
     list_releases = BranchPythonOperator(
-        task_id=CrossrefMetaTelescope.TASK_ID_LIST,
-        python_callable=CrossrefMetaTelescope.list_releases_last_month,
+        task_id=CrossrefMetadataTelescope.TASK_ID_LIST,
+        python_callable=CrossrefMetadataTelescope.list_releases_last_month,
         provide_context=True
     )
 
-    stop_workflow = DummyOperator(task_id=CrossrefMetaTelescope.TASK_ID_STOP)
+    stop_workflow = DummyOperator(task_id=CrossrefMetadataTelescope.TASK_ID_STOP)
 
     # Downloads snapshot from url
     download_local = PythonOperator(
-        task_id=CrossrefMetaTelescope.TASK_ID_DOWNLOAD,
-        python_callable=CrossrefMetaTelescope.download,
+        task_id=CrossrefMetadataTelescope.TASK_ID_DOWNLOAD,
+        python_callable=CrossrefMetadataTelescope.download,
         provide_context=True
     )
 
     # Decompresses download
     decompress = PythonOperator(
-        task_id=CrossrefMetaTelescope.TASK_ID_DECOMPRESS,
-        python_callable=CrossrefMetaTelescope.decompress,
+        task_id=CrossrefMetadataTelescope.TASK_ID_DECOMPRESS,
+        python_callable=CrossrefMetadataTelescope.decompress,
         provide_context=True
     )
 
     # Transforms download
     transform = PythonOperator(
-        task_id=CrossrefMetaTelescope.TASK_ID_TRANSFORM,
-        python_callable=CrossrefMetaTelescope.transform,
+        task_id=CrossrefMetadataTelescope.TASK_ID_TRANSFORM,
+        python_callable=CrossrefMetadataTelescope.transform,
         provide_context=True
     )
 
     # Upload download to gcs bucket
     upload_to_gcs = PythonOperator(
-        task_id=CrossrefMetaTelescope.TASK_ID_UPLOAD,
-        python_callable=CrossrefMetaTelescope.upload_to_gcs,
+        task_id=CrossrefMetadataTelescope.TASK_ID_UPLOAD,
+        python_callable=CrossrefMetadataTelescope.upload_to_gcs,
         provide_context=True
 
     )
 
     # Upload download to bigquery table
     load_to_bq = PythonOperator(
-        task_id=CrossrefMetaTelescope.TASK_ID_BQ_LOAD,
-        python_callable=CrossrefMetaTelescope.load_to_bq,
+        task_id=CrossrefMetadataTelescope.TASK_ID_BQ_LOAD,
+        python_callable=CrossrefMetadataTelescope.load_to_bq,
         provide_context=True
     )
 
     # Delete locally stored files
     cleanup_local = PythonOperator(
-        task_id=CrossrefMetaTelescope.TASK_ID_CLEANUP,
-        python_callable=CrossrefMetaTelescope.cleanup_releases,
+        task_id=CrossrefMetadataTelescope.TASK_ID_CLEANUP,
+        python_callable=CrossrefMetadataTelescope.cleanup_releases,
         provide_context=True
     )
 
