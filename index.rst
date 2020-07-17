@@ -1,4 +1,3 @@
-=======================
 Academic Observatory
 =======================
 The academic-observatory is a Python API and a set of command line tools for downloading and processing data to
@@ -20,11 +19,10 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
-
 Telescopes
 =======================
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 3
 
     telescopes/index
 
@@ -32,7 +30,7 @@ Telescopes
 Datasets
 =======================
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 3
 
     datasets/index
 
@@ -40,7 +38,7 @@ Datasets
 Analytical Workflows
 =======================
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 3
 
     workflows/index
 
@@ -48,13 +46,12 @@ Analytical Workflows
 Reports
 =======================
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 3
 
-    reports/index
+    reports
 
 
-API Reference
+API Reference - 1
 =======================
 .. toctree::
     :maxdepth: 1
-
