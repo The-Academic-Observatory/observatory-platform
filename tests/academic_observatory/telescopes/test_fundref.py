@@ -38,6 +38,7 @@ from academic_observatory.telescopes.fundref import (
 )
 from academic_observatory.utils.config_utils import telescope_path, SubFolder
 from academic_observatory.utils.data_utils import _hash_file
+from academic_observatory.utils.test_utils import gzip_file_crc
 from tests.academic_observatory.config import test_fixtures_path
 
 
@@ -71,7 +72,7 @@ class TestFundref(unittest.TestCase):
         self.fundref_test_transform_file_name = 'fundref_3000_01_01.jsonl.gz'
         self.fundref_test_download_hash = 'c9c61c5053208752e8926f159d58b101'
         self.fundref_test_decompress_hash = 'ed14c816d89b4334675bd11514f9cac2'
-        self.fundref_test_transform_hash = '7967c2416c93ffde411f4c37464f6b0d'
+        self.fundref_test_transform_hash = '60ac8e56'
         self.start_date = pendulum.datetime(year=2014, month=3, day=30)
         self.end_date = pendulum.datetime(year=2020, month=1, day=15)
 
@@ -171,7 +172,7 @@ class TestFundref(unittest.TestCase):
             self.assertEqual(self.fundref_test_date, release.date)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
-    def test_decompress_release(self, mock_variable_get):
+    def test_extract_release(self, mock_variable_get):
         """ Test that the release is decompressed as expected.
 
         :return: None.
@@ -216,7 +217,7 @@ class TestFundref(unittest.TestCase):
 
             self.assertTrue(os.path.exists(transform_file_path))
             self.assertEqual(self.fundref_test_transform_file_name, transform_file_name)
-            self.assertEqual(self.fundref_test_transform_hash, _hash_file(transform_file_path, algorithm='md5'))
+            self.assertEqual(self.fundref_test_transform_hash, gzip_file_crc(transform_file_path))
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_parse_fundref_registry_rdf(self, mock_variable_get):
