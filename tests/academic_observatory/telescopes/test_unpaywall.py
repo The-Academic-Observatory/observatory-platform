@@ -14,15 +14,16 @@
 
 # Author: Aniek Roelofs
 
-import datetime
 import logging
 import os
 import shutil
 import unittest
-import vcr
-from click.testing import CliRunner
 from typing import List
 from unittest.mock import patch
+
+import pendulum
+import vcr
+from click.testing import CliRunner
 
 from academic_observatory.telescopes.unpaywall import (
     UnpaywallRelease,
@@ -55,14 +56,16 @@ class TestUnpaywall(unittest.TestCase):
 
         # Unpaywall test release
         self.unpaywall_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'unpaywall.jsonl.gz')
-        self.unpaywall_test_url = UnpaywallTelescope.TELESCOPE_DEBUG_URL
-        self.unpaywall_test_date = '3000-01-27'
+        self.unpaywall_test_url = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
+        self.unpaywall_test_date = pendulum.datetime(year=3000, month=1, day=27)
         self.unpaywall_test_download_file_name = 'unpaywall_3000_01_27.jsonl.gz'
         self.unpaywall_test_decompress_file_name = 'unpaywall_3000_01_27.jsonl'
         self.unpaywall_test_transform_file_name = 'unpaywall_3000_01_27.jsonl'
         self.unpaywall_test_download_hash = '90051478f7b6689838d58edfc2450cb3'
         self.unpaywall_test_decompress_hash = 'fe4e72ce54c4bb236802ddbb3dbee905'
         self.unpaywall_test_transform_hash = '62cbb5af5a78d2e0769a28d976971cba'
+        self.start_date = pendulum.datetime(year=2018, month=3, day=29)
+        self.end_date = pendulum.datetime(year=2020, month=4, day=29)
 
         logging.info("Check that test fixtures exist")
         self.assertTrue(os.path.isfile(self.list_unpaywall_releases_path))
@@ -75,16 +78,23 @@ class TestUnpaywall(unittest.TestCase):
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
-    def test_list_releases(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_list_releases(self, mock_variable_get):
         """ Test that list releases returns a list of string with urls.
 
         :return: None.
         """
         with vcr.use_cassette(self.list_unpaywall_releases_path):
-            releases = list_releases(UnpaywallTelescope.TELESCOPE_URL)
+            # Create data path and mock getting data path
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
+            os.makedirs(data_path, exist_ok=True)
+
+            releases = list_releases(UnpaywallTelescope.TELESCOPE_URL, self.start_date, self.end_date)
             self.assertIsInstance(releases, List)
             for release in releases:
-                self.assertIsInstance(release, str)
+                self.assertIsInstance(release, UnpaywallRelease)
+            self.assertEqual(13, len(releases))
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_release_date(self, mock_variable_get):
@@ -98,13 +108,9 @@ class TestUnpaywall(unittest.TestCase):
             mock_variable_get.return_value = data_path
             os.makedirs(data_path, exist_ok=True)
 
-            with vcr.use_cassette(self.list_unpaywall_releases_path):
-                releases = list_releases(UnpaywallTelescope.TELESCOPE_URL)
-                for release_url in releases:
-                    unpaywall_release = UnpaywallRelease(release_url)
-                    date = unpaywall_release.date
-                    self.assertIsInstance(date, str)
-                    self.assertTrue(datetime.datetime.strptime(date, "%Y-%m-%d"))
+            release = UnpaywallRelease(self.unpaywall_test_url)
+            self.assertIsInstance(release.date, pendulum.Pendulum)
+            self.assertEqual(release.date, self.unpaywall_test_date)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_filepath_download(self, mock_variable_get):
@@ -120,8 +126,8 @@ class TestUnpaywall(unittest.TestCase):
             os.makedirs(data_path, exist_ok=True)
 
             with CliRunner().isolated_filesystem():
-                unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
-                file_path_download = unpaywall_release.filepath_download
+                release = UnpaywallRelease(self.unpaywall_test_url)
+                file_path_download = release.filepath_download
                 path = telescope_path(SubFolder.downloaded, UnpaywallTelescope.DAG_ID)
                 self.assertEqual(os.path.join(path, self.unpaywall_test_download_file_name), file_path_download)
 
@@ -139,8 +145,8 @@ class TestUnpaywall(unittest.TestCase):
             os.makedirs(data_path, exist_ok=True)
 
             with CliRunner().isolated_filesystem():
-                unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
-                file_path_extract = unpaywall_release.filepath_extract
+                release = UnpaywallRelease(self.unpaywall_test_url)
+                file_path_extract = release.filepath_extract
                 path = telescope_path(SubFolder.extracted, UnpaywallTelescope.DAG_ID)
                 self.assertEqual(os.path.join(path, self.unpaywall_test_decompress_file_name), file_path_extract)
 
@@ -158,25 +164,10 @@ class TestUnpaywall(unittest.TestCase):
             os.makedirs(data_path, exist_ok=True)
 
             with CliRunner().isolated_filesystem():
-                unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
-                file_path_transform = unpaywall_release.filepath_transform
+                release = UnpaywallRelease(self.unpaywall_test_url)
+                file_path_transform = release.filepath_transform
                 path = telescope_path(SubFolder.transformed, UnpaywallTelescope.DAG_ID)
                 self.assertEqual(os.path.join(path, self.unpaywall_test_transform_file_name), file_path_transform)
-
-    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
-    def test_download_release_date(self, mock_variable_get):
-        """ Test that the test url contains the correct date.
-
-        :return: None.
-        """
-        with CliRunner().isolated_filesystem():
-            # Create data path and mock getting data path
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
-            os.makedirs(data_path, exist_ok=True)
-
-            unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
-            self.assertEqual(self.unpaywall_test_date, unpaywall_release.date)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_decompress_release(self, mock_variable_get):
@@ -191,11 +182,11 @@ class TestUnpaywall(unittest.TestCase):
             mock_variable_get.return_value = data_path
             os.makedirs(data_path, exist_ok=True)
 
-            unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
+            release = UnpaywallRelease(self.unpaywall_test_url)
             # 'download' release
-            shutil.copyfile(self.unpaywall_test_path, unpaywall_release.filepath_download)
+            shutil.copyfile(self.unpaywall_test_path, release.filepath_download)
 
-            decompress_file_path = extract_release(unpaywall_release)
+            decompress_file_path = extract_release(release)
             decompress_file_name = os.path.basename(decompress_file_path)
 
             self.assertTrue(os.path.exists(decompress_file_path))
@@ -215,11 +206,11 @@ class TestUnpaywall(unittest.TestCase):
             mock_variable_get.return_value = data_path
             os.makedirs(data_path, exist_ok=True)
 
-            unpaywall_release = UnpaywallRelease(self.unpaywall_test_url)
-            shutil.copyfile(self.unpaywall_test_path, unpaywall_release.filepath_download)
+            release = UnpaywallRelease(self.unpaywall_test_url)
+            shutil.copyfile(self.unpaywall_test_path, release.filepath_download)
 
-            extract_release(unpaywall_release)
-            transform_file_path = transform_release(unpaywall_release)
+            extract_release(release)
+            transform_file_path = transform_release(release)
             transform_file_name = os.path.basename(transform_file_path)
 
             self.assertTrue(os.path.exists(transform_file_path))

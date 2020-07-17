@@ -154,6 +154,11 @@ class MagTelescope:
     QUEUE = 'remote_queue'
     DESCRIPTION = 'The Microsoft Academic Graph (MAG) dataset: https://www.microsoft.com/en-us/research/project/' \
                   'microsoft-academic-graph/'
+    RELEASES_TOPIC_NAME = 'releases'
+    MAX_PROCESSES = cpu_count()
+    MAX_CONNECTIONS = cpu_count()
+    MAX_RETRIES = 3
+
     TASK_ID_CHECK_DEPENDENCIES = 'check_dependencies'
     TASK_ID_LIST = 'list_releases'
     TASK_ID_TRANSFER = 'transfer'
@@ -161,19 +166,15 @@ class MagTelescope:
     TASK_ID_TRANSFORM = 'transform'
     TASK_ID_UPLOAD_TRANSFORMED = 'upload_transformed'
     TASK_ID_BQ_LOAD = 'bq_load'
-    TASK_ID_STOP = 'stop_dag'
-    RELEASES_TOPIC_NAME = 'releases'
     TASK_ID_CLEANUP = 'cleanup'
-    MAX_PROCESSES = cpu_count()
-    MAX_CONNECTIONS = cpu_count()
-    MAX_RETRIES = 3
 
     @staticmethod
     def check_dependencies(**kwargs):
         """ Check that all variables and connections exist that are required to run the DAG.
 
-        :param kwargs:
-        :return:
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
         """
 
         vars_valid = check_variables("data_path", "project_id", "data_location",
@@ -236,7 +237,7 @@ class MagTelescope:
         ti: TaskInstance = kwargs['ti']
         releases = pull_releases(ti)
 
-        # Get Observatory Config
+        # Get variables
         environment = Variable.get("environment")
         gcp_project_id = Variable.get("project_id")
         gcp_bucket_name = Variable.get("download_bucket_name")

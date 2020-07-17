@@ -31,6 +31,7 @@ from crc32c import Checksum as Crc32cChecksum
 from google.api_core.exceptions import Conflict
 from google.cloud import storage, bigquery
 from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob
+from google.cloud.exceptions import NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
 from pendulum import Pendulum
@@ -92,13 +93,27 @@ class TransferStatus(Enum):
     failed = 'FAILED'
 
 
-# def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str):
-#     # Make dataset handle
-#     client = bigquery.Client()
-#     dataset = bigquery.Dataset(dataset_id)
-#
-#     try:
-#     dataset.table(table_name)
+def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str) -> bool:
+    """ Checks whether a BigQuery table exists or not.
+
+    :param project_id: the Google Cloud project id.
+    :param dataset_id: the BigQuery dataset id.
+    :param table_name: the name of the table.
+    :return: whether the table exists or not.
+    """
+
+    client = bigquery.Client(project_id)
+    dataset = bigquery.Dataset(f'{project_id}.{dataset_id}')
+    table = dataset.table(table_name)
+    table_exists = True
+
+    try:
+        client.get_table(table)
+    except NotFound:
+        table_exists = False
+
+    return table_exists
+
 
 def bigquery_partitioned_table_id(table_name, datetime: Pendulum) -> str:
     """ Create a partitioned table identifier for a BigQuery table.
@@ -113,8 +128,8 @@ def bigquery_partitioned_table_id(table_name, datetime: Pendulum) -> str:
 def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, description: str = '') -> None:
     """ Create a BigQuery dataset.
 
-    :param project_id: the Google Cloud project id
-    :param dataset_id: the BigQuery dataset id
+    :param project_id: the Google Cloud project id.
+    :param dataset_id: the BigQuery dataset id.
     :param location: the location where the dataset will be stored:
     https://cloud.google.com/compute/docs/regions-zones/#locations
     :param description: a description for the dataset

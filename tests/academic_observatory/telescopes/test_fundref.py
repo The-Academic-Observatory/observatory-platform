@@ -14,7 +14,6 @@
 
 # Author: Aniek Roelofs
 
-import datetime
 import logging
 import os
 import shutil
@@ -23,6 +22,7 @@ import xml.etree.ElementTree as ET
 from typing import List, Dict
 from unittest.mock import patch
 
+import pendulum
 import vcr
 from click.testing import CliRunner
 
@@ -30,7 +30,7 @@ from academic_observatory.telescopes.fundref import (
     FundrefRelease,
     FundrefTelescope,
     add_funders_relationships,
-    decompress_release,
+    extract_release,
     list_releases,
     parse_fundref_registry_rdf,
     recursive_funders,
@@ -65,13 +65,15 @@ class TestFundref(unittest.TestCase):
             '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}country',
             attrib={'{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource': 'http://sws.geonames.org/6252001/'})
         self.fundref_nested_element.tail = '\n      '
-        self.fundref_test_date = '3000-01-01'
+        self.fundref_test_date = pendulum.datetime(year=3000, month=1, day=1)
         self.fundref_test_download_file_name = 'fundref_3000_01_01.tar.gz'
         self.fundref_test_decompress_file_name = 'fundref_3000_01_01.rdf'
-        self.fundref_test_transform_file_name = 'fundref_3000_01_01.rdf'
+        self.fundref_test_transform_file_name = 'fundref_3000_01_01.jsonl.gz'
         self.fundref_test_download_hash = 'c9c61c5053208752e8926f159d58b101'
         self.fundref_test_decompress_hash = 'ed14c816d89b4334675bd11514f9cac2'
         self.fundref_test_transform_hash = '7967c2416c93ffde411f4c37464f6b0d'
+        self.start_date = pendulum.datetime(year=2014, month=3, day=30)
+        self.end_date = pendulum.datetime(year=2020, month=1, day=15)
 
         logging.info("Check that test fixtures exist")
         self.assertTrue(os.path.isfile(self.list_fundref_releases_path))
@@ -84,128 +86,130 @@ class TestFundref(unittest.TestCase):
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
-    def test_list_releases(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_list_releases(self, mock_variable_get):
         """ Test that list releases returns a dictionary with releases.
 
         :return: None.
         """
         with vcr.use_cassette(self.list_fundref_releases_path):
-            releases = list_releases(FundrefTelescope.TELESCOPE_URL)
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
+
+            releases = list_releases(FundrefTelescope.TELESCOPE_URL, self.start_date, self.end_date)
             self.assertIsInstance(releases, List)
             for release in releases:
-                self.assertIsInstance(release, Dict)
-                self.assertIn('url', release)
-                self.assertIn('date', release)
+                self.assertIsInstance(release, FundrefRelease)
+            self.assertEqual(38, len(releases))
 
-    def test_release_date(self):
-        """ Test that date obtained from url is string and in correct format.
-
-        :return: None.
-        """
-        with vcr.use_cassette(self.list_fundref_releases_path):
-            releases_list = list_releases(FundrefTelescope.TELESCOPE_URL)
-            for release in releases_list:
-                release = FundrefRelease(release['url'], release['date'])
-                date = release.date
-                self.assertIsInstance(date, str)
-                self.assertTrue(datetime.datetime.strptime(date, "%Y-%m-%d"))
-
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_filepath_download(self, home_mock):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_filepath_download(self, mock_variable_get):
         """ Test that path of downloaded file is correct for given url.
 
         :param home_mock: Mock observatory home path
         :return: None.
         """
         with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
             with CliRunner().isolated_filesystem():
                 release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
                 file_path_download = release.get_filepath(SubFolder.downloaded)
-                path = telescope_path(FundrefTelescope.DAG_ID, SubFolder.downloaded)
+                path = telescope_path(SubFolder.downloaded, FundrefTelescope.DAG_ID)
                 self.assertEqual(os.path.join(path, self.fundref_test_download_file_name), file_path_download)
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_filepath_extract(self, home_mock):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_filepath_extract(self, mock_variable_get):
         """ Test that path of decompressed/extracted file is correct for given url.
 
         :param home_mock: Mock observatory home path
         :return: None.
         """
         with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
             with CliRunner().isolated_filesystem():
                 release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
                 file_path_extract = release.get_filepath(SubFolder.extracted)
-                path = telescope_path(FundrefTelescope.DAG_ID, SubFolder.extracted)
+                path = telescope_path(SubFolder.extracted, FundrefTelescope.DAG_ID)
                 self.assertEqual(os.path.join(path, self.fundref_test_decompress_file_name), file_path_extract)
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_filepath_transform(self, home_mock):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_filepath_transform(self, mock_variable_get):
         """ Test that path of transformed file is correct for given url.
 
         :param home_mock: Mock observatory home path
         :return: None.
         """
         with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
-            with CliRunner().isolated_filesystem():
-                release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
-                file_path_transform = release.filepath_transform
-                path = telescope_path(FundrefTelescope.DAG_ID, SubFolder.transformed)
-                self.assertEqual(os.path.join(path, self.fundref_test_transform_file_name), file_path_transform)
+            release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
+            file_path_transform = release.filepath_transform
+            path = telescope_path(SubFolder.transformed, FundrefTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.fundref_test_transform_file_name), file_path_transform)
 
-    def test_download_release_date(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_download_release_date(self, mock_variable_get):
         """ Test that the test url contains the correct date.
 
         :return: None.
         """
         with CliRunner().isolated_filesystem():
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
+
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             self.assertEqual(self.fundref_test_date, release.date)
 
-    def test_decompress_release(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_decompress_release(self, mock_variable_get):
         """ Test that the release is decompressed as expected.
 
         :return: None.
         """
 
         with CliRunner().isolated_filesystem():
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
+
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
 
-            decompress_file_path = decompress_release(release)
+            decompress_file_path = extract_release(release)
             decompress_file_name = os.path.basename(decompress_file_path)
 
             self.assertTrue(os.path.exists(decompress_file_path))
             self.assertEqual(self.fundref_test_decompress_file_name, decompress_file_name)
             self.assertEqual(self.fundref_test_decompress_hash, _hash_file(decompress_file_path, algorithm='md5'))
 
-    def test_transform_release(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_transform_release(self, mock_variable_get):
         """ Test that the release is transformed as expected.
 
         :return: None.
         """
 
         with CliRunner().isolated_filesystem():
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
+
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
             # decompress
-            decompress_release(release)
+            extract_release(release)
             # transform
             transform_file_path = transform_release(release)
             transform_file_name = os.path.basename(transform_file_path)
@@ -214,17 +218,22 @@ class TestFundref(unittest.TestCase):
             self.assertEqual(self.fundref_test_transform_file_name, transform_file_name)
             self.assertEqual(self.fundref_test_transform_hash, _hash_file(transform_file_path, algorithm='md5'))
 
-    def test_parse_fundref_registry_rdf(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_parse_fundref_registry_rdf(self, mock_variable_get):
         """ Test that correct funders list and dictionary are returned when parsing funders registry.
 
         :return: None.
         """
         with CliRunner().isolated_filesystem():
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
+
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
             # decompress release
-            decompress_file_path = decompress_release(release)
+            decompress_file_path = extract_release(release)
             # parse fundref registry
             funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path)
 
@@ -283,17 +292,22 @@ class TestFundref(unittest.TestCase):
                 self.assertTrue(key.startswith('http://dx.doi.org/10.13039/'))
                 self.assertIsInstance(funders_by_key[key], Dict)
 
-    def test_recursive_funders(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_recursive_funders(self, mock_variable_get):
         """ Test that correct children/parents list and depth are returned.
 
         :return:
         """
         with CliRunner().isolated_filesystem():
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
+
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
             # decompress release
-            decompress_file_path = decompress_release(release)
+            decompress_file_path = extract_release(release)
             # parse fundref registry
             funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path)
             # iterate through funders recursively
@@ -310,17 +324,22 @@ class TestFundref(unittest.TestCase):
             for parent in parents:
                 self.assertIn('parent', parent)
 
-    def test_add_funders_relationships(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_add_funders_relationships(self, mock_variable_get):
         """ Test that children are added to each funder dictionary.
 
         :return: None.
         """
         with CliRunner().isolated_filesystem():
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
+
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
             # decompress release
-            decompress_file_path = decompress_release(release)
+            decompress_file_path = extract_release(release)
             # parse fundref registry
             funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path)
             # add funders relationships

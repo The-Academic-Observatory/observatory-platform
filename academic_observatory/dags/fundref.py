@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs
+# Author: Aniek Roelofs, Jamie Diprose
 
 from datetime import datetime
+
 from airflow import DAG
-from airflow.operators.python_operator import BranchPythonOperator
 from airflow.operators.python_operator import PythonOperator
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import ShortCircuitOperator
 
 from academic_observatory.telescopes.fundref import FundrefTelescope
 
@@ -27,60 +27,78 @@ default_args = {
     "start_date": datetime(2014, 3, 1)
 }
 
-
-with DAG(dag_id="fundref", schedule_interval="@monthly", default_args=default_args) as dag:
-    # Get config variables
-    check_setup = PythonOperator(
-        task_id=FundrefTelescope.TASK_ID_SETUP,
-        python_callable=FundrefTelescope.check_setup_requirements,
-        provide_context=True
+with DAG(dag_id="fundref", schedule_interval="@weekly", default_args=default_args) as dag:
+    # Check that dependencies exist before starting
+    check = PythonOperator(
+        task_id=FundrefTelescope.TASK_ID_CHECK_DEPENDENCIES,
+        python_callable=FundrefTelescope.check_dependencies,
+        provide_context=True,
+        queue=FundrefTelescope.QUEUE
     )
+
     # List of all releases for last month
-    list_releases = BranchPythonOperator(
+    list_releases = ShortCircuitOperator(
         task_id=FundrefTelescope.TASK_ID_LIST,
-        python_callable=FundrefTelescope.list_releases_last_month,
-        provide_context=True
+        python_callable=FundrefTelescope.list_releases,
+        provide_context=True,
+        queue=FundrefTelescope.QUEUE
     )
-    # end workflow
-    stop_workflow = DummyOperator(task_id=FundrefTelescope.TASK_ID_STOP)
 
-    # Downloads snapshot from url
-    download_local = PythonOperator(
+    # Downloads the release
+    download = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_DOWNLOAD,
         python_callable=FundrefTelescope.download,
-        provide_context=True
+        provide_context=True,
+        queue=FundrefTelescope.QUEUE
     )
+
+    # Upload downloaded data for a given interval
+    upload_downloaded = PythonOperator(
+        task_id=FundrefTelescope.TASK_ID_UPLOAD_DOWNLOADED,
+        provide_context=True,
+        python_callable=FundrefTelescope.upload_downloaded,
+        queue=FundrefTelescope.QUEUE
+    )
+
     # Decompresses download
-    decompress = PythonOperator(
-        task_id=FundrefTelescope.TASK_ID_DECOMPRESS,
-        python_callable=FundrefTelescope.decompress,
-        provide_context=True
+    extract = PythonOperator(
+        task_id=FundrefTelescope.TASK_ID_EXTRACT,
+        python_callable=FundrefTelescope.extract,
+        provide_context=True,
+        queue=FundrefTelescope.QUEUE
     )
+
     # Transforms download
     transform = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_TRANSFORM,
         python_callable=FundrefTelescope.transform,
-        provide_context=True
-    )
-    # Upload download to gcs bucket
-    upload_to_gcs = PythonOperator(
-        task_id=FundrefTelescope.TASK_ID_UPLOAD,
-        python_callable=FundrefTelescope.upload_to_gcs,
-        provide_context=True
-    )
-    # Upload download to bigquery table
-    load_to_bq = PythonOperator(
-        task_id=FundrefTelescope.TASK_ID_BQ_LOAD,
-        python_callable=FundrefTelescope.load_to_bq,
-        provide_context=True
-    )
-    # Delete locally stored files
-    cleanup_local = PythonOperator(
-        task_id=FundrefTelescope.TASK_ID_CLEANUP,
-        python_callable=FundrefTelescope.cleanup_releases,
-        provide_context=True
+        provide_context=True,
+        queue=FundrefTelescope.QUEUE
     )
 
-    check_setup >> [list_releases, stop_workflow]
-    list_releases >> [download_local, stop_workflow]
-    download_local >> decompress >> transform >> upload_to_gcs >> load_to_bq >> cleanup_local
+    # Upload transformed data to gcs bucket
+    upload_transformed = PythonOperator(
+        task_id=FundrefTelescope.TASK_ID_UPLOAD_TRANSFORMED,
+        python_callable=FundrefTelescope.upload_transformed,
+        provide_context=True,
+        queue=FundrefTelescope.QUEUE
+    )
+
+    # Upload download to bigquery table
+    bq_load = PythonOperator(
+        task_id=FundrefTelescope.TASK_ID_BQ_LOAD,
+        python_callable=FundrefTelescope.bq_load,
+        provide_context=True,
+        queue=FundrefTelescope.QUEUE
+    )
+
+    # Delete locally stored files
+    cleanup = PythonOperator(
+        task_id=FundrefTelescope.TASK_ID_CLEANUP,
+        python_callable=FundrefTelescope.cleanup,
+        provide_context=True,
+        queue=FundrefTelescope.QUEUE
+    )
+
+    # Task dependencies
+    check >> list_releases >> download >> upload_downloaded >> extract >> transform >> upload_transformed >> bq_load >> cleanup

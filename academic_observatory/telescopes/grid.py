@@ -164,8 +164,10 @@ class GridTelescope:
     """ A container for holding the constants and static functions for the GRID telescope. """
 
     DAG_ID = 'grid'
-    QUEUE = 'remote_queue'
     DESCRIPTION = 'The Global Research Identifier Database (GRID): https://grid.ac/'
+    RELEASES_TOPIC_NAME = 'releases'
+    QUEUE = 'remote_queue'
+
     TASK_ID_CHECK_DEPENDENCIES = 'check_dependencies'
     TASK_ID_LIST = 'list_releases'
     TASK_ID_DOWNLOAD = 'download'
@@ -176,14 +178,14 @@ class GridTelescope:
     TASK_ID_BQ_LOAD = 'bq_load'
     TASK_ID_CLEANUP = 'cleanup'
     TASK_ID_STOP = 'stop_dag'
-    RELEASES_TOPIC_NAME = 'releases'
 
     @staticmethod
     def check_dependencies(**kwargs):
         """ Check that all variables exist that are required to run the DAG.
 
-        :param kwargs:
-        :return:
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
         """
 
         vars_valid = check_variables("data_path", "project_id", "data_location",
@@ -412,7 +414,7 @@ class GridTelescope:
         ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
 
     @staticmethod
-    def db_load(**kwargs):
+    def bq_load(**kwargs):
         """ Task to load the transformed GRID releases for a given month to BigQuery.
 
         :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html

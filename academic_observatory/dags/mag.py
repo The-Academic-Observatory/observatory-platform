@@ -29,76 +29,67 @@ default_args = {
 
 with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=default_args) as dag:
     # Check that dependencies exist before starting
-    task_check = PythonOperator(
+    check = PythonOperator(
         task_id=MagTelescope.TASK_ID_CHECK_DEPENDENCIES,
-        provide_context=True,
         python_callable=MagTelescope.check_dependencies,
-        dag=dag,
-        depends_on_past=False,
+        provide_context=True,
         queue=MagTelescope.QUEUE
     )
 
     # List releases and skip all subsequent tasks if there is no release to process
-    task_list = ShortCircuitOperator(
+    list_releases = ShortCircuitOperator(
         task_id=MagTelescope.TASK_ID_LIST,
-        provide_context=True,
         python_callable=MagTelescope.list_releases,
-        dag=dag,
+        provide_context=True,
         queue=MagTelescope.QUEUE
     )
 
     # Transfer all MAG releases to Google Cloud storage that were processed in the given interval
-    task_transfer = PythonOperator(
+    transfer = PythonOperator(
         task_id=MagTelescope.TASK_ID_TRANSFER,
-        provide_context=True,
         python_callable=MagTelescope.transfer,
-        dag=dag,
+        provide_context=True,
         queue=MagTelescope.QUEUE
     )
 
     # Download all MAG releases for a given interval
-    task_download = PythonOperator(
+    download = PythonOperator(
         task_id=MagTelescope.TASK_ID_DOWNLOAD,
-        provide_context=True,
         python_callable=MagTelescope.download,
-        dag=dag,
+        provide_context=True,
         queue=MagTelescope.QUEUE
     )
 
     # Transform all MAG releases for a given interval
-    task_transform = PythonOperator(
+    transform = PythonOperator(
         task_id=MagTelescope.TASK_ID_TRANSFORM,
-        provide_context=True,
         python_callable=MagTelescope.transform,
-        dag=dag,
+        provide_context=True,
         queue=MagTelescope.QUEUE
     )
 
     # Upload all transformed MAG releases for a given interval to Google Cloud
-    task_upload_transformed = PythonOperator(
+    upload_transformed = PythonOperator(
         task_id=MagTelescope.TASK_ID_UPLOAD_TRANSFORMED,
-        provide_context=True,
         python_callable=MagTelescope.upload_transformed,
-        dag=dag,
+        provide_context=True,
         queue=MagTelescope.QUEUE
     )
 
     # Load all MAG releases for a given interval to BigQuery
-    task_bq_load = PythonOperator(
+    bq_load = PythonOperator(
         task_id=MagTelescope.TASK_ID_BQ_LOAD,
-        provide_context=True,
         python_callable=MagTelescope.bq_load,
-        dag=dag,
+        provide_context=True,
         queue=MagTelescope.QUEUE
     )
 
     # Cleanup local files
-    task_cleanup = PythonOperator(
+    cleanup = PythonOperator(
         task_id=MagTelescope.TASK_ID_CLEANUP,
-        provide_context=True,
         python_callable=MagTelescope.cleanup,
-        dag=dag,
+        provide_context=True,
         queue=MagTelescope.QUEUE
     )
 
-    task_check >> task_list >> task_transfer >> task_download >> task_transform >> task_upload_transformed >> task_bq_load >> task_cleanup
+    check >> list_releases >> transfer >> download >> transform >> upload_transformed >> bq_load >> cleanup
