@@ -27,7 +27,7 @@ default_args = {
     "start_date": datetime(2020, 7, 1)
 }
 
-with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=default_args) as dag:
+with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=default_args, max_active_runs=1) as dag:
     # Check that dependencies exist before starting
     check = PythonOperator(
         task_id=MagTelescope.TASK_ID_CHECK_DEPENDENCIES,

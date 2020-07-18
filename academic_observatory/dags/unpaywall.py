@@ -24,10 +24,10 @@ from academic_observatory.telescopes.unpaywall import UnpaywallTelescope
 
 default_args = {
     "owner": "Airflow",
-    "start_date": datetime(2020, 4, 1)
+    "start_date": datetime(2018, 3, 29)
 }
 
-with DAG(dag_id="unpaywall", schedule_interval="@weekly", default_args=default_args) as dag:
+with DAG(dag_id="unpaywall", schedule_interval="@weekly", default_args=default_args, max_active_runs=2) as dag:
     # Check that variables exist
     check = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_CHECK_DEPENDENCIES,

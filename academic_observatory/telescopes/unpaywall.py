@@ -20,10 +20,10 @@ import pathlib
 import re
 import shutil
 import subprocess
-import xml.etree.ElementTree as ET
 from typing import List
 
 import pendulum
+import xmltodict
 from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
@@ -42,9 +42,9 @@ from academic_observatory.utils.gc_utils import (
     bigquery_partitioned_table_id,
     create_bigquery_dataset,
     load_bigquery_table,
-    upload_file_to_cloud_storage
+    upload_file_to_cloud_storage,
+    bigquery_table_exists
 )
-from academic_observatory.utils.gc_utils import bigquery_table_exists
 from academic_observatory.utils.proc_utils import wait_for_process
 from academic_observatory.utils.url_utils import retry_session
 from tests.academic_observatory.config import test_fixtures_path
@@ -61,7 +61,7 @@ def pull_releases(ti: TaskInstance) -> List:
                         include_prior_dates=False)
 
 
-def list_releases(telescope_url: str, start_date: Pendulum, end_date: Pendulum) -> List['UnpaywallRelease']:
+def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['UnpaywallRelease']:
     """ Parses xml string retrieved from GET request to create list of urls for
     different releases.
 
@@ -72,16 +72,26 @@ def list_releases(telescope_url: str, start_date: Pendulum, end_date: Pendulum) 
     """
     releases_list = []
 
-    xml_string = retry_session().get(telescope_url).text
-    if xml_string:
-        root = ET.fromstring(xml_string)
-        for release in root.findall('.//{http://s3.amazonaws.com/doc/2006-03-01/}Key'):
-            snapshot_url = os.path.join(telescope_url, release.text)
-            release = UnpaywallRelease(snapshot_url)
+    # Request releases page
+    response = retry_session().get(UnpaywallTelescope.TELESCOPE_URL)
 
-            # Add the release if it is between the start and end date
-            if start_date <= release.date < end_date:
+    if response is not None and response.status_code == 200:
+        # Parse releases
+        items = xmltodict.parse(response.text)['ListBucketResult']['Contents']
+        for item in items:
+            # Get filename and parse dates
+            file_name = item['Key']
+            last_modified = pendulum.parse(item['LastModified'])
+            release_date = UnpaywallRelease.parse_release_date(file_name)
+
+            # Only include release if last modified date is within start and end date.
+            # Last modified date is used rather than release date because if release date is used then releases will
+            # be missed.
+            if start_date <= last_modified < end_date:
+                release = UnpaywallRelease(file_name, last_modified, release_date)
                 releases_list.append(release)
+    else:
+        raise ConnectionError(f"Error requesting url: {UnpaywallTelescope.TELESCOPE_URL}")
 
     return releases_list
 
@@ -154,20 +164,26 @@ def transform_release(release: 'UnpaywallRelease') -> str:
 
 class UnpaywallRelease:
 
-    def __init__(self, url):
-        self.url = url
-        self.date: Pendulum = self.release_date()
+    def __init__(self, file_name: str, last_modified: Pendulum, release_date: Pendulum):
+        self.file_name = file_name
+        self.last_modified = last_modified
+        self.release_date = release_date
         self.filepath_download = self.get_filepath_download()
         self.filepath_extract = self.get_filepath_extract()
         self.filepath_transform = self.get_filepath_transform()
 
-    def release_date(self) -> Pendulum:
-        """ Finds date in a given url.
+    @property
+    def url(self):
+        return f'{UnpaywallTelescope.TELESCOPE_URL}{self.file_name}'
+
+    @staticmethod
+    def parse_release_date(file_name: str) -> Pendulum:
+        """ Parses a release date from a file name.
 
         :return: date.
         """
 
-        date = re.search(r'\d{4}-\d{2}-\d{2}', self.url).group()
+        date = re.search(r'\d{4}-\d{2}-\d{2}', file_name).group()
 
         return pendulum.parse(date)
 
@@ -177,7 +193,7 @@ class UnpaywallRelease:
         :return: absolute file path
         """
 
-        date_str = self.date.strftime("%Y_%m_%d")
+        date_str = self.release_date.strftime("%Y_%m_%d")
         compressed_file_name = f"{UnpaywallTelescope.DAG_ID}_{date_str}.jsonl.gz"
         download_dir = telescope_path(SubFolder.downloaded, UnpaywallTelescope.DAG_ID)
         path = os.path.join(download_dir, compressed_file_name)
@@ -190,7 +206,7 @@ class UnpaywallRelease:
         :return: absolute file path
         """
 
-        date_str = self.date.strftime("%Y_%m_%d")
+        date_str = self.release_date.strftime("%Y_%m_%d")
         decompressed_file_name = f"{UnpaywallTelescope.DAG_ID}_{date_str}.jsonl"
         extract_dir = telescope_path(SubFolder.extracted, UnpaywallTelescope.DAG_ID)
         path = os.path.join(extract_dir, decompressed_file_name)
@@ -203,7 +219,7 @@ class UnpaywallRelease:
         :return: absolute file path
         """
 
-        date_str = self.date.strftime("%Y_%m_%d")
+        date_str = self.release_date.strftime("%Y_%m_%d")
         decompressed_file_name = f"{UnpaywallTelescope.DAG_ID}_{date_str}.jsonl"
         transform_dir = telescope_path(SubFolder.transformed, UnpaywallTelescope.DAG_ID)
         path = os.path.join(transform_dir, decompressed_file_name)
@@ -263,15 +279,15 @@ class UnpaywallTelescope:
         project_id = Variable.get("project_id")
 
         # List releases between a start and end date
-        start_date = kwargs['execution_date']
-        end_date = kwargs['next_execution_date']
-        releases_list = list_releases(UnpaywallTelescope.TELESCOPE_URL, start_date, end_date)
-        logging.info(f'Releases between {start_date} and {end_date}:\n{releases_list}\n')
+        execution_date = kwargs['execution_date']
+        next_execution_date = kwargs['next_execution_date']
+        releases_list = list_releases(execution_date, next_execution_date)
+        logging.info(f'Releases between {execution_date} and {next_execution_date}:\n{releases_list}\n')
 
         # Check if the BigQuery table exists for each release to see if the workflow needs to process
         releases_list_out = []
         for release in releases_list:
-            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, release.date)
+            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, release.release_date)
 
             if bigquery_table_exists(project_id, UnpaywallTelescope.DATASET_ID, table_id):
                 logging.info(f'Skipping as table exists for {release.url}: '
@@ -330,7 +346,7 @@ class UnpaywallTelescope:
 
         # Upload each release
         for release in releases_list:
-            blob_name = f'telescopes/unpaywall/{os.path.basename(release.filepath_transform)}'
+            blob_name = f'telescopes/unpaywall/{os.path.basename(release.filepath_download)}'
             upload_file_to_cloud_storage(bucket_name, blob_name, file_path=release.filepath_download)
 
     @staticmethod
@@ -407,7 +423,7 @@ class UnpaywallTelescope:
         data_location = Variable.get("data_location")
 
         # Create dataset
-        dataset_id = UnpaywallTelescope.DAG_ID
+        dataset_id = UnpaywallTelescope.DATASET_ID
         create_bigquery_dataset(project_id, dataset_id, data_location, UnpaywallTelescope.DESCRIPTION)
 
         for release in releases_list:
@@ -415,15 +431,14 @@ class UnpaywallTelescope:
             blob_name = f'telescopes/unpaywall/{os.path.basename(release.filepath_transform)}'
 
             # Get release_date
-            released_date: Pendulum = pendulum.parse(release.date)
-            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, released_date)
+            table_id = bigquery_partitioned_table_id(dataset_id, release.date)
 
             # Select schema file based on release date
             analysis_schema_path = schema_path('telescopes')
-            schema_file_path = find_schema(analysis_schema_path, UnpaywallTelescope.DAG_ID, released_date)
+            schema_file_path = find_schema(analysis_schema_path, UnpaywallTelescope.DAG_ID, release.date)
             if schema_file_path is None:
                 logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
-                              f'table_name={UnpaywallTelescope.DAG_ID}, release_date={released_date}')
+                              f'table_name={UnpaywallTelescope.DAG_ID}, release_date={release.date}')
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs, Richard Hosking
+# Author: Aniek Roelofs, Richard Hosking, James Diprose
 
 import gzip
 import io
@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import pathlib
+import random
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
@@ -34,26 +35,26 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
-from academic_observatory.utils.config_utils import check_variables
 from academic_observatory.utils.config_utils import (
     find_schema,
     SubFolder,
     schema_path,
     telescope_path,
+    check_variables
 )
 from academic_observatory.utils.gc_utils import (
     bigquery_partitioned_table_id,
     create_bigquery_dataset,
     load_bigquery_table,
-    upload_file_to_cloud_storage
+    upload_file_to_cloud_storage,
+    bigquery_table_exists
 )
-from academic_observatory.utils.gc_utils import bigquery_table_exists
 from academic_observatory.utils.proc_utils import wait_for_process
 from academic_observatory.utils.url_utils import retry_session
 from tests.academic_observatory.config import test_fixtures_path
 
 
-def list_releases(telescope_url: str, start_date: Pendulum, end_date: Pendulum) -> List['FundrefRelease']:
+def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['FundrefRelease']:
     """ List all available fundref releases
 
     :param telescope_url:
@@ -62,22 +63,51 @@ def list_releases(telescope_url: str, start_date: Pendulum, end_date: Pendulum) 
     :return: list of FundrefRelease instances.
     """
 
-    releases_list = []
-    response = retry_session().get(telescope_url + '?per_page=100')
+    # A selection of headers to prevent 403/forbidden error.
+    headers_list = [
+        {
+            'authority': 'gitlab.com',
+            'upgrade-insecure-requests': '1',
+            'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.89 Safari/537.36',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'sec-fetch-site': 'none',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-dest': 'document',
+            'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'
+        },
+        {
+            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+        }
+    ]
 
-    if response:
-        num_pages = int(response.headers['X-Total-Pages'])
-        current_page = int(response.headers['X-Page'])
-        while num_pages >= current_page:
-            response = retry_session().get(telescope_url + f'?per_page=100&page={current_page}')
+    releases_list = []
+    headers = random.choice(headers_list)
+    current_page = 1
+
+    while True:
+        # Fetch page
+        url = f'{FundrefTelescope.TELESCOPE_URL}?per_page=100&page={current_page}'
+        response = retry_session().get(url, headers=headers)
+
+        # Check if correct response code
+        if response is not None and response.status_code == 200:
+            # Parse json
+            num_pages = int(response.headers['X-Total-Pages'])
             json_response = json.loads(response.text)
+
+            # Parse release information
             for release in json_response:
                 version = float(release['tag_name'].strip('v'))
                 for source in release['assets']['sources']:
                     if source['format'] == 'tar.gz':
                         # Parse release date
                         if version == 0.1:
-                            release_date = pendulum.parse('2014-03-01')
+                            release_date = pendulum.datetime(year=2014, month=3, day=1)
                         elif version < 1.0:
                             date_string = release['description'].split('\n')[0]
                             release_date = pendulum.parse('01' + date_string)
@@ -88,10 +118,14 @@ def list_releases(telescope_url: str, start_date: Pendulum, end_date: Pendulum) 
                         if start_date <= release_date < end_date:
                             release = FundrefRelease(source['url'], release_date)
                             releases_list.append(release)
+
+            # Check if we should exit or get the next page
+            if num_pages <= current_page:
+                break
             current_page += 1
-    else:
-        logging.error(f"Error retrieving response from url {telescope_url}")
-        exit(os.EX_DATAERR)
+        else:
+            logging.error(f"Error retrieving response")
+            exit(os.EX_DATAERR)
 
     return releases_list
 
@@ -105,11 +139,28 @@ def download_release(release: 'FundrefRelease') -> str:
     file_path = release.filepath_download
     logging.info(f"Downloading file: {file_path}, url: {release.url}")
 
-    # Add browser agent to prevent 403/forbidden error.
-    header = {'User-Agent': 'Mozilla/5.0'}
+    # A selection of headers to prevent 403/forbidden error.
+    headers_list = [
+        {
+            'authority': 'gitlab.com',
+            'upgrade-insecure-requests': '1',
+            'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'sec-fetch-site': 'none',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-dest': 'document',
+            'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'
+        },
+        {
+            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Referer': 'https://gitlab.com/'
+        }
+    ]
 
     # Download release
-    with requests.get(release.url, headers=header, stream=True) as response:
+    with requests.get(release.url, headers=random.choice(headers_list), stream=True) as response:
         with open(file_path, 'wb') as file:
             shutil.copyfileobj(response.raw, file)
 
@@ -500,10 +551,10 @@ class FundrefTelescope:
         project_id = Variable.get("project_id")
 
         # List releases between a start date and an end date
-        start_date = kwargs['execution_date']
-        end_date = kwargs['next_execution_date']
-        releases_list = list_releases(FundrefTelescope.TELESCOPE_URL, start_date, end_date)
-        logging.info(f'Releases between current ({start_date}) and next ({end_date}) execution date:')
+        execution_date = kwargs['execution_date']
+        next_execution_date = kwargs['next_execution_date']
+        releases_list = list_releases(execution_date, next_execution_date)
+        logging.info(f'Releases between current ({execution_date}) and next ({next_execution_date}) execution date:')
         print(*releases_list, sep='\n')
 
         # Check if the BigQuery table for each release already exists and only process release if the table
@@ -524,7 +575,7 @@ class FundrefTelescope:
         continue_dag = len(releases_list_out)
         if continue_dag:
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(FundrefTelescope.RELEASES_TOPIC_NAME, releases_list_out, start_date)
+            ti.xcom_push(FundrefTelescope.RELEASES_TOPIC_NAME, releases_list_out, execution_date)
         return continue_dag
 
     @staticmethod

@@ -17,6 +17,7 @@
 from datetime import datetime
 
 from airflow import DAG
+from airflow.api.common.experimental.pool import create_pool
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 
@@ -28,6 +29,13 @@ default_args = {
 }
 
 with DAG(dag_id="fundref", schedule_interval="@weekly", default_args=default_args) as dag:
+    # Create Gitlab pool to limit the number of connections to Gitlab, which is very quick to block requests if there
+    # are too many at once.
+    pool_name = 'gitlab_pool'
+    num_slots = 2
+    description = 'A pool to limit the connections to Gitlab.'
+    create_pool(pool_name, num_slots, description)
+
     # Check that dependencies exist before starting
     check = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_CHECK_DEPENDENCIES,
@@ -41,7 +49,8 @@ with DAG(dag_id="fundref", schedule_interval="@weekly", default_args=default_arg
         task_id=FundrefTelescope.TASK_ID_LIST,
         python_callable=FundrefTelescope.list_releases,
         provide_context=True,
-        queue=FundrefTelescope.QUEUE
+        queue=FundrefTelescope.QUEUE,
+        pool=pool_name
     )
 
     # Downloads the release
@@ -49,7 +58,8 @@ with DAG(dag_id="fundref", schedule_interval="@weekly", default_args=default_arg
         task_id=FundrefTelescope.TASK_ID_DOWNLOAD,
         python_callable=FundrefTelescope.download,
         provide_context=True,
-        queue=FundrefTelescope.QUEUE
+        queue=FundrefTelescope.QUEUE,
+        pool=pool_name
     )
 
     # Upload downloaded data for a given interval
