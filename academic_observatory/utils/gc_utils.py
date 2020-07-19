@@ -37,6 +37,9 @@ from googleapiclient import discovery as gcp_api
 from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
 
+# The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
+DEFAULT_CHUNK_SIZE = 256 * 1024
+
 
 def hex_to_base64_str(hex_str: bytes) -> str:
     """ Covert a hexadecimal string into a base64 encoded string. Removes trailing newline character.
@@ -227,7 +230,8 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
 
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
-                                     connection_sem: BoundedSemaphore = None, chunk_size: int = 256 * 1024 * 4) -> bool:
+                                     connection_sem: BoundedSemaphore = None,
+                                     chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
     """ Download a blob to a file.
 
     :param bucket_name: the name of the Google Cloud storage bucket.
@@ -294,7 +298,7 @@ def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path
 
 def download_blobs_from_cloud_storage(bucket_name: str, prefix: str, destination_path: str,
                                       max_processes: int = cpu_count(), max_connections: int = cpu_count(),
-                                      retries: int = 3, chunk_size: int = 256 * 1024 * 4) -> bool:
+                                      retries: int = 3, chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
     """ Download all blobs on a Google Cloud Storage bucket that are within a prefixed path, to a destination on the
     local file system.
 
@@ -357,7 +361,7 @@ def download_blobs_from_cloud_storage(bucket_name: str, prefix: str, destination
 
 def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_paths: List[str],
                                   max_processes: int = cpu_count(), max_connections: int = cpu_count(),
-                                  retries: int = 3, chunk_size: int = 256 * 1024 * 4) -> bool:
+                                  retries: int = 3, chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
     """ Upload a list of files to Google Cloud storage.
 
     :param bucket_name: the name of the Google Cloud storage bucket.
@@ -403,7 +407,7 @@ def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_
 
 
 def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
-                                 connection_sem: BoundedSemaphore = None, chunk_size: int = 256 * 1024 * 4) -> bool:
+                                 connection_sem: BoundedSemaphore = None, chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
     """ Upload a file to Google Cloud Storage.
 
     :param bucket_name: the name of the Google Cloud Storage bucket.

@@ -37,11 +37,12 @@ from google.cloud.storage import Blob
 from natsort import natsorted
 from pendulum import Pendulum
 
-from academic_observatory.utils.config_utils import check_variables, check_connections
-from academic_observatory.utils.config_utils import telescope_path, SubFolder, schema_path, find_schema
-from academic_observatory.utils.gc_utils import azure_to_google_cloud_storage_transfer, \
-    download_blobs_from_cloud_storage, upload_files_to_cloud_storage, load_bigquery_table, create_bigquery_dataset, \
-    bigquery_partitioned_table_id, table_name_from_blob
+from academic_observatory.utils.config_utils import (telescope_path, SubFolder, schema_path, find_schema,
+                                                     check_variables, check_connections)
+from academic_observatory.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
+                                                 download_blobs_from_cloud_storage, upload_files_to_cloud_storage,
+                                                 load_bigquery_table, create_bigquery_dataset,
+                                                 bigquery_partitioned_table_id, table_name_from_blob)
 from academic_observatory.utils.proc_utils import wait_for_process
 from mag_archiver.mag import MagArchiverClient, MagDateType, MagRelease, MagState
 from tests.academic_observatory.config import test_fixtures_path
@@ -78,7 +79,7 @@ def list_mag_release_files(release_path: str) -> List[PosixPath]:
 
 
 def transform_mag_file(input_file_path: str, output_file_path: str) -> bool:
-    r""" Transform MAG files, removing the \x0 and \r characters. \r is the ^M windows character.
+    r""" Transform MAG file, removing the \x0 and \r characters. \r is the ^M windows character.
 
     :param input_file_path: the path of the file to transform.
     :param output_file_path: where to save the transformed file.
@@ -93,8 +94,10 @@ def transform_mag_file(input_file_path: str, output_file_path: str) -> bool:
     logging.debug(output)
     success = proc.returncode == 0
 
-    if not success:
-        logging.error(f"transform_mag_file error transforming file: {input_file_path}")
+    if success:
+        logging.info(f"transform_mag_file success: {input_file_path}")
+    else:
+        logging.error(f"transform_mag_file error: {input_file_path}")
         logging.error(error)
 
     return success
@@ -352,7 +355,8 @@ class MagTelescope:
                                                   release.source_container)
             release_transformed_path = os.path.join(telescope_path(SubFolder.transformed, MagTelescope.DAG_ID),
                                                     release.source_container)
-            success = transform_mag_release(release_extracted_path, release_transformed_path)
+            success = transform_mag_release(release_extracted_path, release_transformed_path,
+                                            max_workers=MagTelescope.MAX_PROCESSES)
 
             if success:
                 logging.info(f'Success transforming MAG release: {release}')

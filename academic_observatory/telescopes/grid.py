@@ -38,8 +38,8 @@ from pendulum import Pendulum
 from academic_observatory.utils.config_utils import check_variables
 from academic_observatory.utils.config_utils import telescope_path, SubFolder, schema_path, find_schema
 from academic_observatory.utils.data_utils import get_file
-from academic_observatory.utils.gc_utils import upload_file_to_cloud_storage, load_bigquery_table, \
-    create_bigquery_dataset, bigquery_partitioned_table_id
+from academic_observatory.utils.gc_utils import (upload_file_to_cloud_storage, load_bigquery_table,
+                                                 create_bigquery_dataset, bigquery_partitioned_table_id)
 from academic_observatory.utils.url_utils import retry_session
 
 GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"

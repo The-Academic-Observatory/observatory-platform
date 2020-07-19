@@ -12,14 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs
+# Author: Aniek Roelofs, James Diprose
 
 import functools
+import glob
 import logging
 import os
 import pathlib
 import shutil
+import time
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from multiprocessing import cpu_count
+from subprocess import Popen
 
 import pendulum
 import requests
@@ -28,6 +33,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
+from natsort import natsorted
 
 from academic_observatory.utils.config_utils import (
     find_schema,
@@ -41,9 +47,10 @@ from academic_observatory.utils.gc_utils import (
     bigquery_partitioned_table_id,
     create_bigquery_dataset,
     load_bigquery_table,
-    upload_file_to_cloud_storage
+    upload_file_to_cloud_storage,
+    bigquery_table_exists,
+    upload_files_to_cloud_storage
 )
-from academic_observatory.utils.gc_utils import bigquery_table_exists
 from academic_observatory.utils.proc_utils import wait_for_process
 from academic_observatory.utils.url_utils import retry_session
 from tests.academic_observatory.config import test_fixtures_path
@@ -69,60 +76,117 @@ def download_release(release: 'CrossrefMetadataRelease', api_token: str):
             raise ConnectionError(f"Error downloading file {release.url}, status_code={response.status_code}")
 
         # Open file for saving
-        with open(release.filepath_download, 'wb') as file:
+        with open(release.download_path, 'wb') as file:
             response.raw.read = functools.partial(response.raw.read, decode_content=True)
             shutil.copyfileobj(response.raw, file)
 
-    logging.info(f"Successfully download url to {release.filepath_download}")
+    logging.info(f"Successfully download url to {release.download_path}")
 
 
-def extract_release(release: 'CrossrefMetadataRelease') -> str:
+def extract_release(release: 'CrossrefMetadataRelease') -> bool:
     """ Extract release.
 
     :param release: Instance of CrossrefRelease class
     """
-    logging.info(f"Extracting file: {release.filepath_download}")
+    logging.info(f"extract_release: {release.download_path}")
 
-    cmd = f"tar -xOzf {release.filepath_download} > {release.filepath_extract}"
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
+    # Make directories
+    os.makedirs(release.extract_path, exist_ok=True)
+    time.sleep(60)
+
+    # Run command
+    cmd = f'tar -xv -I "pigz -d" -f {release.download_path} -C {release.extract_path}'
+    logging.info(f"Command: {cmd}")
+    logging.info(f"release.download_path exists: {os.path.exists(release.download_path)}")
+    logging.info(f"release.extract_path exists: {os.path.exists(release.extract_path)}")
+    p: Popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
     stdout, stderr = wait_for_process(p)
+    logging.debug(stdout)
+    success = p.returncode == 0 and 'error' not in stderr.lower() and 'error' not in stdout.lower()
 
-    if stdout:
-        logging.info(stdout)
+    if success:
+        logging.info(f"extract_release success: {release.download_path}")
+    else:
+        logging.error(f"extract_release error: {release.download_path}")
+        logging.error(stdout)
+        logging.error(stderr)
 
-    if stderr:
-        raise AirflowException(f"bash command failed for {release.url}: {stderr}")
-
-    logging.info(f"File extracted to: {release.filepath_extract}")
-
-    return release.filepath_extract
+    return success
 
 
-def transform_release(release: 'CrossrefMetadataRelease') -> str:
-    """ Transforms release with mawk command.
+def transform_file(input_file_path: str, output_file_path: str) -> bool:
+    r""" Transform Crossref Metadata file.
 
-    :param release: Instance of CrossrefRelease class
+    :param input_file_path: the path of the file to transform.
+    :param output_file_path: where to save the transformed file.
+    :return: whether the transformation was successful or not.
     """
 
     cmd = 'mawk \'BEGIN {FS="\\":";RS=",\\"";OFS=FS;ORS=RS} {for (i=1; i<=NF;i++) if(i != NF) gsub("-", "_", $i)}1\'' \
-          f' {release.filepath_extract} | ' \
+          f' {input_file_path} | ' \
           'mawk \'!/^\}$|^\]$|,\\"$/{gsub("\[\[", "[");gsub("]]", "]");gsub(/,[ \\t]*$/,"");' \
           'gsub("\\"timestamp\\":_", "\\"timestamp\\":");gsub("\\"date_parts\\":\[null]", "\\"date_parts\\":[]");' \
           'gsub(/^\{\\"items\\":\[/,"");print}\' > ' \
-          f'{release.filepath_transform}'
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
-
+          f'{output_file_path}'
+    p: Popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
     stdout, stderr = wait_for_process(p)
+    logging.debug(stdout)
+    success = p.returncode == 0
 
-    if stdout:
-        logging.info(stdout)
+    if success:
+        logging.info(f"transform_file success: {input_file_path}")
+    else:
+        logging.error(f"transform_file error: {input_file_path}")
+        logging.error(stderr)
 
-    if stderr:
-        raise AirflowException(f"bash command failed for {release.url}: {stderr}")
+    return success
 
-    logging.info(f'Success transforming release: {release.url}')
 
-    return release.filepath_transform
+def transform_release(release: 'CrossrefMetadataRelease', max_workers: int = cpu_count()) -> bool:
+    """ Transform a Crossref Metadata release into a form that can be loaded into BigQuery.
+
+    :param release: the CrossrefMetadataRelease release
+    :param max_workers: the number of processes to use when transforming files (one process per file).
+    :return: whether the transformation was successful or not.
+    """
+
+    # input_release_path: the path to the folder containing the extracted files for the Crossref Metadata release.
+    # output_release_path: the path where the transformed files will be saved.
+    input_release_path = release.extract_path
+    output_release_path = release.transform_path
+
+    # Transform each file in parallel
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        futures_msgs = {}
+
+        # List files and sort so that they are processed in ascending order
+        input_file_paths = natsorted(glob.glob(f"{input_release_path}/*.json"))
+
+        # Make output release path in case it hasn't been created
+        os.makedirs(output_release_path, exist_ok=True)
+
+        # Create tasks for each file
+        for input_file_path in input_file_paths:
+            output_file_path = os.path.join(output_release_path, input_file_path)
+            msg = f'input_file_path={input_file_path}, output_file_path={output_file_path}'
+            logging.info(f'transform_release: {msg}')
+            future = executor.submit(transform_file, input_file_path, output_file_path)
+            futures.append(future)
+            futures_msgs[future] = msg
+
+        # Wait for completed tasks
+        results = []
+        for future in as_completed(futures):
+            success = future.result()
+            msg = futures_msgs[future]
+            results.append(success)
+            if success:
+                logging.info(f'transform_release success: {msg}')
+            else:
+                logging.error(f'transform_release failed: {msg}')
+
+    return all(results)
 
 
 class CrossrefMetadataRelease:
@@ -133,32 +197,37 @@ class CrossrefMetadataRelease:
         self.month = month
         self.url = CrossrefMetadataTelescope.TELESCOPE_URL.format(year=year, month=month)
         self.date = pendulum.datetime(year=year, month=month, day=1)
-        self.filepath_download = self.get_filepath(SubFolder.downloaded)
-        self.filepath_extract = self.get_filepath(SubFolder.extracted)
-        self.filepath_transform = self.get_filepath(SubFolder.transformed)
 
     def exists(self):
         snapshot_url = CrossrefMetadataTelescope.TELESCOPE_URL.format(year=self.year, month=self.month)
         response = retry_session().head(snapshot_url)
         return response is not None and response.status_code == 302
 
-    def get_filepath(self, sub_folder: SubFolder) -> str:
-        """ Gets complete path of file for download/extract/transform directory.
+    @property
+    def download_path(self):
+        return self.get_path(SubFolder.downloaded)
+
+    @property
+    def extract_path(self):
+        return self.get_path(SubFolder.extracted)
+
+    @property
+    def transform_path(self):
+        return self.get_path(SubFolder.transformed)
+
+    def get_path(self, sub_folder: SubFolder) -> str:
+        """ Gets complete path of file for download/extract/transform directory or file.
 
         :param sub_folder: name of subfolder
-        :return:
+        :return: the path.
         """
 
         date_str = self.date.strftime("%Y_%m_%d")
-
+        file_name = f"{CrossrefMetadataTelescope.DAG_ID}_{date_str}"
         if sub_folder == SubFolder.downloaded:
-            file_name = f"{CrossrefMetadataTelescope.DAG_ID}_{date_str}.json.tar.gz"
-        else:
-            file_name = f"{CrossrefMetadataTelescope.DAG_ID}_{date_str}.json"
+            file_name = f"{file_name}.json.tar.gz"
 
-        file_dir = telescope_path(sub_folder, CrossrefMetadataTelescope.DAG_ID)
-        path = os.path.join(file_dir, file_name)
-
+        path = os.path.join(telescope_path(sub_folder, CrossrefMetadataTelescope.DAG_ID), file_name)
         return path
 
     def get_blob_name(self, sub_folder: SubFolder) -> str:
@@ -167,7 +236,8 @@ class CrossrefMetadataRelease:
         :param sub_folder: name of subfolder
         :return: blob name
         """
-        file_name = os.path.basename(self.get_filepath(sub_folder))
+
+        file_name = os.path.basename(self.get_path(sub_folder))
         blob_name = f'telescopes/{CrossrefMetadataTelescope.DAG_ID}/{file_name}'
 
         return blob_name
@@ -193,6 +263,9 @@ class CrossrefMetadataTelescope:
     DESCRIPTION = 'The Crossref Metadata Plus dataset: https://www.crossref.org/services/metadata-retrieval/metadata-plus/'
     RELEASES_TOPIC_NAME = "releases"
     QUEUE = 'remote_queue'
+    MAX_PROCESSES = cpu_count()
+    MAX_CONNECTIONS = cpu_count()
+    MAX_RETRIES = 3
 
     TELESCOPE_URL = 'https://api.crossref.org/snapshots/monthly/{year}/{month:02d}/all.json.tar.gz'
     DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
@@ -276,7 +349,7 @@ class CrossrefMetadataTelescope:
 
         # Download release
         if environment == 'dev':
-            shutil.copy(CrossrefMetadataTelescope.DEBUG_FILE_PATH, release.filepath_download)
+            shutil.copy(CrossrefMetadataTelescope.DEBUG_FILE_PATH, release.download_path)
         else:
             connection = BaseHook.get_connection("crossref")
             api_token = connection.password
@@ -300,7 +373,7 @@ class CrossrefMetadataTelescope:
 
         # Upload each release
         upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.downloaded),
-                                     file_path=release.filepath_download)
+                                     file_path=release.download_path)
 
     @staticmethod
     def extract(**kwargs):
@@ -316,7 +389,14 @@ class CrossrefMetadataTelescope:
         release = pull_release(ti)
 
         # Extract the release
-        extract_release(release)
+        result = extract_release(release)
+
+        # Check result
+        if result:
+            logging.info(f'extract success: {release}')
+        else:
+            logging.error(f"extract error: {release}")
+            exit(os.EX_DATAERR)
 
     @staticmethod
     def transform(**kwargs):
@@ -332,7 +412,14 @@ class CrossrefMetadataTelescope:
         release = pull_release(ti)
 
         # Transform release
-        transform_release(release)
+        result = transform_release(release, max_workers=CrossrefMetadataTelescope.MAX_PROCESSES)
+
+        # Check result
+        if result:
+            logging.info(f'transform success: {release}')
+        else:
+            logging.error(f"transform error: {release}")
+            exit(os.EX_DATAERR)
 
     @staticmethod
     def upload_transformed(**kwargs):
@@ -350,9 +437,22 @@ class CrossrefMetadataTelescope:
         # Get variables
         bucket_name = Variable.get("transform_bucket_name")
 
-        # Upload release
-        upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.transformed),
-                                     file_path=release.filepath_transform)
+        # List files and sort so that they are processed in ascending order
+        file_paths = natsorted(glob.glob(f"{release.extract_path}/*.json"))
+
+        # List blobs
+        blob_names = [f'{release.get_blob_name(SubFolder.transformed)}/{os.path.basename(path)}' for path in file_paths]
+
+        # Upload files
+        success = upload_files_to_cloud_storage(bucket_name, blob_names, file_paths,
+                                                max_processes=CrossrefMetadataTelescope.MAX_PROCESSES,
+                                                max_connections=CrossrefMetadataTelescope.MAX_CONNECTIONS,
+                                                retries=CrossrefMetadataTelescope.MAX_RETRIES)
+        if success:
+            logging.info(f'upload_transformed success: {release}')
+        else:
+            logging.error(f"upload_transformed error: {release}")
+            exit(os.EX_DATAERR)
 
     @staticmethod
     def bq_load(**kwargs):
@@ -388,7 +488,7 @@ class CrossrefMetadataTelescope:
             exit(os.EX_CONFIG)
 
         # Load BigQuery table
-        uri = f"gs://{bucket_name}/{release.get_blob_name(SubFolder.transformed)}"
+        uri = f"gs://{bucket_name}/{release.get_blob_name(SubFolder.transformed)}/*"
         logging.info(f"URI: {uri}")
         load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
                             SourceFormat.NEWLINE_DELIMITED_JSON)
@@ -408,16 +508,17 @@ class CrossrefMetadataTelescope:
 
         # Delete files for the release
         try:
-            pathlib.Path(release.filepath_download).unlink()
+            pathlib.Path(release.download_path).unlink()
         except FileNotFoundError as e:
-            logging.warning(f"No such file or directory {release.filepath_download}: {e}")
+            logging.warning(f"No such file or directory {release.download_path}: {e}")
 
         try:
-            pathlib.Path(release.filepath_extract).unlink()
+            shutil.rmtree(release.extract_path)
         except FileNotFoundError as e:
-            logging.warning(f"No such file or directory {release.filepath_extract}: {e}")
+            logging.warning(f"No such file or directory {release.extract_path}: {e}")
 
         try:
-            pathlib.Path(release.filepath_transform).unlink()
+            shutil.rmtree(release.transform_path)
         except FileNotFoundError as e:
-            logging.warning(f"No such file or directory {release.filepath_transform}: {e}")
+            logging.warning(f"No such file or directory {release.transform_path}: {e}")
+

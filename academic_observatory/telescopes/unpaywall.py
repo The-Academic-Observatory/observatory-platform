@@ -415,7 +415,7 @@ class UnpaywallTelescope:
 
         # Pull releases
         ti: TaskInstance = kwargs['ti']
-        releases_list = pull_releases(ti)
+        releases_list: List[UnpaywallRelease] = pull_releases(ti)
 
         # Get variables
         project_id = Variable.get("project_id")
@@ -431,14 +431,14 @@ class UnpaywallTelescope:
             blob_name = f'telescopes/unpaywall/{os.path.basename(release.filepath_transform)}'
 
             # Get release_date
-            table_id = bigquery_partitioned_table_id(dataset_id, release.date)
+            table_id = bigquery_partitioned_table_id(dataset_id, release.release_date)
 
             # Select schema file based on release date
             analysis_schema_path = schema_path('telescopes')
-            schema_file_path = find_schema(analysis_schema_path, UnpaywallTelescope.DAG_ID, release.date)
+            schema_file_path = find_schema(analysis_schema_path, UnpaywallTelescope.DAG_ID, release.release_date)
             if schema_file_path is None:
                 logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
-                              f'table_name={UnpaywallTelescope.DAG_ID}, release_date={release.date}')
+                              f'table_name={UnpaywallTelescope.DAG_ID}, release_date={release.release_date}')
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table
