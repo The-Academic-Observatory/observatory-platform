@@ -1,9 +1,7 @@
-# Geonames
-
-Add data source description here
-
-**Link:** xx
+# GeoNames
+"The GeoNames geographical database covers all countries.” “Users may manually edit, correct and add new names.
+”    _- source: [Geonames](https://www.geonames.org/)_
 
 **Datasets**
-- [Geonames](dataset_geonames.md)
+- [GeoNames](dataset_geonames.md)
 
