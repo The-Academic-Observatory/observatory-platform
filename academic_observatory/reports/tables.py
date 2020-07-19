@@ -14,11 +14,8 @@
 
 # Author: Cameron Neylon & Richard Hosing 
 
-import pandas as pd
-import pydata_google_auth
-
-from .abstract_table import AbstractObservatoryTable
 from academic_observatory.reports import chart_utils
+from .abstract_table import AbstractObservatoryTable
 
 
 class GenericOpenAccessTable(AbstractObservatoryTable):

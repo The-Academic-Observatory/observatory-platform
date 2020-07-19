@@ -16,7 +16,6 @@
 
 import os
 import pathlib
-import shutil
 import unittest
 from unittest.mock import patch
 
@@ -27,7 +26,7 @@ from click.testing import CliRunner
 import academic_observatory.dags
 import academic_observatory.database.telescopes.schema
 from academic_observatory.utils.config_utils import ObservatoryConfig, observatory_package_path, \
-    dags_path, observatory_home, telescope_path, SubFolder, find_schema, schema_path
+    dags_path, telescope_path, SubFolder, find_schema, schema_path
 from academic_observatory.utils.test_utils import test_data_dir
 
 

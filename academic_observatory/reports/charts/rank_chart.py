@@ -14,16 +14,11 @@
 
 # Author: Cameron Neylon
 
-import pandas as pd
-import seaborn as sns
-import matplotlib
+import matplotlib.axis
 import matplotlib.pyplot as plt
-import itertools
-from matplotlib import animation, rc
-from IPython.display import HTML
+import pandas as pd
 
 from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports import chart_utils
 from academic_observatory.reports import defaults
 
 

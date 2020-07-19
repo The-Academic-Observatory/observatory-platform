@@ -27,7 +27,6 @@ setup(
     install_requires=install_requires,
     extras_require={
         'dev': [
-            'apache-airflow==1.10.11',
             'Sphinx==2.4.*',
             'sphinx-rtd-theme==0.4.*',
             'sphinx-autoapi==1.2.*',
@@ -35,9 +34,6 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            # The legacy command line interface implemented with argparse
-            'aoutil = academic_observatory.cli.ao_util:main',
-
             # The new command line interface implemented with Click
             'observatory = academic_observatory.cli.observatory:cli'
         ]

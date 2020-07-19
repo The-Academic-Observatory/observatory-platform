@@ -14,18 +14,10 @@
 
 # Author: Cameron Neylon
 
-import pandas as pd
-import seaborn as sns
-import matplotlib
 import matplotlib.pyplot as plt
-import itertools
-from matplotlib import animation, rc, lines
-from IPython.display import HTML
+import pandas as pd
 
 from academic_observatory.reports import defaults
-import academic_observatory.reports.chart_utils
-from academic_observatory.reports import AbstractObservatoryChart
-from academic_observatory.reports.charts import generic_time_chart
 from .generic_time_chart import GenericTimeChart
 
 

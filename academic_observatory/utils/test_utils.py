@@ -51,6 +51,7 @@ def test_data_dir(current_file):
     tests_path = path[:end_i]
     return os.path.join(tests_path, 'data')
 
+
 def fixtures_data_dir(current_file):
     """ Get the path to the Academic Observatory test data directory.
 

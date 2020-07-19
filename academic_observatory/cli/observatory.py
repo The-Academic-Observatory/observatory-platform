@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Author: James Diprose
+
 import os
 import shutil
 import subprocess
 import time
 import urllib.error
-# Author: James Diprose
 import urllib.parse
 import urllib.request
 from subprocess import Popen

@@ -17,7 +17,7 @@
 import os
 import unittest
 
-from academic_observatory.utils import test_data_dir
+from academic_observatory.utils.test_utils import test_data_dir
 
 
 class TestTestUtils(unittest.TestCase):

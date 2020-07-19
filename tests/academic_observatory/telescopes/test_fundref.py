@@ -73,15 +73,8 @@ class TestFundref(unittest.TestCase):
         self.fundref_test_download_hash = 'c9c61c5053208752e8926f159d58b101'
         self.fundref_test_decompress_hash = 'ed14c816d89b4334675bd11514f9cac2'
         self.fundref_test_transform_hash = '60ac8e56'
-        self.start_date = pendulum.datetime(year=2014, month=3, day=30)
+        self.start_date = pendulum.datetime(year=2014, month=3, day=1)
         self.end_date = pendulum.datetime(year=2020, month=1, day=15)
-
-        logging.info("Check that test fixtures exist")
-        self.assertTrue(os.path.isfile(self.list_fundref_releases_path))
-        self.assertTrue(os.path.isfile(self.fundref_test_path))
-        self.assertTrue(self.list_fundref_releases_hash,
-                        _hash_file(self.list_fundref_releases_path, algorithm='md5'))
-        self.assertTrue(self.fundref_test_download_hash, _hash_file(self.fundref_test_path, algorithm='md5'))
 
         # Turn logging to warning because vcr prints too much at info level
         logging.basicConfig()
@@ -93,16 +86,18 @@ class TestFundref(unittest.TestCase):
 
         :return: None.
         """
-        with vcr.use_cassette(self.list_fundref_releases_path):
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
 
-            releases = list_releases(FundrefTelescope.TELESCOPE_URL, self.start_date, self.end_date)
-            self.assertIsInstance(releases, List)
-            for release in releases:
-                self.assertIsInstance(release, FundrefRelease)
-            self.assertEqual(38, len(releases))
+        with CliRunner().isolated_filesystem():
+            with vcr.use_cassette(self.list_fundref_releases_path):
+                # Mock data variable
+                data_path = 'data'
+                mock_variable_get.return_value = data_path
+
+                releases = list_releases(self.start_date, self.end_date)
+                self.assertIsInstance(releases, List)
+                for release in releases:
+                    self.assertIsInstance(release, FundrefRelease)
+                self.assertEqual(39, len(releases))
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_filepath_download(self, mock_variable_get):
@@ -111,16 +106,16 @@ class TestFundref(unittest.TestCase):
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
             # Mock data variable
             data_path = 'data'
             mock_variable_get.return_value = data_path
 
-            with CliRunner().isolated_filesystem():
-                release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
-                file_path_download = release.get_filepath(SubFolder.downloaded)
-                path = telescope_path(SubFolder.downloaded, FundrefTelescope.DAG_ID)
-                self.assertEqual(os.path.join(path, self.fundref_test_download_file_name), file_path_download)
+            release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
+            file_path_download = release.get_filepath(SubFolder.downloaded)
+            path = telescope_path(SubFolder.downloaded, FundrefTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.fundref_test_download_file_name), file_path_download)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_filepath_extract(self, mock_variable_get):
@@ -129,16 +124,16 @@ class TestFundref(unittest.TestCase):
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
             # Mock data variable
             data_path = 'data'
             mock_variable_get.return_value = data_path
 
-            with CliRunner().isolated_filesystem():
-                release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
-                file_path_extract = release.get_filepath(SubFolder.extracted)
-                path = telescope_path(SubFolder.extracted, FundrefTelescope.DAG_ID)
-                self.assertEqual(os.path.join(path, self.fundref_test_decompress_file_name), file_path_extract)
+            release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
+            file_path_extract = release.get_filepath(SubFolder.extracted)
+            path = telescope_path(SubFolder.extracted, FundrefTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.fundref_test_decompress_file_name), file_path_extract)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_filepath_transform(self, mock_variable_get):
@@ -147,6 +142,7 @@ class TestFundref(unittest.TestCase):
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
             # Mock data variable
             data_path = 'data'
@@ -163,6 +159,7 @@ class TestFundref(unittest.TestCase):
 
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
             # Mock data variable
             data_path = 'data'
@@ -225,6 +222,7 @@ class TestFundref(unittest.TestCase):
 
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
             # Mock data variable
             data_path = 'data'
@@ -331,6 +329,7 @@ class TestFundref(unittest.TestCase):
 
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
             # Mock data variable
             data_path = 'data'
@@ -457,6 +456,7 @@ class TestFundref(unittest.TestCase):
                  'bottom': True,
                  'parents': [{'funder': 'http://dx.doi.org/10.13039/100000016', 'name': None, 'parent': []}],
                  'top': True}])
+
             for funder in funders:
                 self.assertIsInstance(funder, Dict)
                 self.assertIn('children', funder)

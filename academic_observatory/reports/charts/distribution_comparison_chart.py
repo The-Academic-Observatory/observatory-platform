@@ -14,13 +14,10 @@
 
 # Author: Cameron Neylon
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-import matplotlib
-import matplotlib.pyplot as plt
-import itertools
-from matplotlib import animation, rc, lines
-from IPython.display import HTML
+from matplotlib import lines
 
 from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports import chart_utils

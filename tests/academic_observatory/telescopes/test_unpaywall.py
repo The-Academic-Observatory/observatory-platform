@@ -56,6 +56,7 @@ class TestUnpaywall(unittest.TestCase):
 
         # Unpaywall test release
         self.unpaywall_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'unpaywall.jsonl.gz')
+        self.unpaywall_test_file = 'unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
         self.unpaywall_test_url = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
         self.unpaywall_test_date = pendulum.datetime(year=3000, month=1, day=27)
         self.unpaywall_test_download_file_name = 'unpaywall_3000_01_27.jsonl.gz'
@@ -67,13 +68,6 @@ class TestUnpaywall(unittest.TestCase):
         self.start_date = pendulum.datetime(year=2018, month=3, day=29)
         self.end_date = pendulum.datetime(year=2020, month=4, day=29)
 
-        logging.info("Check that test fixtures exist")
-        self.assertTrue(os.path.isfile(self.list_unpaywall_releases_path))
-        self.assertTrue(os.path.isfile(self.unpaywall_test_path))
-        self.assertTrue(self.list_unpaywall_releases_hash,
-                        _hash_file(self.list_unpaywall_releases_path, algorithm='md5'))
-        self.assertTrue(self.unpaywall_test_download_hash, _hash_file(self.unpaywall_test_path, algorithm='md5'))
-
         # Turn logging to warning because vcr prints too much at info level
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
@@ -84,33 +78,25 @@ class TestUnpaywall(unittest.TestCase):
 
         :return: None.
         """
-        with vcr.use_cassette(self.list_unpaywall_releases_path):
-            # Create data path and mock getting data path
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
-            os.makedirs(data_path, exist_ok=True)
+        with CliRunner().isolated_filesystem():
+            with vcr.use_cassette(self.list_unpaywall_releases_path):
+                data_path = 'data'
+                mock_variable_get.return_value = data_path
 
-            releases = list_releases(UnpaywallTelescope.TELESCOPE_URL, self.start_date, self.end_date)
-            self.assertIsInstance(releases, List)
-            for release in releases:
-                self.assertIsInstance(release, UnpaywallRelease)
-            self.assertEqual(13, len(releases))
+                releases = list_releases(self.start_date, self.end_date)
+                self.assertIsInstance(releases, List)
+                for release in releases:
+                    self.assertIsInstance(release, UnpaywallRelease)
+                self.assertEqual(13, len(releases))
 
-    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
-    def test_release_date(self, mock_variable_get):
+    def test_parse_release_date(self):
         """ Test that date obtained from url is string and in correct format.
 
         :return: None.
         """
-        with CliRunner().isolated_filesystem():
-            # Create data path and mock getting data path
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
-            os.makedirs(data_path, exist_ok=True)
 
-            release = UnpaywallRelease(self.unpaywall_test_url)
-            self.assertIsInstance(release.date, pendulum.Pendulum)
-            self.assertEqual(release.date, self.unpaywall_test_date)
+        release_date = UnpaywallRelease.parse_release_date(self.unpaywall_test_file)
+        self.assertEqual(self.unpaywall_test_date, release_date)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_filepath_download(self, mock_variable_get):
@@ -119,17 +105,15 @@ class TestUnpaywall(unittest.TestCase):
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
             # Create data path and mock getting data path
             data_path = 'data'
             mock_variable_get.return_value = data_path
-            os.makedirs(data_path, exist_ok=True)
 
-            with CliRunner().isolated_filesystem():
-                release = UnpaywallRelease(self.unpaywall_test_url)
-                file_path_download = release.filepath_download
-                path = telescope_path(SubFolder.downloaded, UnpaywallTelescope.DAG_ID)
-                self.assertEqual(os.path.join(path, self.unpaywall_test_download_file_name), file_path_download)
+            release = UnpaywallRelease(self.unpaywall_test_file, self.unpaywall_test_date, self.unpaywall_test_date)
+            path = telescope_path(SubFolder.downloaded, UnpaywallTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.unpaywall_test_download_file_name), release.filepath_download)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_filepath_extract(self, mock_variable_get):
@@ -138,17 +122,15 @@ class TestUnpaywall(unittest.TestCase):
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
             # Create data path and mock getting data path
             data_path = 'data'
             mock_variable_get.return_value = data_path
-            os.makedirs(data_path, exist_ok=True)
 
-            with CliRunner().isolated_filesystem():
-                release = UnpaywallRelease(self.unpaywall_test_url)
-                file_path_extract = release.filepath_extract
-                path = telescope_path(SubFolder.extracted, UnpaywallTelescope.DAG_ID)
-                self.assertEqual(os.path.join(path, self.unpaywall_test_decompress_file_name), file_path_extract)
+            release = UnpaywallRelease(self.unpaywall_test_file, self.unpaywall_test_date, self.unpaywall_test_date)
+            path = telescope_path(SubFolder.extracted, UnpaywallTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.unpaywall_test_decompress_file_name), release.filepath_extract)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_filepath_transform(self, mock_variable_get):
@@ -157,17 +139,15 @@ class TestUnpaywall(unittest.TestCase):
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
             # Create data path and mock getting data path
             data_path = 'data'
             mock_variable_get.return_value = data_path
-            os.makedirs(data_path, exist_ok=True)
 
-            with CliRunner().isolated_filesystem():
-                release = UnpaywallRelease(self.unpaywall_test_url)
-                file_path_transform = release.filepath_transform
-                path = telescope_path(SubFolder.transformed, UnpaywallTelescope.DAG_ID)
-                self.assertEqual(os.path.join(path, self.unpaywall_test_transform_file_name), file_path_transform)
+            release = UnpaywallRelease(self.unpaywall_test_file, self.unpaywall_test_date, self.unpaywall_test_date)
+            path = telescope_path(SubFolder.transformed, UnpaywallTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.unpaywall_test_transform_file_name), release.filepath_transform)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
     def test_decompress_release(self, mock_variable_get):
@@ -180,9 +160,8 @@ class TestUnpaywall(unittest.TestCase):
             # Create data path and mock getting data path
             data_path = 'data'
             mock_variable_get.return_value = data_path
-            os.makedirs(data_path, exist_ok=True)
 
-            release = UnpaywallRelease(self.unpaywall_test_url)
+            release = UnpaywallRelease(self.unpaywall_test_file, self.unpaywall_test_date, self.unpaywall_test_date)
             # 'download' release
             shutil.copyfile(self.unpaywall_test_path, release.filepath_download)
 
@@ -204,9 +183,8 @@ class TestUnpaywall(unittest.TestCase):
             # Create data path and mock getting data path
             data_path = 'data'
             mock_variable_get.return_value = data_path
-            os.makedirs(data_path, exist_ok=True)
 
-            release = UnpaywallRelease(self.unpaywall_test_url)
+            release = UnpaywallRelease(self.unpaywall_test_file, self.unpaywall_test_date, self.unpaywall_test_date)
             shutil.copyfile(self.unpaywall_test_path, release.filepath_download)
 
             extract_release(release)

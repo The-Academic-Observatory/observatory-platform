@@ -168,7 +168,7 @@ def transform_release(release: 'CrossrefMetadataRelease', max_workers: int = cpu
 
         # Create tasks for each file
         for input_file_path in input_file_paths:
-            output_file_path = os.path.join(output_release_path, input_file_path)
+            output_file_path = os.path.join(output_release_path, os.path.basename(input_file_path))
             msg = f'input_file_path={input_file_path}, output_file_path={output_file_path}'
             logging.info(f'transform_release: {msg}')
             future = executor.submit(transform_file, input_file_path, output_file_path)

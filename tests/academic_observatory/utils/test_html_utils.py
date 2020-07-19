@@ -18,8 +18,10 @@ import os
 import unittest
 from zipfile import ZipFile
 
-from academic_observatory.utils import HtmlParser, unique_id, get_file
 from academic_observatory.utils.config_utils import observatory_home
+from academic_observatory.utils.data_utils import get_file
+from academic_observatory.utils.html_utils import HtmlParser
+from academic_observatory.utils.url_utils import unique_id
 
 EXPECTED_TITLES = [
     'Curtin University Sustainability Policy Institute » Blog Archive  » Curtin’s own Pioneering Australian',

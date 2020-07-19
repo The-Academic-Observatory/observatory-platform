@@ -14,9 +14,9 @@
 
 # Author: Cameron Neylon & Richard Hosking 
 
-import pandas as pd
-import seaborn as sns
 from inspect import signature
+
+import pandas as pd
 
 from academic_observatory.reports.defaults import *
 
