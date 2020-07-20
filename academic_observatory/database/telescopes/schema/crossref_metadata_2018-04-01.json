@@ -295,6 +295,28 @@
   {
     "fields": [
       {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "id_type",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "asserted_by",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "has_format",
+        "type": "RECORD"
+      },
+      {
         "mode": "REPEATED", 
         "name": "cites", 
         "type": "STRING"
