@@ -27,7 +27,7 @@ import academic_observatory.dags
 import academic_observatory.database.telescopes.schema
 from academic_observatory.utils.config_utils import ObservatoryConfig, observatory_package_path, \
     dags_path, telescope_path, SubFolder, find_schema, schema_path
-from academic_observatory.utils.test_utils import test_data_dir
+from tests.academic_observatory.config import test_fixtures_path
 
 
 class TestConfigUtils(unittest.TestCase):
@@ -99,7 +99,7 @@ class TestConfigUtils(unittest.TestCase):
         self.assertTrue(os.path.exists(actual_path))
 
     def test_find_schema(self):
-        schemas_path = os.path.join(test_data_dir(__file__), 'schemas')
+        schemas_path = os.path.join(test_fixtures_path(), 'telescopes')
 
         # Tests that don't use a prefix
         table_name = 'grid'

@@ -144,7 +144,7 @@ class TestCrossrefMetadata(unittest.TestCase):
             self.assertEqual(path, release.transform_path)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
-    def test_decompress_release(self, mock_variable_get):
+    def test_extract_release(self, mock_variable_get):
         """ Test that the release is decompressed as expected.
 
         :return: None.
