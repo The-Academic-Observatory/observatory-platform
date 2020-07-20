@@ -17,13 +17,12 @@ beautifulsoup4==4.9.*
 lxml==4.5.*
 tldextract==2.2.*
 urllib3==1.25.*
-matplotlib==3.3.*
-pandas==1.0.*
+matplotlib==3.1.*
+pandas==0.25.*
 seaborn==0.10.*
 geopandas==0.8.*
 numpy==1.19.*
 ipython==7.16.*
-oauth2client==4.1.*
 pydata-google-auth==1.1.*
 num2words==0.5.*
 jupyter==1.0.*
