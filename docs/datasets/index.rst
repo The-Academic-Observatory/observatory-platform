@@ -4,9 +4,9 @@ Datasets
     :maxdepth: 4
 
     provider_crossref/index
-    provider_geonames.md
-    provider_grid.md
-    provider_mag.md
-    provider_unpaywall.md
+    provider_geonames/index
+    provider_grid/index
+    provider_mag/index
+    provider_unpaywall/index
 
 
