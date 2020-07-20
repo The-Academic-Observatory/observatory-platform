@@ -16,7 +16,7 @@
 
 import unittest
 
-from academic_observatory.utils import to_json_lines
+from academic_observatory.utils.json_util import to_json_lines
 
 
 class TestJsonUtil(unittest.TestCase):

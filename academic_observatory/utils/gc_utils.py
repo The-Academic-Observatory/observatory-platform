@@ -31,10 +31,14 @@ from crc32c import Checksum as Crc32cChecksum
 from google.api_core.exceptions import Conflict
 from google.cloud import storage, bigquery
 from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob
+from google.cloud.exceptions import NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
 from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
+
+# The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
+DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
 
 
 def hex_to_base64_str(hex_str: bytes) -> str:
@@ -92,6 +96,28 @@ class TransferStatus(Enum):
     failed = 'FAILED'
 
 
+def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str) -> bool:
+    """ Checks whether a BigQuery table exists or not.
+
+    :param project_id: the Google Cloud project id.
+    :param dataset_id: the BigQuery dataset id.
+    :param table_name: the name of the table.
+    :return: whether the table exists or not.
+    """
+
+    client = bigquery.Client(project_id)
+    dataset = bigquery.Dataset(f'{project_id}.{dataset_id}')
+    table = dataset.table(table_name)
+    table_exists = True
+
+    try:
+        client.get_table(table)
+    except NotFound:
+        table_exists = False
+
+    return table_exists
+
+
 def bigquery_partitioned_table_id(table_name, datetime: Pendulum) -> str:
     """ Create a partitioned table identifier for a BigQuery table.
 
@@ -105,8 +131,8 @@ def bigquery_partitioned_table_id(table_name, datetime: Pendulum) -> str:
 def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, description: str = '') -> None:
     """ Create a BigQuery dataset.
 
-    :param project_id: the Google Cloud project id
-    :param dataset_id: the BigQuery dataset id
+    :param project_id: the Google Cloud project id.
+    :param dataset_id: the BigQuery dataset id.
     :param location: the location where the dataset will be stored:
     https://cloud.google.com/compute/docs/regions-zones/#locations
     :param description: a description for the dataset
@@ -204,7 +230,8 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
 
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
-                                     connection_sem: BoundedSemaphore = None, chunk_size: int = 256 * 1024 * 4) -> bool:
+                                     connection_sem: BoundedSemaphore = None,
+                                     chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
     """ Download a blob to a file.
 
     :param bucket_name: the name of the Google Cloud storage bucket.
@@ -271,7 +298,7 @@ def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path
 
 def download_blobs_from_cloud_storage(bucket_name: str, prefix: str, destination_path: str,
                                       max_processes: int = cpu_count(), max_connections: int = cpu_count(),
-                                      retries: int = 3, chunk_size: int = 256 * 1024 * 4) -> bool:
+                                      retries: int = 3, chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
     """ Download all blobs on a Google Cloud Storage bucket that are within a prefixed path, to a destination on the
     local file system.
 
@@ -334,7 +361,7 @@ def download_blobs_from_cloud_storage(bucket_name: str, prefix: str, destination
 
 def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_paths: List[str],
                                   max_processes: int = cpu_count(), max_connections: int = cpu_count(),
-                                  retries: int = 3, chunk_size: int = 256 * 1024 * 4) -> bool:
+                                  retries: int = 3, chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
     """ Upload a list of files to Google Cloud storage.
 
     :param bucket_name: the name of the Google Cloud storage bucket.
@@ -380,7 +407,7 @@ def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_
 
 
 def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
-                                 connection_sem: BoundedSemaphore = None, chunk_size: int = 256 * 1024 * 4) -> bool:
+                                 connection_sem: BoundedSemaphore = None, chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
     """ Upload a file to Google Cloud Storage.
 
     :param bucket_name: the name of the Google Cloud Storage bucket.

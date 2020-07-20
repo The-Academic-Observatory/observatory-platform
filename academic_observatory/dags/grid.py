@@ -18,8 +18,8 @@
 from datetime import datetime
 
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python_operator import ShortCircuitOperator
 
 from academic_observatory.telescopes.grid import GridTelescope
 
@@ -28,64 +28,81 @@ default_args = {
     "start_date": datetime(2015, 9, 1)
 }
 
-with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@monthly", default_args=default_args) as dag:
-    # List all GRID releases for a given interval
-    task_list = BranchPythonOperator(
-        task_id=GridTelescope.TASK_ID_LIST,
+with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=default_args) as dag:
+    # Check that dependencies exist before starting
+    check = PythonOperator(
+        task_id=GridTelescope.TASK_ID_CHECK_DEPENDENCIES,
+        python_callable=GridTelescope.check_dependencies,
         provide_context=True,
-        python_callable=GridTelescope.list_releases,
-        dag=dag,
-        depends_on_past=False
+        queue=GridTelescope.QUEUE
     )
 
-    task_stop = DummyOperator(task_id=GridTelescope.TASK_ID_STOP)
+    # List releases and skip all subsequent tasks if there is no release to process
+    list_releases = ShortCircuitOperator(
+        task_id=GridTelescope.TASK_ID_LIST,
+        python_callable=GridTelescope.list_releases,
+        provide_context=True,
+        queue=GridTelescope.QUEUE
+    )
 
     # Download the GRID releases for a given interval
-    task_download = PythonOperator(
+    download = PythonOperator(
         task_id=GridTelescope.TASK_ID_DOWNLOAD,
-        provide_context=True,
         python_callable=GridTelescope.download,
-        dag=dag,
-        depends_on_past=False
+        provide_context=True,
+        queue=GridTelescope.QUEUE,
+        retries=GridTelescope.RETRIES
+    )
+
+    # Upload the GRID releases for a given interval
+    upload_downloaded = PythonOperator(
+        task_id=GridTelescope.TASK_ID_UPLOAD_DOWNLOADED,
+        python_callable=GridTelescope.upload_downloaded,
+        provide_context=True,
+        queue=GridTelescope.QUEUE,
+        retries=GridTelescope.RETRIES
     )
 
     # Extract the GRID releases for a given interval
-    task_extract = PythonOperator(
+    extract = PythonOperator(
         task_id=GridTelescope.TASK_ID_EXTRACT,
-        provide_context=True,
         python_callable=GridTelescope.extract,
-        dag=dag,
-        depends_on_past=False
+        provide_context=True,
+        queue=GridTelescope.QUEUE
     )
 
     # Transform the GRID releases for a given interval
-    task_transform = PythonOperator(
+    transform = PythonOperator(
         task_id=GridTelescope.TASK_ID_TRANSFORM,
-        provide_context=True,
         python_callable=GridTelescope.transform,
-        dag=dag,
-        depends_on_past=False
+        provide_context=True,
+        queue=GridTelescope.QUEUE
     )
 
     # Upload the transformed GRID releases for a given interval to Google Cloud Storage
-    task_upload = PythonOperator(
-        task_id=GridTelescope.TASK_ID_UPLOAD,
+    upload_transformed = PythonOperator(
+        task_id=GridTelescope.TASK_ID_UPLOAD_TRANSFORMED,
+        python_callable=GridTelescope.upload_transformed,
         provide_context=True,
-        python_callable=GridTelescope.upload,
-        dag=dag,
-        depends_on_past=False
+        queue=GridTelescope.QUEUE,
+        retries=GridTelescope.RETRIES
     )
 
     # Load the transformed GRID releases for a given interval to BigQuery
     # Depends on past so that BigQuery load jobs are not all created at once
-    task_db_load = PythonOperator(
-        task_id=GridTelescope.TASK_ID_DB_LOAD,
+    bq_load = PythonOperator(
+        task_id=GridTelescope.TASK_ID_BQ_LOAD,
+        python_callable=GridTelescope.bq_load,
         provide_context=True,
-        python_callable=GridTelescope.db_load,
-        dag=dag,
-        depends_on_past=True
+        queue=GridTelescope.QUEUE
+    )
+
+    cleanup = PythonOperator(
+        task_id=GridTelescope.TASK_ID_CLEANUP,
+        python_callable=GridTelescope.cleanup,
+        provide_context=True,
+        queue=GridTelescope.QUEUE
     )
 
     # Task dependencies
-    task_list >> [task_download, task_stop]
-    task_download >> task_extract >> task_transform >> task_upload >> task_db_load
+    check >> list_releases >> download >> upload_downloaded >> extract >> transform >> upload_transformed >> bq_load >> cleanup

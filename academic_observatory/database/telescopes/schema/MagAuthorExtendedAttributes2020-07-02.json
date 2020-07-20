@@ -1,0 +1,14 @@
+[
+  {
+    "name": "AuthorId",
+    "type": "INTEGER"
+  },
+  {
+    "name": "AttributeType",
+    "type": "INTEGER"
+  },
+  {
+    "name": "AttributeValue",
+    "type": "STRING"
+  }
+]

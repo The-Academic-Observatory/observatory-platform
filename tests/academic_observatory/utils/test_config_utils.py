@@ -16,7 +16,6 @@
 
 import os
 import pathlib
-import shutil
 import unittest
 from unittest.mock import patch
 
@@ -26,16 +25,15 @@ from click.testing import CliRunner
 
 import academic_observatory.dags
 import academic_observatory.database.telescopes.schema
-from academic_observatory.utils.config_utils import ObservatoryConfig, Environment, observatory_package_path, \
-    dags_path, observatory_home, telescope_path, SubFolder, find_schema, schema_path
-from academic_observatory.utils.test_utils import test_data_dir
+from academic_observatory.utils.config_utils import (ObservatoryConfig, observatory_package_path, observatory_home,
+                                                     dags_path, telescope_path, SubFolder, find_schema, schema_path)
+from tests.academic_observatory.config import test_fixtures_path
 
 
 class TestConfigUtils(unittest.TestCase):
 
     @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_observatory_home_user_home(self, home_mock):
-        # Tests with no OBSERVATORY_PATH environment variable
+    def test_observatory_home(self, home_mock):
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Create home path and mock getting home path
@@ -50,33 +48,9 @@ class TestConfigUtils(unittest.TestCase):
                 self.assertEqual(f'{home_path}/.observatory', path)
 
                 # Test that subdirectories are created
-                path = observatory_home('telescopes')
+                path = observatory_home('subfolder')
                 self.assertTrue(os.path.exists(path))
-                self.assertEqual(f'{home_path}/.observatory/telescopes', path)
-
-    @patch('academic_observatory.utils.config_utils.os.environ.get')
-    def test_observatory_home_env_var(self, get_mock):
-        root_path = '/tmp/df0acbb4-9690-4604-91f4-8f10ae3ebf58'
-        observatory_home_path = os.path.join(root_path, 'home/airflow/gcs/data')
-        os.makedirs(observatory_home_path, exist_ok=True)
-        get_mock.return_value = observatory_home_path
-
-        # Test that setting the OBSERVATORY_PATH environment variable works
-        path = observatory_home()
-        self.assertEqual(f'{observatory_home_path}/.observatory', path)
-
-        # Test that subdirectories are created
-        path = observatory_home('telescopes')
-        self.assertTrue(os.path.exists(path))
-        self.assertEqual(f'{observatory_home_path}/.observatory/telescopes', path)
-
-        # Cleanup
-        shutil.rmtree(root_path, ignore_errors=True)
-
-        # Test that FileNotFoundError is thrown when invalid OBSERVATORY_PATH is set. The path in observatory_home_path
-        # does not exist anymore due to the shutil.rmtree command.
-        with self.assertRaises(FileNotFoundError):
-            observatory_home()
+                self.assertEqual(f'{home_path}/.observatory/subfolder', path)
 
     def test_observatory_package_path(self):
         expected_path = pathlib.Path(academic_observatory.__file__).resolve()
@@ -100,7 +74,7 @@ class TestConfigUtils(unittest.TestCase):
         self.assertTrue(os.path.exists(actual_path))
 
     def test_find_schema(self):
-        schemas_path = os.path.join(test_data_dir(__file__), 'schemas')
+        schemas_path = os.path.join(test_fixtures_path(), 'telescopes')
 
         # Tests that don't use a prefix
         table_name = 'grid'
@@ -171,129 +145,170 @@ class TestConfigUtils(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_telescope_path(self, mock_pathlib_home):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_telescope_path(self, mock_variable_get):
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Mock getting home path
-            home_path = 'user-home'
-            mock_pathlib_home.return_value = home_path
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
             # The name of the telescope to create and expected root folder
             telescope_name = 'grid'
-            root_path = os.path.join(home_path, '.observatory', 'data', 'telescopes', telescope_name)
+            root_path = os.path.join(data_path, 'telescopes')
 
             # Create subdir
-            path_downloaded = telescope_path(telescope_name, SubFolder.downloaded)
-            expected = os.path.join(root_path, SubFolder.downloaded.value)
+            path_downloaded = telescope_path(SubFolder.downloaded, telescope_name)
+            expected = os.path.join(root_path, SubFolder.downloaded.value, telescope_name)
             self.assertEqual(expected, path_downloaded)
             self.assertTrue(os.path.exists(path_downloaded))
 
             # Create subdir
-            path_extracted = telescope_path(telescope_name, SubFolder.extracted)
-            expected = os.path.join(root_path, SubFolder.extracted.value)
+            path_extracted = telescope_path(SubFolder.extracted, telescope_name)
+            expected = os.path.join(root_path, SubFolder.extracted.value, telescope_name)
             self.assertEqual(expected, path_extracted)
             self.assertTrue(os.path.exists(path_extracted))
 
             # Create subdir
-            path_transformed = telescope_path(telescope_name, SubFolder.transformed)
-            expected = os.path.join(root_path, SubFolder.transformed.value)
+            path_transformed = telescope_path(SubFolder.transformed, telescope_name)
+            expected = os.path.join(root_path, SubFolder.transformed.value, telescope_name)
             self.assertEqual(expected, path_transformed)
             self.assertTrue(os.path.exists(path_transformed))
 
 
 class TestObservatoryConfig(unittest.TestCase):
-    CONFIG_DICT_COMPLETE_VALID = {
-        'project_id': 'my-project',
-        'bucket_name': 'my-bucket',
-        'data_location': 'us-west4',
-        'dags_path': '/usr/local/airflow/dags',
-        'google_application_credentials': '/run/secrets/google_application_credentials.json',
-        'environment': 'dev'
-    }
-
-    CONFIG_DICT_COMPLETE_INVALID = {
-        'project_id': None,
-        'bucket_name': None,
-        'data_location': None,
-        'dags_path': '/usr/local/airflow/dags',
-        'google_application_credentials': '/run/secrets/google_application_credentials.json',
-        'environment': 'dev'
-    }
-
-    CONFIG_DICT_INCOMPLETE_VALID = {
-        'project_id': 'my-project',
-        'bucket_name': 'my-bucket',
-        'data_location': 'us-west4',
-        'environment': 'dev'
-    }
 
     def setUp(self) -> None:
         self.config_file_name = 'config.yaml'
+        self.config_dict_complete_valid = {
+            'project_id': 'my-project',
+            'data_location': 'us',
+            'download_bucket_name': 'my-download-bucket',
+            'transform_bucket_name': 'my-transform-bucket',
+            'environment': 'dev',
+            'google_application_credentials': '/path/to/google_application_credentials.json',
+            'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
+            'mag_releases_table_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+            'mag_snapshots_container_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+            'crossref_connection': 'mysql://:crossref-token@'
+        }
+
+        self.config_dict_complete_invalid = {
+            'project_id': None,
+            'data_location': None,
+            'download_bucket_name': None,
+            'transform_bucket_name': None,
+            'environment': 'dev',
+            'google_application_credentials': None,
+            'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
+            'mag_releases_table_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+            'mag_snapshots_container_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
+            'crossref_connection': 'mysql://:crossref-token@'
+        }
+
+        self.config_dict_incomplete_valid = {
+            'project_id': 'my-project',
+            'data_location': 'us',
+            'download_bucket_name': 'my-download-bucket',
+            'transform_bucket_name': 'my-transform-bucket',
+            'environment': 'dev',
+            'google_application_credentials': '/path/to/google_application_credentials.json',
+            'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE='
+        }
 
     def test_is_valid(self):
-        # All properties specified and valid
-        complete_valid = ObservatoryConfig.from_dict(TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID)
-        self.assertTrue(complete_valid.is_valid)
+        with CliRunner().isolated_filesystem():
+            # Set google application credentials
+            TestObservatoryConfig.set_google_application_credentials(self.config_dict_complete_valid)
+            google_application_credentials_path = TestObservatoryConfig.set_google_application_credentials(
+                self.config_dict_incomplete_valid)
 
-        # All properties specified but some that are required are None so invalid
-        complete_invalid = ObservatoryConfig.from_dict(TestObservatoryConfig.CONFIG_DICT_COMPLETE_INVALID)
-        self.assertFalse(complete_invalid.is_valid)
+            # All properties specified and valid
+            complete_valid = ObservatoryConfig.from_dict(self.config_dict_complete_valid)
+            self.assertTrue(complete_valid.is_valid)
 
-        # Some properties missing, but they are not required so still valid
-        incomplete_valid = ObservatoryConfig.from_dict(TestObservatoryConfig.CONFIG_DICT_INCOMPLETE_VALID)
-        self.assertTrue(incomplete_valid.is_valid)
+            # All properties specified but some that are required are None so invalid
+            complete_invalid = ObservatoryConfig.from_dict(self.config_dict_complete_invalid)
+            self.assertFalse(complete_invalid.is_valid)
+
+            # Some properties missing, but they are not required so still valid
+            incomplete_valid = ObservatoryConfig.from_dict(self.config_dict_incomplete_valid)
+            self.assertTrue(incomplete_valid.is_valid)
+
+            # All properties specified but google_application_credentials doesn't exist
+            os.remove(google_application_credentials_path)
+            google_app_cred_not_exist = ObservatoryConfig.from_dict(self.config_dict_complete_valid)
+            self.assertFalse(google_app_cred_not_exist.is_valid)
 
     def test_save(self):
-        runner = CliRunner()
-        with runner.isolated_filesystem():
+        with CliRunner().isolated_filesystem():
+            # Set google application credentials
+            TestObservatoryConfig.set_google_application_credentials(self.config_dict_complete_valid)
+
             # Create test config and save
-            dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID
-            config = ObservatoryConfig.from_dict(dict_)
+            config = ObservatoryConfig.from_dict(self.config_dict_complete_valid)
             config.save(self.config_file_name)
 
             # Check file exists
-            self.assertTrue(os.path.exists(self.config_file_name))
+            self.assertTrue(os.path.isfile(self.config_file_name))
 
             # Check file contents is as expected
             with open(self.config_file_name, 'r') as f:
                 actual_data = f.read()
-            expected_data = yaml.safe_dump(TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID)
+            expected_data = yaml.safe_dump(self.config_dict_complete_valid)
             self.assertEqual(expected_data, actual_data)
 
     def test_load(self):
-        runner = CliRunner()
-        with runner.isolated_filesystem():
+        with CliRunner().isolated_filesystem():
+            # Set google application credentials
+            TestObservatoryConfig.set_google_application_credentials(self.config_dict_complete_valid)
+
             # Save actual config
             with open(self.config_file_name, 'w') as f:
-                data = yaml.safe_dump(TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID)
+                data = yaml.safe_dump(self.config_dict_complete_valid)
                 f.write(data)
 
             # Test that loaded config matches expected config
-            expected_config = ObservatoryConfig.from_dict(TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID)
+            expected_config = ObservatoryConfig.from_dict(self.config_dict_complete_valid)
             actual_config = ObservatoryConfig.load(self.config_file_name)
             self.assertEqual(expected_config, actual_config)
 
     def test_to_dict(self):
-        # Check that to_dict works
-        expected_dict = TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID
-        actual_dict = ObservatoryConfig.from_dict(expected_dict).to_dict()
-        self.assertEqual(expected_dict, actual_dict)
+        with CliRunner().isolated_filesystem():
+            # Set google application credentials
+            TestObservatoryConfig.set_google_application_credentials(self.config_dict_complete_valid)
 
-    def assert_dict_equals_config(self, dict_, config):
-        self.assertEqual(dict_['project_id'], config.project_id)
-        self.assertEqual(dict_['bucket_name'], config.bucket_name)
-        self.assertEqual(dict_['data_location'], config.data_location)
-        self.assertEqual(dict_['dags_path'], config.dags_path)
-        self.assertEqual(dict_['google_application_credentials'], config.google_application_credentials)
-        self.assertEqual(Environment(dict_['environment']), config.environment)
+            # Check that to_dict works
+            actual_dict = ObservatoryConfig.from_dict(self.config_dict_complete_valid).to_dict()
+            self.assertEqual(self.config_dict_complete_valid, actual_dict)
 
     def test_make_default(self):
-        dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_INVALID
         config = ObservatoryConfig.make_default()
-        self.assert_dict_equals_config(dict_, config)
+        config_dict = config.to_dict()
+
+        # Check that fernet key has been set
+        self.assertIsNotNone(config.fernet_key)
+
+        # Check that generated dictionary matches original. Remove fernet key because it should be different
+        # every time
+        del config_dict['fernet_key']
+        del self.config_dict_complete_invalid['fernet_key']
+        self.assertDictEqual(self.config_dict_complete_invalid, config_dict)
 
     def test_from_dict(self):
-        dict_ = TestObservatoryConfig.CONFIG_DICT_COMPLETE_VALID
-        config = ObservatoryConfig.from_dict(dict_)
-        self.assert_dict_equals_config(dict_, config)
+        with CliRunner().isolated_filesystem():
+            # Set google application credentials
+            TestObservatoryConfig.set_google_application_credentials(self.config_dict_complete_valid)
+
+            config = ObservatoryConfig.from_dict(self.config_dict_complete_valid)
+            self.assertDictEqual(self.config_dict_complete_valid, config.to_dict())
+
+    @staticmethod
+    def set_google_application_credentials(dict_) -> str:
+        # Make google application credentials
+        credentials_file_path = os.path.join(pathlib.Path().absolute(), 'google_application_credentials.json')
+        with open(credentials_file_path, 'w') as f:
+            f.write('')
+        dict_['google_application_credentials'] = credentials_file_path
+
+        return credentials_file_path

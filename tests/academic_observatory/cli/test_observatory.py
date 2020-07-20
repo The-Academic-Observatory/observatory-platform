@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from academic_observatory.cli.observatory import cli, ObservatoryConfig, gen_fernet_key
+from academic_observatory.cli.observatory import cli, ObservatoryConfig
 
 
 def not_linux():
@@ -34,39 +34,32 @@ class TestObservatory(unittest.TestCase):
     @unittest.skipIf(not_linux(), "Only runs on Linux")
     def test_platform_start_stop(self):
         runner = CliRunner()
-        config_file_path = '/tmp/config.yaml'
-        credentials_file_path = '/tmp/cred.json'
-        env = {
-            'FERNET_KEY': gen_fernet_key(),
-            'GOOGLE_APPLICATION_CREDENTIALS': config_file_path
-        }
+        with runner.isolated_filesystem():
+            # File paths
+            working_dir = pathlib.Path().absolute()
+            config_file_path = os.path.join(working_dir, 'config.yaml')
+            credentials_file_path = os.path.join(working_dir, 'google_application_credentials.json')
 
-        # Make config file
-        config = ObservatoryConfig.make_default()
-        config.project_id = 'my-project-id'
-        config.data_location = 'my-project-location'
-        config.bucket_name = 'my-bucket-name'
-        config.save(config_file_path)
+            # Make config file
+            config = ObservatoryConfig.make_default()
+            config.project_id = 'my-project-id'
+            config.data_location = 'us'
+            config.download_bucket_name = 'my-project-download-bucket'
+            config.transform_bucket_name = 'my-project-transform-bucket'
+            config.google_application_credentials = credentials_file_path
+            config.save(config_file_path)
 
-        # Make a fake google application credentials
-        with open(credentials_file_path, 'w') as f:
-            f.write('')
+            # Make a fake google application credentials as it is required by the secret
+            with open(credentials_file_path, 'w') as f:
+                f.write('')
 
-        result = runner.invoke(cli, ['platform', 'start', '--config-path', config_file_path], env=env)
-        self.assertEqual(result.exit_code, os.EX_OK)
+            # Test that start command works
+            result = runner.invoke(cli, ['platform', 'start', '--config-path', config_file_path])
+            self.assertEqual(result.exit_code, os.EX_OK)
 
-        result = runner.invoke(cli, ['platform', 'stop', '--config-path', config_file_path], env=env)
-        self.assertEqual(result.exit_code, os.EX_OK)
-
-        try:
-            pathlib.Path(config_file_path).unlink()
-        except FileNotFoundError:
-            pass
-
-        try:
-            pathlib.Path(credentials_file_path).unlink()
-        except FileNotFoundError:
-            pass
+            # Test that stop command works
+            result = runner.invoke(cli, ['platform', 'stop', '--config-path', config_file_path])
+            self.assertEqual(result.exit_code, os.EX_OK)
 
     @unittest.skipIf(not_linux(), "Only runs on Linux")
     @patch('academic_observatory.cli.observatory.get_docker_path')
@@ -74,79 +67,76 @@ class TestObservatory(unittest.TestCase):
     @patch('academic_observatory.cli.observatory.is_docker_running')
     def test_platform_check_dependencies(self, mock_is_docker_running, mock_get_docker_compose_path,
                                          mock_get_docker_path):
-        # Mock to return None which should make the command line interface print out information
-        # about how to install Docker and Docker Compose and exit
-        mock_get_docker_path.return_value = None
-        mock_get_docker_compose_path.return_value = None
-        mock_is_docker_running.return_value = False
-
-        # Make sure no config file
-        config_file_path = '/tmp/config.yaml'
-        try:
-            pathlib.Path(config_file_path).unlink()
-        except FileNotFoundError:
-            pass
-
-        # Check that correct exit code returned and that output has links to install Docker and Docker Compose
         runner = CliRunner()
+        with runner.isolated_filesystem():
+            # No config file should exist because we are in a new isolated filesystem
+            config_file_path = os.path.join(pathlib.Path().absolute(), 'config.yaml')
 
-        env = {
-            'GOOGLE_APPLICATION_CREDENTIALS': None,
-            'FERNET_KEY': None
-        }
-        result = runner.invoke(cli, ['platform', 'start', '--config-path', config_file_path], env=env)
+            # Mock to return None which should make the command line interface print out information
+            # about how to install Docker and Docker Compose and exit
+            mock_get_docker_path.return_value = None
+            mock_get_docker_compose_path.return_value = None
+            mock_is_docker_running.return_value = False
 
-        # Docker not installed
-        self.assertIn('https://docs.docker.com/get-docker/', result.output)
+            # Check that correct exit code returned and that output has links to install Docker and Docker Compose
+            result = runner.invoke(cli, ['platform', 'start', '--config-path', config_file_path])
 
-        # Docker Compose not installed
-        self.assertIn('https://docs.docker.com/compose/install/', result.output)
+            # Docker not installed
+            self.assertIn('https://docs.docker.com/get-docker/', result.output)
 
-        # GOOGLE_APPLICATION_CREDENTIALS
-        self.assertIn('https://cloud.google.com/docs/authentication/getting-started', result.output)
+            # Docker Compose not installed
+            self.assertIn('https://docs.docker.com/compose/install/', result.output)
 
-        # Fernet key
-        self.assertIn('- environment variable: not set. See below for command to set it:', result.output)
+            # config.yaml
+            self.assertIn('- file not found, generating a default file', result.output)
 
-        # config.yaml
-        self.assertIn('- file not found, generating a default file', result.output)
+            # Check return code
+            self.assertEqual(result.exit_code, os.EX_CONFIG)
 
-        # Check return code
-        self.assertEqual(result.exit_code, os.EX_CONFIG)
+        with runner.isolated_filesystem():
+            # Test that invalid config errors show up
+            # Test that error message is printed when Docker is installed but not running
+            mock_get_docker_path.return_value = '/docker'
+            mock_get_docker_compose_path.return_value = '/docker-compose'
+            mock_is_docker_running.return_value = False
 
-        # Test that invalid config errors show up
-        # Test that error message is printed when Docker is installed but not running
-        # Test that error message is printed when Google Credentials env variable is set but file doesn't exist
-        env = {
-            'GOOGLE_APPLICATION_CREDENTIALS': '/path/to/non/existent/file',
-            'FERNET_KEY': None
-        }
+            # File paths
+            config_file_path = os.path.join(pathlib.Path().absolute(), 'config.yaml')
 
-        mock_get_docker_path.return_value = '/docker'
-        mock_get_docker_compose_path.return_value = '/docker-compose'
-        mock_is_docker_running.return_value = False
+            # Create default config file
+            config = ObservatoryConfig.make_default()
+            config.save(config_file_path)
+            result = runner.invoke(cli, ['platform', 'start', '--config-path', config_file_path])
 
-        config = ObservatoryConfig.make_default()
-        config.save(config_file_path)
-        result = runner.invoke(cli, ['platform', 'start', '--config-path', config_file_path], env=env)
+            # Invalid config and which properties
+            self.assertIn(f'config.yaml:\n   - path: {config_file_path}\n   - file invalid\n', result.output)
+            self.assertIn('project_id: null value not allowed', result.output)
+            self.assertIn('data_location: null value not allowed', result.output)
+            self.assertIn('download_bucket_name: null value not allowed', result.output)
+            self.assertIn('transform_bucket_name: null value not allowed', result.output)
+            self.assertIn('google_application_credentials: null value not allowed', result.output)
 
-        # Invalid config and which properties
-        self.assertIn('config.yaml:\n   - path: /tmp/config.yaml\n   - file invalid\n', result.output)
-        self.assertIn('bucket_name: null value not allowed', result.output)
-        self.assertIn('location: null value not allowed', result.output)
-        self.assertIn('project_id: null value not allowed', result.output)
+            # Check that Docker is not running message printed
+            self.assertIn('Docker:\n   - path: /docker\n   - not running, please start', result.output)
 
-        # Check that Docker is not running message printed
-        self.assertIn('Docker:\n   - path: /docker\n   - not running, please start', result.output)
+            # Check return code
+            self.assertEqual(result.exit_code, os.EX_CONFIG)
 
-        # Check that google credentials invalid printed
-        self.assertIn('GOOGLE_APPLICATION_CREDENTIALS:\n   - environment variable: '
-                      '/path/to/non/existent/file\n   - file does not exist', result.output)
+        with runner.isolated_filesystem():
+            # File paths
+            working_dir = pathlib.Path().absolute()
+            config_file_path = os.path.join(working_dir, 'config.yaml')
+            credentials_file_path = os.path.join(working_dir, 'google_application_credentials.json')
 
-        # Check return code
-        self.assertEqual(result.exit_code, os.EX_CONFIG)
+            # Test that error message is printed when Google Credentials env variable is set but file doesn't exist
+            config = ObservatoryConfig.make_default()
+            config.google_application_credentials = credentials_file_path
+            config.save(config_file_path)
+            result = runner.invoke(cli, ['platform', 'start', '--config-path', config_file_path])
 
-        try:
-            pathlib.Path(config_file_path).unlink()
-        except FileNotFoundError:
-            pass
+            # Check that google credentials file does not exist is printed
+            self.assertIn(f'google_application_credentials: the file {credentials_file_path} does not exist',
+                          result.output)
+
+            # Check return code
+            self.assertEqual(result.exit_code, os.EX_CONFIG)

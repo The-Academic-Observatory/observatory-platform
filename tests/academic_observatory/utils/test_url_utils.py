@@ -20,8 +20,8 @@ from typing import List
 import httpretty
 import requests
 
-from academic_observatory.utils import get_url_domain_suffix, unique_id, is_url_absolute, strip_query_params, \
-    retry_session
+from academic_observatory.utils.url_utils import (get_url_domain_suffix, unique_id, is_url_absolute, strip_query_params,
+                                                  retry_session)
 
 
 class TestUrlUtils(unittest.TestCase):

@@ -14,15 +14,6 @@
 
 # Author: Cameron Neylon
 
-import pandas as pd
-import seaborn as sns
-import matplotlib
-import matplotlib.pyplot as plt
-import itertools
-from matplotlib import animation, rc, lines
-from IPython.display import HTML
-
-from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports.charts.output_types_time_chart import *
 
 

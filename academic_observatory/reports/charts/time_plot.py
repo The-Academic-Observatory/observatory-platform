@@ -14,18 +14,13 @@
 
 # Author: Cameron Neylon
 
-import pandas as pd
-import seaborn as sns
-import matplotlib
-import matplotlib.pyplot as plt
 import itertools
-from matplotlib import animation, rc, artist
-from IPython.display import HTML
-from abc import ABC, abstractmethod
+
+import matplotlib.pyplot as plt
+import pandas as pd
 
 from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports.chart_utils import _collect_kwargs_for
-from academic_observatory.reports.defaults import *
 
 
 class TimePlot(AbstractObservatoryChart):

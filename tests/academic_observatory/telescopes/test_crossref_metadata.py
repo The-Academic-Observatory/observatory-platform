@@ -14,23 +14,22 @@
 
 # Author: Aniek Roelofs
 
-import datetime
+import glob
 import logging
 import os
 import shutil
 import unittest
-from typing import List
 from unittest.mock import patch
 
 import pendulum
 import vcr
 from click.testing import CliRunner
+from natsort import natsorted
 
 from academic_observatory.telescopes.crossref_metadata import (
-    CrossrefMetaRelease,
+    CrossrefMetadataRelease,
     CrossrefMetadataTelescope,
-    decompress_release,
-    list_releases,
+    extract_release,
     transform_release
 )
 from academic_observatory.utils.config_utils import telescope_path, SubFolder
@@ -50,158 +49,158 @@ class TestCrossrefMetadata(unittest.TestCase):
 
         super(TestCrossrefMetadata, self).__init__(*args, **kwargs)
 
-        # Crossref releases list
-        self.list_crossref_releases_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
-                                                        'list_crossref_releases.yaml')
-        self.list_crossref_releases_hash = 'aa9b6b37a4abafd5760301d903373594'
-
-        # Crossref test release
-        self.crossref_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
-        self.crossref_test_url = CrossrefMetadataTelescope.TELESCOPE_DEBUG_URL.format(year=3000, month=1)
-
-        self.crossref_test_date = '3000-01'
-        self.crossref_test_download_file_name = 'crossref_metadata_3000_01.json.tar.gz'
-        self.crossref_test_decompress_file_name = 'crossref_metadata_3000_01.json'
-        self.crossref_test_transform_file_name = 'crossref_metadata_3000_01.json'
-        self.crossref_test_download_hash = 'ddcbcca0f8d63ce57906e76c787f243d'
-        self.crossref_test_decompress_hash = 'df9543823bfdedac5b43685bc1fb62fa'
-        self.crossref_test_transform_hash = '48262de7b058994e698083d64d4a6148'
-
-        logging.info("Check that test fixtures exist")
-        self.assertTrue(os.path.isfile(self.list_crossref_releases_path))
-        self.assertTrue(os.path.isfile(self.crossref_test_path))
-        self.assertTrue(self.list_crossref_releases_hash,
-                        _hash_file(self.list_crossref_releases_path, algorithm='md5'))
-        self.assertTrue(self.crossref_test_download_hash, _hash_file(self.crossref_test_path, algorithm='md5'))
+        self.crossref_release_exists_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
+                                                         'crossref_release_exists.yaml')
+        self.test_release_path = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
+        self.year = 3000
+        self.month = 1
+        self.date = pendulum.datetime(year=3000, month=1, day=1)
+        self.download_file_name = 'crossref_metadata_3000_01_01.json.tar.gz'
+        self.extract_folder = 'crossref_metadata_3000_01_01'
+        self.transform_folder = 'crossref_metadata_3000_01_01'
+        self.num_files = 5
+        self.download_hash = 'ddcbcca0f8d63ce57906e76c787f243d'
+        self.extract_hashes = ['d7acd01f729d62fbbaffa50b534025b2', '634724e4c9f773ca3b5a81b20f0ff005',
+                               '2392895c2dacd6176b140435e97e1840', 'd1157cf952d4694d4f4c08ee36a18116',
+                               '4128088d14446682bde8a1a1bc5e15b5']
+        self.transform_hashes = ['5f27af4d3080b56484fa5567230aaf92', '10717291388b1c232416e720f6ec3f3d',
+                                 '92faa40aa9353c832cd66349d32950ad', 'c98c07927b6b978696ffaf81ee632bbb',
+                                 '92a3ac8f3110da83fcaede58e30f6ec3']
 
         # Turn logging to warning because vcr prints too much at info level
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
-    def test_list_releases(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_list_releases(self, mock_variable_get):
         """ Test that list releases returns a list of string with urls.
 
         :return: None.
         """
-        with vcr.use_cassette(self.list_crossref_releases_path):
-            releases = list_releases(CrossrefMetadataTelescope.TELESCOPE_URL, pendulum.datetime(2018, 4, 1),
-                                     pendulum.now())
-            self.assertIsInstance(releases, List)
-            for release in releases:
-                self.assertIsInstance(release, str)
 
-    def test_release_date(self):
-        """ Test that date obtained from url is string and in correct format.
+        with CliRunner().isolated_filesystem():
+            with vcr.use_cassette(self.crossref_release_exists_path):
+                # Mock data variable
+                data_path = 'data'
+                mock_variable_get.return_value = data_path
 
-        :return: None.
-        """
-        with vcr.use_cassette(self.list_crossref_releases_path):
-            releases = list_releases(CrossrefMetadataTelescope.TELESCOPE_URL, pendulum.datetime(2018, 4, 1),
-                                     pendulum.now())
-            for release_url in releases:
-                release = CrossrefMetaRelease(release_url)
-                date = release.date
-                self.assertIsInstance(date, str)
-                self.assertTrue(datetime.datetime.strptime(date, "%Y-%m"))
+                # Test a release that exists
+                release = CrossrefMetadataRelease(2020, 6)
+                self.assertTrue(release.exists())
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_filepath_download(self, home_mock):
+                # Test a release that should not exist
+                release = CrossrefMetadataRelease(self.year, self.month)
+                self.assertFalse(release.exists())
+
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_download_path(self, mock_variable_get):
         """ Test that path of downloaded file is correct for given url.
 
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
-            with CliRunner().isolated_filesystem():
-                release = CrossrefMetaRelease(self.crossref_test_url)
-                file_path_download = release.filepath_download
-                path = telescope_path(CrossrefMetadataTelescope.DAG_ID, SubFolder.downloaded)
-                self.assertEqual(os.path.join(path, self.crossref_test_download_file_name), file_path_download)
+            release = CrossrefMetadataRelease(self.year, self.month)
+            path = telescope_path(SubFolder.downloaded, CrossrefMetadataTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.download_file_name), release.download_path)
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_filepath_extract(self, home_mock):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_extract_path(self, mock_variable_get):
         """ Test that path of decompressed/extracted file is correct for given url.
 
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
-            with CliRunner().isolated_filesystem():
-                release = CrossrefMetaRelease(self.crossref_test_url)
-                file_path_extract = release.filepath_extract
-                path = telescope_path(CrossrefMetadataTelescope.DAG_ID, SubFolder.extracted)
-                self.assertEqual(os.path.join(path, self.crossref_test_decompress_file_name), file_path_extract)
+            release = CrossrefMetadataRelease(self.year, self.month)
+            path = telescope_path(SubFolder.extracted, CrossrefMetadataTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.extract_folder), release.extract_path)
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_filepath_transform(self, home_mock):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_transform_path(self, mock_variable_get):
         """ Test that path of transformed file is correct for given url.
 
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
-            with CliRunner().isolated_filesystem():
-                release = CrossrefMetaRelease(self.crossref_test_url)
-                file_path_transform = release.filepath_transform
-                path = telescope_path(CrossrefMetadataTelescope.DAG_ID, SubFolder.transformed)
-                self.assertEqual(os.path.join(path, self.crossref_test_transform_file_name), file_path_transform)
+            release = CrossrefMetadataRelease(self.year, self.month)
+            path = os.path.join(telescope_path(SubFolder.transformed, CrossrefMetadataTelescope.DAG_ID),
+                                self.transform_folder)
+            self.assertEqual(path, release.transform_path)
 
-    def test_download_release_date(self):
-        """ Test that the test url contains the correct date.
-
-        :return: None.
-        """
-        with CliRunner().isolated_filesystem():
-            release = CrossrefMetaRelease(self.crossref_test_url)
-            self.assertEqual(self.crossref_test_date, release.date)
-
-    def test_decompress_release(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_extract_release(self, mock_variable_get):
         """ Test that the release is decompressed as expected.
 
         :return: None.
         """
 
         with CliRunner().isolated_filesystem():
-            release = CrossrefMetaRelease(self.crossref_test_url)
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
+
+            release = CrossrefMetadataRelease(self.year, self.month)
+
             # 'download' release
-            shutil.copyfile(self.crossref_test_path, release.filepath_download)
+            shutil.copyfile(self.test_release_path, release.download_path)
 
-            decompress_file_path = decompress_release(release)
-            decompress_file_name = os.path.basename(decompress_file_path)
+            success = extract_release(release)
+            self.assertTrue(success)
+            self.assertTrue(os.path.exists(release.extract_path))
 
-            self.assertTrue(os.path.exists(decompress_file_path))
-            self.assertEqual(self.crossref_test_decompress_file_name, decompress_file_name)
-            self.assertEqual(self.crossref_test_decompress_hash, _hash_file(decompress_file_path, algorithm='md5'))
+            file_paths = natsorted(glob.glob(f'{release.extract_path}/*.json'))
+            self.assertEqual(self.num_files, len(file_paths))
 
-    def test_transform_release(self):
+            for md5sum, file_path in zip(self.extract_hashes, file_paths):
+                self.assertEqual(md5sum, _hash_file(file_path, algorithm='md5'))
+
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_transform_release(self, mock_variable_get):
         """ Test that the release is transformed as expected.
 
         :return: None.
         """
 
         with CliRunner().isolated_filesystem():
-            release = CrossrefMetaRelease(self.crossref_test_url)
-            shutil.copyfile(self.crossref_test_path, release.filepath_download)
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
-            decompress_release(release)
-            transform_file_path = transform_release(release)
-            transform_file_name = os.path.basename(transform_file_path)
+            release = CrossrefMetadataRelease(self.year, self.month)
 
-            self.assertTrue(os.path.exists(transform_file_path))
-            self.assertEqual(self.crossref_test_transform_file_name, transform_file_name)
-            self.assertEqual(self.crossref_test_transform_hash, _hash_file(transform_file_path, algorithm='md5'))
+            # 'download' release
+            shutil.copyfile(self.test_release_path, release.download_path)
+
+            # Extract release
+            success = extract_release(release)
+            self.assertTrue(success)
+            self.assertTrue(os.path.exists(release.extract_path))
+
+            # Transform release
+            success = transform_release(release)
+            self.assertTrue(success)
+            self.assertTrue(os.path.exists(release.transform_path))
+
+            # Check files are correct
+            file_paths = natsorted(glob.glob(f'{release.transform_path}/*.jsonl'))
+            self.assertEqual(self.num_files, len(file_paths))
+
+            for md5sum, file_path in zip(self.transform_hashes, file_paths):
+                self.assertEqual(md5sum, _hash_file(file_path, algorithm='md5'))

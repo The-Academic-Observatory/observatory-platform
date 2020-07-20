@@ -14,10 +14,9 @@
 
 # Author: Cameron Neylon & Richard Hosing 
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pydata_google_auth
-
 from num2words import num2words
 
 from academic_observatory.reports.charts.oapc_time_chart import *
@@ -228,9 +227,6 @@ def general_text_comparison(df: pd.DataFrame,
     :type df: pd.DataFrame
     :param focus_year: The year for calculating the comparison
     :type focus_year: int
-    :param total_column: The column in which to find the values to check for the
-    comparison of values
-    :type total_column: str
     :param filter_column: Optional filter to define the set of organisations to
     search amongst for the comparison, defaults to 'country'
     :type filter_column: str, optional
@@ -282,7 +278,6 @@ def is_ranked(df: pd.DataFrame,
     :param focus_year: The year for defining the ranking position
     :type focus_year: int
     :param column: The column in which to find the values to calculate the rank
-    :type total_column: str, optional
     :param filter_column: Optional filter to define the set of organisations to
     search amongst for the largets, defaults to 'country'
     :type filter_column: str, optional

@@ -24,12 +24,14 @@ from click.testing import CliRunner
 from google.cloud import storage, bigquery
 from google.cloud.bigquery import SourceFormat, Table
 
-from academic_observatory.utils import test_data_dir
-from academic_observatory.utils.gc_utils import hex_to_base64_str, crc32c_base64_hash, bigquery_partitioned_table_id, \
-    azure_to_google_cloud_storage_transfer, create_bigquery_dataset, load_bigquery_table, upload_file_to_cloud_storage, \
-    download_blob_from_cloud_storage, upload_files_to_cloud_storage, download_blobs_from_cloud_storage, \
-    table_name_from_blob
+from academic_observatory.utils.gc_utils import (hex_to_base64_str, crc32c_base64_hash, bigquery_partitioned_table_id,
+                                                 azure_to_google_cloud_storage_transfer, create_bigquery_dataset,
+                                                 load_bigquery_table, upload_file_to_cloud_storage,
+                                                 download_blob_from_cloud_storage, upload_files_to_cloud_storage,
+                                                 download_blobs_from_cloud_storage,
+                                                 table_name_from_blob)
 from tests.academic_observatory.config import random_id
+from tests.academic_observatory.config import test_fixtures_path
 
 
 def make_account_url(account_name: str) -> str:
@@ -147,7 +149,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
         schema_file_name = 'people_schema.json'
         dataset_name = random_id()
         client = bigquery.Client()
-        test_data_path = os.path.join(test_data_dir(__file__), 'gc_utils')
+        test_data_path = os.path.join(test_fixtures_path(), 'utils', 'gc_utils')
         schema_path = os.path.join(test_data_path, schema_file_name)
 
         # CSV file

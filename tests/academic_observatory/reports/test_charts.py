@@ -14,32 +14,29 @@
 
 # Author: Cameron Neylon & Richard Hosking
 
-import unittest
-import pandas as pd
 import os.path
+import unittest
 
+import pandas as pd
+
+from academic_observatory.reports.charts import BarComparisonChart
+from academic_observatory.reports.charts import BoxScatter
+from academic_observatory.reports.charts import CitationCountTimeChart
+from academic_observatory.reports.charts import ConfidenceIntervalRank
+from academic_observatory.reports.charts import DistributionComparisonChart
+from academic_observatory.reports.charts import FunderGraph
+from academic_observatory.reports.charts import GenericTimeChart
+from academic_observatory.reports.charts import OAAdvantageBarChart
+from academic_observatory.reports.charts import OApcTimeChart
+from academic_observatory.reports.charts import OutputTypesPieChart
+from academic_observatory.reports.charts import OutputTypesTimeChart
+from academic_observatory.reports.charts import RankChart
 from academic_observatory.reports.charts import ScatterPlot
+from academic_observatory.reports.charts import TimePath
 from academic_observatory.reports.charts import TimePlot
 from academic_observatory.reports.charts import TimePlotLayout
-from academic_observatory.reports.charts import TimePath
-from academic_observatory.reports.charts import Layout
-
-from academic_observatory.reports.charts import RankChart
-from academic_observatory.reports.charts import ConfidenceIntervalRank
-from academic_observatory.reports.charts import BoxScatter
-
-from academic_observatory.reports.charts import OutputTypesPieChart
-from academic_observatory.reports.charts import GenericTimeChart
-from academic_observatory.reports.charts import OutputTypesTimeChart
-from academic_observatory.reports.charts import OApcTimeChart
-from academic_observatory.reports.charts import CitationCountTimeChart
-from academic_observatory.reports.charts import OAAdvantageBarChart
-from academic_observatory.reports.charts import BarComparisonChart
-from academic_observatory.reports.charts import FunderGraph
-from academic_observatory.reports.charts import DistributionComparisonChart
-from academic_observatory.reports import chart_utils
-
 from academic_observatory.utils.test_utils import fixtures_data_dir
+
 
 class TestAbstractChart(unittest.TestCase):
     test_class = None

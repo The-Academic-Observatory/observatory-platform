@@ -14,17 +14,22 @@
 
 # Author: James Diprose
 
+import glob
 import logging
 import os
 import re
+import shutil
 import subprocess
+import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
 from pathlib import Path, PosixPath
 from subprocess import Popen
 from typing import List
 
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud import storage
 from google.cloud.bigquery import SourceFormat
@@ -32,23 +37,26 @@ from google.cloud.storage import Blob
 from natsort import natsorted
 from pendulum import Pendulum
 
-from academic_observatory.utils.config_utils import telescope_path, SubFolder, schema_path, find_schema, \
-    ObservatoryConfig
-from academic_observatory.utils.gc_utils import azure_to_google_cloud_storage_transfer, TransferStatus, \
-    download_blobs_from_cloud_storage, upload_files_to_cloud_storage, load_bigquery_table, create_bigquery_dataset, \
-    bigquery_partitioned_table_id, table_name_from_blob
+from academic_observatory.utils.config_utils import (telescope_path, SubFolder, schema_path, find_schema,
+                                                     check_variables, check_connections)
+from academic_observatory.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
+                                                 download_blobs_from_cloud_storage, upload_files_to_cloud_storage,
+                                                 load_bigquery_table, create_bigquery_dataset,
+                                                 bigquery_partitioned_table_id, table_name_from_blob)
 from academic_observatory.utils.proc_utils import wait_for_process
 from mag_archiver.mag import MagArchiverClient, MagDateType, MagRelease, MagState
+from tests.academic_observatory.config import test_fixtures_path
 
 
-def pull_mag_releases(ti: TaskInstance) -> List[MagRelease]:
+def pull_releases(ti: TaskInstance) -> List[MagRelease]:
     """ Pull a list of MagRelease instances with xcom.
 
     :param ti: the Apache Airflow task instance.
     :return: the list of MagRelease instances.
     """
 
-    return ti.xcom_pull(key=MagTelescope.TOPIC_NAME, task_ids=MagTelescope.TASK_ID_LIST, include_prior_dates=False)
+    return ti.xcom_pull(key=MagTelescope.RELEASES_TOPIC_NAME, task_ids=MagTelescope.TASK_ID_LIST,
+                        include_prior_dates=False)
 
 
 def list_mag_release_files(release_path: str) -> List[PosixPath]:
@@ -71,7 +79,7 @@ def list_mag_release_files(release_path: str) -> List[PosixPath]:
 
 
 def transform_mag_file(input_file_path: str, output_file_path: str) -> bool:
-    r""" Transform MAG files, removing the \x0 and \r characters. \r is the ^M windows character.
+    r""" Transform MAG file, removing the \x0 and \r characters. \r is the ^M windows character.
 
     :param input_file_path: the path of the file to transform.
     :param output_file_path: where to save the transformed file.
@@ -86,8 +94,10 @@ def transform_mag_file(input_file_path: str, output_file_path: str) -> bool:
     logging.debug(output)
     success = proc.returncode == 0
 
-    if not success:
-        logging.error(f"transform_mag_file error transforming file: {input_file_path}")
+    if success:
+        logging.info(f"transform_mag_file success: {input_file_path}")
+    else:
+        logging.error(f"transform_mag_file error: {input_file_path}")
         logging.error(error)
 
     return success
@@ -111,7 +121,7 @@ def transform_mag_release(input_release_path: str, output_release_path: str, max
         paths = list_mag_release_files(input_release_path)
         for path in paths:
             # Make path to save file
-            os.makedirs(input_release_path, exist_ok=True)
+            os.makedirs(output_release_path, exist_ok=True)
             output_path = os.path.join(output_release_path, path.name)
             msg = f'input_file_path={path}, output_file_path={output_path}'
             logging.info(f'transform_mag_release: {msg}')
@@ -144,19 +154,38 @@ class MagTelescope:
     """
 
     DAG_ID = 'mag'
+    QUEUE = 'remote_queue'
     DESCRIPTION = 'The Microsoft Academic Graph (MAG) dataset: https://www.microsoft.com/en-us/research/project/' \
                   'microsoft-academic-graph/'
-    TASK_ID_LIST = f'{DAG_ID}_list_releases'
-    TASK_ID_TRANSFER = f'{DAG_ID}_transfer'
-    TASK_ID_DOWNLOAD = f'{DAG_ID}_download'
-    TASK_ID_TRANSFORM = f'{DAG_ID}_transform'
-    TASK_ID_UPLOAD = f'{DAG_ID}_upload'
-    TASK_ID_DB_LOAD = f'{DAG_ID}_db_load'
-    TASK_ID_STOP = f'{DAG_ID}_stop'
-    TOPIC_NAME = 'message'
+    RELEASES_TOPIC_NAME = 'releases'
     MAX_PROCESSES = cpu_count()
     MAX_CONNECTIONS = cpu_count()
-    MAX_RETRIES = 3
+    RETRIES = 3
+
+    TASK_ID_CHECK_DEPENDENCIES = 'check_dependencies'
+    TASK_ID_LIST = 'list_releases'
+    TASK_ID_TRANSFER = 'transfer'
+    TASK_ID_DOWNLOAD = 'download'
+    TASK_ID_TRANSFORM = 'transform'
+    TASK_ID_UPLOAD_TRANSFORMED = 'upload_transformed'
+    TASK_ID_BQ_LOAD = 'bq_load'
+    TASK_ID_CLEANUP = 'cleanup'
+
+    @staticmethod
+    def check_dependencies(**kwargs):
+        """ Check that all variables and connections exist that are required to run the DAG.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        vars_valid = check_variables("data_path", "project_id", "data_location",
+                                     "download_bucket_name", "transform_bucket_name")
+        conns_valid = check_connections("mag_releases_table", "mag_snapshots_container")
+
+        if not vars_valid or not conns_valid:
+            raise AirflowException('Required variables or connections are missing')
 
     @staticmethod
     def list_releases(**kwargs):
@@ -187,11 +216,12 @@ class MagTelescope:
         for release in releases:
             logging.info(f'  - {release}')
 
-        # Push messages
-        ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(MagTelescope.TOPIC_NAME, releases, execution_date)
-
-        return MagTelescope.TASK_ID_TRANSFER if releases else MagTelescope.TASK_ID_STOP
+        continue_dag = len(releases)
+        if continue_dag:
+            # Push messages
+            ti: TaskInstance = kwargs['ti']
+            ti.xcom_push(MagTelescope.RELEASES_TOPIC_NAME, releases, execution_date)
+        return continue_dag
 
     @staticmethod
     def transfer(**kwargs):
@@ -206,46 +236,72 @@ class MagTelescope:
         :return: None.
         """
 
-        # Get Azure connection information
-        connection = BaseHook.get_connection("mag_snapshots_container")
-        azure_account_name = connection.login
-        azure_sas_token = connection.password
-
-        # Get Observatory Config
-        config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
-        gcp_project_id = config.project_id
-        gcp_bucket_name = config.bucket_name
-
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
-        releases = pull_mag_releases(ti)
+        releases = pull_releases(ti)
 
-        # Download and extract each release posted this month
-        azure_container = None
-        row_keys = []
-        include_prefixes = []
+        # Get variables
+        environment = Variable.get("environment")
+        gcp_project_id = Variable.get("project_id")
+        gcp_bucket_name = Variable.get("download_bucket_name")
 
-        for release in releases:
-            azure_container = release.release_container
-            row_keys.append(release.row_key)
-            include_prefixes.append(release.release_path)
+        if environment == 'dev':
+            # TODO: this is a bit messy. In the future, for the test environment we should just have smaller files at
+            # the MAG endpoint so that the transferring can be tested too
+            mag_zip = os.path.join(test_fixtures_path(), 'telescopes', 'mag-2020-05-21.zip')
 
-        if len(row_keys) > 0:
-            description = 'Transfer MAG Releases: ' + ', '.join(row_keys)
-            logging.info(description)
-            transfer_job_name, status = azure_to_google_cloud_storage_transfer(azure_account_name, azure_sas_token,
-                                                                               azure_container, include_prefixes,
-                                                                               gcp_project_id, gcp_bucket_name,
-                                                                               description)
-            success = status == TransferStatus.success
-            releases_str = ', '.join(row_keys)
-            if success:
-                logging.info(f'Success transferring MAG releases: {releases_str}')
-            else:
-                logging.error(f"Error transferring MAG release: {releases_str}")
-                exit(os.EX_DATAERR)
+            for release in releases:
+                extracted_path = os.path.join('/tmp', release.source_container)
+                os.makedirs(extracted_path, exist_ok=True)
+                with zipfile.ZipFile(mag_zip, 'r') as zip_ref:
+                    zip_ref.extractall(extracted_path)
+
+                paths = glob.glob(f'{extracted_path}/**/*.*', recursive=True)
+                blob_names = []
+                for path in paths:
+                    file_path = path.replace(f'{extracted_path}/mag-2020-05-21/', "")
+                    blob_name = f'telescopes/{MagTelescope.DAG_ID}/{release.source_container}/{file_path}'
+                    blob_names.append(blob_name)
+
+                success = upload_files_to_cloud_storage(gcp_bucket_name, blob_names, paths,
+                                                        max_processes=MagTelescope.MAX_PROCESSES,
+                                                        max_connections=MagTelescope.MAX_CONNECTIONS,
+                                                        retries=MagTelescope.RETRIES)
+                if success:
+                    logging.info(f'Success uploading dev MAG release to cloud storage: {release}')
+                else:
+                    logging.error(f"Error uploading dev MAG release to cloud storage: {release}")
+                    exit(os.EX_DATAERR)
         else:
-            logging.warning('No release to transfer')
+            # Get Azure connection information
+            connection = BaseHook.get_connection("mag_snapshots_container")
+            azure_account_name = connection.login
+            azure_sas_token = connection.password
+
+            # Download and extract each release posted this month
+            azure_container = None
+            row_keys = []
+            include_prefixes = []
+
+            for release in releases:
+                azure_container = release.release_container
+                row_keys.append(release.row_key)
+                include_prefixes.append(release.release_path)
+
+            if len(row_keys) > 0:
+                description = 'Transfer MAG Releases: ' + ', '.join(row_keys)
+                logging.info(description)
+                success = azure_to_google_cloud_storage_transfer(azure_account_name, azure_sas_token, azure_container,
+                                                                 include_prefixes, gcp_project_id, gcp_bucket_name,
+                                                                 description)
+                releases_str = ', '.join(row_keys)
+                if success:
+                    logging.info(f'Success transferring MAG releases: {releases_str}')
+                else:
+                    logging.error(f"Error transferring MAG release: {releases_str}")
+                    exit(os.EX_DATAERR)
+            else:
+                logging.warning('No release to transfer')
 
     @staticmethod
     def download(**kwargs):
@@ -256,23 +312,22 @@ class MagTelescope:
         :return: None.
         """
 
-        # Get Observatory Config
-        config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
-        bucket_name = config.bucket_name
+        # Get variables
+        bucket_name = Variable.get("download_bucket_name")
 
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
-        releases = pull_mag_releases(ti)
+        releases = pull_releases(ti)
 
         # Download each release to the extracted folder path (since they are already extracted)
-        extracted_path = telescope_path(MagTelescope.DAG_ID, SubFolder.extracted)
+        extracted_path = telescope_path(SubFolder.extracted, MagTelescope.DAG_ID)
         for release in releases:
             logging.info(f"Downloading release: {release}")
             destination_path = os.path.join(extracted_path, release.source_container)
             success = download_blobs_from_cloud_storage(bucket_name, release.release_path, destination_path,
                                                         max_processes=MagTelescope.MAX_PROCESSES,
                                                         max_connections=MagTelescope.MAX_CONNECTIONS,
-                                                        retries=MagTelescope.MAX_RETRIES)
+                                                        retries=MagTelescope.RETRIES)
 
             if success:
                 logging.info(f'Success downloading MAG release: {release}')
@@ -291,16 +346,17 @@ class MagTelescope:
 
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
-        releases = pull_mag_releases(ti)
+        releases = pull_releases(ti)
 
         # For each release and folder to include, transform the files with sed and save into the transformed directory
         for release in releases:
             logging.info(f'Transforming MAG release: {release}')
-            release_extracted_path = os.path.join(telescope_path(MagTelescope.DAG_ID, SubFolder.extracted),
+            release_extracted_path = os.path.join(telescope_path(SubFolder.extracted, MagTelescope.DAG_ID),
                                                   release.source_container)
-            release_transformed_path = os.path.join(telescope_path(MagTelescope.DAG_ID, SubFolder.transformed),
+            release_transformed_path = os.path.join(telescope_path(SubFolder.transformed, MagTelescope.DAG_ID),
                                                     release.source_container)
-            success = transform_mag_release(release_extracted_path, release_transformed_path)
+            success = transform_mag_release(release_extracted_path, release_transformed_path,
+                                            max_workers=MagTelescope.MAX_PROCESSES)
 
             if success:
                 logging.info(f'Success transforming MAG release: {release}')
@@ -309,7 +365,7 @@ class MagTelescope:
                 exit(os.EX_DATAERR)
 
     @staticmethod
-    def upload(**kwargs):
+    def upload_transformed(**kwargs):
         """ Uploads the transformed MAG release files to Google Cloud Storage for loading into BigQuery.
 
         :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
@@ -317,27 +373,26 @@ class MagTelescope:
         :return: None.
         """
 
-        # Get Observatory Config
-        config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
-        bucket_name = config.bucket_name
+        # Get variables
+        bucket_name = Variable.get("transform_bucket_name")
 
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
-        releases = pull_mag_releases(ti)
+        releases = pull_releases(ti)
 
         # Upload files to cloud storage
         for release in releases:
             logging.info(f'Uploading MAG release to cloud storage: {release}')
-            release_transformed_path = os.path.join(telescope_path(MagTelescope.DAG_ID, SubFolder.transformed),
+            release_transformed_path = os.path.join(telescope_path(SubFolder.transformed, MagTelescope.DAG_ID),
                                                     release.source_container)
             posix_paths = list_mag_release_files(release_transformed_path)
             paths = [str(path) for path in posix_paths]
-            blob_names = [f'telescopes/{MagTelescope.DAG_ID}/transformed/{release.source_container}/{path.name}' for
+            blob_names = [f'telescopes/{MagTelescope.DAG_ID}/{release.source_container}/{path.name}' for
                           path in posix_paths]
             success = upload_files_to_cloud_storage(bucket_name, blob_names, paths,
                                                     max_processes=MagTelescope.MAX_PROCESSES,
                                                     max_connections=MagTelescope.MAX_CONNECTIONS,
-                                                    retries=MagTelescope.MAX_RETRIES)
+                                                    retries=MagTelescope.RETRIES)
             if success:
                 logging.info(f'Success uploading MAG release to cloud storage: {release}')
             else:
@@ -345,7 +400,7 @@ class MagTelescope:
                 exit(os.EX_DATAERR)
 
     @staticmethod
-    def db_load(**kwargs):
+    def bq_load(**kwargs):
         """ Loads a MAG release into BigQuery.
 
         :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
@@ -355,17 +410,16 @@ class MagTelescope:
 
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
-        releases = pull_mag_releases(ti)
+        releases = pull_releases(ti)
 
-        # Get Observatory Config
-        config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
-        project_id = config.project_id
-        data_location = config.data_location
-        bucket_name = config.bucket_name
+        # Get config variables
+        project_id = Variable.get("project_id")
+        data_location = Variable.get("data_location")
+        bucket_name = Variable.get("transform_bucket_name")
 
         # For each release, load into BigQuery
         for release in releases:
-            release_path = f'telescopes/{MagTelescope.DAG_ID}/transformed/{release.source_container}'
+            release_path = f'telescopes/{MagTelescope.DAG_ID}/{release.source_container}'
             success = db_load_mag_release(project_id, bucket_name, data_location, release_path, release.release_date)
 
             if success:
@@ -373,6 +427,36 @@ class MagTelescope:
             else:
                 logging.error(f"Error loading MAG release: {release}")
                 exit(os.EX_DATAERR)
+
+    @staticmethod
+    def cleanup(**kwargs):
+        """ Delete files of downloaded, extracted and transformed releases.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Pull releases
+        ti: TaskInstance = kwargs['ti']
+        releases = pull_releases(ti)
+
+        for release in releases:
+            # Remove all extracted files
+            release_extracted_path = os.path.join(telescope_path(SubFolder.extracted, MagTelescope.DAG_ID),
+                                                  release.source_container)
+            try:
+                shutil.rmtree(release_extracted_path)
+            except FileNotFoundError as e:
+                logging.warning(f"No such file or directory {release_extracted_path}: {e}")
+
+            # Remove all transformed files
+            release_transformed_path = os.path.join(telescope_path(SubFolder.transformed, MagTelescope.DAG_ID),
+                                                    release.source_container)
+            try:
+                shutil.rmtree(release_transformed_path)
+            except FileNotFoundError as e:
+                logging.warning(f"No such file or directory {release_transformed_path}: {e}")
 
 
 def db_load_mag_release(project_id: str, bucket_name: str, data_location: str, release_path: str,

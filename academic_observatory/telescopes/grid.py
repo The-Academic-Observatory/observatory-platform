@@ -17,25 +17,29 @@
 
 import glob
 import gzip
-from zipfile import ZipFile, BadZipFile
-
 import io
 import json
-import jsonlines
 import logging
 import os
+import pathlib
+import shutil
+from shutil import copyfile
+from typing import List, Dict, Tuple
+from zipfile import ZipFile, BadZipFile
+
+import jsonlines
 import pendulum
+from airflow.exceptions import AirflowException
+from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
-from shutil import copyfile
-from typing import List, Dict, Tuple
 
-from academic_observatory.utils.config_utils import telescope_path, SubFolder, schema_path, ObservatoryConfig, \
-    find_schema
+from academic_observatory.utils.config_utils import check_variables
+from academic_observatory.utils.config_utils import telescope_path, SubFolder, schema_path, find_schema
 from academic_observatory.utils.data_utils import get_file
-from academic_observatory.utils.gc_utils import upload_file_to_cloud_storage, load_bigquery_table, \
-    create_bigquery_dataset, bigquery_partitioned_table_id
+from academic_observatory.utils.gc_utils import (upload_file_to_cloud_storage, load_bigquery_table,
+                                                 create_bigquery_dataset, bigquery_partitioned_table_id)
 from academic_observatory.utils.url_utils import retry_session
 
 GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"
@@ -148,7 +152,7 @@ def transform_grid_release(release_json_path: str, transformed_path: str) -> Tup
                 with jsonlines.Writer(gzip_file) as writer:
                     writer.write_all(institutes)
 
-            file_name = f"grid_{version}.jsonl.gz"
+            file_name = f"grid_{version.replace('release_', '')}.jsonl.gz"
             file_path = os.path.join(transformed_path, file_name)
             with open(file_path, 'wb') as jsonl_gzip_file:
                 jsonl_gzip_file.write(bytes_io.getvalue())
@@ -161,15 +165,34 @@ class GridTelescope:
 
     DAG_ID = 'grid'
     DESCRIPTION = 'The Global Research Identifier Database (GRID): https://grid.ac/'
-    TASK_ID_LIST = f'{DAG_ID}_list_releases'
-    TASK_ID_DOWNLOAD = f'{DAG_ID}_download'
-    TASK_ID_EXTRACT = f'{DAG_ID}_extract'
-    TASK_ID_TRANSFORM = f'{DAG_ID}_transform'
-    TASK_ID_UPLOAD = f'{DAG_ID}_upload'
-    TASK_ID_DB_LOAD = f'{DAG_ID}_db_load'
-    TASK_ID_CLEANUP = f'{DAG_ID}_cleanup'
-    TASK_ID_STOP = f'{DAG_ID}_stop'
-    TOPIC_NAME = 'message'
+    RELEASES_TOPIC_NAME = 'releases'
+    QUEUE = 'remote_queue'
+    RETRIES = 3
+
+    TASK_ID_CHECK_DEPENDENCIES = 'check_dependencies'
+    TASK_ID_LIST = 'list_releases'
+    TASK_ID_DOWNLOAD = 'download'
+    TASK_ID_UPLOAD_DOWNLOADED = 'upload_downloaded'
+    TASK_ID_EXTRACT = 'extract'
+    TASK_ID_TRANSFORM = 'transform'
+    TASK_ID_UPLOAD_TRANSFORMED = 'upload_transformed'
+    TASK_ID_BQ_LOAD = 'bq_load'
+    TASK_ID_CLEANUP = 'cleanup'
+    TASK_ID_STOP = 'stop_dag'
+
+    @staticmethod
+    def check_dependencies(**kwargs):
+        """ Check that all variables exist that are required to run the DAG.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        vars_valid = check_variables("data_path", "project_id", "data_location",
+                                     "download_bucket_name", "transform_bucket_name")
+        if not vars_valid:
+            raise AirflowException('Required variables are missing')
 
     @staticmethod
     def list_releases(**kwargs):
@@ -201,11 +224,12 @@ class GridTelescope:
                 msg['published_date'] = published_date
                 msgs_out.append(msg)
 
-        # Push messages
-        ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(GridTelescope.TOPIC_NAME, msgs_out, execution_date)
-
-        return GridTelescope.TASK_ID_DOWNLOAD if msgs_out else GridTelescope.TASK_ID_STOP
+        continue_dag = len(msgs_out)
+        if continue_dag:
+            # Push messages
+            ti: TaskInstance = kwargs['ti']
+            ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, execution_date)
+        return continue_dag
 
     @staticmethod
     def download(**kwargs):
@@ -221,11 +245,11 @@ class GridTelescope:
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_LIST,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_LIST,
                                include_prior_dates=False)
 
         # Prepare paths
-        grid_download_path = telescope_path(GridTelescope.DAG_ID, SubFolder.downloaded)
+        grid_download_path = telescope_path(SubFolder.downloaded, GridTelescope.DAG_ID)
 
         # Download and extract each release posted this month
         msgs_out = []
@@ -242,7 +266,31 @@ class GridTelescope:
                 msgs_out.append(msg_out)
 
         # Push the selected GRID releases to an XCOM so that the next task knows which releases to download
-        ti.xcom_push(GridTelescope.TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
+
+    @staticmethod
+    def upload_downloaded(**kwargs):
+        """ Task to upload the downloaded GRID releases for a given month.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Get bucket name
+        bucket_name = Variable.get("download_bucket_name")
+
+        # Pull messages
+        ti: TaskInstance = kwargs['ti']
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_DOWNLOAD,
+                               include_prior_dates=False)
+
+        # Upload each release
+        for msg_in in msgs_in:
+            download_path = msg_in['download_path']
+            file_name = os.path.basename(download_path)
+            blob_name = f'telescopes/grid/{file_name}'
+            upload_file_to_cloud_storage(bucket_name, blob_name, file_path=download_path)
 
     @staticmethod
     def extract(**kwargs):
@@ -258,18 +306,17 @@ class GridTelescope:
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_DOWNLOAD,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_DOWNLOAD,
                                include_prior_dates=False)
 
         # Prepare paths
-        grid_extraction_path = telescope_path(GridTelescope.DAG_ID, SubFolder.extracted)
+        grid_extraction_path = telescope_path(SubFolder.extracted, GridTelescope.DAG_ID)
 
         # Download and extract each release posted this month
         msgs_out = []
         for msg_in in msgs_in:
             # Extract release
             download_path = msg_in['download_path']
-
             release_extracted_path = extract_grid_release(download_path, grid_extraction_path)
 
             msg_out = dict()
@@ -277,7 +324,7 @@ class GridTelescope:
             msgs_out.append(msg_out)
 
         # Push the selected GRID releases to an XCOM so that the next task knows which releases to download
-        ti.xcom_push(GridTelescope.TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
 
     @staticmethod
     def transform(**kwargs):
@@ -295,11 +342,11 @@ class GridTelescope:
 
         # Pull GRID releases to transform
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_EXTRACT,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_EXTRACT,
                                include_prior_dates=False)
 
         # Prepare paths
-        grid_transformed_path = telescope_path(GridTelescope.DAG_ID, SubFolder.transformed)
+        grid_transformed_path = telescope_path(SubFolder.transformed, GridTelescope.DAG_ID)
 
         # Transform each release
         msgs_out = []
@@ -325,10 +372,10 @@ class GridTelescope:
 
         # Push messages for next task to consume
         ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(GridTelescope.TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
 
     @staticmethod
-    def upload(**kwargs):
+    def upload_transformed(**kwargs):
         """ Task to upload the transformed GRID releases for a given month to Google Cloud Storage .
 
         Pushes the following xcom:
@@ -342,20 +389,19 @@ class GridTelescope:
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_TRANSFORM,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_TRANSFORM,
                                include_prior_dates=False)
 
         # Upload each release
-        config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
-        bucket_name = config.bucket_name
+        bucket_name = Variable.get("transform_bucket_name")
         msgs_out = []
         for msg_in in msgs_in:
             file_name = msg_in['json_gz_file_name']
             file_path = msg_in['json_gz_file_path']
 
             # Upload to cloud storage
-            release_date = file_name.replace("grid_release_", "").replace(".jsonl.gz", "")
-            blob_name = f'telescopes/grid/transformed/{file_name}'
+            release_date = file_name.replace("grid_", "").replace(".jsonl.gz", "")
+            blob_name = f'telescopes/grid/{file_name}'
             upload_file_to_cloud_storage(bucket_name, blob_name, file_path=file_path)
 
             # Prepare metadata
@@ -366,10 +412,10 @@ class GridTelescope:
 
         # Push messages for next task to consume
         ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(GridTelescope.TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(GridTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
 
     @staticmethod
-    def db_load(**kwargs):
+    def bq_load(**kwargs):
         """ Task to load the transformed GRID releases for a given month to BigQuery.
 
         :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
@@ -378,18 +424,17 @@ class GridTelescope:
         """
 
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=GridTelescope.TOPIC_NAME, task_ids=GridTelescope.TASK_ID_UPLOAD,
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_UPLOAD_TRANSFORMED,
                                include_prior_dates=False)
 
         # Upload each release
-        config = ObservatoryConfig.load(os.environ['CONFIG_PATH'])
-        project_id = config.project_id
-        location = config.data_location
-        bucket_name = config.bucket_name
+        project_id = Variable.get("project_id")
+        data_location = Variable.get("data_location")
+        bucket_name = Variable.get("transform_bucket_name")
 
         # Create dataset
         dataset_id = GridTelescope.DAG_ID
-        create_bigquery_dataset(project_id, dataset_id, location, GridTelescope.DESCRIPTION)
+        create_bigquery_dataset(project_id, dataset_id, data_location, GridTelescope.DESCRIPTION)
 
         analysis_schema_path = schema_path('telescopes')
         table_name = 'grid'
@@ -413,5 +458,47 @@ class GridTelescope:
             # Load BigQuery table
             uri = f"gs://{bucket_name}/{blob_name}"
             logging.info(f"URI: {uri}")
-            load_bigquery_table(uri, dataset_id, location, table_id, schema_file_path,
+            load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
+
+    @staticmethod
+    def cleanup(**kwargs):
+        """ Delete files of downloaded, extracted and transformed releases.
+
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Pull releases
+        ti: TaskInstance = kwargs['ti']
+
+        # Remove downloaded files
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_DOWNLOAD,
+                               include_prior_dates=False)
+        for msg_in in msgs_in:
+            file_path = msg_in['download_path']
+            try:
+                pathlib.Path(file_path).unlink()
+            except FileNotFoundError as e:
+                logging.warning(f"No such file or directory {file_path}: {e}")
+
+        # Remove extracted files
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_EXTRACT,
+                               include_prior_dates=False)
+        for msg_in in msgs_in:
+            file_path = msg_in['extracted_path']
+            try:
+                shutil.rmtree(file_path)
+            except FileNotFoundError as e:
+                logging.warning(f"No such file or directory {file_path}: {e}")
+
+        # Remove transformed files
+        msgs_in = ti.xcom_pull(key=GridTelescope.RELEASES_TOPIC_NAME, task_ids=GridTelescope.TASK_ID_TRANSFORM,
+                               include_prior_dates=False)
+        for msg_in in msgs_in:
+            file_path = msg_in['json_gz_file_path']
+            try:
+                pathlib.Path(file_path).unlink()
+            except FileNotFoundError as e:
+                logging.warning(f"No such file or directory {file_path}: {e}")

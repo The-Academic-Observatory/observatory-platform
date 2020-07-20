@@ -20,6 +20,8 @@ import shutil
 import unittest
 from unittest.mock import patch
 
+import pendulum
+import vcr
 from click.testing import CliRunner
 
 from academic_observatory.telescopes.geonames import (
@@ -27,6 +29,7 @@ from academic_observatory.telescopes.geonames import (
     GeonamesTelescope,
     transform_release
 )
+from academic_observatory.telescopes.geonames import fetch_release_date
 from academic_observatory.utils.config_utils import telescope_path, SubFolder
 from academic_observatory.utils.data_utils import _hash_file
 from academic_observatory.utils.test_utils import gzip_file_crc
@@ -47,8 +50,11 @@ class TestGeonames(unittest.TestCase):
 
         # Geonames test release
         self.geonames_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'geonames.txt')
-        self.geonames_test_date = '3000-01-01'
-        self.geonames_test_download_file_name = 'geonames_3000_01_01'
+        self.fetch_release_date_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
+                                                    'geonames_fetch_release_date.yaml')
+
+        self.geonames_test_date = pendulum.datetime(year=3000, month=1, day=1)
+        self.geonames_test_download_file_name = 'geonames_3000_01_01.zip'
         self.geonames_test_decompress_file_name = 'geonames_3000_01_01.txt'
         self.geonames_test_transform_file_name = 'geonames_3000_01_01.csv.gz'
         self.geonames_test_decompress_hash = 'de1bf005df4840d16faf598999d72051'
@@ -62,93 +68,104 @@ class TestGeonames(unittest.TestCase):
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_filepath_download(self, home_mock):
+    def test_fetch_release_date(self):
+        """ Test that fetch_release_date function works.
+
+        :return: None.
+        """
+
+        with vcr.use_cassette(self.fetch_release_date_path):
+            date = fetch_release_date()
+            self.assertEqual(date, pendulum.datetime(year=2020, month=7, day=16, hour=1, minute=22, second=15))
+
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_filepath_download(self, mock_variable_get):
         """ Test that path of downloaded file is correct.
 
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
-            with CliRunner().isolated_filesystem():
-                geonames_release = GeonamesRelease(self.geonames_test_date)
-                file_path_download = geonames_release.filepath_download
-                path = telescope_path(GeonamesTelescope.DAG_ID, SubFolder.downloaded)
-                self.assertEqual(os.path.join(path, self.geonames_test_download_file_name), file_path_download)
+            release = GeonamesRelease(self.geonames_test_date)
+            file_path_download = release.filepath_download
+            path = telescope_path(SubFolder.downloaded, GeonamesTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.geonames_test_download_file_name), file_path_download)
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_filepath_decompress(self, home_mock):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_filepath_decompress(self, mock_variable_get):
         """ Test that path of downloaded file is correct.
 
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
-            with CliRunner().isolated_filesystem():
-                geonames_release = GeonamesRelease(self.geonames_test_date)
-                file_path_decompress = geonames_release.filepath_extract
-                path = telescope_path(GeonamesTelescope.DAG_ID, SubFolder.extracted)
-                self.assertEqual(os.path.join(path, self.geonames_test_decompress_file_name), file_path_decompress)
+            release = GeonamesRelease(self.geonames_test_date)
+            file_path_decompress = release.filepath_extract
+            path = telescope_path(SubFolder.extracted, GeonamesTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.geonames_test_decompress_file_name), file_path_decompress)
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_filepath_extract(self, home_mock):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_filepath_extract(self, mock_variable_get):
         """ Test that path of decompressed/extracted file is correct for given url.
 
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
-            with CliRunner().isolated_filesystem():
-                geonames_release = GeonamesRelease(self.geonames_test_date)
-                file_path_extract = geonames_release.filepath_extract
-                path = telescope_path(GeonamesTelescope.DAG_ID, SubFolder.extracted)
-                self.assertEqual(os.path.join(path, self.geonames_test_decompress_file_name), file_path_extract)
+            release = GeonamesRelease(self.geonames_test_date)
+            file_path_extract = release.filepath_extract
+            path = telescope_path(SubFolder.extracted, GeonamesTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.geonames_test_decompress_file_name), file_path_extract)
 
-    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    def test_filepath_transform(self, home_mock):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_filepath_transform(self, mock_variable_get):
         """ Test that path of transformed file is correct for given url.
 
         :param home_mock: Mock observatory home path
         :return: None.
         """
+
         with CliRunner().isolated_filesystem():
-            # Create home path and mock getting home path
-            home_path = 'user-home'
-            os.makedirs(home_path, exist_ok=True)
-            home_mock.return_value = home_path
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
-            with CliRunner().isolated_filesystem():
-                geonames_release = GeonamesRelease(self.geonames_test_date)
-                file_path_transform = geonames_release.filepath_transform
-                path = telescope_path(GeonamesTelescope.DAG_ID, SubFolder.transformed)
-                self.assertEqual(os.path.join(path, self.geonames_test_transform_file_name), file_path_transform)
+            release = GeonamesRelease(self.geonames_test_date)
+            file_path_transform = release.filepath_transform
+            path = telescope_path(SubFolder.transformed, GeonamesTelescope.DAG_ID)
+            self.assertEqual(os.path.join(path, self.geonames_test_transform_file_name), file_path_transform)
 
-    def test_transform_release(self):
+    @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
+    def test_transform_release(self, mock_variable_get):
         """ Test that the release is transformed as expected.
 
         :return: None.
         """
 
         with CliRunner().isolated_filesystem():
-            geonames_release = GeonamesRelease(self.geonames_test_date)
-            shutil.copyfile(self.geonames_test_path, geonames_release.filepath_extract)
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
 
-            transform_file_path = transform_release(geonames_release)
+            release = GeonamesRelease(self.geonames_test_date)
+            shutil.copyfile(self.geonames_test_path, release.filepath_extract)
+
+            transform_file_path = transform_release(release)
             transform_file_name = os.path.basename(transform_file_path)
 
             self.assertTrue(os.path.exists(transform_file_path))
