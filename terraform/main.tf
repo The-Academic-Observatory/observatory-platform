@@ -125,7 +125,7 @@ resource "google_storage_bucket_iam_member" "ao_download_bucket_transfer_service
   member = "serviceAccount:${data.google_storage_transfer_project_service_account.default.email}"
 }
 
-# Permissions so that Academic Observatory service account can read and write
+# Permissions so that Observatory Platform service account can read and write
 resource "google_storage_bucket_iam_member" "ao_download_bucket_ao_service_account_legacy_bucket_reader" {
   bucket = google_storage_bucket.ao_download_bucket.name
   role = "roles/storage.legacyBucketReader"
@@ -175,7 +175,7 @@ resource "google_storage_bucket" "ao_transform_bucket" {
   }
 }
 
-# Permissions so that Academic Observatory service account can read and write
+# Permissions so that Observatory Platform service account can read and write
 resource "google_storage_bucket_iam_member" "ao_transform_bucket_ao_service_account_legacy_bucket_reader" {
   bucket = google_storage_bucket.ao_transform_bucket.name
   role = "roles/storage.legacyBucketReader"
@@ -195,7 +195,7 @@ resource "google_storage_bucket_iam_member" "ao_transform_bucket_ao_service_acco
 }
 
 ########################################################################################################################
-# Academic Observatory VPC Network
+# Observatory Platform VPC Network
 ########################################################################################################################
 
 resource "google_compute_network" "ao_network" {
@@ -253,7 +253,7 @@ resource "google_compute_firewall" "allow_ssh" {
 }
 
 ########################################################################################################################
-# Academic Observatory Cloud SQL database
+# Observatory Platform Cloud SQL database
 ########################################################################################################################
 
 resource "google_compute_global_address" "airflow_db_private_ip" {
@@ -425,7 +425,7 @@ module "environment_var_secret" {
 }
 
 ########################################################################################################################
-# Academic Observatory Main VM
+# Observatory Platform Main VM
 ########################################################################################################################
 
 # Compute Image shared by both VMs
@@ -467,7 +467,7 @@ module "airflow_main_vm" {
 }
 
 ########################################################################################################################
-# Academic Observatory Worker VM
+# Observatory Platform Worker VM
 ########################################################################################################################
 
 data "template_file" "airflow_worker_vm_startup" {

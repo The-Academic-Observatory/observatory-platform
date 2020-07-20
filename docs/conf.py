@@ -17,12 +17,12 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'Academic Observatory'
+project = 'Observatory Platform'
 copyright = '2020 Curtin University'
 author = 'Curtin University'
 
 # The full version, including alpha/beta/rc tags
-release = '19.12.0'
+release = '20.7.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -40,7 +40,7 @@ extensions = [
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = 'python'
-autoapi_dirs = ['../academic_observatory']
+autoapi_dirs = ['../observatory_platform']
 autoapi_add_toctree_entry = True
 
 # Add any paths that contain templates here, relative to this directory.

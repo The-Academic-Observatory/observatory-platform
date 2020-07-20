@@ -1,32 +1,16 @@
 # Installation
-academic-observatory supports Python 3.7 and above on MacOS and Linux.
+Observatory Platform supports Python 3.7 and above on Linux and MacOS.
 
 Dependencies:
 * Python 3.7
 * pip
-* virtualenv
+* virtualenv 20 or greater
 * Docker Engine or Docker Desktop.
 
 See below for more details.
 
-## System dependencies: MacOS
-Install [Homebrew](https://brew.sh/) with the following command:
-
-```bash
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-```
-
-Install Python 3.7 with brew:
-```bash
-brew install python3.7
-```
-
-Install Docker Desktop:
-* Follow the [Install Docker Desktop on Mac](https://docs.docker.com/docker-for-mac/install/) tutorial.
-
 ## System dependencies: Ubuntu 18.04
 Update packages list and install software-properties-common:
-
 ```bash
 sudo apt update
 sudo apt install software-properties-common
@@ -37,29 +21,63 @@ Add deadsnakes PPA which contains Python 3.7 for Ubuntu 18.04; press `Enter` whe
 sudo add-apt-repository ppa:deadsnakes/ppa
 ```
 
-Install Python 3.7 and Python 3.7 dev:
+Install Python 3.7:
 ```bash
-sudo apt install python3-distutils python3-setuptools python3-pip python3.7 python3.7-dev
+sudo apt install python3.7 python3.7-dev
+```
+
+Install pip:
+```bash
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3.7 get-pip.py
+```
+
+Install virtualenv 20 or greater:
+```
+pip install --upgrade virtualenv
 ```
 
 Install Docker Engine:
 * Following the [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/) tutorial.
+* Make sure that Docker can be run without sudo, e.g. `sudo usermod -aG docker your-username`
 
-## Installing from PyPI with pip
-To install from [PyPI](https://pypi.org/) with `pip`:
+## System dependencies: MacOS
+Install [Homebrew](https://brew.sh/) with the following command:
 ```bash
-pip3 install academic-observatory
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 ```
 
-## Installing from source with virtualenv
+Install Python 3.7 with brew:
+```bash
+brew install python3.7
+```
+
+Install pip:
+```bash
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3.7 get-pip.py --user
+```
+
+Install virtualenv 20 or greater:
+```
+pip install --upgrade virtualenv
+```
+
+Install Docker Desktop:
+* Follow the [Install Docker Desktop on Mac](https://docs.docker.com/docker-for-mac/install/) tutorial.
+
+## Installing the Observatory Platform
+Make sure that you have followed the above instructions for installing the observatory-platform dependencies,
+for your respective platform.
+
 Clone the project:
 ```bash
-git clone https://github.com/The-Academic-Observatory/academic-observatory
+git clone https://github.com/The-Academic-Observatory/observatory-platform
 ```
 
-Enter the `academic-observatory` directory:
+Enter the `observatory-platform` directory:
 ```bash
-cd academic-observatory
+cd observatory-platform
 ```
 
 Checkout the develop branch:
@@ -67,25 +85,14 @@ Checkout the develop branch:
 git checkout develop
 ```
 
-Find the path to your Python 3.7 version, you will use it in the next step:
+Create a virtual environment:
 ```bash
-which python3.7
-/usr/local/bin/python3.7
-```
-
-Create a virtual environment (replace the --python parameter with the value you got from the previous step):
-```bash
-virtualenv --python=/usr/local/bin/python3.7 --no-site-packages venv
+virtualenv -p python3.7 venv
 ```
 
 Activate the virtual environment:
 ```bash
 source venv/bin/activate
-```
-
-Install dependencies:
-```bash
-pip install -r requirements.txt
 ```
 
 Install the package:

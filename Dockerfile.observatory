@@ -17,12 +17,12 @@ RUN groupmod -g ${HOST_GROUP_ID} airflow
 # Add local Python programs to path
 WORKDIR ${AIRFLOW_HOME}
 
-# Install Python dependencies for Academic Observatory as airflow user
+# Install Python dependencies for Observatory Platform as airflow user
 USER airflow
-COPY ./requirements.txt ${AO_HOME}/academic-observatory/requirements.txt
-RUN pip3 install -r ${AO_HOME}/academic-observatory/requirements.txt --user
+COPY ./requirements.txt ${AO_HOME}/observatory-platform/requirements.txt
+RUN pip3 install -r ${AO_HOME}/observatory-platform/requirements.txt --user
 
-# Copy entry point scripts which install new dependencies at runtime and the Academic Observatory Python package
+# Copy entry point scripts which install new dependencies at runtime and the Observatory Platform Python package
 USER root
 COPY entrypoint-root.sh /entrypoint-root.sh
 COPY entrypoint-airflow.sh /entrypoint-airflow.sh
