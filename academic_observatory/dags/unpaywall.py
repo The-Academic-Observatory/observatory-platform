@@ -49,7 +49,8 @@ with DAG(dag_id="unpaywall", schedule_interval="@weekly", default_args=default_a
         task_id=UnpaywallTelescope.TASK_ID_DOWNLOAD,
         python_callable=UnpaywallTelescope.download,
         provide_context=True,
-        queue=UnpaywallTelescope.QUEUE
+        queue=UnpaywallTelescope.QUEUE,
+        retries=UnpaywallTelescope.RETRIES
     )
 
     # Upload downloaded files for safekeeping
@@ -57,7 +58,8 @@ with DAG(dag_id="unpaywall", schedule_interval="@weekly", default_args=default_a
         task_id=UnpaywallTelescope.TASK_ID_UPLOAD_DOWNLOADED,
         python_callable=UnpaywallTelescope.upload_downloaded,
         provide_context=True,
-        queue=UnpaywallTelescope.QUEUE
+        queue=UnpaywallTelescope.QUEUE,
+        retries=UnpaywallTelescope.RETRIES
     )
 
     # Decompresses download
@@ -81,7 +83,8 @@ with DAG(dag_id="unpaywall", schedule_interval="@weekly", default_args=default_a
         task_id=UnpaywallTelescope.TASK_ID_UPLOAD_TRANSFORMED,
         python_callable=UnpaywallTelescope.upload_transformed,
         provide_context=True,
-        queue=UnpaywallTelescope.QUEUE
+        queue=UnpaywallTelescope.QUEUE,
+        retries=UnpaywallTelescope.RETRIES
     )
 
     # Upload download to bigquery table

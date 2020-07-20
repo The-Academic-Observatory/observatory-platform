@@ -40,7 +40,8 @@ with DAG(dag_id="geonames", schedule_interval="@monthly", default_args=default_a
         task_id=GeonamesTelescope.TASK_ID_DOWNLOAD,
         python_callable=GeonamesTelescope.download,
         provide_context=True,
-        queue=GeonamesTelescope.QUEUE
+        queue=GeonamesTelescope.QUEUE,
+        retries=GeonamesTelescope.RETRIES
     )
 
     # Upload downloaded files to gcs bucket
@@ -48,7 +49,8 @@ with DAG(dag_id="geonames", schedule_interval="@monthly", default_args=default_a
         task_id=GeonamesTelescope.TASK_ID_UPLOAD_DOWNLOADED,
         python_callable=GeonamesTelescope.upload_downloaded,
         provide_context=True,
-        queue=GeonamesTelescope.QUEUE
+        queue=GeonamesTelescope.QUEUE,
+        retries=GeonamesTelescope.RETRIES
     )
 
     # Extract downloaded file
@@ -72,7 +74,8 @@ with DAG(dag_id="geonames", schedule_interval="@monthly", default_args=default_a
         task_id=GeonamesTelescope.TASK_ID_UPLOAD_TRANSFORMED,
         python_callable=GeonamesTelescope.upload_transformed,
         provide_context=True,
-        queue=GeonamesTelescope.QUEUE
+        queue=GeonamesTelescope.QUEUE,
+        retries=GeonamesTelescope.RETRIES
     )
 
     # Upload download to bigquery table

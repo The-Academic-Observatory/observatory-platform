@@ -228,10 +228,6 @@ def transform_release(release: 'FundrefRelease') -> str:
 
     # Transform fundref release into JSON Lines format saving in memory buffer
     # Save in memory buffer to gzipped file
-    # funders_json = [json.dumps(obj) for obj in funders]
-
-    # with open(release.filepath_transform, 'w') as jsonl_out:
-    #     jsonl_out.write('\n'.join(json.dumps(obj) for obj in funders))
 
     with io.BytesIO() as bytes_io:
         with gzip.GzipFile(fileobj=bytes_io, mode='w') as gzip_file:
@@ -510,6 +506,7 @@ class FundrefTelescope:
     TELESCOPE_URL = 'https://gitlab.com/api/v4/projects/crossref%2Fopen_funder_registry/releases'
     TELESCOPE_DEBUG_URL = 'debug_fundref_url'
     DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'fundref.tar.gz')
+    RETRIES = 3
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
     TASK_ID_LIST = f"list_releases"

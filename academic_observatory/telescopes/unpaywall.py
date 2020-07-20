@@ -237,6 +237,7 @@ class UnpaywallTelescope:
     RELEASES_TOPIC_NAME = "releases"
     TELESCOPE_URL = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/'
     DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'unpaywall.jsonl.gz')
+    RETRIES = 3
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
     TASK_ID_LIST = "list_releases"

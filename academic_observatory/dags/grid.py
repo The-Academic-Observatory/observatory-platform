@@ -50,7 +50,8 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
         task_id=GridTelescope.TASK_ID_DOWNLOAD,
         python_callable=GridTelescope.download,
         provide_context=True,
-        queue=GridTelescope.QUEUE
+        queue=GridTelescope.QUEUE,
+        retries=GridTelescope.RETRIES
     )
 
     # Upload the GRID releases for a given interval
@@ -58,7 +59,8 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
         task_id=GridTelescope.TASK_ID_UPLOAD_DOWNLOADED,
         python_callable=GridTelescope.upload_downloaded,
         provide_context=True,
-        queue=GridTelescope.QUEUE
+        queue=GridTelescope.QUEUE,
+        retries=GridTelescope.RETRIES
     )
 
     # Extract the GRID releases for a given interval
@@ -82,7 +84,8 @@ with DAG(dag_id=GridTelescope.DAG_ID, schedule_interval="@weekly", default_args=
         task_id=GridTelescope.TASK_ID_UPLOAD_TRANSFORMED,
         python_callable=GridTelescope.upload_transformed,
         provide_context=True,
-        queue=GridTelescope.QUEUE
+        queue=GridTelescope.QUEUE,
+        retries=GridTelescope.RETRIES
     )
 
     # Load the transformed GRID releases for a given interval to BigQuery

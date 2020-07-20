@@ -160,7 +160,7 @@ class MagTelescope:
     RELEASES_TOPIC_NAME = 'releases'
     MAX_PROCESSES = cpu_count()
     MAX_CONNECTIONS = cpu_count()
-    MAX_RETRIES = 3
+    RETRIES = 3
 
     TASK_ID_CHECK_DEPENDENCIES = 'check_dependencies'
     TASK_ID_LIST = 'list_releases'
@@ -266,7 +266,7 @@ class MagTelescope:
                 success = upload_files_to_cloud_storage(gcp_bucket_name, blob_names, paths,
                                                         max_processes=MagTelescope.MAX_PROCESSES,
                                                         max_connections=MagTelescope.MAX_CONNECTIONS,
-                                                        retries=MagTelescope.MAX_RETRIES)
+                                                        retries=MagTelescope.RETRIES)
                 if success:
                     logging.info(f'Success uploading dev MAG release to cloud storage: {release}')
                 else:
@@ -327,7 +327,7 @@ class MagTelescope:
             success = download_blobs_from_cloud_storage(bucket_name, release.release_path, destination_path,
                                                         max_processes=MagTelescope.MAX_PROCESSES,
                                                         max_connections=MagTelescope.MAX_CONNECTIONS,
-                                                        retries=MagTelescope.MAX_RETRIES)
+                                                        retries=MagTelescope.RETRIES)
 
             if success:
                 logging.info(f'Success downloading MAG release: {release}')
@@ -392,7 +392,7 @@ class MagTelescope:
             success = upload_files_to_cloud_storage(bucket_name, blob_names, paths,
                                                     max_processes=MagTelescope.MAX_PROCESSES,
                                                     max_connections=MagTelescope.MAX_CONNECTIONS,
-                                                    retries=MagTelescope.MAX_RETRIES)
+                                                    retries=MagTelescope.RETRIES)
             if success:
                 logging.info(f'Success uploading MAG release to cloud storage: {release}')
             else:

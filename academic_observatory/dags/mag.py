@@ -73,7 +73,8 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=d
         task_id=MagTelescope.TASK_ID_UPLOAD_TRANSFORMED,
         python_callable=MagTelescope.upload_transformed,
         provide_context=True,
-        queue=MagTelescope.QUEUE
+        queue=MagTelescope.QUEUE,
+        retries=MagTelescope.RETRIES
     )
 
     # Load all MAG releases for a given interval to BigQuery

@@ -168,7 +168,8 @@ def transform_release(release: 'CrossrefMetadataRelease', max_workers: int = cpu
 
         # Create tasks for each file
         for input_file_path in input_file_paths:
-            output_file_path = os.path.join(output_release_path, os.path.basename(input_file_path))
+            # The output file will be a json lines file, hence adding the 'l' to the file extension
+            output_file_path = os.path.join(output_release_path, os.path.basename(input_file_path) + 'l')
             msg = f'input_file_path={input_file_path}, output_file_path={output_file_path}'
             logging.info(f'transform_release: {msg}')
             future = executor.submit(transform_file, input_file_path, output_file_path)
@@ -438,12 +439,15 @@ class CrossrefMetadataTelescope:
         bucket_name = Variable.get("transform_bucket_name")
 
         # List files and sort so that they are processed in ascending order
-        file_paths = natsorted(glob.glob(f"{release.extract_path}/*.json"))
+        logging.info(f'upload_transformed listing files')
+        file_paths = natsorted(glob.glob(f"{release.transform_path}/*.jsonl"))
 
         # List blobs
+        logging.info(f'upload_transformed creating blob names')
         blob_names = [f'{release.get_blob_name(SubFolder.transformed)}/{os.path.basename(path)}' for path in file_paths]
 
         # Upload files
+        logging.info(f'upload_transformed begin uploading files')
         success = upload_files_to_cloud_storage(bucket_name, blob_names, file_paths,
                                                 max_processes=CrossrefMetadataTelescope.MAX_PROCESSES,
                                                 max_connections=CrossrefMetadataTelescope.MAX_CONNECTIONS,

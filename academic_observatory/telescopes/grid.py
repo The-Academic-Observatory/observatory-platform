@@ -167,6 +167,7 @@ class GridTelescope:
     DESCRIPTION = 'The Global Research Identifier Database (GRID): https://grid.ac/'
     RELEASES_TOPIC_NAME = 'releases'
     QUEUE = 'remote_queue'
+    RETRIES = 3
 
     TASK_ID_CHECK_DEPENDENCIES = 'check_dependencies'
     TASK_ID_LIST = 'list_releases'

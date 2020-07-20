@@ -59,7 +59,8 @@ with DAG(dag_id="fundref", schedule_interval="@weekly", default_args=default_arg
         python_callable=FundrefTelescope.download,
         provide_context=True,
         queue=FundrefTelescope.QUEUE,
-        pool=pool_name
+        pool=pool_name,
+        retries=FundrefTelescope.RETRIES
     )
 
     # Upload downloaded data for a given interval
@@ -67,7 +68,8 @@ with DAG(dag_id="fundref", schedule_interval="@weekly", default_args=default_arg
         task_id=FundrefTelescope.TASK_ID_UPLOAD_DOWNLOADED,
         provide_context=True,
         python_callable=FundrefTelescope.upload_downloaded,
-        queue=FundrefTelescope.QUEUE
+        queue=FundrefTelescope.QUEUE,
+        retries=FundrefTelescope.RETRIES
     )
 
     # Decompresses download
@@ -91,7 +93,8 @@ with DAG(dag_id="fundref", schedule_interval="@weekly", default_args=default_arg
         task_id=FundrefTelescope.TASK_ID_UPLOAD_TRANSFORMED,
         python_callable=FundrefTelescope.upload_transformed,
         provide_context=True,
-        queue=FundrefTelescope.QUEUE
+        queue=FundrefTelescope.QUEUE,
+        retries=FundrefTelescope.RETRIES
     )
 
     # Upload download to bigquery table
