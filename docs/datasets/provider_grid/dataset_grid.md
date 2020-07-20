@@ -1,12 +1,15 @@
-# Dataset: # Global Research Identifier Database (GRID)
+# Global Research Identifier Database
 
 The Global Research Integer Database (GRID) includes data on institutes including acronyms, 
 addresses, aliases, external identifiers, geographical name data, labels, links, 
 relationships, types, and whether it is an active institution
-. _- source: [GRID](https://www.grid.ac/format)_ 
+. _- source: [GRID](https://www.grid.ac/)_ 
 and [data details](https://www.grid.ac/format)
 
+---
+
 **Schema for data extraction prior to 2015-09-22**
+
 + **redirect** [*String*]
 + **relationships** [*Record*]
     + **id** [*String*]
@@ -77,8 +80,10 @@ and [data details](https://www.grid.ac/format)
     + **iso639** [*String*]
     + **label** [*String*]
 
+---
 
 **Schema for data extraction from 2016-04-28 onwards**
+
 + **redirect** [*String*]
 + **relationships** [*Record*]
     + **id** [*String*]

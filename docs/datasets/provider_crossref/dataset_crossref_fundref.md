@@ -6,6 +6,8 @@ identifiers for grant-giving organizations around the world.”
  _- source: [Funder Registry](https://www.crossref.org/services/funder-registry/)_ 
 and [data details](https://github.com/CrossRef/rest-api-doc)
 
+---
+
 **Schema**
 
 + **parents** [*Record*]

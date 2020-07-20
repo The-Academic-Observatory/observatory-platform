@@ -1,4 +1,4 @@
-# Dataset: Unpaywall
+# Unpaywall
 Unpaywall is an “open database of free scholarly articles.” It includes “data from open indexes like Crossref 
 and DOAJ where it exists.” Data comes from “monitoring over 50,000 unique online content hosting locations, 
 including Gold OA journals, Hybrid journals, institutional repositories, and disciplinary repositories.” 
@@ -7,7 +7,10 @@ hybrid, and bronze.
 ” _- source: [Unpaywall](https://unpaywall.org/)_ 
 and [data details](https://unpaywall.org/data-format)
 
-## Schema
+---
+
+**Schema**
+
 + **journal_is_in_doaj** [*Boolean*]
 + **published_date** [*Date*]
 + **journal_issns** [*String*]

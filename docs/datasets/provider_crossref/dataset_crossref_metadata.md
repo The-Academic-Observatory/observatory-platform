@@ -7,6 +7,8 @@ library systems, author profiling, specialist subject databases, scholarly shari
 . _- source: [Crossref Metadata](https://www.crossref.org/services/metadata-retrieval/)_ 
 and [data details](https://github.com/CrossRef/rest-api-doc)
 
+---
+
 **Schema**
 
 + **issn_type** [*Record*]

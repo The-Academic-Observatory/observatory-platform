@@ -1,4 +1,4 @@
-# Dataset: GeoNames
+# GeoNames
 
 "The GeoNames geographical database covers all countries.” It contains “over 25 million 
 geographical names and consists of over 11 million unique features whereof 4.8 million 
@@ -9,7 +9,10 @@ elevation, population and others from various sources.
  _- source: [GeoNames](https://www.geonames.org/about.html)_ 
 and [data details](https://download.geonames.org/export/dump/readme.txt)
 
-## Schema
+---
+
+**Schema**
+
 + **geonameid** [*Integer*]
 + **name** [*String*]
 + **asciiname** [*String*]

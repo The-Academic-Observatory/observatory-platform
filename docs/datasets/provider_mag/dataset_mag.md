@@ -1,4 +1,4 @@
-# Datasets: Microsoft Academic Graph
+# Microsoft Academic Graph
 
 "The Microsoft Academic Graph is a heterogeneous graph containing scientific publication 
 records, citation relationships between those publications, as well as authors, institutions, 
@@ -9,7 +9,7 @@ The dataset is provided as a set of related tables of data
 and [data details](https://docs.microsoft.com/en-us/academic-services/graph/reference-data-schema
 )
 
-## Schema
+**Schemas**
 
 ---
 
