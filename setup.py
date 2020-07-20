@@ -1,12 +1,16 @@
 from setuptools import setup, find_packages
 
 long_description = '''
-academic-observatory is a Python API and a set of command line tools for downloading and processing data to 
-understand how well universities operate as open knowledge institutions.
+The Observatory Platform is an environment for fetching, processing and analysing data to understand how well 
+universities operate as Open Knowledge Institutions. 
 
-See the documentation here: https://github.com/The-Academic-Observatory/academic-observatory
+The Observatory Platform is built with Apache Airflow and includes DAGs (workflows) for processing: Crossref Metadata, 
+Fundref, GRID, Microsoft Academic Graph (MAG) and Unpaywall.
 
-academic-observatory is compatible with Python 3.7.
+See the Github Project here: https://github.com/The-Academic-Observatory/observatory-platform
+See the documentation here: https://coki-academic-observatory.readthedocs-hosted.com/en/latest
+
+The Observatory Platform is compatible with Python 3.7.
 '''
 
 with open('requirements.txt') as f:
@@ -16,17 +20,17 @@ with open('docs/requirements.txt') as f:
     docs_requires = f.read().splitlines()
 
 setup(
-    name='academic-observatory',
+    name='observatory-platform',
     version='20.7.0',
-    description='Telescopes, Workflows and Data Services for the Academic Observatory.',
+    description='Telescopes, Workflows and Data Services for the Observatory Platform',
     long_description=long_description,
     license='Apache License Version 2.0',
     author='Curtin University',
     author_email='agent@observatory.academy',
-    url='https://github.com/The-Academic-Observatory/academic-observatory',
+    url='https://github.com/The-Academic-Observatory/observatory-platform',
     packages=find_packages(),
-    download_url='https://github.com/The-Academic-Observatory/academic-observatory/v20.7.0.tar.gz',
-    keywords=['science', 'data', 'workflows', 'academic institutes', 'academic-observatory'],
+    download_url='https://github.com/The-Academic-Observatory/observatory-platfor/v20.7.0.tar.gz',
+    keywords=['science', 'data', 'workflows', 'academic institutes', 'observatory-platform'],
     install_requires=install_requires,
     extras_require={
         'docs': docs_requires
@@ -34,7 +38,7 @@ setup(
     entry_points={
         'console_scripts': [
             # The new command line interface implemented with Click
-            'observatory = academic_observatory.cli.observatory:cli'
+            'observatory = observatory_platform.cli.observatory:cli'
         ]
     },
     classifiers=[

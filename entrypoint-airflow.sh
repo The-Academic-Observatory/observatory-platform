@@ -11,10 +11,10 @@ if [ $1="webserver" ]; then
   airflow create_user -r Admin -u airflow -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
 fi
 
-# Enter academic observatory folder
-cd /opt/observatory/academic-observatory
+# Enter observatory platform folder
+cd /opt/observatory/observatory-platform
 
-# Install Python dependencies for Academic Observatory
+# Install Python dependencies for Observatory Platform
 pip3 install -r requirements.txt --user
 
 # Remove tests directory which other packages install to sometimes
@@ -23,7 +23,7 @@ if [ -d ${TESTS_DIRECTORY} ]; then
   rm -r ${TESTS_DIRECTORY}
 fi
 
-# Install the Academic Observatory Python package
+# Install the Observatory Platform Python package
 pip3 install -e . --user
 
 # Enter airflow home folder. Must be in the AIRFLOW_HOME folder (i.e. /opt/airflow) before running the next command
