@@ -48,7 +48,7 @@ class TestGeonames(unittest.TestCase):
 
         super(TestGeonames, self).__init__(*args, **kwargs)
 
-        # Geonames test release
+        # GeoNames test release
         self.geonames_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'geonames.txt')
         self.fetch_release_date_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
                                                     'geonames_fetch_release_date.yaml')

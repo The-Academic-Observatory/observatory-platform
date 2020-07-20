@@ -97,7 +97,7 @@ with DAG(dag_id="fundref", schedule_interval="@weekly", default_args=default_arg
         retries=FundrefTelescope.RETRIES
     )
 
-    # Upload download to bigquery table
+    # Upload download to BigQuery table
     bq_load = PythonOperator(
         task_id=FundrefTelescope.TASK_ID_BQ_LOAD,
         python_callable=FundrefTelescope.bq_load,

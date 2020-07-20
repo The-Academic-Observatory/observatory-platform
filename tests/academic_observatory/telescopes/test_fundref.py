@@ -54,12 +54,12 @@ class TestFundref(unittest.TestCase):
 
         super(TestFundref, self).__init__(*args, **kwargs)
 
-        # Fundref releases list
+        # FundRef releases list
         self.list_fundref_releases_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
                                                        'list_fundref_releases.yaml')
         self.list_fundref_releases_hash = 'a7cf8190dcbda7992e3ae839ebab9f95'
 
-        # Fundref test release
+        # FundRef test release
         self.fundref_test_path = FundrefTelescope.DEBUG_FILE_PATH
         self.fundref_test_url = FundrefTelescope.TELESCOPE_DEBUG_URL
         self.fundref_nested_element = ET.Element(
@@ -233,7 +233,7 @@ class TestFundref(unittest.TestCase):
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
             # decompress release
             decompress_file_path = extract_release(release)
-            # parse fundref registry
+            # parse FundRef registry
             funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path)
 
             self.assertIsInstance(funders, List)
@@ -307,7 +307,7 @@ class TestFundref(unittest.TestCase):
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
             # decompress release
             decompress_file_path = extract_release(release)
-            # parse fundref registry
+            # parse FundRef registry
             funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path)
             # iterate through funders recursively
             children, returned_depth = recursive_funders(funders_by_key, funders[1], 0, 'narrower', [])
@@ -340,7 +340,7 @@ class TestFundref(unittest.TestCase):
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
             # decompress release
             decompress_file_path = extract_release(release)
-            # parse fundref registry
+            # parse FundRef registry
             funders, funders_by_key = parse_fundref_registry_rdf(decompress_file_path)
             # add funders relationships
             funders = add_funders_relationships(funders, funders_by_key)

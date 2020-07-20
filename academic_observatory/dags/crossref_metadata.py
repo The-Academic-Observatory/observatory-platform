@@ -84,7 +84,7 @@ with DAG(dag_id="crossref_metadata", schedule_interval="0 0 7 * *", default_args
         queue=CrossrefMetadataTelescope.QUEUE
     )
 
-    # Upload download to bigquery table
+    # Upload download to BigQuery table
     bq_load = PythonOperator(
         task_id=CrossrefMetadataTelescope.TASK_ID_BQ_LOAD,
         python_callable=CrossrefMetadataTelescope.bq_load,

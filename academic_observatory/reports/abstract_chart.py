@@ -72,6 +72,7 @@ class AbstractObservatoryChart(ABC):
         """
         pass
 
+    # noinspection SpellCheckingInspection,SpellCheckingInspection
     def watermark(self,
                   image_file: str,
                   xpad: int = 0,
