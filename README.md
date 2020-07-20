@@ -6,10 +6,10 @@ universities operate as Open Knowledge Institutions.
 The Observatory Platform is built with Apache Airflow and includes DAGs (workflows) for processing: Crossref Metadata, 
 Fundref, GRID, Microsoft Academic Graph (MAG) and Unpaywall.
 
-[![Documentation Status](https://readthedocs.com/projects/coki-academic-observatory/badge/?version=latest&token=bcb93984ae9a67950f7e61be1d6f35c975e0bb64cc1f688124fbf452b727c669)](https://coki-academic-observatory.readthedocs-hosted.com/en/latest/?badge=latest) [![Documentation Status](https://img.shields.io/badge/python-3.7-blue)](https://img.shields.io/badge/python-3.7-blue)
+[![Documentation Status](https://readthedocs.org/projects/observatory-platform/badge/?version=latest)](https://observatory-platform.readthedocs.io/en/latest/?badge=latest) [![Documentation Status](https://img.shields.io/badge/python-3.7-blue)](https://img.shields.io/badge/python-3.7-blue)
 
 ## Documentation
-For more detailed documentation about the Observatory Platform see the Read the Docs website [coki-academic-observatory.readthedocs-hosted.com/en/latest](https://coki-academic-observatory.readthedocs-hosted.com/en/latest)
+For more detailed documentation about the Observatory Platform see the Read the Docs website [https://observatory-platform.readthedocs.io](https://observatory-platform.readthedocs.io)
 
 ## Installation
 Observatory Platform supports Python 3.7 and above on Linux and MacOS.
