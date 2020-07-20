@@ -12,6 +12,9 @@ academic-observatory is compatible with Python 3.7.
 with open('requirements.txt') as f:
     install_requires = f.read().splitlines()
 
+with open('docs/requirements.txt') as f:
+    docs_requires = f.read().splitlines()
+
 setup(
     name='academic-observatory',
     version='20.7.0',
@@ -26,11 +29,7 @@ setup(
     keywords=['science', 'data', 'workflows', 'academic institutes', 'academic-observatory'],
     install_requires=install_requires,
     extras_require={
-        'dev': [
-            'Sphinx==2.4.*',
-            'sphinx-rtd-theme==0.4.*',
-            'sphinx-autoapi==1.2.*',
-            'recommonmark==0.6.*']
+        'docs': docs_requires
     },
     entry_points={
         'console_scripts': [

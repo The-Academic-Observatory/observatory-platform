@@ -322,7 +322,7 @@ Overview of the documentation:
 #### Building documentation
 Make sure that the Academic Observatory is installed with the development requirements:
 ```bash
-pip install -e .[dev]
+pip install -e .[docs]
 ```
 
 Navigate to the `docs` directory:
