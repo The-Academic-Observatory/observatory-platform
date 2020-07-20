@@ -38,7 +38,7 @@ from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
 
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
-DEFAULT_CHUNK_SIZE = 256 * 1024
+DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
 
 
 def hex_to_base64_str(hex_str: bytes) -> str:
