@@ -22,12 +22,11 @@ import pathlib
 from enum import Enum
 from typing import Union, Dict
 
+import airflow
 import cerberus.validator
-from airflow.hooks.base_hook import BaseHook
 import pendulum
 import yaml
-import airflow
-# from airflow.models import Variable
+from airflow.hooks.base_hook import BaseHook
 from cerberus import Validator
 from cryptography.fernet import Fernet
 from natsort import natsorted
@@ -35,6 +34,9 @@ from pendulum import Pendulum
 
 import academic_observatory.database
 from academic_observatory import dags
+
+# The path where data is saved on the system
+data_path = None
 
 
 def observatory_home(*subdirs) -> str:
@@ -185,7 +187,14 @@ def telescope_path(sub_folder: SubFolder, name: str) -> str:
     :return: the path.
     """
 
-    data_path = airflow.models.Variable.get("data_path")
+    # To avoid hitting the airflow database and the secret backend unnecessarily, data path is stored as a global
+    # variable and only requested once.
+    global data_path
+    if data_path is None:
+        logging.info('telescope_path: requesting data_path variable')
+        data_path = airflow.models.Variable.get("data_path")
+
+    # Create telescope path
     path = os.path.join(data_path, 'telescopes', sub_folder.value, name)
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
