@@ -40,11 +40,9 @@ data_path = None
 
 
 def observatory_home(*subdirs) -> str:
-    """ Get the .observatory Academic Observatory home directory or subdirectory. The home directory and subdirectories
-     will be created if they do not exist. The path given by the OBSERVATORY_PATH environment variable must exist
-     otherwise a NotADirectoryError error will be thrown.
-      - If the OBSERVATORY_PATH environment variable is set: OBSERVATORY_PATH + .observatory + optional subdirs.
-      - If the OBSERVATORY_PATH environment variable is not set: user's home directory + .observatory + optional subdirs.
+    """ Get the .observatory Academic Observatory home directory or subdirectory on the host machine. The home
+    directory and subdirectories will be created if they do not exist.
+
     :param: subdirs: an optional list of subdirectories.
     :return: the path.
     """

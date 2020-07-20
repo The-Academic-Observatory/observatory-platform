@@ -150,7 +150,7 @@ class TestUnpaywall(unittest.TestCase):
             self.assertEqual(os.path.join(path, self.unpaywall_test_transform_file_name), release.filepath_transform)
 
     @patch('academic_observatory.utils.config_utils.airflow.models.Variable.get')
-    def test_decompress_release(self, mock_variable_get):
+    def test_extract_release(self, mock_variable_get):
         """ Test that the release is decompressed as expected.
 
         :return: None.

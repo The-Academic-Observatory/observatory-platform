@@ -92,17 +92,16 @@ def extract_release(release: 'CrossrefMetadataRelease') -> bool:
 
     # Make directories
     os.makedirs(release.extract_path, exist_ok=True)
-    time.sleep(60)
+
+    # Was having issues with the next process not finding the folder that was just created, so sleep for 30 secs
+    time.sleep(30)
 
     # Run command
     cmd = f'tar -xv -I "pigz -d" -f {release.download_path} -C {release.extract_path}'
-    logging.info(f"Command: {cmd}")
-    logging.info(f"release.download_path exists: {os.path.exists(release.download_path)}")
-    logging.info(f"release.extract_path exists: {os.path.exists(release.extract_path)}")
     p: Popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
     stdout, stderr = wait_for_process(p)
     logging.debug(stdout)
-    success = p.returncode == 0 and 'error' not in stderr.lower() and 'error' not in stdout.lower()
+    success = p.returncode == 0 and 'error' not in stderr.lower()
 
     if success:
         logging.info(f"extract_release success: {release.download_path}")

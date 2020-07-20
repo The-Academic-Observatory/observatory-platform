@@ -25,57 +25,32 @@ from click.testing import CliRunner
 
 import academic_observatory.dags
 import academic_observatory.database.telescopes.schema
-from academic_observatory.utils.config_utils import ObservatoryConfig, observatory_package_path, \
-    dags_path, telescope_path, SubFolder, find_schema, schema_path
+from academic_observatory.utils.config_utils import (ObservatoryConfig, observatory_package_path, observatory_home,
+                                                     dags_path, telescope_path, SubFolder, find_schema, schema_path)
 from tests.academic_observatory.config import test_fixtures_path
 
 
 class TestConfigUtils(unittest.TestCase):
 
-    # @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
-    # def test_observatory_home_user_home(self, home_mock):
-    #     # Tests with no OBSERVATORY_PATH environment variable
-    #     runner = CliRunner()
-    #     with runner.isolated_filesystem():
-    #         # Create home path and mock getting home path
-    #         home_path = 'user-home'
-    #         os.makedirs(home_path, exist_ok=True)
-    #         home_mock.return_value = home_path
-    #
-    #         with runner.isolated_filesystem():
-    #             # Test that observatory home works
-    #             path = observatory_home()
-    #             self.assertTrue(os.path.exists(path))
-    #             self.assertEqual(f'{home_path}/.observatory', path)
-    #
-    #             # Test that subdirectories are created
-    #             path = observatory_home('telescopes')
-    #             self.assertTrue(os.path.exists(path))
-    #             self.assertEqual(f'{home_path}/.observatory/telescopes', path)
-    #
-    # @patch('academic_observatory.utils.config_utils.os.environ.get')
-    # def test_observatory_home_env_var(self, get_mock):
-    #     root_path = '/tmp/df0acbb4-9690-4604-91f4-8f10ae3ebf58'
-    #     observatory_home_path = os.path.join(root_path, 'home/airflow/gcs/data')
-    #     os.makedirs(observatory_home_path, exist_ok=True)
-    #     get_mock.return_value = observatory_home_path
-    #
-    #     # Test that setting the OBSERVATORY_PATH environment variable works
-    #     path = observatory_home()
-    #     self.assertEqual(f'{observatory_home_path}/.observatory', path)
-    #
-    #     # Test that subdirectories are created
-    #     path = observatory_home('telescopes')
-    #     self.assertTrue(os.path.exists(path))
-    #     self.assertEqual(f'{observatory_home_path}/.observatory/telescopes', path)
-    #
-    #     # Cleanup
-    #     shutil.rmtree(root_path, ignore_errors=True)
-    #
-    #     # Test that FileNotFoundError is thrown when invalid OBSERVATORY_PATH is set. The path in observatory_home_path
-    #     # does not exist anymore due to the shutil.rmtree command.
-    #     with self.assertRaises(FileNotFoundError):
-    #         observatory_home()
+    @patch('academic_observatory.utils.config_utils.pathlib.Path.home')
+    def test_observatory_home(self, home_mock):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Create home path and mock getting home path
+            home_path = 'user-home'
+            os.makedirs(home_path, exist_ok=True)
+            home_mock.return_value = home_path
+
+            with runner.isolated_filesystem():
+                # Test that observatory home works
+                path = observatory_home()
+                self.assertTrue(os.path.exists(path))
+                self.assertEqual(f'{home_path}/.observatory', path)
+
+                # Test that subdirectories are created
+                path = observatory_home('subfolder')
+                self.assertTrue(os.path.exists(path))
+                self.assertEqual(f'{home_path}/.observatory/subfolder', path)
 
     def test_observatory_package_path(self):
         expected_path = pathlib.Path(academic_observatory.__file__).resolve()
