@@ -30,7 +30,7 @@ build {
   # let you exclude files. Don't want folders e.g. venv or secrets to be uploaded.
   provisioner "shell" {
     inline = [
-      "mkdir -p /tmp/academic-observatory/dags"]
+      "mkdir -p /tmp/academic-observatory/docs"]
   }
 
   provisioner "file" {
@@ -76,6 +76,11 @@ build {
   provisioner "file" {
     source = "requirements.txt"
     destination = "/tmp/academic-observatory/requirements.txt"
+  }
+
+  provisioner "file" {
+    source = "docs/requirements.txt"
+    destination = "/tmp/academic-observatory/docs/requirements.txt"
   }
 
   provisioner "file" {
