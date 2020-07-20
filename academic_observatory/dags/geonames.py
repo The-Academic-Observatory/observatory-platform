@@ -78,7 +78,7 @@ with DAG(dag_id="geonames", schedule_interval="@monthly", default_args=default_a
         retries=GeonamesTelescope.RETRIES
     )
 
-    # Upload download to bigquery table
+    # Upload download to BigQuery table
     load_to_bq = PythonOperator(
         task_id=GeonamesTelescope.TASK_ID_BQ_LOAD,
         python_callable=GeonamesTelescope.load_to_bq,

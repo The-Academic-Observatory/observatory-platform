@@ -180,7 +180,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             table: Table = client.get_table(table_id)
             self.assertEqual(table.table_id, table_name)
 
-            # Upload jsonl to storage bucket
+            # Upload JSONL to storage bucket
             result = upload_file_to_cloud_storage(self.gc_bucket_name, json_file_name, json_file_path)
             self.assertTrue(result)
 

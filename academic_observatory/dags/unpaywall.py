@@ -87,7 +87,7 @@ with DAG(dag_id="unpaywall", schedule_interval="@weekly", default_args=default_a
         retries=UnpaywallTelescope.RETRIES
     )
 
-    # Upload download to bigquery table
+    # Upload download to BigQuery table
     bq_load = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_BQ_LOAD,
         python_callable=UnpaywallTelescope.load_to_bq,

@@ -222,11 +222,11 @@ def transform_release(release: 'FundrefRelease') -> str:
     # Strip leading whitespace from first line if present.
     strip_whitespace(release.filepath_extract)
 
-    # Parse RDF funder data
+    # Parse RDF funders data
     funders, funders_by_key = parse_fundref_registry_rdf(release.filepath_extract)
     funders = add_funders_relationships(funders, funders_by_key)
 
-    # Transform fundref release into JSON Lines format saving in memory buffer
+    # Transform FundRef release into JSON Lines format saving in memory buffer
     # Save in memory buffer to gzipped file
 
     with io.BytesIO() as bytes_io:
