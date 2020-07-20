@@ -1,0 +1,110 @@
+
+x-volumes: &volumes
+  - "${HOST_LOGS_PATH}:/opt/airflow/logs"
+  - "${HOST_DAGS_PATH}:/opt/airflow/dags"
+  - "${HOST_DATA_PATH}:/opt/observatory/data"
+  - "${HOST_PACKAGE_PATH}:/opt/observatory/academic-observatory"
+
+x-build: &build
+  context: .
+  dockerfile: Dockerfile.observatory
+  args:
+    - HOST_USER_ID=${HOST_USER_ID}
+    - HOST_GROUP_ID=${HOST_GROUP_ID}
+
+networks:
+  observatory-network:
+    name: observatory-network
+    driver: bridge
+
+services:
+  redis:
+    image: "redis:6.0.5"
+    restart: always
+    ports:
+      - 6379:6379
+    networks:
+      - observatory-network
+
+  flower:
+    image: apache/airflow:1.10.11-python3.7
+    environment: *environment
+    restart: always
+    networks:
+      - observatory-network
+    depends_on:
+      - redis
+    ports:
+      - 5555:5555
+    command: flower
+
+  webserver:
+    build: *build
+    environment: *environment
+    volumes: *volumes
+    restart: always
+    networks:
+      - observatory-network
+    depends_on:
+      - redis
+    secrets:
+      - google_application_credentials.json
+    ports:
+      - 8080:8080
+    command: webserver
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /opt/airflow/airflow-webserver.pid ]"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  scheduler:
+    build: *build
+    environment: *environment
+    volumes: *volumes
+    restart: always
+    networks:
+      - observatory-network
+    depends_on:
+      - webserver
+    secrets:
+      - google_application_credentials.json
+    command: scheduler
+
+  worker_local:
+    build: *build
+    environment: *environment
+    volumes: *volumes
+    restart: always
+    <<: *networks
+    depends_on:
+      - scheduler
+    secrets:
+      - google_application_credentials.json
+    command: worker -q default
+
+  worker_remote:
+    build: *build
+    environment: *environment
+    volumes: *volumes
+    restart: always
+    <<: *networks
+    secrets:
+      - google_application_credentials.json
+    command: worker -q remote_queue
+
+  postgres:
+    image: postgres:12.2
+    environment:
+      - POSTGRES_DB=airflow
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+    volumes:
+      - ${HOST_POSTGRES_PATH}:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - observatory-network
+
+secrets:
+  google_application_credentials.json:
+    file: ${HOST_GOOGLE_APPLICATION_CREDENTIALS}

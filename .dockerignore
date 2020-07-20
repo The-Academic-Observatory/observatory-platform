@@ -4,3 +4,5 @@ tests
 notebooks
 dist
 .github
+*.pkrvars.hcl
+*.tfvars

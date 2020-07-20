@@ -12,23 +12,27 @@ academic-observatory is compatible with Python 3.7.
 with open('requirements.txt') as f:
     install_requires = f.read().splitlines()
 
+with open('docs/requirements.txt') as f:
+    docs_requires = f.read().splitlines()
+
 setup(
     name='academic-observatory',
-    version='20.6.0',
+    version='20.7.0',
     description='Telescopes, Workflows and Data Services for the Academic Observatory.',
     long_description=long_description,
-    license='Copyright 2019 Curtin University',
+    license='Apache License Version 2.0',
     author='Curtin University',
     author_email='agent@observatory.academy',
     url='https://github.com/The-Academic-Observatory/academic-observatory',
     packages=find_packages(),
-    download_url='https://github.com/The-Academic-Observatory/academic-observatory/v19.12.0.tar.gz',
+    download_url='https://github.com/The-Academic-Observatory/academic-observatory/v20.7.0.tar.gz',
     keywords=['science', 'data', 'workflows', 'academic institutes', 'academic-observatory'],
+    install_requires=install_requires,
+    extras_require={
+        'docs': docs_requires
+    },
     entry_points={
         'console_scripts': [
-            # The legacy command line interface implemented with argparse
-            'aoutil = academic_observatory.cli.ao_util:main',
-
             # The new command line interface implemented with Click
             'observatory = academic_observatory.cli.observatory:cli'
         ]
@@ -45,5 +49,5 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Utilities"
     ],
-    python_requires='>=3.6.6'
+    python_requires='>=3.7'
 )

@@ -5,3 +5,9 @@ dist
 .vscode
 docs/_build
 config.yaml
+*.pkrvars.hcl
+*.tfvars
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+.terraform/**

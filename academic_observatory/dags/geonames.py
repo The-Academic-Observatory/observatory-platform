@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs
+# Author: Aniek Roelofs, James Diprose
 
 from datetime import datetime
 
@@ -26,42 +26,72 @@ default_args = {
     "start_date": datetime(2020, 6, 1)
 }
 
-with DAG(dag_id="geonames", schedule_interval="@once", default_args=default_args) as dag:
+with DAG(dag_id="geonames", schedule_interval="@monthly", default_args=default_args, catchup=False) as dag:
     # Get config variables
-    check_setup = PythonOperator(
-        task_id=GeonamesTelescope.TASK_ID_SETUP,
-        python_callable=GeonamesTelescope.check_setup_requirements,
-        provide_context=True
+    check = PythonOperator(
+        task_id=GeonamesTelescope.TASK_ID_CHECK_DEPENDENCIES,
+        python_callable=GeonamesTelescope.check_dependencies,
+        provide_context=True,
+        queue=GeonamesTelescope.QUEUE
     )
+
     # Downloads snapshot from url
-    download_local = PythonOperator(
+    download = PythonOperator(
         task_id=GeonamesTelescope.TASK_ID_DOWNLOAD,
         python_callable=GeonamesTelescope.download,
-        provide_context=True
+        provide_context=True,
+        queue=GeonamesTelescope.QUEUE,
+        retries=GeonamesTelescope.RETRIES
     )
-    # Transforms download
+
+    # Upload downloaded files to gcs bucket
+    upload_downloaded = PythonOperator(
+        task_id=GeonamesTelescope.TASK_ID_UPLOAD_DOWNLOADED,
+        python_callable=GeonamesTelescope.upload_downloaded,
+        provide_context=True,
+        queue=GeonamesTelescope.QUEUE,
+        retries=GeonamesTelescope.RETRIES
+    )
+
+    # Extract downloaded file
+    extract = PythonOperator(
+        task_id=GeonamesTelescope.TASK_ID_EXTRACT,
+        python_callable=GeonamesTelescope.extract,
+        provide_context=True,
+        queue=GeonamesTelescope.QUEUE
+    )
+
+    # Transform downloaded file
     transform = PythonOperator(
         task_id=GeonamesTelescope.TASK_ID_TRANSFORM,
         python_callable=GeonamesTelescope.transform,
-        provide_context=True
+        provide_context=True,
+        queue=GeonamesTelescope.QUEUE
     )
+
     # Upload download to gcs bucket
-    upload_to_gcs = PythonOperator(
-        task_id=GeonamesTelescope.TASK_ID_UPLOAD,
-        python_callable=GeonamesTelescope.upload_to_gcs,
-        provide_context=True
+    upload_transformed = PythonOperator(
+        task_id=GeonamesTelescope.TASK_ID_UPLOAD_TRANSFORMED,
+        python_callable=GeonamesTelescope.upload_transformed,
+        provide_context=True,
+        queue=GeonamesTelescope.QUEUE,
+        retries=GeonamesTelescope.RETRIES
     )
+
     # Upload download to bigquery table
     load_to_bq = PythonOperator(
         task_id=GeonamesTelescope.TASK_ID_BQ_LOAD,
         python_callable=GeonamesTelescope.load_to_bq,
-        provide_context=True
-    )
-    # Delete locally stored files
-    cleanup_local = PythonOperator(
-        task_id=GeonamesTelescope.TASK_ID_CLEANUP,
-        python_callable=GeonamesTelescope.cleanup_releases,
-        provide_context=True
+        provide_context=True,
+        queue=GeonamesTelescope.QUEUE
     )
 
-    check_setup >> download_local >> transform >> upload_to_gcs >> load_to_bq >> cleanup_local
+    # Delete locally stored files
+    cleanup = PythonOperator(
+        task_id=GeonamesTelescope.TASK_ID_CLEANUP,
+        python_callable=GeonamesTelescope.cleanup,
+        provide_context=True,
+        queue=GeonamesTelescope.QUEUE
+    )
+
+    check >> download >> upload_downloaded >> extract >> transform >> upload_transformed >> load_to_bq >> cleanup

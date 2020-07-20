@@ -14,14 +14,12 @@
 
 # Author: Cameron Neylon
 
-import pandas as pd
-import seaborn as sns
-import matplotlib
+import matplotlib.axis
+import matplotlib.figure
 import matplotlib.pyplot as plt
-import itertools
-from matplotlib import animation, rc, artist
+import pandas as pd
 from IPython.display import HTML
-from abc import ABC, abstractmethod
+from matplotlib import animation
 
 from academic_observatory.reports import AbstractObservatoryChart
 from academic_observatory.reports.chart_utils import _collect_kwargs_for
@@ -228,7 +226,6 @@ class ScatterPlot(AbstractObservatoryChart):
         """Frame animation function for scatterplot
 
         :param i: framenumber
-        :type franenumber: int
         :return: None
         """
 

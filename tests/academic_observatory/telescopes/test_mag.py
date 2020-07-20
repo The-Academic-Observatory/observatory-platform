@@ -172,7 +172,7 @@ class TestMag(unittest.TestCase):
             actual_files = natsort.natsorted(actual_files)
             self.assertEqual(expected_files, actual_files)
 
-    def test_db_load_mag_release(self):
+    def test_bq_load_mag_release(self):
         """ Tests that db_load_mag_release successfully loads a MAG release into BigQuery.
 
         :return: None.
