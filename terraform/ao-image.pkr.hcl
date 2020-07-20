@@ -26,71 +26,71 @@ source "googlecompute" "ao_builder" {
 build {
   sources = ["source.googlecompute.ao_builder"]
 
-  # Upload the Academic Observatory project files. Have to specify each file because the file provisioner doesn't
+  # Upload the Observatory Platform project files. Have to specify each file because the file provisioner doesn't
   # let you exclude files. Don't want folders e.g. venv or secrets to be uploaded.
   provisioner "shell" {
     inline = [
-      "mkdir -p /tmp/academic-observatory/docs"]
+      "mkdir -p /tmp/observatory-platform/docs"]
   }
 
   provisioner "file" {
-    source = "academic_observatory"
-    destination = "/tmp/academic-observatory"
+    source = "observatory_platform"
+    destination = "/tmp/observatory-platform"
   }
 
   provisioner "file" {
     source = "tests"
-    destination = "/tmp/academic-observatory"
+    destination = "/tmp/observatory-platform"
   }
 
   provisioner "file" {
     source = "docker-compose.cloud.yml"
-    destination = "/tmp/academic-observatory/docker-compose.cloud.yml"
+    destination = "/tmp/observatory-platform/docker-compose.cloud.yml"
   }
 
   provisioner "file" {
     source = "docker-compose.observatory.yml"
-    destination = "/tmp/academic-observatory/docker-compose.observatory.yml"
+    destination = "/tmp/observatory-platform/docker-compose.observatory.yml"
   }
 
   provisioner "file" {
     source = "Dockerfile.observatory"
-    destination = "/tmp/academic-observatory/Dockerfile.observatory"
+    destination = "/tmp/observatory-platform/Dockerfile.observatory"
   }
 
   provisioner "file" {
     source = "entrypoint-root.sh"
-    destination = "/tmp/academic-observatory/entrypoint-root.sh"
+    destination = "/tmp/observatory-platform/entrypoint-root.sh"
   }
 
   provisioner "file" {
     source = "entrypoint-airflow.sh"
-    destination = "/tmp/academic-observatory/entrypoint-airflow.sh"
+    destination = "/tmp/observatory-platform/entrypoint-airflow.sh"
   }
 
   provisioner "file" {
     source = "MANIFEST.in"
-    destination = "/tmp/academic-observatory/MANIFEST.in"
+    destination = "/tmp/observatory-platform/MANIFEST.in"
   }
 
   provisioner "file" {
     source = "requirements.txt"
-    destination = "/tmp/academic-observatory/requirements.txt"
+    destination = "/tmp/observatory-platform/requirements.txt"
   }
 
   provisioner "file" {
     source = "docs/requirements.txt"
-    destination = "/tmp/academic-observatory/docs/requirements.txt"
+    destination = "/tmp/observatory-platform/docs/requirements.txt"
   }
 
   provisioner "file" {
     source = "setup.cfg"
-    destination = "/tmp/academic-observatory/setup.cfg"
+    destination = "/tmp/observatory-platform/setup.cfg"
   }
 
   provisioner "file" {
     source = "setup.py"
-    destination = "/tmp/academic-observatory/setup.py"
+    destination = "/tmp/observatory-platform/setup.py"
   }
 
   # Run build script to install software on the image

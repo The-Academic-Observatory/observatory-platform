@@ -25,18 +25,18 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo curl -L "https://storage.googleapis.com/berglas/0.5.0/linux_amd64/berglas" -o /usr/local/bin/berglas
 sudo chmod +x /usr/local/bin/berglas
 
-# Move Academic Observatory onto a permanent path
+# Move Observatory Platform onto a permanent path
 sudo mkdir -p /opt/airflow/logs
 sudo mkdir /opt/airflow/dags
 sudo mkdir -p /opt/observatory/data
-sudo mv /tmp/academic-observatory /opt/observatory/academic-observatory
+sudo mv /tmp/observatory-platform /opt/observatory/observatory-platform
 
 # Own observatory and airflow directories
 sudo chown -R airflow:airflow /opt/observatory/
 sudo chown -R airflow:airflow /opt/airflow/
 
 # Build the Docker containers
-cd /opt/observatory/academic-observatory
+cd /opt/observatory/observatory-platform
 export HOST_USER_ID=$(id -u airflow)
 export HOST_GROUP_ID=$(id -g airflow)
 sudo -u airflow bash -c "cat docker-compose.cloud.yml docker-compose.observatory.yml > docker-compose.observatory-cloud.yml"

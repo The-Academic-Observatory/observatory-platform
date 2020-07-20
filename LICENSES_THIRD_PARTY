@@ -2,8 +2,8 @@ Licenses of third party code included in this project are documented in this fil
 
 The below files are included from https://github.com/keras-team/keras and have the following license:
 
-- academic_observatory/utils/data_utils.py
-- academic_observatory/utils/generic_utils.py
+- observatory_platform/utils/data_utils.py
+- observatory_platform/utils/generic_utils.py
 
 # COPYRIGHT
 #
@@ -50,7 +50,7 @@ The below files are included from https://github.com/keras-team/keras and have t
 
 The below files are included from https://github.com/commoncrawl/cc-pyspark and have the following license:
 
-- academic_observatory/common_crawl/cc_fetcher.py
+- observatory_platform/common_crawl/cc_fetcher.py
 
 # The MIT License (MIT)
 #
@@ -78,7 +78,7 @@ The below files are included from https://github.com/commoncrawl/cc-pyspark and 
 The below file are included from https://github.com/fengwangPhysics/matplotlib-chord-diagram and have the following
 license:
 
-- academic_observatory/analysis/charts/chord.py
+- observatory_platform/analysis/charts/chord.py
 
 # MIT License
 #

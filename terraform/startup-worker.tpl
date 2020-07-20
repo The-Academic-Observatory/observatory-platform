@@ -5,9 +5,9 @@ export HOST_GOOGLE_APPLICATION_CREDENTIALS="${host_ao_home}/google_application_c
 export HOST_USER_ID=$(id -u airflow)
 export HOST_GROUP_ID=$(id -g airflow)
 export HOST_LOGS_PATH="${host_airflow_home}/logs"
-export HOST_DAGS_PATH="${host_ao_home}/academic-observatory/academic_observatory/dags"
+export HOST_DAGS_PATH="${host_ao_home}/observatory-platform/observatory_platform/dags"
 export HOST_DATA_PATH="${host_ao_home}/data"
-export HOST_PACKAGE_PATH="${host_ao_home}/academic-observatory"
+export HOST_PACKAGE_PATH="${host_ao_home}/observatory-platform"
 
 export POSTGRES_HOSTNAME="${postgres_hostname}"
 export POSTGRES_PASSWORD="sm://${project_id}/postgres_password"

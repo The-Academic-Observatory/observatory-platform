@@ -30,7 +30,7 @@ variable "data_location" {
 }
 
 variable "database_tier" {
-  description = "The machine tier to use for the Academic Observatory Cloud SQL database"
+  description = "The machine tier to use for the Observatory Platform Cloud SQL database"
   type = string
 }
 
