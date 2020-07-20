@@ -239,7 +239,7 @@ def get_file(fname,
         print('Downloading data from', origin)
 
         class ProgressTracker(object):
-            # Maintain progbar for the lifetime of download.
+            # Maintain the progbar Progress Bar for the lifetime of download.
             # This design was chosen for Python 2.7 compatibility.
             progbar = None
 

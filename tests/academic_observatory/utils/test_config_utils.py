@@ -286,10 +286,10 @@ class TestObservatoryConfig(unittest.TestCase):
         config = ObservatoryConfig.make_default()
         config_dict = config.to_dict()
 
-        # Check that fernet key has been set
+        # Check that Fernet key has been set
         self.assertIsNotNone(config.fernet_key)
 
-        # Check that generated dictionary matches original. Remove fernet key because it should be different
+        # Check that generated dictionary matches original. Remove Fernet key because it should be different
         # every time
         del config_dict['fernet_key']
         del self.config_dict_complete_invalid['fernet_key']
