@@ -11,3 +11,5 @@ config.yaml
 *.tfstate.*
 .terraform.tfstate.lock.info
 .terraform/**
+.coverage
+coverage.xml

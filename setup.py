@@ -33,7 +33,8 @@ setup(
     keywords=['science', 'data', 'workflows', 'academic institutes', 'observatory-platform'],
     install_requires=install_requires,
     extras_require={
-        'docs': docs_requires
+        'docs': docs_requires,
+        'tests': ['liccheck==0.4.*', 'flake8==3.8.*', 'coverage==5.2']
     },
     entry_points={
         'console_scripts': [
