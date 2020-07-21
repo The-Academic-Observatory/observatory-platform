@@ -1,4 +1,4 @@
 tests/fixtures/** filter=lfs diff=lfs merge=lfs -text
-* linguist-vendored
-*.ipynb linguist-vendored=false
+docs/* linguist-documentation
+notebooks/* linguist-documentation
 /home/jamie/workspaces/coki/observatory-platform/observatory_platform/airflow/tests/fixtures/* filter=lfs diff=lfs merge=lfs -text
