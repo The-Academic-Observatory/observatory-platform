@@ -21,6 +21,23 @@ sudo curl -L "https://releases.hashicorp.com/terraform/0.13.0-beta3/terraform_0.
 sudo chmod +x /usr/local/bin/terraform
 ```
 
+### Mac
+Install Packer:
+```bash
+sudo curl -L "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_darwin_amd64.zip" -o /usr/local/bin/packer
+# When asked to replace, answer 'y'
+unzip /usr/local/bin/packer -d /usr/local/bin/
+sudo chmod +x /usr/local/bin/packer
+```
+
+Install Terraform:
+```bash
+sudo curl -L "https://releases.hashicorp.com/terraform/0.12.28/terraform_0.12.28_darwin_amd64.zip" -o /usr/local/bin/terraform
+# When asked to replace, answer 'y'
+unzip /usr/local/bin/terraform -d /usr/local/bin/
+sudo chmod +x /usr/local/bin/terraform
+```
+
 ## Prepare Google Cloud service account
 A Google Cloud service account will need to be created and it's service account key will need to be downloaded to 
 your workstation. See the article [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for
