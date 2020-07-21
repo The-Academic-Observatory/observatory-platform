@@ -29,19 +29,18 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -e .[tests]
       - name: Check licenses
         run: |
-          pip install liccheck==0.4.*
+          # stop the build if there are licensing issues
           liccheck --sfile strategy.ini --rfile requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
       - name: Lint with flake8
         run: |
-          pip install flake8
           # stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      - name: Test with unittest
+      - name: Run unit tests with coverage
         env:
           TESTS_AZURE_CONTAINER_NAME: ${{ secrets.TESTS_AZURE_CONTAINER_NAME }}
           TESTS_AZURE_CONTAINER_SAS_TOKEN: ${{ secrets.TESTS_AZURE_CONTAINER_SAS_TOKEN }}
@@ -53,4 +52,10 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_application_credentials.json
         run: |
           echo "${TESTS_GOOGLE_APPLICATION_CREDENTIALS_BASE64}" | base64 --decode > /tmp/google_application_credentials.json
-          python -m unittest
+          coverage run -m unittest discover
+          coverage xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: true
