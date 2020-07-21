@@ -53,6 +53,7 @@ jobs:
         run: |
           echo "${TESTS_GOOGLE_APPLICATION_CREDENTIALS_BASE64}" | base64 --decode > /tmp/google_application_credentials.json
           coverage run -m unittest discover
+          coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
