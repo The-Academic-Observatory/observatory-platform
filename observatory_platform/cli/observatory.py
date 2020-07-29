@@ -28,8 +28,8 @@ import docker
 import requests
 from cryptography.fernet import Fernet
 
-from observatory_platform.utils.config_utils import observatory_home, observatory_package_path, \
-    dags_path as default_dags_path, ObservatoryConfig
+from observatory_platform.utils.config_utils import AirflowVar, AirflowConn, observatory_home, \
+    observatory_package_path, dags_path as default_dags_path, ObservatoryConfig
 from observatory_platform.utils.proc_utils import wait_for_process
 
 
@@ -158,15 +158,15 @@ def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, 
     env['FERNET_KEY'] = config.fernet_key
 
     # Set connections
-    env['AIRFLOW_CONN_MAG_RELEASES_TABLE'] = config.mag_releases_table_connection
-    env['AIRFLOW_CONN_MAG_SNAPSHOTS_CONTAINER'] = config.mag_snapshots_container_connection
-    env['AIRFLOW_CONN_CROSSREF'] = config.crossref_connection
+    env['AIRFLOW_CONN_MAG_RELEASES_TABLE'] = config.airflow_connections[AirflowConn.mag_releases_table.value]
+    env['AIRFLOW_CONN_MAG_SNAPSHOTS_CONTAINER'] = config.airflow_connections[AirflowConn.mag_snapshots_container.value]
+    env['AIRFLOW_CONN_CROSSREF'] = config.airflow_connections[AirflowConn.crossref.value]
 
     # Set variables
-    env['AIRFLOW_VAR_PROJECT_ID'] = config.project_id
+    env['AIRFLOW_VAR_PROJECT_ID'] = config.airflow_variables[AirflowVar.project_id.value]
     env['AIRFLOW_VAR_DATA_LOCATION'] = config.data_location
-    env['AIRFLOW_VAR_DOWNLOAD_BUCKET_NAME'] = config.download_bucket_name
-    env['AIRFLOW_VAR_TRANSFORM_BUCKET_NAME'] = config.transform_bucket_name
+    env['AIRFLOW_VAR_DOWNLOAD_BUCKET_NAME'] = config.airflow_variables[AirflowVar.download_bucket_name.value]
+    env['AIRFLOW_VAR_TRANSFORM_BUCKET_NAME'] = config.airflow_variables[AirflowVar.transform_bucket_name.value]
     env['AIRFLOW_VAR_ENVIRONMENT'] = config.environment.value
 
     return env
@@ -332,7 +332,7 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
         else:
             print(indent("- file invalid", indent2))
             for key, value in config.validator.errors.items():
-                print(indent(f'- {key}: {", ".join(value)}', indent3))
+                print(indent(f'- {key}: {value}', indent3))
     else:
         print(indent("- file not found, generating a default file", indent2))
         gen_config_interface()

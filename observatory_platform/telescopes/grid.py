@@ -35,8 +35,8 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
+from observatory_platform.utils.config_utils import AirflowVar, telescope_path, SubFolder, schema_path, find_schema
 from observatory_platform.utils.config_utils import check_variables
-from observatory_platform.utils.config_utils import telescope_path, SubFolder, schema_path, find_schema
 from observatory_platform.utils.data_utils import get_file
 from observatory_platform.utils.gc_utils import (upload_file_to_cloud_storage, load_bigquery_table,
                                                  create_bigquery_dataset, bigquery_partitioned_table_id)
@@ -189,8 +189,8 @@ class GridTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables("data_path", "project_id", "data_location",
-                                     "download_bucket_name", "transform_bucket_name")
+        vars_valid = check_variables(AirflowVar.data_path, AirflowVar.project_id, AirflowVar.data_location,
+                                     AirflowVar.download_bucket_name, AirflowVar.transform_bucket_name)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 

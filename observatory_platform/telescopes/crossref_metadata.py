@@ -36,6 +36,8 @@ from google.cloud.bigquery import SourceFormat
 from natsort import natsorted
 
 from observatory_platform.utils.config_utils import (
+    AirflowVar,
+    AirflowConn,
     find_schema,
     SubFolder,
     schema_path,
@@ -289,9 +291,9 @@ class CrossrefMetadataTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables("data_path", "project_id", "data_location",
-                                     "download_bucket_name", "transform_bucket_name")
-        conns_valid = check_connections("crossref")
+        vars_valid = check_variables(AirflowVar.data_path, AirflowVar.project_id, AirflowVar.data_location,
+                                     AirflowVar.download_bucket_name, AirflowVar.transform_bucket_name)
+        conns_valid = check_connections(AirflowConn.crossref)
 
         if not vars_valid or not conns_valid:
             raise AirflowException('Required variables or connections are missing')

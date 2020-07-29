@@ -37,8 +37,8 @@ from google.cloud.storage import Blob
 from natsort import natsorted
 from pendulum import Pendulum
 
-from observatory_platform.utils.config_utils import (telescope_path, SubFolder, schema_path, find_schema,
-                                                     check_variables, check_connections)
+from observatory_platform.utils.config_utils import (AirflowConn, AirflowVar, telescope_path, SubFolder, schema_path,
+                                                     find_schema, check_variables, check_connections)
 from observatory_platform.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
                                                  download_blobs_from_cloud_storage, upload_files_to_cloud_storage,
                                                  load_bigquery_table, create_bigquery_dataset,
@@ -180,9 +180,9 @@ class MagTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables("data_path", "project_id", "data_location",
-                                     "download_bucket_name", "transform_bucket_name")
-        conns_valid = check_connections("mag_releases_table", "mag_snapshots_container")
+        vars_valid = check_variables(AirflowVar.data_path, AirflowVar.project_id, AirflowVar.data_location,
+        AirflowVar.download_bucket_name, AirflowVar.transform_bucket_name)
+        conns_valid = check_connections(AirflowConn.mag_releases_table, AirflowConn.mag_snapshots_container)
 
         if not vars_valid or not conns_valid:
             raise AirflowException('Required variables or connections are missing')

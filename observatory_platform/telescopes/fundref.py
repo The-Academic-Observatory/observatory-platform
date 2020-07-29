@@ -36,6 +36,7 @@ from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
 from observatory_platform.utils.config_utils import (
+    AirflowVar,
     find_schema,
     SubFolder,
     schema_path,
@@ -527,8 +528,8 @@ class FundrefTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables("data_path", "project_id", "data_location",
-                                     "download_bucket_name", "transform_bucket_name")
+        vars_valid = check_variables(AirflowVar.data_path, AirflowVar.project_id, AirflowVar.data_location,
+        AirflowVar.download_bucket_name, AirflowVar.transform_bucket_name)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
