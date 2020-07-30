@@ -73,6 +73,10 @@ def gen_config_interface():
         for key, val in params.items():
             if val is None:
                 print(f'  - {key}')
+            if type(val) is dict:
+                for val_key, val_val in val.items():
+                    if val_val is None:
+                        print(f'  - {val_key}')
     else:
         print("Not generating config.yaml")
 
@@ -158,16 +162,14 @@ def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, 
     env['FERNET_KEY'] = config.fernet_key
 
     # Set connections
-    env['AIRFLOW_CONN_MAG_RELEASES_TABLE'] = config.airflow_connections[AirflowConn.mag_releases_table.value]
-    env['AIRFLOW_CONN_MAG_SNAPSHOTS_CONTAINER'] = config.airflow_connections[AirflowConn.mag_snapshots_container.value]
-    env['AIRFLOW_CONN_CROSSREF'] = config.airflow_connections[AirflowConn.crossref.value]
+    for airflow_conn in AirflowConn:
+        if airflow_conn.value['schema']:
+            env[f'AIRFLOW_CONN_{airflow_conn.get().upper()}'] = config.airflow_connections[airflow_conn.get()]
 
     # Set variables
-    env['AIRFLOW_VAR_PROJECT_ID'] = config.airflow_variables[AirflowVar.project_id.value]
-    env['AIRFLOW_VAR_DATA_LOCATION'] = config.data_location
-    env['AIRFLOW_VAR_DOWNLOAD_BUCKET_NAME'] = config.airflow_variables[AirflowVar.download_bucket_name.value]
-    env['AIRFLOW_VAR_TRANSFORM_BUCKET_NAME'] = config.airflow_variables[AirflowVar.transform_bucket_name.value]
-    env['AIRFLOW_VAR_ENVIRONMENT'] = config.environment.value
+    for airflow_var in AirflowVar:
+        if airflow_var.value['schema']:
+            env[f'AIRFLOW_VAR_{airflow_var.get().upper()}'] = config.airflow_variables[airflow_var.get()]
 
     return env
 
