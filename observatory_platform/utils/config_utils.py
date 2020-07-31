@@ -190,7 +190,7 @@ def telescope_path(sub_folder: SubFolder, name: str) -> str:
     global data_path
     if data_path is None:
         logging.info('telescope_path: requesting data_path variable')
-        data_path = airflow.models.Variable.get("data_path")
+        data_path = airflow.models.Variable.get(AirflowVar.data_path.get())
 
     # Create telescope path
     path = os.path.join(data_path, 'telescopes', sub_folder.value, name)
@@ -302,8 +302,8 @@ class ObservatoryConfig:
                  validator: ObservatoryConfigValidator = None):
         """ Holds the settings for the Observatory Platform, used by DAGs.
 
-        :param environment: whether the system is running in dev, test or prod mode.
-        :param google_application_credentials: the path to the Google Application Credentials: https://cloud.google.com/docs/authentication/getting-started
+        :param google_application_credentials: the path to the Google Application Credentials:
+        https://cloud.google.com/docs/authentication/getting-started
         :param fernet_key:
         """
 

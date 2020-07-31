@@ -184,13 +184,15 @@ class GridTelescope:
     def check_dependencies(**kwargs):
         """ Check that all variables exist that are required to run the DAG.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVar.data_path, AirflowVar.project_id, AirflowVar.data_location,
-                                     AirflowVar.download_bucket_name, AirflowVar.transform_bucket_name)
+        vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
+                                     AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
+                                     AirflowVar.transform_bucket_name.get())
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -203,7 +205,8 @@ class GridTelescope:
             title (str): the Figshare article title.
             published_date (Pendulum): the published date of the Figshare article.
 
-        :param kwargs: the context passed from the BranchPythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the BranchPythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: the identifier of the task to execute next.
         """
@@ -238,7 +241,8 @@ class GridTelescope:
         Pushes the following xcom:
             download_path (str): the path to the downloaded GRID release.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -272,13 +276,14 @@ class GridTelescope:
     def upload_downloaded(**kwargs):
         """ Task to upload the downloaded GRID releases for a given month.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
         # Get bucket name
-        bucket_name = Variable.get("download_bucket_name")
+        bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
@@ -299,7 +304,8 @@ class GridTelescope:
         Pushes the following xcom:
             extracted_path (str): the path to the extracted GRID release.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -335,7 +341,8 @@ class GridTelescope:
             json_gz_file_name (str): the file name for the transformed GRID release.
             json_gz_file_path (str): the path to the transformed GRID release (including file name).
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -382,7 +389,8 @@ class GridTelescope:
             release_date (str): the release date of the GRID release.
             blob_name (str): the name of the blob on the Google Cloud storage bucket.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -393,7 +401,7 @@ class GridTelescope:
                                include_prior_dates=False)
 
         # Upload each release
-        bucket_name = Variable.get("transform_bucket_name")
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
         msgs_out = []
         for msg_in in msgs_in:
             file_name = msg_in['json_gz_file_name']
@@ -418,7 +426,8 @@ class GridTelescope:
     def bq_load(**kwargs):
         """ Task to load the transformed GRID releases for a given month to BigQuery.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -428,9 +437,9 @@ class GridTelescope:
                                include_prior_dates=False)
 
         # Upload each release
-        project_id = Variable.get("project_id")
-        data_location = Variable.get("data_location")
-        bucket_name = Variable.get("transform_bucket_name")
+        project_id = Variable.get(AirflowVar.project_id.get())
+        data_location = Variable.get(AirflowVar.data_location.get())
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Create dataset
         dataset_id = GridTelescope.DAG_ID
@@ -465,7 +474,8 @@ class GridTelescope:
     def cleanup(**kwargs):
         """ Delete files of downloaded, extracted and transformed releases.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """

@@ -29,27 +29,17 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
+from observatory_platform.utils.config_utils import (AirflowVar, find_schema, SubFolder, schema_path, telescope_path, )
 from observatory_platform.utils.config_utils import check_variables
-from observatory_platform.utils.config_utils import (
-    AirflowVar,
-    find_schema,
-    SubFolder,
-    schema_path,
-    telescope_path,
-)
 from observatory_platform.utils.data_utils import get_file
-from observatory_platform.utils.gc_utils import (
-    bigquery_partitioned_table_id,
-    create_bigquery_dataset,
-    load_bigquery_table,
-    upload_file_to_cloud_storage
-)
+from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id, create_bigquery_dataset,
+                                                 load_bigquery_table, upload_file_to_cloud_storage)
 from tests.observatory_platform.config import test_fixtures_path
 
 
 def pull_release(ti: TaskInstance):
-    return ti.xcom_pull(key=GeonamesTelescope.RELEASES_TOPIC_NAME,
-                        task_ids=GeonamesTelescope.TASK_ID_DOWNLOAD, include_prior_dates=False)
+    return ti.xcom_pull(key=GeonamesTelescope.RELEASES_TOPIC_NAME, task_ids=GeonamesTelescope.TASK_ID_DOWNLOAD,
+                        include_prior_dates=False)
 
 
 def fetch_release_date() -> Pendulum:
@@ -178,12 +168,14 @@ class GeonamesTelescope:
     def check_dependencies(**kwargs):
         """ Check that all variables exist that are required to run the DAG.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         """
 
-        vars_valid = check_variables(AirflowVar.data_path, AirflowVar.project_id, AirflowVar.data_location,
-        AirflowVar.download_bucket_name, AirflowVar.transform_bucket_name)
+        vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
+                                     AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
+                                     AirflowVar.transform_bucket_name.get())
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -192,13 +184,14 @@ class GeonamesTelescope:
         """ Download release to file.
         If dev environment, copy test file from this repository to the right location. Else download from url.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
         # Get variables
-        environment = Variable.get("environment")
+        environment = Variable.get(AirflowVar.environment.get())
 
         # Fetch release date and create GeonamesRelease object
         release_date = fetch_release_date()
@@ -218,7 +211,8 @@ class GeonamesTelescope:
     def upload_downloaded(**kwargs):
         """ Task to upload the downloaded Geonames release.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -228,7 +222,7 @@ class GeonamesTelescope:
         release: GeonamesRelease = pull_release(ti)
 
         # Get variables
-        bucket_name = Variable.get("download_bucket_name")
+        bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         # Upload file
         upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.downloaded),
@@ -238,7 +232,8 @@ class GeonamesTelescope:
     def extract(**kwargs):
         """ Task to extract the downloaded Geonames release.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -254,7 +249,8 @@ class GeonamesTelescope:
     def transform(**kwargs):
         """ Transform release into a jsonl file.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -270,7 +266,8 @@ class GeonamesTelescope:
     def upload_transformed(**kwargs):
         """ Upload transformed release to a google cloud storage bucket.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -280,7 +277,7 @@ class GeonamesTelescope:
         release: GeonamesRelease = pull_release(ti)
 
         # Get variables
-        bucket_name = Variable.get("transform_bucket_name")
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Upload file
         upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.transformed),
@@ -290,7 +287,8 @@ class GeonamesTelescope:
     def load_to_bq(**kwargs):
         """ Upload transformed release to a bigquery table.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -300,9 +298,9 @@ class GeonamesTelescope:
         release: GeonamesRelease = pull_release(ti)
 
         # Get variables
-        project_id = Variable.get("project_id")
-        data_location = Variable.get("data_location")
-        bucket_name = Variable.get("transform_bucket_name")
+        project_id = Variable.get(AirflowVar.project_id.get())
+        data_location = Variable.get(AirflowVar.data_location.get())
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Create dataset and make table_id
         dataset_id = GeonamesTelescope.DATASET_ID
@@ -327,7 +325,8 @@ class GeonamesTelescope:
     def cleanup(**kwargs):
         """ Delete files of downloaded, extracted and transformed release.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """

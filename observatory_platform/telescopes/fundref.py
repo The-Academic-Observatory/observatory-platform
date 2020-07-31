@@ -35,21 +35,11 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
-from observatory_platform.utils.config_utils import (
-    AirflowVar,
-    find_schema,
-    SubFolder,
-    schema_path,
-    telescope_path,
-    check_variables
-)
-from observatory_platform.utils.gc_utils import (
-    bigquery_partitioned_table_id,
-    create_bigquery_dataset,
-    load_bigquery_table,
-    upload_file_to_cloud_storage,
-    bigquery_table_exists
-)
+from observatory_platform.utils.config_utils import (AirflowVar, find_schema, SubFolder, schema_path, telescope_path,
+                                                     check_variables)
+from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id, create_bigquery_dataset,
+                                                 load_bigquery_table, upload_file_to_cloud_storage,
+                                                 bigquery_table_exists)
 from observatory_platform.utils.proc_utils import wait_for_process
 from observatory_platform.utils.url_utils import retry_session
 from tests.observatory_platform.config import test_fixtures_path
@@ -58,33 +48,23 @@ from tests.observatory_platform.config import test_fixtures_path
 def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['FundrefRelease']:
     """ List all available fundref releases
 
-    :param telescope_url:
     :param start_date:
     :param end_date:
     :return: list of FundrefRelease instances.
     """
 
     # A selection of headers to prevent 403/forbidden error.
-    headers_list = [
-        {
-            'authority': 'gitlab.com',
-            'upgrade-insecure-requests': '1',
-            'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.89 Safari/537.36',
-            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            'sec-fetch-site': 'none',
-            'sec-fetch-mode': 'navigate',
-            'sec-fetch-dest': 'document',
-            'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'
-        },
-        {
-            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1'
-        }
-    ]
+    headers_list = [{'authority': 'gitlab.com', 'upgrade-insecure-requests': '1',
+                     'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                                   'Chrome/84.0.4147.89 Safari/537.36',
+                     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,'
+                               '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                     'sec-fetch-site': 'none', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document',
+                     'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'},
+                    {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
+                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                     'Accept-Language': 'en-US,en;q=0.5', 'DNT': '1', 'Connection': 'keep-alive',
+                     'Upgrade-Insecure-Requests': '1'}]
 
     releases_list = []
     headers = random.choice(headers_list)
@@ -141,24 +121,15 @@ def download_release(release: 'FundrefRelease') -> str:
     logging.info(f"Downloading file: {file_path}, url: {release.url}")
 
     # A selection of headers to prevent 403/forbidden error.
-    headers_list = [
-        {
-            'authority': 'gitlab.com',
-            'upgrade-insecure-requests': '1',
-            'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36',
-            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            'sec-fetch-site': 'none',
-            'sec-fetch-mode': 'navigate',
-            'sec-fetch-dest': 'document',
-            'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'
-        },
-        {
-            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Referer': 'https://gitlab.com/'
-        }
-    ]
+    headers_list = [{'authority': 'gitlab.com', 'upgrade-insecure-requests': '1',
+                     'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                                   'Chrome/83.0.4103.116 Safari/537.36',
+                     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,'
+                               '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                     'sec-fetch-site': 'none', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document',
+                     'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'},
+                    {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
+                     'Accept': '*/*', 'Accept-Language': 'en-US,en;q=0.5', 'Referer': 'https://gitlab.com/'}]
 
     # Download release
     with requests.get(release.url, headers=random.choice(headers_list), stream=True) as response:
@@ -292,36 +263,12 @@ def new_funder_template():
 
     :return: a blank funder object.
     """
-    return {
-        'funder': None,
-        'pre_label': None,
-        'alt_label': [],
-        'narrower': [],
-        'broader': [],
-        'modified': None,
-        'created': None,
-        'funding_body_type': None,
-        'funding_body_sub_type': None,
-        'region': None,
-        'country': None,
-        'country_code': None,
-        'state': None,
-        'tax_id': None,
-        'continuation_of': [],
-        'renamed_as': [],
-        'replaces': [],
-        'affil_with': [],
-        'merged_with': [],
-        'incorporated_into': [],
-        'is_replaced_by': [],
-        'incorporates': [],
-        'split_into': [],
-        'status': None,
-        'merger_of': [],
-        'split_from': None,
-        'formly_known_as': None,
-        'notation': None
-    }
+    return {'funder': None, 'pre_label': None, 'alt_label': [], 'narrower': [], 'broader': [], 'modified': None,
+            'created': None, 'funding_body_type': None, 'funding_body_sub_type': None, 'region': None, 'country': None,
+            'country_code': None, 'state': None, 'tax_id': None, 'continuation_of': [], 'renamed_as': [],
+            'replaces': [], 'affil_with': [], 'merged_with': [], 'incorporated_into': [], 'is_replaced_by': [],
+            'incorporates': [], 'split_into': [], 'status': None, 'merger_of': [], 'split_from': None,
+            'formly_known_as': None, 'notation': None}
 
 
 def parse_fundref_registry_rdf(registry_file_path: str) -> Tuple[List, Dict]:
@@ -438,8 +385,9 @@ def add_funders_relationships(funders: List, funders_by_key: Dict) -> List:
 
 
 def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction: str, parents: List) -> Tuple[
-    List, int]:
-    """ Recursively goes through a funder/sub_funder dict. The funder properties can be looked up with the funders_by_key
+                        List, int]:
+    """ Recursively goes through a funder/sub_funder dict. The funder properties can be looked up with the
+    funders_by_key
     dictionary that stores the properties per funder id. Any children/parents for the funder are already given in the
     xml element with the 'narrower' and 'broader' tags. For each funder in the list, it will recursively add any
     children/parents for those funders in 'narrower'/'broader' and their funder properties.
@@ -523,30 +471,33 @@ class FundrefTelescope:
     def check_dependencies(**kwargs):
         """ Check that all variables exist that are required to run the DAG.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVar.data_path, AirflowVar.project_id, AirflowVar.data_location,
-        AirflowVar.download_bucket_name, AirflowVar.transform_bucket_name)
+        vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
+                                     AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
+                                     AirflowVar.transform_bucket_name.get())
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
     @staticmethod
     def list_releases(**kwargs):
-        """ Based on a list of all releases, checks which ones were released between this and the next execution date of the
-        DAG. If the release falls within the time period mentioned above, checks if a bigquery table doesn't exist yet for
-        the release. A list of releases that passed both checks is passed to the next tasks. If the list is empty the workflow will
-        stop.
+        """ Based on a list of all releases, checks which ones were released between this and the next execution date
+        of the DAG. If the release falls within the time period mentioned above, checks if a bigquery table doesn't
+        exist yet for the release. A list of releases that passed both checks is passed to the next tasks. If the
+        list is empty the workflow will stop.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
         # Get variables
-        project_id = Variable.get("project_id")
+        project_id = Variable.get(AirflowVar.project_id.get())
 
         # List releases between a start date and an end date
         execution_date = kwargs['execution_date']
@@ -581,7 +532,8 @@ class FundrefTelescope:
         """ Download release to file. If dev environment, copy debug file from this repository to the right location.
         Else download from url.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -591,7 +543,7 @@ class FundrefTelescope:
         releases_list = pull_releases(ti)
 
         # Get variables
-        environment = Variable.get("environment")
+        environment = Variable.get(AirflowVar.environment.get())
 
         # Download each release
         for release in releases_list:
@@ -604,7 +556,8 @@ class FundrefTelescope:
     def upload_downloaded(**kwargs):
         """ Upload the downloaded files to a Google Cloud Storage bucket.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -614,7 +567,7 @@ class FundrefTelescope:
         releases_list = pull_releases(ti)
 
         # Get variables
-        bucket_name = Variable.get("download_bucket_name")
+        bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         # Upload each release
         for release in releases_list:
@@ -625,7 +578,8 @@ class FundrefTelescope:
     def extract(**kwargs):
         """ Extract release to new file.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -640,10 +594,12 @@ class FundrefTelescope:
 
     @staticmethod
     def transform(**kwargs):
-        """ Transform release by parsing the raw rdf file, transforming it into a json file and replacing geoname associated
+        """ Transform release by parsing the raw rdf file, transforming it into a json file and replacing geoname
+        associated
         ids with their geoname name.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -660,7 +616,8 @@ class FundrefTelescope:
     def upload_transformed(**kwargs):
         """ Upload the transformed release to a Google Cloud Storage bucket.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -670,7 +627,7 @@ class FundrefTelescope:
         releases_list = pull_releases(ti)
 
         # Get variables
-        bucket_name = Variable.get("transform_bucket_name")
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Upload each release
         for release in releases_list:
@@ -681,7 +638,8 @@ class FundrefTelescope:
     def bq_load(**kwargs):
         """ Upload transformed release to a bigquery table.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -691,9 +649,9 @@ class FundrefTelescope:
         releases_list = pull_releases(ti)
 
         # Get variables
-        project_id = Variable.get("project_id")
-        data_location = Variable.get("data_location")
-        bucket_name = Variable.get("transform_bucket_name")
+        project_id = Variable.get(AirflowVar.project_id.get())
+        data_location = Variable.get(AirflowVar.data_location.get())
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Create dataset
         dataset_id = FundrefTelescope.DAG_ID
@@ -721,7 +679,8 @@ class FundrefTelescope:
     def cleanup(**kwargs):
         """ Delete files of downloaded, extracted and transformed releases.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
