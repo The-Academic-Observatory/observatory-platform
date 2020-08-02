@@ -61,27 +61,27 @@ Install Docker Engine:
 ### System dependencies: MacOS
 Install [Homebrew](https://brew.sh/) with the following command:
 ```bash
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 ```
 
 Install Python 3.7 with brew:
 ```bash
-brew install python3.7
+brew install python@3.7
 ```
 
-Install pip:
+Add Python 3.7 to path:
 ```bash
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python3.7 get-pip.py --user
+echo 'export PATH="/usr/local/opt/python@3.7/bin:$PATH"' >> ~/.bash_profile
 ```
 
 Install virtualenv 20 or greater:
 ```
-pip install --upgrade virtualenv
+pip3.7 install --upgrade virtualenv
 ```
 
 Install Docker Desktop:
 * Follow the [Install Docker Desktop on Mac](https://docs.docker.com/docker-for-mac/install/) tutorial.
+
 
 ### Installing the Observatory Platform
 Make sure that you have followed the above instructions for installing the observatory-platform dependencies,

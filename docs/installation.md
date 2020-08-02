@@ -49,7 +49,7 @@ Install [Homebrew](https://brew.sh/) with the following command:
 
 Install Python 3.7 with brew:
 ```bash
-brew install sashkab/python/python@3.7
+brew install python@3.7
 ```
 
 Add Python 3.7 to path:
