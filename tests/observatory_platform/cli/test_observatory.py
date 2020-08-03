@@ -23,6 +23,8 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from observatory_platform.cli.observatory import cli, ObservatoryConfig
+from observatory_platform.utils.config_utils import AirflowVar, AirflowConn
+from tests.observatory_platform.utils.test_config_utils import parse_airflow_variables
 
 
 def not_linux():
@@ -42,11 +44,16 @@ class TestObservatory(unittest.TestCase):
 
             # Make config file
             config = ObservatoryConfig.make_default()
-            config.project_id = 'my-project-id'
-            config.data_location = 'us'
-            config.download_bucket_name = 'my-project-download-bucket'
-            config.transform_bucket_name = 'my-project-transform-bucket'
             config.google_application_credentials = credentials_file_path
+            conn_variables = parse_airflow_variables(AirflowConn)
+            var_variables = parse_airflow_variables(AirflowVar)
+            for variable in conn_variables:
+                if variable['required'] and not variable['default']:
+                    config.airflow_connections[variable['name']] = 'random-string'
+            for variable in var_variables:
+                if variable['required'] and not variable['default']:
+                    config.airflow_variables[variable['name']] = 'random-string'
+
             config.save(config_file_path)
 
             # Make a fake google application credentials as it is required by the secret
@@ -110,11 +117,11 @@ class TestObservatory(unittest.TestCase):
 
             # Invalid config and which properties
             self.assertIn(f'config.yaml:\n   - path: {config_file_path}\n   - file invalid\n', result.output)
-            self.assertIn('project_id: null value not allowed', result.output)
-            self.assertIn('data_location: null value not allowed', result.output)
-            self.assertIn('download_bucket_name: null value not allowed', result.output)
-            self.assertIn('transform_bucket_name: null value not allowed', result.output)
-            self.assertIn('google_application_credentials: null value not allowed', result.output)
+            conn_variables = parse_airflow_variables(AirflowConn)
+            var_variables = parse_airflow_variables(AirflowVar)
+            for variable in conn_variables + var_variables:
+                if variable['required'] and not variable['default']:
+                    self.assertIn(f"{variable['name']}: null value not allowed", result.output)
 
             # Check that Docker is not running message printed
             self.assertIn('Docker:\n   - path: /docker\n   - not running, please start', result.output)

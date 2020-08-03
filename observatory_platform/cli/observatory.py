@@ -14,6 +14,7 @@
 
 # Author: James Diprose
 
+import itertools
 import os
 import shutil
 import subprocess
@@ -161,15 +162,13 @@ def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, 
     env['HOST_GOOGLE_APPLICATION_CREDENTIALS'] = config.google_application_credentials
     env['FERNET_KEY'] = config.fernet_key
 
-    # Set connections
-    for airflow_conn in AirflowConn:
-        if airflow_conn.value['schema']:
-            env[f'AIRFLOW_CONN_{airflow_conn.get().upper()}'] = config.airflow_connections[airflow_conn.get()]
-
-    # Set variables
-    for airflow_var in AirflowVar:
-        if airflow_var.value['schema']:
-            env[f'AIRFLOW_VAR_{airflow_var.get().upper()}'] = config.airflow_variables[airflow_var.get()]
+    # Set connections and variables
+    for obj in itertools.chain(AirflowConn, AirflowVar):
+        if obj.value['schema']:
+            if type(obj) == AirflowConn:
+                env[f'AIRFLOW_CONN_{obj.get().upper()}'] = config.airflow_connections[obj.get()]
+            else:
+                env[f'AIRFLOW_VAR_{obj.get().upper()}'] = config.airflow_variables[obj.get()]
 
     return env
 
@@ -294,6 +293,7 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
     indent1 = 2
     indent2 = 3
     indent3 = 4
+    indent4 = 5
 
     if not all_deps:
         print("Observatory Platform: dependencies missing".ljust(min_line_chars))
@@ -333,8 +333,14 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
             print(indent("- file valid", indent2))
         else:
             print(indent("- file invalid", indent2))
-            for key, value in config.validator.errors.items():
-                print(indent(f'- {key}: {value}', indent3))
+            for key, values in config.validator.errors.items():
+                for value in values:
+                    if type(value) is dict:
+                        print(indent(f'- {key}: ', indent3))
+                        for nested_key, nested_value in value.items():
+                            print(indent('- {}: {}'.format(nested_key, *nested_value), indent4))
+                    else:
+                        print(indent('- {}: {}'.format(key, *values), indent3))
     else:
         print(indent("- file not found, generating a default file", indent2))
         gen_config_interface()

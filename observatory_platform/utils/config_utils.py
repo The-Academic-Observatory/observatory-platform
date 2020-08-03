@@ -16,6 +16,7 @@
 
 
 import glob
+import itertools
 import logging
 import os
 import pathlib
@@ -287,12 +288,13 @@ class ObservatoryConfig:
             }
         }
     }
-    for airflow_conn in AirflowConn:
-        if airflow_conn.value['schema']:
-            schema['airflow_connections']['schema'][airflow_conn.get()] = airflow_conn.value['schema']
-    for airflow_var in AirflowVar:
-        if airflow_var.value['schema']:
-            schema['airflow_variables']['schema'][airflow_var.get()] = airflow_var.value['schema']
+    for obj in itertools.chain(AirflowConn, AirflowVar):
+        if obj.value['schema']:
+            if type(obj) == AirflowConn:
+                schema['airflow_connections']['schema'][obj.get()] = obj.value['schema']
+            else:
+                schema['airflow_variables']['schema'][obj.get()] = obj.value['schema']
+    del obj
 
     def __init__(self,
                  fernet_key: Union[None, str] = None,

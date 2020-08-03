@@ -15,6 +15,7 @@
 # Author: James Diprose
 
 import os
+import itertools
 import pathlib
 import unittest
 from unittest.mock import patch
@@ -26,7 +27,8 @@ from click.testing import CliRunner
 import observatory_platform.dags
 import observatory_platform.database.telescopes.schema
 from observatory_platform.utils.config_utils import (ObservatoryConfig, observatory_package_path, observatory_home,
-                                                     dags_path, telescope_path, SubFolder, find_schema, schema_path)
+                                                     dags_path, telescope_path, SubFolder, find_schema, schema_path,
+                                                     AirflowVar, AirflowConn)
 from tests.observatory_platform.config import test_fixtures_path
 
 
@@ -176,42 +178,61 @@ class TestConfigUtils(unittest.TestCase):
             self.assertTrue(os.path.exists(path_transformed))
 
 
+def parse_airflow_variables(airflow_class) -> list:
+    variables = []
+    for variable in airflow_class:
+        variable_info = {}
+        if variable.value['schema']:
+            variable_info['name'] = variable.value['name']
+        else:
+            # skip variables that don't have a schema defined, these are hardcoded in e.g. docker
+            continue
+        if variable.value['default']:
+            variable_info['default'] = variable.value['default']
+        else:
+            variable_info['default'] = None
+        required = variable.value['schema']['required']
+        if required:
+            variable_info['required'] = True
+        else:
+            variable_info['required'] = False
+        variables.append(variable_info)
+    return variables
+
+
+def create_variables_dict(airflow_class, valid) -> dict:
+    config_dict = {}
+    variables = parse_airflow_variables(airflow_class)
+    for variable in variables:
+        if variable['default']:
+            config_dict[variable['name']] = variable['default']
+        else:
+            if valid:
+                config_dict[variable['name']] = 'random-string'
+            else:
+                config_dict[variable['name']] = None
+    return config_dict
+
+
 class TestObservatoryConfig(unittest.TestCase):
 
     def setUp(self) -> None:
         self.config_file_name = 'config.yaml'
         self.config_dict_complete_valid = {
-            'project_id': 'my-project',
-            'data_location': 'us',
-            'download_bucket_name': 'my-download-bucket',
-            'transform_bucket_name': 'my-transform-bucket',
-            'environment': 'dev',
             'google_application_credentials': '/path/to/google_application_credentials.json',
             'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
-            'mag_releases_table_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
-            'mag_snapshots_container_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
-            'crossref_connection': 'mysql://:crossref-token@'
+            'airflow_variables': create_variables_dict(AirflowVar, valid=True),
+            'airflow_connections': create_variables_dict(AirflowConn, valid=True)
         }
 
         self.config_dict_complete_invalid = {
-            'project_id': None,
-            'data_location': None,
-            'download_bucket_name': None,
-            'transform_bucket_name': None,
-            'environment': 'dev',
             'google_application_credentials': None,
             'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
-            'mag_releases_table_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
-            'mag_snapshots_container_connection': 'mysql://azure-storage-account-name:url-encoded-sas-token@',
-            'crossref_connection': 'mysql://:crossref-token@'
+            'airflow_variables':  create_variables_dict(AirflowVar, valid=False),
+            'airflow_connections': create_variables_dict(AirflowConn, valid=False)
         }
 
         self.config_dict_incomplete_valid = {
-            'project_id': 'my-project',
-            'data_location': 'us',
-            'download_bucket_name': 'my-download-bucket',
-            'transform_bucket_name': 'my-transform-bucket',
-            'environment': 'dev',
             'google_application_credentials': '/path/to/google_application_credentials.json',
             'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE='
         }
@@ -312,3 +333,30 @@ class TestObservatoryConfig(unittest.TestCase):
         dict_['google_application_credentials'] = credentials_file_path
 
         return credentials_file_path
+
+    def test_airflow_enum(self):
+        for obj in itertools.chain(AirflowConn, AirflowVar):
+            # check if connection value is dictionary
+            self.assertIsInstance(obj.value, dict)
+            # check if connection contains 'name'
+            self.assertIn('name', obj.value)
+            # check if 'name' is not-empty string
+            self.assertIsInstance(obj.value['name'], str)
+            self.assertTrue(obj.value['name'].strip())
+
+            # check if connection contains 'default'
+            self.assertIn('default', obj.value)
+            # default can be None, if it is not None, check that it's not empty
+            if obj.value['default'] is not None:
+                self.assertTrue(obj.value['default'])
+
+            # check if connection contains 'schema'
+            self.assertIn('schema', obj.value)
+            # check if 'schema' is dictionary
+            self.assertIsInstance(obj.value['schema'], dict)
+            # if schema isn't empty, check that it contains at least 'type' and 'required'
+            if obj.value['schema']:
+                self.assertIn('type', obj.value['schema'])
+                self.assertIsInstance(obj.value['schema']['type'], str)
+                self.assertIn('required', obj.value['schema'])
+                self.assertIsInstance(obj.value['schema']['required'], bool)
