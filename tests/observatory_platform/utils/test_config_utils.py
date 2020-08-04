@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
-import os
 import itertools
+import os
 import pathlib
 import unittest
+from typing import Union
 from unittest.mock import patch
 
 import pendulum
@@ -26,9 +27,16 @@ from click.testing import CliRunner
 
 import observatory_platform.dags
 import observatory_platform.database.telescopes.schema
-from observatory_platform.utils.config_utils import (ObservatoryConfig, observatory_package_path, observatory_home,
-                                                     dags_path, telescope_path, SubFolder, find_schema, schema_path,
-                                                     AirflowVar, AirflowConn)
+from observatory_platform.utils.config_utils import (ObservatoryConfig,
+                                                     observatory_package_path,
+                                                     observatory_home,
+                                                     dags_path,
+                                                     telescope_path,
+                                                     SubFolder,
+                                                     find_schema,
+                                                     schema_path,
+                                                     AirflowVar,
+                                                     AirflowConn)
 from tests.observatory_platform.config import test_fixtures_path
 
 
@@ -178,14 +186,20 @@ class TestConfigUtils(unittest.TestCase):
             self.assertTrue(os.path.exists(path_transformed))
 
 
-def parse_airflow_variables(airflow_class) -> list:
+def parse_airflow_variables(airflow_class: Union[AirflowVar, AirflowConn]) -> list:
+    """
+    Parse airflow variables, create a dict for each variable with info on name, default value and whether variable is
+    required or not.
+    :param airflow_class: Either AirflowVar or AirflowConn Enum class.
+    :return: List of dictionaries with variable info
+    """
     variables = []
     for variable in airflow_class:
         variable_info = {}
         if variable.value['schema']:
             variable_info['name'] = variable.value['name']
         else:
-            # skip variables that don't have a schema defined, these are hardcoded in e.g. docker
+            # skip variables that don't have a schema defined, these are hardcoded in e.g. docker file
             continue
         if variable.value['default']:
             variable_info['default'] = variable.value['default']
@@ -200,7 +214,15 @@ def parse_airflow_variables(airflow_class) -> list:
     return variables
 
 
-def create_variables_dict(airflow_class, valid) -> dict:
+def create_variables_dict(airflow_class: Union[AirflowVar, AirflowConn], valid: bool) -> dict:
+    """
+    Create dictionary of airflow variables. Contains name as key. Value is dependent on whether the dictionary should
+    contain 'valid' values or not. If valid the value is either 'random-string' or the default value. If not valid, the
+    value is None.
+    :param airflow_class: Either AirflowVar or AirflowConn Enum class.
+    :param valid: Determines whether dict should contain valid or invalid values for the variables.
+    :return: dictionary with airflow variables
+    """
     config_dict = {}
     variables = parse_airflow_variables(airflow_class)
     for variable in variables:
@@ -222,20 +244,16 @@ class TestObservatoryConfig(unittest.TestCase):
             'google_application_credentials': '/path/to/google_application_credentials.json',
             'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
             'airflow_variables': create_variables_dict(AirflowVar, valid=True),
-            'airflow_connections': create_variables_dict(AirflowConn, valid=True)
-        }
+            'airflow_connections': create_variables_dict(AirflowConn, valid=True)}
 
-        self.config_dict_complete_invalid = {
-            'google_application_credentials': None,
+        self.config_dict_complete_invalid = {'google_application_credentials': None,
             'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
-            'airflow_variables':  create_variables_dict(AirflowVar, valid=False),
-            'airflow_connections': create_variables_dict(AirflowConn, valid=False)
-        }
+            'airflow_variables': create_variables_dict(AirflowVar, valid=False),
+            'airflow_connections': create_variables_dict(AirflowConn, valid=False)}
 
         self.config_dict_incomplete_valid = {
             'google_application_credentials': '/path/to/google_application_credentials.json',
-            'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE='
-        }
+            'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE='}
 
     def test_is_valid(self):
         with CliRunner().isolated_filesystem():
@@ -352,7 +370,7 @@ class TestObservatoryConfig(unittest.TestCase):
 
             # check if connection contains 'schema'
             self.assertIn('schema', obj.value)
-            # check if 'schema' is dictionary
+            # check if 'schema' is in dictionary
             self.assertIsInstance(obj.value['schema'], dict)
             # if schema isn't empty, check that it contains at least 'type' and 'required'
             if obj.value['schema']:

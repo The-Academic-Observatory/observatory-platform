@@ -38,12 +38,21 @@ from mag_archiver.mag import MagArchiverClient, MagDateType, MagRelease, MagStat
 from natsort import natsorted
 from pendulum import Pendulum
 
-from observatory_platform.utils.config_utils import (AirflowConn, AirflowVar, telescope_path, SubFolder, schema_path,
-                                                     find_schema, check_variables, check_connections)
+from observatory_platform.utils.config_utils import (AirflowConn,
+                                                     AirflowVar,
+                                                     SubFolder,
+                                                     check_connections,
+                                                     check_variables,
+                                                     find_schema,
+                                                     schema_path,
+                                                     telescope_path)
 from observatory_platform.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
-                                                 download_blobs_from_cloud_storage, upload_files_to_cloud_storage,
-                                                 load_bigquery_table, create_bigquery_dataset,
-                                                 bigquery_partitioned_table_id, table_name_from_blob)
+                                                 bigquery_partitioned_table_id,
+                                                 create_bigquery_dataset,
+                                                 download_blobs_from_cloud_storage,
+                                                 load_bigquery_table,
+                                                 table_name_from_blob,
+                                                 upload_files_to_cloud_storage)
 from observatory_platform.utils.proc_utils import wait_for_process
 from tests.observatory_platform.config import test_fixtures_path
 
@@ -481,11 +490,28 @@ def db_load_mag_release(project_id: str, bucket_name: str, data_location: str, r
     :return: whether the MAG release was loaded into BigQuery successfully.
     """
 
-    settings = {'Authors': {'quote': '', 'allow_quoted_newlines': True},
-        'FieldsOfStudy': {'quote': '', 'allow_quoted_newlines': False},
-        'PaperAuthorAffiliations': {'quote': '', 'allow_quoted_newlines': False},
-        'PaperCitationContexts': {'quote': '', 'allow_quoted_newlines': True},
-        'Papers': {'quote': '', 'allow_quoted_newlines': True}}
+    settings = {
+        'Authors': {
+            'quote': '',
+            'allow_quoted_newlines': True
+        },
+        'FieldsOfStudy': {
+            'quote': '',
+            'allow_quoted_newlines': False
+        },
+        'PaperAuthorAffiliations': {
+            'quote': '',
+            'allow_quoted_newlines': False
+        },
+        'PaperCitationContexts': {
+            'quote': '',
+            'allow_quoted_newlines': True
+        },
+        'Papers': {
+            'quote': '',
+            'allow_quoted_newlines': True
+        }
+    }
 
     # Create dataset
     create_bigquery_dataset(project_id, dataset_id, data_location, MagTelescope.DESCRIPTION)

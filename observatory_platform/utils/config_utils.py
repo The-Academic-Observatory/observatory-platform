@@ -21,7 +21,7 @@ import logging
 import os
 import pathlib
 from enum import Enum
-from typing import Union, Dict
+from typing import Dict, Union
 
 import airflow
 import cerberus.validator
@@ -157,6 +157,12 @@ class SubFolder(Enum):
 
 
 def check_variables(*variables):
+    """
+    Checks whether all given airflow variables exist.
+
+    :param variables: name of airflow variable
+    :return: True if all variables are valid
+    """
     is_valid = True
     for name in variables:
         try:
@@ -168,6 +174,12 @@ def check_variables(*variables):
 
 
 def check_connections(*connections):
+    """
+    Checks whether all given airflow connections exist.
+
+    :param connections: name of airflow connection
+    :return: True if all connections are valid
+    """
     is_valid = True
     for name in connections:
         try:
@@ -210,38 +222,111 @@ class Environment(Enum):
 
 
 class AirflowVar(Enum):
-    data_path = {'name': 'data_path', 'default': None, 'schema': {}}
-    environment = {'name': 'environment', 'default': Environment.dev.value,
-                   'schema': {'type': 'string', 'allowed': ['dev', 'test', 'prod'], 'required': True}}
-    project_id = {'name': 'project_id', 'default': None,
-                  'schema': {'type': 'string', 'required': True}}
-    data_location = {'name': 'data_location', 'default': None,
-                     'schema': {'type': 'string', 'required': True}}
-    download_bucket_name = {'name': 'download_bucket_name', 'default': None,
-                            'schema': {'type': 'string', 'required': True}}
-    transform_bucket_name = {'name': 'transform_bucket_name', 'default': None,
-                             'schema': {'type': 'string', 'required': True}}
+    """
+    Stores airflow variables as objects. Ech variable should contain at least
+    {'name': string, 'default': string/int/None, 'schema': {}}
+    'schema' is only empty if the variable is hardcoded e.g. inside the docker file (and not defined in the config
+    file).
+    If 'schema' isn't empty it should contain at least {'type': string, 'required': bool}
+    """
+    data_path = {
+        'name': 'data_path',
+        'default': None,
+        'schema': {}
+    }
+    environment = {
+        'name': 'environment',
+        'default': Environment.dev.value,
+        'schema': {
+            'type': 'string',
+            'allowed': ['dev', 'test', 'prod'],
+            'required': True
+        }
+    }
+    project_id = {
+        'name': 'project_id',
+        'default': None,
+        'schema': {
+            'type': 'string',
+            'required': True
+        }
+    }
+    data_location = {
+        'name': 'data_location',
+        'default': None,
+        'schema': {
+            'type': 'string',
+            'required': True
+        }
+    }
+    download_bucket_name = {
+        'name': 'download_bucket_name',
+        'default': None,
+        'schema': {
+            'type': 'string',
+            'required': True
+        }
+    }
+    transform_bucket_name = {
+        'name': 'transform_bucket_name',
+        'default': None,
+        'schema': {
+            'type': 'string',
+            'required': True
+        }
+    }
 
     def get(self):
+        """Method to slightly shorten way to get name"""
         return self.value['name']
 
 
 class AirflowConn(Enum):
-    crossref = {'name': 'crossref', 'default': 'mysql://:crossref-token@',
-                'schema': {'type': 'string', 'required': False}}
-    mag_releases_table = {'name': 'mag_releases_table', 'default': 'mysql://azure-storage-account-name:url-encoded'
-                                                                   '-sas-token@',
-                          'schema': {'type': 'string', 'required': False}}
-    mag_snapshots_container = {'name': 'mag_snapshots_container', 'default': 'mysql://azure-storage-account-name:url'
-                                                                             '-encoded-sas-token@',
-                               'schema': {'type': 'string', 'required': False}}
+    """
+    Stores airflow connections as objects. Ech variable contains at least
+    {'name': string, 'default': string/int/None, 'schema': {}}
+    'schema' is only empty if the connection is hardcoded e.g. inside the docker file (and not defined in the config
+    file).
+    If 'schema' isn't empty it should contain at least {'type': string, 'required': bool}
+    """
+    crossref = {
+        'name': 'crossref',
+        'default': 'mysql://:crossref-token@',
+        'schema': {
+            'type': 'string',
+            'required': False
+        }
+    }
+    mag_releases_table = {
+        'name': 'mag_releases_table',
+        'default': 'mysql://azure-storage-account-name:url-encoded'
+                   '-sas-token@',
+        'schema': {
+            'type': 'string',
+            'required': False
+        }
+    }
+    mag_snapshots_container = {
+        'name': 'mag_snapshots_container',
+        'default': 'mysql://azure-storage-account-name:url'
+                   '-encoded-sas-token@',
+        'schema': {
+            'type': 'string',
+            'required': False
+        }
+    }
 
     def get(self):
+        """Method to slightly shorten way to get name"""
         return self.value['name']
 
 
-def dict_default(airflow_class):
-    # TODO add typing for airflow_class
+def dict_default(airflow_class: Union[AirflowConn, AirflowVar]) -> dict:
+    """
+    Creates a dictionary with name and default value of objects in airflow_class
+    :param airflow_class: Either AirflowVar or AirflowConn class
+    :return: Dictionary, name is key, default value is value
+    """
     dictionary = {}
     for obj in airflow_class:
         if obj.value['schema']:
@@ -256,8 +341,8 @@ class ObservatoryConfigValidator(Validator):
 
         The rule's arguments are validated against this schema: {'type': 'boolean'}
         """
-        if google_application_credentials and value is not None and isinstance(value, str) and \
-                not os.path.isfile(value):
+        if google_application_credentials and value is not None and isinstance(value, str) and not os.path.isfile(
+                value):
             self._error(field, f"the file {value} does not exist. See "
                                f"https://cloud.google.com/docs/authentication/getting-started for instructions on "
                                f"how to create a service account and save the JSON key to your workstation.")
@@ -288,12 +373,14 @@ class ObservatoryConfig:
             }
         }
     }
+    # Add schema's of each individual airflow connection/variable to the schema dict
     for obj in itertools.chain(AirflowConn, AirflowVar):
         if obj.value['schema']:
             if type(obj) == AirflowConn:
                 schema['airflow_connections']['schema'][obj.get()] = obj.value['schema']
             else:
                 schema['airflow_variables']['schema'][obj.get()] = obj.value['schema']
+    # delete object so it doesn't remain part of ObservatoryConfig class
     del obj
 
     def __init__(self,
@@ -304,9 +391,12 @@ class ObservatoryConfig:
                  validator: ObservatoryConfigValidator = None):
         """ Holds the settings for the Observatory Platform, used by DAGs.
 
+        :param fernet_key: Used to encrypt connections in airflow
         :param google_application_credentials: the path to the Google Application Credentials:
-        https://cloud.google.com/docs/authentication/getting-started
-        :param fernet_key:
+            https://cloud.google.com/docs/authentication/getting-started
+        :param airflow_connections: dict of airflow connections
+        :param airflow_variables: dict of airflow variables
+        :param validator: validator instance
         """
 
         self.fernet_key = fernet_key
@@ -385,8 +475,7 @@ class ObservatoryConfig:
         fernet_key = Fernet.generate_key().decode()
         airflow_connections = dict_default(AirflowConn)
         airflow_variables = dict_default(AirflowVar)
-        return ObservatoryConfig(fernet_key, google_application_credentials,
-                                 airflow_connections, airflow_variables)
+        return ObservatoryConfig(fernet_key, google_application_credentials, airflow_connections, airflow_variables)
 
     @staticmethod
     def from_dict(dict_: Dict) -> 'ObservatoryConfig':
@@ -406,7 +495,7 @@ class ObservatoryConfig:
             airflow_variables = dict_.get('airflow_variables')
             airflow_connections = dict_.get('airflow_connections')
 
-            return ObservatoryConfig(fernet_key, google_application_credentials,
-                                     airflow_connections, airflow_variables, validator)
+            return ObservatoryConfig(fernet_key, google_application_credentials, airflow_connections, airflow_variables,
+                                     validator)
         else:
             return ObservatoryConfig(validator=validator)

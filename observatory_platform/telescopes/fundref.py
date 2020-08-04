@@ -24,7 +24,7 @@ import random
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 import jsonlines
 import pendulum
@@ -35,11 +35,17 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
-from observatory_platform.utils.config_utils import (AirflowVar, find_schema, SubFolder, schema_path, telescope_path,
-                                                     check_variables)
-from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id, create_bigquery_dataset,
-                                                 load_bigquery_table, upload_file_to_cloud_storage,
-                                                 bigquery_table_exists)
+from observatory_platform.utils.config_utils import (AirflowVar,
+                                                     SubFolder,
+                                                     check_variables,
+                                                     find_schema,
+                                                     schema_path,
+                                                     telescope_path)
+from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 bigquery_table_exists,
+                                                 create_bigquery_dataset,
+                                                 load_bigquery_table,
+                                                 upload_file_to_cloud_storage)
 from observatory_platform.utils.proc_utils import wait_for_process
 from observatory_platform.utils.url_utils import retry_session
 from tests.observatory_platform.config import test_fixtures_path
@@ -54,17 +60,28 @@ def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['FundrefRele
     """
 
     # A selection of headers to prevent 403/forbidden error.
-    headers_list = [{'authority': 'gitlab.com', 'upgrade-insecure-requests': '1',
-                     'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                                   'Chrome/84.0.4147.89 Safari/537.36',
-                     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,'
-                               '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                     'sec-fetch-site': 'none', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document',
-                     'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'},
-                    {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
-                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                     'Accept-Language': 'en-US,en;q=0.5', 'DNT': '1', 'Connection': 'keep-alive',
-                     'Upgrade-Insecure-Requests': '1'}]
+
+    headers_list = [{
+                        'authority': 'gitlab.com',
+                        'upgrade-insecure-requests': '1',
+                        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                                      'Chrome/84.0.4147.89 Safari/537.36',
+                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,'
+                                  '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                        'sec-fetch-site': 'none',
+                        'sec-fetch-mode': 'navigate',
+                        'sec-fetch-dest': 'document',
+                        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'
+                    },
+
+                    {
+                        'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.5',
+                        'DNT': '1',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1'
+                    }]
 
     releases_list = []
     headers = random.choice(headers_list)
@@ -121,15 +138,25 @@ def download_release(release: 'FundrefRelease') -> str:
     logging.info(f"Downloading file: {file_path}, url: {release.url}")
 
     # A selection of headers to prevent 403/forbidden error.
-    headers_list = [{'authority': 'gitlab.com', 'upgrade-insecure-requests': '1',
-                     'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                                   'Chrome/83.0.4103.116 Safari/537.36',
-                     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,'
-                               '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                     'sec-fetch-site': 'none', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document',
-                     'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'},
-                    {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
-                     'Accept': '*/*', 'Accept-Language': 'en-US,en;q=0.5', 'Referer': 'https://gitlab.com/'}]
+    headers_list = [{
+                        'authority': 'gitlab.com',
+                        'upgrade-insecure-requests': '1',
+                        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                                      'Chrome/83.0.4103.116 Safari/537.36',
+                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,'
+                                  '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                        'sec-fetch-site': 'none',
+                        'sec-fetch-mode': 'navigate',
+                        'sec-fetch-dest': 'document',
+                        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'
+                    },
+
+                    {
+                        'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
+                        'Accept': '*/*',
+                        'Accept-Language': 'en-US,en;q=0.5',
+                        'Referer': 'https://gitlab.com/'
+                    }]
 
     # Download release
     with requests.get(release.url, headers=random.choice(headers_list), stream=True) as response:
@@ -263,12 +290,36 @@ def new_funder_template():
 
     :return: a blank funder object.
     """
-    return {'funder': None, 'pre_label': None, 'alt_label': [], 'narrower': [], 'broader': [], 'modified': None,
-            'created': None, 'funding_body_type': None, 'funding_body_sub_type': None, 'region': None, 'country': None,
-            'country_code': None, 'state': None, 'tax_id': None, 'continuation_of': [], 'renamed_as': [],
-            'replaces': [], 'affil_with': [], 'merged_with': [], 'incorporated_into': [], 'is_replaced_by': [],
-            'incorporates': [], 'split_into': [], 'status': None, 'merger_of': [], 'split_from': None,
-            'formly_known_as': None, 'notation': None}
+    return {
+        'funder': None,
+        'pre_label': None,
+        'alt_label': [],
+        'narrower': [],
+        'broader': [],
+        'modified': None,
+        'created': None,
+        'funding_body_type': None,
+        'funding_body_sub_type': None,
+        'region': None,
+        'country': None,
+        'country_code': None,
+        'state': None,
+        'tax_id': None,
+        'continuation_of': [],
+        'renamed_as': [],
+        'replaces': [],
+        'affil_with': [],
+        'merged_with': [],
+        'incorporated_into': [],
+        'is_replaced_by': [],
+        'incorporates': [],
+        'split_into': [],
+        'status': None,
+        'merger_of': [],
+        'split_from': None,
+        'formly_known_as': None,
+        'notation': None
+    }
 
 
 def parse_fundref_registry_rdf(registry_file_path: str) -> Tuple[List, Dict]:
@@ -385,7 +436,7 @@ def add_funders_relationships(funders: List, funders_by_key: Dict) -> List:
 
 
 def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction: str, parents: List) -> Tuple[
-                        List, int]:
+    List, int]:
     """ Recursively goes through a funder/sub_funder dict. The funder properties can be looked up with the
     funders_by_key
     dictionary that stores the properties per funder id. Any children/parents for the funder are already given in the
@@ -423,9 +474,17 @@ def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction:
                 returned_depth = depth
 
         if direction == "narrower":
-            child = {'funder': funder_id, 'name': name, 'children': returned}
+            child = {
+                'funder': funder_id,
+                'name': name,
+                'children': returned
+            }
         else:
-            child = {'funder': funder_id, 'name': name, 'parent': returned}
+            child = {
+                'funder': funder_id,
+                'name': name,
+                'parent': returned
+            }
         children.append(child)
         parents = []
         if returned_depth > depth:

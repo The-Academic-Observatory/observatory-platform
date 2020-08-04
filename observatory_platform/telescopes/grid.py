@@ -24,8 +24,8 @@ import os
 import pathlib
 import shutil
 from shutil import copyfile
-from typing import List, Dict, Tuple
-from zipfile import ZipFile, BadZipFile
+from typing import Dict, List, Tuple
+from zipfile import BadZipFile, ZipFile
 
 import jsonlines
 import pendulum
@@ -35,11 +35,13 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
-from observatory_platform.utils.config_utils import AirflowVar, telescope_path, SubFolder, schema_path, find_schema
+from observatory_platform.utils.config_utils import AirflowVar, SubFolder, find_schema, schema_path, telescope_path
 from observatory_platform.utils.config_utils import check_variables
 from observatory_platform.utils.data_utils import get_file
-from observatory_platform.utils.gc_utils import (upload_file_to_cloud_storage, load_bigquery_table,
-                                                 create_bigquery_dataset, bigquery_partitioned_table_id)
+from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 create_bigquery_dataset,
+                                                 load_bigquery_table,
+                                                 upload_file_to_cloud_storage)
 from observatory_platform.utils.url_utils import retry_session
 
 GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"
@@ -53,7 +55,9 @@ def list_grid_releases(timeout: float = 30.) -> List[Dict]:
     :return: the list of GRID releases.
     """
 
-    response = retry_session().get(GRID_DATASET_URL, timeout=timeout, headers={'Accept-encoding': 'gzip'})
+    response = retry_session().get(GRID_DATASET_URL, timeout=timeout, headers={
+        'Accept-encoding': 'gzip'
+    })
     return json.loads(response.text)
 
 
@@ -67,8 +71,9 @@ def download_grid_release(download_path: str, article_id: int, title: str, timeo
     :return: the paths on the system of the downloaded files.
     """
 
-    response = retry_session().get(GRID_FILE_URL.format(article_id=article_id), timeout=timeout,
-                                   headers={'Accept-encoding': 'gzip'})
+    response = retry_session().get(GRID_FILE_URL.format(article_id=article_id), timeout=timeout, headers={
+        'Accept-encoding': 'gzip'
+    })
     article_files = json.loads(response.text)
 
     downloads = []

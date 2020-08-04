@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
 import itertools
 import os
@@ -29,8 +29,12 @@ import docker
 import requests
 from cryptography.fernet import Fernet
 
-from observatory_platform.utils.config_utils import AirflowVar, AirflowConn, observatory_home, \
-    observatory_package_path, dags_path as default_dags_path, ObservatoryConfig
+from observatory_platform.utils.config_utils import AirflowVar, \
+    AirflowConn, \
+    observatory_home, \
+    observatory_package_path, \
+    dags_path as default_dags_path, \
+    ObservatoryConfig
 from observatory_platform.utils.proc_utils import wait_for_process
 
 
@@ -83,8 +87,7 @@ def gen_config_interface():
 
 
 @cli.command()
-@click.argument('command',
-                type=click.Choice(['fernet-key', 'config.yaml']))
+@click.argument('command', type=click.Choice(['fernet-key', 'config.yaml']))
 def generate(command):
     """ Generate information for the Observatory Platform platform.\n
 

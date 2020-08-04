@@ -29,11 +29,13 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
-from observatory_platform.utils.config_utils import (AirflowVar, find_schema, SubFolder, schema_path, telescope_path, )
+from observatory_platform.utils.config_utils import AirflowVar, SubFolder, find_schema, schema_path, telescope_path
 from observatory_platform.utils.config_utils import check_variables
 from observatory_platform.utils.data_utils import get_file
-from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id, create_bigquery_dataset,
-                                                 load_bigquery_table, upload_file_to_cloud_storage)
+from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 create_bigquery_dataset,
+                                                 load_bigquery_table,
+                                                 upload_file_to_cloud_storage)
 from tests.observatory_platform.config import test_fixtures_path
 
 
