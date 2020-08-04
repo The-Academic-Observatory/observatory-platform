@@ -34,17 +34,26 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud import storage
 from google.cloud.bigquery import SourceFormat
 from google.cloud.storage import Blob
+from mag_archiver.mag import MagArchiverClient, MagDateType, MagRelease, MagState
 from natsort import natsorted
 from pendulum import Pendulum
 
-from observatory_platform.utils.config_utils import (telescope_path, SubFolder, schema_path, find_schema,
-                                                     check_variables, check_connections)
+from observatory_platform.utils.config_utils import (AirflowConn,
+                                                     AirflowVar,
+                                                     SubFolder,
+                                                     check_connections,
+                                                     check_variables,
+                                                     find_schema,
+                                                     schema_path,
+                                                     telescope_path)
 from observatory_platform.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
-                                                 download_blobs_from_cloud_storage, upload_files_to_cloud_storage,
-                                                 load_bigquery_table, create_bigquery_dataset,
-                                                 bigquery_partitioned_table_id, table_name_from_blob)
+                                                 bigquery_partitioned_table_id,
+                                                 create_bigquery_dataset,
+                                                 download_blobs_from_cloud_storage,
+                                                 load_bigquery_table,
+                                                 table_name_from_blob,
+                                                 upload_files_to_cloud_storage)
 from observatory_platform.utils.proc_utils import wait_for_process
-from mag_archiver.mag import MagArchiverClient, MagDateType, MagRelease, MagState
 from tests.observatory_platform.config import test_fixtures_path
 
 
@@ -175,14 +184,16 @@ class MagTelescope:
     def check_dependencies(**kwargs):
         """ Check that all variables and connections exist that are required to run the DAG.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
-        vars_valid = check_variables("data_path", "project_id", "data_location",
-                                     "download_bucket_name", "transform_bucket_name")
-        conns_valid = check_connections("mag_releases_table", "mag_snapshots_container")
+        vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
+                                     AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
+                                     AirflowVar.transform_bucket_name.get())
+        conns_valid = check_connections(AirflowConn.mag_releases_table.get(), AirflowConn.mag_snapshots_container.get())
 
         if not vars_valid or not conns_valid:
             raise AirflowException('Required variables or connections are missing')
@@ -198,7 +209,8 @@ class MagTelescope:
         Pushes the following xcom:
             a list of MagRelease instances.
 
-        :param kwargs: the context passed from the BranchPythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the BranchPythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: the identifier of the task to execute next.
         """
@@ -231,7 +243,8 @@ class MagTelescope:
             mag_snapshots_container: the Azure Storage Account name (login) and the sas token (password) for the
             Azure storage blob container that contains the MAG releases.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -241,9 +254,9 @@ class MagTelescope:
         releases = pull_releases(ti)
 
         # Get variables
-        environment = Variable.get("environment")
-        gcp_project_id = Variable.get("project_id")
-        gcp_bucket_name = Variable.get("download_bucket_name")
+        environment = Variable.get(AirflowVar.environment.get())
+        gcp_project_id = Variable.get(AirflowVar.project_id.get())
+        gcp_bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         if environment == 'dev':
             # TODO: this is a bit messy. In the future, for the test environment we should just have smaller files at
@@ -307,13 +320,14 @@ class MagTelescope:
     def download(**kwargs):
         """ Downloads the MAG release from Google Cloud Storage.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
         # Get variables
-        bucket_name = Variable.get("download_bucket_name")
+        bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
@@ -339,7 +353,8 @@ class MagTelescope:
     def transform(**kwargs):
         """ Transforms the MAG release into a form that can be uploaded to BigQuery.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -368,13 +383,14 @@ class MagTelescope:
     def upload_transformed(**kwargs):
         """ Uploads the transformed MAG release files to Google Cloud Storage for loading into BigQuery.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
         # Get variables
-        bucket_name = Variable.get("transform_bucket_name")
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
@@ -387,8 +403,8 @@ class MagTelescope:
                                                     release.source_container)
             posix_paths = list_mag_release_files(release_transformed_path)
             paths = [str(path) for path in posix_paths]
-            blob_names = [f'telescopes/{MagTelescope.DAG_ID}/{release.source_container}/{path.name}' for
-                          path in posix_paths]
+            blob_names = [f'telescopes/{MagTelescope.DAG_ID}/{release.source_container}/{path.name}' for path in
+                          posix_paths]
             success = upload_files_to_cloud_storage(bucket_name, blob_names, paths,
                                                     max_processes=MagTelescope.MAX_PROCESSES,
                                                     max_connections=MagTelescope.MAX_CONNECTIONS,
@@ -403,7 +419,8 @@ class MagTelescope:
     def bq_load(**kwargs):
         """ Loads a MAG release into BigQuery.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -413,9 +430,9 @@ class MagTelescope:
         releases = pull_releases(ti)
 
         # Get config variables
-        project_id = Variable.get("project_id")
-        data_location = Variable.get("data_location")
-        bucket_name = Variable.get("transform_bucket_name")
+        project_id = Variable.get(AirflowVar.project_id.get())
+        data_location = Variable.get(AirflowVar.data_location.get())
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # For each release, load into BigQuery
         for release in releases:
@@ -432,7 +449,8 @@ class MagTelescope:
     def cleanup(**kwargs):
         """ Delete files of downloaded, extracted and transformed releases.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -473,11 +491,26 @@ def db_load_mag_release(project_id: str, bucket_name: str, data_location: str, r
     """
 
     settings = {
-        'Authors': {'quote': '', 'allow_quoted_newlines': True},
-        'FieldsOfStudy': {'quote': '', 'allow_quoted_newlines': False},
-        'PaperAuthorAffiliations': {'quote': '', 'allow_quoted_newlines': False},
-        'PaperCitationContexts': {'quote': '', 'allow_quoted_newlines': True},
-        'Papers': {'quote': '', 'allow_quoted_newlines': True}
+        'Authors': {
+            'quote': '',
+            'allow_quoted_newlines': True
+        },
+        'FieldsOfStudy': {
+            'quote': '',
+            'allow_quoted_newlines': False
+        },
+        'PaperAuthorAffiliations': {
+            'quote': '',
+            'allow_quoted_newlines': False
+        },
+        'PaperCitationContexts': {
+            'quote': '',
+            'allow_quoted_newlines': True
+        },
+        'Papers': {
+            'quote': '',
+            'allow_quoted_newlines': True
+        }
     }
 
     # Create dataset
