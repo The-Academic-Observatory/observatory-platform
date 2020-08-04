@@ -24,8 +24,8 @@ import os
 import pathlib
 import shutil
 from shutil import copyfile
-from typing import List, Dict, Tuple
-from zipfile import ZipFile, BadZipFile
+from typing import Dict, List, Tuple
+from zipfile import BadZipFile, ZipFile
 
 import jsonlines
 import pendulum
@@ -35,11 +35,13 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
+from observatory_platform.utils.config_utils import AirflowVar, SubFolder, find_schema, schema_path, telescope_path
 from observatory_platform.utils.config_utils import check_variables
-from observatory_platform.utils.config_utils import telescope_path, SubFolder, schema_path, find_schema
 from observatory_platform.utils.data_utils import get_file
-from observatory_platform.utils.gc_utils import (upload_file_to_cloud_storage, load_bigquery_table,
-                                                 create_bigquery_dataset, bigquery_partitioned_table_id)
+from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 create_bigquery_dataset,
+                                                 load_bigquery_table,
+                                                 upload_file_to_cloud_storage)
 from observatory_platform.utils.url_utils import retry_session
 
 GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"
@@ -53,7 +55,9 @@ def list_grid_releases(timeout: float = 30.) -> List[Dict]:
     :return: the list of GRID releases.
     """
 
-    response = retry_session().get(GRID_DATASET_URL, timeout=timeout, headers={'Accept-encoding': 'gzip'})
+    response = retry_session().get(GRID_DATASET_URL, timeout=timeout, headers={
+        'Accept-encoding': 'gzip'
+    })
     return json.loads(response.text)
 
 
@@ -67,8 +71,9 @@ def download_grid_release(download_path: str, article_id: int, title: str, timeo
     :return: the paths on the system of the downloaded files.
     """
 
-    response = retry_session().get(GRID_FILE_URL.format(article_id=article_id), timeout=timeout,
-                                   headers={'Accept-encoding': 'gzip'})
+    response = retry_session().get(GRID_FILE_URL.format(article_id=article_id), timeout=timeout, headers={
+        'Accept-encoding': 'gzip'
+    })
     article_files = json.loads(response.text)
 
     downloads = []
@@ -184,13 +189,15 @@ class GridTelescope:
     def check_dependencies(**kwargs):
         """ Check that all variables exist that are required to run the DAG.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
-        vars_valid = check_variables("data_path", "project_id", "data_location",
-                                     "download_bucket_name", "transform_bucket_name")
+        vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
+                                     AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
+                                     AirflowVar.transform_bucket_name.get())
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -203,7 +210,8 @@ class GridTelescope:
             title (str): the Figshare article title.
             published_date (Pendulum): the published date of the Figshare article.
 
-        :param kwargs: the context passed from the BranchPythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the BranchPythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: the identifier of the task to execute next.
         """
@@ -238,7 +246,8 @@ class GridTelescope:
         Pushes the following xcom:
             download_path (str): the path to the downloaded GRID release.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -272,13 +281,14 @@ class GridTelescope:
     def upload_downloaded(**kwargs):
         """ Task to upload the downloaded GRID releases for a given month.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
         # Get bucket name
-        bucket_name = Variable.get("download_bucket_name")
+        bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
@@ -299,7 +309,8 @@ class GridTelescope:
         Pushes the following xcom:
             extracted_path (str): the path to the extracted GRID release.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -335,7 +346,8 @@ class GridTelescope:
             json_gz_file_name (str): the file name for the transformed GRID release.
             json_gz_file_path (str): the path to the transformed GRID release (including file name).
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -382,7 +394,8 @@ class GridTelescope:
             release_date (str): the release date of the GRID release.
             blob_name (str): the name of the blob on the Google Cloud storage bucket.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -393,7 +406,7 @@ class GridTelescope:
                                include_prior_dates=False)
 
         # Upload each release
-        bucket_name = Variable.get("transform_bucket_name")
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
         msgs_out = []
         for msg_in in msgs_in:
             file_name = msg_in['json_gz_file_name']
@@ -418,7 +431,8 @@ class GridTelescope:
     def bq_load(**kwargs):
         """ Task to load the transformed GRID releases for a given month to BigQuery.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -428,9 +442,9 @@ class GridTelescope:
                                include_prior_dates=False)
 
         # Upload each release
-        project_id = Variable.get("project_id")
-        data_location = Variable.get("data_location")
-        bucket_name = Variable.get("transform_bucket_name")
+        project_id = Variable.get(AirflowVar.project_id.get())
+        data_location = Variable.get(AirflowVar.data_location.get())
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Create dataset
         dataset_id = GridTelescope.DAG_ID
@@ -465,7 +479,8 @@ class GridTelescope:
     def cleanup(**kwargs):
         """ Delete files of downloaded, extracted and transformed releases.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """

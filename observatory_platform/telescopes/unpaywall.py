@@ -30,21 +30,14 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
+from observatory_platform.utils.config_utils import AirflowVar, SubFolder, find_schema, schema_path, telescope_path
 from observatory_platform.utils.config_utils import check_variables
-from observatory_platform.utils.config_utils import (
-    find_schema,
-    SubFolder,
-    schema_path,
-    telescope_path,
-)
 from observatory_platform.utils.data_utils import get_file
-from observatory_platform.utils.gc_utils import (
-    bigquery_partitioned_table_id,
-    create_bigquery_dataset,
-    load_bigquery_table,
-    upload_file_to_cloud_storage,
-    bigquery_table_exists
-)
+from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 bigquery_table_exists,
+                                                 create_bigquery_dataset,
+                                                 load_bigquery_table,
+                                                 upload_file_to_cloud_storage)
 from observatory_platform.utils.proc_utils import wait_for_process
 from observatory_platform.utils.url_utils import retry_session
 from tests.observatory_platform.config import test_fixtures_path
@@ -65,7 +58,6 @@ def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['UnpaywallRe
     """ Parses xml string retrieved from GET request to create list of urls for
     different releases.
 
-    :param telescope_url: url on which to execute GET request
     :param start_date:
     :param end_date:
     :return: a list of UnpaywallRelease instances.
@@ -125,8 +117,7 @@ def extract_release(release: 'UnpaywallRelease') -> str:
     logging.info(f"Extracting file: {release.filepath_download}")
 
     cmd = f"gunzip -c {release.filepath_download} > {release.filepath_extract}"
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                         executable='/bin/bash')
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
     stdout, stderr = wait_for_process(p)
 
     if stdout:
@@ -254,13 +245,15 @@ class UnpaywallTelescope:
     def check_dependencies(**kwargs):
         """ Check that all variables exist that are required to run the DAG.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
-        vars_valid = check_variables("data_path", "project_id", "data_location", "environment",
-                                     "download_bucket_name", "transform_bucket_name")
+        vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
+                                     AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
+                                     AirflowVar.transform_bucket_name.get())
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -271,13 +264,14 @@ class UnpaywallTelescope:
         exist yet for the release. A list of releases that passed both checks is passed to the next tasks. If the list
         is empty the workflow will stop.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
         # Get variables
-        project_id = Variable.get("project_id")
+        project_id = Variable.get(AirflowVar.project_id.get())
 
         # List releases between a start and end date
         execution_date = kwargs['execution_date']
@@ -310,7 +304,8 @@ class UnpaywallTelescope:
         """ Download release to file.
         If dev environment, copy debug file from this repository to the right location. Else download from url.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -320,7 +315,7 @@ class UnpaywallTelescope:
         releases_list = pull_releases(ti)
 
         # Get variables
-        environment = Variable.get("environment")
+        environment = Variable.get(AirflowVar.environment.get())
 
         # Download each release
         for release in releases_list:
@@ -333,7 +328,8 @@ class UnpaywallTelescope:
     def upload_downloaded(**kwargs):
         """ Upload downloaded release to a google cloud storage bucket.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -343,7 +339,7 @@ class UnpaywallTelescope:
         releases_list = pull_releases(ti)
 
         # Get variables
-        bucket_name = Variable.get("download_bucket_name")
+        bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         # Upload each release
         for release in releases_list:
@@ -354,7 +350,8 @@ class UnpaywallTelescope:
     def extract(**kwargs):
         """ Unzip release to new file.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -371,7 +368,8 @@ class UnpaywallTelescope:
     def transform(**kwargs):
         """ Transform release with sed command and save to new file.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -388,7 +386,8 @@ class UnpaywallTelescope:
     def upload_transformed(**kwargs):
         """ Upload transformed release to a google cloud storage bucket.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -398,7 +397,7 @@ class UnpaywallTelescope:
         releases_list = pull_releases(ti)
 
         # Get variables
-        bucket_name = Variable.get("transform_bucket_name")
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Upload each release
         for release in releases_list:
@@ -409,7 +408,8 @@ class UnpaywallTelescope:
     def load_to_bq(**kwargs):
         """ Upload transformed release to a bigquery table.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -419,9 +419,9 @@ class UnpaywallTelescope:
         releases_list: List[UnpaywallRelease] = pull_releases(ti)
 
         # Get variables
-        project_id = Variable.get("project_id")
-        bucket_name = Variable.get("transform_bucket_name")
-        data_location = Variable.get("data_location")
+        project_id = Variable.get(AirflowVar.project_id.get())
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
+        data_location = Variable.get(AirflowVar.data_location.get())
 
         # Create dataset
         dataset_id = UnpaywallTelescope.DATASET_ID
@@ -452,7 +452,8 @@ class UnpaywallTelescope:
     def cleanup(**kwargs):
         """ Delete files of downloaded, extracted and transformed release.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """

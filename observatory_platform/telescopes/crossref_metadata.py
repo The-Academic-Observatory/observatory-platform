@@ -20,8 +20,8 @@ import logging
 import os
 import pathlib
 import shutil
-import time
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
 from subprocess import Popen
@@ -35,22 +35,20 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from natsort import natsorted
 
-from observatory_platform.utils.config_utils import (
-    find_schema,
-    SubFolder,
-    schema_path,
-    telescope_path,
-    check_variables,
-    check_connections
-)
-from observatory_platform.utils.gc_utils import (
-    bigquery_partitioned_table_id,
-    create_bigquery_dataset,
-    load_bigquery_table,
-    upload_file_to_cloud_storage,
-    bigquery_table_exists,
-    upload_files_to_cloud_storage
-)
+from observatory_platform.utils.config_utils import (AirflowConn,
+                                                     AirflowVar,
+                                                     SubFolder,
+                                                     check_connections,
+                                                     check_variables,
+                                                     find_schema,
+                                                     schema_path,
+                                                     telescope_path)
+from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 bigquery_table_exists,
+                                                 create_bigquery_dataset,
+                                                 load_bigquery_table,
+                                                 upload_file_to_cloud_storage,
+                                                 upload_files_to_cloud_storage)
 from observatory_platform.utils.proc_utils import wait_for_process
 from observatory_platform.utils.url_utils import retry_session
 from tests.observatory_platform.config import test_fixtures_path
@@ -67,7 +65,9 @@ def download_release(release: 'CrossrefMetadataRelease', api_token: str):
     logging.info(f"Downloading from url: {release.url}")
 
     # Set API token header
-    header = {'Crossref-Plus-API-Token': f'Bearer {api_token}'}
+    header = {
+        'Crossref-Plus-API-Token': f'Bearer {api_token}'
+    }
 
     # Download release
     with requests.get(release.url, headers=header, stream=True) as response:
@@ -251,8 +251,7 @@ def pull_release(ti: TaskInstance) -> CrossrefMetadataRelease:
     """
 
     return ti.xcom_pull(key=CrossrefMetadataTelescope.RELEASES_TOPIC_NAME,
-                        task_ids=CrossrefMetadataTelescope.TASK_ID_CHECK_RELEASE,
-                        include_prior_dates=False)
+                        task_ids=CrossrefMetadataTelescope.TASK_ID_CHECK_RELEASE, include_prior_dates=False)
 
 
 class CrossrefMetadataTelescope:
@@ -260,7 +259,8 @@ class CrossrefMetadataTelescope:
 
     DAG_ID = 'crossref_metadata'
     DATASET_ID = 'crossref'
-    DESCRIPTION = 'The Crossref Metadata Plus dataset: https://www.crossref.org/services/metadata-retrieval/metadata-plus/'
+    DESCRIPTION = 'The Crossref Metadata Plus dataset: ' \
+                  'https://www.crossref.org/services/metadata-retrieval/metadata-plus/'
     RELEASES_TOPIC_NAME = "releases"
     QUEUE = 'remote_queue'
     MAX_PROCESSES = cpu_count()
@@ -284,14 +284,16 @@ class CrossrefMetadataTelescope:
     def check_dependencies(**kwargs):
         """ Check that all variables exist that are required to run the DAG.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
-        vars_valid = check_variables("data_path", "project_id", "data_location",
-                                     "download_bucket_name", "transform_bucket_name")
-        conns_valid = check_connections("crossref")
+        vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
+                                     AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
+                                     AirflowVar.transform_bucket_name.get())
+        conns_valid = check_connections(AirflowConn.crossref.get())
 
         if not vars_valid or not conns_valid:
             raise AirflowException('Required variables or connections are missing')
@@ -300,13 +302,14 @@ class CrossrefMetadataTelescope:
     def check_release_exists(**kwargs):
         """ Check that the release for this month exists.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
 
         # Get variables
-        project_id = Variable.get("project_id")
+        project_id = Variable.get(AirflowVar.project_id.get())
 
         # Construct the release for the execution date and check if it exists.
         # The release release for a given execution_date is added on the 5th day of the following month.
@@ -335,7 +338,8 @@ class CrossrefMetadataTelescope:
         """ Download release to file. If dev environment, copy debug file from this repository to the right location.
         Else download from url.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -345,13 +349,13 @@ class CrossrefMetadataTelescope:
         release = pull_release(ti)
 
         # Get variables
-        environment = Variable.get("environment")
+        environment = Variable.get(AirflowVar.environment.get())
 
         # Download release
         if environment == 'dev':
             shutil.copy(CrossrefMetadataTelescope.DEBUG_FILE_PATH, release.download_path)
         else:
-            connection = BaseHook.get_connection("crossref")
+            connection = BaseHook.get_connection(AirflowConn.crossref.get())
             api_token = connection.password
             download_release(release, api_token)
 
@@ -359,7 +363,8 @@ class CrossrefMetadataTelescope:
     def upload_downloaded(**kwargs):
         """ Upload the downloaded files to a Google Cloud Storage bucket.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -369,7 +374,7 @@ class CrossrefMetadataTelescope:
         release = pull_release(ti)
 
         # Get variables
-        bucket_name = Variable.get("download_bucket_name")
+        bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         # Upload each release
         upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.downloaded),
@@ -379,7 +384,8 @@ class CrossrefMetadataTelescope:
     def extract(**kwargs):
         """ Extract release
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -402,7 +408,8 @@ class CrossrefMetadataTelescope:
     def transform(**kwargs):
         """ Transform release with sed command and save to new file.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -425,7 +432,8 @@ class CrossrefMetadataTelescope:
     def upload_transformed(**kwargs):
         """ Upload transformed release to a Google Cloud Storage bucket.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -435,7 +443,7 @@ class CrossrefMetadataTelescope:
         release = pull_release(ti)
 
         # Get variables
-        bucket_name = Variable.get("transform_bucket_name")
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # List files and sort so that they are processed in ascending order
         logging.info(f'upload_transformed listing files')
@@ -461,7 +469,8 @@ class CrossrefMetadataTelescope:
     def bq_load(**kwargs):
         """ Upload transformed release to a bigquery table.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -471,9 +480,9 @@ class CrossrefMetadataTelescope:
         release = pull_release(ti)
 
         # Get variables
-        project_id = Variable.get("project_id")
-        data_location = Variable.get("data_location")
-        bucket_name = Variable.get("transform_bucket_name")
+        project_id = Variable.get(AirflowVar.project_id.get())
+        data_location = Variable.get(AirflowVar.data_location.get())
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Create dataset
         dataset_id = CrossrefMetadataTelescope.DATASET_ID
@@ -500,7 +509,8 @@ class CrossrefMetadataTelescope:
     def cleanup(**kwargs):
         """ Delete files of downloaded, extracted and transformed release.
 
-        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
@@ -524,4 +534,3 @@ class CrossrefMetadataTelescope:
             shutil.rmtree(release.transform_path)
         except FileNotFoundError as e:
             logging.warning(f"No such file or directory {release.transform_path}: {e}")
-
