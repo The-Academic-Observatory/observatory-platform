@@ -30,7 +30,7 @@ import pendulum
 from crc32c import Checksum as Crc32cChecksum
 from google.api_core.exceptions import Conflict
 from google.cloud import storage, bigquery
-from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob
+from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob, QueryJob
 from google.cloud.exceptions import NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
@@ -228,6 +228,99 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
     return result.state == 'DONE'
 
+
+def load_sql_file(sql_file: str) -> str:
+    """ Load a sql file to a string variable
+
+    :param sql_file: the sql file too be loaded
+    :return 
+    """
+
+    sql_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sql", sql_file )
+    
+    with open(sql_file_path) as f:
+        sql = f.read()
+
+    return sql
+
+
+def sql_builder(sql: str, project: str, dataset: str, tables: List(str), is_release: bool = False, release: str = '') -> str:
+    """ Build a SQL query from a base sql file and provided parameters.
+
+    :param sql_file: the sql file that forms the base of the query
+    :param project: the Google Cloud project id
+    :param dataset: the Bigquerydataset id
+    :param tables: the list of base table names
+    :param is_release: whether the dataset is one with dated releases
+    :param release: the release date
+    """
+
+    for table in tables:
+        table_id = '.'.join([project, dataset, if is_release: table + release else table])
+        sql = sql.replace("@"+table_id, table_id)
+
+    return sql
+
+
+def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str, 
+                                     description: str = '', labels: dict = {}, query_parameters: List[bigquery.ScalarQueryParameter] = [],
+                                     partition: bool = False, partition_field: Union[None, str] = None,
+                                     partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True) -> bool:
+    """ Create a BigQuery dataset from a provided query.
+
+    :param sql: the sql query to be executed
+    :param labels: labels to place on the new table
+    :param project_id: the Google Cloud project id
+    :param dataset_id: the BigQuery dataset id
+    :param location: the location where the dataset will be stored:
+    https://cloud.google.com/compute/docs/regions-zones/#locations
+    :param description: a description for the dataset
+    :param partition: whether to partition the table.
+    :param partition_field: the name of the partition field.
+    :param partition_type: the type of partitioning.
+    :param require_partition_filter: whether the partition filter is required or not when querying the table.
+    :return:
+    """
+
+    func_name = create_bigquery_dataset.__name__
+    msg = f'project_id={project_id}, dataset_id={dataset_id}, location={location}, table={table_id}'
+    logging.info(f"{func_name}: create bigquery table from query, {msg}")
+
+    # Make the dataset reference
+    dataset_ref = f'{project_id}.{dataset_id}'
+
+    # Make dataset handle
+    client = bigquery.Client()
+    dataset = bigquery.Dataset(dataset_ref)
+
+    # Set properties
+    dataset.location = location
+    dataset.description = description
+    
+
+    job_config = bigquery.QueryJobConfig(
+        allow_large_results = True,
+        destination = dataset.table(table_id),
+        description = description,
+        labels = labels,
+        use_legacy_sql = False,
+        query_parameters = query_parameters
+        )
+
+    # Set partitioning settings
+    if partition:
+        job_config.time_partitioning = bigquery.TimePartitioning(
+            type_=partition_type,
+            field=partition_field,
+            require_partition_filter=require_partition_filter
+        )
+
+    query_job: QueryJob = client.query(sql, job_config = job_config)
+
+    result = query_job.result()
+    logging.info(f"{func_name}: create bigquery table from query, table={table_id}, {msg}")
+    return True
+    
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
                                      connection_sem: BoundedSemaphore = None,
