@@ -19,95 +19,90 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.operators.dummy_operator import DummyOperator
 
 from observatory_platform.workflows.doi import DoiWorkflow
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2020, 1, 1)
+    "start_date": datetime(2020, 8, 1)
 }
 
-with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval="@once", default_args=default_args) as dag:
-
+with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval="@weekly", default_args=default_args) as dag:
     # Extend GRID with iso3166 and home repos
-    task_extend_grid_with_iso3166_and_home_repos = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_EXTEND_GRID_WITH_ISO3166_AND_HOME_REPOS,
+    task_extend_grid = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXTEND_GRID,
         provide_context=True,
-        python_callable=DoiWorkflow.extend_grid_with_iso3166_and_home_repos,
-        dag=dag,
-        depends_on_past=True
+        python_callable=DoiWorkflow.extend_grid
     )
 
     # Aggregrate Crossref Events
     task_aggregate_crossref_events = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS,
         provide_context=True,
-        python_callable=DoiWorkflow.aggregate_crossref_events,
-        dag=dag,
-        depends_on_past=True
+        python_callable=DoiWorkflow.aggregate_crossref_events
     )
 
     # Aggregrate Microsoft Academic Graph
     task_aggregate_mag = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_AGGREGATE_MAG,
         provide_context=True,
-        python_callable=DoiWorkflow.aggregate_mag,
-        dag=dag,
-        depends_on_past=True
+        python_callable=DoiWorkflow.aggregate_mag
     )
 
     # Compute OA colours from Unapywall
-    task_compute_oa_colours = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_COMPUTE_OA_COLOURS,
+    task_aggregate_unpaywall = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL,
         provide_context=True,
-        python_callable=DoiWorkflow.compute_oa_colours,
-        dag=dag,
-        depends_on_past=True
+        python_callable=DoiWorkflow.aggregate_unpaywall
     )
 
     # Extend Crossref with Funder Information
-    task_extend_crossref_funders = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS,
+    task_extend_crossref_metadata = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXTEND_CROSSREF_METADATA,
         provide_context=True,
-        python_callable=DoiWorkflow.extend_crossref_funders,
-        dag=dag,
-        depends_on_past=True
+        python_callable=DoiWorkflow.extend_crossref_metadata
     )
 
     # Aggregrate Open Citations
     task_aggregate_open_citations = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS,
         provide_context=True,
-        python_callable=DoiWorkflow.aggregate_open_citations,
-        dag=dag,
-        depends_on_past=True
+        python_callable=DoiWorkflow.aggregate_open_citations
     )
 
     # Aggregrate WoS
     task_aggregate_wos = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_AGGREGATE_WOS,
         provide_context=True,
-        python_callable=DoiWorkflow.aggregate_wos,
-        dag=dag,
-        depends_on_past=True
+        python_callable=DoiWorkflow.aggregate_wos
     )
 
-    # Aggregrate Scopus
+    # Aggregate Scopus
     task_aggregate_scopus = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS,
         provide_context=True,
-        python_callable=DoiWorkflow.aggregate_scopus,
-        dag=dag,
-        depends_on_past=True
+        python_callable=DoiWorkflow.aggregate_scopus
     )
 
-    # Build DOIs table
-    task_build_dois_table = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_BUILD_DOIS_TABLE,
-        provide_context=True,
-        python_callable=DoiWorkflow.build_dois_table,
-        dag=dag,
-        depends_on_past=True
-    )
+    task_create_doi_snapshot = DummyOperator(task_id=DoiWorkflow.TASK_ID_CREATE_DOI_SNAPSHOT)
 
-    
+    # Link tasks
+    task_extend_grid >> task_create_doi_snapshot
+    task_aggregate_crossref_events >> task_create_doi_snapshot
+    task_aggregate_mag >> task_create_doi_snapshot
+    task_aggregate_unpaywall >> task_create_doi_snapshot
+    task_extend_crossref_metadata >> task_create_doi_snapshot
+    task_aggregate_open_citations >> task_create_doi_snapshot
+    task_aggregate_wos >> task_create_doi_snapshot
+    task_aggregate_scopus >> task_create_doi_snapshot
+
+    #
+    # # Build DOIs table
+    # task_build_dois_table = PythonOperator(
+    #     task_id=DoiWorkflow.TASK_ID_CREATE_DOI_SNAPSHOT,
+    #     provide_context=True,
+    #     python_callable=DoiWorkflow.build_dois_table,
+    #     dag=dag,
+    #     depends_on_past=True
+    # )

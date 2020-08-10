@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Richard Hosking
+# Author: Richard Hosking, James Diprose
 
 SELECT 
   doi,
@@ -35,7 +35,7 @@ SELECT
   MAX( wos_id ) as wos_id,
   MAX( wos_parent_book_doi ) as wos_parent_book_doi,
   ARRAY_AGG(grid_id) as grids
-FROM `@wos`
+FROM `{{ project_id }}.clarivate.wos`
 WHERE wos IS NOT NULL AND DOI IS NOT NULL
 GROUP BY
   doi

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Richard Hosking
+# Author: Richard Hosking, James Diprose
 
 SELECT 
   (SUBSTR(obj_id, 17)) as doi,
@@ -32,6 +32,6 @@ SELECT
     STRUCT("web" as source, COUNTIF(source_id = 'web') as count),
     STRUCT("crossref" as source, COUNTIF(source_id = 'crossref') as count)
    ] as events
-FROM `@crossref_events` 
+FROM `{{ project_id }}.crossref.crossref_events`
 GROUP BY
 obj_id

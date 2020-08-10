@@ -508,7 +508,7 @@ class FundrefTelescope:
 
     DAG_ID = 'fundref'
     DESCRIPTION = 'The Funder Registry dataset: https://www.crossref.org/services/funder-registry/'
-    DATASET_ID = DAG_ID
+    DATASET_ID = 'crossref'
     RELEASES_TOPIC_NAME = "releases"
     QUEUE = "remote_queue"
     TELESCOPE_URL = 'https://gitlab.com/api/v4/projects/crossref%2Fopen_funder_registry/releases'
@@ -713,8 +713,7 @@ class FundrefTelescope:
         bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Create dataset
-        dataset_id = FundrefTelescope.DAG_ID
-        create_bigquery_dataset(project_id, dataset_id, data_location, FundrefTelescope.DESCRIPTION)
+        create_bigquery_dataset(project_id, FundrefTelescope.DAG_ID, data_location, FundrefTelescope.DESCRIPTION)
 
         # Load each release into BigQuery
         for release in releases_list:
@@ -731,7 +730,7 @@ class FundrefTelescope:
             # Load BigQuery table
             uri = f"gs://{bucket_name}/{release.get_blob_name(SubFolder.transformed)}"
             logging.info(f"URI: {uri}")
-            load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
+            load_bigquery_table(uri, FundrefTelescope.DAG_ID, data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod

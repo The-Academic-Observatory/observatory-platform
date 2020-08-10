@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Richard Hosking
+# Author: Richard Hosking, James Diprose
 
-SELECT 
-  grids.*,
-  home_repo.urls as home_repo,
-  STRUCT(regions) as iso3166
-FROM `@grid` as grids
-LEFT JOIN `@iso3166_countries_and_regions` as regions ON (grids.addresses[OFFSET(0)].country_code = regions.alpha2)
-LEFT JOIN `@grid_home_repo` as home_repo ON grids.id = home_repo.grid_id 
-WHERE ARRAY_LENGTH(grids.addresses) > 0
+SELECT
+    crossref.doi as doi,
+    ARRAY_AGG(STRUCT(funder, fundref)) as funders
+FROM `{{ project_id }}.crossref.crossref_metadata{{ crossref_metadata_release_date.strftime('%Y%m%d') }}` as crossref, UNNEST(crossref.funder) as funder
+LEFT JOIN `{{ project_id }}.crossref.fundref{{ fundref_release_date.strftime('%Y%m%d') }}` as fundref on SUBSTR(fundref.funder, 19) = funder.doi
+GROUP BY crossref.doi

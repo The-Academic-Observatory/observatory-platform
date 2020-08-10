@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Richard Hosking
+# Author: James Diprose
 
-SELECT 
-    dois.doi as doi,
-    ARRAY_AGG(STRUCT(funder, fundref)) as funders
-FROM `@crossref_metadata` as dois, UNNEST(crossref.funder) as funder
-LEFT JOIN `@fundref` as fundref on SUBSTR(fundref.funder, 19) = funder.doi
-GROUP BY dois.doi
+SELECT DISTINCT
+  PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) as suffix
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}*`
+WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) <= DATE('{{ end_date }}')
+ORDER BY suffix DESC
+LIMIT {{ limit }};

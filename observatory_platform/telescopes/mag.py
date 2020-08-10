@@ -163,6 +163,7 @@ class MagTelescope:
     """
 
     DAG_ID = 'mag'
+    DATASET_ID = 'mag'
     QUEUE = 'remote_queue'
     DESCRIPTION = 'The Microsoft Academic Graph (MAG) dataset: https://www.microsoft.com/en-us/research/project/' \
                   'microsoft-academic-graph/'

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Richard Hosking
+# Author: Richard Hosking, James Diprose
 
 SELECT 
   doi,
@@ -39,4 +39,4 @@ SELECT
   best_oa_location.url_for_landing_page,
   best_oa_location.url_for_pdf
 FROM 
-  `@unpaywall`
+  `{{ project_id }}.our_research.unpaywall{{ release_date.strftime('%Y%m%d') }}`

@@ -1,4 +1,5 @@
 # Copyright 2020 Curtin University
+# Copyright 2020 Artificial Dimensions Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,6 +35,7 @@ from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob, QueryJob
 from google.cloud.exceptions import NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
+from jinja2 import Template
 from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
 
@@ -229,43 +231,55 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     return result.state == 'DONE'
 
 
-def load_sql_file(sql_file: str) -> str:
-    """ Load a sql file to a string variable
+def render_sql_query(template_path: str, **kwargs) -> str:
+    """ Render a SQL query from a template.
 
-    :param sql_file: the sql file too be loaded
-    :return 
+    :param template_path: the path to the template.
+    :param kwargs: the keyword variables to populate the template with.
+    :return: the query as a string.
     """
 
-    sql_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sql", sql_file )
-    
-    with open(sql_file_path) as f:
-        sql = f.read()
+    # Read file contents
+    with open(template_path, 'r') as file:
+        contents = file.read()
 
-    return sql
+    # Fill template with text
+    template = Template(contents)
+
+    # Render template
+    rendered = template.render(**kwargs)
+
+    return rendered
 
 
-def sql_builder(sql: str, project: str, dataset: str, tables: List(str), is_release: bool = False, release: str = '') -> str:
-    """ Build a SQL query from a base sql file and provided parameters.
+def sql_jinja2_filename(file_name: str) -> str:
+    """ Add .sql.jinja2 to a filename.
 
-    :param sql_file: the sql file that forms the base of the query
-    :param project: the Google Cloud project id
-    :param dataset: the Bigquerydataset id
-    :param tables: the list of base table names
-    :param is_release: whether the dataset is one with dated releases
-    :param release: the release date
+    :param file_name: the filename without an extension.
+    :return: the filename.
+    """
+    return f'{file_name}.sql.jinja2'
+
+
+def run_bigquery_query(query: str) -> List:
+    """ Run a BigQuery query.
+
+    :param query:
+    :return:
     """
 
-    for table in tables:
-        table_id = '.'.join([project, dataset, if is_release: table + release else table])
-        sql = sql.replace("@"+table_id, table_id)
+    client = bigquery.Client()
+    query_job = client.query(query)
+    rows = query_job.result()
+    return list(rows)
 
-    return sql
 
-
-def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str, 
-                                     description: str = '', labels: dict = {}, query_parameters: List[bigquery.ScalarQueryParameter] = [],
+def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str,
+                                     description: str = '', labels: dict = {},
+                                     query_parameters: List[bigquery.ScalarQueryParameter] = [],
                                      partition: bool = False, partition_field: Union[None, str] = None,
-                                     partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True) -> bool:
+                                     partition_type: str = bigquery.TimePartitioningType.DAY,
+                                     require_partition_filter=True) -> bool:
     """ Create a BigQuery dataset from a provided query.
 
     :param sql: the sql query to be executed
@@ -296,16 +310,15 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
     # Set properties
     dataset.location = location
     dataset.description = description
-    
 
     job_config = bigquery.QueryJobConfig(
-        allow_large_results = True,
-        destination = dataset.table(table_id),
-        description = description,
-        labels = labels,
-        use_legacy_sql = False,
-        query_parameters = query_parameters
-        )
+        allow_large_results=True,
+        destination=dataset.table(table_id),
+        description=description,
+        labels=labels,
+        use_legacy_sql=False,
+        query_parameters=query_parameters
+    )
 
     # Set partitioning settings
     if partition:
@@ -315,12 +328,12 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
             require_partition_filter=require_partition_filter
         )
 
-    query_job: QueryJob = client.query(sql, job_config = job_config)
+    query_job: QueryJob = client.query(sql, job_config=job_config)
 
     result = query_job.result()
     logging.info(f"{func_name}: create bigquery table from query, table={table_id}, {msg}")
     return True
-    
+
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
                                      connection_sem: BoundedSemaphore = None,

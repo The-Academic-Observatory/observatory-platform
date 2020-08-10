@@ -222,9 +222,9 @@ class UnpaywallTelescope:
     """ A container for holding the constants and static functions for the Unpaywall telescope. """
 
     DAG_ID = 'unpaywall'
+    DATASET_ID = 'our_research'
     QUEUE = 'remote_queue'
     DESCRIPTION = 'The Unpaywall database: https://unpaywall.org/'
-    DATASET_ID = DAG_ID
     RELEASES_TOPIC_NAME = "releases"
     TELESCOPE_URL = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/'
     DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'unpaywall.jsonl.gz')
@@ -424,15 +424,15 @@ class UnpaywallTelescope:
         data_location = Variable.get(AirflowVar.data_location.get())
 
         # Create dataset
-        dataset_id = UnpaywallTelescope.DATASET_ID
-        create_bigquery_dataset(project_id, dataset_id, data_location, UnpaywallTelescope.DESCRIPTION)
+        create_bigquery_dataset(project_id, UnpaywallTelescope.DATASET_ID, data_location,
+                                UnpaywallTelescope.DESCRIPTION)
 
         for release in releases_list:
             # Get blob name
             blob_name = f'telescopes/unpaywall/{os.path.basename(release.filepath_transform)}'
 
             # Get release_date
-            table_id = bigquery_partitioned_table_id(dataset_id, release.release_date)
+            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DATASET_ID, release.release_date)
 
             # Select schema file based on release date
             analysis_schema_path = schema_path('telescopes')
@@ -445,7 +445,7 @@ class UnpaywallTelescope:
             # Load BigQuery table
             uri = f"gs://{bucket_name}/{blob_name}"
             logging.info(f"URI: {uri}")
-            load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
+            load_bigquery_table(uri, UnpaywallTelescope.DATASET_ID, data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Richard Hosking
+# Author: Richard Hosking, James Diprose
 
 SELECT 
   doi,
@@ -28,7 +28,7 @@ SELECT
   MAX( scopus_citedby_count ) as scopus_citedby_count,
   MAX( scopus_identifier ) as scopus_identifier,
   ARRAY_AGG(grid_id) as grids
-FROM `@scopus`
+FROM `{{ project_id }}.elsevier.scopus`
 WHERE scopus IS NOT NULL AND doi IS NOT NULL
 GROUP BY
   doi
