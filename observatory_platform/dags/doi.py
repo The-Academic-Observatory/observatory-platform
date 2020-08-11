@@ -19,7 +19,6 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from airflow.operators.dummy_operator import DummyOperator
 
 from observatory_platform.workflows.doi import DoiWorkflow
 
@@ -58,10 +57,10 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval="@weekly", default_args=de
     )
 
     # Extend Crossref with Funder Information
-    task_extend_crossref_metadata = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_EXTEND_CROSSREF_METADATA,
+    task_extend_crossref_funders = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS,
         provide_context=True,
-        python_callable=DoiWorkflow.extend_crossref_metadata
+        python_callable=DoiWorkflow.extend_crossref_funders
     )
 
     # Aggregrate Open Citations
@@ -85,24 +84,19 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval="@weekly", default_args=de
         python_callable=DoiWorkflow.aggregate_scopus
     )
 
-    task_create_doi_snapshot = DummyOperator(task_id=DoiWorkflow.TASK_ID_CREATE_DOI_SNAPSHOT)
+    # Create DOIs snapshot
+    task_create_dois_snapshot = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_DOIS_SNAPSHOT,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_dois_snapshot
+    )
 
     # Link tasks
-    task_extend_grid >> task_create_doi_snapshot
-    task_aggregate_crossref_events >> task_create_doi_snapshot
-    task_aggregate_mag >> task_create_doi_snapshot
-    task_aggregate_unpaywall >> task_create_doi_snapshot
-    task_extend_crossref_metadata >> task_create_doi_snapshot
-    task_aggregate_open_citations >> task_create_doi_snapshot
-    task_aggregate_wos >> task_create_doi_snapshot
-    task_aggregate_scopus >> task_create_doi_snapshot
-
-    #
-    # # Build DOIs table
-    # task_build_dois_table = PythonOperator(
-    #     task_id=DoiWorkflow.TASK_ID_CREATE_DOI_SNAPSHOT,
-    #     provide_context=True,
-    #     python_callable=DoiWorkflow.build_dois_table,
-    #     dag=dag,
-    #     depends_on_past=True
-    # )
+    task_extend_grid >> task_create_dois_snapshot
+    task_aggregate_crossref_events >> task_create_dois_snapshot
+    task_aggregate_mag >> task_create_dois_snapshot
+    task_aggregate_unpaywall >> task_create_dois_snapshot
+    task_extend_crossref_funders >> task_create_dois_snapshot
+    task_aggregate_open_citations >> task_create_dois_snapshot
+    task_aggregate_wos >> task_create_dois_snapshot
+    task_aggregate_scopus >> task_create_dois_snapshot

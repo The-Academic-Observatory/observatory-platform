@@ -62,11 +62,11 @@ class DoiWorkflow:
     TASK_ID_AGGREGATE_CROSSREF_EVENTS = 'aggregate_crossref_events'
     TASK_ID_AGGREGATE_MAG = 'aggregate_mag'
     TASK_ID_AGGREGATE_UNPAYWALL = 'aggregate_unpaywall'
-    TASK_ID_EXTEND_CROSSREF_METADATA = 'extend_crossref_metadata'
+    TASK_ID_EXTEND_CROSSREF_FUNDERS = 'extend_crossref_funders'
     TASK_ID_AGGREGATE_OPEN_CITATIONS = 'aggregate_open_citations'
     TASK_ID_AGGREGATE_WOS = 'aggregate_wos'
     TASK_ID_AGGREGATE_SCOPUS = 'aggregate_scopus'
-    TASK_ID_CREATE_DOI_SNAPSHOT = 'create_doi_snapshot'
+    TASK_ID_CREATE_DOIS_SNAPSHOT = 'create_dois_snapshot'
     PROCESSED_DATASET_ID = 'observatory_processed'
     PROCESSED_DATASET_DESCRIPTION = 'Intermediate processing dataset for the Academic Observatory.'
     OBSERVATORY_DATASET_ID = 'observatory'
@@ -246,8 +246,8 @@ class DoiWorkflow:
                        f'{DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL} failed')
 
     @staticmethod
-    def extend_crossref_metadata(**kwargs):
-        """ Extend Crossref Metadata with Crossref Events.
+    def extend_crossref_funders(**kwargs):
+        """ Extend Crossref Funders with Crossref Funders information.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -273,13 +273,13 @@ class DoiWorkflow:
 
         # Create processed table
         template_path = os.path.join(workflow_templates_path(),
-                                     sql_jinja2_filename(DoiWorkflow.TASK_ID_EXTEND_CROSSREF_METADATA))
+                                     sql_jinja2_filename(DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS))
         sql = render_sql_query(template_path,
                                project_id=project_id,
                                crossref_metadata_release_date=crossref_metadata_release_date,
                                fundref_release_date=fundref_release_date)
 
-        processed_table_id = bigquery_partitioned_table_id('crossref_metadata_extended', end_date)
+        processed_table_id = bigquery_partitioned_table_id('crossref_funders_extended', end_date)
         success = create_bigquery_table_from_query(sql=sql,
                                                    project_id=project_id,
                                                    dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
@@ -287,8 +287,8 @@ class DoiWorkflow:
                                                    location=data_location)
 
         set_task_state(success,
-                       f'{DoiWorkflow.TASK_ID_EXTEND_CROSSREF_METADATA} success',
-                       f'{DoiWorkflow.TASK_ID_EXTEND_CROSSREF_METADATA} failed')
+                       f'{DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS} success',
+                       f'{DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS} failed')
 
     @staticmethod
     def aggregate_open_citations(**kwargs):
@@ -395,36 +395,48 @@ class DoiWorkflow:
                        f'{DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS} success',
                        f'{DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS} failed')
 
-    # @staticmethod
-    # def create_doi_snapshot(**kwargs):
-    #     """ Create DOI snapshot.
-    #
-    #     :param kwargs: the context passed from the PythonOperator. See
-    #     https://airflow.apache.org/docs/stable/macros-ref.html
-    #     for a list of the keyword arguments that are passed to this argument.
-    #     :return: None.
-    #     """
-    #
-    #     # Get variables
-    #     project_id = Variable.get(AirflowVar.project_id.get())
-    #     data_location = Variable.get(AirflowVar.data_location.get())
-    #     release_date = ''  # todays date?
-    #
-    #     # Create
-    #     template_path = os.path.join(workflow_templates_path(),
-    #                                  sql_jinja2_filename(DoiWorkflow.TASK_ID_CREATE_DOI_SNAPSHOT))
-    #     sql = render_query(template_path,
-    #                        project_id=project_id,
-    #                        dataset_id='')
-    #
-    #     processed_dataset_id = DoiWorkflow.PROCESSED_DATASET_ID
-    #     processed_table_id = bigquery_partitioned_table_id('', release_date)
-    #     success = create_bigquery_table_from_query(sql=sql,
-    #                                                project_id=project_id,
-    #                                                dataset_id=processed_dataset_id,
-    #                                                table_id=processed_table_id,
-    #                                                location=data_location)
-    #
-    #     set_task_state(success,
-    #                    f'{DoiWorkflow.TASK_ID_CREATE_DOI_SNAPSHOT} success',
-    #                    f'{DoiWorkflow.TASK_ID_CREATE_DOI_SNAPSHOT} failed')
+    @staticmethod
+    def create_dois_snapshot(**kwargs):
+        """ Create DOIs snapshot.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Get variables
+        project_id = Variable.get(AirflowVar.project_id.get())
+        data_location = Variable.get(AirflowVar.data_location.get())
+        end_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+
+        # Get last Crossref Metadata release date before current end date
+        crossref_metadata_release_date = select_table_suffixes(project_id, CrossrefMetadataTelescope.DATASET_ID,
+                                                               CrossrefMetadataTelescope.DAG_ID, end_date)
+        if len(crossref_metadata_release_date):
+            crossref_metadata_release_date = crossref_metadata_release_date[0]
+        else:
+            raise AirflowException(f'Crossref Metadata release with a table suffix <= {end_date} not found')
+
+        # Create dataset
+        create_bigquery_dataset(project_id, DoiWorkflow.OBSERVATORY_DATASET_ID, data_location,
+                                DoiWorkflow.OBSERVATORY_DATASET_ID_DATASET_DESCRIPTION)
+
+        # Create processed dataset
+        template_path = os.path.join(workflow_templates_path(),
+                                     sql_jinja2_filename(DoiWorkflow.TASK_ID_CREATE_DOIS_SNAPSHOT))
+        sql = render_sql_query(template_path,
+                               project_id=project_id,
+                               release_date=end_date,
+                               crossref_metadata_release_date=crossref_metadata_release_date)
+
+        processed_table_id = bigquery_partitioned_table_id('dois', end_date)
+        success = create_bigquery_table_from_query(sql=sql,
+                                                   project_id=project_id,
+                                                   dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
+                                                   table_id=processed_table_id,
+                                                   location=data_location)
+
+        set_task_state(success,
+                       f'{DoiWorkflow.TASK_ID_CREATE_DOIS_SNAPSHOT} success',
+                       f'{DoiWorkflow.TASK_ID_CREATE_DOIS_SNAPSHOT} failed')
