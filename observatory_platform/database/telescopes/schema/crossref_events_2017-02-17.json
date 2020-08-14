@@ -1,0 +1,147 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "relation_type_id",
+    "type": "STRING"
+  },
+  {
+    "description": "bq-datetime",
+    "mode": "NULLABLE",
+    "name": "updated_date",
+    "type": "TIMESTAMP"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "source_id",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "alternative_id",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "original_tweet_author",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "title",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "original_tweet_url",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "pid",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "url",
+            "type": "STRING"
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "author",
+        "type": "RECORD"
+      },
+      {
+        "description": "bq-datetime",
+        "mode": "NULLABLE",
+        "name": "issued",
+        "type": "TIMESTAMP"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "subj",
+    "type": "RECORD"
+  },
+  {
+    "description": "bq-datetime",
+    "mode": "NULLABLE",
+    "name": "timestamp",
+    "type": "TIMESTAMP"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "id",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "action",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "terms",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "subj_id",
+    "type": "STRING"
+  },
+  {
+    "description": "bq-datetime",
+    "mode": "NULLABLE",
+    "name": "occurred_at",
+    "type": "TIMESTAMP"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "license",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "obj_id",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "url",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "pid",
+        "type": "STRING"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "obj",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "updated",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "updated_reason",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "evidence_record",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "source_token",
+    "type": "STRING"
+  }
+]
