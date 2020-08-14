@@ -604,10 +604,61 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
     return success
 
 
+def google_cloud_storage_transfer_job(job: dict, func_name: str, gc_project_id: str) -> bool:
+    """
+    :param job: contains the details of the transfer job
+    :param func_name: function name used for detailed logging info
+    :param gc_project_id: the Google Cloud project id that holds the Google Cloud Storage bucket.
+    :return: whether the transfer was a success or not.
+    """
+    client = gcp_api.build('storagetransfer', 'v1')
+    create_result = client.transferJobs().create(body=job).execute()
+    transfer_job_name = create_result['name']
+
+    transfer_job_filter = json.dumps({
+        'project_id': gc_project_id,
+        'job_names': [transfer_job_name]
+    })
+    wait_time = 60
+    while True:
+        response = client.transferOperations().list(name='transferOperations', filter=transfer_job_filter).execute()
+        if 'operations' in response:
+            operations = response['operations']
+
+            in_progress_count, success_count, failed_count, aborted_count = 0, 0, 0, 0
+            for op in operations:
+                status = op['metadata']['status']
+                if status == TransferStatus.success.value:
+                    success_count += 1
+                elif status == TransferStatus.failed.value:
+                    failed_count += 1
+                elif status == TransferStatus.aborted.value:
+                    aborted_count += 1
+                elif status == TransferStatus.in_progress.value:
+                    in_progress_count += 1
+
+            num_operations = len(operations)
+            logging.info(f"{func_name}: transfer job {transfer_job_name} operations success={success_count}, "
+                         f"failed={failed_count}, aborted={aborted_count}, in_progress_count={in_progress_count}")
+
+            if success_count >= num_operations:
+                status = TransferStatus.success
+                break
+            elif failed_count >= 1:
+                status = TransferStatus.failed
+                break
+            elif aborted_count >= 1:
+                status = TransferStatus.aborted
+                break
+
+        time.sleep(wait_time)
+
+    return status == TransferStatus.success
+
+
 def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azure_sas_token: str, azure_container: str,
                                            include_prefixes: List[str], gc_project_id: str, gc_bucket: str,
-                                           description: str, start_date: Pendulum = pendulum.utcnow()) \
-        -> bool:
+                                           description: str, start_date: Pendulum = pendulum.utcnow()) -> bool:
     """ Transfer files from an Azure blob container to a Google Cloud Storage bucket.
 
     :param azure_storage_account_name: the name of the Azure Storage account that holds the Azure blob container.
@@ -659,49 +710,65 @@ def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azur
         }
     }
 
-    client = gcp_api.build('storagetransfer', 'v1')
-    create_result = client.transferJobs().create(body=job).execute()
-    transfer_job_name = create_result['name']
+    status = google_cloud_storage_transfer_job(job, func_name, gc_project_id)
+    return status
 
-    transfer_job_filter = json.dumps({
-        'project_id': gc_project_id,
-        'job_names': [transfer_job_name]
-    })
-    wait_time = 60
-    while True:
-        response = client.transferOperations().list(name='transferOperations', filter=transfer_job_filter).execute()
-        if 'operations' in response:
-            operations = response['operations']
 
-            in_progress_count, success_count, failed_count, aborted_count = 0, 0, 0, 0
-            for op in operations:
-                status = op['metadata']['status']
-                if status == TransferStatus.success.value:
-                    success_count += 1
-                elif status == TransferStatus.failed.value:
-                    failed_count += 1
-                elif status == TransferStatus.aborted.value:
-                    aborted_count += 1
-                elif status == TransferStatus.in_progress.value:
-                    in_progress_count += 1
+def aws_to_google_cloud_storage_transfer(aws_access_key_id: str, aws_secret_key: str, aws_bucket: str,
+                                         include_prefixes: List[str], gc_project_id: str, gc_bucket: str,
+                                         description: str, start_date: Pendulum = pendulum.utcnow()) -> bool:
+    """ Transfer files from an Azure blob container to a Google Cloud Storage bucket.
 
-            num_operations = len(operations)
-            logging.info(f"{func_name}: transfer job {transfer_job_name} operations success={success_count}, "
-                         f"failed={failed_count}, aborted={aborted_count}, in_progress_count={in_progress_count}")
+    :param aws_access_key_id: the id of the key for the aws S3 bucket.
+    :param aws_secret_key: the secret key for the aws S3 bucket.
+    :param aws_bucket: the name of the aws S3 bucket where files will be copied from.
+    :param include_prefixes: the prefixes of blobs to download from the Azure blob container.
+    :param gc_project_id: the Google Cloud project id that holds the Google Cloud Storage bucket.
+    :param gc_bucket: the Google Cloud bucket name.
+    :param description: a description for the transfer job.
+    :param start_date: the date that the transfer job will start.
+    :return: whether the transfer was a success or not.
+    """
 
-            if success_count >= num_operations:
-                status = TransferStatus.success
-                break
-            elif failed_count >= 1:
-                status = TransferStatus.failed
-                break
-            elif aborted_count >= 1:
-                status = TransferStatus.aborted
-                break
+    # Leave out scheduleStartTime to make sure that the job starts immediately
+    # Make sure to specify scheduleEndDate as today otherwise the job will repeat
+    func_name = aws_to_google_cloud_storage_transfer.__name__
 
-        time.sleep(wait_time)
+    job = {
+        'description': description,
+        'status': 'ENABLED',
+        'projectId': gc_project_id,
+        'schedule': {
+            'scheduleStartDate': {
+                'day': start_date.day,
+                'month': start_date.month,
+                'year': start_date.year
+            },
+            'scheduleEndDate': {
+                'day': start_date.day,
+                'month': start_date.month,
+                'year': start_date.year
+            },
+        },
+        'transferSpec': {
+            'awsS3DataSource': {
+                'bucketName': aws_bucket,
+                'awsAccessKey': {
+                    'accessKeyId': aws_access_key_id,
+                    'secretAccessKey': aws_secret_key,
+                }
+            },
+            'objectConditions': {
+                'includePrefixes': include_prefixes
+            },
+            'gcsDataSink': {
+                'bucketName': gc_bucket
+            }
+        }
+    }
 
-    return status == TransferStatus.success
+    status = google_cloud_storage_transfer_job(job, func_name, gc_project_id)
+    return status
 
 
 def upload_telescope_file_list(bucket_name: str, inst_id: str, telescope_path: str, file_list: List[str]) -> List[str]:
