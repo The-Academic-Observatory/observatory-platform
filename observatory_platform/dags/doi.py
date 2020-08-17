@@ -85,18 +85,68 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval="@weekly", default_args=de
     )
 
     # Create DOIs snapshot
-    task_create_dois_snapshot = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_CREATE_DOIS_SNAPSHOT,
+    task_create_doi = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_DOI,
         provide_context=True,
-        python_callable=DoiWorkflow.create_dois_snapshot
+        python_callable=DoiWorkflow.create_doi
     )
 
-    # Link tasks
-    task_extend_grid >> task_create_dois_snapshot
-    task_aggregate_crossref_events >> task_create_dois_snapshot
-    task_aggregate_mag >> task_create_dois_snapshot
-    task_aggregate_unpaywall >> task_create_dois_snapshot
-    task_extend_crossref_funders >> task_create_dois_snapshot
-    task_aggregate_open_citations >> task_create_dois_snapshot
-    task_aggregate_wos >> task_create_dois_snapshot
-    task_aggregate_scopus >> task_create_dois_snapshot
+    # Create aggregation tables
+    task_create_country = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_country
+    )
+
+    task_create_funder = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_FUNDER,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_funder
+    )
+
+    task_create_group = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_GROUP,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_group
+    )
+
+    task_create_institution = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_INSTITUTION,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_institution
+    )
+
+    task_create_journal = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_JOURNAL,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_journal
+    )
+
+    task_create_publisher = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_PUBLISHER,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_publisher
+    )
+
+    task_create_region = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_REGION,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_region
+    )
+
+    task_create_subregion = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_SUBREGION,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_subregion
+    )
+
+    # All pre-processing tasks run at once and when finished task_create_doi runs
+    tasks_preprocessing = [task_extend_grid, task_aggregate_crossref_events, task_aggregate_mag,
+                           task_aggregate_unpaywall, task_extend_crossref_funders, task_aggregate_open_citations,
+                           task_aggregate_wos, task_aggregate_scopus]
+    tasks_preprocessing >> task_create_doi
+
+    # After task_create_doi runs all of the post-processing tasks run
+    tasks_postprocessing = [task_create_country, task_create_funder, task_create_group, task_create_institution,
+                            task_create_journal, task_create_publisher, task_create_region, task_create_subregion]
+    task_create_doi >> tasks_postprocessing

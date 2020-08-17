@@ -279,7 +279,8 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
                                      query_parameters: List[bigquery.ScalarQueryParameter] = [],
                                      partition: bool = False, partition_field: Union[None, str] = None,
                                      partition_type: str = bigquery.TimePartitioningType.DAY,
-                                     require_partition_filter=True) -> bool:
+                                     require_partition_filter=True, cluster: bool=False,
+                                     clustering_fields: List[str] = []) -> bool:
     """ Create a BigQuery dataset from a provided query.
 
     :param sql: the sql query to be executed
@@ -327,6 +328,9 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
             field=partition_field,
             require_partition_filter=require_partition_filter
         )
+
+    if cluster:
+        job_config.clustering_fields = clustering_fields
 
     query_job: QueryJob = client.query(sql, job_config=job_config)
 
