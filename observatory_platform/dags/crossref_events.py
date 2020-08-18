@@ -17,7 +17,7 @@
 from datetime import datetime
 
 from airflow import DAG
-from airflow.operators.python_operator import ShortCircuitOperator, PythonOperator
+from airflow.operators.python_operator import PythonOperator
 
 from observatory_platform.telescopes.crossref_events import CrossrefEventsTelescope
 

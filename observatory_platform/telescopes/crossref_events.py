@@ -124,7 +124,8 @@ class CrossrefEventsRelease:
     """ Used to store info on a given crossref release """
 
     def __init__(self, start_date, end_date):
-        self.url = CrossrefEventsTelescope.TELESCOPE_URL.format(start_date=start_date.strftime("%Y-%m-%d"),
+        self.url = CrossrefEventsTelescope.TELESCOPE_URL.format(mail_to=CrossrefEventsTelescope.MAILTO,
+                                                                start_date=start_date.strftime("%Y-%m-%d"),
                                                                 end_date=end_date.strftime("%Y-%m-%d"))
         self.start_date = start_date
         self.end_date = end_date
@@ -188,8 +189,9 @@ class CrossrefEventsTelescope:
     MAX_CONNECTIONS = cpu_count()
     MAX_RETRIES = 3
 
-    TELESCOPE_URL = 'https://api.eventdata.crossref.org/v1/events?mailto=aniek.roelofs@curtin.edu.au&' \
-                    'from-collected-date={start_date}&until-collected-date={end_date}&rows=10000'
+    MAILTO = 'aniek.roelofs@curtin.edu.au'
+    TELESCOPE_URL = 'https://api.eventdata.crossref.org/v1/events?mailto={mail_to}&' \
+                    'from-occurred-date={start_date}&until-occurred-date={end_date}&rows=10000'
     DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
