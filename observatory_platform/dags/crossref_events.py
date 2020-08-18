@@ -37,20 +37,12 @@ with DAG(dag_id="crossref_events", schedule_interval="@daily", default_args=defa
         queue=CrossrefEventsTelescope.QUEUE
     )
 
-    # Check that the release for this month exists
-    check_release_exists = ShortCircuitOperator(
-        task_id=CrossrefEventsTelescope.TASK_ID_CHECK_RELEASE,
-        python_callable=CrossrefEventsTelescope.check_table_exists,
-        provide_context=True,
-        queue=CrossrefEventsTelescope.QUEUE
-    )
-
     # Downloads the releases
     download = PythonOperator(
         task_id=CrossrefEventsTelescope.TASK_ID_DOWNLOAD,
         python_callable=CrossrefEventsTelescope.download,
         provide_context=True,
-        queue=CrossrefEventsTelescope.QUEUE
+        queue=CrossrefEventsTelescope.QUEUE,
     )
 
     # Upload downloaded data for a given interval
@@ -94,4 +86,4 @@ with DAG(dag_id="crossref_events", schedule_interval="@daily", default_args=defa
     )
 
     # Task dependencies
-    check >> check_release_exists >> download >> upload_downloaded >> transform >> upload_transformed >> bq_load >> cleanup
+    check >> download >> upload_downloaded >> transform >> upload_transformed >> bq_load >> cleanup
