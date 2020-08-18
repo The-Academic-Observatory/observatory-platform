@@ -162,10 +162,11 @@ def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, des
 
 def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, schema_file_path: str,
                         source_format: str, csv_field_delimiter: str = ',', csv_quote_character: str = '"',
-                        csv_allow_quoted_newlines: bool = False, csv_skip_leading_rows: int = 0,
-                        partition: bool = False, partition_field: Union[None, str] = None,
-                        partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True,
-                        write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE) -> bool:
+                        csv_allow_quoted_newlines: bool = False, csv_skip_leading_rows: int = 0, partition: bool =
+                        False, partition_field: Union[None, str] = None, partition_type: Union[None,
+                                                                                               bigquery.table.TimePartitioningType] =
+                        bigquery.TimePartitioningType.DAY, require_partition_filter=True, write_disposition: bigquery.WriteDisposition =
+                        bigquery.WriteDisposition.WRITE_TRUNCATE) -> bool:
     """ Load a BigQuery table from an object on Google Cloud Storage.
 
     :param uri: the uri of the object to load from Google Cloud Storage into BigQuery.
