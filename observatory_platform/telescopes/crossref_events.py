@@ -14,18 +14,16 @@
 
 # Author: Aniek Roelofs
 
-import glob
 import json
 import logging
 import os
 import pathlib
-import shutil
 from multiprocessing import cpu_count
 from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
+from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
-from natsort import natsorted
 
 from observatory_platform.utils.config_utils import (AirflowVar,
                                                      SubFolder,
@@ -37,8 +35,7 @@ from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,
                                                  load_bigquery_table,
-                                                 upload_file_to_cloud_storage,
-                                                 upload_files_to_cloud_storage)
+                                                 upload_file_to_cloud_storage)
 from observatory_platform.utils.url_utils import retry_session
 from tests.observatory_platform.config import test_fixtures_path
 
@@ -46,13 +43,16 @@ from tests.observatory_platform.config import test_fixtures_path
 def extract_events(url, events=None, next_cursor=None) -> list:
     if events is None:
         events = []
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/39.0.2171.95 Safari/537.36'
+    }
     if next_cursor:
         tmp_url = url + f'&cursor={next_cursor}'
     else:
         tmp_url = url
     response = retry_session().get(tmp_url, headers=headers)
-    if response is not None and response.status_code == 200:
+    if response.status_code == 200:
         response_dict = json.loads(response.text)
         new_events = response_dict['message']['events']
         next_cursor = response_dict['message']['next-cursor']
@@ -63,7 +63,7 @@ def extract_events(url, events=None, next_cursor=None) -> list:
         else:
             return events
     else:
-        raise ConnectionError(f"Error requesting url: {url}")
+        raise ConnectionError(f"Error requesting url: {url}, response: {response.text}")
 
 
 def download_release(release: 'CrossrefEventsRelease'):
@@ -172,7 +172,7 @@ def pull_release(ti: TaskInstance) -> CrossrefEventsRelease:
     """
 
     return ti.xcom_pull(key=CrossrefEventsTelescope.RELEASES_TOPIC_NAME,
-                        task_ids=CrossrefEventsTelescope.TASK_ID_CHECK_RELEASE, include_prior_dates=False)
+                        task_ids=CrossrefEventsTelescope.TASK_ID_DOWNLOAD, include_prior_dates=False)
 
 
 class CrossrefEventsTelescope:
@@ -220,46 +220,14 @@ class CrossrefEventsTelescope:
             raise AirflowException('Required variables or connections are missing')
 
     @staticmethod
-    def check_table_exists(**kwargs):
-        """ Check that the release for this month exists.
+    def download(**kwargs):
+        ti: TaskInstance = kwargs['ti']
 
-         :param kwargs: the context passed from the PythonOperator. See
-         https://airflow.apache.org/docs/stable/macros-ref.html
-         for a list of the keyword arguments that are passed to this argument.
-         :return: None.
-         """
-
-        # Get variables
-        project_id = Variable.get(AirflowVar.project_id.get())
-
-        # Construct the release for the execution date and check if it exists.
-        # The release release for a given execution_date is added on the 5th day of the following month.
-        # E.g. the 2020-05 release is added to the website on 2020-06-05.
         execution_date = kwargs['execution_date']
         next_execution_date = kwargs['next_execution_date']
-        print(f'Execution date: {execution_date}')
-        continue_dag = False
 
         release = CrossrefEventsRelease(execution_date, next_execution_date)
-        table_id = bigquery_partitioned_table_id(CrossrefEventsTelescope.DAG_ID, release.end_date)
-        logging.info('Checking if bigquery table already exists:')
-        if bigquery_table_exists(project_id, CrossrefEventsTelescope.DATASET_ID, table_id):
-            logging.info(f'Skipping as table exists for request {release.url}: '
-                         f'{project_id}.{CrossrefEventsTelescope.DATASET_ID}.{table_id}')
-        else:
-            logging.info(f"Table doesn't exist yet, processing request {release.url} in this workflow")
-            continue_dag = True
-
-        if continue_dag:
-            ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(CrossrefEventsTelescope.RELEASES_TOPIC_NAME, release, execution_date)
-        return continue_dag
-
-    @staticmethod
-    def download(**kwargs):
-        # Pull release
-        ti: TaskInstance = kwargs['ti']
-        release = pull_release(ti)
+        ti.xcom_push(CrossrefEventsTelescope.RELEASES_TOPIC_NAME, release, execution_date)
 
         download_release(release)
 
@@ -300,7 +268,6 @@ class CrossrefEventsTelescope:
 
         # Transform release
         transform_release(release)
-
 
     @staticmethod
     def upload_transformed(**kwargs):
@@ -352,9 +319,6 @@ class CrossrefEventsTelescope:
         dataset_id = CrossrefEventsTelescope.DATASET_ID
         create_bigquery_dataset(project_id, dataset_id, data_location, CrossrefEventsTelescope.DESCRIPTION)
 
-        # Load each release
-        table_id = bigquery_partitioned_table_id(CrossrefEventsTelescope.DAG_ID, release.end_date)
-
         # Select schema file based on release date
         analysis_schema_path = schema_path('telescopes')
         schema_file_path = find_schema(analysis_schema_path, CrossrefEventsTelescope.DAG_ID, release.end_date)
@@ -366,8 +330,11 @@ class CrossrefEventsTelescope:
         # Load BigQuery table
         uri = f"gs://{bucket_name}/{release.get_blob_name(SubFolder.transformed)}"
         logging.info(f"URI: {uri}")
-        load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
-                            SourceFormat.NEWLINE_DELIMITED_JSON)
+
+        load_bigquery_table(uri, dataset_id, data_location, CrossrefEventsTelescope.DAG_ID, schema_file_path,
+                            SourceFormat.NEWLINE_DELIMITED_JSON, partition=True, partition_field='occurred_at',
+                            partition_type=bigquery.TimePartitioningType.DAY, require_partition_filter=True,
+                            write_disposition=bigquery.WriteDisposition.WRITE_APPEND)
 
     @staticmethod
     def cleanup(**kwargs):
@@ -390,6 +357,6 @@ class CrossrefEventsTelescope:
             logging.warning(f"No such file or directory {release.download_path}: {e}")
 
         try:
-            shutil.rmtree(release.transform_path)
+            pathlib.Path(release.transform_path).unlink()
         except FileNotFoundError as e:
             logging.warning(f"No such file or directory {release.transform_path}: {e}")
