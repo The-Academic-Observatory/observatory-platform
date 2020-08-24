@@ -164,8 +164,8 @@ def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, des
 
 def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, schema_file_path: str,
                         source_format: str, csv_field_delimiter: str = ',', csv_quote_character: str = '"',
-                        csv_allow_quoted_newlines: bool = False, partition: bool = False,
-                        partition_field: Union[None, str] = None,
+                        csv_allow_quoted_newlines: bool = False, csv_skip_leading_rows: int = 0,
+                        partition: bool = False, partition_field: Union[None, str] = None,
                         partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True,
                         write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE) -> bool:
     """ Load a BigQuery table from an object on Google Cloud Storage.
@@ -179,6 +179,7 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     :param csv_field_delimiter: the field delimiter character for data in CSV format.
     :param csv_quote_character: the quote character for data in CSV format.
     :param csv_allow_quoted_newlines: whether to allow quoted newlines for data in CSV format.
+    :param csv_skip_leading_rows: the number of leading rows to skip for data in CSV format.
     :param partition: whether to partition the table.
     :param partition_field: the name of the partition field.
     :param partition_type: the type of partitioning.
@@ -211,6 +212,7 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
         job_config.field_delimiter = csv_field_delimiter
         job_config.quote_character = csv_quote_character
         job_config.allow_quoted_newlines = csv_allow_quoted_newlines
+        job_config.skip_leading_rows = csv_skip_leading_rows
 
     # Set partitioning settings
     if partition:

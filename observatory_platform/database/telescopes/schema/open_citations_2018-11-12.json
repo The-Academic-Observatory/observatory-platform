@@ -1,0 +1,37 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "oci",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "citing",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "cited",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "creation",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "timespan",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "journal_sc",
+    "type": "BOOLEAN"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "author_sc",
+    "type": "BOOLEAN"
+  }
+]

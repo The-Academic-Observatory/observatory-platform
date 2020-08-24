@@ -432,7 +432,7 @@ class UnpaywallTelescope:
             blob_name = f'telescopes/unpaywall/{os.path.basename(release.filepath_transform)}'
 
             # Get release_date
-            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DATASET_ID, release.release_date)
+            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, release.release_date)
 
             # Select schema file based on release date
             analysis_schema_path = schema_path('telescopes')
