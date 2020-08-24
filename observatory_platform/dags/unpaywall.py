@@ -32,7 +32,7 @@ from observatory_platform.telescopes.unpaywall import UnpaywallTelescope
 
 default_args = {
     "owner": "Airflow",
-    "start_date": datetime(2018, 4, 1)
+    "start_date": datetime(2018, 9, 7)
 }
 
 with DAG(dag_id="unpaywall", schedule_interval="@weekly", default_args=default_args) as dag:
