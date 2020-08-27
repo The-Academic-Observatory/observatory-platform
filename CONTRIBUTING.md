@@ -2,13 +2,21 @@
 Welcome to the contributing guide for the [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform)!
 We welcome contributions to the project, please see below for details about how to contribute.
 
-## Python
+## Contents
+1. [Python:](#1-python) version and code style guidelines.
+1. [Documentation:](#2-documentation) docstrings and readthedocs.org documentation.
+1. [Unit Tests:](#3-unit-tests) how to write unit tests and where to store data.
+1. [License and Copyright:](#4-license-and-copyright) what licenses are ok and not ok and how to use the automatic license checker.
+1. [Development Workflow:](#5-development-workflow) how to develop a new feature.
+1. [Deployment:](#6-deployment-maintainers-only) how to deploy the package to PyPI.
+
+## 1. Python
 The Observatory Platform is written in [Python](https://www.python.org/).
 
-### Version
+### 1.1. Version
 A minimum version of Python 3.7 is required.
 
-### Code Style
+### 1.2. Code Style
 The code style should conform to the Python [PEP 8 Style Guide for Python Code](https://www.python.org/dev/peps/pep-0008/).
 Additional code style guidelines specific to this project include:
 * Function parameters and return types should be annotated with [type hints](https://www.python.org/dev/peps/pep-0484/)
@@ -22,7 +30,9 @@ Guides for popular Python IDEs are listed below.
 * Visual Studio Code with the [Microsoft Python extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=ms-python.python): see [Linting Python in Visual Studio Code](https://code.visualstudio.com/docs/python/linting).
 * PyCharm: see [Reformat and rearrange code](https://www.jetbrains.com/help/pycharm/reformat-and-rearrange-code.html).
 
-### Documentation
+## 2. Documentation
+
+### 2.1. Python Docstrings
 Python docstrings should be written for all classes, methods and functions using the Sphinx docstring format. See the 
 Sphinx tutorial [Writing docstrings](https://sphinx-rtd-tutorial.readthedocs.io/en/latest/docstrings.html) for more 
 details. Additional documentation style guidelines specific to this project include:
@@ -35,7 +45,39 @@ AutoDocstring Settings and from the `Docstring Format` dropdown, choose `sphinx`
 explicitly specified. Click PyCharm > Preferences > Tools > Python Integrated Tools and under the Docstrings heading,
 choose `reStructedText` from the `Docstring format` dropdown.
 
-### Unit Tests
+### 2.2. Read the Docs documentation
+The Observatory Platform documentation hosted at [observatory-platform.readthedocs.io](https://observatory-platform.readthedocs.io/en/latest/)
+is built from the files in the `docs` directory.
+
+An overview of the technologies used to build the documentation:
+* Generated with [Sphinx](https://www.sphinx-doc.org/en/stable/).
+* Theme: [sphinx-rtd-theme](https://github.com/readthedocs/sphinx_rtd_theme).
+* Documentation can be written in both Markdown and ReStructuredText text. Markdown is preferred and is parsed with
+[recommonmark](https://github.com/readthedocs/recommonmark).
+* API reference documentation is automatically generated from docstrings with [sphinx-autoapi](https://github.com/readthedocs/sphinx-autoapi).
+
+The Read the Docs documentation is built automatically on every pull request and push.
+
+### 2.3. Building Documentation Locally
+Make sure that the Observatory Platform is installed with the docs requirements:
+```bash
+pip install -e .[docs]
+```
+
+Navigate to the `docs` directory:
+```bash
+cd docs
+```
+
+Build the documentation with the following command:
+```bash
+make html
+```
+
+The documentation should be generated in the `docs/_build` directory. You can open the file `docs_/build/index.html`
+in a browser to preview what the documentation will look like.
+
+## 3. Unit Tests
 Unit tests are written with the [Python unittest framework](https://docs.python.org/3/library/unittest.html).
 
 The below code snippet is an example of a simple unit test. Create a class, in this example `TestString`, which
@@ -57,15 +99,15 @@ class TestString(unittest.TestCase):
         self.assertEqual(expected, actual)
 ```
 
+### 3.1. Unit test location
 Where to put the unit tests:
 * The unit tests should be kept in the folder called `tests` at the root level of the project. The `tests` directory
 mimics the folder structure of the `observatory_platform` Python package folder. For example, as illustrated in the
-figure below, the tests for the code in the file `observatory-platform/observatory_platform/utils/ao_utils.py` are 
-contained in the file `observatory-platform/tests/observatory_platform/utils/test_ao_utils.py`. 
-* Small test datasets can be kept in the `observatory-platform/tests/data` folder, however, if the datasets are large 
-they should be stored outside of git as it will make git operations such as cloning slow.
+figure below, the tests for the code in the file `observatory-platform/observatory_platform/utils/gc_utils.py` are 
+contained in the file `observatory-platform/tests/observatory_platform/utils/test_gc_utils.py`. 
+* Test datasets should be kept in the `observatory-platform/fixtures` folder, which are stored in [Git LFS](https://git-lfs.github.com/).
 * The Python unittest framework looks for files named test*.py, so make sure to put "test_" at the start of your test
-filename. For example, the unit tests for the file `ao_utils.py` are contained in the file called `test_ao_utils.py`.
+filename. For example, the unit tests for the file `gc_utils.py` are contained in the file called `test_gc_utils.py`.
 
 An example of project and test directory structure:
 ```bash
@@ -76,7 +118,7 @@ An example of project and test directory structure:
         |-- telescopes
         |-- utils
             |-- __init__.py
-            |-- ao_utils.py
+            |-- gc_utils.py
             ...
         |-- __init__.py
     |-- tests
@@ -85,7 +127,7 @@ An example of project and test directory structure:
             |-- telescopes
             |-- utils
                 |-- __init__.py
-                |-- test_ao_utils.py
+                |-- test_gc_utils.py
                 ...
             |-- __init__.py
         |-- data
@@ -95,6 +137,15 @@ An example of project and test directory structure:
     ...
 ```
 
+### 3.2. Testing code that makes HTTP requests
+To test test code that makes HTTP requests:
+* [VCR.py](https://vcrpy.readthedocs.io/en/latest/) is used to test code that makes HTTP requests, enabling the tests 
+to work offline without calling the real endpoints. VCR.py records  the HTTP requests made by a section of code and 
+stores the results in a file called a 'cassette'. When the same section of code is run again, the HTTP requests are read 
+from the cassette, rather than calling the real endpoint.
+* Cassettes should be committed into the folder `observatory-platform/fixtures/cassettes`.
+
+### 3.3. Running unit tests
 To run the unittests from the command line, execute the following command from the root of the project, it should
 automatically discover all of the unit tests:
 ```bash
@@ -106,7 +157,7 @@ How to enable popular IDEs to run the unittests:
 PyCharm to use the unittest framework. Click PyCharm > Preferences > Tools > Python Integrated Tools and under the 
 Testing heading, choose `Unittests` from the `Default test runner` dropdown.
 
-## License and Copyright
+## 4. License and Copyright
 Contributors agree to release their source code under the Apache 2.0 license. Contributors retain their copyright.
 
 Make sure to place the license header (below) at the top of each Python file, customising the year, copyright owner 
@@ -135,26 +186,40 @@ copyright owner as well as the author.
 # Author: [name of author]
 ```
 
-### Dependencies
+### 4.1. Dependencies
 You **may** depend on a third party package if the third party package has a license from the
 [`unencumbered`](https://opensource.google/docs/thirdparty/licenses/#unencumbered), 
 [`permissive`](https://opensource.google/docs/thirdparty/licenses/#permissive),
 [`notice`](https://opensource.google/docs/thirdparty/licenses/#notice),
-[`reciprocal`](https://opensource.google/docs/thirdparty/licenses/#reciprocal) lists published by Google.
+[`reciprocal`](https://opensource.google/docs/thirdparty/licenses/#reciprocal) lists, or if the license is LGPL.
 
 You **must not** depend on any package that has a license in the 
 [`restricted`](https://opensource.google/docs/thirdparty/licenses/#restricted) or 
-[`banned`](https://opensource.google/docs/thirdparty/licenses/#banned) license lists published by Google. 
+[`banned`](https://opensource.google/docs/thirdparty/licenses/#banned) license lists (unless the license is LGPL). 
 Common examples of these licenses include, Creative Commons "Attribution-ShareAlike" (CC BY-SA), 
 Creative Commons "Attribution-NoDerivs" (CC BY-ND), the GNU GPL and the A-GPL. These licenses are incompatible with the 
 Apache 2.0 license that the Observatory Platform is released with. 
 
-### Third Party Code
+### 4.2. Dependency license checker
+The licenses of the dependencies in `requirements.txt` are checked with [liccheck](https://pypi.org/project/liccheck/)
+on each push and pull request as a part of the [Python package](https://github.com/The-Academic-Observatory/observatory-platform/actions?query=workflow%3A%22Python+package%22) Github Action.
+* The list of authorized and unauthorized licenses are documented in [strategy.ini](https://github.com/The-Academic-Observatory/observatory-platform/blob/develop/strategy.ini)
+* The `Python package` Github Action will fail if any unknown or unauthorized licenses are detected.
+* If the license checker fails: 
+  * Check the license of the dependency.
+  * If the dependency has a license that may be depended on, add the exact license text, in lower case, under 
+  `authorized_licenses` in [strategy.ini](https://github.com/The-Academic-Observatory/observatory-platform/blob/develop/strategy.ini).
+  * If liccheck could not find license information for a package, and you can manually verify that the license is OK
+  to be depended on, then add the package and version under the section `[Authorized Packages]` in [strategy.ini](https://github.com/The-Academic-Observatory/observatory-platform/blob/develop/strategy.ini)
+  along with a comment about what the license is and a URL to the license.
+  * If the dependency has a license that must not be depended on, then don't use that dependency.
+
+### 4.3. Third Party Code
 Code written by third parties (not the contributor) can be directly integrated into the project, although it is best
 avoided if possible. The requirements for integrating third party code includes:
 * The code requires one of the open source license from the [`unencumbered`](https://opensource.google/docs/thirdparty/licenses/#unencumbered), 
 [`permissive`](https://opensource.google/docs/thirdparty/licenses/#permissive) or 
-[`notice`](https://opensource.google/docs/thirdparty/licenses/#notice) lists published by Google.
+[`notice`](https://opensource.google/docs/thirdparty/licenses/#notice) lists.
 * The third party open source code should be contained in its own file and not copied into other files. You may modify
 the code in the file and make changes.
 * The license for the third party open source code must be specified at the top of the file and in the 
@@ -167,62 +232,58 @@ Common examples of these licenses include, Creative Commons "Attribution-ShareAl
 Creative Commons "Attribution-NoDerivs" (CC BY-ND), the GNU GPL and the A-GPL. These licenses are incompatible with the 
 Apache 2.0 license that the Observatory Platform is released with. 
 
-## Development Workflow
+## 5. Development Workflow
 This section explains the development workflow used in the Observatory Platform project.
 
-### Branches
+### 5.1. Branches
 The [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform) project has two main 
 branches `master` and `develop`. The `master` branch contains the most up to date version of 
 the code base running in production whilst the `develop` branch contains code that is ready to be delivered 
 in the next release. The article [A successful Git branching model](https://nvie.com/posts/a-successful-git-branching-model/)
 provides a much richer overview of this approach.
 
-### Developing a feature
+### 5.2. Developing a feature
 The general workflow for working on a feature is as follows:
-1. Fork the [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform) project onto your
-own Github profile.
-2. Create a feature branch in your fork, branching off the `develop` branch.
-3. Implement your feature.
-4. Once your feature is ready, before making your pull request, make sure to [rebase](https://help.github.com/en/github/using-git/about-git-rebase) 
-your changes onto the latest `origin/develop` commit. 
-5. Make your pull request.
-* Tag a reviewer in the pull request, so that they receive a notification and know to review it.
-* The guide on [How to write the perfect pull request](https://github.blog/2015-01-21-how-to-write-the-perfect-pull-request/)
+
+1. Clone the [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform) project locally.
+2. Create a feature branch, branching off the `develop` branch. The branch should begin with the word `feature-`.
+3. Once your feature is ready, before making your pull request, make sure to [rebase](https://help.github.com/en/github/using-git/about-git-rebase) 
+your changes onto the latest `origin/develop` commit. It is a good idea to rebase regularly. 
+4. Make your pull request:
+    * Tag a reviewer in the pull request, so that they receive a notification and know to review it.
+    * The guide on [How to write the perfect pull request](https://github.blog/2015-01-21-how-to-write-the-perfect-pull-request/)
 might be helpful.
 
 Detailed instructions on how to use Git to accomplish this process are given below.
 
 #### 1) Clone the project
-Fork the Observatory Platform project on Github.
-
-Clone your fork, with either HTTPS:
+Clone the Observatory Platform Github project, with either HTTPS:
 ```bash
-git clone https://github.com/[your Github username]/observatory-platform.git
+git clone https://github.com/The-Academic-Observatory/observatory-platform.git
 ```
 
 Or SSH (you need to setup an SSH keypair on Github for this to work):
 ```bash
-git clone git@github.com:[your Github username]/observatory-platform.git
+git clone git@github.com:The-Academic-Observatory/observatory-platform.git
 ```
 
-#### 2) Configure upstream
-Make sure your are in the working directory of the project:
+#### 2) Create a feature branch
+Checkout develop:
 ```bash
-cd observatory-platform
+git checkout -b develop origin/develop
 ```
 
-Add the main Observatory Platform repository as upstream with either HTTPS:
+Then, create a new feature branch from develop:
 ```bash
-git remote add upstream https://github.com/The-Academic-Observatory/observatory-platform.git
-```
+git checkout -b <your-feature-name>
+``` 
 
-Or SSH:
-```bash
-git remote add upstream git@github.com:The-Academic-Observatory/observatory-platform.git
-```
+#### 3) Rebase
 
-#### 3) Sync your fork
-Fetch the latest changes from origin and upstream:
+##### 3.1) Sync develop
+Before rebasing, make sure that you have the latest changes from the origin develop branch.
+
+Fetch the latest changes from origin:
 ```bash
 git fetch --all
 ```
@@ -241,18 +302,7 @@ Git should just need to fast forward the changes, because we make our changes fr
 
 See more details on the [Syncing a fork](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/syncing-a-fork) Github page. 
 
-#### 4) Create a feature branch
-Checkout develop:
-```bash
-git checkout -b develop origin/develop
-```
-
-Then, create a new feature branch from develop:
-```bash
-git checkout -b <your-feature-name>
-``` 
-
-#### 5) Rebase
+##### 3.2) Rebase feature branch
 Checkout your feature branch:
 ```bash
 git checkout <your-feature-name>
@@ -263,14 +313,13 @@ Rebase your feature branch (the branch currently checked out) onto develop.
 git rebase -i develop
 ```
 
-## Deployment (Maintainers Only)
-This section contains information about how to deploy the project to PyPI and how to 
-deploy updated documentation to Read the Docs (coming).
+## 6. Deployment (Maintainers Only)
+This section contains information about how to deploy the project to PyPI.
 
-### Deploy to PyPI
+### 6.1 Deploy to PyPI
 Follow the instructions below to deploy the package to [PyPI](https://pypi.org/).
 
-#### 1) Update setup.py and release on Github
+#### 6.1.1. Update setup.py and release on Github
 In `setup.py` update `version` and `download_url` with the latest version number and the latest Github release download 
 URL respectively:
 ```python
@@ -282,7 +331,7 @@ setup(
 
 Commit these changes, push and make a new release on Github.
 
-#### 2) Build the package
+#### 6.1.2. Build the package
 Enter the package folder:
 ```bash
 cd observatory-platform
@@ -298,7 +347,7 @@ Create a source distribution for the package:
 python3 setup.py sdist
 ```
 
-#### 3) Upload to PyPI
+#### 6.1.3. Upload to PyPI
 Install twine, which we will use to upload the release to [PyPI](https://pypi.org/):
 ```bash
 pip3 install twine
@@ -309,31 +358,3 @@ Use twine to upload the release to [PyPI](https://pypi.org/):
 twine upload dist/*
 ```
 
-### Build Documentation
-This section explains how to build and deploy the documentation, which is contained in the `docs` directory.
-
-Overview of the documentation:
-* Generated with [Sphinx](https://www.sphinx-doc.org/en/stable/).
-* Theme: [sphinx-rtd-theme](https://github.com/readthedocs/sphinx_rtd_theme).
-* Documentation can be written in both Markdown and ReStructuredText text. Markdown is preferred and is parsed with
-[recommonmark](https://github.com/readthedocs/recommonmark).
-* API reference documentation is automatically generated from docstrings with [sphinx-autoapi](https://github.com/readthedocs/sphinx-autoapi).
-
-#### Building documentation
-Make sure that the Observatory Platform is installed with the docs requirements:
-```bash
-pip install -e .[docs]
-```
-
-Navigate to the `docs` directory:
-```bash
-cd docs
-```
-
-Build the documentation with the following command:
-```bash
-make html
-```
-
-The documentation should be generated in the `docs/_build` directory. You can open the file `docs_/build/index.html`
-in a browser to preview what the documentation will look like.
