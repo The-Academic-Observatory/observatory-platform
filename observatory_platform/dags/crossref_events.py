@@ -33,7 +33,6 @@ with DAG(dag_id="crossref_events", schedule_interval="@daily", default_args=defa
     check = PythonOperator(
         task_id=CrossrefEventsTelescope.TASK_ID_CHECK_DEPENDENCIES,
         python_callable=CrossrefEventsTelescope.check_dependencies,
-        provide_context=True,
         queue=CrossrefEventsTelescope.QUEUE
     )
 
