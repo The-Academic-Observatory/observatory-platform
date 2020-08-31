@@ -31,9 +31,7 @@ from observatory_platform.utils.config_utils import (AirflowVar,
                                                      find_schema,
                                                      schema_path,
                                                      telescope_path)
-from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
-                                                 bigquery_table_exists,
-                                                 create_bigquery_dataset,
+from observatory_platform.utils.gc_utils import (create_bigquery_dataset,
                                                  load_bigquery_table,
                                                  upload_file_to_cloud_storage)
 from observatory_platform.utils.url_utils import retry_session
@@ -104,20 +102,6 @@ def change_keys(obj, convert):
     else:
         return obj
     return new
-
-
-def transform_release(release: 'CrossrefEventsRelease'):
-    r""" Transform Crossref Metadata file.
-
-    :return: whether the transformation was successful or not.
-    """
-
-    with open(release.download_path, 'r') as json_download, open(release.transform_path, 'w') as json_transform:
-        events = json.load(json_download)
-        for event in events:
-            event_updated = change_keys(event, convert)
-            json_transform.write(json.dumps(event_updated))
-            json_transform.write('\n')
 
 
 class CrossrefEventsRelease:
@@ -191,7 +175,7 @@ class CrossrefEventsTelescope:
 
     MAILTO = 'aniek.roelofs@curtin.edu.au'
     TELESCOPE_URL = 'https://api.eventdata.crossref.org/v1/events?mailto={mail_to}&' \
-                    'from-occurred-date={start_date}&until-occurred-date={end_date}&rows=10000'
+                    'from-collected-date={start_date}&until-collected-date={end_date}&rows=10000'
     DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
@@ -205,7 +189,7 @@ class CrossrefEventsTelescope:
     TASK_ID_CLEANUP = f"cleanup"
 
     @staticmethod
-    def check_dependencies(**kwargs):
+    def check_dependencies():
         """ Check that all variables exist that are required to run the DAG.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -268,8 +252,13 @@ class CrossrefEventsTelescope:
         ti: TaskInstance = kwargs['ti']
         release = pull_release(ti)
 
-        # Transform release
-        transform_release(release)
+        # transform release
+        with open(release.download_path, 'r') as json_download, open(release.transform_path, 'w') as json_transform:
+            events = json.load(json_download)
+            for event in events:
+                event_updated = change_keys(event, convert)
+                json_transform.write(json.dumps(event_updated))
+                json_transform.write('\n')
 
     @staticmethod
     def upload_transformed(**kwargs):
@@ -334,7 +323,7 @@ class CrossrefEventsTelescope:
         logging.info(f"URI: {uri}")
 
         load_bigquery_table(uri, dataset_id, data_location, CrossrefEventsTelescope.DAG_ID, schema_file_path,
-                            SourceFormat.NEWLINE_DELIMITED_JSON, partition=True, partition_field='occurred_at',
+                            SourceFormat.NEWLINE_DELIMITED_JSON, partition=True, partition_field='timestamp',
                             partition_type=bigquery.TimePartitioningType.DAY, require_partition_filter=True,
                             write_disposition=bigquery.WriteDisposition.WRITE_APPEND)
 

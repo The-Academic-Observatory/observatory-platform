@@ -43,7 +43,7 @@
   },
   {
     "description": "Unique ID that identifies the Agent that generated the Event.",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "name": "source_token",
     "type": "STRING"
   },
