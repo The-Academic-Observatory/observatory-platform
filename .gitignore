@@ -14,3 +14,4 @@ config.yaml
 .coverage
 coverage.xml
 config_terraform.yaml
+*.pyc
