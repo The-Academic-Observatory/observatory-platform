@@ -9,5 +9,6 @@ Datasets
     provider_mag/index
     provider_unpaywall/index
     provider_wos/index
+    provider_scopus/index
 
 
