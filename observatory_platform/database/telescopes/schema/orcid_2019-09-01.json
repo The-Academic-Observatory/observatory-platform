@@ -1,0 +1,1279 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "path",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "common_orcid_identifier",
+    "type": "RECORD",
+    "description": "The ORCID iD",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "common_uri",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_path",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_host",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "preferences_preferences",
+    "type": "RECORD",
+    "description": "The preferences section records the language the user selected when viewing their ORCID record. The languages are listed in ISO 639-1 Code, with the exception of Chinese: Simplified is zh_CN, and traditional is zh_TW.",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "preferences_locale",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "history_history",
+    "type": "RECORD",
+    "description": "The history section has information about the creation and state of the record",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "history_creation_method",
+        "type": "STRING",
+        "description": "How the record was created. The options are \"Direct\" or \"Website\" - when a user signed up for the record directly at https://orcid.org/register; \"Member-referred\" - when the user was sent to the ORCID OAuth registration page by a client integration and signed up as part of granting authorization; or \"API\" - when the record was created on behalf of the researcher by their institution (The API create process is no longer supported by ORCID)"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "history_creation_date",
+        "type": "TIMESTAMP",
+        "description": "This field is only on records that were created using the API on behalf of the researcher by their institution; it is the date the institution created the record."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "history_submission_date",
+        "type": "TIMESTAMP",
+        "description": "The date the record was created by the user if the creation method is Direct, Website, or Member-referred, or if the creation method is API; it is the date the researcher claimed the record."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "history_claimed",
+        "type": "BOOLEAN",
+        "description": "Shows that the record has been claimed by the researcher. All records created by the researcher will have this field set to true. Only records created by an institution for a researcher and which have not been accessed by the researcher will have the claimed status set to false."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "history_verified_email",
+        "type": "BOOLEAN",
+        "description": "If any email address on the record has been verified, this will be set to true (to verify an email address the user must prove they have access to that email address inbox by following a link sent to them)."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "history_verified_primary_email",
+        "type": "BOOLEAN",
+        "description": "If the primary email address on the record has been verified."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_last_modified_date",
+        "type": "TIMESTAMP"
+      }
+    ]
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "person_person",
+    "type": "RECORD",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "common_last_modified_date",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "path",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "person_name",
+        "type": "RECORD",
+        "description": "The given-names, family-name and credit-name are the names the researcher goes by, and can only be edited by the researcher (which is why no source information is returned in this section). While given-names is a required field on all records, this section can be set to private by the researcher.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_created_date",
+            "type": "TIMESTAMP"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_last_modified_date",
+            "type": "TIMESTAMP"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "personal_details_given_names",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "personal_details_family_name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "personal_details_credit_name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "path",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "visibility",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "other_name_other_names",
+        "type": "RECORD",
+        "description": "Other names is a repeatable field to capture other names the researcher may be known by.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_last_modified_date",
+            "type": "TIMESTAMP"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "path",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "other_name_other_name",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "other_name_content",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "put_code",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_last_modified_date",
+                "type": "TIMESTAMP"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "display_index",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "path",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "visibility",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_created_date",
+                "type": "TIMESTAMP"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_source",
+                "type": "RECORD",
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "common_source_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "common_source_orcid",
+                    "type": "RECORD",
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_uri",
+                        "type": "STRING"
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_path",
+                        "type": "STRING"
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_host",
+                        "type": "STRING"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "person_biography",
+        "type": "RECORD",
+        "description": "The biography field is non-repeatable and can only be edited by the researcher. Since only the researcher can edit this field, no source information is included.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_created_date",
+            "type": "TIMESTAMP"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_last_modified_date",
+            "type": "TIMESTAMP"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "personal_details_content",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "path",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "visibility",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "researcher_url_researcher_urls",
+        "type": "RECORD",
+        "description": "Researcher URLs (labeled as websites on the record) link to other webpages about the researcher. Each webpage has a url tag, which is the link to the webpage itself, and an optional url-name tag.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_last_modified_date",
+            "type": "TIMESTAMP"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "path",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "researcher_url_researcher_url",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "researcher_url_url",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "researcher_url_url_name",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_source",
+                "type": "RECORD",
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "common_source_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "common_source_client_id",
+                    "type": "RECORD",
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_host",
+                        "type": "STRING"
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_path",
+                        "type": "STRING"
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_uri",
+                        "type": "STRING"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_last_modified_date",
+                "type": "TIMESTAMP"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "display_index",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "path",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "visibility",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_created_date",
+                "type": "TIMESTAMP"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "put_code",
+                "type": "INTEGER"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "email_emails",
+        "type": "RECORD",
+        "description": "Email addresses can only be edited by the researcher. Keep in mind that email addresses default to private and most users do not change that status, so often when reading a record an email address will not be returned.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "email_email",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_created_date",
+                "type": "TIMESTAMP"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "email_email",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "primary",
+                "type": "BOOLEAN"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_source",
+                "type": "RECORD",
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "common_source_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "common_source_orcid",
+                    "type": "RECORD",
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_host",
+                        "type": "STRING"
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_path",
+                        "type": "STRING"
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_uri",
+                        "type": "STRING"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "verified",
+                "type": "BOOLEAN"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_last_modified_date",
+                "type": "TIMESTAMP"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "visibility",
+                "type": "STRING"
+              }
+            ]
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_last_modified_date",
+            "type": "TIMESTAMP"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "path",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "address_addresses",
+        "type": "RECORD",
+        "description": "The address field records countries or regions that the researcher works or has worked in. The countries are returned in ISO 3166-1 alpha-2 format.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_last_modified_date",
+            "type": "TIMESTAMP"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "path",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "address_address",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_last_modified_date",
+                "type": "TIMESTAMP"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "address_country",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "display_index",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "path",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "visibility",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_created_date",
+                "type": "TIMESTAMP"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "put_code",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_source",
+                "type": "RECORD",
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "common_source_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "common_source_orcid",
+                    "type": "RECORD",
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_host",
+                        "type": "STRING"
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_path",
+                        "type": "STRING"
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "common_uri",
+                        "type": "STRING"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "keyword_keywords",
+        "type": "RECORD",
+        "description": "The keywords sections is for words and phrases that describe the areas of study the researchers works in.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "path",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "external_identifier_external_identifiers",
+        "type": "RECORD",
+        "description": "Person external identifiers record identifiers and links to the researcher in other systems. Like all identifiers, the personal external identifier is described using the for tags: type, value, url, and relationship, however, personal identifiers should always have the relationship set to \"self.\" The researcher cannot add external identifiers to the record manually, they must be added by a client integration using the API.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "path",
+            "type": "STRING"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "mode": "REPEATED",
+    "name": "education_education",
+    "type": "RECORD",
+    "description": "The education section records where a researcher went to school. It uses the same fields as the Employment section: department-name and role-title for specific information about the area the researcher studied and what degree the education lead to, the common date tags to identify when the researcher was affiliated with this organization, and the organization tags to identify the education institution.",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "common_start_date",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_day",
+            "type": "INTEGER"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_month",
+            "type": "INTEGER"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_year",
+            "type": "INTEGER"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_last_modified_date",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "visibility",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "path",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "education_role_title",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_created_date",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "education_department_name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "put_code",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_source",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_source_name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_source_orcid",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_host",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_path",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_uri",
+                "type": "STRING"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "education_organization",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_address",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_country",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_city",
+                "type": "STRING"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "mode": "REPEATED",
+    "name": "employment_employment",
+    "type": "RECORD",
+    "description": "The employment section records where the researcher has been employed. It uses the same fields as the education section: department-name and role-title for specific information about the department the researcher worked in and their role, the common date tags to identify when the researcher was affiliated with this organization, and the organization tags to identify the education institution.",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "common_start_date",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_day",
+            "type": "INTEGER"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_month",
+            "type": "INTEGER"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_year",
+            "type": "INTEGER"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_last_modified_date",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "visibility",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "path",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "employment_role_title",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_created_date",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "employment_department_name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "put_code",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_source",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_source_name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_source_orcid",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_host",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_path",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_uri",
+                "type": "STRING"
+              }
+            ]
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_source_client_id",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_host",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_path",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_uri",
+                "type": "STRING"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "employment_organization",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_address",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_country",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_city",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_region",
+                "type": "STRING"
+              }
+            ]
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_disambiguated_organization",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_disambiguation_source",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_disambiguated_organization_identifier",
+                "type": "INTEGER"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "mode": "REPEATED",
+    "name": "peer_review_peer_review",
+    "type": "RECORD",
+    "description": "The peer review section of the record captures the researcher's review and service activity. As with funding and works, peer review items are grouped together using the group tag. The group can be a journal, publisher, or organization and is assigned when the peer review item is added to ORCID. Peer review items can only be added by the API; the user is not able to enter new items in this section. Not all details of a peer review item are returned when reading an entire record; to get the details of a particular item, >use the put code to call it individually.",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "common_last_modified_date",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "put_code",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "path",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "peer_review_review_type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_created_date",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "visibility",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "peer_review_reviewer_role",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "peer_review_review_group_id",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "peer_review_review_completion_date",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_year",
+            "type": "INTEGER"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "peer_review_review_identifiers",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_external_id",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_external_id_relationship",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_external_id_url",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_external_id_value",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_external_id_type",
+                "type": "STRING"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "peer_review_convening_organization",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_address",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_country",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_region",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_city",
+                "type": "STRING"
+              }
+            ]
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_name",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_source",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_source_name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_source_client_id",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_host",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_path",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_uri",
+                "type": "STRING"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "mode": "REPEATED",
+    "name": "work_work",
+    "type": "RECORD",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "work_short_description",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_language_code",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "work_contributors",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "REPEATED",
+            "name": "work_contributor",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_contributor_orcid",
+                "type": "RECORD",
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "common_path",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "common_uri",
+                    "type": "STRING"
+                  }
+                ]
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "work_contributor_role",
+                    "type": "STRING"
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "work_contributor_attributes",
+                "type": "RECORD"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "work_credit_name",
+                "type": "STRING"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_external_ids",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "REPEATED",
+            "name": "common_external_id",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_external_id_relationship",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_external_id_url",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_external_id_value",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_external_id_type",
+                "type": "STRING"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "work_journal_title",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "work_url",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "work_type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_source",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_source_name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_source_client_id",
+            "type": "RECORD",
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "common_host",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_path",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "common_uri",
+                "type": "STRING"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_last_modified_date",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "work_title",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_subtitle",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_title",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "work_citation",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "work_citation_value",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "work_citation_type",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "visibility",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "put_code",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "path",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_created_date",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "common_publication_date",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "common_day",
+            "type": "INTEGER"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_month",
+            "type": "INTEGER"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "common_year",
+            "type": "INTEGER"
+          }
+        ]
+      }
+    ]
+  }
+]

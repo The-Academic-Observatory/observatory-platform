@@ -437,6 +437,15 @@ class AirflowConn(Enum):
         }
     }
 
+    orcid = {
+        'name': 'orcid',
+        'default': 'aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@',
+        'schema': {
+            'type': 'string',
+            'required': False
+        }
+    }
+
     def get(self):
         """Method to slightly shorten way to get name"""
         return self.value['name']
