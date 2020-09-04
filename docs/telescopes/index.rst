@@ -10,3 +10,4 @@ Telecopes
     mag
     unpaywall
     terraform
+    wos
