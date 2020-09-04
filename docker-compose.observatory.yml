@@ -93,6 +93,27 @@ services:
       - google_application_credentials.json
     command: worker -q remote_queue
 
+  elasticsearch:
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.9.0"
+    restart: always
+    volumes:
+      - "${HOST_DATA_PATH}/elastic:/usr/share/elasticsearch/data"
+      - "${HOST_PACKAGE_PATH}/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
+    ports:
+      - 9200:9200
+    networks:
+      - observatory-network
+    environment:
+      - discovery.type=single-node
+
+  kibana:
+    image: "docker.elastic.co/kibana/kibana:7.9.0"
+    restart: always
+    ports:
+      - 5601:5601
+    networks:
+      - observatory-network
+
   postgres:
     image: postgres:12.2
     environment:

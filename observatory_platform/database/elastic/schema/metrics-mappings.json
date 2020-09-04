@@ -1,0 +1,130 @@
+{
+  "mappings": {
+    "properties": {
+      "id": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "name": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "country": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "country_code": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "region": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "subregion": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "coordinates": {
+        "type": "geo_point"
+      },
+      "published_year": {
+        "type": "date",
+        "format": "yyyy-MM-dd"
+      },
+      "total": {
+        "type": "long"
+      },
+      "oa": {
+        "type": "long"
+      },
+      "not_oa": {
+        "type": "long"
+      },
+      "green": {
+        "type": "long"
+      },
+      "gold": {
+        "type": "long"
+      },
+      "hybrid": {
+        "type": "long"
+      },
+      "bronze": {
+        "type": "long"
+      },
+      "green_only": {
+        "type": "long"
+      },
+      "gold_just_doaj": {
+        "type": "long"
+      },
+      "percent_oa": {
+        "type": "double"
+      },
+      "percent_green": {
+        "type": "double"
+      },
+      "percent_green_only": {
+        "type": "double"
+      },
+      "percent_gold": {
+        "type": "double"
+      },
+      "percent_gold_doaj": {
+        "type": "double"
+      },
+      "percent_hybrid": {
+        "type": "double"
+      },
+      "percent_bronze": {
+        "type": "double"
+      },
+      "total_citations": {
+        "type": "long"
+      },
+      "citations_per_article": {
+        "type": "double"
+      },
+      "articles_with_citations": {
+        "type": "long"
+      },
+      "articles_without_citations": {
+        "type": "long"
+      },
+      "citations_per_cited_article": {
+        "type": "double"
+      }
+    }
+  }
+}

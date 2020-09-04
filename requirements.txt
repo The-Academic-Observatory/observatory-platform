@@ -29,3 +29,5 @@ jupyter==1.0.*
 vcrpy==4.0.*
 azure-storage-blob==12.3.*
 httpretty==1.0.*
+elasticsearch
+json_lines
