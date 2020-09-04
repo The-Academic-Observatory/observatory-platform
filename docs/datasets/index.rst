@@ -11,4 +11,3 @@ Datasets
     provider_wos/index
     provider_scopus/index
 
-
