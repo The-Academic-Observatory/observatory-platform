@@ -1,0 +1,50 @@
+{# Copyright 2020 Curtin University.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Authors: James Diprose, Richard Hosking #}
+
+SELECT
+  id,
+  name,
+  country,
+  country_code,
+  region,
+  subregion,
+  coordinates,
+  DATE(year.published_year, 12, 31) AS published_year,
+  year.metrics.total,
+  year.metrics.oa,
+  year.metrics.total - year.metrics.oa AS not_oa,
+  year.metrics.green,
+  year.metrics.gold,
+  year.metrics.hybrid,
+  year.metrics.bronze,
+  year.metrics.green_only,
+  year.metrics.gold_just_doaj,
+  year.metrics.percent_OA AS percent_oa,
+  year.metrics.percent_green,
+  year.metrics.percent_green_only,
+  year.metrics.percent_gold,
+  year.metrics.percent_gold_doaj,
+  year.metrics.percent_hybrid,
+  year.metrics.percent_bronze,
+  year.metrics.total_citations,
+  year.metrics.citations_per_article,
+  year.metrics.articles_with_citations,
+  year.metrics.articles_without_citations,
+  year.metrics.citations_per_citated_article as citations_per_cited_article
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}`,
+  UNNEST(years) AS year
+ORDER BY id, published_year ASC
