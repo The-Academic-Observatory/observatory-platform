@@ -1,18 +1,8 @@
 # WOS (Web of science)
 
-The DAG will be a slight modification of the snapshot data source DAGs.  DAGs will be dynamically generated for each institution. Each dynamically generated DAG will be similar to the snapshot DAGs and offload the work to a Telescope class.
+It will follow general ETL design pattern of the other DAGs.  SubDAGs will be used for each step requiring per institution handling. SubDAGs might be taskgroups in the future once Airflow 2.0 lands.
 
-
-## Dag naming
-
-A dynamic dag will be generated with name:
-```
-wos_<institution>_<optional attributes>
-```
-e.g.,
-```
-wos_curtin
-```
+The DAG will check for any connection id entries for institutions where we want to pull.  Each institution must have access credentials, and entries will be pulled from the specified start date in the connection id to the start date of the dag.
 
 
 ## Connection id
@@ -31,25 +21,11 @@ wos_curtin
 ```
 
 
-### Attributes / extra fields
+### Connection id attributes
 ```
-username: (if relevant)
-password: (if relevant)
+username: for the institution
+password: for the institution
 start_date:  Python pendulum or datetime parseable date string
-```
-
-At some point it might be worthwhile to programmatically determine the optimal date ranges to minimise API calls.
-
-
-## DAG definition
-
-There will be a slight difference compared to the snapshot DAGs. It will query Airflow for a list of connection ids relevant to this particular data source, e.g., wos_curtin, wos_auckland, etc. A dynamically generated DAG will be used for each institution.
-
-The template for the dynamically generated DAGs will follow the pattern in the snapshot DAG, where the heavy lifting is done by Telescope classes.
-
-Listing airflow connections can be done with
-```python
-session.query(Connection)
 ```
 
 
@@ -66,7 +42,8 @@ See if http://scientific.thomsonreuters.com is contactable.
 
 ## download_data
 
-From the start date til the most recently completed month, pull data from the data source using an adapted version of Richard’s code, and append to a file on GC containing a list of json responses. Not sure if you want timing information like you did before.
+This will be a subDAG to handle institution downloads separately. It will pull the full record from the specified start date in the connection id, to the start date of the DAG. This will be chunked into monthly blocks.  Some throttling and retry mechanisms will be baked into the code to obey the following limits.
+
 ***Obey the bandwidth limits:***
 
 _Web of science bandwidth limits_
@@ -76,20 +53,10 @@ New session creation: 5 per 5-min period.
   * Cited references: 100 max per article.
   * Max records retrievable in period: licence dependent. Unclear what Curtin’s limit is if any.
 
-Use Airflow params:
-```python
-retries=2
-retry_delay=timedelta(minutes=15) # Does pendulum.duration work too?
-```
-
-Since all download is lumped into 1 task, the task would need to have retry and delay code baked into it.
-
-***ALTERNATIVELY***, dynamically generate tasks for each query. One benefit is being able to leverage Airflow’s parameters to do retries, but would create a massive amount of download tasks and an unwieldly looking DAG.
-
 
 ## transform_data
 
-Transform list of json into jsonlines
+Transform list of json into jsonlines and gzip the data.
 
 
 ## upload_transformed_data
