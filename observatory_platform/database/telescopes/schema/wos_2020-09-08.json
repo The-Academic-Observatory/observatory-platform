@@ -1,0 +1,247 @@
+[
+  {
+    "description": "Start date in airflow",
+    "mode": "REQUIRED",
+    "name": "release_date",
+    "type": "DATE"
+  },
+  {
+    "description": "Timestamp of when it was pulled",
+    "mode": "REQUIRED",
+    "name": "harvest_datetime",
+    "type": "DATETIME"
+  },
+  {
+    "description": "Document identifiers",
+    "fields": [
+      {
+        "description": "WOS UID",
+        "name": "uid",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "name": "issn",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "name": "eissn",
+        "type": "STRING"
+      },
+      {
+        "name": "isbn",
+        "type": "STRING"
+      },
+      {
+        "name": "eisbn",
+        "type": "STRING"
+      },
+      {
+        "name": "art_no",
+        "type": "STRING"
+      },
+      {
+        "name": "meeting_abs",
+        "type": "STRING"
+      },
+      {
+        "name": "xref_doi",
+        "type": "STRING"
+      },
+      {
+        "name": "parent_book_doi",
+        "type": "STRING"
+      },
+      {
+        "name": "doi",
+        "type": "STRING"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "identifiers",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "name": "sort_date",
+        "type": "DATE"
+      },
+      {
+        "description": "Type of publication, e.g., journal",
+        "name": "pub_type",
+        "type": "STRING"
+      },
+      {
+        "description": "Number of pages",
+        "name": "page_count",
+        "type": "STRING"
+      },
+      {
+        "description": "Source name, e.g., journal name",
+        "name": "source",
+        "type": "STRING"
+      },
+      {
+        "description": "Type of document, e.g., article",
+        "name": "doc_type",
+        "type": "STRING"
+      },
+      {
+        "description": "Publisher name",
+        "name": "publisher",
+        "type": "STRING"
+      },
+      {
+        "description": "City of publisher",
+        "name": "publisher_city",
+        "type": "STRING"
+      }
+    ],
+    "name": "pub_info",
+    "type": "RECORD"
+  },
+  {
+    "name": "title",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "description": "Order in which names appear",
+        "name": "seq_no",
+        "type": "STRING"
+      },
+      {
+        "description": "Author, etc",
+        "name": "role",
+        "type": "STRING"
+      },
+      {
+        "name": "first_name",
+        "type": "STRING"
+      },
+      {
+        "name": "last_name",
+        "type": "STRING"
+      },
+      {
+        "description": "LastName, FirstName",
+        "name": "full_name",
+        "type": "STRING"
+      },
+      {
+        "description": "WOS standard name",
+        "name": "wos_standard",
+        "type": "STRING"
+      },
+      {
+        "description": "WOS author identifier",
+        "name": "daisng_id",
+        "type": "STRING"
+      },
+      {
+        "description": "ORCID ID",
+        "name": "orcid",
+        "type": "STRING"
+      },
+      {
+        "description": "WOS researcher id",
+        "name": "r_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Associated organisation",
+        "name": "org",
+        "type": "STRING"
+      },
+      {
+        "description": "Associated suborganisation",
+        "name": "suborg",
+        "type": "STRING"
+      },
+      {
+        "description": "Associated organisation city",
+        "name": "city",
+        "type": "STRING"
+      },
+      {
+        "description": "Associated organisation state",
+        "name": "state",
+        "type": "STRING"
+      },
+      {
+        "description": "Associated organisation country",
+        "name": "country",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "names",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "name": "type",
+        "type": "STRING"
+      },
+      {
+        "name": "name",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "languages",
+    "type": "RECORD"
+  },
+  {
+    "description": "References count",
+    "name": "ref_count",
+    "type": "INTEGER"
+  },
+  {
+    "name": "abstract",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "keyword",
+    "type": "STRING"
+  },
+  {
+    "name": "conference",
+    "type": "STRING"
+  },
+  {
+    "name": "conference_id",
+    "type": "INTEGER"
+  },
+  {
+    "fields": [
+      {
+        "name": "text",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "name": "name",
+            "type": "STRING"
+          },
+          {
+            "mode": "REPEATED",
+            "name": "grant_id",
+            "type": "INTEGER"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "agency",
+        "type": "RECORD"
+      }
+    ],
+    "name": "fund_ack",
+    "type": "RECORD"
+  }
+]
