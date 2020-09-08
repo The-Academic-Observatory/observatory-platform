@@ -49,26 +49,42 @@ class File:
     name: str
     download_url: str
     md5hash: str
+    parent: 'OpenCitationsRelease' = None
+
+    @property
+    def download_blob_name(self):
+        return f'telescopes/{OpenCitationsTelescope.DAG_ID}/{self.parent.release_name}/{self.name}'
 
 
-@dataclass
 class OpenCitationsRelease:
     release_date: Pendulum
     files: List[File]
 
+    def __init__(self, release_date: Pendulum, files: List[File]):
+        self.release_date = release_date
+        self.files = files
+
+        # Add parent release to files
+        for file in self.files:
+            file.parent = self
+
     @property
-    def release_name(self):
+    def release_name(self) -> str:
         return f'{OpenCitationsTelescope.DAG_ID}_{self.release_date.strftime("%Y_%m_%d")}'
 
     @property
-    def download_path(self):
+    def download_path(self) -> str:
         return os.path.join(telescope_path(SubFolder.downloaded, OpenCitationsTelescope.DAG_ID),
                             self.release_name)
 
     @property
-    def extract_path(self):
+    def extract_path(self) -> str:
         return os.path.join(telescope_path(SubFolder.extracted, OpenCitationsTelescope.DAG_ID),
                             self.release_name)
+
+    @property
+    def transformed_blob_path(self) -> str:
+        return f'telescopes/{OpenCitationsTelescope.DAG_ID}/{self.release_name}/*.csv'
 
 
 def list_open_citations_releases(start_date: Pendulum = None,
@@ -224,7 +240,7 @@ class OpenCitationsTelescope:
         for release in releases:
             for file in release.files:
                 file_path = os.path.join(release.download_path, file.name)
-                blob_name = f'telescopes/{OpenCitationsTelescope.DAG_ID}/{release.release_name}/{file.name}'
+                blob_name = file.download_blob_name
                 file_paths.append(file_path)
                 blob_names.append(blob_name)
 
@@ -338,7 +354,7 @@ class OpenCitationsTelescope:
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table
-            uri = f"gs://{bucket_name}/telescopes/{OpenCitationsTelescope.DAG_ID}/{release.release_name}/*.csv"
+            uri = f"gs://{bucket_name}/{release.transformed_blob_path}"
             logging.info(f"URI: {uri}")
             load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path, SourceFormat.CSV,
                                 csv_field_delimiter=',', csv_quote_character='"', csv_skip_leading_rows=1,
