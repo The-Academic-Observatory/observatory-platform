@@ -276,12 +276,32 @@ def run_bigquery_query(query: str) -> List:
     return list(rows)
 
 
+def copy_table(source_table_id: str, destination_table_id: str, data_location: str) -> bool:
+    client = bigquery.Client()
+    job_config = bigquery.CopyJobConfig()
+    job_config.write_disposition = "WRITE_TRUNCATE"
+    job = client.copy_table(source_table_id, destination_table_id, location=data_location, job_config=job_config)
+    result = job.result()
+    return result.done()
+
+
+def create_view(project_id: str, dataset_id: str, view_name: str, query: str) -> bool:
+    client = bigquery.Client()
+    dataset = bigquery.DatasetReference(project_id, dataset_id)
+    view_ref = dataset.table(view_name)
+    view = bigquery.Table(view_ref)
+    view.view_query = query
+    view = client.create_table(view)
+    print(f'create_view results: {view}')
+    return True
+
+
 def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str,
                                      description: str = '', labels: dict = {},
                                      query_parameters: List[bigquery.ScalarQueryParameter] = [],
                                      partition: bool = False, partition_field: Union[None, str] = None,
                                      partition_type: str = bigquery.TimePartitioningType.DAY,
-                                     require_partition_filter=True, cluster: bool=False,
+                                     require_partition_filter=True, cluster: bool = False,
                                      clustering_fields: List[str] = []) -> bool:
     """ Create a BigQuery dataset from a provided query.
 

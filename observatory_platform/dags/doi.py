@@ -27,7 +27,14 @@ default_args = {
     "start_date": datetime(2020, 8, 1)
 }
 
-with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval="@weekly", default_args=default_args) as dag:
+with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval=None, default_args=default_args, catchup=False) as dag:
+    # Create datasets
+    task_create_datasets = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_DATASETS,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_datasets
+    )
+
     # Extend GRID with iso3166 and home repos
     task_extend_grid = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_EXTEND_GRID,
@@ -140,13 +147,25 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval="@weekly", default_args=de
         python_callable=DoiWorkflow.create_subregion
     )
 
+    task_copy_tables = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_COPY_TABLES,
+        provide_context=True,
+        python_callable=DoiWorkflow.copy_tables
+    )
+
+    task_create_views = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_VIEWS,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_views
+    )
+
     # All pre-processing tasks run at once and when finished task_create_doi runs
     tasks_preprocessing = [task_extend_grid, task_aggregate_crossref_events, task_aggregate_mag,
                            task_aggregate_unpaywall, task_extend_crossref_funders, task_aggregate_open_citations,
                            task_aggregate_wos, task_aggregate_scopus]
-    tasks_preprocessing >> task_create_doi
+    task_create_datasets >> tasks_preprocessing >> task_create_doi
 
     # After task_create_doi runs all of the post-processing tasks run
     tasks_postprocessing = [task_create_country, task_create_funder, task_create_group, task_create_institution,
                             task_create_journal, task_create_publisher, task_create_region, task_create_subregion]
-    task_create_doi >> tasks_postprocessing
+    task_create_doi >> tasks_postprocessing >> task_copy_tables >> task_create_views

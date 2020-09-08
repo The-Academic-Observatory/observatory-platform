@@ -1,4 +1,4 @@
-# Copyright 2020 Curtin University
+{# Copyright 2020 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Richard Hosking
+# Author: Richard Hosking #}
 
 # Processing Output Types
 CREATE TEMP FUNCTION count_single_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type STRING) AS (
@@ -189,8 +189,7 @@ SELECT
   (SELECT MAX(published_year) from UNNEST(years)) as last_year,
 
   -- Per year Information
-  years,
-  TIMESTAMP('{{ release_date.strftime('%Y-%m-%d') }}') as release_date
+  years
 FROM(
   SELECT
     base.id as id,
@@ -400,7 +399,7 @@ FROM(
       ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT unpaywall.*from UNNEST(dois.unpaywall_history) as unpaywall))) as unpaywall_history
 
     FROM `{{ project_id }}.observatory.doi{{ release_date.strftime('%Y%m%d') }}` as dois, UNNEST(dois.affiliations.{{ aggregation_field }}) as aggregrate
-    WHERE aggregrate.in_mag IS TRUE AND {{ min_year }} <= dois.crossref.published_year AND dois.crossref.published_year <= {{ max_year }} AND aggregrate.identifier IS NOT NULL
+    WHERE aggregrate.in_mag IS TRUE AND aggregrate.identifier IS NOT NULL
     GROUP BY aggregrate.identifier, crossref.published_year) as base
     GROUP BY base.id
 )

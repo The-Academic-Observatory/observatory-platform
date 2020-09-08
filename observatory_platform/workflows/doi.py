@@ -31,7 +31,7 @@ from observatory_platform.telescopes.unpaywall import UnpaywallTelescope
 from observatory_platform.utils.config_utils import AirflowVar, check_variables, workflow_templates_path
 from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id, create_bigquery_table_from_query,
                                                  render_sql_query, sql_jinja2_filename, run_bigquery_query,
-                                                 create_bigquery_dataset)
+                                                 create_bigquery_dataset, copy_table, create_view)
 
 
 def set_task_state(success: bool, msg_success: str, msg_failed: str):
@@ -56,15 +56,13 @@ def select_table_suffixes(project_id: str, dataset_id: str, table_id: str, end_d
     return suffixes
 
 
-def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_field: str, min_year: int,
-                           max_year: int, table_id: str, data_location: str, task_id: str):
+def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_field: str, table_id: str,
+                           data_location: str, task_id: str):
     # Create processed dataset
     template_path = os.path.join(workflow_templates_path(), DoiWorkflow.AGGREGATE_DOI_FILENAME)
     sql = render_sql_query(template_path,
                            project_id=project_id,
                            release_date=release_date,
-                           min_year=min_year,
-                           max_year=max_year,
                            aggregation_field=aggregation_field)
 
     processed_table_id = bigquery_partitioned_table_id(table_id, release_date)
@@ -82,6 +80,7 @@ def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_
 class DoiWorkflow:
     DAG_ID = 'doi'
     DESCRIPTION = 'Combining all raw data sources into a linked DOIs dataset'
+    TASK_ID_CREATE_DATASETS = 'create_datasets'
     TASK_ID_EXTEND_GRID = 'extend_grid'
     TASK_ID_AGGREGATE_CROSSREF_EVENTS = 'aggregate_crossref_events'
     TASK_ID_AGGREGATE_MAG = 'aggregate_mag'
@@ -99,14 +98,16 @@ class DoiWorkflow:
     TASK_ID_CREATE_PUBLISHER = 'create_publisher'
     TASK_ID_CREATE_REGION = 'create_region'
     TASK_ID_CREATE_SUBREGION = 'create_subregion'
+    TASK_ID_COPY_TABLES = 'copy_tables'
+    TASK_ID_CREATE_VIEWS = 'create_views'
 
-    PROCESSED_DATASET_ID = 'observatory_processed'
+    PROCESSED_DATASET_ID = 'observatory_intermediate'
     PROCESSED_DATASET_DESCRIPTION = 'Intermediate processing dataset for the Academic Observatory.'
+    DASHBOARDS_DATASET_ID = 'coki_dashboards'
+    DASHBOARDS_DATASET_DESCRIPTION = 'The latest data for display in the COKI dashboards.'
     OBSERVATORY_DATASET_ID = 'observatory'
     OBSERVATORY_DATASET_ID_DATASET_DESCRIPTION = 'The Academic Observatory dataset.'
     AGGREGATE_DOI_FILENAME = sql_jinja2_filename('aggregate_doi')
-    MIN_YEAR = 2000
-    MAX_YEAR = 2019
     TOPIC_NAME = 'message'
 
     @staticmethod
@@ -127,6 +128,24 @@ class DoiWorkflow:
             raise AirflowException('Required variables are missing')
 
     @staticmethod
+    def create_datasets(**kwargs):
+        # Get variables
+        project_id = Variable.get(AirflowVar.project_id.get())
+        data_location = Variable.get(AirflowVar.data_location.get())
+
+        # Create intermediate dataset
+        create_bigquery_dataset(project_id, DoiWorkflow.PROCESSED_DATASET_ID, data_location,
+                                description=DoiWorkflow.PROCESSED_DATASET_DESCRIPTION)
+
+        # Create dashboards dataset
+        create_bigquery_dataset(project_id, DoiWorkflow.DASHBOARDS_DATASET_ID, data_location,
+                                description=DoiWorkflow.DASHBOARDS_DATASET_DESCRIPTION)
+
+        # Create observatory dataset
+        create_bigquery_dataset(project_id, DoiWorkflow.OBSERVATORY_DATASET_ID, data_location,
+                                DoiWorkflow.OBSERVATORY_DATASET_ID_DATASET_DESCRIPTION)
+
+    @staticmethod
     def extend_grid(**kwargs):
         """ Extend a GRID Release with a list of home_repos and iso3166 information.
 
@@ -139,10 +158,6 @@ class DoiWorkflow:
         # Get variables
         project_id = Variable.get(AirflowVar.project_id.get())
         data_location = Variable.get(AirflowVar.data_location.get())
-
-        # Create dataset
-        create_bigquery_dataset(project_id, DoiWorkflow.PROCESSED_DATASET_ID, data_location,
-                                DoiWorkflow.PROCESSED_DATASET_DESCRIPTION)
 
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         grid_release_date = select_table_suffixes(project_id, GridTelescope.DATASET_ID, GridTelescope.DAG_ID,
@@ -461,15 +476,12 @@ class DoiWorkflow:
         else:
             raise AirflowException(f'Crossref Metadata release with a table suffix <= {release_date} not found')
 
-        # Create dataset
-        create_bigquery_dataset(project_id, DoiWorkflow.OBSERVATORY_DATASET_ID, data_location,
-                                DoiWorkflow.OBSERVATORY_DATASET_ID_DATASET_DESCRIPTION)
-
         # Create processed dataset
         template_path = os.path.join(workflow_templates_path(),
                                      sql_jinja2_filename(DoiWorkflow.TASK_ID_CREATE_DOI))
         sql = render_sql_query(template_path,
                                project_id=project_id,
+                               dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
                                release_date=release_date,
                                crossref_metadata_release_date=crossref_metadata_release_date)
 
@@ -502,8 +514,8 @@ class DoiWorkflow:
         table_id = 'country'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, DoiWorkflow.MIN_YEAR, DoiWorkflow.MAX_YEAR,
-                               table_id, data_location, DoiWorkflow.TASK_ID_CREATE_COUNTRY)
+        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
+                               DoiWorkflow.TASK_ID_CREATE_COUNTRY)
 
     @staticmethod
     def create_funder(**kwargs):
@@ -523,8 +535,8 @@ class DoiWorkflow:
         table_id = 'funder'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, DoiWorkflow.MIN_YEAR, DoiWorkflow.MAX_YEAR,
-                               table_id, data_location, DoiWorkflow.TASK_ID_CREATE_FUNDER)
+        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
+                               DoiWorkflow.TASK_ID_CREATE_FUNDER)
 
     @staticmethod
     def create_group(**kwargs):
@@ -544,8 +556,8 @@ class DoiWorkflow:
         table_id = 'group'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, DoiWorkflow.MIN_YEAR, DoiWorkflow.MAX_YEAR,
-                               table_id, data_location, DoiWorkflow.TASK_ID_CREATE_GROUP)
+        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
+                               DoiWorkflow.TASK_ID_CREATE_GROUP)
 
     @staticmethod
     def create_institution(**kwargs):
@@ -565,8 +577,8 @@ class DoiWorkflow:
         table_id = 'institution'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, DoiWorkflow.MIN_YEAR, DoiWorkflow.MAX_YEAR,
-                               table_id, data_location, DoiWorkflow.TASK_ID_CREATE_INSTITUTION)
+        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
+                               DoiWorkflow.TASK_ID_CREATE_INSTITUTION)
 
     @staticmethod
     def create_journal(**kwargs):
@@ -586,8 +598,8 @@ class DoiWorkflow:
         table_id = 'journal'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, DoiWorkflow.MIN_YEAR, DoiWorkflow.MAX_YEAR,
-                               table_id, data_location, DoiWorkflow.TASK_ID_CREATE_JOURNAL)
+        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
+                               DoiWorkflow.TASK_ID_CREATE_JOURNAL)
 
     @staticmethod
     def create_publisher(**kwargs):
@@ -607,8 +619,8 @@ class DoiWorkflow:
         table_id = 'publisher'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, DoiWorkflow.MIN_YEAR, DoiWorkflow.MAX_YEAR,
-                               table_id, data_location, DoiWorkflow.TASK_ID_CREATE_PUBLISHER)
+        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
+                               DoiWorkflow.TASK_ID_CREATE_PUBLISHER)
 
     @staticmethod
     def create_region(**kwargs):
@@ -628,8 +640,8 @@ class DoiWorkflow:
         table_id = 'region'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, DoiWorkflow.MIN_YEAR, DoiWorkflow.MAX_YEAR,
-                               table_id, data_location, DoiWorkflow.TASK_ID_CREATE_REGION)
+        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
+                               DoiWorkflow.TASK_ID_CREATE_REGION)
 
     @staticmethod
     def create_subregion(**kwargs):
@@ -649,5 +661,55 @@ class DoiWorkflow:
         table_id = 'subregion'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, DoiWorkflow.MIN_YEAR, DoiWorkflow.MAX_YEAR,
-                               table_id, data_location, DoiWorkflow.TASK_ID_CREATE_SUBREGION)
+        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
+                               DoiWorkflow.TASK_ID_CREATE_SUBREGION)
+
+    @staticmethod
+    def copy_tables(**kwargs):
+        # Get variables
+        project_id = Variable.get(AirflowVar.project_id.get())
+        data_location = Variable.get(AirflowVar.data_location.get())
+        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+        table_names = ['country', 'doi', 'funder', 'group', 'institution', 'journal', 'publisher', 'region',
+                       'subregion']
+
+        # Copy the latest data for display in the dashboards
+        results = []
+        for table_name in table_names:
+            source_table_id = f'{project_id}.observatory.{bigquery_partitioned_table_id(table_name, release_date)}'
+            destination_table_id = f'{project_id}.{DoiWorkflow.DASHBOARDS_DATASET_ID}.{table_name}'
+            success = copy_table(source_table_id, destination_table_id, data_location)
+            if not success:
+                logging.error(f'Issue copying table: {source_table_id} to {destination_table_id}')
+
+            results.append(success)
+
+        if not all(results):
+            raise ValueError('Problem copying tables')
+
+    @staticmethod
+    def create_views(**kwargs):
+        # Get variables
+        project_id = Variable.get(AirflowVar.project_id.get())
+        table_names = ['country', 'funder', 'group', 'institution', 'publisher', 'subregion']
+
+        # Create processed dataset
+        dataset_id = DoiWorkflow.DASHBOARDS_DATASET_ID
+        template_path = os.path.join(workflow_templates_path(),
+                                     sql_jinja2_filename('comparison_view'))
+
+        # Create views
+        # academic-observatory-dev:academic-observatory-dev.coki_dashboards.academic-observatory-dev.coki_dashboards
+        results = []
+        for table_name in table_names:
+            # source_table_id = f'{project_id}.{dataset_id}.{table_name}'
+            view_name = f'{table_name}_comparison'
+            query = render_sql_query(template_path,
+                                     project_id=project_id,
+                                     dataset_id=dataset_id,
+                                     table_id=table_name)
+            success = create_view(project_id, dataset_id, view_name, query)
+            results.append(success)
+
+        if not all(results):
+            raise ValueError('Problem creating views')

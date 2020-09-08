@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose #}
+# Author: Richard Hosking, James Diprose #}
 
-SELECT DISTINCT
-  PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) as suffix
+SELECT
+  id AS identifier,
+  MAX(total_publications) AS total_publications,
+  MAX(name) AS group_name,
+  ARRAY_AGG(STRUCT(years.published_year,
+      years.metrics)) AS years
 FROM
-  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}*`
-WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) <= DATE('{{ end_date }}')
-ORDER BY suffix DESC
-LIMIT {{ limit }};
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`,
+  UNNEST(YEARS) AS years
+GROUP BY
+  id
