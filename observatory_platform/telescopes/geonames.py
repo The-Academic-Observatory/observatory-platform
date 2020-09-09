@@ -14,6 +14,8 @@
 
 # Author: Aniek Roelofs, James Diprose
 
+from __future__ import annotations
+
 import gzip
 import logging
 import os
@@ -56,7 +58,7 @@ def fetch_release_date() -> Pendulum:
     return date
 
 
-def download_release(release: 'GeonamesRelease') -> str:
+def download_release(release: GeonamesRelease) -> str:
     """ Downloads geonames dump file containing country data. The file is in zip format and will be extracted
     after downloading, saving the unzipped content.
 
@@ -70,7 +72,7 @@ def download_release(release: 'GeonamesRelease') -> str:
     return file_path
 
 
-def extract_release(release: 'GeonamesRelease'):
+def extract_release(release: GeonamesRelease):
     """ Extract a downloaded Geonames release
 
     :param release: instance of GeonamesRelease class
@@ -85,7 +87,7 @@ def extract_release(release: 'GeonamesRelease'):
     os.rename(os.path.join(extract_folder, GeonamesTelescope.UNZIPPED_FILE_NAME), release.filepath_extract)
 
 
-def transform_release(release: 'GeonamesRelease') -> str:
+def transform_release(release: GeonamesRelease) -> str:
     """ Transforms release by storing file content in gzipped csv format.
 
     :param release: instance of GeonamesRelease class

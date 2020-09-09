@@ -194,7 +194,7 @@ FROM(
   SELECT
     base.id as id,
     NULL as types, --ARRAY_CONCAT_AGG(types) as types,
-    MAX(country) as name,
+    MAX(name) as name,
     MAX(country) as country,
     MAX(country_code) as country_code,
     MAX(region) as region,

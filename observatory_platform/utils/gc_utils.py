@@ -312,27 +312,39 @@ def create_bigquery_view(project_id: str, dataset_id: str, view_name: str, query
 
 
 def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str,
-                                     description: str = '', labels: dict = {},
-                                     query_parameters: List[bigquery.ScalarQueryParameter] = [],
+                                     description: str = '', labels=None,
+                                     query_parameters=None,
                                      partition: bool = False, partition_field: Union[None, str] = None,
                                      partition_type: str = bigquery.TimePartitioningType.DAY,
                                      require_partition_filter=True, cluster: bool = False,
-                                     clustering_fields: List[str] = []) -> bool:
+                                     clustering_fields=None) -> bool:
     """ Create a BigQuery dataset from a provided query.
 
     :param sql: the sql query to be executed
     :param labels: labels to place on the new table
     :param project_id: the Google Cloud project id
     :param dataset_id: the BigQuery dataset id
+    :param table_id: the BigQuery table id
     :param location: the location where the dataset will be stored:
     https://cloud.google.com/compute/docs/regions-zones/#locations
+    :param query_parameters: parameters for a parametrised query.
     :param description: a description for the dataset
     :param partition: whether to partition the table.
     :param partition_field: the name of the partition field.
     :param partition_type: the type of partitioning.
     :param require_partition_filter: whether the partition filter is required or not when querying the table.
+    :param cluster: whether to cluster the table or not.
+    :param clustering_fields: what fields to cluster on.
     :return:
     """
+
+    # Handle mutable default arguments
+    if labels is None:
+        labels = {}
+    if query_parameters is None:
+        query_parameters = []
+    if clustering_fields is None:
+        clustering_fields = []
 
     func_name = create_bigquery_dataset.__name__
     msg = f'project_id={project_id}, dataset_id={dataset_id}, location={location}, table={table_id}'

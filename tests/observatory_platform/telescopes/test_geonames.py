@@ -165,6 +165,25 @@ class TestGeonames(unittest.TestCase):
             self.assertEqual(os.path.join(path, self.geonames_test_transform_file_name), file_path_transform)
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    def test_get_blob_name(self, mock_variable_get):
+        """ Test get_blob_name.
+
+        :param home_mock: Mock observatory home path
+        :return: None.
+        """
+
+        with CliRunner().isolated_filesystem():
+            # Mock data variable
+            data_path = 'data'
+            mock_variable_get.return_value = data_path
+
+            release = GeonamesRelease(self.geonames_test_date)
+            self.assertEqual(release.get_blob_name(SubFolder.downloaded),
+                             'telescopes/geonames/geonames_3000_01_01.zip')
+            self.assertEqual(release.get_blob_name(SubFolder.transformed),
+                             'telescopes/geonames/geonames_3000_01_01.csv.gz')
+
+    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_transform_release(self, mock_variable_get):
         """ Test that the release is transformed as expected.
 

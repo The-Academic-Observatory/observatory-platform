@@ -22,7 +22,7 @@ import pendulum
 from azure.storage.blob import BlobServiceClient, BlobClient
 from click.testing import CliRunner
 from google.cloud import storage, bigquery
-from google.cloud.bigquery import SourceFormat, Table
+from google.cloud.bigquery import SourceFormat
 
 from observatory_platform.utils.gc_utils import (hex_to_base64_str, crc32c_base64_hash, bigquery_partitioned_table_id,
                                                  azure_to_google_cloud_storage_transfer, create_bigquery_dataset,
@@ -172,7 +172,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
     def test_load_bigquery_table(self):
         schema_file_name = 'people_schema.json'
-        dataset_name = random_id()
+        dataset_id = random_id()
         client = bigquery.Client()
         test_data_path = os.path.join(test_fixtures_path(), 'utils', 'gc_utils')
         schema_path = os.path.join(test_data_path, schema_file_name)
@@ -187,9 +187,9 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
         try:
             # Create dataset
-            create_bigquery_dataset(self.gc_project_id, dataset_name, self.gc_bucket_location)
-            dataset: bigquery.Dataset = client.get_dataset(dataset_name)
-            self.assertEqual(dataset.dataset_id, dataset_name)
+            create_bigquery_dataset(self.gc_project_id, dataset_id, self.gc_bucket_location)
+            dataset: bigquery.Dataset = client.get_dataset(dataset_id)
+            self.assertEqual(dataset.dataset_id, dataset_id)
 
             # Upload CSV to storage bucket
             result = upload_file_to_cloud_storage(self.gc_bucket_name, csv_file_name, csv_file_path)
@@ -198,12 +198,10 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Test loading CSV table
             table_name = random_id()
             uri = f"gs://{self.gc_bucket_name}/{csv_file_name}"
-            result = load_bigquery_table(uri, dataset_name, self.gc_bucket_location, table_name,
+            result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
                                          schema_file_path=schema_path, source_format=SourceFormat.CSV)
             self.assertTrue(result)
-            table_id = f'{dataset_name}.{table_name}'
-            table: Table = client.get_table(table_id)
-            self.assertEqual(table.table_id, table_name)
+            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
 
             # Upload JSONL to storage bucket
             result = upload_file_to_cloud_storage(self.gc_bucket_name, json_file_name, json_file_path)
@@ -212,16 +210,24 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Test loading JSON newline table
             table_name = random_id()
             uri = f"gs://{self.gc_bucket_name}/{json_file_name}"
-            result = load_bigquery_table(uri, dataset_name, self.gc_bucket_location, table_name,
+            result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
                                          schema_file_path=schema_path,
                                          source_format=SourceFormat.NEWLINE_DELIMITED_JSON)
             self.assertTrue(result)
-            table_id = f'{dataset_name}.{table_name}'
-            table: Table = client.get_table(table_id)
-            self.assertEqual(table.table_id, table_name)
+            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
+
+            # Test loading time partitioned table
+            table_name = random_id()
+            uri = f"gs://{self.gc_bucket_name}/{json_file_name}"
+            result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
+                                         schema_file_path=schema_path,
+                                         source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                                         partition=True, partition_field='dob')
+            self.assertTrue(result)
+            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
         finally:
             # Delete dataset
-            client.delete_dataset(dataset_name, delete_contents=True, not_found_ok=True)
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
             # Delete blobs
             storage_client = storage.Client()
@@ -285,13 +291,23 @@ class TestGoogleCloudUtils(unittest.TestCase):
         dataset_id = random_id()
         client = bigquery.Client()
 
-        table_name = 'figures'
+        table_name = 'presidents'
         data_location = self.gc_bucket_location
+        query = """
+        WITH presidents AS
+        (SELECT 'Washington' as name, DATE('1789-04-30') as date UNION ALL
+        SELECT 'Adams', DATE('1797-03-04') UNION ALL
+        SELECT 'Jefferson', DATE('1801-03-04') UNION ALL
+        SELECT 'Madison', DATE('1809-03-04') UNION ALL
+        SELECT 'Monroe', DATE('1817-03-04'))
+        SELECT * FROM presidents
+        """
 
         try:
             create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
-            query = "SELECT * FROM `bigquery-public-data.labeled_patents.figures` LIMIT 3"
-            success = create_bigquery_table_from_query(query, self.gc_project_id, dataset_id, table_name, data_location)
+            success = create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
+                                                       table_name, data_location, partition=True,
+                                                       partition_field='date', cluster=True, clustering_fields=['date'])
             self.assertTrue(success)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
         finally:

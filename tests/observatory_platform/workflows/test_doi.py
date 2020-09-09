@@ -19,9 +19,10 @@ import unittest
 
 import pendulum
 from google.cloud import bigquery
-
+from airflow.exceptions import AirflowException
 from observatory_platform.utils.gc_utils import create_bigquery_dataset, bigquery_partitioned_table_id
-from observatory_platform.workflows.doi import select_table_suffixes, create_bigquery_table_from_query
+from observatory_platform.workflows.doi import (select_table_suffixes, create_bigquery_table_from_query,
+                                                set_task_state)
 from tests.observatory_platform.config import random_id
 
 
@@ -33,6 +34,11 @@ class TestDoi(unittest.TestCase):
         self.gc_project_id: str = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
         self.gc_bucket_name: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_NAME')
         self.gc_bucket_location: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_LOCATION')
+
+    def test_set_task_state(self):
+        set_task_state(True, '', '')
+        with self.assertRaises(AirflowException):
+            set_task_state(False, '', '')
 
     def test_select_table_suffixes(self):
         client = bigquery.Client()
