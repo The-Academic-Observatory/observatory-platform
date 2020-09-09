@@ -52,7 +52,8 @@ from observatory_platform.utils.gc_utils import (azure_to_google_cloud_storage_t
                                                  download_blobs_from_cloud_storage,
                                                  load_bigquery_table,
                                                  table_name_from_blob,
-                                                 upload_files_to_cloud_storage)
+                                                 upload_files_to_cloud_storage,
+                                                 bigquery_table_exists)
 from observatory_platform.utils.proc_utils import wait_for_process
 from tests.observatory_platform.config import test_fixtures_path
 
@@ -221,19 +222,30 @@ class MagTelescope:
         sas_token = connection.password
         execution_date = kwargs['execution_date']
         next_execution_date = kwargs['next_execution_date']
+        project_id = Variable.get(AirflowVar.project_id.get())
 
         client = MagArchiverClient(account_name=account_name, sas_token=sas_token)
         releases: List[MagRelease] = client.list_releases(start_date=execution_date, end_date=next_execution_date,
                                                           state=MagState.done, date_type=MagDateType.done)
-        logging.info('list_releases:')
-        for release in releases:
-            logging.info(f'  - {release}')
 
-        continue_dag = len(releases)
+        # Check if we can skip any releases
+        releases_out = []
+        logging.info('Check if releases already exist:')
+        for release in releases:
+            table_id = bigquery_partitioned_table_id(MagTelescope.DAG_ID, release.release_date)
+
+            if bigquery_table_exists(project_id, MagTelescope.DATASET_ID, table_id):
+                logging.info(f'Skipping as table exists for MAG {release.release_date} release: '
+                             f'{project_id}.{MagTelescope.DATASET_ID}.{table_id}')
+            else:
+                logging.info(f"Table doesn't exist yet, processing MAG {release.release_date} release in this workflow")
+                releases_out.append(release)
+
+        continue_dag = len(releases_out)
         if continue_dag:
             # Push messages
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(MagTelescope.RELEASES_TOPIC_NAME, releases, execution_date)
+            ti.xcom_push(MagTelescope.RELEASES_TOPIC_NAME, releases_out, execution_date)
         return continue_dag
 
     @staticmethod

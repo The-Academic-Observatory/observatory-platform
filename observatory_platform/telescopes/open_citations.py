@@ -35,8 +35,9 @@ from observatory_platform.utils.config_utils import find_schema, schema_path
 from observatory_platform.utils.data_utils import get_file
 from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  create_bigquery_dataset,
-                                                 load_bigquery_table)
-from observatory_platform.utils.gc_utils import (upload_files_to_cloud_storage)
+                                                 load_bigquery_table,
+                                                 bigquery_table_exists,
+                                                 upload_files_to_cloud_storage)
 from observatory_platform.utils.proc_utils import wait_for_process
 from observatory_platform.utils.url_utils import retry_session
 
@@ -185,12 +186,25 @@ class OpenCitationsTelescope:
         start_date = kwargs['execution_date']
         end_date = kwargs['next_execution_date'].subtract(microseconds=1)
         releases = list_open_citations_releases(start_date=start_date, end_date=end_date)
+        project_id = Variable.get(AirflowVar.project_id.get())
 
-        continue_dag = len(releases)
+        # Check if we can skip any releases
+        releases_out = []
+        for release in releases:
+            table_id = bigquery_partitioned_table_id(OpenCitationsTelescope.DAG_ID, release.release_date)
+
+            if bigquery_table_exists(project_id, OpenCitationsTelescope.DATASET_ID, table_id):
+                logging.info(f'Skipping as table exists for {release.release_name} release: '
+                             f'{project_id}.{OpenCitationsTelescope.DATASET_ID}.{table_id}')
+            else:
+                logging.info(f"Table doesn't exist yet, processing MAG {release.release_date} release in this workflow")
+                releases_out.append(release)
+
+        continue_dag = len(releases_out)
         if continue_dag:
             # Push messages
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(OpenCitationsTelescope.RELEASES_TOPIC_NAME, releases, start_date)
+            ti.xcom_push(OpenCitationsTelescope.RELEASES_TOPIC_NAME, releases_out, start_date)
         return continue_dag
 
     @staticmethod

@@ -26,7 +26,7 @@ default_args = {
     "start_date": datetime(2020, 6, 7)
 }
 
-with DAG(dag_id="crossref_metadata", schedule_interval="0 0 7 * *", default_args=default_args,
+with DAG(dag_id="crossref_metadata", schedule_interval="@weekly", default_args=default_args,
          max_active_runs=2) as dag:
     # Check that dependencies exist before starting
     check = PythonOperator(

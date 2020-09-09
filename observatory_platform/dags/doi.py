@@ -19,7 +19,15 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.sensors.external_task_sensor import ExternalTaskSensor
 
+from observatory_platform.telescopes.crossref_metadata import CrossrefMetadataTelescope
+from observatory_platform.telescopes.fundref import FundrefTelescope
+from observatory_platform.telescopes.geonames import GeonamesTelescope
+from observatory_platform.telescopes.grid import GridTelescope
+from observatory_platform.telescopes.mag import MagTelescope
+from observatory_platform.telescopes.open_citations import OpenCitationsTelescope
+from observatory_platform.telescopes.unpaywall import UnpaywallTelescope
 from observatory_platform.workflows.doi import DoiWorkflow
 
 default_args = {
@@ -27,7 +35,53 @@ default_args = {
     "start_date": datetime(2020, 8, 1)
 }
 
-with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval=None, default_args=default_args, catchup=False) as dag:
+SENSOR_ID_CROSSREF_METADATA = 'crossref_metadata_sensor'
+SENSOR_ID_FUNDREF = 'fundref_sensor'
+SENSOR_ID_GEONAMES = 'geonames_sensor'
+SENSOR_ID_GRID = 'grid_sensor'
+SENSOR_ID_MAG = 'mag_sensor'
+SENSOR_ID_OPEN_CITATIONS = 'open_citations_sensor'
+SENSOR_ID_UNPAYWALL = 'unpaywall_sensor'
+
+with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=default_args, catchup=False) as dag:
+    # Sensors
+    crossref_metadata_sensor = ExternalTaskSensor(
+        task_id=SENSOR_ID_CROSSREF_METADATA,
+        external_dag_id=CrossrefMetadataTelescope.DAG_ID,
+        mode='reschedule')
+
+    fundref_sensor = ExternalTaskSensor(
+        task_id=SENSOR_ID_FUNDREF,
+        external_dag_id=FundrefTelescope.DAG_ID,
+        mode='reschedule')
+
+    geonames_sensor = ExternalTaskSensor(
+        task_id=SENSOR_ID_GEONAMES,
+        external_dag_id=GeonamesTelescope.DAG_ID,
+        dag=dag,
+        mode='reschedule')
+
+    grid_sensor = ExternalTaskSensor(
+        task_id=SENSOR_ID_GRID,
+        external_dag_id=GridTelescope.DAG_ID,
+        dag=dag,
+        mode='reschedule')
+
+    mag_sensor = ExternalTaskSensor(
+        task_id=SENSOR_ID_MAG,
+        external_dag_id=MagTelescope.DAG_ID,
+        mode='reschedule')
+
+    open_citations_sensor = ExternalTaskSensor(
+        task_id=SENSOR_ID_OPEN_CITATIONS,
+        external_dag_id=OpenCitationsTelescope.DAG_ID,
+        mode='reschedule')
+
+    unpaywall_sensor = ExternalTaskSensor(
+        task_id=SENSOR_ID_UNPAYWALL,
+        external_dag_id=UnpaywallTelescope.DAG_ID,
+        mode='reschedule')
+
     # Create datasets
     task_create_datasets = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_DATASETS,
@@ -159,11 +213,16 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval=None, default_args=default
         python_callable=DoiWorkflow.create_views
     )
 
+    # Sensors
+    sensors = [crossref_metadata_sensor, fundref_sensor, geonames_sensor, grid_sensor, mag_sensor,
+               open_citations_sensor,
+               unpaywall_sensor]
+
     # All pre-processing tasks run at once and when finished task_create_doi runs
     tasks_preprocessing = [task_extend_grid, task_aggregate_crossref_events, task_aggregate_mag,
                            task_aggregate_unpaywall, task_extend_crossref_funders, task_aggregate_open_citations,
                            task_aggregate_wos, task_aggregate_scopus]
-    task_create_datasets >> tasks_preprocessing >> task_create_doi
+    sensors >> task_create_datasets >> tasks_preprocessing >> task_create_doi
 
     # After task_create_doi runs all of the post-processing tasks run
     tasks_postprocessing = [task_create_country, task_create_funder, task_create_group, task_create_institution,
