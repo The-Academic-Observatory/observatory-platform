@@ -266,8 +266,8 @@ def sql_jinja2_filename(file_name: str) -> str:
 def run_bigquery_query(query: str) -> List:
     """ Run a BigQuery query.
 
-    :param query:
-    :return:
+    :param query: the query to run.
+    :return: the results.
     """
 
     client = bigquery.Client()
@@ -276,7 +276,15 @@ def run_bigquery_query(query: str) -> List:
     return list(rows)
 
 
-def copy_table(source_table_id: str, destination_table_id: str, data_location: str) -> bool:
+def copy_bigquery_table(source_table_id: str, destination_table_id: str, data_location: str) -> bool:
+    """ Copy a BigQuery table.
+
+    :param source_table_id: the id of the source table, including the project name and dataset id.
+    :param destination_table_id: the id of the destination table, including the project name and dataset id.
+    :param data_location: the location of the datasets.
+    :return: whether the table was copied successfully or not.
+    """
+
     client = bigquery.Client()
     job_config = bigquery.CopyJobConfig()
     job_config.write_disposition = "WRITE_TRUNCATE"
@@ -285,15 +293,22 @@ def copy_table(source_table_id: str, destination_table_id: str, data_location: s
     return result.done()
 
 
-def create_view(project_id: str, dataset_id: str, view_name: str, query: str) -> bool:
+def create_bigquery_view(project_id: str, dataset_id: str, view_name: str, query: str) -> None:
+    """ Create a BigQuery view.
+
+    :param project_id: the Google Cloud project id.
+    :param dataset_id: the BigQuery dataset id.
+    :param view_name: the name to call the view.
+    :param query: the query for the view.
+    :return: None
+    """
+
     client = bigquery.Client()
     dataset = bigquery.DatasetReference(project_id, dataset_id)
     view_ref = dataset.table(view_name)
     view = bigquery.Table(view_ref)
     view.view_query = query
     view = client.create_table(view)
-    print(f'create_view results: {view}')
-    return True
 
 
 def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str,
@@ -355,10 +370,10 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
         job_config.clustering_fields = clustering_fields
 
     query_job: QueryJob = client.query(sql, job_config=job_config)
-
-    result = query_job.result()
-    logging.info(f"{func_name}: create bigquery table from query, table={table_id}, {msg}")
-    return True
+    query_job.result()
+    success = query_job.done()
+    logging.info(f"{func_name}: create bigquery table from query {msg}: {success}")
+    return success
 
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,

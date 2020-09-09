@@ -31,7 +31,7 @@ from observatory_platform.telescopes.unpaywall import UnpaywallTelescope
 from observatory_platform.utils.config_utils import AirflowVar, check_variables, workflow_templates_path
 from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id, create_bigquery_table_from_query,
                                                  render_sql_query, sql_jinja2_filename, run_bigquery_query,
-                                                 create_bigquery_dataset, copy_table, create_view)
+                                                 create_bigquery_dataset, copy_bigquery_table, create_bigquery_view)
 
 
 def set_task_state(success: bool, msg_success: str, msg_failed: str):
@@ -44,6 +44,17 @@ def set_task_state(success: bool, msg_success: str, msg_failed: str):
 
 def select_table_suffixes(project_id: str, dataset_id: str, table_id: str, end_date: pendulum.Date,
                           limit: int = 1) -> List:
+    """ Returns a list of table suffix dates, sorted from the most recent to the oldest date. By default it returns
+    the first result.
+
+    :param project_id: the Google Cloud project id.
+    :param dataset_id: the BigQuery dataset id.
+    :param table_id: the table id (without the date suffix on the end).
+    :param end_date: the end date of the table suffixes to search for (most recent date).
+    :param limit: the number of results to return.
+    :return:
+    """
+
     template_path = os.path.join(workflow_templates_path(), 'select_table_suffixes.sql.jinja2')
     query = render_sql_query(template_path,
                              project_id=project_id,
@@ -58,6 +69,17 @@ def select_table_suffixes(project_id: str, dataset_id: str, table_id: str, end_d
 
 def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_field: str, table_id: str,
                            data_location: str, task_id: str):
+    """ Runs the aggregate table query.
+
+    :param project_id: the Google Cloud project id.
+    :param release_date: the release date of the release.
+    :param aggregation_field: the field to aggregate on, e.g. institution, publisher etc.
+    :param table_id: the table id.
+    :param data_location: the location for the table.
+    :param task_id: the Airflow task id (for printing messages).
+    :return: None.
+    """
+
     # Create processed dataset
     template_path = os.path.join(workflow_templates_path(), DoiWorkflow.AGGREGATE_DOI_FILENAME)
     sql = render_sql_query(template_path,
@@ -678,7 +700,7 @@ class DoiWorkflow:
         for table_name in table_names:
             source_table_id = f'{project_id}.observatory.{bigquery_partitioned_table_id(table_name, release_date)}'
             destination_table_id = f'{project_id}.{DoiWorkflow.DASHBOARDS_DATASET_ID}.{table_name}'
-            success = copy_table(source_table_id, destination_table_id, data_location)
+            success = copy_bigquery_table(source_table_id, destination_table_id, data_location)
             if not success:
                 logging.error(f'Issue copying table: {source_table_id} to {destination_table_id}')
 
@@ -699,17 +721,10 @@ class DoiWorkflow:
                                      sql_jinja2_filename('comparison_view'))
 
         # Create views
-        # academic-observatory-dev:academic-observatory-dev.coki_dashboards.academic-observatory-dev.coki_dashboards
-        results = []
         for table_name in table_names:
-            # source_table_id = f'{project_id}.{dataset_id}.{table_name}'
             view_name = f'{table_name}_comparison'
             query = render_sql_query(template_path,
                                      project_id=project_id,
                                      dataset_id=dataset_id,
                                      table_id=table_name)
-            success = create_view(project_id, dataset_id, view_name, query)
-            results.append(success)
-
-        if not all(results):
-            raise ValueError('Problem creating views')
+            create_bigquery_view(project_id, dataset_id, view_name, query)

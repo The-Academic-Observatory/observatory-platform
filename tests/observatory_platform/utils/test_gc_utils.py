@@ -28,8 +28,10 @@ from observatory_platform.utils.gc_utils import (hex_to_base64_str, crc32c_base6
                                                  azure_to_google_cloud_storage_transfer, create_bigquery_dataset,
                                                  load_bigquery_table, upload_file_to_cloud_storage,
                                                  download_blob_from_cloud_storage, upload_files_to_cloud_storage,
-                                                 download_blobs_from_cloud_storage,
-                                                 table_name_from_blob)
+                                                 download_blobs_from_cloud_storage, render_sql_query,
+                                                 table_name_from_blob, sql_jinja2_filename, run_bigquery_query,
+                                                 copy_bigquery_table, create_bigquery_view, bigquery_table_exists,
+                                                 create_bigquery_table_from_query)
 from tests.observatory_platform.config import random_id
 from tests.observatory_platform.config import test_fixtures_path
 
@@ -120,6 +122,29 @@ class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
         actual = bigquery_partitioned_table_id('my_table', pendulum.datetime(year=2020, month=3, day=15))
         self.assertEqual(expected, actual)
 
+    def test_render_sql_query(self):
+        template_path = 'query.sql.jinja2'
+        template = "{# Test comment #}SELECT * FROM `{{ project_id }}.{{ dataset_id }}.Affiliations{{ release_date.strftime('%Y%m%d') }}` LIMIT 1000"
+        expected_render = "SELECT * FROM `academic-observatory.mag.Affiliations20200810` LIMIT 1000"
+
+        with CliRunner().isolated_filesystem():
+            # Write test template
+            with open(template_path, 'w') as f:
+                f.write(template)
+
+            # Render template and test that we get expected render
+            render = render_sql_query(template_path,
+                                      project_id='academic-observatory',
+                                      dataset_id='mag',
+                                      release_date=pendulum.datetime(year=2020, month=8, day=10))
+            self.assertEqual(render, expected_render)
+
+    def test_sql_jinja2_filename(self):
+        input_file_name = 'aggregate_crossref'
+        expected_file_name = 'aggregate_crossref.sql.jinja2'
+        actual_file_name = sql_jinja2_filename(input_file_name)
+        self.assertEqual(expected_file_name, actual_file_name)
+
 
 class TestGoogleCloudUtils(unittest.TestCase):
 
@@ -206,6 +231,71 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 blob = bucket.blob(path)
                 if blob.exists():
                     blob.delete()
+
+    def test_run_bigquery_query(self):
+        query = "SELECT * FROM `bigquery-public-data.labeled_patents.figures` LIMIT 3"
+        key = {'gcs_path': 0, 'x_relative_min': 1, 'y_relative_min': 2, 'x_relative_max': 3, 'y_relative_max': 4}
+        expected_results = [bigquery.Row(('gs://gcs-public-data--labeled-patents/espacenet_en66.pdf',
+                                          0.356321839, 0.745274914, 0.66969147, 0.93685567), key),
+                            bigquery.Row(('gs://gcs-public-data--labeled-patents/espacenet_en43.pdf',
+                                          0.395039322, 0.682130584, 0.640048397, 0.93556701), key),
+                            bigquery.Row(('gs://gcs-public-data--labeled-patents/espacenet_en98.pdf',
+                                          0.358136721, 0.637457045, 0.664246824, 0.93556701), key)]
+        results = run_bigquery_query(query)
+        self.assertEqual(len(results), 3)
+        for expected_row, actual_row in zip(expected_results, results):
+            self.assertEqual(expected_row, actual_row)
+
+    def test_copy_table(self):
+        dataset_id = random_id()
+        client = bigquery.Client()
+
+        table_name = 'figures'
+        source_table_id = 'bigquery-public-data.labeled_patents.figures'
+        destination_table_id = f'{self.gc_project_id}.{dataset_id}.{table_name}'
+        data_location = self.gc_bucket_location
+
+        try:
+            create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
+
+            success = copy_bigquery_table(source_table_id, destination_table_id, data_location)
+            self.assertTrue(success)
+
+            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
+        finally:
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+
+    def test_create_view(self):
+        dataset_id = random_id()
+        client = bigquery.Client()
+
+        data_location = self.gc_bucket_location
+        view_name = 'test_view'
+        try:
+            create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
+
+            query = "SELECT * FROM `bigquery-public-data.labeled_patents.figures` LIMIT 3"
+            create_bigquery_view(self.gc_project_id, dataset_id, view_name, query)
+
+            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, view_name))
+        finally:
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+
+    def test_create_bigquery_table_from_query(self):
+        dataset_id = random_id()
+        client = bigquery.Client()
+
+        table_name = 'figures'
+        data_location = self.gc_bucket_location
+
+        try:
+            create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
+            query = "SELECT * FROM `bigquery-public-data.labeled_patents.figures` LIMIT 3"
+            success = create_bigquery_table_from_query(query, self.gc_project_id, dataset_id, table_name, data_location)
+            self.assertTrue(success)
+            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
+        finally:
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_upload_download_blobs_from_cloud_storage(self):
         runner = CliRunner()
