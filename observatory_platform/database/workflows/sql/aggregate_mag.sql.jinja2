@@ -22,10 +22,10 @@ SELECT
   extended,
   resources,
   ARRAY((SELECT GridId FROM authors.authors WHERE GridId IS NOT NULL GROUP BY GridID)) as grids
-FROM (SELECT doi, ARRAY_AGG(Paperid ORDER BY CitationCount DESC)[offset(0)] as PaperId
+FROM (SELECT UPPER(TRIM(doi)), ARRAY_AGG(Paperid ORDER BY CitationCount DESC)[offset(0)] as PaperId
       FROM `{{ project_id }}.mag.Papers{{ release_date.strftime('%Y%m%d') }}` as papers
       WHERE (papers.FamilyId is null OR papers.FamilyId = papers.PaperId) AND papers.doi IS NOT NULL
-      GROUP BY doi) as dois
+      GROUP BY UPPER(TRIM(doi))) as dois
 
 LEFT JOIN `{{ project_id }}.mag.Papers{{ release_date.strftime('%Y%m%d') }}` as papers ON papers.PaperId = dois.PaperId
 
