@@ -308,7 +308,7 @@ def create_bigquery_view(project_id: str, dataset_id: str, view_name: str, query
     view_ref = dataset.table(view_name)
     view = bigquery.Table(view_ref)
     view.view_query = query
-    view = client.create_table(view)
+    view = client.create_table(view, exists_ok=True)
 
 
 def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str,

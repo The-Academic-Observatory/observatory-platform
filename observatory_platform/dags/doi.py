@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Richard Hosking
+# Author: Richard Hosking, James Diprose
 
 
 from datetime import datetime
@@ -32,7 +32,7 @@ from observatory_platform.workflows.doi import DoiWorkflow
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2020, 8, 1)
+    "start_date": datetime(2020, 8, 30)
 }
 
 SENSOR_ID_CROSSREF_METADATA = 'crossref_metadata_sensor'

@@ -23,7 +23,7 @@ from observatory_platform.telescopes.geonames import GeonamesTelescope
 
 default_args = {
     "owner": "Airflow",
-    "start_date": datetime(2020, 6, 1)
+    "start_date": datetime(2020, 9, 1)
 }
 
 with DAG(dag_id="geonames", schedule_interval="@weekly", default_args=default_args, catchup=False) as dag:
