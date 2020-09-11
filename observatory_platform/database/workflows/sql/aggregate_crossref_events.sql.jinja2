@@ -14,8 +14,8 @@
 
 # Author: Richard Hosking, James Diprose#}
 
-SELECT 
-  UPPER(TRIM(SUBSTR(obj_id, 17)))) as doi,
+SELECT
+  (UPPER(TRIM(SUBSTR(obj_id, 17)))) as doi,
   [
     STRUCT("twitter" as source, COUNTIF(source_id = 'twitter') as count),
     STRUCT("wikipedia" as source, COUNTIF(source_id = 'wikipedia') as count),
@@ -34,4 +34,4 @@ SELECT
    ] as events
 FROM `{{ project_id }}.crossref.crossref_events`
 GROUP BY
-UPPER(TRIM(obj_id))
+doi
