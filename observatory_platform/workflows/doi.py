@@ -253,18 +253,13 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVar.data_location.get())
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
 
-        # TODO: reactivate when found issue with MAG
         # Get last MAG release date before current end date
-        # table_id = 'Affiliations'
-        # mag_release_date = select_table_suffixes(project_id, MagTelescope.DATASET_ID, table_id, release_date)
-        # if len(mag_release_date):
-        #     mag_release_date = mag_release_date[0]
-        # else:
-        #     raise AirflowException(f'No MAG release with a table suffix <= {release_date} found')
-        #
-
-        # Pin MAG release date to last known good release
-        mag_release_date = pendulum.date(year=2019, month=10, day=3)
+        table_id = 'Affiliations'
+        mag_release_date = select_table_suffixes(project_id, MagTelescope.DATASET_ID, table_id, release_date)
+        if len(mag_release_date):
+            mag_release_date = mag_release_date[0]
+        else:
+            raise AirflowException(f'No MAG release with a table suffix <= {release_date} found')
 
         # Create processed table
         template_path = os.path.join(workflow_templates_path(), sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_MAG))
