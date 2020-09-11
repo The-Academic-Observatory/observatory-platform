@@ -34,7 +34,8 @@ from observatory_platform.telescopes.fundref import (
     list_releases,
     parse_fundref_registry_rdf,
     recursive_funders,
-    transform_release
+    transform_release,
+    download_release
 )
 from observatory_platform.utils.config_utils import telescope_path, SubFolder
 from observatory_platform.utils.data_utils import _hash_file
@@ -55,8 +56,6 @@ class TestFundref(unittest.TestCase):
         super(TestFundref, self).__init__(*args, **kwargs)
 
         # FundRef releases list
-        self.list_fundref_releases_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
-                                                       'list_fundref_releases.yaml')
         self.list_fundref_releases_hash = 'a7cf8190dcbda7992e3ae839ebab9f95'
 
         # FundRef test release
@@ -87,17 +86,38 @@ class TestFundref(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            with vcr.use_cassette(self.list_fundref_releases_path):
-                # Mock data variable
-                data_path = 'data'
-                mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
+        cassette_path = os.path.join(test_fixtures_path(),
+                                     'vcr_cassettes',
+                                     'list_fundref_releases.yaml')
 
+        with CliRunner().isolated_filesystem():
+            with vcr.use_cassette(cassette_path):
                 releases = list_releases(self.start_date, self.end_date)
                 self.assertIsInstance(releases, List)
                 for release in releases:
                     self.assertIsInstance(release, FundrefRelease)
                 self.assertEqual(39, len(releases))
+
+    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    def test_download_release(self, mock_variable_get):
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
+        cassette_path = os.path.join(test_fixtures_path(),
+                                     'vcr_cassettes',
+                                     'fundref_download_release.yaml')
+        url = 'https://gitlab.com/crossref/open_funder_registry/-/archive/v1.30/open_funder_registry-v1.30.tar.gz'
+        date = pendulum.datetime(year=2020, month=1, day=14, hour=14, minute=51, second=51)
+        expected_crc = '87235a1d'
+
+        with CliRunner().isolated_filesystem():
+            with vcr.use_cassette(cassette_path):
+                release = FundrefRelease(url, date)
+                path = download_release(release)
+                self.assertEqual(expected_crc, gzip_file_crc(path))
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_filepath_download(self, mock_variable_get):
@@ -107,11 +127,11 @@ class TestFundref(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             file_path_download = release.get_filepath(SubFolder.downloaded)
             path = telescope_path(SubFolder.downloaded, FundrefTelescope.DAG_ID)
@@ -125,11 +145,11 @@ class TestFundref(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             file_path_extract = release.get_filepath(SubFolder.extracted)
             path = telescope_path(SubFolder.extracted, FundrefTelescope.DAG_ID)
@@ -143,11 +163,11 @@ class TestFundref(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             file_path_transform = release.filepath_transform
             path = telescope_path(SubFolder.transformed, FundrefTelescope.DAG_ID)
@@ -160,11 +180,11 @@ class TestFundref(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             self.assertEqual(self.fundref_test_date, release.date)
 
@@ -175,11 +195,11 @@ class TestFundref(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
@@ -198,11 +218,11 @@ class TestFundref(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
@@ -223,11 +243,11 @@ class TestFundref(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
@@ -297,11 +317,12 @@ class TestFundref(unittest.TestCase):
 
         :return:
         """
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
 
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
+
+        with CliRunner().isolated_filesystem():
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)
@@ -330,11 +351,11 @@ class TestFundref(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             # 'download' release
             shutil.copyfile(self.fundref_test_path, release.filepath_download)

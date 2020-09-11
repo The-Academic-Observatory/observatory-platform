@@ -100,11 +100,11 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             file_path_download = release.filepath_download
             path = telescope_path(SubFolder.downloaded, GeonamesTelescope.DAG_ID)
@@ -118,11 +118,11 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             file_path_decompress = release.filepath_extract
             path = telescope_path(SubFolder.extracted, GeonamesTelescope.DAG_ID)
@@ -136,11 +136,11 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             file_path_extract = release.filepath_extract
             path = telescope_path(SubFolder.extracted, GeonamesTelescope.DAG_ID)
@@ -154,11 +154,11 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             file_path_transform = release.filepath_transform
             path = telescope_path(SubFolder.transformed, GeonamesTelescope.DAG_ID)
@@ -172,11 +172,11 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             self.assertEqual(release.get_blob_name(SubFolder.downloaded),
                              'telescopes/geonames/geonames_3000_01_01.zip')
@@ -190,11 +190,11 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             shutil.copyfile(self.geonames_test_path, release.filepath_extract)
 
