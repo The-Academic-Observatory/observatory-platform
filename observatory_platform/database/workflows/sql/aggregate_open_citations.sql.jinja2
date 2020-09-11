@@ -15,7 +15,7 @@
 # Author: Richard Hosking, James Diprose #}
 
 SELECT
-  cited as doi,
+  UPPER(TRIM(cited)) as doi,
   COUNT(cited) as citations_total, 
   COUNTIF(IF(STARTS_WITH(timespan, "-"), -1, IF(STRPOS(timespan, "Y")-1 > 0, CAST(SUBSTR(timespan, STRPOS(timespan, "P")+1, STRPOS(timespan, "Y")-2) AS INT64), 0)) < 0) as citations_before_publication,
   COUNTIF(IF(STARTS_WITH(timespan, "-"), -1, IF(STRPOS(timespan, "Y")-1 > 0, CAST(SUBSTR(timespan, STRPOS(timespan, "P")+1, STRPOS(timespan, "Y")-2) AS INT64), 0)) < 1) as citations_one_year,
@@ -36,4 +36,4 @@ SELECT
 FROM
   `{{ project_id }}.open_citations.open_citations{{ release_date.strftime('%Y%m%d') }}` as citations
 GROUP BY
-  cited
+  UPPER(TRIM(cited))

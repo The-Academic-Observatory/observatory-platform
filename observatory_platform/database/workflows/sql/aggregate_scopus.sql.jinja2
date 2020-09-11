@@ -15,7 +15,7 @@
 # Author: Richard Hosking, James Diprose #}
 
 SELECT 
-  doi,
+  UPPER(TRIM(doi)) as doi,
   MAX( scopus_title ) as scopus_title,
   MAX( scopus_publicationName ) as scopus_publicationName,
   MAX( scopus_coverDate ) as scopus_coverDate,
@@ -31,4 +31,4 @@ SELECT
 FROM `{{ project_id }}.elsevier.scopus`
 WHERE scopus IS NOT NULL AND doi IS NOT NULL
 GROUP BY
-  doi
+  UPPER(TRIM(doi))
