@@ -155,12 +155,12 @@ class TestGoogleCloudUtils(unittest.TestCase):
         schema_path = os.path.join(test_data_path, schema_file_name)
 
         # CSV file
-        csv_file_name = f'people_{random_id()}.csv'
-        csv_file_path = os.path.join(test_data_path, csv_file_name)
+        csv_file_path = os.path.join(test_data_path, 'people.csv')
+        csv_blob_name = f'people_{random_id()}.csv'
 
         # JSON file
-        json_file_name = f'people_{random_id()}.jsonl'
-        json_file_path = os.path.join(test_data_path, json_file_name)
+        json_file_path = os.path.join(test_data_path, 'people.jsonl')
+        json_blob_name = f'people_{random_id()}.jsonl'
 
         try:
             # Create dataset
@@ -169,24 +169,24 @@ class TestGoogleCloudUtils(unittest.TestCase):
             self.assertEqual(dataset.dataset_id, dataset_id)
 
             # Upload CSV to storage bucket
-            result = upload_file_to_cloud_storage(self.gc_bucket_name, csv_file_name, csv_file_path)
+            result = upload_file_to_cloud_storage(self.gc_bucket_name, csv_blob_name, csv_file_path)
             self.assertTrue(result)
 
             # Test loading CSV table
             table_name = random_id()
-            uri = f"gs://{self.gc_bucket_name}/{csv_file_name}"
+            uri = f"gs://{self.gc_bucket_name}/{csv_blob_name}"
             result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
                                          schema_file_path=schema_path, source_format=SourceFormat.CSV)
             self.assertTrue(result)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
 
             # Upload JSONL to storage bucket
-            result = upload_file_to_cloud_storage(self.gc_bucket_name, json_file_name, json_file_path)
+            result = upload_file_to_cloud_storage(self.gc_bucket_name, json_blob_name, json_file_path)
             self.assertTrue(result)
 
             # Test loading JSON newline table
             table_name = random_id()
-            uri = f"gs://{self.gc_bucket_name}/{json_file_name}"
+            uri = f"gs://{self.gc_bucket_name}/{json_blob_name}"
             result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
                                          schema_file_path=schema_path,
                                          source_format=SourceFormat.NEWLINE_DELIMITED_JSON)
@@ -195,7 +195,6 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
             # Test loading time partitioned table
             table_name = random_id()
-            uri = f"gs://{self.gc_bucket_name}/{json_file_name}"
             result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
                                          schema_file_path=schema_path,
                                          source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
@@ -209,7 +208,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Delete blobs
             storage_client = storage.Client()
             bucket = storage_client.get_bucket(self.gc_bucket_name)
-            files = [csv_file_name, json_file_name]
+            files = [csv_blob_name, json_blob_name]
             for path in files:
                 blob = bucket.blob(path)
                 if blob.exists():
