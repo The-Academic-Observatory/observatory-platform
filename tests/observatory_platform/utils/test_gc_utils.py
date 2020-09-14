@@ -155,11 +155,11 @@ class TestGoogleCloudUtils(unittest.TestCase):
         schema_path = os.path.join(test_data_path, schema_file_name)
 
         # CSV file
-        csv_file_name = 'people.csv'
+        csv_file_name = f'people_{random_id()}.csv'
         csv_file_path = os.path.join(test_data_path, csv_file_name)
 
         # JSON file
-        json_file_name = 'people.jsonl'
+        json_file_name = f'people_{random_id()}.jsonl'
         json_file_path = os.path.join(test_data_path, json_file_name)
 
         try:
