@@ -36,9 +36,9 @@ class TestDoi(unittest.TestCase):
         self.gc_bucket_location: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_LOCATION')
 
     def test_set_task_state(self):
-        set_task_state(True, '', '')
+        set_task_state(True, 'my-task-id')
         with self.assertRaises(AirflowException):
-            set_task_state(False, '', '')
+            set_task_state(False, 'my-task-id')
 
     def test_select_table_suffixes(self):
         client = bigquery.Client()

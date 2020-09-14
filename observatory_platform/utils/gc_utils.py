@@ -1,5 +1,4 @@
 # Copyright 2020 Curtin University
-# Copyright 2020 Artificial Dimensions Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +34,6 @@ from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob, QueryJob
 from google.cloud.exceptions import NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
-from jinja2 import Template
 from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
 
@@ -231,36 +229,6 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     result = load_job.result()
     logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
     return result.state == 'DONE'
-
-
-def render_sql_query(template_path: str, **kwargs) -> str:
-    """ Render a SQL query from a template.
-
-    :param template_path: the path to the template.
-    :param kwargs: the keyword variables to populate the template with.
-    :return: the query as a string.
-    """
-
-    # Read file contents
-    with open(template_path, 'r') as file:
-        contents = file.read()
-
-    # Fill template with text
-    template = Template(contents)
-
-    # Render template
-    rendered = template.render(**kwargs)
-
-    return rendered
-
-
-def sql_jinja2_filename(file_name: str) -> str:
-    """ Add .sql.jinja2 to a filename.
-
-    :param file_name: the filename without an extension.
-    :return: the filename.
-    """
-    return f'{file_name}.sql.jinja2'
 
 
 def run_bigquery_query(query: str) -> List:

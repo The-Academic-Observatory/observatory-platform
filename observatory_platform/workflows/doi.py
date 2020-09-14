@@ -30,14 +30,16 @@ from observatory_platform.telescopes.mag import MagTelescope
 from observatory_platform.telescopes.unpaywall import UnpaywallTelescope
 from observatory_platform.utils.config_utils import AirflowVar, check_variables, workflow_templates_path
 from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id, create_bigquery_table_from_query,
-                                                 render_sql_query, sql_jinja2_filename, run_bigquery_query,
-                                                 create_bigquery_dataset, copy_bigquery_table, create_bigquery_view)
+                                                 run_bigquery_query, create_bigquery_dataset, copy_bigquery_table,
+                                                 create_bigquery_view)
+from observatory_platform.utils.jinja2_utils import render_template, make_sql_jinja2_filename
 
 
-def set_task_state(success: bool, msg_success: str, msg_failed: str):
+def set_task_state(success: bool, task_id: str):
     if success:
-        logging.info(msg_success)
+        logging.info(f'{task_id} success')
     else:
+        msg_failed = f'{task_id} failed'
         logging.error(msg_failed)
         raise AirflowException(msg_failed)
 
@@ -55,13 +57,13 @@ def select_table_suffixes(project_id: str, dataset_id: str, table_id: str, end_d
     :return:
     """
 
-    template_path = os.path.join(workflow_templates_path(), 'select_table_suffixes.sql.jinja2')
-    query = render_sql_query(template_path,
-                             project_id=project_id,
-                             dataset_id=dataset_id,
-                             table_id=table_id,
-                             end_date=end_date.strftime('%Y-%m-%d'),
-                             limit=limit)
+    template_path = os.path.join(workflow_templates_path(), make_sql_jinja2_filename('select_table_suffixes'))
+    query = render_template(template_path,
+                            project_id=project_id,
+                            dataset_id=dataset_id,
+                            table_id=table_id,
+                            end_date=end_date.strftime('%Y-%m-%d'),
+                            limit=limit)
     rows = run_bigquery_query(query)
     suffixes = [row['suffix'] for row in rows]
     return suffixes
@@ -82,10 +84,10 @@ def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_
 
     # Create processed dataset
     template_path = os.path.join(workflow_templates_path(), DoiWorkflow.AGGREGATE_DOI_FILENAME)
-    sql = render_sql_query(template_path,
-                           project_id=project_id,
-                           release_date=release_date,
-                           aggregation_field=aggregation_field)
+    sql = render_template(template_path,
+                          project_id=project_id,
+                          release_date=release_date,
+                          aggregation_field=aggregation_field)
 
     processed_table_id = bigquery_partitioned_table_id(table_id, release_date)
     success = create_bigquery_table_from_query(sql=sql,
@@ -96,7 +98,7 @@ def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_
                                                cluster=True,
                                                clustering_fields=['id'])
 
-    set_task_state(success, f'{task_id} success', f'{task_id} failed')
+    set_task_state(success, task_id)
 
 
 class DoiWorkflow:
@@ -129,7 +131,7 @@ class DoiWorkflow:
     DASHBOARDS_DATASET_DESCRIPTION = 'The latest data for display in the COKI dashboards.'
     OBSERVATORY_DATASET_ID = 'observatory'
     OBSERVATORY_DATASET_ID_DATASET_DESCRIPTION = 'The Academic Observatory dataset.'
-    AGGREGATE_DOI_FILENAME = sql_jinja2_filename('aggregate_doi')
+    AGGREGATE_DOI_FILENAME = make_sql_jinja2_filename('aggregate_doi')
     TOPIC_NAME = 'message'
 
     @staticmethod
@@ -190,10 +192,11 @@ class DoiWorkflow:
             raise AirflowException(f'No GRID release with a table suffix <= {release_date} found')
 
         # Create processed table
-        template_path = os.path.join(workflow_templates_path(), sql_jinja2_filename(DoiWorkflow.TASK_ID_EXTEND_GRID))
-        sql = render_sql_query(template_path,
-                               project_id=project_id,
-                               grid_release_date=grid_release_date)
+        template_path = os.path.join(workflow_templates_path(),
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_EXTEND_GRID))
+        sql = render_template(template_path,
+                              project_id=project_id,
+                              grid_release_date=grid_release_date)
 
         processed_table_id = bigquery_partitioned_table_id('grid_extended', release_date)
         success = create_bigquery_table_from_query(sql=sql,
@@ -202,9 +205,7 @@ class DoiWorkflow:
                                                    table_id=processed_table_id,
                                                    location=data_location)
 
-        set_task_state(success,
-                       f'{DoiWorkflow.TASK_ID_EXTEND_GRID} success',
-                       f'{DoiWorkflow.TASK_ID_EXTEND_GRID} failed')
+        set_task_state(success, DoiWorkflow.TASK_ID_EXTEND_GRID)
 
     @staticmethod
     def aggregate_crossref_events(**kwargs):
@@ -223,8 +224,8 @@ class DoiWorkflow:
 
         # Create processed table
         template_path = os.path.join(workflow_templates_path(),
-                                     sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS))
-        sql = render_sql_query(template_path, project_id=project_id)
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS))
+        sql = render_template(template_path, project_id=project_id)
         # TODO: perhaps only include records up until the end date of this query?
 
         processed_table_id = bigquery_partitioned_table_id('crossref_events', release_date)
@@ -234,9 +235,7 @@ class DoiWorkflow:
                                                    table_id=processed_table_id,
                                                    location=data_location)
 
-        set_task_state(success,
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS} success',
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS} failed')
+        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS)
 
     @staticmethod
     def aggregate_mag(**kwargs):
@@ -262,10 +261,11 @@ class DoiWorkflow:
             raise AirflowException(f'No MAG release with a table suffix <= {release_date} found')
 
         # Create processed table
-        template_path = os.path.join(workflow_templates_path(), sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_MAG))
-        sql = render_sql_query(template_path,
-                               project_id=project_id,
-                               release_date=mag_release_date)
+        template_path = os.path.join(workflow_templates_path(),
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_MAG))
+        sql = render_template(template_path,
+                              project_id=project_id,
+                              release_date=mag_release_date)
 
         processed_table_id = bigquery_partitioned_table_id(MagTelescope.DAG_ID, release_date)
         success = create_bigquery_table_from_query(sql=sql,
@@ -274,9 +274,7 @@ class DoiWorkflow:
                                                    table_id=processed_table_id,
                                                    location=data_location)
 
-        set_task_state(success,
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_MAG} success',
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_MAG} failed')
+        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_MAG)
 
     @staticmethod
     def aggregate_unpaywall(**kwargs):
@@ -303,10 +301,10 @@ class DoiWorkflow:
 
         # Create processed table
         template_path = os.path.join(workflow_templates_path(),
-                                     sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL))
-        sql = render_sql_query(template_path,
-                               project_id=project_id,
-                               release_date=unpaywall_release_date)
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL))
+        sql = render_template(template_path,
+                              project_id=project_id,
+                              release_date=unpaywall_release_date)
 
         processed_table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, release_date)
         success = create_bigquery_table_from_query(sql=sql,
@@ -315,9 +313,7 @@ class DoiWorkflow:
                                                    table_id=processed_table_id,
                                                    location=data_location)
 
-        set_task_state(success,
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL} success',
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL} failed')
+        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL)
 
     @staticmethod
     def extend_crossref_funders(**kwargs):
@@ -348,11 +344,11 @@ class DoiWorkflow:
 
         # Create processed table
         template_path = os.path.join(workflow_templates_path(),
-                                     sql_jinja2_filename(DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS))
-        sql = render_sql_query(template_path,
-                               project_id=project_id,
-                               crossref_metadata_release_date=crossref_metadata_release_date,
-                               fundref_release_date=fundref_release_date)
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS))
+        sql = render_template(template_path,
+                              project_id=project_id,
+                              crossref_metadata_release_date=crossref_metadata_release_date,
+                              fundref_release_date=fundref_release_date)
 
         processed_table_id = bigquery_partitioned_table_id('crossref_funders_extended', release_date)
         success = create_bigquery_table_from_query(sql=sql,
@@ -361,9 +357,7 @@ class DoiWorkflow:
                                                    table_id=processed_table_id,
                                                    location=data_location)
 
-        set_task_state(success,
-                       f'{DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS} success',
-                       f'{DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS} failed')
+        set_task_state(success, DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS)
 
     @staticmethod
     def aggregate_open_citations(**kwargs):
@@ -390,10 +384,10 @@ class DoiWorkflow:
 
         # Create processed dataset
         template_path = os.path.join(workflow_templates_path(),
-                                     sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS))
-        sql = render_sql_query(template_path,
-                               project_id=project_id,
-                               release_date=open_citations_release_date)
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS))
+        sql = render_template(template_path,
+                              project_id=project_id,
+                              release_date=open_citations_release_date)
 
         processed_table_id = bigquery_partitioned_table_id('open_citations', release_date)
         success = create_bigquery_table_from_query(sql=sql,
@@ -402,9 +396,7 @@ class DoiWorkflow:
                                                    table_id=processed_table_id,
                                                    location=data_location)
 
-        set_task_state(success,
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS} success',
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS} failed')
+        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS)
 
     @staticmethod
     def aggregate_wos(**kwargs):
@@ -422,9 +414,10 @@ class DoiWorkflow:
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
 
         # Create
-        template_path = os.path.join(workflow_templates_path(), sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_WOS))
-        sql = render_sql_query(template_path,
-                               project_id=project_id)
+        template_path = os.path.join(workflow_templates_path(),
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_WOS))
+        sql = render_template(template_path,
+                              project_id=project_id)
         # TODO: only include records up until the end date
 
         processed_table_id = bigquery_partitioned_table_id('wos', release_date)
@@ -434,9 +427,7 @@ class DoiWorkflow:
                                                    table_id=processed_table_id,
                                                    location=data_location)
 
-        set_task_state(success,
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_WOS} success',
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_WOS} failed')
+        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_WOS)
 
     @staticmethod
     def aggregate_scopus(**kwargs):
@@ -455,9 +446,9 @@ class DoiWorkflow:
 
         # Create processed dataset
         template_path = os.path.join(workflow_templates_path(),
-                                     sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS))
-        sql = render_sql_query(template_path,
-                               project_id=project_id)
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS))
+        sql = render_template(template_path,
+                              project_id=project_id)
 
         processed_table_id = bigquery_partitioned_table_id('scopus', release_date)
         success = create_bigquery_table_from_query(sql=sql,
@@ -466,9 +457,7 @@ class DoiWorkflow:
                                                    table_id=processed_table_id,
                                                    location=data_location)
 
-        set_task_state(success,
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS} success',
-                       f'{DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS} failed')
+        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS)
 
     @staticmethod
     def create_doi(**kwargs):
@@ -495,12 +484,12 @@ class DoiWorkflow:
 
         # Create processed dataset
         template_path = os.path.join(workflow_templates_path(),
-                                     sql_jinja2_filename(DoiWorkflow.TASK_ID_CREATE_DOI))
-        sql = render_sql_query(template_path,
-                               project_id=project_id,
-                               dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-                               release_date=release_date,
-                               crossref_metadata_release_date=crossref_metadata_release_date)
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_CREATE_DOI))
+        sql = render_template(template_path,
+                              project_id=project_id,
+                              dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
+                              release_date=release_date,
+                              crossref_metadata_release_date=crossref_metadata_release_date)
 
         processed_table_id = bigquery_partitioned_table_id('doi', release_date)
         success = create_bigquery_table_from_query(sql=sql,
@@ -509,9 +498,7 @@ class DoiWorkflow:
                                                    table_id=processed_table_id,
                                                    location=data_location)
 
-        set_task_state(success,
-                       f'{DoiWorkflow.TASK_ID_CREATE_DOI} success',
-                       f'{DoiWorkflow.TASK_ID_CREATE_DOI} failed')
+        set_task_state(success, DoiWorkflow.TASK_ID_CREATE_DOI)
 
     @staticmethod
     def create_country(**kwargs):
@@ -713,13 +700,13 @@ class DoiWorkflow:
         # Create processed dataset
         dataset_id = DoiWorkflow.DASHBOARDS_DATASET_ID
         template_path = os.path.join(workflow_templates_path(),
-                                     sql_jinja2_filename('comparison_view'))
+                                     render_template('comparison_view'))
 
         # Create views
         for table_name in table_names:
             view_name = f'{table_name}_comparison'
-            query = render_sql_query(template_path,
-                                     project_id=project_id,
-                                     dataset_id=dataset_id,
-                                     table_id=table_name)
+            query = render_template(template_path,
+                                    project_id=project_id,
+                                    dataset_id=dataset_id,
+                                    table_id=table_name)
             create_bigquery_view(project_id, dataset_id, view_name, query)

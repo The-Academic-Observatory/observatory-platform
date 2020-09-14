@@ -54,7 +54,7 @@ with DAG(dag_id=OpenCitationsTelescope.DAG_ID, schedule_interval="@weekly", defa
         retries=OpenCitationsTelescope.RETRIES
     )
 
-    # Upload the GRID releases for a given interval
+    # Upload the Open Citations releases for a given interval
     upload_downloaded = PythonOperator(
         task_id=OpenCitationsTelescope.TASK_ID_UPLOAD_DOWNLOADED,
         python_callable=OpenCitationsTelescope.upload_downloaded,
@@ -71,7 +71,7 @@ with DAG(dag_id=OpenCitationsTelescope.DAG_ID, schedule_interval="@weekly", defa
         queue=OpenCitationsTelescope.QUEUE
     )
 
-    # Upload the transformed GRID releases for a given interval to Google Cloud Storage
+    # Upload the transformed Open Citations releases for a given interval to Google Cloud Storage
     upload_extracted_task = PythonOperator(
         task_id=OpenCitationsTelescope.TASK_ID_UPLOAD_EXTRACTED,
         python_callable=OpenCitationsTelescope.upload_extracted,
@@ -80,7 +80,7 @@ with DAG(dag_id=OpenCitationsTelescope.DAG_ID, schedule_interval="@weekly", defa
         retries=OpenCitationsTelescope.RETRIES
     )
 
-    # Load the transformed GRID releases for a given interval to BigQuery
+    # Load the transformed Open Citations releases for a given interval to BigQuery
     bq_load_task = PythonOperator(
         task_id=OpenCitationsTelescope.TASK_ID_BQ_LOAD,
         python_callable=OpenCitationsTelescope.load_to_bq,

@@ -28,8 +28,8 @@ from observatory_platform.utils.gc_utils import (hex_to_base64_str, crc32c_base6
                                                  azure_to_google_cloud_storage_transfer, create_bigquery_dataset,
                                                  load_bigquery_table, upload_file_to_cloud_storage,
                                                  download_blob_from_cloud_storage, upload_files_to_cloud_storage,
-                                                 download_blobs_from_cloud_storage, render_sql_query,
-                                                 table_name_from_blob, sql_jinja2_filename, run_bigquery_query,
+                                                 download_blobs_from_cloud_storage,
+                                                 table_name_from_blob, run_bigquery_query,
                                                  copy_bigquery_table, create_bigquery_view, bigquery_table_exists,
                                                  create_bigquery_table_from_query)
 from tests.observatory_platform.config import random_id
@@ -121,29 +121,6 @@ class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
         expected = 'my_table20200315'
         actual = bigquery_partitioned_table_id('my_table', pendulum.datetime(year=2020, month=3, day=15))
         self.assertEqual(expected, actual)
-
-    def test_render_sql_query(self):
-        template_path = 'query.sql.jinja2'
-        template = "{# Test comment #}SELECT * FROM `{{ project_id }}.{{ dataset_id }}.Affiliations{{ release_date.strftime('%Y%m%d') }}` LIMIT 1000"
-        expected_render = "SELECT * FROM `academic-observatory.mag.Affiliations20200810` LIMIT 1000"
-
-        with CliRunner().isolated_filesystem():
-            # Write test template
-            with open(template_path, 'w') as f:
-                f.write(template)
-
-            # Render template and test that we get expected render
-            render = render_sql_query(template_path,
-                                      project_id='academic-observatory',
-                                      dataset_id='mag',
-                                      release_date=pendulum.datetime(year=2020, month=8, day=10))
-            self.assertEqual(render, expected_render)
-
-    def test_sql_jinja2_filename(self):
-        input_file_name = 'aggregate_crossref'
-        expected_file_name = 'aggregate_crossref.sql.jinja2'
-        actual_file_name = sql_jinja2_filename(input_file_name)
-        self.assertEqual(expected_file_name, actual_file_name)
 
 
 class TestGoogleCloudUtils(unittest.TestCase):

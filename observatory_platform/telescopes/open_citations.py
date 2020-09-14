@@ -140,7 +140,7 @@ def pull_releases(ti: TaskInstance) -> List[OpenCitationsRelease]:
 
 
 class OpenCitationsTelescope:
-    """ A container for holding the constants and static functions for the Geonames telescope. """
+    """ A container for holding the constants and static functions for the Open Citations telescope. """
 
     DAG_ID = 'open_citations'
     DESCRIPTION = 'The OpenCitations Indexes: http://opencitations.net/'
@@ -197,7 +197,8 @@ class OpenCitationsTelescope:
                 logging.info(f'Skipping as table exists for {release.release_name} release: '
                              f'{project_id}.{OpenCitationsTelescope.DATASET_ID}.{table_id}')
             else:
-                logging.info(f"Table doesn't exist yet, processing MAG {release.release_date} release in this workflow")
+                logging.info(f"Table doesn't exist yet, processing Open Citations {release.release_date} "
+                             f"release in this workflow")
                 releases_out.append(release)
 
         continue_dag = len(releases_out)
