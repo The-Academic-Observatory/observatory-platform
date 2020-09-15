@@ -34,4 +34,4 @@ croniter==0.3.*
 ratelimit==2.2.*
 wos==0.2.*
 backoff==1.10.*
-oauth2client==4.1.*
+oauth2client==1.5.2
