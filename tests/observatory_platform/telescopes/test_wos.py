@@ -328,7 +328,7 @@ class TestWos(unittest.TestCase):
             with vcr.use_cassette(self.wos_2019_07_01_path):
                 dag_start = pendulum.date(2019, 7, 31)
                 files = WosUtility.download_wos_snapshot('.', self.conn, dag_start, 'sequential')
-                json_file_list = write_pickled_xml_to_json(files)
+                json_file_list = write_pickled_xml_to_json(files, WosUtility.parse_query)
                 self.assertEqual(len(files), len(json_file_list))
                 json_file = json_file_list[0]
                 self.assertEqual(self.wos_2019_07_01_json_hash, _hash_file(json_file, algorithm='md5'))
