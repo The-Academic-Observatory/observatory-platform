@@ -1,60 +1,122 @@
 [
   {
-    "description": "Start date in airflow",
-    "mode": "REQUIRED",
-    "name": "release_date",
-    "type": "DATE"
-  },
-  {
-    "description": "Timestamp of when it was pulled",
-    "mode": "REQUIRED",
-    "name": "harvest_datetime",
-    "type": "DATETIME"
-  },
-  {
-    "description": "Document identifiers",
     "fields": [
       {
-        "description": "WOS UID",
-        "name": "uid",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "text",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "code",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "ascatype",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "subjects",
+        "type": "RECORD"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "subheadings",
         "type": "STRING"
       },
       {
-        "description": "",
-        "name": "issn",
+        "mode": "REPEATED",
+        "name": "headings",
         "type": "STRING"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "categories",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "mode": "REPEATED",
+            "name": "ids",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "agency",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "grants",
+        "type": "RECORD"
       },
       {
-        "description": "",
-        "name": "eissn",
+        "mode": "REPEATED",
+        "name": "text",
         "type": "STRING"
-      },
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "fund_ack",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
       {
-        "name": "isbn",
-        "type": "STRING"
-      },
-      {
-        "name": "eisbn",
-        "type": "STRING"
-      },
-      {
+        "mode": "NULLABLE",
         "name": "art_no",
         "type": "STRING"
       },
       {
+        "mode": "NULLABLE",
+        "name": "doi",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "eissn",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "issn",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
         "name": "meeting_abs",
         "type": "STRING"
       },
       {
+        "mode": "NULLABLE",
         "name": "xref_doi",
         "type": "STRING"
       },
       {
+        "mode": "NULLABLE",
+        "name": "isbn",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "eisbn",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
         "name": "parent_book_doi",
         "type": "STRING"
       },
       {
-        "name": "doi",
+        "mode": "NULLABLE",
+        "name": "uid",
         "type": "STRING"
       }
     ],
@@ -63,118 +125,84 @@
     "type": "RECORD"
   },
   {
-    "fields": [
-      {
-        "name": "sort_date",
-        "type": "DATE"
-      },
-      {
-        "description": "Type of publication, e.g., journal",
-        "name": "pub_type",
-        "type": "STRING"
-      },
-      {
-        "description": "Number of pages",
-        "name": "page_count",
-        "type": "STRING"
-      },
-      {
-        "description": "Source name, e.g., journal name",
-        "name": "source",
-        "type": "STRING"
-      },
-      {
-        "description": "Type of document, e.g., article",
-        "name": "doc_type",
-        "type": "STRING"
-      },
-      {
-        "description": "Publisher name",
-        "name": "publisher",
-        "type": "STRING"
-      },
-      {
-        "description": "City of publisher",
-        "name": "publisher_city",
-        "type": "STRING"
-      }
-    ],
-    "name": "pub_info",
-    "type": "RECORD"
-  },
-  {
-    "name": "title",
+    "mode": "REPEATED",
+    "name": "abstract",
     "type": "STRING"
   },
   {
     "fields": [
       {
-        "description": "Order in which names appear",
-        "name": "seq_no",
+        "mode": "NULLABLE",
+        "name": "name",
         "type": "STRING"
       },
       {
-        "description": "Author, etc",
-        "name": "role",
-        "type": "STRING"
-      },
+        "mode": "NULLABLE",
+        "name": "id",
+        "type": "INTEGER"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "conferences",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ref_count",
+    "type": "INTEGER"
+  },
+  {
+    "description": "bq-datetime",
+    "mode": "NULLABLE",
+    "name": "harvest_datetime",
+    "type": "TIMESTAMP"
+  },
+  {
+    "fields": [
       {
-        "name": "first_name",
-        "type": "STRING"
-      },
-      {
-        "name": "last_name",
-        "type": "STRING"
-      },
-      {
-        "description": "LastName, FirstName",
+        "mode": "NULLABLE",
         "name": "full_name",
         "type": "STRING"
       },
       {
-        "description": "WOS standard name",
-        "name": "wos_standard",
-        "type": "STRING"
-      },
-      {
-        "description": "WOS author identifier",
+        "mode": "NULLABLE",
         "name": "daisng_id",
-        "type": "STRING"
+        "type": "INTEGER"
       },
       {
-        "description": "ORCID ID",
+        "mode": "NULLABLE",
         "name": "orcid",
         "type": "STRING"
       },
       {
-        "description": "WOS researcher id",
+        "mode": "NULLABLE",
+        "name": "last_name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "wos_standard",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "role",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "first_name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
         "name": "r_id",
         "type": "STRING"
       },
       {
-        "description": "Associated organisation",
-        "name": "org",
-        "type": "STRING"
-      },
-      {
-        "description": "Associated suborganisation",
-        "name": "suborg",
-        "type": "STRING"
-      },
-      {
-        "description": "Associated organisation city",
-        "name": "city",
-        "type": "STRING"
-      },
-      {
-        "description": "Associated organisation state",
-        "name": "state",
-        "type": "STRING"
-      },
-      {
-        "description": "Associated organisation country",
-        "name": "country",
-        "type": "STRING"
+        "mode": "NULLABLE",
+        "name": "seq_no",
+        "type": "INTEGER"
       }
     ],
     "mode": "REPEATED",
@@ -184,11 +212,13 @@
   {
     "fields": [
       {
-        "name": "type",
+        "mode": "NULLABLE",
+        "name": "name",
         "type": "STRING"
       },
       {
-        "name": "name",
+        "mode": "NULLABLE",
+        "name": "type",
         "type": "STRING"
       }
     ],
@@ -197,51 +227,126 @@
     "type": "RECORD"
   },
   {
-    "description": "References count",
-    "name": "ref_count",
-    "type": "INTEGER"
-  },
-  {
-    "name": "abstract",
+    "mode": "NULLABLE",
+    "name": "title",
     "type": "STRING"
-  },
-  {
-    "mode": "REPEATED",
-    "name": "keyword",
-    "type": "STRING"
-  },
-  {
-    "name": "conference",
-    "type": "STRING"
-  },
-  {
-    "name": "conference_id",
-    "type": "INTEGER"
   },
   {
     "fields": [
       {
-        "name": "text",
+        "mode": "NULLABLE",
+        "name": "org_name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "country",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "state",
         "type": "STRING"
       },
       {
         "fields": [
           {
-            "name": "name",
+            "mode": "NULLABLE",
+            "name": "wos_standard",
             "type": "STRING"
           },
           {
-            "mode": "REPEATED",
-            "name": "grant_id",
+            "mode": "NULLABLE",
+            "name": "full_name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "daisng_id",
             "type": "INTEGER"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "last_name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "first_name",
+            "type": "STRING"
           }
         ],
         "mode": "REPEATED",
-        "name": "agency",
+        "name": "names",
         "type": "RECORD"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "suborgs",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "city",
+        "type": "STRING"
       }
     ],
-    "name": "fund_ack",
+    "mode": "REPEATED",
+    "name": "orgs",
     "type": "RECORD"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "keywords",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "publisher",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "publisher_city",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "doc_type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "source",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "pub_type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "page_count",
+        "type": "INTEGER"
+      },
+      {
+        "description": "%E4Y-%m-%d",
+        "mode": "NULLABLE",
+        "name": "sort_date",
+        "type": "DATE"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "pub_info",
+    "type": "RECORD"
+  },
+  {
+    "description": "%E4Y-%m-%d",
+    "mode": "NULLABLE",
+    "name": "release_date",
+    "type": "DATE"
   }
 ]
