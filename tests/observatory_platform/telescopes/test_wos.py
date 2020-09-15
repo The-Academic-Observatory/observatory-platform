@@ -319,8 +319,8 @@ class TestWos(unittest.TestCase):
                 # Check that file has expected hash
                 file_path = files[0]
 
-                self.assertGreater({Path(self.wos_2019_07_01_path).stat().st_size}, 500000)
-                self.assertGreater({Path(file_path).stat().st_size}, 500000)
+                self.assertGreater(Path(self.wos_2019_07_01_path).stat().st_size, 500000)
+                self.assertGreater(Path(file_path).stat().st_size, 500000)
 
                 self.assertTrue(os.path.exists(file_path))
                 self.assertEqual(self.wos_2019_07_01_expected_hash, _hash_file(file_path, algorithm='md5'))
