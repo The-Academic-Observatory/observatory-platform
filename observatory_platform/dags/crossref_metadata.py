@@ -14,6 +14,12 @@
 
 # Author: Aniek Roelofs, James Diprose
 
+"""
+A DAG that harvests the Crossref Metadata Plus dataset: https://www.crossref.org/services/metadata-retrieval/metadata-plus/
+
+Saved to the BigQuery table: <project_id>.crossref.crossref_metadataYYYYMMDD
+"""
+
 from datetime import datetime
 
 from airflow import DAG
@@ -22,7 +28,7 @@ from airflow.operators.python_operator import ShortCircuitOperator, PythonOperat
 from observatory_platform.telescopes.crossref_metadata import CrossrefMetadataTelescope
 
 default_args = {
-    "owner": "Airflow",
+    "owner": "airflow",
     "start_date": datetime(2020, 6, 7)
 }
 

@@ -14,6 +14,12 @@
 
 # Author: Aniek Roelofs, Jamie Diprose
 
+"""
+A DAG that harvests the Funder Registry dataset: https://www.crossref.org/services/funder-registry/
+
+Saved to the BigQuery table: <project_id>.crossref.fundrefYYYYMMDD
+"""
+
 from datetime import datetime
 
 from airflow import DAG
@@ -24,7 +30,7 @@ from airflow.operators.python_operator import ShortCircuitOperator
 from observatory_platform.telescopes.fundref import FundrefTelescope
 
 default_args = {
-    "owner": "Airflow",
+    "owner": "airflow",
     "start_date": datetime(2014, 3, 1)
 }
 

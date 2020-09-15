@@ -699,8 +699,7 @@ class DoiWorkflow:
 
         # Create processed dataset
         dataset_id = DoiWorkflow.DASHBOARDS_DATASET_ID
-        template_path = os.path.join(workflow_templates_path(),
-                                     render_template('comparison_view'))
+        template_path = os.path.join(workflow_templates_path(), make_sql_jinja2_filename('comparison_view'))
 
         # Create views
         for table_name in table_names:

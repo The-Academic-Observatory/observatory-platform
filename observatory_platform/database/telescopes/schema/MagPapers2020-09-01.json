@@ -92,6 +92,10 @@
     "type": "INTEGER"
   },
   {
+    "name": "FamilyRank",
+    "type": "INTEGER"
+  },
+  {
     "name": "CreatedDate", 
     "type": "DATETIME"
   }

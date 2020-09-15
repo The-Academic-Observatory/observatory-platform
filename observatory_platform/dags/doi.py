@@ -14,6 +14,31 @@
 
 # Author: Richard Hosking, James Diprose
 
+"""
+A DAG that produces the dois table and aggregated tables for the dashboards.
+
+Each release is saved to the following BigQuery tables:
+    <project_id>.observatory.countryYYYYMMDD
+    <project_id>.observatory.doiYYYYMMDD
+    <project_id>.observatory.funderYYYYMMDD
+    <project_id>.observatory.groupYYYYMMDD
+    <project_id>.observatory.institutionYYYYMMDD
+    <project_id>.observatory.journalYYYYMMDD
+    <project_id>.observatory.publisherYYYYMMDD
+    <project_id>.observatory.regionYYYYMMDD
+    <project_id>.observatory.subregionYYYYMMDD
+
+Every week the following tables are overwritten for visualisation in the Data Studio dashboards:
+    <project_id>.coki_dashboards.country
+    <project_id>.coki_dashboards.doi
+    <project_id>.coki_dashboards.funder
+    <project_id>.coki_dashboards.group
+    <project_id>.coki_dashboards.institution
+    <project_id>.coki_dashboards.journal
+    <project_id>.coki_dashboards.publisher
+    <project_id>.coki_dashboards.region
+    <project_id>.coki_dashboards.subregion
+"""
 
 from datetime import datetime
 

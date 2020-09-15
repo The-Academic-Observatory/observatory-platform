@@ -14,6 +14,12 @@
 
 # Author: Aniek Roelofs, James Diprose
 
+"""
+A DAG that harvests the GeoNames geographical database: https://www.geonames.org/
+
+Saved to the BigQuery table: <project_id>.geonames.geonamesYYYYMMDD
+"""
+
 from datetime import datetime
 
 from airflow import DAG
@@ -22,7 +28,7 @@ from airflow.operators.python_operator import PythonOperator, ShortCircuitOperat
 from observatory_platform.telescopes.geonames import GeonamesTelescope
 
 default_args = {
-    "owner": "Airflow",
+    "owner": "airflow",
     "start_date": datetime(2020, 9, 1)
 }
 

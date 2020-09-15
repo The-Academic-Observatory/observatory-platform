@@ -14,6 +14,33 @@
 
 # Author: James Diprose
 
+"""
+A DAG that harvests the Microsoft Academic Graph (MAG) dataset: https://www.microsoft.com/en-us/research/project/microsoft-academic-graph/
+
+Saved to the BigQuery tables:
+    <project_id>.mag.AffiliationsYYYYMMDD
+    <project_id>.mag.AuthorExtendedAttributesYYYYMMDD
+    <project_id>.mag.AuthorsYYYYMMDD
+    <project_id>.mag.ConferenceInstancesYYYYMMDD
+    <project_id>.mag.ConferenceSeriesYYYYMMDD
+    <project_id>.mag.EntityRelatedEntitiesYYYYMMDD
+    <project_id>.mag.FieldOfStudyChildrenYYYYMMDD
+    <project_id>.mag.FieldOfStudyExtendedAttributesYYYYMMDD
+    <project_id>.mag.FieldsOfStudyYYYYMMDD
+    <project_id>.mag.JournalsYYYYMMDD
+    <project_id>.mag.PaperAbstractsInvertedIndexYYYYMMDD
+    <project_id>.mag.PaperAuthorAffiliationsYYYYMMDD
+    <project_id>.mag.PaperCitationContextsYYYYMMDD
+    <project_id>.mag.PaperExtendedAttributesYYYYMMDD
+    <project_id>.mag.PaperFieldsOfStudyYYYYMMDD
+    <project_id>.mag.PaperRecommendationsYYYYMMDD
+    <project_id>.mag.PaperReferencesYYYYMMDD
+    <project_id>.mag.PaperResourcesYYYYMMDD
+    <project_id>.mag.PapersYYYYMMDD
+    <project_id>.mag.PaperUrlsYYYYMMDD
+    <project_id>.mag.RelatedFieldOfStudyYYYYMMDD
+"""
+
 from datetime import datetime
 
 from airflow import DAG

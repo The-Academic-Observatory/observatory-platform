@@ -14,6 +14,11 @@
 
 # Author: James Diprose
 
+"""
+A DAG that harvests the OpenCitations Indexes: http://opencitations.net/
+
+Saved to the BigQuery table: <project_id>.open_citations.open_citationsYYYYMMDD
+"""
 
 from datetime import datetime
 
