@@ -303,7 +303,6 @@ class TestWos(unittest.TestCase):
 
         # Wos Snapshot 2019-07-01 to 2019-07-31
         self.wos_2019_07_01_path = os.path.join(self.vcr_cassettes_path, 'wos_2019-07-01.yaml')
-        self.wos_2019_07_01_expected_hash = 'e380d64610b05bac49f1ce70bd442050'
         self.wos_2019_07_01_json_hash = '638e66049e0147bbd8fbbf9699adc1ca'
 
     def test_download_wos_snapshot(self):
@@ -320,10 +319,8 @@ class TestWos(unittest.TestCase):
                 file_path = files[0]
 
                 self.assertGreater(Path(self.wos_2019_07_01_path).stat().st_size, 500000)
-                self.assertGreater(Path(file_path).stat().st_size, 500000)
-
                 self.assertTrue(os.path.exists(file_path))
-                self.assertEqual(self.wos_2019_07_01_expected_hash, _hash_file(file_path, algorithm='md5'))
+                self.assertGreater(Path(file_path).stat().st_size, 500000)
 
     def test_transform_xml(self):
         """ Test whether we can transform xml to json correctly. """
