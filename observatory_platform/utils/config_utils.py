@@ -30,7 +30,8 @@ import hcl
 import pendulum
 import yaml
 from airflow.hooks.base_hook import BaseHook
-from airflow.models.connection import Connection
+from airflow.utils.db import create_session
+from airflow.models import Connection
 from cerberus import Validator
 from cryptography.fernet import Fernet
 from jinja2 import Template
@@ -229,6 +230,18 @@ def check_connections(*connections):
             logging.error(f"Airflow connection '{name}' not set.")
             is_valid = False
     return is_valid
+
+
+def list_connections(source):
+    """Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
+
+    :param source: Data source (conforming to name convention) as a string, e.g., 'wos'.
+    :return: A list of connection id strings with the prefix <source>_, e.g., ['wos_curtin', 'wos_auckland'].
+    """
+    with create_session() as session:
+        query = session.query(Connection)
+        query = query.filter(Connection.conn_id.like(f'{source}_%'))
+        return query.all()
 
 
 def telescope_path(sub_folder: SubFolder, name: str) -> str:
