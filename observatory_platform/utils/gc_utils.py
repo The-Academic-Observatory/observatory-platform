@@ -697,3 +697,22 @@ def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azur
         time.sleep(wait_time)
 
     return status == TransferStatus.success
+
+
+def upload_telescope_file_list(bucket_name: str, dag_id: str, execution_date: str, file_list: List[str]) -> List[str]:
+    """ Upload list of files to cloud storage.
+
+    :param bucket_name: Name of storage bucket.
+    :param dag_id: DAG ID.
+    :param execution_date: Execution date.
+    :param file_list: List of files to upload.
+    :return: List of location paths in the cloud.
+    """
+
+    blob_list = list()
+    for file in file_list:
+        file_name = os.path.basename(file)
+        blob_name = f'telescopes/{dag_id}/{execution_date}/{file_name}'
+        blob_list.append(blob_name)
+        upload_file_to_cloud_storage(bucket_name, blob_name, file_path=file)
+    return blob_list
