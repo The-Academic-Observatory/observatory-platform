@@ -27,7 +27,8 @@ from click.testing import CliRunner
 from observatory_platform.telescopes.geonames import (
     GeonamesRelease,
     GeonamesTelescope,
-    transform_release
+    transform_release,
+    first_sunday_of_month
 )
 from observatory_platform.telescopes.geonames import fetch_release_date
 from observatory_platform.utils.config_utils import telescope_path, SubFolder
@@ -68,6 +69,19 @@ class TestGeonames(unittest.TestCase):
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
+    def test_first_sunday_of_month(self):
+        # Test when the date is later in the month
+        datetime = pendulum.datetime(year=2020, month=7, day=28)
+        expected_datetime = pendulum.datetime(year=2020, month=7, day=5)
+        actual_datetime = first_sunday_of_month(datetime)
+        self.assertEqual(expected_datetime, actual_datetime)
+
+        # Test a date when the current date is a Sunday
+        datetime = pendulum.datetime(year=2020, month=11, day=1)
+        expected_datetime = pendulum.datetime(year=2020, month=11, day=1)
+        actual_datetime = first_sunday_of_month(datetime)
+        self.assertEqual(expected_datetime, actual_datetime)
+
     def test_fetch_release_date(self):
         """ Test that fetch_release_date function works.
 
@@ -86,11 +100,11 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             file_path_download = release.filepath_download
             path = telescope_path(SubFolder.downloaded, GeonamesTelescope.DAG_ID)
@@ -104,11 +118,11 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             file_path_decompress = release.filepath_extract
             path = telescope_path(SubFolder.extracted, GeonamesTelescope.DAG_ID)
@@ -122,11 +136,11 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             file_path_extract = release.filepath_extract
             path = telescope_path(SubFolder.extracted, GeonamesTelescope.DAG_ID)
@@ -140,15 +154,34 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             file_path_transform = release.filepath_transform
             path = telescope_path(SubFolder.transformed, GeonamesTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.geonames_test_transform_file_name), file_path_transform)
+
+    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    def test_get_blob_name(self, mock_variable_get):
+        """ Test get_blob_name.
+
+        :param home_mock: Mock observatory home path
+        :return: None.
+        """
+
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
+
+        with CliRunner().isolated_filesystem():
+            release = GeonamesRelease(self.geonames_test_date)
+            self.assertEqual(release.get_blob_name(SubFolder.downloaded),
+                             'telescopes/geonames/geonames_3000_01_01.zip')
+            self.assertEqual(release.get_blob_name(SubFolder.transformed),
+                             'telescopes/geonames/geonames_3000_01_01.csv.gz')
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_transform_release(self, mock_variable_get):
@@ -157,11 +190,11 @@ class TestGeonames(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
             shutil.copyfile(self.geonames_test_path, release.filepath_extract)
 

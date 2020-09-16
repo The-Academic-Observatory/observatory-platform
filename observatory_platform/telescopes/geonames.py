@@ -14,6 +14,8 @@
 
 # Author: Aniek Roelofs, James Diprose
 
+from __future__ import annotations
+
 import gzip
 import logging
 import os
@@ -56,7 +58,7 @@ def fetch_release_date() -> Pendulum:
     return date
 
 
-def download_release(release: 'GeonamesRelease') -> str:
+def download_release(release: GeonamesRelease) -> str:
     """ Downloads geonames dump file containing country data. The file is in zip format and will be extracted
     after downloading, saving the unzipped content.
 
@@ -70,7 +72,7 @@ def download_release(release: 'GeonamesRelease') -> str:
     return file_path
 
 
-def extract_release(release: 'GeonamesRelease'):
+def extract_release(release: GeonamesRelease):
     """ Extract a downloaded Geonames release
 
     :param release: instance of GeonamesRelease class
@@ -85,7 +87,7 @@ def extract_release(release: 'GeonamesRelease'):
     os.rename(os.path.join(extract_folder, GeonamesTelescope.UNZIPPED_FILE_NAME), release.filepath_extract)
 
 
-def transform_release(release: 'GeonamesRelease') -> str:
+def transform_release(release: GeonamesRelease) -> str:
     """ Transforms release by storing file content in gzipped csv format.
 
     :param release: instance of GeonamesRelease class
@@ -97,6 +99,16 @@ def transform_release(release: 'GeonamesRelease') -> str:
             shutil.copyfileobj(file_in, file_out)
 
     return release.filepath_transform
+
+
+def first_sunday_of_month(datetime: Pendulum) -> Pendulum:
+    """ Get the first Sunday of the month based on a given datetime.
+
+    :param datetime: the datetime.
+    :return: the first Sunday of the month.
+    """
+
+    return datetime.start_of('month').first_of('month', day_of_week=7)
 
 
 class GeonamesRelease:
@@ -158,13 +170,14 @@ class GeonamesTelescope:
     RELEASES_TOPIC_NAME = 'releases'
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
-    TASK_ID_DOWNLOAD = f"download"
-    TASK_ID_UPLOAD_DOWNLOADED = f"upload_downloaded"
-    TASK_ID_EXTRACT = f"extract"
-    TASK_ID_TRANSFORM = f"transform"
-    TASK_ID_UPLOAD_TRANSFORMED = f"upload_transformed"
-    TASK_ID_BQ_LOAD = f"bq_load"
-    TASK_ID_CLEANUP = f"cleanup"
+    TASK_ID_SKIP = "skip"
+    TASK_ID_DOWNLOAD = "download"
+    TASK_ID_UPLOAD_DOWNLOADED = "upload_downloaded"
+    TASK_ID_EXTRACT = "extract"
+    TASK_ID_TRANSFORM = "transform"
+    TASK_ID_UPLOAD_TRANSFORMED = "upload_transformed"
+    TASK_ID_BQ_LOAD = "bq_load"
+    TASK_ID_CLEANUP = "cleanup"
 
     @staticmethod
     def check_dependencies(**kwargs):
@@ -180,6 +193,22 @@ class GeonamesTelescope:
                                      AirflowVar.transform_bucket_name.get())
         if not vars_valid:
             raise AirflowException('Required variables are missing')
+
+    @staticmethod
+    def skip(**kwargs):
+        """ Determine whether to run the geonames release. Only run on the first Sunday of a month.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        """
+
+        execution_date = kwargs['execution_date']
+        run_date = first_sunday_of_month(execution_date)
+        logging.info(f'execution_date={execution_date}, run_date={run_date}')
+
+        continue_dag = execution_date == run_date
+        return continue_dag
 
     @staticmethod
     def download(**kwargs):

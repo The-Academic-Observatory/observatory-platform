@@ -34,6 +34,7 @@ from natsort import natsorted
 from pendulum import Pendulum
 
 import observatory_platform.database
+import observatory_platform.database.workflows.sql
 from observatory_platform import dags
 
 # The path where data is saved on the system
@@ -55,6 +56,16 @@ def observatory_home(*subdirs) -> str:
         os.makedirs(observatory_home_, exist_ok=True)
 
     return observatory_home_
+
+
+def workflow_templates_path() -> str:
+    """ Get the path to the SQL workflows templates.
+
+    :return: the path to SQL templates.
+    """
+
+    file_path = pathlib.Path(observatory_platform.database.workflows.sql.__file__).resolve()
+    return str(pathlib.Path(*file_path.parts[:-1]).resolve())
 
 
 def observatory_package_path() -> str:

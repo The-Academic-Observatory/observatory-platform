@@ -14,6 +14,8 @@
 
 # Author: Aniek Roelofs, Richard Hosking, James Diprose
 
+from __future__ import annotations
+
 import gzip
 import io
 import json
@@ -51,7 +53,7 @@ from observatory_platform.utils.url_utils import retry_session
 from tests.observatory_platform.config import test_fixtures_path
 
 
-def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['FundrefRelease']:
+def list_releases(start_date: Pendulum, end_date: Pendulum) -> List[FundrefRelease]:
     """ List all available fundref releases
 
     :param start_date:
@@ -62,26 +64,26 @@ def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['FundrefRele
     # A selection of headers to prevent 403/forbidden error.
 
     headers_list = [{
-                        'authority': 'gitlab.com',
-                        'upgrade-insecure-requests': '1',
-                        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                                      'Chrome/84.0.4147.89 Safari/537.36',
-                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,'
-                                  '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                        'sec-fetch-site': 'none',
-                        'sec-fetch-mode': 'navigate',
-                        'sec-fetch-dest': 'document',
-                        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'
-                    },
+        'authority': 'gitlab.com',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/84.0.4147.89 Safari/537.36',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,'
+                  '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'sec-fetch-site': 'none',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-dest': 'document',
+        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'
+    },
 
-                    {
-                        'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.5',
-                        'DNT': '1',
-                        'Connection': 'keep-alive',
-                        'Upgrade-Insecure-Requests': '1'
-                    }]
+        {
+            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+        }]
 
     releases_list = []
     headers = random.choice(headers_list)
@@ -128,7 +130,7 @@ def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['FundrefRele
     return releases_list
 
 
-def download_release(release: 'FundrefRelease') -> str:
+def download_release(release: FundrefRelease) -> str:
     """ Downloads release from url.
 
     :param release: Instance of FundrefRelease class
@@ -139,24 +141,24 @@ def download_release(release: 'FundrefRelease') -> str:
 
     # A selection of headers to prevent 403/forbidden error.
     headers_list = [{
-                        'authority': 'gitlab.com',
-                        'upgrade-insecure-requests': '1',
-                        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                                      'Chrome/83.0.4103.116 Safari/537.36',
-                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,'
-                                  '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                        'sec-fetch-site': 'none',
-                        'sec-fetch-mode': 'navigate',
-                        'sec-fetch-dest': 'document',
-                        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'
-                    },
+        'authority': 'gitlab.com',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/83.0.4103.116 Safari/537.36',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,'
+                  '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'sec-fetch-site': 'none',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-dest': 'document',
+        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8'
+    },
 
-                    {
-                        'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
-                        'Accept': '*/*',
-                        'Accept-Language': 'en-US,en;q=0.5',
-                        'Referer': 'https://gitlab.com/'
-                    }]
+        {
+            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Referer': 'https://gitlab.com/'
+        }]
 
     # Download release
     with requests.get(release.url, headers=random.choice(headers_list), stream=True) as response:
@@ -166,7 +168,7 @@ def download_release(release: 'FundrefRelease') -> str:
     return file_path
 
 
-def extract_release(release: 'FundrefRelease') -> str:
+def extract_release(release: FundrefRelease) -> str:
     """ Extract release.
 
     :param release: Instance of FundrefRelease class
@@ -211,7 +213,7 @@ def strip_whitespace(file_path: str):
     os.rename(file_path + '.tmp', file_path)
 
 
-def transform_release(release: 'FundrefRelease') -> str:
+def transform_release(release: FundrefRelease) -> str:
     """ Transform release by parsing the raw rdf file, transforming it into a json file and replacing geoname associated
     ids with their geoname name.
 
@@ -508,7 +510,7 @@ class FundrefTelescope:
 
     DAG_ID = 'fundref'
     DESCRIPTION = 'The Funder Registry dataset: https://www.crossref.org/services/funder-registry/'
-    DATASET_ID = DAG_ID
+    DATASET_ID = 'crossref'
     RELEASES_TOPIC_NAME = "releases"
     QUEUE = "remote_queue"
     TELESCOPE_URL = 'https://gitlab.com/api/v4/projects/crossref%2Fopen_funder_registry/releases'
@@ -713,8 +715,7 @@ class FundrefTelescope:
         bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Create dataset
-        dataset_id = FundrefTelescope.DAG_ID
-        create_bigquery_dataset(project_id, dataset_id, data_location, FundrefTelescope.DESCRIPTION)
+        create_bigquery_dataset(project_id, FundrefTelescope.DAG_ID, data_location, FundrefTelescope.DESCRIPTION)
 
         # Load each release into BigQuery
         for release in releases_list:
@@ -731,7 +732,7 @@ class FundrefTelescope:
             # Load BigQuery table
             uri = f"gs://{bucket_name}/{release.get_blob_name(SubFolder.transformed)}"
             logging.info(f"URI: {uri}")
-            load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
+            load_bigquery_table(uri, FundrefTelescope.DAG_ID, data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod

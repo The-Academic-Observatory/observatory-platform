@@ -78,12 +78,12 @@ class TestCrossrefMetadata(unittest.TestCase):
         :return: None.
         """
 
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
+
         with CliRunner().isolated_filesystem():
             with vcr.use_cassette(self.crossref_release_exists_path):
-                # Mock data variable
-                data_path = 'data'
-                mock_variable_get.return_value = data_path
-
                 # Test a release that exists
                 release = CrossrefMetadataRelease(2020, 6)
                 self.assertTrue(release.exists())
@@ -100,11 +100,11 @@ class TestCrossrefMetadata(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = CrossrefMetadataRelease(self.year, self.month)
             path = telescope_path(SubFolder.downloaded, CrossrefMetadataTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.download_file_name), release.download_path)
@@ -117,11 +117,11 @@ class TestCrossrefMetadata(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = CrossrefMetadataRelease(self.year, self.month)
             path = telescope_path(SubFolder.extracted, CrossrefMetadataTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.extract_folder), release.extract_path)
@@ -134,11 +134,11 @@ class TestCrossrefMetadata(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = CrossrefMetadataRelease(self.year, self.month)
             path = os.path.join(telescope_path(SubFolder.transformed, CrossrefMetadataTelescope.DAG_ID),
                                 self.transform_folder)
@@ -151,11 +151,11 @@ class TestCrossrefMetadata(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = CrossrefMetadataRelease(self.year, self.month)
 
             # 'download' release
@@ -178,11 +178,11 @@ class TestCrossrefMetadata(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Mock data variable
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Mock data variable
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = CrossrefMetadataRelease(self.year, self.month)
 
             # 'download' release

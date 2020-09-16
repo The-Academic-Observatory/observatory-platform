@@ -14,23 +14,37 @@
 
 # Author: Aniek Roelofs, James Diprose
 
+"""
+A DAG that harvests the GeoNames geographical database: https://www.geonames.org/
+
+Saved to the BigQuery table: <project_id>.geonames.geonamesYYYYMMDD
+"""
+
 from datetime import datetime
 
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
 
 from observatory_platform.telescopes.geonames import GeonamesTelescope
 
 default_args = {
-    "owner": "Airflow",
-    "start_date": datetime(2020, 6, 1)
+    "owner": "airflow",
+    "start_date": datetime(2020, 9, 1)
 }
 
-with DAG(dag_id="geonames", schedule_interval="@monthly", default_args=default_args, catchup=False) as dag:
+with DAG(dag_id="geonames", schedule_interval="@weekly", default_args=default_args, catchup=False) as dag:
     # Get config variables
     check = PythonOperator(
         task_id=GeonamesTelescope.TASK_ID_CHECK_DEPENDENCIES,
         python_callable=GeonamesTelescope.check_dependencies,
+        provide_context=True,
+        queue=GeonamesTelescope.QUEUE
+    )
+
+    # List of all releases for last month
+    skip = ShortCircuitOperator(
+        task_id=GeonamesTelescope.TASK_ID_SKIP,
+        python_callable=GeonamesTelescope.skip,
         provide_context=True,
         queue=GeonamesTelescope.QUEUE
     )
@@ -94,4 +108,4 @@ with DAG(dag_id="geonames", schedule_interval="@monthly", default_args=default_a
         queue=GeonamesTelescope.QUEUE
     )
 
-    check >> download >> upload_downloaded >> extract >> transform >> upload_transformed >> load_to_bq >> cleanup
+    check >> skip >> download >> upload_downloaded >> extract >> transform >> upload_transformed >> load_to_bq >> cleanup

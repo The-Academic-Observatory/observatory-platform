@@ -1,0 +1,297 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "journal_is_in_doaj",
+    "type": "BOOLEAN"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "published_date",
+    "type": "DATE"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "journal_issns",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "journal_issn_l",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "issn_l",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "data_standard",
+    "type": "INTEGER"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "blank",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "x_reported_noncompliant_copies",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "pmh_id",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "license",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_landing_page",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "version",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_pdf",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_best",
+        "type": "BOOLEAN"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "updated",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "evidence",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "host_type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "repository_institution",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "endpoint_id",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "oa_locations",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "doi",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "pmh_id",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "license",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_landing_page",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "version",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_pdf",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_best",
+        "type": "BOOLEAN"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "updated",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "evidence",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "host_type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "repository_institution",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "endpoint_id",
+        "type": "STRING"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "best_oa_location",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "updated",
+    "type": "TIMESTAMP"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "oa_status",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "title",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "genre",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "year",
+    "type": "INTEGER"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "is_oa",
+    "type": "BOOLEAN"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "publisher",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "doi_url",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "sequence",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "authenticated_orcid",
+        "type": "BOOLEAN"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "suffix",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "affiliation",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ORCID",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "family",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "given",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "z_authors",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "journal_is_oa",
+    "type": "BOOLEAN"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "has_repository_copy",
+    "type": "BOOLEAN"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "x_error",
+    "type": "BOOLEAN"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "journal_name",
+    "type": "STRING"
+  }
+]
