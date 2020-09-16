@@ -27,6 +27,8 @@ from observatory_platform.telescopes.scopus import ScopusTelescope
 # Remove later when WoS branch merges.
 from airflow.utils.db import create_session
 from airflow.models import Connection
+
+
 def list_connections(source):
     """Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
 
@@ -42,6 +44,7 @@ def list_connections(source):
 default_args = {'owner': 'airflow',
                 'start_date': datetime(2018, 1, 1),
                 }
+
 
 def download_subdag_factory(parent_dag_id, subdag_id, args):
     """ Factory for making the download subdag.
@@ -68,7 +71,7 @@ def download_subdag_factory(parent_dag_id, subdag_id, args):
             PythonOperator(
                 task_id=institution,
                 python_callable=ScopusTelescope.download,
-                op_kwargs={'conn' : conn, 'dag_start': '{{dag_run.start_date}}'},
+                op_kwargs={'conn': conn, 'dag_start': '{{dag_run.start_date}}'},
                 provide_context=True,
                 queue=ScopusTelescope.QUEUE,
                 retries=ScopusTelescope.RETRIES,
@@ -77,7 +80,8 @@ def download_subdag_factory(parent_dag_id, subdag_id, args):
     return subdag
 
 
-with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDULE_INTERVAL, catchup=False, default_args=default_args) as dag:
+with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDULE_INTERVAL, catchup=False,
+         default_args=default_args) as dag:
     # Check that dependencies exist before starting
 
     check_dependencies = PythonOperator(
@@ -87,7 +91,7 @@ with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDU
         queue=ScopusTelescope.QUEUE
     )
 
-    # Only process if the Web of Science API server is up.
+    # Only process if the SCOPUS API server is up.
     check_api_server = PythonOperator(
         task_id=ScopusTelescope.TASK_CHECK_API_SERVER,
         python_callable=ScopusTelescope.check_api_server,
@@ -96,7 +100,7 @@ with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDU
         retries=ScopusTelescope.RETRIES,
     )
 
-    # Download the WoS snapshot for all configured institutions
+    # Download the SCOPUS snapshot for all configured institutions
     download = SubDagOperator(
         task_id=ScopusTelescope.TASK_ID_DOWNLOAD,
         subdag=download_subdag_factory(ScopusTelescope.DAG_ID, ScopusTelescope.SUBDAG_ID_DOWNLOAD, default_args),
@@ -104,7 +108,7 @@ with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDU
         dag=dag
     )
 
-    # Upload gzipped response (XML)
+    # Upload gzipped response (JSON)
     upload_downloaded = PythonOperator(
         task_id=ScopusTelescope.TASK_ID_UPLOAD_DOWNLOADED,
         python_callable=ScopusTelescope.upload_downloaded,
@@ -130,7 +134,7 @@ with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDU
         retries=ScopusTelescope.RETRIES
     )
 
-    # Load the transformed WoS snapshot to BigQuery
+    # Load the transformed SCOPUS snapshot to BigQuery
     # Depends on past so that BigQuery load jobs are not all created at once
     bq_load = PythonOperator(
         task_id=ScopusTelescope.TASK_ID_BQ_LOAD,
@@ -148,4 +152,4 @@ with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDU
 
     # Task dependencies
     check_dependencies >> check_api_server >> download >> upload_downloaded \
-     >> transform_db_format >> upload_transformed >> bq_load >> cleanup
+        >> transform_db_format >> upload_transformed >> bq_load >> cleanup

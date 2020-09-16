@@ -74,7 +74,6 @@ class ScopusTelescope:
     XCOM_JSONL_ZIP_PATH = 'jsonl_zip_path'
     XCOM_JSONL_BLOB_PATH = 'jsonl_blob_path'
 
-    # Implement multiprocessing later if needed. WosClient seems to be synchronous i/o so asyncio doesn't help.
     DOWNLOAD_MODE = 'parallel'  # Valid options: ['sequential', 'parallel']
 
     API_SERVER = ''
@@ -101,7 +100,7 @@ class ScopusTelescope:
 
     @staticmethod
     def download(**kwargs):
-        """ Task to download the WoS snapshots.
+        """ Task to download the SCOPUS snapshots.
 
         Pushes the following xcom:
             download_path (str): the path to a pickled file containing the list of xml responses in a month query.
@@ -142,7 +141,7 @@ class ScopusTelescope:
 
     @staticmethod
     def upload_transformed(**kwargs):
-        """ Task to upload the transformed WoS data into jsonlines files.
+        """ Task to upload the transformed SCOPUS data into jsonlines files.
 
         Pushes the following xcom:
             release_date (str): the release date of the GRID release.
@@ -156,7 +155,7 @@ class ScopusTelescope:
 
     @staticmethod
     def bq_load(**kwargs):
-        """ Task to load the transformed WoS snapshot into BigQuery.
+        """ Task to load the transformed SCOPUS snapshot into BigQuery.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -182,8 +181,6 @@ class ScopusUtilConst:
     RESULT_LIMIT = 100  # Return 100 results max per query.
     CALL_LIMIT = 1  # WoS says they can do 2 api calls / second.
     CALL_PERIOD = 1  # seconds
-    SESSION_CALL_LIMIT = 5  # 5 calls per 5 min.
-    SESSION_CALL_PERIOD = 300  # 5 minutes.
     API_KEY_QUERY_QUOTA = 20000  # API key limit for the Curtin scopus keys.
     RETRIES = 3
 
@@ -284,7 +281,7 @@ class ScopusUtility:
     @limits(calls=ScopusUtilConst.CALL_LIMIT, period=ScopusUtilConst.CALL_PERIOD)
     def scopus_search(client: ElsClient, query: str):
         """ Throttling wrapper for the API call. This is a global limit for this API when called from a program on the
-        same machine. Limits specified in WosUtilConst class.
+        same machine. Limits specified in ScopusUtilConst class.
 
         Throttle limits may or may not be enforced. Probably depends on how executors spin up tasks.
 
@@ -311,7 +308,7 @@ class ScopusJsonParser:
 
 
 ################################
-# Remove this after WoS branch merged
+# Remove this after SCOPUS branch merged
 
 def build_schedule(sched_start_date, sched_end_date):
     """ Useful for API based data sources.
