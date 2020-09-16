@@ -52,6 +52,7 @@ class ScopusTelescope:
     DAG_ID = 'scopus'
     SUBDAG_ID_DOWNLOAD = 'download'
     DESCRIPTION = 'SCOPUS: https://www.scopus.com'
+    API_SERVER = 'https://api.elsevier.com'
     SCHEDULE_INTERVAL = '@monthly'
     RELEASES_TOPIC_NAME = 'releases'
     QUEUE = 'remote_queue'
@@ -75,8 +76,6 @@ class ScopusTelescope:
     XCOM_JSONL_BLOB_PATH = 'jsonl_blob_path'
 
     DOWNLOAD_MODE = 'parallel'  # Valid options: ['sequential', 'parallel']
-
-    API_SERVER = ''
 
     @staticmethod
     def check_dependencies(**kwargs):
