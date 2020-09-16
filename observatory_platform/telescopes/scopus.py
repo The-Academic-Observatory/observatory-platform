@@ -324,6 +324,20 @@ class ScopusUtility:
         """
 
 
+class ScopusJsonParser:
+    """ Helper methods to process the json from SCOPUS into desired structure. """
+
+
+    @staticmethod
+    def parse_json(data: dict, harvest_datetime: str, release_date: str) -> dict:
+        """ Turn json data into db schema format.
+
+        :param data: json response from SCOPUS.
+        :param harvest_datetime: isoformat string of time the fetch took place.
+        :param release_date: DAG execution date.
+        :return: dict of data in right field format.
+        """
+
 
 
 ################################
