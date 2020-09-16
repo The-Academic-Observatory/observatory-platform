@@ -25,16 +25,17 @@ import xmltodict
 
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from elsapy.elsclient import ElsClient
+from elsapy.elssearch import ElsSearch
 from google.cloud.bigquery import SourceFormat
 from typing import List
 from math import ceil
 from ratelimit import limits, sleep_and_retry
-from urllib.error import URLError
+from requests import HTTPError
 
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.models import Variable
-
 
 # Remove these later
 import calendar
@@ -204,6 +205,126 @@ class ScopusTelescope:
         """
 
 
+class ScopusUtilConst:
+    """ Constants for the SCOPUS utility class. """
+
+    # WoS limits. Not sure if necessary but imposing to be safe.
+    RESULT_LIMIT = 100  # Return 100 results max per query.
+    CALL_LIMIT = 1  # WoS says they can do 2 api calls / second.
+    CALL_PERIOD = 1  # seconds
+    SESSION_CALL_LIMIT = 5  # 5 calls per 5 min.
+    SESSION_CALL_PERIOD = 300  # 5 minutes.
+    API_KEY_QUERY_QUOTA = 20000  # API key limit for the Curtin scopus keys.
+    RETRIES = 3
+
+
+class ScopusUtility:
+    """ Handles the SCOPUS interactions. """
+
+    @staticmethod
+    def build_query(inst_id: str, period: tuple) -> str:
+        """ Build a SCOPUS API query.
+
+        :param inst_id: Institution ID needed to filter the search results.
+        :param period: A tuple containing start and end dates.
+        :return: Constructed web query.
+        """
+
+        search_month = calendar.month_name(period[0].month)
+        search_year = period[0].year
+
+        query = f'(AF-ID({inst_id})) AND PUBDATETXT({search_month} AND {search_year})'
+
+        return query
+
+    @staticmethod
+    def parse_query(records) -> dict:
+        """ Parse XML tree record into a dict.
+
+        :param records: XML tree returned by the web query.
+        :return: Dictionary version of the web response.
+        """
+
+    @staticmethod
+    def download_scopus_period(client: ElsClient, conn: str, period: tuple, inst_id: str, download_path: str) -> str:
+        """ Download records for a stated date range.
+
+        :param client: WebClient object.
+        :param conn: file name for saved response as a pickle file.
+        :param period: Period to fetch (start_date, end_date). Will fetch up to
+        :param inst_id: Institutioanl ID to query, e.g, "60031226" (Curtin University)
+        :param download_path: Path to download to.
+         """
+
+    @staticmethod
+    def download_scopus_sequential(api_keys: List[str], schedule: list, conn: str, inst_id: str, download_path: str):
+        """ Download SCOPUS snapshot sequentially. Tasks will be distributed in a round robin to the available keys.
+
+        :param api_keys: List of API keys used to access SCOPUS service.
+        :param schedule: List of date range (start_date, end_date) tuples to download.
+        :param conn: Airflow connection_id string.
+        :param inst_id: Institutioanl ID to query, e.g, "60031226" (Curtin University)
+        :param download_path: Path to download to.
+        :return: List of files downloaded.
+        """
+
+    @staticmethod
+    def download_scopus_parallel(api_keys: List[str], schedule: list, conn: str, inst_id: str, download_path: str):
+        """ Download SCOPUS snapshot with parallel sessions. Tasks will be distributed in parallel to the available
+        keys.
+
+        :param api_keys: List of API keys used to access SCOPUS service.
+        :param schedule: List of date range (start_date, end_date) tuples to download.
+        :param conn: Airflow connection_id string.
+        :param inst_id: Institutioanl ID to query, .e.g, "Curtin University"
+        :param download_path: Path to download to.
+        :return: List of files downloaded.
+        """
+
+    @staticmethod
+    def download_scopus_batch(api_key: str, batch: list, conn: str, inst_id: str, download_path: str):
+        """ Download one batch of SCOPUS snapshots. Handle quota backoff in here.
+
+            quota_exceeded = True if fetch_log["error"].startswith("HTTPError('QuotaExceeded") else False
+            if quota_exceeded:
+                renews_at = str(fetch_log["error"])[37:-2]
+
+                fetch_log["quota_renews_at"] = renews_at
+
+        :param api_key: API key used to access SCOPUS service.
+        :param batch: List of tuples of (start_date, end_date) to fetch.
+        :param conn: connection_id string from Airflow variable.
+        :param inst_id: institution id to query.
+        :param download_path: download path to save response to.
+        :return: List of saved files from this batch.
+        """
+
+    @staticmethod
+    def make_query(client: ElsClient, query: str):
+        """Make the API calls to retrieve information from SCOPUS.
+
+        :param client: ElsClient object.
+        :param query: Constructed search query from use build_query.
+
+        :return: List of XML responses.
+        """
+
+    @staticmethod
+    @sleep_and_retry
+    @limits(calls=ScopusUtilConst.CALL_LIMIT, period=ScopusUtilConst.CALL_PERIOD)
+    def scopus_search(client: ElsClient, query: str):
+        """ Throttling wrapper for the API call. This is a global limit for this API when called from a program on the
+        same machine. Limits specified in WosUtilConst class.
+
+        Throttle limits may or may not be enforced. Probably depends on how executors spin up tasks.
+
+        :param client: ElsClient object.
+        :param query: Query object.
+        :returns: Query results.
+        """
+
+
+
 
 ################################
 # Remove this after WoS branch merged
@@ -230,6 +351,7 @@ def build_schedule(sched_start_date, sched_end_date):
                 schedule.append((start_date, end_date))
     return schedule
 
+
 def delete_msg_files(ti: TaskInstance, topic: str, task_id: str, msg_key: str, dag_id):
     """ Pull messages from a topic and delete the relevant paths.
 
@@ -249,7 +371,6 @@ def delete_msg_files(ti: TaskInstance, topic: str, task_id: str, msg_key: str, d
             pathlib.Path(file).unlink()
         except FileNotFoundError as e:
             logging.warning(f"No such file or directory {file}: {e}")
-
 
 
 def json_to_db(json_list: List[str], release_date: str, parser) -> List[str]:
