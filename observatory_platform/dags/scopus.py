@@ -24,6 +24,20 @@ from airflow.operators.subdag_operator import SubDagOperator
 from observatory_platform.telescopes.scopus import ScopusTelescope
 # from observatory_platform.utils.config_utils import list_connections
 
+# Remove later when WoS branch merges.
+from airflow.utils.db import create_session
+from airflow.models import Connection
+def list_connections(source):
+    """Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
+
+    :param source: Data source (conforming to name convention) as a string, e.g., 'wos'.
+    :return: A list of connection id strings with the prefix <source>_, e.g., ['wos_curtin', 'wos_auckland'].
+    """
+    with create_session() as session:
+        query = session.query(Connection)
+        query = query.filter(Connection.conn_id.like(f'{source}_%'))
+        return query.all()
+
 
 default_args = {'owner': 'airflow',
                 'start_date': datetime(2018, 1, 1),
@@ -45,24 +59,22 @@ def download_subdag_factory(parent_dag_id, subdag_id, args):
         schedule_interval=ScopusTelescope.SCHEDULE_INTERVAL
     )
 
-    # conns = list_connections('wos')
+    conns = list_connections('wos')
 
-    # with subdag:
-    #     for conn in conns:
-    #         institution = str(conn)[4:]
-    #         PythonOperator(
-    #             task_id=institution,
-    #             python_callable=ScopusTelescope.download,
-    #             op_kwargs={'conn' : conn, 'dag_start': '{{dag_run.start_date}}'},
-    #             provide_context=True,
-    #             queue=ScopusTelescope.QUEUE,
-    #             retries=ScopusTelescope.RETRIES,
-    #         )
-
-        # Load tasks
+    with subdag:
+        # Load a new task on the subdag for every institution.
+        for conn in conns:
+            institution = str(conn)[4:]
+            PythonOperator(
+                task_id=institution,
+                python_callable=ScopusTelescope.download,
+                op_kwargs={'conn' : conn, 'dag_start': '{{dag_run.start_date}}'},
+                provide_context=True,
+                queue=ScopusTelescope.QUEUE,
+                retries=ScopusTelescope.RETRIES,
+            )
 
     return subdag
-
 
 
 with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDULE_INTERVAL, catchup=False, default_args=default_args) as dag:
