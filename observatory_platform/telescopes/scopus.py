@@ -39,7 +39,7 @@ from airflow.models import Variable
 class ScopusTelescope:
     """ A container for holding the constants and static functions for the SCOPUS telescope."""
 
-    DAG_ID = 'wos'
+    DAG_ID = 'scopus'
     SUBDAG_ID_DOWNLOAD = 'download'
     DESCRIPTION = 'SCOPUS: https://www.scopus.com'
     SCHEDULE_INTERVAL = '@monthly'
