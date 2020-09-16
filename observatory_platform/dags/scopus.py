@@ -113,24 +113,6 @@ with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDU
         retries=ScopusTelescope.RETRIES
     )
 
-    # Transform XML data to json
-    transform_xml_to_json = PythonOperator(
-        task_id=ScopusTelescope.TASK_ID_TRANSFORM_XML,
-        python_callable=ScopusTelescope.transform_xml,
-        provide_context=True,
-        queue=ScopusTelescope.QUEUE,
-        retries=ScopusTelescope.RETRIES
-    )
-
-    # Upload gzipped JSON converted (from XML) responses.
-    upload_json = PythonOperator(
-        task_id=ScopusTelescope.TASK_ID_UPLOAD_JSON,
-        python_callable=ScopusTelescope.upload_json,
-        provide_context=True,
-        queue=ScopusTelescope.QUEUE,
-        retries=ScopusTelescope.RETRIES
-    )
-
     # Transform into database schema format
     transform_db_format = PythonOperator(
         task_id=ScopusTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
@@ -165,5 +147,5 @@ with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDU
     )
 
     # Task dependencies
-    check_dependencies >> check_api_server >> download >> upload_downloaded >> transform_xml_to_json \
-     >> upload_json >> transform_db_format >> upload_transformed >> bq_load >> cleanup
+    check_dependencies >> check_api_server >> download >> upload_downloaded \
+     >> transform_db_format >> upload_transformed >> bq_load >> cleanup

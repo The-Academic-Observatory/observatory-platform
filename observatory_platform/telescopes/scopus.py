@@ -61,8 +61,6 @@ class ScopusTelescope:
     TASK_CHECK_API_SERVER = 'check_api_server'
     TASK_ID_DOWNLOAD = 'download'
     TASK_ID_UPLOAD_DOWNLOADED = 'upload_downloaded'
-    TASK_ID_TRANSFORM_XML = 'transform_xml'
-    TASK_ID_UPLOAD_JSON = 'upload_json'
     TASK_ID_TRANSFORM_DB_FORMAT = 'transform_db_format'
     TASK_ID_UPLOAD_TRANSFORMED = 'upload_transformed'
     TASK_ID_BQ_LOAD = 'bq_load'
@@ -71,8 +69,6 @@ class ScopusTelescope:
 
     XCOM_DOWNLOAD_PATH = 'download_path'
     XCOM_UPLOAD_ZIP_PATH = 'download_zip_path'
-    XCOM_JSON_PATH = 'json_path'
-    XCOM_JSON_ZIP_PATH = 'json_zip_path'
     XCOM_HARVEST_DATETIME = 'harvest_datetime'
     XCOM_JSONL_PATH = 'jsonl_path'
     XCOM_JSONL_ZIP_PATH = 'jsonl_zip_path'
@@ -122,32 +118,6 @@ class ScopusTelescope:
 
         Pushes the following xcom:
             upload_zip_path (str): the path to pickle zip file of downloaded response.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-    @staticmethod
-    def transform_xml(**kwargs):
-        """ Task to transform the XML from the query to json.
-
-        Pushes the following xcom:
-            json_path (str): the path to json file of a converted xml response.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-    @staticmethod
-    def upload_json(**kwargs):
-        """ Task to upload the transformed json files.
-
-        Pushes the following xcom:
-            upload_json_zip_path (str): the path to json zip file of a converted xml response.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
