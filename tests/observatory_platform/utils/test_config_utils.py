@@ -27,11 +27,13 @@ from click.testing import CliRunner
 
 import observatory_platform.dags
 import observatory_platform.database.telescopes.schema
+import observatory_platform.database.workflows.sql
 from observatory_platform.utils.config_utils import (ObservatoryConfig,
                                                      observatory_package_path,
                                                      observatory_home,
                                                      dags_path,
                                                      telescope_path,
+                                                     workflow_templates_path,
                                                      SubFolder,
                                                      find_schema,
                                                      schema_path,
@@ -80,6 +82,13 @@ class TestConfigUtils(unittest.TestCase):
         actual_path = schema_path('telescopes')
         expected_path = pathlib.Path(observatory_platform.database.telescopes.schema.__file__).resolve()
         expected_path = str(pathlib.Path(*expected_path.parts[:-1]).resolve())
+        self.assertEqual(expected_path, actual_path)
+        self.assertTrue(os.path.exists(actual_path))
+
+    def test_workflow_templates_path(self):
+        expected_path = pathlib.Path(observatory_platform.database.workflows.sql.__file__).resolve()
+        expected_path = str(pathlib.Path(*expected_path.parts[:-1]).resolve())
+        actual_path = workflow_templates_path()
         self.assertEqual(expected_path, actual_path)
         self.assertTrue(os.path.exists(actual_path))
 
@@ -247,9 +256,9 @@ class TestObservatoryConfig(unittest.TestCase):
             'airflow_connections': create_variables_dict(AirflowConn, valid=True)}
 
         self.config_dict_complete_invalid = {'google_application_credentials': None,
-            'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
-            'airflow_variables': create_variables_dict(AirflowVar, valid=False),
-            'airflow_connections': create_variables_dict(AirflowConn, valid=False)}
+                                             'fernet_key': 'nUKEUmwh5Fs8pRSaYo-v4jSB5-zcf5_0TvG4uulhzsE=',
+                                             'airflow_variables': create_variables_dict(AirflowVar, valid=False),
+                                             'airflow_connections': create_variables_dict(AirflowConn, valid=False)}
 
         self.config_dict_incomplete_valid = {
             'google_application_credentials': '/path/to/google_application_credentials.json',

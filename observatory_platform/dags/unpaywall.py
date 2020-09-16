@@ -14,6 +14,18 @@
 
 # Author: Aniek Roelofs, James Diprose
 
+"""
+A DAG that harvests the Unpaywall database: https://unpaywall.org/
+
+Saved to the BigQuery table: <project_id>.our_research.unpaywallYYYYMMDD
+
+Has been tested with the following Unpaywall releases:
+* 2020-04-27, 2020-02-25, 2019-11-22, 2019-08-16, 2019-04-19, 2019-02-21, 2018-09-27, 2018-09-24
+
+Does not work with the following releases:
+* 2018-03-29, 2018-04-28, 2018-06-21, 2018-09-02, 2018-09-06
+"""
+
 from datetime import datetime
 
 from airflow import DAG
@@ -23,11 +35,11 @@ from airflow.operators.python_operator import ShortCircuitOperator
 from observatory_platform.telescopes.unpaywall import UnpaywallTelescope
 
 default_args = {
-    "owner": "Airflow",
-    "start_date": datetime(2020, 4, 1)
+    "owner": "airflow",
+    "start_date": datetime(2018, 9, 7)
 }
 
-with DAG(dag_id="unpaywall", schedule_interval="@weekly", default_args=default_args, max_active_runs=2) as dag:
+with DAG(dag_id="unpaywall", schedule_interval="@weekly", default_args=default_args) as dag:
     # Check that variables exist
     check = PythonOperator(
         task_id=UnpaywallTelescope.TASK_ID_CHECK_DEPENDENCIES,

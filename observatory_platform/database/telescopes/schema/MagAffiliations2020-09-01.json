@@ -1,0 +1,59 @@
+[
+  {
+    "name": "AffiliationId",
+    "type": "INTEGER"
+  },
+  {
+    "name": "Rank",
+    "type": "INTEGER"
+  },
+  {
+    "name": "NormalizedName",
+    "type": "STRING"
+  },
+  {
+    "name": "DisplayName",
+    "type": "STRING"
+  },
+  {
+    "name": "GridId",
+    "type": "STRING"
+  },
+  {
+    "name": "OfficialPage",
+    "type": "STRING"
+  },
+  {
+    "name": "WikiPage",
+    "type": "STRING"
+  },
+  {
+    "name": "PaperCount",
+    "type": "INTEGER"
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER"
+  },
+  {
+    "name": "CitationCount",
+    "type": "INTEGER"
+  },
+  {
+    "name": "Iso3166Code",
+    "type": "STRING",
+    "description": "Two-letter codes (alpha-2) defined in ISO_3166 Code (ISO.org) and ISO 3166-2 (Wiki). Example: US"
+  },
+  {
+    "name": "Latitude",
+    "type": "FLOAT"
+  },
+  {
+    "name": "Longitude",
+    "type": "FLOAT"
+  },
+  {
+    "name": "CreatedDate",
+    "type": "DATETIME"
+  }
+]

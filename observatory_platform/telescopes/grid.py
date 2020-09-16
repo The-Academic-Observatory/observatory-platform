@@ -169,6 +169,7 @@ class GridTelescope:
     """ A container for holding the constants and static functions for the GRID telescope. """
 
     DAG_ID = 'grid'
+    DATASET_ID = 'digital_science'
     DESCRIPTION = 'The Global Research Identifier Database (GRID): https://grid.ac/'
     RELEASES_TOPIC_NAME = 'releases'
     QUEUE = 'remote_queue'
@@ -447,8 +448,7 @@ class GridTelescope:
         bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Create dataset
-        dataset_id = GridTelescope.DAG_ID
-        create_bigquery_dataset(project_id, dataset_id, data_location, GridTelescope.DESCRIPTION)
+        create_bigquery_dataset(project_id, GridTelescope.DATASET_ID, data_location, GridTelescope.DESCRIPTION)
 
         analysis_schema_path = schema_path('telescopes')
         table_name = 'grid'
@@ -472,7 +472,7 @@ class GridTelescope:
             # Load BigQuery table
             uri = f"gs://{bucket_name}/{blob_name}"
             logging.info(f"URI: {uri}")
-            load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
+            load_bigquery_table(uri, GridTelescope.DATASET_ID, data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod

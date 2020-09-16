@@ -143,6 +143,17 @@ To destroy the system with Terraform:
 terraform destroy -var-file=dev.tfvars terraform
 ```
 
+## Create Worker VM
+```bash
+terraform apply -target module.airflow_worker_vm.google_compute_instance.vm_instance -var-file=dev.tfvars terraform
+```
+
+## Destroy
+```bash
+terraform destroy -target module.airflow_worker_vm.google_compute_instance.vm_instance -var-file=dev.tfvars terraform
+```
+
+
 ## Logging into the VMs
 To ssh into airflow-main-vm:
 ```bash

@@ -14,6 +14,11 @@
 
 # Author: James Diprose
 
+"""
+A DAG that harvests the Global Research Identifier Database (GRID): https://grid.ac/
+
+Saved to the BigQuery table: <project_id>.digital_science.gridYYYYMMDD
+"""
 
 from datetime import datetime
 

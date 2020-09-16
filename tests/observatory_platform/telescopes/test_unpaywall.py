@@ -78,11 +78,12 @@ class TestUnpaywall(unittest.TestCase):
 
         :return: None.
         """
+
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
+
         with CliRunner().isolated_filesystem():
             with vcr.use_cassette(self.list_unpaywall_releases_path):
-                data_path = 'data'
-                mock_variable_get.return_value = data_path
-
                 releases = list_releases(self.start_date, self.end_date)
                 self.assertIsInstance(releases, List)
                 for release in releases:
@@ -106,11 +107,11 @@ class TestUnpaywall(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Create data path and mock getting data path
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Create data path and mock getting data path
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = UnpaywallRelease(self.unpaywall_test_file, self.unpaywall_test_date, self.unpaywall_test_date)
             path = telescope_path(SubFolder.downloaded, UnpaywallTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.unpaywall_test_download_file_name), release.filepath_download)
@@ -123,11 +124,11 @@ class TestUnpaywall(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Create data path and mock getting data path
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Create data path and mock getting data path
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = UnpaywallRelease(self.unpaywall_test_file, self.unpaywall_test_date, self.unpaywall_test_date)
             path = telescope_path(SubFolder.extracted, UnpaywallTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.unpaywall_test_decompress_file_name), release.filepath_extract)
@@ -140,11 +141,11 @@ class TestUnpaywall(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Create data path and mock getting data path
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Create data path and mock getting data path
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = UnpaywallRelease(self.unpaywall_test_file, self.unpaywall_test_date, self.unpaywall_test_date)
             path = telescope_path(SubFolder.transformed, UnpaywallTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.unpaywall_test_transform_file_name), release.filepath_transform)
@@ -156,11 +157,11 @@ class TestUnpaywall(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Create data path and mock getting data path
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Create data path and mock getting data path
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = UnpaywallRelease(self.unpaywall_test_file, self.unpaywall_test_date, self.unpaywall_test_date)
             # 'download' release
             shutil.copyfile(self.unpaywall_test_path, release.filepath_download)
@@ -179,11 +180,11 @@ class TestUnpaywall(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem():
-            # Create data path and mock getting data path
-            data_path = 'data'
-            mock_variable_get.return_value = data_path
+        # Create data path and mock getting data path
+        data_path = 'data'
+        mock_variable_get.return_value = data_path
 
+        with CliRunner().isolated_filesystem():
             release = UnpaywallRelease(self.unpaywall_test_file, self.unpaywall_test_date, self.unpaywall_test_date)
             shutil.copyfile(self.unpaywall_test_path, release.filepath_download)
 

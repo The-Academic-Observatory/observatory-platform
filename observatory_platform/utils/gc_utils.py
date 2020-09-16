@@ -30,7 +30,7 @@ import pendulum
 from crc32c import Checksum as Crc32cChecksum
 from google.api_core.exceptions import Conflict
 from google.cloud import storage, bigquery
-from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob
+from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob, QueryJob
 from google.cloud.exceptions import NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
@@ -162,8 +162,8 @@ def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, des
 
 def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, schema_file_path: str,
                         source_format: str, csv_field_delimiter: str = ',', csv_quote_character: str = '"',
-                        csv_allow_quoted_newlines: bool = False, partition: bool = False,
-                        partition_field: Union[None, str] = None,
+                        csv_allow_quoted_newlines: bool = False, csv_skip_leading_rows: int = 0,
+                        partition: bool = False, partition_field: Union[None, str] = None,
                         partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True,
                         write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE) -> bool:
     """ Load a BigQuery table from an object on Google Cloud Storage.
@@ -177,6 +177,7 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     :param csv_field_delimiter: the field delimiter character for data in CSV format.
     :param csv_quote_character: the quote character for data in CSV format.
     :param csv_allow_quoted_newlines: whether to allow quoted newlines for data in CSV format.
+    :param csv_skip_leading_rows: the number of leading rows to skip for data in CSV format.
     :param partition: whether to partition the table.
     :param partition_field: the name of the partition field.
     :param partition_type: the type of partitioning.
@@ -209,6 +210,7 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
         job_config.field_delimiter = csv_field_delimiter
         job_config.quote_character = csv_quote_character
         job_config.allow_quoted_newlines = csv_allow_quoted_newlines
+        job_config.skip_leading_rows = csv_skip_leading_rows
 
     # Set partitioning settings
     if partition:
@@ -227,6 +229,131 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     result = load_job.result()
     logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
     return result.state == 'DONE'
+
+
+def run_bigquery_query(query: str) -> List:
+    """ Run a BigQuery query.
+
+    :param query: the query to run.
+    :return: the results.
+    """
+
+    client = bigquery.Client()
+    query_job = client.query(query)
+    rows = query_job.result()
+    return list(rows)
+
+
+def copy_bigquery_table(source_table_id: str, destination_table_id: str, data_location: str) -> bool:
+    """ Copy a BigQuery table.
+
+    :param source_table_id: the id of the source table, including the project name and dataset id.
+    :param destination_table_id: the id of the destination table, including the project name and dataset id.
+    :param data_location: the location of the datasets.
+    :return: whether the table was copied successfully or not.
+    """
+
+    client = bigquery.Client()
+    job_config = bigquery.CopyJobConfig()
+    job_config.write_disposition = "WRITE_TRUNCATE"
+    job = client.copy_table(source_table_id, destination_table_id, location=data_location, job_config=job_config)
+    result = job.result()
+    return result.done()
+
+
+def create_bigquery_view(project_id: str, dataset_id: str, view_name: str, query: str) -> None:
+    """ Create a BigQuery view.
+
+    :param project_id: the Google Cloud project id.
+    :param dataset_id: the BigQuery dataset id.
+    :param view_name: the name to call the view.
+    :param query: the query for the view.
+    :return: None
+    """
+
+    client = bigquery.Client()
+    dataset = bigquery.DatasetReference(project_id, dataset_id)
+    view_ref = dataset.table(view_name)
+    view = bigquery.Table(view_ref)
+    view.view_query = query
+    view = client.create_table(view, exists_ok=True)
+
+
+def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str,
+                                     description: str = '', labels=None,
+                                     query_parameters=None,
+                                     partition: bool = False, partition_field: Union[None, str] = None,
+                                     partition_type: str = bigquery.TimePartitioningType.DAY,
+                                     require_partition_filter=True, cluster: bool = False,
+                                     clustering_fields=None) -> bool:
+    """ Create a BigQuery dataset from a provided query.
+
+    :param sql: the sql query to be executed
+    :param labels: labels to place on the new table
+    :param project_id: the Google Cloud project id
+    :param dataset_id: the BigQuery dataset id
+    :param table_id: the BigQuery table id
+    :param location: the location where the dataset will be stored:
+    https://cloud.google.com/compute/docs/regions-zones/#locations
+    :param query_parameters: parameters for a parametrised query.
+    :param description: a description for the dataset
+    :param partition: whether to partition the table.
+    :param partition_field: the name of the partition field.
+    :param partition_type: the type of partitioning.
+    :param require_partition_filter: whether the partition filter is required or not when querying the table.
+    :param cluster: whether to cluster the table or not.
+    :param clustering_fields: what fields to cluster on.
+    :return:
+    """
+
+    # Handle mutable default arguments
+    if labels is None:
+        labels = {}
+    if query_parameters is None:
+        query_parameters = []
+    if clustering_fields is None:
+        clustering_fields = []
+
+    func_name = create_bigquery_dataset.__name__
+    msg = f'project_id={project_id}, dataset_id={dataset_id}, location={location}, table={table_id}'
+    logging.info(f"{func_name}: create bigquery table from query, {msg}")
+
+    # Make the dataset reference
+    dataset_ref = f'{project_id}.{dataset_id}'
+
+    # Make dataset handle
+    client = bigquery.Client()
+    dataset = bigquery.Dataset(dataset_ref)
+
+    # Set properties
+    dataset.location = location
+    dataset.description = description
+
+    job_config = bigquery.QueryJobConfig(
+        allow_large_results=True,
+        destination=dataset.table(table_id),
+        description=description,
+        labels=labels,
+        use_legacy_sql=False,
+        query_parameters=query_parameters
+    )
+
+    # Set partitioning settings
+    if partition:
+        job_config.time_partitioning = bigquery.TimePartitioning(
+            type_=partition_type,
+            field=partition_field,
+            require_partition_filter=require_partition_filter
+        )
+
+    if cluster:
+        job_config.clustering_fields = clustering_fields
+
+    query_job: QueryJob = client.query(sql, job_config=job_config)
+    query_job.result()
+    success = query_job.done()
+    logging.info(f"{func_name}: create bigquery table from query {msg}: {success}")
+    return success
 
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,

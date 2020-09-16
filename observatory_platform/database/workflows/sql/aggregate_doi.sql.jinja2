@@ -1,0 +1,405 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Richard Hosking #}
+
+# Processing Output Types
+CREATE TEMP FUNCTION count_single_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type STRING) AS (
+  (SELECT as STRUCT
+    output_type,
+    COUNTIF(item.type = measured_type ) as total,
+    COUNTIF(item.type = measured_type AND item.oa ) as oa,
+    COUNTIF(item.type = measured_type AND item.green ) as green,
+    COUNTIF(item.type = measured_type AND item.gold ) as gold,
+    COUNTIF(item.type = measured_type AND item.gold_just_doaj ) as gold_just_doaj,
+    COUNTIF(item.type = measured_type AND item.hybrid ) as hybrid,
+    COUNTIF(item.type = measured_type AND item.bronze ) as bronze,
+    COUNTIF(item.type = measured_type AND item.green_only ) as green_only,
+
+  FROM UNNEST(items) as item)
+);
+
+CREATE TEMP FUNCTION count_array_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type ARRAY<STRING>) AS (
+  (SELECT as STRUCT
+    output_type,
+    COUNTIF(item.type in UNNEST(measured_type) ) as total,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.oa ) as oa,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.green ) as green,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.gold ) as gold,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.gold_just_doaj ) as gold_just_doaj,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.hybrid ) as hybrid,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.bronze ) as bronze,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.green_only ) as green_only,
+
+  FROM UNNEST(items) as item)
+);
+
+CREATE TEMP FUNCTION count_not_in_array_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type ARRAY<STRING>) AS (
+  (SELECT as STRUCT
+    output_type,
+    COUNTIF(item.type not in UNNEST(measured_type) ) as total,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.oa ) as oa,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.green ) as green,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.gold ) as gold,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.gold_just_doaj ) as gold_just_doaj,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.hybrid ) as hybrid,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.bronze ) as bronze,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.green_only ) as green_only,
+  FROM UNNEST(items) as item)
+);
+
+-- Count Output Types
+CREATE TEMP FUNCTION count_output_types(items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>) as (
+    [
+      count_single_output_type("journal_articles", items, 'journal-article'),
+      count_array_output_type("book_sections", items, ['book-section', 'book-part', 'book-chapter']),
+      count_array_output_type("authored_books", items, ['book', 'monograph']),
+      count_single_output_type("edited_volumes", items, 'edited-book'),
+      count_single_output_type("reports", items, 'report'),
+      count_single_output_type("datasets", items, 'dataset'),
+      count_single_output_type("proceedings_article", items, 'proceedings-article'),
+      count_not_in_array_output_type("other_outputs", items, ['journal-article', 'book-section', 'book-part', 'book-chapter','book', 'monograph','edited-book', 'report', 'dataset', 'proceedings-article'])
+    ]
+);
+
+-- Process Unpaywall Release
+CREATE TEMP FUNCTION process_unpaywall_release(unpaywall_history ANY TYPE) as (
+      ARRAY((
+        SELECT as STRUCT
+          unpaywall_release,
+          COUNT(*) as total,
+          COUNTIF(is_oa) as oa,
+          COUNTIF(green) as green,
+          COUNTIF(gold) as gold,
+          COUNTIF(gold_just_doaj) as gold_just_doaj,
+          COUNTIF(hybrid) as hybrid,
+          COUNTIF(bronze) as bronze,
+          COUNTIF(green_only) as green_only,
+
+          count_output_types(ARRAY_AGG(STRUCT(output_type, is_oa, green, gold, gold_just_doaj, hybrid, bronze, green_only))) as output_types,
+        FROM UNNEST(unpaywall_history) as unpaywall
+        GROUP BY unpaywall.unpaywall_release
+      ))
+);
+
+-- Compute Citation Analysis
+CREATE TEMP FUNCTION compute_oa_citations(items ARRAY<STRUCT<citations_total INT64, is_x BOOL>>, positive_label STRING, negative_label STRING) as (
+  ARRAY((
+    SELECT as STRUCT
+      CASE
+        WHEN is_x THEN positive_label
+        WHEN NOT is_x THEN negative_label
+        END
+      as label,
+      is_x as status,
+      COUNT(*) as articles,
+      COUNTIF(citations_total > 0) as articles_with_citations,
+      COUNTIF(citations_total is null) as articles_without_citations,
+      SUM(citations_total) as citations,
+
+    FROM UNNEST(items)
+    GROUP BY is_x
+  ))
+);
+
+CREATE TEMP FUNCTION compute_metrics(items ARRAY<STRUCT<doi STRING, citations_total INT64, is_oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>) as (
+  (SELECT AS STRUCT
+    -- Total outputs
+    COUNT(doi) as total,
+    COUNTIF(is_oa = True) as oa,
+    COUNTIF(green = True) as green,
+    COUNTIF(gold = True) as gold,
+    COUNTIF(gold = True) as gold_just_doaj,
+    COUNTIF(hybrid) as hybrid,
+    COUNTIF(bronze) as bronze,
+    COUNTIF(green_only) as green_only,
+    --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as green_in_home_repo,
+
+    -- OA percentages for outputs
+    SAFE_DIVIDE( (COUNTIF(is_oa is True)) * 100 , COUNT(doi)) as percent_OA,
+    SAFE_DIVIDE( (COUNTIF(green is True)) * 100 , COUNT(doi)) as percent_green,
+    SAFE_DIVIDE( (COUNTIF(green_only is True)) * 100 , COUNT(doi)) as percent_green_only,
+    --(COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100 / COUNT(doi) as percent_in_home_repo,
+    --SAFE_DIVIDE((COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100, COUNTIF(unpaywall.green is True)) as percent_of_just_green_in_home_repo,
+    SAFE_DIVIDE( (COUNTIF(gold is True)) * 100 , COUNT(doi)) as percent_gold,
+    SAFE_DIVIDE( (COUNTIF(gold_just_doaj is True)) * 100 , COUNT(doi)) as percent_gold_doaj,
+    SAFE_DIVIDE( (COUNTIF(hybrid is True)) * 100 , COUNT(doi)) as percent_hybrid,
+    SAFE_DIVIDE( (COUNTIF(bronze is True)) * 100 , COUNT(doi)) as percent_bronze,
+
+    -- Citation counts
+    SUM(citations_total) as total_citations,
+    SAFE_DIVIDE( SUM(citations_total) , COUNT(doi)) as citations_per_article,
+    COUNTIF(citations_total > 0) as articles_with_citations,
+    COUNTIF(citations_total is null) as articles_without_citations,
+    SAFE_DIVIDE(SUM(citations_total), COUNTIF(citations_total > 0)) as citations_per_citated_article
+
+  FROM UNNEST(items))
+);
+
+CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING, Score FLOAT64, is_oa BOOL, green BOOL, gold BOOL, funding BOOL, international_funding BOOL, domestic_funding BOOL, government_funding BOOL, private_funding BOOL, international_colab BOOL>>) as (
+  ARRAY(
+    (SELECT AS STRUCT
+        DisplayName as field,
+        COUNT(DisplayName) as count,
+        SUM(Score) as sum_of_scores,
+        COUNTIF(is_oa = True) as oa,
+        COUNTIF(green = True) as green,
+        COUNTIF(gold = True) as gold,
+        STRUCT(
+          COUNTIF(funding) as count,
+          COUNTIF(international_funding) as international,
+          COUNTIF(domestic_funding) as domestic,
+          COUNTIF(international_funding AND domestic_funding) as international_and_domestic,
+          COUNTIF(government_funding) as government,
+          COUNTIF(private_funding) as private,
+          COUNTIF(government_funding AND private_funding) as government_and_private
+        ) as funding,
+        COUNTIF(international_colab) as international_collaboration,
+        COUNTIF(international_colab AND international_funding) as international_collaboration_with_funding
+    FROM UNNEST(fields)
+    GROUP BY DisplayName)
+  )
+);
+
+
+----
+-- Main SQL Function
+----
+
+SELECT
+  -- Main Fields
+  id, types, name, country, country_code, region, subregion, coordinates,
+
+  -- Summary
+  (SELECT SUM(metrics.total) from UNNEST(years)) as total_publications,
+  ARRAY_LENGTH(years) as total_years,
+  SAFE_DIVIDE((SELECT SUM(metrics.total) from UNNEST(years)), ARRAY_LENGTH(years)) as average_per_year,
+  (SELECT MIN(published_year) from UNNEST(years)) as first_year,
+  (SELECT MAX(published_year) from UNNEST(years)) as last_year,
+
+  -- Per year Information
+  years
+FROM(
+  SELECT
+    base.id as id,
+    NULL as types, --ARRAY_CONCAT_AGG(types) as types,
+    MAX(name) as name,
+    MAX(country) as country,
+    MAX(country_code) as country_code,
+    MAX(region) as region,
+    MAX(subregion) as subregion,
+    MAX(coordinates) as coordinates,
+    ARRAY_AGG(
+      STRUCT(
+         -- Year
+         base.published_year,
+
+         -- Metrics
+         STRUCT(
+            combined.total, combined.oa, combined.green, combined.gold, combined.hybrid, combined.bronze, combined.green_only, combined.gold_just_doaj,
+            combined.percent_OA, combined.percent_green, combined.percent_green_only, combined.percent_gold, combined.percent_gold_doaj, combined.percent_hybrid, combined.percent_bronze,
+            combined.total_citations, combined.citations_per_article, combined.articles_with_citations, combined.articles_without_citations, combined.citations_per_citated_article
+            --just_scopus as scopus,
+            --just_wos as wos,
+            --just_mag as mag,
+            --just_filtered as filtered
+          ) as metrics,
+
+         -- Citation Analysis
+         STRUCT(
+            oa_citations as oa, gold_citations as gold, green_citations as green, green_only_citations as green_only, hybrid_citations as hybrid, bronze_citations as bronze
+         ) as citations,
+
+         -- Output Types
+         output_types,
+
+         disciplines,
+
+         -- Collaborators
+         ARRAY(SELECT AS STRUCT
+                 collaborator.identifier as id,
+                 COUNT(collaborator.identifier) as count,
+                 MAX(collaborator.name) as name,
+                 MAX(collaborator.country) as country,
+                 MAX(collaborator.country_code) as country_code,
+                 MAX(collaborator.region) as region,
+                 MAX(collaborator.subregion) as subregion,
+                 MAX(collaborator.coordinates) as coordinates
+              FROM UNNEST(collaborations) as collaborator WHERE collaborator.identifier <> id GROUP BY collaborator.identifier ) as collaborations,
+
+         -- Funders
+         ARRAY((
+          SELECT as STRUCT
+            funder.identifier,
+            MAX(funder.name) as name,
+            MAX(funder.country) as country,
+            MAX(funder.country_code) as country_code,
+            MAX(funder.funding_body_type) as funding_body_type,
+            MAX(funder.funding_body_subtype) as funding_body_subtype,
+            COUNT(*) as count, COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold
+            --STRUCT(COUNT(in_scopus) as count, COUNTIF(is_oa AND in_scopus) as oa, COUNTIF(green AND in_scopus) as green, COUNTIF(gold AND in_scopus) as gold) as scopus,
+            --STRUCT(COUNT(in_wos) as count, COUNTIF(is_oa AND in_wos) as oa, COUNTIF(green AND in_wos) as green, COUNTIF(gold AND in_wos) as gold) as wos,
+            --STRUCT(COUNT(in_mag) as count, COUNTIF(is_oa AND in_mag) as oa, COUNTIF(green AND in_mag) as green, COUNTIF(gold AND in_mag) as gold) as mag,
+            --STRUCT(COUNT(in_filtered) as count, COUNTIF(is_oa AND in_filtered) as oa, COUNTIF(green AND in_filtered) as green, COUNTIF(gold AND in_filtered) as gold) as filtered,
+          FROM UNNEST(funders) as funder
+          GROUP BY funder.identifier
+          ORDER BY count DESC
+          LIMIT 1500
+         )) as funders,
+
+         -- Domestic vs International funders
+         (SELECT as STRUCT
+            COUNT(*) as count,
+            COUNTIF(LOWER(funder.country_code) = LOWER(base.country_code_2)) as domentic,
+            COUNTIF(LOWER(funder.country_code) != LOWER(base.country_code_2)) as international,
+          FROM UNNEST(funders) as funder
+          WHERE funder.identifier IS NOT NULL
+         ) as funding_source,
+
+
+         -- Publishers
+         ARRAY((
+          SELECT as STRUCT
+            publisher,
+            COUNT(*) as count, COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold
+            --STRUCT(COUNT(in_scopus) as count, COUNTIF(is_oa AND in_scopus) as oa, COUNTIF(green AND in_scopus) as green, COUNTIF(gold AND in_scopus) as gold) as scopus,
+            --STRUCT(COUNT(in_wos) as count, COUNTIF(is_oa AND in_wos) as oa, COUNTIF(green AND in_wos) as green, COUNTIF(gold AND in_wos) as gold) as wos,
+            --STRUCT(COUNT(in_mag) as count, COUNTIF(is_oa AND in_mag) as oa, COUNTIF(green AND in_mag) as green, COUNTIF(gold AND in_mag) as gold) as mag,
+            --STRUCT(COUNT(in_filtered) as count, COUNTIF(is_oa AND in_filtered) as oa, COUNTIF(green AND in_filtered) as green, COUNTIF(gold AND in_filtered) as gold) as filtered,
+          FROM UNNEST(publishers)
+          GROUP BY publisher
+          ORDER BY count DESC
+          LIMIT 1500
+         )) as publishers,
+
+         -- Journals
+         ARRAY((
+          SELECT as STRUCT
+            journal,
+            COUNT(*) as count, COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold
+            --STRUCT(COUNT(in_scopus) as count, COUNTIF(is_oa AND in_scopus) as oa, COUNTIF(green AND in_scopus) as green, COUNTIF(gold AND in_scopus) as gold) as scopus,
+            --STRUCT(COUNT(in_wos) as count, COUNTIF(is_oa AND in_wos) as oa, COUNTIF(green AND in_wos) as green, COUNTIF(gold AND in_wos) as gold) as wos,
+            --STRUCT(COUNT(in_mag) as count, COUNTIF(is_oa AND in_mag) as oa, COUNTIF(green AND in_mag) as green, COUNTIF(gold AND in_mag) as gold) as mag,
+            --STRUCT(COUNT(in_filtered) as count, COUNTIF(is_oa AND in_filtered) as oa, COUNTIF(green AND in_filtered) as green, COUNTIF(gold AND in_filtered) as gold) as filtered,
+          FROM UNNEST(journals)
+          GROUP BY journal
+          ORDER BY count DESC
+          LIMIT 3000
+         )) as journals,
+
+         -- Events / Altmetrics
+         [
+          (SELECT as STRUCT "twitter" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'twitter'),
+          (SELECT as STRUCT "wikipedia" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'wikipedia'),
+          (SELECT as STRUCT "newsfeed" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'newsfeed'),
+          (SELECT as STRUCT "reddit-links" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'reddit-links'),
+          (SELECT as STRUCT "reddit" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'reddit'),
+          (SELECT as STRUCT "datacite" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'datacite'),
+          (SELECT as STRUCT "wordpressdotcom" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'wordpressdotcom'),
+          (SELECT as STRUCT "plaudit" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'plaudit'),
+          (SELECT as STRUCT "stackexchange" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'stackexchange'),
+          (SELECT as STRUCT "cambia-lens" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'cambia-lens'),
+          (SELECT as STRUCT "hypothesis" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'hypothesis'),
+          (SELECT as STRUCT "f1000" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'f1000'),
+          (SELECT as STRUCT "web" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'web'),
+          (SELECT as STRUCT "crossref" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'crossref')
+         ] as events
+
+         -- Diversity
+         --NULL as diversity,
+
+         -- Unpaywall History
+         --process_unpaywall_release(unpaywall_history) as unpaywall_history
+      )
+    ) as years
+
+  FROM(
+    SELECT
+      aggregrate.identifier as id,
+      dois.crossref.published_year,
+
+      ARRAY_CONCAT_AGG(aggregrate.types) as types,
+      MAX(aggregrate.name) as name,
+      ARRAY_CONCAT_AGG(aggregrate.home_repo) as home_repo, --MAX(grids.home_repo)
+      MAX(aggregrate.country) as country,
+      MAX(aggregrate.country_code) as country_code,
+      MAX(aggregrate.country_code_2) as country_code_2,
+      MAX(aggregrate.region) as region,
+      MAX(aggregrate.subregion) as subregion,
+      MAX(aggregrate.coordinates) as coordinates,
+
+      -- Computed Metrics: Combined, Scopus, WoS, Mag
+      compute_metrics(ARRAY_AGG(STRUCT(dois.doi, dois.microsoft_academic_graph.CitationCount, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as combined,
+      --compute_metrics(ARRAY_AGG( IF(in_scopus, STRUCT( dois.doi, open_citations.citations_total, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only), NULL) IGNORE NULLS)) as just_scopus,
+      --compute_metrics(ARRAY_AGG( IF(in_wos, STRUCT(dois.doi, open_citations.citations_total, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only), NULL) IGNORE NULLS)) as just_wos,
+      --compute_metrics(ARRAY_AGG( IF(in_mag, STRUCT(dois.doi, open_citations.citations_total, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only), NULL) IGNORE NULLS)) as just_mag,
+      --compute_metrics(ARRAY_AGG( IF(in_filtered, STRUCT(dois.doi, open_citations.citations_total, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only), NULL) IGNORE NULLS)) as just_filtered,
+
+      -- Citation Analysis: OA, Gold, Green, Green_Only, Hybrid, Bronze
+      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.is_oa as is_x)), "Open Access", "Not Open Access") as oa_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.gold as is_x)), "Gold", "Not Gold") as gold_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.green as is_x)), "Green", "Not Green") as green_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.green_only as is_x)), "Green Only", "Not Green Only") as green_only_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.hybrid as is_x)), "Hybrid", "Not Hybrid") as hybrid_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.bronze as is_x)), "Bronze", "Not Bronze") as bronze_citations,
+
+      -- Collaboration Analysis
+      ARRAY_CONCAT_AGG( ARRAY((SELECT as STRUCT * FROM UNNEST(affiliations.{{ aggregation_field }}) as collab WHERE collab.in_mag IS TRUE) )) as collaborations,
+
+      -- Output Types
+      count_output_types(ARRAY_AGG(STRUCT(unpaywall.output_type, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as output_types,
+
+      -- Discipline
+      STRUCT(
+        compute_disciplines( ARRAY_CONCAT_AGG( ARRAY(
+          (SELECT AS STRUCT
+              fields.DisplayName, fields.Score,
+              unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold,
+
+              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE) as funding,
+              -- Domestic, international, both, none or unknown funding
+              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE AND funder.country_code <> aggregrate.country_code_2) as international_funding,
+              (SELECT COUNT(funder) > 1 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE AND funder.country_code = aggregrate.country_code_2) as domestic_funding,
+              -- has Industry or Government or both funding
+              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE AND funder.funding_body_subtype = 'gov') as government_funding,
+              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE AND funder.funding_body_subtype = 'pri') as private_funding,
+
+              -- Domestic collaboration only or international collaboration or single institution only
+              (SELECT COUNT(collab) > 0 FROM UNNEST(affiliations.countries) as collab WHERE collab.in_mag IS TRUE AND collab.country <> aggregrate.country) as international_collab
+
+           FROM UNNEST(dois.microsoft_academic_graph.fields.fields.level_0) as fields)) )) as level0
+
+        --compute_disciplines( ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT fields.DisplayName, fields.Score, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold from UNNEST(dois.microsoft_academic_graph.fields.fields.level_1) as fields)) )) as level1
+      ) as disciplines,
+
+      -- Events
+      ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT event.source, event.count, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, in_wos, in_scopus, in_mag from UNNEST(dois.events.events) as event))) as events,
+
+      -- Funders
+      ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT funder.identifier, funder.name, funder.country, funder.country_code, funder.funding_body_type, funder.funding_body_subtype, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE))) as funders,
+
+      -- Publishers
+      ARRAY_AGG(STRUCT(crossref.publisher as publisher, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold)) as publishers,
+
+      -- Journals
+      ARRAY_AGG(STRUCT(unpaywall.journal_name as journal, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold)) as journals,
+
+      -- Unpaywall History
+      ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT unpaywall.*from UNNEST(dois.unpaywall_history) as unpaywall))) as unpaywall_history
+
+    FROM `{{ project_id }}.observatory.doi{{ release_date.strftime('%Y%m%d') }}` as dois, UNNEST(dois.affiliations.{{ aggregation_field }}) as aggregrate
+    WHERE aggregrate.in_mag IS TRUE AND aggregrate.identifier IS NOT NULL
+    GROUP BY aggregrate.identifier, crossref.published_year) as base
+    GROUP BY base.id
+)

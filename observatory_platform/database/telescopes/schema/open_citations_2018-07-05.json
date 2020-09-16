@@ -1,0 +1,32 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "oci",
+    "type": "STRING",
+    "description": "Open Citation Identifier (OCI) for the citation."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "citing",
+    "type": "STRING",
+    "description": "The DOI of the citing entity."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "cited",
+    "type": "STRING",
+    "description": "The DOI of the cited entity."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "creation",
+    "type": "STRING",
+    "description": "The creation date of the citation (i.e. the publication date of the citing entity)."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "timespan",
+    "type": "STRING",
+    "description": "The time span of the citation (i.e. the interval between the publication date of the cited entity and the publication date of the citing entity)."
+  }
+]
