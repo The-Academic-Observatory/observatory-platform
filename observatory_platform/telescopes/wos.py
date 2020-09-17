@@ -26,7 +26,6 @@ import xmltodict
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from google.cloud.bigquery import SourceFormat
-from typing import List
 from math import ceil
 from ratelimit import limits, sleep_and_retry
 from suds import WebFault
@@ -65,15 +64,20 @@ from observatory_platform.utils.gc_utils import (
 )
 
 
-class WosUtility:
-    """ Handles the interaction with Web of Science """
+class WosUtilConst:
+    """ Class containing some WosUtility constants. Makes these values accessible by decorators. """
 
     # WoS limits as a guide for reference. Throttle limits more conservative than this.
     RESULT_LIMIT = 100  # Return 100 results max per query.
-    CALL_LIMIT = 2  # WoS says they can do 2 api calls / second
-    CALL_PERIOD = 1  # seconds
-    SESSION_CALL_LIMIT = 5  # 5 calls per 5 min.
-    SESSION_CALL_PERIOD = 300  # 5 minutes.
+    CALL_LIMIT = 1  # WoS says they can do 2 api calls / second, but we're setting 1 per 2 seconds.
+    CALL_PERIOD = 2  # seconds
+    SESSION_CALL_LIMIT = 5  # 5 calls.
+    SESSION_CALL_PERIOD = 360  # 6 minutes. [Actual WoS limit is 5 mins]
+    RETRIES = 3
+
+
+class WosUtility:
+    """ Handles the interaction with Web of Science """
 
     @staticmethod
     def build_query(inst_id: str, period: tuple) -> OrderedDict:
@@ -88,7 +92,7 @@ class WosUtility:
         organisation = inst_id
 
         query = OrderedDict([('query', f'OG={organisation}'),
-                             ('count', WosUtility.RESULT_LIMIT),
+                             ('count', WosUtilConst.RESULT_LIMIT),
                              ('offset', 1),
                              ('timeSpan', {'begin': start_date, 'end': end_date})
                              ])
@@ -118,9 +122,13 @@ class WosUtility:
     def download_wos_period(client: WosClient, conn: str, period: tuple, inst_id: str, download_path: str) -> str:
         """ Download records for a stated date range.
 
-         :param client: WebClient object.
-         :param conn: file name for saved response as a pickle file.
+        :param client: WebClient object.
+        :param conn: file name for saved response as a pickle file.
+        :param period: Period tuple containing (start date, end date).
+        :param inst_id: institution id to query.
+        :param download_path: Path to download files to.
          """
+
         timestamp = pendulum.datetime.now().isoformat()
         inst_str = conn[4:]
         save_file = os.path.join(download_path, f'{inst_str}-{period[0]}_{timestamp}.pkl')
@@ -132,7 +140,8 @@ class WosUtility:
         return save_file
 
     @staticmethod
-    @backoff.on_exception(backoff.constant, WebFault, max_tries=3, interval=360)
+    @backoff.on_exception(backoff.constant, WebFault, max_tries=WosUtilConst.RETRIES,
+                          interval=WosUtilConst.SESSION_CALL_PERIOD)
     def download_wos_batch(login: str, password: str, batch: list, conn: str, inst_id: str, download_path: str):
         """ Download one batch of WoS snapshots. Throttling limits are more conservative than WoS limits.
         Throttle limits may or may not be enforced. Probably depends on how executors spin up tasks.
@@ -166,7 +175,7 @@ class WosUtility:
         :return: List of files downloaded.
         """
 
-        sessions = WosUtility.SESSION_CALL_LIMIT
+        sessions = WosUtilConst.SESSION_CALL_LIMIT
         batch_size = ceil(len(schedule) / sessions)
 
         # Evenly distribute schedule among the session batches. Last session gets whatever the remaining tail is.
@@ -218,7 +227,7 @@ class WosUtility:
         start_date = pendulum.parse(extra['start_date']).date()
         schedule = build_schedule(start_date, dag_start)
 
-        if mode == 'sequential' or len(schedule) <= WosUtility.SESSION_CALL_LIMIT:
+        if mode == 'sequential' or len(schedule) <= WosUtilConst.SESSION_CALL_LIMIT:
             return WosUtility.download_wos_sequential(login, password, schedule, str(conn), inst_id, download_path)
 
         if mode == 'parallel':
@@ -238,8 +247,8 @@ class WosUtility:
         num_results = int(results.recordsFound)
         record_list = [results.records]
 
-        if num_results > WosUtility.RESULT_LIMIT:
-            for offset in range(2, num_results, WosUtility.RESULT_LIMIT):
+        if num_results > WosUtilConst.RESULT_LIMIT:
+            for offset in range(2, num_results, WosUtilConst.RESULT_LIMIT):
                 query['offset'] = offset
                 record_list.append(WosUtility.wos_search(client, query).records)
 
@@ -247,7 +256,7 @@ class WosUtility:
 
     @staticmethod
     @sleep_and_retry
-    @limits(calls=1, period=2)
+    @limits(calls=WosUtilConst.CALL_LIMIT, period=WosUtilConst.CALL_PERIOD)
     def wos_search(client: WosClient, query: OrderedDict):
         """ Throttling wrapper for the API call. This is a global limit for this API when called from a program on the
         same machine. If you are throttled, it will throw a WebFault and the exception message will contain the phrase
@@ -465,7 +474,6 @@ class WosTelescope:
         ti: TaskInstance = kwargs['ti']
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
                                include_prior_dates=False, dag_id=WosTelescope.SUBDAG_ID)
-
 
         # Process each pickled file
         pickle_files = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
