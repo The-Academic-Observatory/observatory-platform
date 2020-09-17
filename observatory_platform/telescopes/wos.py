@@ -264,16 +264,30 @@ class WosUtility:
         return client.search(**query)
 
 
+class WosRelease:
+    """ Used to store info on a given WoS release. """
+
+    def __init__(self, release_date: pendulum.Pendulum, dag_start: pendulum.Pendulum):
+        self.release_date = release_date
+        self.dag_start = dag_start
+        self.download_path = telescope_path(SubFolder.downloaded, WosTelescope.DAG_ID)
+        self.telescope_path = f'telescopes/{WosTelescope.DAG_ID}/{release_date}'
+
+
 class WosTelescope:
     """ A container for holding the constants and static functions for the Web of Science telescope."""
 
     DAG_ID = 'wos'
     SUBDAG_ID_DOWNLOAD = 'download'
+    SUBDAG_ID = f'{DAG_ID}.{SUBDAG_ID_DOWNLOAD}'
     DESCRIPTION = 'Web of Science: https://www.clarivate.com/webofsciencegroup'
     SCHEDULE_INTERVAL = '@monthly'
     RELEASES_TOPIC_NAME = 'releases'
     QUEUE = 'remote_queue'
     RETRIES = 3
+    DATASET_ID = 'clarivate'
+    SCHEMA_PATH = 'telescopes'
+    TABLE_NAME = DAG_ID
 
     TASK_ID_CHECK_DEPENDENCIES = 'check_dependencies'
     TASK_CHECK_API_SERVER = 'check_api_server'
@@ -297,7 +311,7 @@ class WosTelescope:
     XCOM_JSONL_BLOB_PATH = 'jsonl_blob_path'
 
     # Implement multiprocessing later if needed. WosClient seems to be synchronous i/o so asyncio doesn't help.
-    DOWNLOAD_MODE = 'parallel'  # Valid options: ['sequential', 'parallel']
+    DOWNLOAD_MODE = 'sequential'  # Valid options: ['sequential', 'parallel']
 
     API_SERVER = 'http://scientific.thomsonreuters.com'
     SCHEMA_ID = 'http://scientific.thomsonreuters.com/schema/wok5.4/public/FullRecord'
@@ -350,6 +364,12 @@ class WosTelescope:
             if len(conn.password) == 0:
                 raise AirflowException(f'The "password" field is not set for {conn}.')
 
+        # Push release information for other tasks
+        release = WosRelease(release_date=kwargs['execution_date'].date(),
+                             dag_start=pendulum.parse(kwargs['dag_start']).date())
+
+        ti: TaskInstance = kwargs['ti']
+        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, release, kwargs['execution_date'])
 
     @staticmethod
     def check_api_server(**kwargs):
@@ -384,17 +404,17 @@ class WosTelescope:
         :return: None.
         """
 
+        ti: TaskInstance = kwargs['ti']
+        release: WosRelease = WosTelescope.pull_release(ti)
+
         # Prepare paths
-        wos_download_path = telescope_path(SubFolder.downloaded, WosTelescope.DAG_ID)
-        dag_start = pendulum.parse(kwargs['dag_start']).date()
-        download_files = WosUtility.download_wos_snapshot(wos_download_path, kwargs['conn'], dag_start,
+        download_files = WosUtility.download_wos_snapshot(release.download_path, kwargs['conn'], release.dag_start,
                                                           WosTelescope.DOWNLOAD_MODE)
 
         # Construct message to send to next task
         msgs_out = [{WosTelescope.XCOM_DOWNLOAD_PATH: file} for file in download_files]
 
         # Notify next task of the files downloaded.
-        ti: TaskInstance = kwargs['ti']
         ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
 
     @staticmethod
@@ -410,21 +430,20 @@ class WosTelescope:
         :return: None.
         """
 
-        execution_date = kwargs['execution_date'].date().isoformat()
+        ti: TaskInstance = kwargs['ti']
+        release: WosRelease = WosTelescope.pull_release(ti)
 
         # Get bucket name
         bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         # Pull messages
-        ti: TaskInstance = kwargs['ti']
-        dag_id = f'{WosTelescope.DAG_ID}.{WosTelescope.SUBDAG_ID_DOWNLOAD}'
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=None,
-                               include_prior_dates=False, dag_id=dag_id)
+                               include_prior_dates=False, dag_id=WosTelescope.SUBDAG_ID)
 
         # Upload each snapshot
         download_list = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
         zip_list = zip_files(download_list)
-        upload_telescope_file_list(bucket_name, WosTelescope.DAG_ID, execution_date, zip_list)
+        upload_telescope_file_list(bucket_name, release.telescope_path, zip_list)
 
         # Notify next task of the files downloaded.
         msgs_out = [{WosTelescope.XCOM_UPLOAD_ZIP_PATH: file} for file in zip_list]
@@ -444,9 +463,9 @@ class WosTelescope:
         """
 
         ti: TaskInstance = kwargs['ti']
-        dag_id = f'{WosTelescope.DAG_ID}.{WosTelescope.SUBDAG_ID_DOWNLOAD}'
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
-                               include_prior_dates=False, dag_id=dag_id)
+                               include_prior_dates=False, dag_id=WosTelescope.SUBDAG_ID)
+
 
         # Process each pickled file
         pickle_files = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
@@ -473,13 +492,13 @@ class WosTelescope:
         :return: None.
         """
 
-        execution_date = kwargs['execution_date'].date().isoformat()
+        ti: TaskInstance = kwargs['ti']
+        release: WosRelease = WosTelescope.pull_release(ti)
 
         # Get bucket name
         bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         # Pull messages
-        ti: TaskInstance = kwargs['ti']
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
                                task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
                                include_prior_dates=False)
@@ -487,7 +506,7 @@ class WosTelescope:
         # Upload each snapshot
         json_paths = [msg[WosTelescope.XCOM_JSON_PATH] for msg in msgs_in]
         zip_list = zip_files(json_paths)
-        upload_telescope_file_list(bucket_name, WosTelescope.DAG_ID, execution_date, zip_list)
+        upload_telescope_file_list(bucket_name, release.telescope_path, zip_list)
 
         # Notify next task of the files downloaded.
         msgs_out = [{WosTelescope.XCOM_JSON_ZIP_PATH: file} for file in zip_list]
@@ -508,10 +527,10 @@ class WosTelescope:
         :return: None.
         """
 
-        release_date = kwargs['execution_date'].date().isoformat()
+        ti: TaskInstance = kwargs['ti']
+        release: WosRelease = WosTelescope.pull_release(ti)
 
         # Pull messages
-        ti: TaskInstance = kwargs['ti']
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
                                task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
                                include_prior_dates=False)
@@ -520,7 +539,7 @@ class WosTelescope:
         json_files.sort()  # Sort by institution and date
 
         # Apply field extraction and transformation to jsonlines
-        jsonl_list = json_to_db(json_files, release_date, WosJsonParser.parse_json)
+        jsonl_list = json_to_db(json_files, release.release_date.isoformat(), WosJsonParser.parse_json)
 
         # Notify next task
         msgs_out = [{WosTelescope.XCOM_JSONL_PATH: file} for file in jsonl_list]
@@ -540,13 +559,13 @@ class WosTelescope:
         :return: None.
         """
 
-        execution_date = kwargs['execution_date'].date().isoformat()
+        ti: TaskInstance = kwargs['ti']
+        release: WosRelease = WosTelescope.pull_release(ti)
 
         # Get bucket name
         bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Pull messages
-        ti: TaskInstance = kwargs['ti']
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
                                task_ids=WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
                                include_prior_dates=False)
@@ -554,7 +573,7 @@ class WosTelescope:
         # Upload each snapshot
         jsonl_paths = [msg[WosTelescope.XCOM_JSONL_PATH] for msg in msgs_in]
         zip_list = zip_files(jsonl_paths)
-        blob_list = upload_telescope_file_list(bucket_name, WosTelescope.DAG_ID, execution_date, zip_list)
+        blob_list = upload_telescope_file_list(bucket_name, release.telescope_path, zip_list)
 
         # Notify next task of the files downloaded.
         msgs_out = [{WosTelescope.XCOM_JSONL_BLOB_PATH: file} for file in blob_list]
@@ -572,10 +591,11 @@ class WosTelescope:
         """
 
         ti: TaskInstance = kwargs['ti']
+        release: WosRelease = WosTelescope.pull_release(ti)
+
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=WosTelescope.TASK_ID_UPLOAD_TRANSFORMED,
                                include_prior_dates=False)
 
-        execution_date = kwargs['execution_date'].date()
         blobs = filter(lambda x: WosTelescope.XCOM_JSONL_BLOB_PATH in x, msgs_in)
         jsonl_zip_blobs = [msg[WosTelescope.XCOM_JSONL_BLOB_PATH] for msg in blobs]
 
@@ -585,27 +605,25 @@ class WosTelescope:
         bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
 
         # Create dataset
-        dataset_id = 'clarivate'
-        create_bigquery_dataset(project_id, dataset_id, data_location, WosTelescope.DESCRIPTION)
-
-        analysis_schema_path = schema_path('telescopes')
-        table_name = WosTelescope.DAG_ID
+        create_bigquery_dataset(project_id, WosTelescope.DATASET_ID, data_location, WosTelescope.DESCRIPTION)
 
         # Create table id
-        table_id = bigquery_partitioned_table_id(WosTelescope.DAG_ID, execution_date)
+        table_id = bigquery_partitioned_table_id(WosTelescope.TABLE_NAME, release.release_date)
 
         # Load into BigQuery
+        analysis_schema_path = schema_path(WosTelescope.SCHEMA_PATH)
+
         for file in jsonl_zip_blobs:
-            schema_file_path = find_schema(analysis_schema_path, table_name, execution_date)
+            schema_file_path = find_schema(analysis_schema_path, WosTelescope.TABLE_NAME, release.release_date)
             if schema_file_path is None:
                 logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
-                              f'table_name={table_name}, release_date={execution_date}')
+                              f'table_name={WosTelescope.TABLE_NAME}, release_date={release.release_date}')
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table
             uri = f"gs://{bucket_name}/{file}"
             logging.info(f"URI: {uri}")
-            load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
+            load_bigquery_table(uri, WosTelescope.DATASET_ID, data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod
@@ -619,16 +637,30 @@ class WosTelescope:
         """
 
         ti: TaskInstance = kwargs['ti']
-        topic = WosTelescope.RELEASES_TOPIC_NAME
-        dag_id = WosTelescope.DAG_ID
-        subdag_id = f'{dag_id}.{WosTelescope.SUBDAG_ID_DOWNLOAD}'
 
-        delete_msg_files(ti, topic, None, WosTelescope.XCOM_DOWNLOAD_PATH, subdag_id)
-        delete_msg_files(ti, topic, WosTelescope.TASK_ID_UPLOAD_DOWNLOADED, WosTelescope.XCOM_UPLOAD_ZIP_PATH, dag_id)
-        delete_msg_files(ti, topic, WosTelescope.TASK_ID_TRANSFORM_XML, WosTelescope.XCOM_JSON_PATH, dag_id)
-        delete_msg_files(ti, topic, WosTelescope.TASK_ID_UPLOAD_JSON, WosTelescope.XCOM_JSON_ZIP_PATH, dag_id)
-        delete_msg_files(ti, topic, WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT, WosTelescope.XCOM_JSONL_PATH, dag_id)
-        delete_msg_files(ti, topic, WosTelescope.TASK_ID_UPLOAD_TRANSFORMED, WosTelescope.XCOM_JSONL_ZIP_PATH, dag_id)
+        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, None, WosTelescope.XCOM_DOWNLOAD_PATH,
+                         WosTelescope.SUBDAG_ID)
+
+        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_UPLOAD_DOWNLOADED,
+                         WosTelescope.XCOM_UPLOAD_ZIP_PATH, WosTelescope.DAG_ID)
+
+        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_TRANSFORM_XML,
+                         WosTelescope.XCOM_JSON_PATH, WosTelescope.DAG_ID)
+
+        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_UPLOAD_JSON,
+                         WosTelescope.XCOM_JSON_ZIP_PATH, WosTelescope.DAG_ID)
+
+        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
+                         WosTelescope.XCOM_JSONL_PATH, WosTelescope.DAG_ID)
+
+        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_UPLOAD_TRANSFORMED,
+                         WosTelescope.XCOM_JSONL_ZIP_PATH, WosTelescope.DAG_ID)
+
+    @staticmethod
+    def pull_release(ti: TaskInstance):
+        """ Get the WosRelease object from XCOM message. """
+        return ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=WosTelescope.TASK_ID_CHECK_DEPENDENCIES,
+                            dag_id=WosTelescope.DAG_ID, include_prior_dates=False)
 
 
 class WosNameAttributes:

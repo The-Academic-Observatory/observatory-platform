@@ -54,7 +54,7 @@ def download_subdag_factory(parent_dag_id, subdag_id, args):
             PythonOperator(
                 task_id=institution,
                 python_callable=WosTelescope.download,
-                op_kwargs={'conn' : conn, 'dag_start': '{{dag_run.start_date}}'},
+                op_kwargs={'conn' : conn},
                 provide_context=True,
                 queue=WosTelescope.QUEUE,
                 retries=WosTelescope.RETRIES,
@@ -71,6 +71,7 @@ with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INT
     check_dependencies = PythonOperator(
         task_id=WosTelescope.TASK_ID_CHECK_DEPENDENCIES,
         python_callable=WosTelescope.check_dependencies,
+        op_kwargs={'dag_start': '{{dag_run.start_date}}'},
         provide_context=True,
         queue=WosTelescope.QUEUE
     )
