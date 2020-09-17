@@ -342,6 +342,15 @@ class WosTelescope:
             if 'id' not in extra_dict:
                 raise AirflowException(f'The "id" field is not set for {conn}.')
 
+            # Check login is set
+            if len(conn.login) == 0:
+                raise AirflowException(f'The "login" field is not set for {conn}.')
+
+            # Check password is set
+            if len(conn.password) == 0:
+                raise AirflowException(f'The "password" field is not set for {conn}.')
+
+
     @staticmethod
     def check_api_server(**kwargs):
         """ Check that http://scientific.thomsonreuters.com is still contactable.
