@@ -37,6 +37,11 @@ from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.models import Variable
 
+from observatory_platform.utils.config_utils import (
+    AirflowVar,
+    check_variables,
+)
+
 # Remove these later
 import calendar
 import pathlib
@@ -44,6 +49,8 @@ import jsonlines
 import gzip
 import shutil
 import pickle
+from airflow.utils.db import create_session
+from airflow.models import Connection
 
 
 class ScopusTelescope:
@@ -86,6 +93,41 @@ class ScopusTelescope:
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
+
+        vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
+                                     AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
+                                     AirflowVar.transform_bucket_name.get())
+        if not vars_valid:
+            raise AirflowException('Required variables are missing')
+
+        conns = list_connections('scopus')
+
+        # Make sure there are connections configured
+        if len(conns) == 0:
+            raise AirflowException('No connection ids are set')
+
+        # Validate start_date exists in every connection and is set correctly
+        for conn in conns:
+            extra = conn.extra
+
+            try:
+                print(f'Attempting to parse:\n{extra}')
+                extra_dict = json.loads(extra)
+            except:
+                raise AirflowException(f'Error processing json extra fields in {conn} connection id profile')
+
+            # Check date is ok
+            start_date = extra_dict['start_date']
+            if not validate_date(start_date):
+                raise AirflowException(f'Invalid date string for {conn}: {start_date}')
+
+            # Check institution id is set
+            if 'id' not in extra_dict:
+                raise AirflowException(f'The "id" field is not set for {conn}.')
+
+            # Check API keys are present
+            if 'api_keys' not in extra_dict or len(extra_dict['api_keys']) == 0:
+                raise AirflowException(f'No API keys are set for {conn}.')
 
     @staticmethod
     def check_api_server(**kwargs):
@@ -305,9 +347,21 @@ class ScopusJsonParser:
         """
 
 
-
 ################################
 # Remove this after SCOPUS branch merged
+
+def list_connections(source):
+    """Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
+
+    :param source: Data source (conforming to name convention) as a string, e.g., 'wos'.
+    :return: A list of connection id strings with the prefix <source>_, e.g., ['wos_curtin', 'wos_auckland'].
+    """
+    with create_session() as session:
+        query = session.query(Connection)
+        query = query.filter(Connection.conn_id.like(f'{source}_%'))
+        return query.all()
+
+
 
 def build_schedule(sched_start_date, sched_end_date):
     """ Useful for API based data sources.
