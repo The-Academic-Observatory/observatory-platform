@@ -32,6 +32,7 @@ from typing import List
 from math import ceil
 from ratelimit import limits, sleep_and_retry
 from requests import HTTPError
+from urllib.error import URLError
 
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
@@ -138,6 +139,16 @@ class ScopusTelescope:
         for a list of the keyword arguments that are passed to this argument.
         :return: the identifier of the task to execute next.
         """
+
+        HTTP_CODE_OK = 200
+
+        try:
+            http_code = urllib.request.urlopen(ScopusTelescope.API_SERVER).getcode()
+        except URLError as e:
+            raise ValueError(f'Failed to fetch url because of: {e}')
+
+        if http_code != HTTP_CODE_OK:
+            raise ValueError(f'HTTP response code {http_code} received.')
 
     @staticmethod
     def download(**kwargs):
