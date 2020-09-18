@@ -69,6 +69,7 @@ def delete_msg_files(ti: TaskInstance, topic: str, task_id: str, msg_key: str, d
 
     for file in files:
         try:
+            logging.info(f'delete_msg_files: Deleting {file}')
             pathlib.Path(file).unlink()
         except FileNotFoundError as e:
             logging.warning(f"No such file or directory {file}: {e}")
@@ -97,6 +98,7 @@ def json_to_db(json_list: List[str], release_date: str, parser) -> List[str]:
 
     with jsonlines.open(save_file, mode='w') as writer:
         for (file, harvest_date) in json_list:
+            logging.info(f'Parsing {file} into db format and writing to jsonlines')
             with open(file, 'r') as f:
                 data = json.load(f)
 
@@ -167,6 +169,7 @@ def write_pickled_xml_to_json(pickle_files, parser):
     json_file_list = list()
 
     for file in pickle_files:
+        logging.info(f'Transforming {file} to json')
         xml_list = load_pickle(file)
 
         parsed_list = list()
@@ -191,6 +194,7 @@ def zip_files(file_list: List[str]):
 
     zip_list = list()
     for file_path in file_list:
+        logging.info(f'Zipping file {file_path}')
         zip_file = f'{file_path}.gz'
         zip_list.append(zip_file)
         with open(file_path, 'rb') as f_in:

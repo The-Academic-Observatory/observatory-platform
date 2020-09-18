@@ -134,7 +134,7 @@ class WosUtility:
         save_file = os.path.join(download_path, f'{inst_str}-{period[0]}_{timestamp}.pkl')
         query = WosUtility.build_query(inst_id, period)
         result = WosUtility.make_query(client, query)
-        logging.info(f'{conn}: retrieving period {period[0]} - {period[1]}')
+        logging.info(f'{conn} with session id {client._SID}: retrieving period {period[0]} - {period[1]}')
         write_pickle(result, save_file)
 
         return save_file
@@ -228,9 +228,11 @@ class WosUtility:
         schedule = build_schedule(start_date, dag_start)
 
         if mode == 'sequential' or len(schedule) <= WosUtilConst.SESSION_CALL_LIMIT:
+            logging.info('Downloading snapshot with sequential method')
             return WosUtility.download_wos_sequential(login, password, schedule, str(conn), inst_id, download_path)
 
         if mode == 'parallel':
+            logging.info('Downloading snapshot with parallel method')
             return WosUtility.download_wos_parallel(login, password, schedule, str(conn), inst_id, download_path)
 
     @staticmethod
@@ -364,10 +366,13 @@ class WosTelescope:
         for conn in conns:
             extra = conn.extra
 
+            logging.info(f'Validating json in extra field of {conn}')
             try:
                 extra_dict = json.loads(extra)
             except:
                 raise AirflowException(f'Error processing json extra fields in {conn} connection id profile')
+
+            logging.info(f'Validating extra field keys for {conn}')
 
             # Check date is ok
             start_date = extra_dict['start_date']
@@ -386,25 +391,31 @@ class WosTelescope:
             if len(conn.password) == 0:
                 raise AirflowException(f'The "password" field is not set for {conn}.')
 
+            logging.info(f'Checking for airflow override variables of {conn}')
+
             # Set project id override
             project_id = Variable.get(AirflowVar.project_id.get())
             if 'project_id' in extra_dict:
                 project_id = extra_dict['project_id']
+                logging.info(f'Override for project_id found. Using: {project_id}')
 
             # Set download bucket name override
             download_bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
             if 'download_bucket_name' in extra_dict:
                 download_bucket_name = extra_dict['download_bucket_name']
+                logging.info(f'Override for download_bucket_name found. Using: {download_bucket_name}')
 
             # Set transform bucket name override
             transform_bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
             if 'transform_bucket_name' in extra_dict:
                 transform_bucket_name = extra_dict['transform_bucket_name']
+                logging.info(f'Override for transform_bucket_name found. Using: {transform_bucket_name}')
 
             # Set data location override
             data_location = Variable.get(AirflowVar.data_location.get())
             if 'data_location' in extra_dict:
                 data_location = extra_dict['data_location']
+                logging.info(f'Override for data_location found. Using: {data_location}')
 
         # Push release information for other tasks
         release = WosRelease(release_date=kwargs['execution_date'].date(),
@@ -428,6 +439,8 @@ class WosTelescope:
         """
 
         HTTP_CODE_OK = 200
+
+        logging.info(f'Checking API server {WosTelescope.API_SERVER} is up.')
 
         try:
             http_code = urllib.request.urlopen(WosTelescope.API_SERVER).getcode()
@@ -484,6 +497,7 @@ class WosTelescope:
                                include_prior_dates=False, dag_id=WosTelescope.SUBDAG_ID)
 
         # Upload each snapshot
+        logging.info('upload_downloaded: zipping and uploading downloaded files')
         download_list = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
         zip_list = zip_files(download_list)
         upload_telescope_file_list(release.download_bucket_name, release.telescope_path, zip_list)
@@ -510,6 +524,7 @@ class WosTelescope:
                                include_prior_dates=False, dag_id=WosTelescope.SUBDAG_ID)
 
         # Process each pickled file
+        logging.info('transform_xml: transforming xml to dict and writing to json')
         pickle_files = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
         json_file_list = write_pickled_xml_to_json(pickle_files, WosUtility.parse_query)
 
@@ -543,6 +558,7 @@ class WosTelescope:
                                include_prior_dates=False)
 
         # Upload each snapshot
+        logging.info('upload_json: zipping and uploading json files')
         json_paths = [msg[WosTelescope.XCOM_JSON_PATH] for msg in msgs_in]
         zip_list = zip_files(json_paths)
         upload_telescope_file_list(release.download_bucket_name, release.telescope_path, zip_list)
@@ -578,6 +594,7 @@ class WosTelescope:
         json_files.sort()  # Sort by institution and date
 
         # Apply field extraction and transformation to jsonlines
+        logging.info('transform_db_format: parsing and transforming into db format')
         jsonl_list = json_to_db(json_files, release.release_date.isoformat(), WosJsonParser.parse_json)
 
         # Notify next task
@@ -607,6 +624,7 @@ class WosTelescope:
                                include_prior_dates=False)
 
         # Upload each snapshot
+        logging.info('upload_transformed: zipping and uploading jsonlines to cloud')
         jsonl_paths = [msg[WosTelescope.XCOM_JSONL_PATH] for msg in msgs_in]
         zip_list = zip_files(jsonl_paths)
         blob_list = upload_telescope_file_list(release.transform_bucket_name, release.telescope_path, zip_list)

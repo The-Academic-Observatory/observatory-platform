@@ -15,6 +15,8 @@
 # Author: Tuan Chien
 
 
+import logging
+
 from datetime import datetime
 
 from airflow import DAG
@@ -51,6 +53,8 @@ def download_subdag_factory(parent_dag_id, subdag_id, args):
     with subdag:
         for conn in conns:
             institution = str(conn)[4:]
+
+            logging.info(f'Subdag spawning download task for: {institution}')
             PythonOperator(
                 task_id=institution,
                 python_callable=WosTelescope.download,
