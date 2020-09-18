@@ -274,13 +274,26 @@ class WosUtility:
 
 
 class WosRelease:
-    """ Used to store info on a given WoS release. """
+    """ Used to store info on a given WoS release.
 
-    def __init__(self, release_date: pendulum.Pendulum, dag_start: pendulum.Pendulum):
+    :param release_date: Release date (currently the execution date).
+    :param dag_start: Start date of the dag (not execution date).
+    :param project_id: The project id to use.
+    :param download_bucket_name: Download bucket name to use for storing downloaded files in the cloud.
+    :param transform_bucket_name: Transform bucket name to use for storing transformed files in the cloud.
+    :param data_location: Location of the data servers
+    """
+
+    def __init__(self, release_date: pendulum.Pendulum, dag_start: pendulum.Pendulum, project_id: str,
+                 download_bucket_name: str, transform_bucket_name: str, data_location: str):
         self.release_date = release_date
         self.dag_start = dag_start
         self.download_path = telescope_path(SubFolder.downloaded, WosTelescope.DAG_ID)
         self.telescope_path = f'telescopes/{WosTelescope.DAG_ID}/{release_date}'
+        self.project_id = project_id
+        self.download_bucket_name = download_bucket_name
+        self.transform_bucket_name = transform_bucket_name
+        self.data_location = data_location
 
 
 class WosTelescope:
@@ -373,9 +386,33 @@ class WosTelescope:
             if len(conn.password) == 0:
                 raise AirflowException(f'The "password" field is not set for {conn}.')
 
+            # Set project id override
+            project_id = Variable.get(AirflowVar.project_id.get())
+            if 'project_id' in extra_dict:
+                project_id = extra_dict['project_id']
+
+            # Set download bucket name override
+            download_bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
+            if 'download_bucket_name' in extra_dict:
+                download_bucket_name = extra_dict['download_bucket_name']
+
+            # Set transform bucket name override
+            transform_bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
+            if 'transform_bucket_name' in extra_dict:
+                transform_bucket_name = extra_dict['transform_bucket_name']
+
+            # Set data location override
+            data_location = Variable.get(AirflowVar.data_location.get())
+            if 'data_location' in extra_dict:
+                data_location = extra_dict['data_location']
+
         # Push release information for other tasks
         release = WosRelease(release_date=kwargs['execution_date'].date(),
-                             dag_start=pendulum.parse(kwargs['dag_start']).date())
+                             dag_start=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
+                             download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
+                             data_location=data_location)
+
+        logging.info(f'WosRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: {release.transform_bucket_name}, data_location: {release.data_location}')
 
         ti: TaskInstance = kwargs['ti']
         ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, release, kwargs['execution_date'])
@@ -442,9 +479,6 @@ class WosTelescope:
         ti: TaskInstance = kwargs['ti']
         release: WosRelease = WosTelescope.pull_release(ti)
 
-        # Get bucket name
-        bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
-
         # Pull messages
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=None,
                                include_prior_dates=False, dag_id=WosTelescope.SUBDAG_ID)
@@ -452,7 +486,7 @@ class WosTelescope:
         # Upload each snapshot
         download_list = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
         zip_list = zip_files(download_list)
-        upload_telescope_file_list(bucket_name, release.telescope_path, zip_list)
+        upload_telescope_file_list(release.download_bucket_name, release.telescope_path, zip_list)
 
         # Notify next task of the files downloaded.
         msgs_out = [{WosTelescope.XCOM_UPLOAD_ZIP_PATH: file} for file in zip_list]
@@ -503,9 +537,6 @@ class WosTelescope:
         ti: TaskInstance = kwargs['ti']
         release: WosRelease = WosTelescope.pull_release(ti)
 
-        # Get bucket name
-        bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
-
         # Pull messages
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
                                task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
@@ -514,7 +545,7 @@ class WosTelescope:
         # Upload each snapshot
         json_paths = [msg[WosTelescope.XCOM_JSON_PATH] for msg in msgs_in]
         zip_list = zip_files(json_paths)
-        upload_telescope_file_list(bucket_name, release.telescope_path, zip_list)
+        upload_telescope_file_list(release.download_bucket_name, release.telescope_path, zip_list)
 
         # Notify next task of the files downloaded.
         msgs_out = [{WosTelescope.XCOM_JSON_ZIP_PATH: file} for file in zip_list]
@@ -570,9 +601,6 @@ class WosTelescope:
         ti: TaskInstance = kwargs['ti']
         release: WosRelease = WosTelescope.pull_release(ti)
 
-        # Get bucket name
-        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
-
         # Pull messages
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
                                task_ids=WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
@@ -581,7 +609,7 @@ class WosTelescope:
         # Upload each snapshot
         jsonl_paths = [msg[WosTelescope.XCOM_JSONL_PATH] for msg in msgs_in]
         zip_list = zip_files(jsonl_paths)
-        blob_list = upload_telescope_file_list(bucket_name, release.telescope_path, zip_list)
+        blob_list = upload_telescope_file_list(release.transform_bucket_name, release.telescope_path, zip_list)
 
         # Notify next task of the files downloaded.
         msgs_out = [{WosTelescope.XCOM_JSONL_BLOB_PATH: file} for file in blob_list]
@@ -607,13 +635,8 @@ class WosTelescope:
         blobs = filter(lambda x: WosTelescope.XCOM_JSONL_BLOB_PATH in x, msgs_in)
         jsonl_zip_blobs = [msg[WosTelescope.XCOM_JSONL_BLOB_PATH] for msg in blobs]
 
-        # Upload each release
-        project_id = Variable.get(AirflowVar.project_id.get())
-        data_location = Variable.get(AirflowVar.data_location.get())
-        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
-
         # Create dataset
-        create_bigquery_dataset(project_id, WosTelescope.DATASET_ID, data_location, WosTelescope.DESCRIPTION)
+        create_bigquery_dataset(release.project_id, WosTelescope.DATASET_ID, release.data_location, WosTelescope.DESCRIPTION)
 
         # Create table id
         table_id = bigquery_partitioned_table_id(WosTelescope.TABLE_NAME, release.release_date)
@@ -629,9 +652,9 @@ class WosTelescope:
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table
-            uri = f"gs://{bucket_name}/{file}"
+            uri = f"gs://{release.transform_bucket_name}/{file}"
             logging.info(f"URI: {uri}")
-            load_bigquery_table(uri, WosTelescope.DATASET_ID, data_location, table_id, schema_file_path,
+            load_bigquery_table(uri, WosTelescope.DATASET_ID, release.data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod
