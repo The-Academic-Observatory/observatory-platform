@@ -137,8 +137,8 @@ def validate_date(date_string):
     return True
 
 
-def write_json(record, file_name: str):
-    """ Write a structure to json file.
+def write_to_file(record, file_name: str):
+    """ Write a structure to file.
 
     :param record: Structure to write.
     :param file_name: File name to write to.
@@ -180,7 +180,7 @@ def write_pickled_xml_to_json(pickle_files, parser):
         json_file = f'{file[:-3]}json'
         json_file_list.append(json_file)
         json_record = json.dumps(parsed_list)
-        write_json(json_record, json_file)
+        write_to_file(json_record, json_file)
 
     return json_file_list
 
