@@ -226,6 +226,10 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
         location=location,
         job_config=job_config
     )
+
+    if load_job.state == 'DONE' and load_job.error_result:
+        logging.error(load_job.errors)
+
     result = load_job.result()
     logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
     return result.state == 'DONE'
@@ -699,10 +703,11 @@ def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azur
     return status == TransferStatus.success
 
 
-def upload_telescope_file_list(bucket_name: str, telescope_path: str, file_list: List[str]) -> List[str]:
+def upload_telescope_file_list(bucket_name: str, inst_id: str, telescope_path: str, file_list: List[str]) -> List[str]:
     """ Upload list of files to cloud storage.
 
     :param bucket_name: Name of storage bucket.
+    :param inst_id: institution id from airflow connection id.
     :param telescope_path: Path to upload telescope data.
     :param file_list: List of files to upload.
     :return: List of location paths in the cloud.
@@ -711,7 +716,7 @@ def upload_telescope_file_list(bucket_name: str, telescope_path: str, file_list:
     blob_list = list()
     for file in file_list:
         file_name = os.path.basename(file)
-        blob_name = f'{telescope_path}/{file_name}'
+        blob_name = f'{telescope_path}/{inst_id}/{file_name}'
         blob_list.append(blob_name)
         upload_file_to_cloud_storage(bucket_name, blob_name, file_path=file)
     return blob_list
