@@ -444,7 +444,7 @@ class WosTelescope:
             f'WosRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: {release.transform_bucket_name}, data_location: {release.data_location}')
 
         ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, release, kwargs['execution_date'])
+        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, release)
 
     @staticmethod
     def check_api_server():
@@ -492,7 +492,7 @@ class WosTelescope:
         msgs_out = [{WosTelescope.XCOM_DOWNLOAD_PATH: file} for file in download_files]
 
         # Notify next task of the files downloaded.
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out)
 
     @staticmethod
     def upload_downloaded(**kwargs):
@@ -522,7 +522,7 @@ class WosTelescope:
 
         # Notify next task of the files downloaded.
         msgs_out = [{WosTelescope.XCOM_UPLOAD_ZIP_PATH: file} for file in zip_list]
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out)
 
     @staticmethod
     def transform_xml(**kwargs):
@@ -562,7 +562,7 @@ class WosTelescope:
             harvest_datetime = file_name[:end]
             msg_out = {WosTelescope.XCOM_JSON_PATH: file, WosTelescope.XCOM_HARVEST_DATETIME: harvest_datetime}
             msgs_out.append(msg_out)
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out)
 
     @staticmethod
     def transform_db_format(**kwargs):
@@ -596,7 +596,7 @@ class WosTelescope:
 
         # Notify next task
         msgs_out = [{WosTelescope.XCOM_JSONL_PATH: file} for file in jsonl_list]
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out)
 
     @staticmethod
     def upload_transformed(**kwargs):
@@ -630,7 +630,7 @@ class WosTelescope:
         # Notify next task of the files downloaded.
         msgs_out = [{WosTelescope.XCOM_JSONL_BLOB_PATH: file} for file in blob_list]
         msgs_out = msgs_out + [{WosTelescope.XCOM_JSONL_ZIP_PATH: file} for file in zip_list]
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
+        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out)
 
     @staticmethod
     def bq_load(**kwargs):
