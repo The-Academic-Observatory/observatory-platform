@@ -52,17 +52,16 @@ def build_schedule(sched_start_date, sched_end_date):
     return schedule
 
 
-def delete_msg_files(ti: TaskInstance, topic: str, task_id: str, msg_key: str, dag_id):
+def delete_msg_files(ti: TaskInstance, topic: str, task_id: str, msg_key: str):
     """ Pull messages from a topic and delete the relevant paths.
 
     :param ti: TaskInstance.
     :param topic: Message topic.
     :param task_id: Task ID who sent message.
     :param msg_key: Key of specific messages.
-    :param dag_id: DAG ID.
     """
 
-    msgs = ti.xcom_pull(key=topic, task_ids=task_id, include_prior_dates=True, dag_id=dag_id)
+    msgs = ti.xcom_pull(key=topic, task_ids=task_id, include_prior_dates=True)
     keyed_files = filter(lambda x: msg_key in x, msgs)
     files = [msg[msg_key] for msg in keyed_files]
 

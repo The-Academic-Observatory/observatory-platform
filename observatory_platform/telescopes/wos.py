@@ -327,8 +327,6 @@ class WosTelescope:
     """ A container for holding the constants and static functions for the Web of Science telescope."""
 
     DAG_ID = 'wos'
-    SUBDAG_ID_DOWNLOAD = 'download'
-    SUBDAG_ID = f'{DAG_ID}.{SUBDAG_ID_DOWNLOAD}'
     DESCRIPTION = 'Web of Science: https://www.clarivate.com/webofsciencegroup'
     SCHEDULE_INTERVAL = '@monthly'
     RELEASES_TOPIC_NAME = 'releases'
@@ -380,69 +378,64 @@ class WosTelescope:
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
-        conns = list_connections('wos')
+        conn = kwargs['conn']
 
-        # Make sure there are connections configured
-        if len(conns) == 0:
-            raise AirflowException('No connection ids are set')
+        # Validate extra field is set correctly.
+        extra = conn.extra
 
-        # Validate start_date exists in every connection and is set correctly
-        for conn in conns:
-            extra = conn.extra
+        logging.info(f'Validating json in extra field of {conn}')
+        try:
+            extra_dict = json.loads(extra)
+        except:
+            raise AirflowException(f'Error processing json extra fields in {conn} connection id profile')
 
-            logging.info(f'Validating json in extra field of {conn}')
-            try:
-                extra_dict = json.loads(extra)
-            except:
-                raise AirflowException(f'Error processing json extra fields in {conn} connection id profile')
+        logging.info(f'Validating extra field keys for {conn}')
 
-            logging.info(f'Validating extra field keys for {conn}')
+        # Check date is ok
+        start_date = extra_dict['start_date']
+        if not validate_date(start_date):
+            raise AirflowException(f'Invalid date string for {conn}: {start_date}')
 
-            # Check date is ok
-            start_date = extra_dict['start_date']
-            if not validate_date(start_date):
-                raise AirflowException(f'Invalid date string for {conn}: {start_date}')
+        # Check institution id is set
+        if 'id' not in extra_dict:
+            raise AirflowException(f'The "id" field is not set for {conn}.')
 
-            # Check institution id is set
-            if 'id' not in extra_dict:
-                raise AirflowException(f'The "id" field is not set for {conn}.')
+        # Check login is set
+        if len(conn.login) == 0:
+            raise AirflowException(f'The "login" field is not set for {conn}.')
 
-            # Check login is set
-            if len(conn.login) == 0:
-                raise AirflowException(f'The "login" field is not set for {conn}.')
+        # Check password is set
+        if len(conn.password) == 0:
+            raise AirflowException(f'The "password" field is not set for {conn}.')
 
-            # Check password is set
-            if len(conn.password) == 0:
-                raise AirflowException(f'The "password" field is not set for {conn}.')
+        logging.info(f'Checking for airflow override variables of {conn}')
 
-            logging.info(f'Checking for airflow override variables of {conn}')
+        # Set project id override
+        project_id = Variable.get(AirflowVar.project_id.get())
+        if 'project_id' in extra_dict:
+            project_id = extra_dict['project_id']
+            logging.info(f'Override for project_id found. Using: {project_id}')
 
-            # Set project id override
-            project_id = Variable.get(AirflowVar.project_id.get())
-            if 'project_id' in extra_dict:
-                project_id = extra_dict['project_id']
-                logging.info(f'Override for project_id found. Using: {project_id}')
+        # Set download bucket name override
+        download_bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
+        if 'download_bucket_name' in extra_dict:
+            download_bucket_name = extra_dict['download_bucket_name']
+            logging.info(f'Override for download_bucket_name found. Using: {download_bucket_name}')
 
-            # Set download bucket name override
-            download_bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
-            if 'download_bucket_name' in extra_dict:
-                download_bucket_name = extra_dict['download_bucket_name']
-                logging.info(f'Override for download_bucket_name found. Using: {download_bucket_name}')
+        # Set transform bucket name override
+        transform_bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
+        if 'transform_bucket_name' in extra_dict:
+            transform_bucket_name = extra_dict['transform_bucket_name']
+            logging.info(f'Override for transform_bucket_name found. Using: {transform_bucket_name}')
 
-            # Set transform bucket name override
-            transform_bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
-            if 'transform_bucket_name' in extra_dict:
-                transform_bucket_name = extra_dict['transform_bucket_name']
-                logging.info(f'Override for transform_bucket_name found. Using: {transform_bucket_name}')
-
-            # Set data location override
-            data_location = Variable.get(AirflowVar.data_location.get())
-            if 'data_location' in extra_dict:
-                data_location = extra_dict['data_location']
-                logging.info(f'Override for data_location found. Using: {data_location}')
+        # Set data location override
+        data_location = Variable.get(AirflowVar.data_location.get())
+        if 'data_location' in extra_dict:
+            data_location = extra_dict['data_location']
+            logging.info(f'Override for data_location found. Using: {data_location}')
 
         # Push release information for other tasks
-        release = WosRelease(inst_id=str(conn)[4:], release_date=kwargs['execution_date'].date(),
+        release = WosRelease(inst_id=kwargs['institution'], release_date=kwargs['execution_date'].date(),
                              dag_start=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
                              download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
                              data_location=data_location, schema_ver=WosTelescope.SCHEMA_VER)
@@ -518,8 +511,8 @@ class WosTelescope:
         release: WosRelease = WosTelescope.pull_release(ti)
 
         # Pull messages
-        msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=None,
-                               include_prior_dates=False, dag_id=WosTelescope.SUBDAG_ID)
+        msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=WosTelescope.TASK_ID_DOWNLOAD,
+                               include_prior_dates=False)
 
         # Upload each snapshot
         logging.info('upload_downloaded: zipping and uploading downloaded files')
@@ -545,8 +538,8 @@ class WosTelescope:
         """
 
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
-                               include_prior_dates=False, dag_id=WosTelescope.SUBDAG_ID)
+        msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=WosTelescope.TASK_ID_DOWNLOAD,
+                               include_prior_dates=False)
         release: WosRelease = WosTelescope.pull_release(ti)
 
         # Process each xml file
@@ -696,26 +689,26 @@ class WosTelescope:
 
         ti: TaskInstance = kwargs['ti']
 
-        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, None, WosTelescope.XCOM_DOWNLOAD_PATH,
-                         WosTelescope.SUBDAG_ID)
+        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_DOWNLOAD,
+                         WosTelescope.XCOM_DOWNLOAD_PATH)
 
         delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_UPLOAD_DOWNLOADED,
-                         WosTelescope.XCOM_UPLOAD_ZIP_PATH, WosTelescope.DAG_ID)
+                         WosTelescope.XCOM_UPLOAD_ZIP_PATH)
 
         delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_TRANSFORM_XML,
-                         WosTelescope.XCOM_JSON_PATH, WosTelescope.DAG_ID)
+                         WosTelescope.XCOM_JSON_PATH)
 
         delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
-                         WosTelescope.XCOM_JSONL_PATH, WosTelescope.DAG_ID)
+                         WosTelescope.XCOM_JSONL_PATH)
 
         delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_UPLOAD_TRANSFORMED,
-                         WosTelescope.XCOM_JSONL_ZIP_PATH, WosTelescope.DAG_ID)
+                         WosTelescope.XCOM_JSONL_ZIP_PATH)
 
     @staticmethod
     def pull_release(ti: TaskInstance):
         """ Get the WosRelease object from XCOM message. """
         return ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=WosTelescope.TASK_ID_CHECK_DEPENDENCIES,
-                            dag_id=WosTelescope.DAG_ID, include_prior_dates=False)
+                            include_prior_dates=False)
 
 
 class WosNameAttributes:

@@ -31,55 +31,104 @@ default_args = {'owner': 'airflow',
                 }
 
 
-def download_subdag_factory(parent_dag_id, subdag_id, args):
-    """ Factory for making the download subdag.
+def subdag_factory(parent_dag_id, connection, args):
+    """ Factory for making the ETL subdags.
 
     :param parent_dag_id: parent dag's id.
-    :param subdag_id: id of this subdag.
+    :param connection: Airflow Connection object.
     :param args: default arguments to use for this subdag.
     :return: DAG object.
     """
 
+    institution = str(connection)[4:]
+    logging.info(f'Spawning ETL subdag for: {institution}')
+
     subdag = DAG(
-        dag_id=f'{parent_dag_id}.{subdag_id}',
+        dag_id=f'{parent_dag_id}.{institution}',
         default_args=args,
         catchup=False,
         schedule_interval=WosTelescope.SCHEDULE_INTERVAL
     )
 
-    conns = list_connections('wos')
-
     with subdag:
-        for conn in conns:
-            institution = str(conn)[4:]
 
-            logging.info(f'Subdag spawning download task for: {institution}')
-            PythonOperator(
-                task_id=institution,
-                python_callable=WosTelescope.download,
-                op_kwargs={'conn': conn},
-                provide_context=True,
-                queue=WosTelescope.QUEUE,
-                retries=WosTelescope.RETRIES,
-            )
+        # Check that dependencies exist before starting
+        check_dependencies = PythonOperator(
+            task_id=WosTelescope.TASK_ID_CHECK_DEPENDENCIES,
+            python_callable=WosTelescope.check_dependencies,
+            op_kwargs={'dag_start': '{{dag_run.start_date}}', 'conn': connection, 'institution': institution},
+            provide_context=True,
+            queue=WosTelescope.QUEUE
+        )
 
-        # Load tasks
+        download = PythonOperator(
+            task_id=WosTelescope.TASK_ID_DOWNLOAD,
+            python_callable=WosTelescope.download,
+            op_kwargs={'conn': connection},
+            provide_context=True,
+            queue=WosTelescope.QUEUE,
+            retries=WosTelescope.RETRIES
+        )
+
+        # Upload gzipped response (XML)
+        upload_downloaded = PythonOperator(
+            task_id=WosTelescope.TASK_ID_UPLOAD_DOWNLOADED,
+            python_callable=WosTelescope.upload_downloaded,
+            provide_context=True,
+            queue=WosTelescope.QUEUE,
+            retries=WosTelescope.RETRIES
+        )
+
+        # Transform XML data to json
+        transform_xml_to_json = PythonOperator(
+            task_id=WosTelescope.TASK_ID_TRANSFORM_XML,
+            python_callable=WosTelescope.transform_xml,
+            provide_context=True,
+            queue=WosTelescope.QUEUE,
+            retries=WosTelescope.RETRIES
+        )
+
+        # Transform into database schema format
+        transform_db_format = PythonOperator(
+            task_id=WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
+            python_callable=WosTelescope.transform_db_format,
+            provide_context=True,
+            queue=WosTelescope.QUEUE
+        )
+
+        # # Upload the transformed jsonline entries to Google Cloud Storage
+        upload_transformed = PythonOperator(
+            task_id=WosTelescope.TASK_ID_UPLOAD_TRANSFORMED,
+            python_callable=WosTelescope.upload_transformed,
+            provide_context=True,
+            queue=WosTelescope.QUEUE,
+            retries=WosTelescope.RETRIES
+        )
+
+        # Load the transformed WoS snapshot to BigQuery
+        # Depends on past so that BigQuery load jobs are not all created at once
+        bq_load = PythonOperator(
+            task_id=WosTelescope.TASK_ID_BQ_LOAD,
+            python_callable=WosTelescope.bq_load,
+            provide_context=True,
+            queue=WosTelescope.QUEUE
+        )
+
+        cleanup = PythonOperator(
+            task_id=WosTelescope.TASK_ID_CLEANUP,
+            python_callable=WosTelescope.cleanup,
+            provide_context=True,
+            queue=WosTelescope.QUEUE
+        )
+
+        check_dependencies >> download >> upload_downloaded >> transform_xml_to_json >> transform_db_format \
+        >> upload_transformed >> bq_load >> cleanup
 
     return subdag
 
 
 with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INTERVAL, catchup=False,
          default_args=default_args) as dag:
-    # Check that dependencies exist before starting
-
-    check_dependencies = PythonOperator(
-        task_id=WosTelescope.TASK_ID_CHECK_DEPENDENCIES,
-        python_callable=WosTelescope.check_dependencies,
-        op_kwargs={'dag_start': '{{dag_run.start_date}}'},
-        provide_context=True,
-        queue=WosTelescope.QUEUE
-    )
-
     # Only process if the Web of Science API server is up.
     check_api_server = PythonOperator(
         task_id=WosTelescope.TASK_CHECK_API_SERVER,
@@ -89,65 +138,17 @@ with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INT
         retries=WosTelescope.RETRIES,
     )
 
-    # Download the WoS snapshot for all configured institutions
-    download = SubDagOperator(
-        task_id=WosTelescope.TASK_ID_DOWNLOAD,
-        subdag=download_subdag_factory(WosTelescope.DAG_ID, WosTelescope.SUBDAG_ID_DOWNLOAD, default_args),
-        default_args=default_args,
-        dag=dag
-    )
+    # Spawn a subdag to handle ETL for each institution
+    subdags = list()
+    conns = list_connections('wos')
+    for conn in conns:
+        subdag = SubDagOperator(
+            task_id=str(conn)[4:],
+            subdag=subdag_factory(WosTelescope.DAG_ID, conn, default_args),
+            default_args=default_args,
+            dag=dag
+        )
 
-    # Upload gzipped response (XML)
-    upload_downloaded = PythonOperator(
-        task_id=WosTelescope.TASK_ID_UPLOAD_DOWNLOADED,
-        python_callable=WosTelescope.upload_downloaded,
-        provide_context=True,
-        queue=WosTelescope.QUEUE,
-        retries=WosTelescope.RETRIES
-    )
-
-    # Transform XML data to json
-    transform_xml_to_json = PythonOperator(
-        task_id=WosTelescope.TASK_ID_TRANSFORM_XML,
-        python_callable=WosTelescope.transform_xml,
-        provide_context=True,
-        queue=WosTelescope.QUEUE,
-        retries=WosTelescope.RETRIES
-    )
-
-    # Transform into database schema format
-    transform_db_format = PythonOperator(
-        task_id=WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
-        python_callable=WosTelescope.transform_db_format,
-        provide_context=True,
-        queue=WosTelescope.QUEUE
-    )
-
-    # # Upload the transformed jsonline entries to Google Cloud Storage
-    upload_transformed = PythonOperator(
-        task_id=WosTelescope.TASK_ID_UPLOAD_TRANSFORMED,
-        python_callable=WosTelescope.upload_transformed,
-        provide_context=True,
-        queue=WosTelescope.QUEUE,
-        retries=WosTelescope.RETRIES
-    )
-
-    # Load the transformed WoS snapshot to BigQuery
-    # Depends on past so that BigQuery load jobs are not all created at once
-    bq_load = PythonOperator(
-        task_id=WosTelescope.TASK_ID_BQ_LOAD,
-        python_callable=WosTelescope.bq_load,
-        provide_context=True,
-        queue=WosTelescope.QUEUE
-    )
-
-    cleanup = PythonOperator(
-        task_id=WosTelescope.TASK_ID_CLEANUP,
-        python_callable=WosTelescope.cleanup,
-        provide_context=True,
-        queue=WosTelescope.QUEUE
-    )
-
-    # Task dependencies
-    check_dependencies >> check_api_server >> download >> upload_downloaded >> transform_xml_to_json \
-    >> transform_db_format >> upload_transformed >> bq_load >> cleanup
+        # Task dependencies
+        check_api_server >> subdag
+        subdags.append(subdag)
