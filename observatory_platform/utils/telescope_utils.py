@@ -21,11 +21,11 @@ import json
 import jsonlines
 import logging
 import os
-import pathlib
 import pendulum
 import shutil
 
 from airflow.models.taskinstance import TaskInstance
+from pathlib import Path
 from typing import List
 
 
@@ -69,7 +69,7 @@ def delete_msg_files(ti: TaskInstance, topic: str, task_id: str, msg_key: str, d
     for file in files:
         try:
             logging.info(f'delete_msg_files: Deleting {file}')
-            pathlib.Path(file).unlink()
+            Path(file).unlink()
         except FileNotFoundError as e:
             logging.warning(f"No such file or directory {file}: {e}")
 
@@ -89,10 +89,7 @@ def json_to_db(json_list: List[str], release_date: str, parser) -> List[str]:
         return jsonlines_files
 
     first_file = json_list[0][0]
-    harvest_date = json_list[0][1]
-    end_boundary = first_file.find('-')
-    inst_tag = first_file[:end_boundary]
-    save_file = f'{inst_tag}_{release_date}_{harvest_date}.jsonl'
+    save_file = f'{first_file}l'
     jsonlines_files.append(save_file)
 
     with jsonlines.open(save_file, mode='w') as writer:
@@ -143,14 +140,20 @@ def write_to_file(record, file_name: str):
     :param record: Structure to write.
     :param file_name: File name to write to.
     """
+
+    directory = os.path.dirname(file_name)
+    Path(directory).mkdir(parents=True, exist_ok=True)
+
     with open(file_name, 'w') as f:
         f.write(record)
 
 
-def write_xml_to_json(transform_path: str, in_files: List[str], parser):
+def write_xml_to_json(transform_path: str, release_date: str, inst_id: str, in_files: List[str], parser):
     """ Write a list of web responses to json.
 
     :param transform_path: base path to store transformed files.
+    :param release_date: release date.
+    :param inst_id: institution id from airflow connection id.
     :param in_files: list of xml web response files.
     :param parser: Parsing function that parses the response into json compatible data.
     :return: List of json files written to, and list of schema versions per response.
@@ -173,7 +176,7 @@ def write_xml_to_json(transform_path: str, in_files: List[str], parser):
         # Save it in the transform bucket.
         filename = os.path.basename(file)
         json_file = f'{filename[:-3]}json'
-        json_path = os.path.join(transform_path, json_file)
+        json_path = os.path.join(transform_path, release_date, inst_id, json_file)
         json_file_list.append(json_path)
         json_record = json.dumps(parsed_list)
         write_to_file(json_record, json_path)

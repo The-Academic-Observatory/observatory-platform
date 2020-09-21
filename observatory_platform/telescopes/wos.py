@@ -145,7 +145,7 @@ class WosUtility:
 
         timestamp = pendulum.datetime.now().isoformat()
         inst_str = conn[4:]
-        save_file_prefix = os.path.join(download_path, f'{inst_str}-{period[0]}_{timestamp}')
+        save_file_prefix = os.path.join(download_path, period[0].isoformat(), inst_str, timestamp)
         query = WosUtility.build_query(inst_id, period)
         result = WosUtility.make_query(client, query)
         logging.info(f'{conn} with session id {client._SID}: retrieving period {period[0]} - {period[1]}')
@@ -299,6 +299,7 @@ class WosUtility:
 class WosRelease:
     """ Used to store info on a given WoS release.
 
+    :param inst_id: institution id from the airflow connection (minus the wos_)
     :param release_date: Release date (currently the execution date).
     :param dag_start: Start date of the dag (not execution date).
     :param project_id: The project id to use.
@@ -307,8 +308,9 @@ class WosRelease:
     :param data_location: Location of the data servers
     """
 
-    def __init__(self, release_date: pendulum.Pendulum, dag_start: pendulum.Pendulum, project_id: str,
+    def __init__(self, inst_id: str, release_date: pendulum.Pendulum, dag_start: pendulum.Pendulum, project_id: str,
                  download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str):
+        self.inst_id = inst_id
         self.release_date = release_date
         self.dag_start = dag_start
         self.download_path = telescope_path(SubFolder.downloaded, WosTelescope.DAG_ID)
@@ -440,7 +442,7 @@ class WosTelescope:
                 logging.info(f'Override for data_location found. Using: {data_location}')
 
         # Push release information for other tasks
-        release = WosRelease(release_date=kwargs['execution_date'].date(),
+        release = WosRelease(inst_id=str(conn)[4:], release_date=kwargs['execution_date'].date(),
                              dag_start=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
                              download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
                              data_location=data_location, schema_ver=WosTelescope.SCHEMA_VER)
@@ -523,7 +525,7 @@ class WosTelescope:
         logging.info('upload_downloaded: zipping and uploading downloaded files')
         download_list = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
         zip_list = zip_files(download_list)
-        upload_telescope_file_list(release.download_bucket_name, release.telescope_path, zip_list)
+        upload_telescope_file_list(release.download_bucket_name, release.inst_id, release.telescope_path, zip_list)
 
         # Notify next task of the files downloaded.
         msgs_out = [{WosTelescope.XCOM_UPLOAD_ZIP_PATH: file} for file in zip_list]
@@ -550,7 +552,8 @@ class WosTelescope:
         # Process each xml file
         logging.info('transform_xml: transforming xml to dict and writing to json')
         xml_files = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
-        json_file_list, schema_vers = write_xml_to_json(release.transform_path, xml_files, WosUtility.parse_query)
+        json_file_list, schema_vers = write_xml_to_json(release.transform_path, release.release_date.isoformat(),
+                                                        release.inst_id, xml_files, WosUtility.parse_query)
 
         # Check we received consistent schema versions, and update release information.
         if schema_vers and schema_vers.count(WosTelescope.SCHEMA_VER) == len(schema_vers):
@@ -561,9 +564,9 @@ class WosTelescope:
         # Notify next task of the converted json files
         msgs_out = []
         for file in json_file_list:
-            head = file.rfind('_') + 1
-            tail = file.rfind('-')
-            harvest_datetime = file[head:tail]
+            file_name = os.path.basename(file)
+            end = file_name.rfind('-')
+            harvest_datetime = file_name[:end]
             msg_out = {WosTelescope.XCOM_JSON_PATH: file, WosTelescope.XCOM_HARVEST_DATETIME: harvest_datetime}
             msgs_out.append(msg_out)
         ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
@@ -628,7 +631,8 @@ class WosTelescope:
         logging.info('upload_transformed: zipping and uploading jsonlines to cloud')
         jsonl_paths = [msg[WosTelescope.XCOM_JSONL_PATH] for msg in msgs_in]
         zip_list = zip_files(jsonl_paths)
-        blob_list = upload_telescope_file_list(release.transform_bucket_name, release.telescope_path, zip_list)
+        blob_list = upload_telescope_file_list(release.transform_bucket_name, release.inst_id, release.telescope_path,
+                                               zip_list)
 
         # Notify next task of the files downloaded.
         msgs_out = [{WosTelescope.XCOM_JSONL_BLOB_PATH: file} for file in blob_list]
@@ -676,6 +680,7 @@ class WosTelescope:
             # Load BigQuery table
             uri = f"gs://{release.transform_bucket_name}/{file}"
             logging.info(f"URI: {uri}")
+
             load_bigquery_table(uri, WosTelescope.DATASET_ID, release.data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
 
