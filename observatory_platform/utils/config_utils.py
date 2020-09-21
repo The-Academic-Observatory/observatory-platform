@@ -133,25 +133,30 @@ def schema_path(database: str) -> str:
     return str(pathlib.Path(*file_path.parts[:-1], database, 'schema').resolve())
 
 
-def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str = '') -> Union[str, None]:
+def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str = '', ver: str = '') -> Union[str, None]:
     """ Finds a schema file on a given path, with a particular table name, release date and optional prefix.
-    The most recent schema with a date less than or equal to the release date of the dataset is returned.
+    If no version string is sepcified, the most recent schema with a date less than or equal to the release date of the
+    dataset is returned. If a version string is specified, the most current (date) schema in that series is returned.
+
     Use the schema_path function to find the path to the folder containing the schemas.
 
     For example (grid schemas):
      - grid2015-09-22.json
      - grid2016-04-28.json
+     - wos_wok5.4_2016-01-01.json  (versioned schema with version 'wok5.4')
 
     For GRID releases between 2015-09-22 and 2016-04-28 grid_2015-09-22.json is returned and for GRID releases or after
     2016-04-28 grid_2016-04-28.json is returned (until a new schema with a later date is added).
 
-    Schemas are named with the following pattern: prefix + table_name + YYYY-MM-DD + .json
+    Unversioned schemas are named with the following pattern: prefix + table_name + YYYY-MM-DD + .json
+    Versioned schemas are named as: prefix + table_name + '_' + ver + '_' + YYYY-MM-DD + .json
     * prefix: an optional prefix for datasets with multiple tables, for instance the Microsoft Academic Graph (MAG)
     dataset schema file names are prefixed with Mag, e.g. MagAffiliations2020-05-21.json, MagAuthors2020-05-21.json.
     The GRID dataset only has one table, so there is no prefix, e.g. grid2015-09-22.json.
     * table_name: the name of the table.
+    * ver: version string.
     * YYYY-MM-DD: schema file names end in the release date that the particular schema should be used from in YYYY-MM-DD
-    format.
+    format. For versioned schemas, this is the date of schema creation.
     * prefix and table_name follow the naming conventions of the dataset, e.g. MAG uses CamelCase for tables and fields
     so CamelCase is used. When there is no preference from the dataset then lower snake case is used.
 
@@ -159,15 +164,27 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
     :param table_name: the name of the table.
     :param release_date: the release date of the table.
     :param prefix: an optional prefix.
+    :param ver: Schema version.
     :return: the path to the schema or None if no schema was found.
     """
 
     # Make search path for schemas
-    search_path = os.path.join(path, f'{prefix}{table_name}*.json')
+    if ver != '':
+        search_path = os.path.join(path, f'{prefix}{table_name}_{ver}_*.json')
+    else:
+        search_path = os.path.join(path, f'{prefix}{table_name}*.json')
 
     # Find potential schemas with a glob search and sort them naturally
     schema_paths = glob.glob(search_path)
     schema_paths = natsorted(schema_paths)
+
+    # No schemas were found
+    if len(schema_paths) == 0:
+        return None
+
+    # Deal with versioned schema first since it's simpler. Return most recent for versioned schema.
+    if ver != '':
+        return schema_paths[-1]
 
     # Get schemas with dates <= release date
     prefix_len = len(prefix + table_name)

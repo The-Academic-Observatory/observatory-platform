@@ -99,11 +99,11 @@ class WosUtility:
         return query
 
     @staticmethod
-    def parse_query(records) -> dict:
+    def parse_query(records) -> (dict, str):
         """ Parse XML tree record into a dict.
 
         :param records: XML tree returned by the web query.
-        :return: Dictionary version of the web response.
+        :return: Dictionary version of the web response and a schema version string.
         """
 
         try:
@@ -112,15 +112,25 @@ class WosUtility:
             raise AirflowException(f'XML to dict parsing failed: {e}')
 
         records = records_dict['records']
-        schema_id = records['@xmlns']
-        if schema_id != WosTelescope.SCHEMA_ID:
-            logging.warning(f'WOS schema has changed.\nExpected: {WosTelescope.SCHEMA_ID}\nReceived: {schema_id}')
+        schema_string = records['@xmlns']
+
+        prefix_len = len(WosTelescope.SCHEMA_ID_PREFIX)
+        prefix_loc = schema_string.find(WosTelescope.SCHEMA_ID_PREFIX)
+        if prefix_loc == -1:
+            logging.warning(
+                f'WOS schema has changed.\nExpecting prefix: {WosTelescope.SCHEMA_ID_PREFIX}\nReceived: {schema_string}')
+            return None
+
+        ver_start = prefix_len
+        ver_end = schema_string.find('/', ver_start)
+        schema_ver = schema_string[ver_start:ver_end]
+        logging.info(f'Found schema version: {schema_ver}')
 
         if 'REC' not in records:
             logging.warning(f'No record found for query. Please double check parameters, e.g., institution id.')
             return None
 
-        return records['REC']
+        return records['REC'], schema_ver
 
     @staticmethod
     def download_wos_period(client: WosClient, conn: str, period: tuple, inst_id: str, download_path: str) -> str:
@@ -298,7 +308,7 @@ class WosRelease:
     """
 
     def __init__(self, release_date: pendulum.Pendulum, dag_start: pendulum.Pendulum, project_id: str,
-                 download_bucket_name: str, transform_bucket_name: str, data_location: str):
+                 download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str):
         self.release_date = release_date
         self.dag_start = dag_start
         self.download_path = telescope_path(SubFolder.downloaded, WosTelescope.DAG_ID)
@@ -307,6 +317,7 @@ class WosRelease:
         self.download_bucket_name = download_bucket_name
         self.transform_bucket_name = transform_bucket_name
         self.data_location = data_location
+        self.schema_ver = schema_ver
 
 
 class WosTelescope:
@@ -323,6 +334,7 @@ class WosTelescope:
     DATASET_ID = 'clarivate'
     SCHEMA_PATH = 'telescopes'
     TABLE_NAME = DAG_ID
+    SCHEMA_VER = 'wok5.4'
 
     TASK_ID_CHECK_DEPENDENCIES = 'check_dependencies'
     TASK_CHECK_API_SERVER = 'check_api_server'
@@ -347,7 +359,7 @@ class WosTelescope:
     DOWNLOAD_MODE = 'sequential'  # Valid options: ['sequential', 'parallel']
 
     API_SERVER = 'http://scientific.thomsonreuters.com'
-    SCHEMA_ID = 'http://scientific.thomsonreuters.com/schema/wok5.4/public/FullRecord'
+    SCHEMA_ID_PREFIX = 'http://scientific.thomsonreuters.com/schema/'
 
     @staticmethod
     def check_dependencies(**kwargs):
@@ -430,7 +442,7 @@ class WosTelescope:
         release = WosRelease(release_date=kwargs['execution_date'].date(),
                              dag_start=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
                              download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
-                             data_location=data_location)
+                             data_location=data_location, schema_ver=WosTelescope.SCHEMA_VER)
 
         logging.info(
             f'WosRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: {release.transform_bucket_name}, data_location: {release.data_location}')
@@ -532,11 +544,18 @@ class WosTelescope:
         ti: TaskInstance = kwargs['ti']
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
                                include_prior_dates=False, dag_id=WosTelescope.SUBDAG_ID)
+        release: WosRelease = WosTelescope.pull_release(ti)
 
         # Process each xml file
         logging.info('transform_xml: transforming xml to dict and writing to json')
         xml_files = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
-        json_file_list = write_xml_to_json(xml_files, WosUtility.parse_query)
+        json_file_list, schema_vers = write_xml_to_json(xml_files, WosUtility.parse_query)
+
+        # Check we received consistent schema versions, and update release information.
+        if schema_vers and schema_vers.count(WosTelescope.SCHEMA_VER) == len(schema_vers):
+            release.schema_ver = schema_vers[0]
+        else:
+            raise AirflowException(f'Inconsistent schema versions received in response.')
 
         # Notify next task of the converted json files
         msgs_out = []
@@ -645,10 +664,12 @@ class WosTelescope:
         analysis_schema_path = schema_path(WosTelescope.SCHEMA_PATH)
 
         for file in jsonl_zip_blobs:
-            schema_file_path = find_schema(analysis_schema_path, WosTelescope.TABLE_NAME, release.release_date)
+            schema_file_path = find_schema(analysis_schema_path, WosTelescope.TABLE_NAME, release.release_date, '',
+                                           release.schema_ver)
             if schema_file_path is None:
-                logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
-                              f'table_name={WosTelescope.TABLE_NAME}, release_date={release.release_date}')
+                logging.error(
+                    f'No schema found with search parameters: analysis_schema_path={WosTelescope.SCHEMA_PATH}, '
+                    f'table_name={WosTelescope.TABLE_NAME}, release_date={release.release_date}, schema_ver={release.schema_ver}')
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table

@@ -152,27 +152,29 @@ def write_xml_to_json(in_files: List[str], parser):
 
     :param in_files: list of xml web response files.
     :param parser: Parsing function that parses the response into json compatible data.
-    :return: List of json files written to.
+    :return: List of json files written to, and list of schema versions per response.
     """
 
     json_file_list = list()
+    schema_vers = list()
 
     for file in in_files:
         logging.info(f'Transforming {file} to json')
         xml_data = load_file(file)
 
         parsed_list = list()
-        parsed_record = parser(xml_data)
+        parsed_record, schema_ver = parser(xml_data)
         if parsed_record is None:
             continue
         parsed_list = parsed_list + parsed_record
+        schema_vers.append(schema_ver)
 
         json_file = f'{file[:-3]}json'
         json_file_list.append(json_file)
         json_record = json.dumps(parsed_list)
         write_to_file(json_record, json_file)
 
-    return json_file_list
+    return json_file_list, schema_vers
 
 
 def zip_files(file_list: List[str]):
