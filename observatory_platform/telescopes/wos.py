@@ -312,6 +312,7 @@ class WosRelease:
         self.release_date = release_date
         self.dag_start = dag_start
         self.download_path = telescope_path(SubFolder.downloaded, WosTelescope.DAG_ID)
+        self.transform_path = telescope_path(SubFolder.transformed, WosTelescope.DAG_ID)
         self.telescope_path = f'telescopes/{WosTelescope.DAG_ID}/{release_date}'
         self.project_id = project_id
         self.download_bucket_name = download_bucket_name
@@ -549,7 +550,7 @@ class WosTelescope:
         # Process each xml file
         logging.info('transform_xml: transforming xml to dict and writing to json')
         xml_files = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
-        json_file_list, schema_vers = write_xml_to_json(xml_files, WosUtility.parse_query)
+        json_file_list, schema_vers = write_xml_to_json(release.transform_path, xml_files, WosUtility.parse_query)
 
         # Check we received consistent schema versions, and update release information.
         if schema_vers and schema_vers.count(WosTelescope.SCHEMA_VER) == len(schema_vers):

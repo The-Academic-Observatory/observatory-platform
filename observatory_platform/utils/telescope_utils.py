@@ -147,9 +147,10 @@ def write_to_file(record, file_name: str):
         f.write(record)
 
 
-def write_xml_to_json(in_files: List[str], parser):
+def write_xml_to_json(transform_path: str, in_files: List[str], parser):
     """ Write a list of web responses to json.
 
+    :param transform_path: base path to store transformed files.
     :param in_files: list of xml web response files.
     :param parser: Parsing function that parses the response into json compatible data.
     :return: List of json files written to, and list of schema versions per response.
@@ -169,10 +170,13 @@ def write_xml_to_json(in_files: List[str], parser):
         parsed_list = parsed_list + parsed_record
         schema_vers.append(schema_ver)
 
-        json_file = f'{file[:-3]}json'
-        json_file_list.append(json_file)
+        # Save it in the transform bucket.
+        filename = os.path.basename(file)
+        json_file = f'{filename[:-3]}json'
+        json_path = os.path.join(transform_path, json_file)
+        json_file_list.append(json_path)
         json_record = json.dumps(parsed_list)
-        write_to_file(json_record, json_file)
+        write_to_file(json_record, json_path)
 
     return json_file_list, schema_vers
 
