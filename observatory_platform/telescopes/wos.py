@@ -329,7 +329,6 @@ class WosTelescope:
     TASK_ID_DOWNLOAD = 'download'
     TASK_ID_UPLOAD_DOWNLOADED = 'upload_downloaded'
     TASK_ID_TRANSFORM_XML = 'transform_xml'
-    TASK_ID_UPLOAD_JSON = 'upload_json'
     TASK_ID_TRANSFORM_DB_FORMAT = 'transform_db_format'
     TASK_ID_UPLOAD_TRANSFORMED = 'upload_transformed'
     TASK_ID_BQ_LOAD = 'bq_load'
@@ -339,7 +338,6 @@ class WosTelescope:
     XCOM_DOWNLOAD_PATH = 'download_path'
     XCOM_UPLOAD_ZIP_PATH = 'download_zip_path'
     XCOM_JSON_PATH = 'json_path'
-    XCOM_JSON_ZIP_PATH = 'json_zip_path'
     XCOM_HARVEST_DATETIME = 'harvest_datetime'
     XCOM_JSONL_PATH = 'jsonl_path'
     XCOM_JSONL_ZIP_PATH = 'jsonl_zip_path'
@@ -551,37 +549,6 @@ class WosTelescope:
         ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
 
     @staticmethod
-    def upload_json(**kwargs):
-        """ Task to upload the transformed json files.
-
-        Pushes the following xcom:
-            upload_json_zip_path (str): the path to json zip file of a converted xml response.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        ti: TaskInstance = kwargs['ti']
-        release: WosRelease = WosTelescope.pull_release(ti)
-
-        # Pull messages
-        msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
-                               task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
-                               include_prior_dates=False)
-
-        # Upload each snapshot
-        logging.info('upload_json: zipping and uploading json files')
-        json_paths = [msg[WosTelescope.XCOM_JSON_PATH] for msg in msgs_in]
-        zip_list = zip_files(json_paths)
-        upload_telescope_file_list(release.download_bucket_name, release.telescope_path, zip_list)
-
-        # Notify next task of the files downloaded.
-        msgs_out = [{WosTelescope.XCOM_JSON_ZIP_PATH: file} for file in zip_list]
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
-
-    @staticmethod
     def transform_db_format(**kwargs):
         """ Task to transform the json into db field format (and in jsonlines form).
 
@@ -710,9 +677,6 @@ class WosTelescope:
 
         delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_TRANSFORM_XML,
                          WosTelescope.XCOM_JSON_PATH, WosTelescope.DAG_ID)
-
-        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_UPLOAD_JSON,
-                         WosTelescope.XCOM_JSON_ZIP_PATH, WosTelescope.DAG_ID)
 
         delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
                          WosTelescope.XCOM_JSONL_PATH, WosTelescope.DAG_ID)

@@ -26,7 +26,6 @@ from airflow.operators.subdag_operator import SubDagOperator
 from observatory_platform.telescopes.wos import WosTelescope
 from observatory_platform.utils.config_utils import list_connections
 
-
 default_args = {'owner': 'airflow',
                 'start_date': datetime(2018, 1, 1),
                 }
@@ -58,7 +57,7 @@ def download_subdag_factory(parent_dag_id, subdag_id, args):
             PythonOperator(
                 task_id=institution,
                 python_callable=WosTelescope.download,
-                op_kwargs={'conn' : conn},
+                op_kwargs={'conn': conn},
                 provide_context=True,
                 queue=WosTelescope.QUEUE,
                 retries=WosTelescope.RETRIES,
@@ -69,7 +68,8 @@ def download_subdag_factory(parent_dag_id, subdag_id, args):
     return subdag
 
 
-with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INTERVAL, catchup=False, default_args=default_args) as dag:
+with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INTERVAL, catchup=False,
+         default_args=default_args) as dag:
     # Check that dependencies exist before starting
 
     check_dependencies = PythonOperator(
@@ -115,15 +115,6 @@ with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INT
         retries=WosTelescope.RETRIES
     )
 
-    # Upload gzipped JSON converted (from XML) responses.
-    upload_json = PythonOperator(
-        task_id=WosTelescope.TASK_ID_UPLOAD_JSON,
-        python_callable=WosTelescope.upload_json,
-        provide_context=True,
-        queue=WosTelescope.QUEUE,
-        retries=WosTelescope.RETRIES
-    )
-
     # Transform into database schema format
     transform_db_format = PythonOperator(
         task_id=WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
@@ -159,4 +150,4 @@ with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INT
 
     # Task dependencies
     check_dependencies >> check_api_server >> download >> upload_downloaded >> transform_xml_to_json \
-     >> upload_json >> transform_db_format >> upload_transformed >> bq_load >> cleanup
+    >> transform_db_format >> upload_transformed >> bq_load >> cleanup
