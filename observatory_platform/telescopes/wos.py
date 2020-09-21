@@ -232,12 +232,12 @@ class WosUtility:
         return WosUtility.download_wos_batch(login, password, schedule, conn, inst_id, download_path)
 
     @staticmethod
-    def download_wos_snapshot(download_path: str, conn, dag_start, mode: str):
+    def download_wos_snapshot(download_path: str, conn, end_date, mode: str):
         """ Download snapshot from Web of Science for the given institution.
 
         :param download_path: the directory where the downloaded wos snapshot should be saved.
         :param conn: Airflow connection object.
-        :param dag_start: start date of this DAG run.
+        :param end_date: end date of schedule. Usually the DAG start date of this DAG run.
         :param mode: Download mode to use. 'sequential' or 'parallel'
         """
 
@@ -246,7 +246,7 @@ class WosUtility:
         login = conn.login
         password = conn.password
         start_date = pendulum.parse(extra['start_date']).date()
-        schedule = build_schedule(start_date, dag_start)
+        schedule = build_schedule(start_date, end_date)
 
         if mode == 'sequential' or len(schedule) <= WosUtilConst.SESSION_CALL_LIMIT:
             logging.info('Downloading snapshot with sequential method')
