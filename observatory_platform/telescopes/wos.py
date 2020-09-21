@@ -116,6 +116,10 @@ class WosUtility:
         if schema_id != WosTelescope.SCHEMA_ID:
             logging.warning(f'WOS schema has changed.\nExpected: {WosTelescope.SCHEMA_ID}\nReceived: {schema_id}')
 
+        if 'REC' not in records:
+            logging.warning(f'No record found for query. Please double check parameters, e.g., institution id.')
+            return None
+
         return records['REC']
 
     @staticmethod

@@ -163,6 +163,8 @@ def write_xml_to_json(in_files: List[str], parser):
 
         parsed_list = list()
         parsed_record = parser(xml_data)
+        if parsed_record is None:
+            continue
         parsed_list = parsed_list + parsed_record
 
         json_file = f'{file[:-3]}json'
