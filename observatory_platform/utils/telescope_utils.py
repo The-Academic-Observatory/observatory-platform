@@ -168,6 +168,7 @@ def write_xml_to_json(transform_path: str, release_date: str, inst_id: str, in_f
         parsed_list = list()
         parsed_record, schema_ver = parser(xml_data)
         if parsed_record is None:
+            logging.info(f'Empty record received for {file}')
             continue
         parsed_list = parsed_list + parsed_record
         schema_vers.append(schema_ver)
