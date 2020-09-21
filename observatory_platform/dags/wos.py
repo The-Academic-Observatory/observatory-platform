@@ -84,7 +84,7 @@ with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INT
     check_api_server = PythonOperator(
         task_id=WosTelescope.TASK_CHECK_API_SERVER,
         python_callable=WosTelescope.check_api_server,
-        provide_context=True,
+        provide_context=False,
         queue=WosTelescope.QUEUE,
         retries=WosTelescope.RETRIES,
     )

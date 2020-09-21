@@ -452,7 +452,7 @@ class WosTelescope:
         ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, release, kwargs['execution_date'])
 
     @staticmethod
-    def check_api_server(**kwargs):
+    def check_api_server():
         """ Check that http://scientific.thomsonreuters.com is still contactable.
 
         :param kwargs: the context passed from the BranchPythonOperator. See
