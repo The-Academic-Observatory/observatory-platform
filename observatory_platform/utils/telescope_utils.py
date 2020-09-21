@@ -23,7 +23,6 @@ import logging
 import os
 import pathlib
 import pendulum
-import pickle
 import shutil
 
 from airflow.models.taskinstance import TaskInstance
@@ -113,15 +112,16 @@ def json_to_db(json_list: List[str], release_date: str, parser) -> List[str]:
     return jsonlines_files
 
 
-def load_pickle(file_name: str):
-    """ Load a pickle file.
+def load_file(file_name: str, modes='r'):
+    """ Load a file.
 
     :param file_name: file to load.
-    :return: contents of pickle file.
+    :param modes: File open modes. Defaults to 'r'
+    :return: contents of file.
     """
 
-    with open(file_name, 'rb') as f:
-        return pickle.load(f)
+    with open(file_name, modes) as f:
+        return f.read()
 
 
 def validate_date(date_string):
@@ -147,35 +147,23 @@ def write_to_file(record, file_name: str):
         f.write(record)
 
 
-def write_pickle(record, file_name: str):
-    """ Write out a pickle file of a python structure.
+def write_xml_to_json(in_files: List[str], parser):
+    """ Write a list of web responses to json.
 
-    :param record: Structure to write out.
-    :param file_name: File name to write to.
-    """
-
-    with open(file_name, 'wb') as f:
-        pickle.dump(record, f)
-
-
-def write_pickled_xml_to_json(pickle_files, parser):
-    """ Write a list of pickled web responses to json.
-
-    :param pickle_files: list of pickled web response files.
+    :param in_files: list of xml web response files.
     :param parser: Parsing function that parses the response into json compatible data.
     :return: List of json files written to.
     """
 
     json_file_list = list()
 
-    for file in pickle_files:
+    for file in in_files:
         logging.info(f'Transforming {file} to json')
-        xml_list = load_pickle(file)
+        xml_data = load_file(file)
 
         parsed_list = list()
-        for record in xml_list:
-            parsed_record = parser(record)
-            parsed_list = parsed_list + parsed_record
+        parsed_record = parser(xml_data)
+        parsed_list = parsed_list + parsed_record
 
         json_file = f'{file[:-3]}json'
         json_file_list.append(json_file)

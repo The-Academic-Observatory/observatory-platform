@@ -41,8 +41,8 @@ from observatory_platform.utils.telescope_utils import (
     delete_msg_files,
     json_to_db,
     validate_date,
-    write_pickled_xml_to_json,
-    write_pickle,
+    write_xml_to_json,
+    write_to_file,
     zip_files,
 )
 
@@ -131,13 +131,20 @@ class WosUtility:
 
         timestamp = pendulum.datetime.now().isoformat()
         inst_str = conn[4:]
-        save_file = os.path.join(download_path, f'{inst_str}-{period[0]}_{timestamp}.pkl')
+        save_file_prefix = os.path.join(download_path, f'{inst_str}-{period[0]}_{timestamp}')
         query = WosUtility.build_query(inst_id, period)
         result = WosUtility.make_query(client, query)
         logging.info(f'{conn} with session id {client._SID}: retrieving period {period[0]} - {period[1]}')
-        write_pickle(result, save_file)
 
-        return save_file
+        counter = 0
+        saved_files = list()
+        for entry in result:
+            save_file = f'{save_file_prefix}-{counter}.xml'
+            write_to_file(entry, save_file)
+            counter += 1
+            saved_files.append(save_file)
+
+        return saved_files
 
     @staticmethod
     @backoff.on_exception(backoff.constant, WebFault, max_tries=WosUtilConst.RETRIES,
@@ -155,11 +162,11 @@ class WosUtility:
         :return: List of saved files from this batch.
         """
 
-        file_list = []
+        file_list = list()
         with WosClient(login, password) as client:
             for period in batch:
-                file = WosUtility.download_wos_period(client, conn, period, inst_id, download_path)
-                file_list.append(file)
+                files = WosUtility.download_wos_period(client, conn, period, inst_id, download_path)
+                file_list += files
         return file_list
 
     @staticmethod
@@ -423,7 +430,8 @@ class WosTelescope:
                              download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
                              data_location=data_location)
 
-        logging.info(f'WosRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: {release.transform_bucket_name}, data_location: {release.data_location}')
+        logging.info(
+            f'WosRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: {release.transform_bucket_name}, data_location: {release.data_location}')
 
         ti: TaskInstance = kwargs['ti']
         ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, release, kwargs['execution_date'])
@@ -523,15 +531,17 @@ class WosTelescope:
         msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
                                include_prior_dates=False, dag_id=WosTelescope.SUBDAG_ID)
 
-        # Process each pickled file
+        # Process each xml file
         logging.info('transform_xml: transforming xml to dict and writing to json')
-        pickle_files = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
-        json_file_list = write_pickled_xml_to_json(pickle_files, WosUtility.parse_query)
+        xml_files = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
+        json_file_list = write_xml_to_json(xml_files, WosUtility.parse_query)
 
         # Notify next task of the converted json files
         msgs_out = []
         for file in json_file_list:
-            harvest_datetime = file[file.rfind('_') + 1:-5]
+            head = file.rfind('_') + 1
+            tail = file.rfind('-')
+            harvest_datetime = file[head:tail]
             msg_out = {WosTelescope.XCOM_JSON_PATH: file, WosTelescope.XCOM_HARVEST_DATETIME: harvest_datetime}
             msgs_out.append(msg_out)
         ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out, kwargs['execution_date'])
@@ -654,7 +664,8 @@ class WosTelescope:
         jsonl_zip_blobs = [msg[WosTelescope.XCOM_JSONL_BLOB_PATH] for msg in blobs]
 
         # Create dataset
-        create_bigquery_dataset(release.project_id, WosTelescope.DATASET_ID, release.data_location, WosTelescope.DESCRIPTION)
+        create_bigquery_dataset(release.project_id, WosTelescope.DATASET_ID, release.data_location,
+                                WosTelescope.DESCRIPTION)
 
         # Create table id
         table_id = bigquery_partitioned_table_id(WosTelescope.TABLE_NAME, release.release_date)
