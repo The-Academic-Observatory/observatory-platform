@@ -329,7 +329,6 @@ class WosTelescope:
     DAG_ID = 'wos'
     DESCRIPTION = 'Web of Science: https://www.clarivate.com/webofsciencegroup'
     SCHEDULE_INTERVAL = '@monthly'
-    RELEASES_TOPIC_NAME = 'releases'
     QUEUE = 'remote_queue'
     RETRIES = 3
     DATASET_ID = 'clarivate'
@@ -348,10 +347,11 @@ class WosTelescope:
     TASK_ID_CLEANUP = 'cleanup'
     TASK_ID_STOP = 'stop_dag'
 
+    XCOM_RELEASES = 'releases'
     XCOM_DOWNLOAD_PATH = 'download_path'
     XCOM_UPLOAD_ZIP_PATH = 'download_zip_path'
     XCOM_JSON_PATH = 'json_path'
-    XCOM_HARVEST_DATETIME = 'harvest_datetime'
+    XCOM_JSON_HARVEST = 'json_harvest'
     XCOM_JSONL_PATH = 'jsonl_path'
     XCOM_JSONL_ZIP_PATH = 'jsonl_zip_path'
     XCOM_JSONL_BLOB_PATH = 'jsonl_blob_path'
@@ -441,10 +441,11 @@ class WosTelescope:
                              data_location=data_location, schema_ver=WosTelescope.SCHEMA_VER)
 
         logging.info(
-            f'WosRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: {release.transform_bucket_name}, data_location: {release.data_location}')
+            f'WosRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: ' +
+            '{release.transform_bucket_name}, data_location: {release.data_location}')
 
         ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, release)
+        ti.xcom_push(WosTelescope.XCOM_RELEASES, release)
 
     @staticmethod
     def check_api_server():
@@ -488,11 +489,8 @@ class WosTelescope:
         download_files = WosUtility.download_wos_snapshot(release.download_path, kwargs['conn'], release.dag_start,
                                                           WosTelescope.DOWNLOAD_MODE)
 
-        # Construct message to send to next task
-        msgs_out = [{WosTelescope.XCOM_DOWNLOAD_PATH: file} for file in download_files]
-
         # Notify next task of the files downloaded.
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out)
+        ti.xcom_push(WosTelescope.XCOM_DOWNLOAD_PATH, download_files)
 
     @staticmethod
     def upload_downloaded(**kwargs):
@@ -511,18 +509,16 @@ class WosTelescope:
         release: WosRelease = WosTelescope.pull_release(ti)
 
         # Pull messages
-        msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=WosTelescope.TASK_ID_DOWNLOAD,
-                               include_prior_dates=False)
+        download_list = ti.xcom_pull(key=WosTelescope.XCOM_DOWNLOAD_PATH, task_ids=WosTelescope.TASK_ID_DOWNLOAD,
+                                     include_prior_dates=False)
 
         # Upload each snapshot
         logging.info('upload_downloaded: zipping and uploading downloaded files')
-        download_list = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
         zip_list = zip_files(download_list)
         upload_telescope_file_list(release.download_bucket_name, release.inst_id, release.telescope_path, zip_list)
 
         # Notify next task of the files downloaded.
-        msgs_out = [{WosTelescope.XCOM_UPLOAD_ZIP_PATH: file} for file in zip_list]
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out)
+        ti.xcom_push(WosTelescope.XCOM_UPLOAD_ZIP_PATH, zip_list)
 
     @staticmethod
     def transform_xml(**kwargs):
@@ -538,13 +534,12 @@ class WosTelescope:
         """
 
         ti: TaskInstance = kwargs['ti']
-        msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=WosTelescope.TASK_ID_DOWNLOAD,
-                               include_prior_dates=False)
+        xml_files = ti.xcom_pull(key=WosTelescope.XCOM_DOWNLOAD_PATH, task_ids=WosTelescope.TASK_ID_DOWNLOAD,
+                                 include_prior_dates=False)
         release: WosRelease = WosTelescope.pull_release(ti)
 
         # Process each xml file
         logging.info('transform_xml: transforming xml to dict and writing to json')
-        xml_files = [msg[WosTelescope.XCOM_DOWNLOAD_PATH] for msg in msgs_in]
         json_file_list, schema_vers = write_xml_to_json(release.transform_path, release.release_date.isoformat(),
                                                         release.inst_id, xml_files, WosUtility.parse_query)
 
@@ -555,14 +550,16 @@ class WosTelescope:
             raise AirflowException(f'Inconsistent schema versions received in response.')
 
         # Notify next task of the converted json files
-        msgs_out = []
+        json_path = list()
+        json_harvest = list()
         for file in json_file_list:
             file_name = os.path.basename(file)
             end = file_name.rfind('-')
             harvest_datetime = file_name[:end]
-            msg_out = {WosTelescope.XCOM_JSON_PATH: file, WosTelescope.XCOM_HARVEST_DATETIME: harvest_datetime}
-            msgs_out.append(msg_out)
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out)
+            json_path.append(file)
+            json_harvest.append(harvest_datetime)
+        ti.xcom_push(WosTelescope.XCOM_JSON_PATH, json_path)
+        ti.xcom_push(WosTelescope.XCOM_JSON_HARVEST, json_harvest)
 
     @staticmethod
     def transform_db_format(**kwargs):
@@ -583,20 +580,24 @@ class WosTelescope:
         release: WosRelease = WosTelescope.pull_release(ti)
 
         # Pull messages
-        msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
-                               task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
-                               include_prior_dates=False)
+        json_files = ti.xcom_pull(key=WosTelescope.XCOM_JSON_PATH,
+                                  task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
+                                  include_prior_dates=False)
 
-        json_files = [(msg[WosTelescope.XCOM_JSON_PATH], msg[WosTelescope.XCOM_HARVEST_DATETIME]) for msg in msgs_in]
-        json_files.sort()  # Sort by institution and date
+        harvest_times = ti.xcom_pull(key=WosTelescope.XCOM_JSON_HARVEST,
+                                  task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
+                                  include_prior_dates=False)
+
+        json_harvest_pair = list(zip(json_files, harvest_times))
+        json_harvest_pair.sort()  # Sort by institution and date
+        print(f'json harvest pairs are:\n{json_harvest_pair}')
 
         # Apply field extraction and transformation to jsonlines
         logging.info('transform_db_format: parsing and transforming into db format')
-        jsonl_list = json_to_db(json_files, release.release_date.isoformat(), WosJsonParser.parse_json)
+        jsonl_list = json_to_db(json_harvest_pair, release.release_date.isoformat(), WosJsonParser.parse_json)
 
         # Notify next task
-        msgs_out = [{WosTelescope.XCOM_JSONL_PATH: file} for file in jsonl_list]
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out)
+        ti.xcom_push(WosTelescope.XCOM_JSONL_PATH, jsonl_list)
 
     @staticmethod
     def upload_transformed(**kwargs):
@@ -616,21 +617,19 @@ class WosTelescope:
         release: WosRelease = WosTelescope.pull_release(ti)
 
         # Pull messages
-        msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME,
-                               task_ids=WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
-                               include_prior_dates=False)
+        jsonl_paths = ti.xcom_pull(key=WosTelescope.XCOM_JSONL_PATH,
+                                   task_ids=WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
+                                   include_prior_dates=False)
 
         # Upload each snapshot
         logging.info('upload_transformed: zipping and uploading jsonlines to cloud')
-        jsonl_paths = [msg[WosTelescope.XCOM_JSONL_PATH] for msg in msgs_in]
         zip_list = zip_files(jsonl_paths)
         blob_list = upload_telescope_file_list(release.transform_bucket_name, release.inst_id, release.telescope_path,
                                                zip_list)
 
         # Notify next task of the files downloaded.
-        msgs_out = [{WosTelescope.XCOM_JSONL_BLOB_PATH: file} for file in blob_list]
-        msgs_out = msgs_out + [{WosTelescope.XCOM_JSONL_ZIP_PATH: file} for file in zip_list]
-        ti.xcom_push(WosTelescope.RELEASES_TOPIC_NAME, msgs_out)
+        ti.xcom_push(WosTelescope.XCOM_JSONL_BLOB_PATH, blob_list)
+        ti.xcom_push(WosTelescope.XCOM_JSONL_ZIP_PATH, zip_list)
 
     @staticmethod
     def bq_load(**kwargs):
@@ -645,11 +644,9 @@ class WosTelescope:
         ti: TaskInstance = kwargs['ti']
         release: WosRelease = WosTelescope.pull_release(ti)
 
-        msgs_in = ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=WosTelescope.TASK_ID_UPLOAD_TRANSFORMED,
-                               include_prior_dates=False)
-
-        blobs = filter(lambda x: WosTelescope.XCOM_JSONL_BLOB_PATH in x, msgs_in)
-        jsonl_zip_blobs = [msg[WosTelescope.XCOM_JSONL_BLOB_PATH] for msg in blobs]
+        jsonl_zip_blobs = ti.xcom_pull(key=WosTelescope.XCOM_JSONL_BLOB_PATH,
+                                       task_ids=WosTelescope.TASK_ID_UPLOAD_TRANSFORMED,
+                                       include_prior_dates=False)
 
         # Create dataset
         create_bigquery_dataset(release.project_id, WosTelescope.DATASET_ID, release.data_location,
@@ -689,25 +686,16 @@ class WosTelescope:
 
         ti: TaskInstance = kwargs['ti']
 
-        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_DOWNLOAD,
-                         WosTelescope.XCOM_DOWNLOAD_PATH)
-
-        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_UPLOAD_DOWNLOADED,
-                         WosTelescope.XCOM_UPLOAD_ZIP_PATH)
-
-        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_TRANSFORM_XML,
-                         WosTelescope.XCOM_JSON_PATH)
-
-        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
-                         WosTelescope.XCOM_JSONL_PATH)
-
-        delete_msg_files(ti, WosTelescope.RELEASES_TOPIC_NAME, WosTelescope.TASK_ID_UPLOAD_TRANSFORMED,
-                         WosTelescope.XCOM_JSONL_ZIP_PATH)
+        delete_msg_files(ti, WosTelescope.XCOM_DOWNLOAD_PATH, WosTelescope.TASK_ID_DOWNLOAD)
+        delete_msg_files(ti, WosTelescope.XCOM_UPLOAD_ZIP_PATH, WosTelescope.TASK_ID_UPLOAD_DOWNLOADED)
+        delete_msg_files(ti, WosTelescope.XCOM_JSON_PATH, WosTelescope.TASK_ID_TRANSFORM_XML)
+        delete_msg_files(ti, WosTelescope.XCOM_JSONL_PATH, WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT)
+        delete_msg_files(ti, WosTelescope.XCOM_JSONL_ZIP_PATH, WosTelescope.TASK_ID_UPLOAD_TRANSFORMED)
 
     @staticmethod
     def pull_release(ti: TaskInstance):
         """ Get the WosRelease object from XCOM message. """
-        return ti.xcom_pull(key=WosTelescope.RELEASES_TOPIC_NAME, task_ids=WosTelescope.TASK_ID_CHECK_DEPENDENCIES,
+        return ti.xcom_pull(key=WosTelescope.XCOM_RELEASES, task_ids=WosTelescope.TASK_ID_CHECK_DEPENDENCIES,
                             include_prior_dates=False)
 
 
