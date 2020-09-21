@@ -10,17 +10,17 @@ output "airflow_main_vm_ip_address" {
 }
 
 output "airflow_worker_vm_ip_address" {
-  value = module.airflow_worker_vm.private_ip_address
+  value = try(module.airflow_worker_vm.private_ip_address, null)
   description = "The private IP address of the Airflow Worker VM."
 }
 
 output "airflow_main_vm_script" {
-  value = data.template_file.airflow_main_vm_startup.rendered
+  value = module.airflow_main_vm.vm_rendered
   description = "Rendered template file"
 }
 
 output "airflow_worker_vm_script" {
-  value = data.template_file.airflow_worker_vm_startup.rendered
+  value = try(module.airflow_worker_vm.vm_rendered, null)
   description = "Rendered template file"
 }
 

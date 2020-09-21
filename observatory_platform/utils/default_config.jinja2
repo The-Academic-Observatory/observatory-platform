@@ -1,0 +1,32 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# Author: Aniek Roelofs #}
+
+{%- for key1, value1 in default_dict.items() %}
+    {%- if value1 is mapping %}
+{{ key1 }}:
+        {%- for key2, value2 in value1.items() %}
+            {%- if value2 is mapping %}
+  {{ key2 }}:
+                {%- for key3, value3 in value2.items() %}
+    {{ key3 }}: {{ value3 }}
+                {%- endfor %}
+            {%- else  %}
+  {{ key2 }}: {{ value2 }}
+            {%- endif %}
+        {%- endfor %}
+    {%- else  %}
+{{ key1 }}: {{ value1 }}
+    {%- endif %}
+{%- endfor -%}

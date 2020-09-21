@@ -21,21 +21,29 @@ import logging
 import os
 import pathlib
 from enum import Enum
-from typing import Dict, Union
+from types import SimpleNamespace
+from typing import Union
 
 import airflow
 import cerberus.validator
+import hcl
 import pendulum
 import yaml
 from airflow.hooks.base_hook import BaseHook
+from airflow.models.connection import Connection
 from cerberus import Validator
 from cryptography.fernet import Fernet
+from jinja2 import Template
 from natsort import natsorted
 from pendulum import Pendulum
+from yaml.loader import SafeLoader
+from yaml.nodes import ScalarNode
 
 import observatory_platform.database
 import observatory_platform.database.workflows.sql
+import terraform
 from observatory_platform import dags
+from observatory_platform.utils.airflow_utils import AirflowVariable
 
 # The path where data is saved on the system
 data_path = None
@@ -90,6 +98,27 @@ def dags_path() -> str:
     file_path = pathlib.Path(dags.__file__).resolve()
     path = pathlib.Path(*file_path.parts[:-1])
     return str(path.resolve())
+
+
+def terraform_credentials_path() -> str:
+    """ Get the path to the terraform credentials file that is created with 'terraform login'.
+
+    :return: the path to the terraform credentials file
+    """
+
+    path = os.path.join(pathlib.Path.home(), '.terraform.d/credentials.tfrc.json')
+    return path
+
+
+def terraform_variables_tf_path() -> str:
+    """ Get the path to the terraform variables.tf file.
+
+    :return: the path to the terraform variables file.
+    """
+
+    file_path = pathlib.Path(terraform.__file__).resolve()
+    path = os.path.join(pathlib.Path(*file_path.parts[:-1]), 'variables.tf')
+    return path
 
 
 def schema_path(database: str) -> str:
@@ -177,7 +206,7 @@ def check_variables(*variables):
     is_valid = True
     for name in variables:
         try:
-            airflow.models.Variable.get(name)
+            AirflowVariable.get(name)
         except KeyError:
             logging.error(f"Airflow variable '{name}' not set.")
             is_valid = False
@@ -256,7 +285,7 @@ class AirflowVar(Enum):
     }
     project_id = {
         'name': 'project_id',
-        'default': None,
+        'default': 'your-project-id <--',
         'schema': {
             'type': 'string',
             'required': True
@@ -264,7 +293,7 @@ class AirflowVar(Enum):
     }
     data_location = {
         'name': 'data_location',
-        'default': None,
+        'default': 'us',
         'schema': {
             'type': 'string',
             'required': True
@@ -272,7 +301,7 @@ class AirflowVar(Enum):
     }
     download_bucket_name = {
         'name': 'download_bucket_name',
-        'default': None,
+        'default': 'your-bucket-name <--',
         'schema': {
             'type': 'string',
             'required': True
@@ -280,10 +309,26 @@ class AirflowVar(Enum):
     }
     transform_bucket_name = {
         'name': 'transform_bucket_name',
-        'default': None,
+        'default': 'your-bucket-name <--',
         'schema': {
             'type': 'string',
             'required': True
+        }
+    }
+    terraform_organization = {
+        'name': 'terraform_organization',
+        'default': 'your-organization <--',
+        'schema': {
+            'type': 'string',
+            'required': False
+        }
+    }
+    terraform_prefix = {
+        'name': 'terraform_prefix',
+        'default': 'observatory- <--',
+        'schema': {
+            'type': 'string',
+            'required': False
         }
     }
 
@@ -302,7 +347,7 @@ class AirflowConn(Enum):
     """
     crossref = {
         'name': 'crossref',
-        'default': 'mysql://:crossref-token@',
+        'default': 'mysql://:crossref-token@ <--',
         'schema': {
             'type': 'string',
             'required': False
@@ -311,7 +356,7 @@ class AirflowConn(Enum):
     mag_releases_table = {
         'name': 'mag_releases_table',
         'default': 'mysql://azure-storage-account-name:url-encoded'
-                   '-sas-token@',
+                   '-sas-token@ <--',
         'schema': {
             'type': 'string',
             'required': False
@@ -320,7 +365,24 @@ class AirflowConn(Enum):
     mag_snapshots_container = {
         'name': 'mag_snapshots_container',
         'default': 'mysql://azure-storage-account-name:url'
-                   '-encoded-sas-token@',
+                   '-encoded-sas-token@ <--',
+        'schema': {
+            'type': 'string',
+            'required': False
+        }
+    }
+    terraform = {
+        'name': 'terraform',
+        'default': 'mysql://:terraform-token@ <--',
+        'schema': {
+            'type': 'string',
+            'required': False
+        }
+    }
+    slack = {
+        'name': 'slack',
+        'default': 'https://:T00000000%2FB00000000%2FXXXXXXXXXXXXXXXXXXXXXXXX@https%3A%2F%2Fhooks.slack.com'
+                   '%2Fservices <--',
         'schema': {
             'type': 'string',
             'required': False
@@ -332,21 +394,21 @@ class AirflowConn(Enum):
         return self.value['name']
 
 
-def dict_default(airflow_class: Union[AirflowConn, AirflowVar]) -> dict:
+def get_default_airflow(variable: str, airflow_class: Union[AirflowConn, AirflowVar]) -> str:
     """
-    Creates a dictionary with name and default value of objects in airflow_class
+    Retrieves default value of an object in airflow_class
+    :param variable: Name of the variable/object of airflow class
     :param airflow_class: Either AirflowVar or AirflowConn class
     :return: Dictionary, name is key, default value is value
     """
-    dictionary = {}
-    for obj in airflow_class:
-        if obj.value['schema']:
-            dictionary[obj.value['name']] = obj.value['default']
-    return dictionary
+    value = None
+    if getattr(airflow_class, variable).value['schema']:
+        value = getattr(airflow_class, variable).value['default']
+    return value
 
 
 class ObservatoryConfigValidator(Validator):
-
+    """ Custom config Validator"""
     def _validate_google_application_credentials(self, google_application_credentials, field, value):
         """ Validate that the Google Application Credentials file exists.
 
@@ -358,18 +420,350 @@ class ObservatoryConfigValidator(Validator):
                                f"https://cloud.google.com/docs/authentication/getting-started for instructions on "
                                f"how to create a service account and save the JSON key to your workstation.")
 
+    def _validate_isuri(self, isuri, field, value):
+        """ Validate that the given uri does not give an error when creating a Connection object. Will give a warning
+        when uri doesn't contain a 'password' or 'extra' field.
+
+        The rule's arguments are validated against this schema:
+        {'type': 'boolean'}
+        """
+
+        if isuri:
+            try:
+                connection = Connection(uri=value)
+                password = connection.password
+                if not password:
+                    self._error(field, f"the given uri for '{field}' does not contain a 'password'")
+            except:
+                self._error(field, f"the given uri for '{field}' is not valid.")
+
+
+def iterate_over_local_schema(schema: dict, tmp_schema: dict, new_schema: dict, test_config: bool) -> dict:
+    """
+    Takes a cerberus style (nested) schema and returns a new (nested) schema that only contains keys and default
+    values of the schema (leaving out fields like 'required', 'type', and 'schema'). This can be used to generate a
+    default config.
+    It adds a hashtag to the beginning of each key of variables that are optional.
+
+    :param schema: current schema
+    :param tmp_schema: temporary dict to check whether there is still a nested schema to iterate over
+    :param new_schema: new schema
+    :param test_config: whether dict is used for test or to be printed out in config (not adding '#' to key and
+    trimming '<--' from values)
+    :return: the new schema
+    """
+    if not new_schema:
+        new_schema = tmp_schema
+    for k, v in schema.items():
+        var_name = k if v['required'] or test_config else '#'+k
+
+        try:
+            nested_schema = v['schema']
+            tmp_schema[var_name] = {}
+            new_schema = iterate_over_local_schema(nested_schema, tmp_schema[var_name], new_schema, test_config)
+        except KeyError:
+            if k == 'backend':
+                value = 'local'
+            elif k == 'google_application_credentials':
+                value = 'google_application_credentials.json'
+            elif k == 'fernet_key':
+                value = Fernet.generate_key().decode()
+            else:
+                # get most recently added key of the new schema and check if this is 'airflow_connections'
+                if 'airflow_connections' in list(new_schema)[-1]:
+                    value = get_default_airflow(k, AirflowConn)
+                    value = value[:-4] if test_config and value.endswith(' <--') else value
+                else:
+                    value = get_default_airflow(k, AirflowVar)
+                    value = value[:-4] if test_config and value.endswith(' <--') else value
+            tmp_schema[var_name] = value
+    return new_schema
+
+
+def iterate_over_terraform_schema(schema: dict, tmp_schema: dict, new_schema: dict, test_config: bool) -> dict:
+    """
+    Takes a cerberus style (nested) schema and returns a new (nested) schema that only contains keys and default
+    values of the schema (leaving out fields like 'required', 'type', and 'schema'). This can be used to generate a
+    default config.
+    It adds a hashtag to the beginning of each key of variables that are optional and a '!sensitive' tag to the relevant
+    sensitive variables.
+
+    :param schema: current schema
+    :param tmp_schema: temporary dict to check whether there is still a nested schema to iterate over
+    :param new_schema: new schema
+    :param test_config: whether dict is used for test or to be printed out in config (not adding '#' to key and
+    trimming '<--' from values)
+    :return: the new schema
+    """
+    if not new_schema:
+        new_schema = tmp_schema
+    for k, v in schema.items():
+        var_name = '!sensitive ' + k if k in ['google_application_credentials', 'airflow_secrets',
+                                              'airflow_connections'] else k
+        var_name = var_name if v['required'] or test_config else '#'+var_name
+
+        try:
+            nested_schema = v['schema']
+            tmp_schema[var_name] = {}
+            new_schema = iterate_over_terraform_schema(nested_schema, tmp_schema[var_name], new_schema, test_config)
+        except KeyError:
+            if test_config:
+                value = v['meta']['default']
+                try:
+                    trim = value.endswith(' <--')
+                    default = value[:-4] if trim else value
+                    if default in ['false', 'true']:
+                        default = eval(default.capitalize())
+                except AttributeError:
+                    default = value
+            elif v['required']:
+                default = v['meta']['default']
+            else:
+                # change all keys if default value is a dict (e.g. airflow variables)
+                default = change_keys(v['meta']['default'])
+            tmp_schema[var_name] = default
+    return new_schema
+
+
+def change_keys(obj):
+    """
+    Recursively goes through the dictionary obj and adds a hashtag to the beginning of each key
+    """
+    if isinstance(obj, (str, int, float)):
+        return obj
+    if isinstance(obj, dict):
+        new = obj.__class__()
+        for k, v in list(obj.items()):
+            new['#'+k] = change_keys(v)
+    elif isinstance(obj, (list, set, tuple)):
+        new = obj.__class__(change_keys(v) for v in obj)
+    else:
+        return obj
+    return new
+
 
 class ObservatoryConfig:
-    HOST_DEFAULT_PATH = os.path.join(observatory_home(), 'config.yaml')
+    LOCAL_DEFAULT_PATH = os.path.join(observatory_home(), 'config.yaml')
+    TERRAFORM_DEFAULT_PATH = os.path.join(observatory_home(), 'config_terraform.yaml')
+    TERRAFORM_VARIABLES_PATH = terraform_variables_tf_path()
+
+    def __init__(self, config_path: str, terraform_variables_path: str = TERRAFORM_VARIABLES_PATH):
+        """
+        Holds the settings for the Observatory Platform either 'local' or remote on 'terraform'.
+        :param config_path: Path to the config file.
+        :param terraform_variables_path: Path to the terraform variables.tf file.
+        """
+        self.path = config_path
+        self.sensitive_variables = []
+        config_dict = self.load()
+        if 'terraform' in config_dict['backend']:
+            self.backend = 'terraform'
+        elif config_dict['backend'] == 'local':
+            self.backend = 'local'
+        else:
+            print('backend has to be either "local" or "terraform"')
+            exit(os.EX_CONFIG)
+        self.schema = self.get_schema(self.backend, terraform_variables_path)
+        self.validator = ObservatoryConfigValidator(self.schema)
+        # fill default values for empty airflow connections
+        self.dict = self.validator.normalized(config_dict)
+
+        if self.backend == 'local':
+            self.local = SimpleNamespace(**self.dict)
+            self.terraform = None
+        else:
+            self.local = None
+            self.terraform = SimpleNamespace(**self.dict)
+
+    def yaml_constructor(self, loader: SafeLoader, node: ScalarNode) -> str:
+        """
+        Constructor which is used with the '!sensitive' tag. It stores the names of variables with this tag in
+        a list.
+        :param loader: yaml safe loader
+        :param node: yaml node
+        :return: scalar value
+        """
+        value = loader.construct_scalar(node)
+        self.sensitive_variables.append(value)
+        return value
+
+    def load(self) -> dict:
+        """ Load an Observatory configuration file.
+
+        :return: a dictionary of the configuration file
+        """
+
+        dict_ = None
+
+        try:
+            with open(self.path, 'r') as f:
+                yaml.SafeLoader.add_constructor('!sensitive', self.yaml_constructor)
+                dict_ = yaml.safe_load(f)
+        except yaml.YAMLError:
+            print(f'Error parsing {self.path}')
+        except FileNotFoundError:
+            print(f'No such file or directory: {self.path}')
+        except cerberus.validator.DocumentError as e:
+            print(f'cerberus.validator.DocumentError: {e}')
+
+        return dict_
+
+    @property
+    def is_valid(self):
+        self.validator.validate(self.dict)
+        return self.validator is None or not len(self.validator._errors)
+
+    @staticmethod
+    def get_schema(backend: str, terraform_variables_path: Union[str, None] = None) -> dict:
+        """
+        Creates a schema
+        :param backend: Which type of config file, either 'local' or 'terraform'.
+        :param terraform_variables_path: Path to the terraform variables.tf file.
+        :return: schema
+        """
+        if backend == 'local':
+            schema = create_local_schema()
+        else:
+            schema = create_terraform_schema(terraform_variables_path)
+
+        return schema
+
+    @staticmethod
+    def save_default(backend: str, config_path: str, terraform_variables_path: Union[str, None] = None, test=False):
+        """
+        Writes a default config file based on the available schema. The key references to the variable name and the
+        value is a list of two values. The 1st whether the variable is required, the 2nd the value of the variable.
+        :param backend: Which type of config file, either 'local' or 'terraform'.
+        :param config_path: Path of the default config file to write to.
+        :param terraform_variables_path: Path to the terraform variables.tf file.
+        :param test: Whether dict is used for test or printing out as an example
+        :return: None
+        """
+        schema = ObservatoryConfig.get_schema(backend, terraform_variables_path)
+
+        if backend == 'local':
+            # Create default dictionary
+            default_dict = iterate_over_local_schema(schema, {}, {}, test_config=test)
+        else:
+            # Create default dictionary and obtain default values from 'meta' data in schema.
+            default_dict = iterate_over_terraform_schema(schema, {}, {}, test_config=test)
+
+        with open(os.path.join(os.path.dirname(__file__), 'default_config.jinja2')) as template_in, open(config_path, 'w') as config_out:
+            template = Template(template_in.read())
+            config_out.write(template.render(default_dict=default_dict))
+
+
+def customise_pointer(field, value, error):
+    if isinstance(value, str) and value.endswith(' <--'):
+        error(field, "Value should be customised, can't end with ' <--'")
+
+
+def create_terraform_schema(terraform_variables_path: str) -> dict:
+    """
+    Creates the schema for a terraform config file
+    :param terraform_variables_path: Path to the terraform variables.tf file.
+    :return: schema
+    """
+    with open(terraform_variables_path, 'r') as variables_file:
+        hcl_obj = hcl.load(variables_file)
+
     schema = {
+        'backend': {
+            'required': True,
+            'type': 'dict',
+            'schema': {
+                'terraform': {'required': True, 'type': 'dict', 'schema': {
+                    'organization': {'required': True, 'type': 'string', 'meta': {'default': 'your-organization <--'}},
+                    'workspaces_prefix': {'required': True, 'type': 'string', 'meta': {'default': 'observatory- <--'}}
+                },
+                              }
+            }
+        }
+    }
+    for variable in hcl_obj['variable']:
+        var_type = None
+        default = None
+        try:
+            var_type = hcl_obj['variable'][variable]['type']
+            default = hcl_obj['variable'][variable]['default']
+        except KeyError:
+            print('Variables.tf file has to contain both a "type" and "default" field')
+            exit(os.EX_CONFIG)
+
+        try:
+            description = hcl_obj['variable'][variable]['description']
+        except KeyError:
+            description = ''
+
+        if var_type == 'string' or var_type == 'number' or var_type == 'bool':
+            # type 'bool' in terraform is 'boolean' in cerberus schema
+            if var_type == 'bool':
+                var_type = 'boolean'
+                default = str(default).lower()
+            schema[variable] = {'required': True, 'type': var_type, 'check_with': customise_pointer}
+            # add description and default value to 'meta'
+            schema[variable]['meta'] = {'description': description, 'default': default}
+            if variable =='google_application_credentials':
+                schema[variable]['google_application_credentials'] = True
+
+        # transform terraform 'object' type to dictionary. 'object' is a dict of variable names & types
+        elif var_type.startswith('object({'):
+            schema[variable] = {'required': True, 'type': 'dict', 'schema': {}, 'meta': {'description': description}}
+            # strip object({ and })
+            sub_variables = var_type[8:-2].split(',')
+            for sub_variable in sub_variables:
+                sub_name = sub_variable.split(':')[0]
+                sub_type = sub_variable.split(':')[1].strip('"')
+                # type 'bool' in terraform is 'boolean' in cerberus schema
+                if sub_type == 'bool':
+                    sub_type = 'boolean'
+                schema[variable]['schema'][sub_name] = {'required': True, 'type': sub_type, 'check_with': customise_pointer}
+                # hardcode that each connection validates URI string
+                if variable == 'airflow_connections':
+                    schema[variable]['schema'][sub_name]['isuri'] = True
+                    # hardcode that airflow_connections (except terraform) are optional
+                    if sub_name != 'terraform':
+                        schema[variable]['schema'][sub_name]['required'] = False
+                        # add default, because terraform requires a value
+                        schema[variable]['schema'][sub_name]['default'] = "my-conn-type://my-login:my-password@my-host"
+                # generate fernet key
+                elif variable == 'airflow_secrets':
+                    default['fernet_key'] = Fernet.generate_key().decode()
+                # assign default value per sub variable
+                schema[variable]['schema'][sub_name]['meta'] = {'default': default[sub_name]}
+        # terraform 'map' type means that it is a dict, but unknown which keys are in it
+        elif var_type.startswith('map('):
+            schema[variable] = {'required': False, 'type': 'dict', 'check_with': customise_pointer}
+            schema[variable]['meta'] = {'description': description, 'default': default}
+
+        else:
+            print(f'Unknown type {var_type} for terraform variable {variable}')
+            exit(os.EX_CONFIG)
+
+    return schema
+
+
+def create_local_schema() -> dict:
+    """
+    Creates the schema for a local config file
+    :return: schema
+    """
+    schema = {
+        'backend': {
+            'required': True,
+            'type': 'string',
+            'check_with': customise_pointer
+        },
         'fernet_key': {
             'required': True,
-            'type': 'string'
+            'type': 'string',
+            'check_with': customise_pointer
         },
         'google_application_credentials': {
+            'required': True,
             'type': 'string',
             'google_application_credentials': True,
-            'required': True
+            'check_with': customise_pointer
         },
         'airflow_connections': {
             'required': False,
@@ -378,7 +772,7 @@ class ObservatoryConfig:
             }
         },
         'airflow_variables': {
-            'required': False,
+            'required': True,
             'type': 'dict',
             'schema': {
             }
@@ -387,126 +781,12 @@ class ObservatoryConfig:
     # Add schema's of each individual airflow connection/variable to the schema dict
     for obj in itertools.chain(AirflowConn, AirflowVar):
         if obj.value['schema']:
+            obj.value['schema']['check_with'] = customise_pointer
             if type(obj) == AirflowConn:
+                # add custom rule to check for valid uri
+                obj.value['schema']['isuri'] = True
                 schema['airflow_connections']['schema'][obj.get()] = obj.value['schema']
             else:
                 schema['airflow_variables']['schema'][obj.get()] = obj.value['schema']
-    # delete object so it doesn't remain part of ObservatoryConfig class
-    del obj
 
-    def __init__(self,
-                 fernet_key: Union[None, str] = None,
-                 google_application_credentials: Union[None, str] = None,
-                 airflow_connections: Union[None, dict] = None,
-                 airflow_variables: Union[None, dict] = None,
-                 validator: ObservatoryConfigValidator = None):
-        """ Holds the settings for the Observatory Platform, used by DAGs.
-
-        :param fernet_key: Used to encrypt connections in airflow
-        :param google_application_credentials: the path to the Google Application Credentials:
-            https://cloud.google.com/docs/authentication/getting-started
-        :param airflow_connections: dict of airflow connections
-        :param airflow_variables: dict of airflow variables
-        :param validator: validator instance
-        """
-
-        self.fernet_key = fernet_key
-        self.google_application_credentials = google_application_credentials
-        self.airflow_connections = airflow_connections
-        self.airflow_variables = airflow_variables
-        self.validator: ObservatoryConfigValidator = validator
-
-    def __eq__(self, other):
-        d1 = dict(self.__dict__)
-        del d1['validator']
-        d2 = dict(other.__dict__)
-        del d2['validator']
-        return isinstance(other, ObservatoryConfig) and d1 == d2
-
-    def __ne__(self, other):
-        return not self == other
-
-    @property
-    def is_valid(self):
-        return self.validator is None or not len(self.validator._errors)
-
-    def save(self, path: str) -> None:
-        """ Save the ObservatoryConfig object to a file.
-
-        :param path: the path to the configuration file.
-        :return: None.
-        """
-
-        with open(path, 'w') as f:
-            yaml.safe_dump(self.to_dict(), f)
-
-    @staticmethod
-    def load(path: str) -> 'ObservatoryConfig':
-        """ Load an Observatory configuration file.
-
-        :param path: the path to the Observatory configuration file.
-        :return: the ObservatoryConfig instance.
-        """
-
-        config = None
-
-        try:
-            with open(path, 'r') as f:
-                dict_ = yaml.safe_load(f)
-                config = ObservatoryConfig.from_dict(dict_)
-        except yaml.YAMLError:
-            print(f'Error parsing {path}')
-        except FileNotFoundError:
-            print(f'No such file or directory: {path}')
-        except cerberus.validator.DocumentError as e:
-            print(f'cerberus.validator.DocumentError: {e}')
-
-        return config
-
-    def to_dict(self) -> Dict:
-        """ Converts an ObservatoryConfig instance into a dictionary.
-
-        :return: the dictionary.
-        """
-
-        return {
-            'google_application_credentials': self.google_application_credentials,
-            'fernet_key': self.fernet_key,
-            'airflow_variables': self.airflow_variables,
-            'airflow_connections': self.airflow_connections
-        }
-
-    @staticmethod
-    def make_default() -> 'ObservatoryConfig':
-        """ Make an ObservatoryConfig instance with default values.
-        :return: the ObservatoryConfig instance.
-        """
-
-        google_application_credentials = None
-        fernet_key = Fernet.generate_key().decode()
-        airflow_connections = dict_default(AirflowConn)
-        airflow_variables = dict_default(AirflowVar)
-        return ObservatoryConfig(fernet_key, google_application_credentials, airflow_connections, airflow_variables)
-
-    @staticmethod
-    def from_dict(dict_: Dict) -> 'ObservatoryConfig':
-        """ Make an ObservatoryConfig instance from a dictionary. If the dictionary is invalid,
-        then an ObservatoryConfig instance will be returned with no properties set, except for the validator,
-        which contains validation errors.
-
-        :param dict_:  the input dictionary that has been read via yaml.safe_load.
-        :return: the ObservatoryConfig instance.
-        """
-        validator = ObservatoryConfigValidator()
-        is_valid = validator.validate(dict_, ObservatoryConfig.schema)
-
-        if is_valid:
-            google_application_credentials = dict_.get('google_application_credentials')
-            fernet_key = dict_.get('fernet_key')
-            airflow_variables = dict_.get('airflow_variables')
-            airflow_connections = dict_.get('airflow_connections')
-
-            return ObservatoryConfig(fernet_key, google_application_credentials, airflow_connections, airflow_variables,
-                                     validator)
-        else:
-            return ObservatoryConfig(validator=validator)
+    return schema

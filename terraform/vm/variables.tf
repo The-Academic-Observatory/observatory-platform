@@ -18,6 +18,14 @@ variable "network" {
   })
   description = ""
 }
+variable "subnetwork" {
+  type = object({
+    id=string
+    name=string
+    self_link=string
+  })
+  description = ""
+}
 
 variable "region" {
   type = string
@@ -44,7 +52,9 @@ variable "service_account_email" {
   description = ""
 }
 
-variable "metadata_startup_script" {
+variable "startup_script_path"{
   type = string
-  description = ""
+}
+
+variable "metadata_variables"{
 }

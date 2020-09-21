@@ -1,9 +1,16 @@
 ########################################################################################################################
 # Configure Google Cloud Provider
 ########################################################################################################################
+terraform {
+  backend "remote" {
+    workspaces {
+      prefix = "observatory-"
+    }
+  }
+}
 
 provider "google" {
-  credentials = file(var.credentials_file)
+  credentials = var.google_application_credentials
   project = var.project_id
   region = var.region
   zone = var.zone
@@ -11,17 +18,62 @@ provider "google" {
 
 data "google_project" "project" {
   project_id = var.project_id
+  depends_on = [google_project_service.cloud_resource_manager]
 }
 
 data "google_compute_default_service_account" "default" {
+  depends_on = [google_project_service.compute_engine, google_project_service.services]
 }
 
 data "google_storage_transfer_project_service_account" "default" {
+  depends_on = [google_project_service.services]
 }
-
 locals {
   compute_service_account_email = data.google_compute_default_service_account.default.email
   transfer_service_account_email = data.google_storage_transfer_project_service_account.default.email
+}
+
+########################################################################################################################
+# Terraform Cloud Environment Variable (https://www.terraform.io/docs/cloud/run/run-environment.html)
+########################################################################################################################
+
+variable "TFC_WORKSPACE_SLUG" {
+  type = string
+  default = "" # An error occurs when you are running TF backend other than Terraform Cloud
+}
+
+locals {
+  organization = split("/", var.TFC_WORKSPACE_SLUG)[0]
+  workspace_name = split("/", var.TFC_WORKSPACE_SLUG)[1]
+  workspace_prefix =  "observatory-"
+  workspace_suffix = trimprefix(local.workspace_name, local.workspace_prefix)
+}
+
+########################################################################################################################
+# Enable google cloud APIs
+########################################################################################################################
+
+resource "google_project_service" "cloud_resource_manager" {
+  project = var.project_id
+  service = "cloudresourcemanager.googleapis.com"
+  disable_dependent_services = true
+}
+
+# Can't disable dependent services, because of existing ao-image
+resource "google_project_service" "compute_engine" {
+  project = var.project_id
+  service = "compute.googleapis.com"
+  disable_on_destroy=false
+  depends_on = [google_project_service.cloud_resource_manager]
+}
+
+resource "google_project_service" "services" {
+  for_each = toset(["storagetransfer.googleapis.com", "iam.googleapis.com", "servicenetworking.googleapis.com",
+"sqladmin.googleapis.com", "secretmanager.googleapis.com"])
+  project = var.project_id
+  service = each.key
+  disable_dependent_services = true
+  depends_on = [google_project_service.cloud_resource_manager]
 }
 
 ########################################################################################################################
@@ -32,6 +84,7 @@ resource "google_service_account" "ao_service_account" {
   account_id   = var.project_id
   display_name = "Apache Airflow Service Account"
   description = "The Google Service Account used by Apache Airflow"
+  depends_on = [google_project_service.services]
 }
 
 # Create service account key, save to Google Secrets Manager and give compute service account access to the secret
@@ -58,19 +111,29 @@ module "google_application_credentials_secret" {
   secret_id = "google_application_credentials"
   secret_data = google_service_account_key.ao_service_account_key.private_key
   service_account_email = data.google_compute_default_service_account.default.email
+  depends_on = [google_project_service.services]
 }
 
 ########################################################################################################################
 # Storage Buckets
 ########################################################################################################################
-
-# Bucket for storing downloaded files
-resource "random_id" "ao_download_bucket_suffix" {
+# Random id to prevent destroy of resources in keepers
+resource "random_id" "buckets_protector" {
+  count = var.environment == "prod" ? 1 : 0
   byte_length = 8
+  keepers = {
+    download_bucket = google_storage_bucket.ao_download_bucket.id
+    transform_bucket = google_storage_bucket.ao_transform_bucket.id
+  }
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
+
+# Bucket for storing downloaded files
 resource "google_storage_bucket" "ao_download_bucket" {
-  name = "${var.project_id}-download-${random_id.ao_download_bucket_suffix.hex}"
+  name = "${var.project_id}-download"
   force_destroy = true
   location =  var.data_location
   project = var.project_id
@@ -145,12 +208,8 @@ resource "google_storage_bucket_iam_member" "ao_download_bucket_ao_service_accou
 }
 
 # Bucket for storing transformed files
-resource "random_id" "ao_transform_bucket_suffix" {
-  byte_length = 8
-}
-
 resource "google_storage_bucket" "ao_transform_bucket" {
-  name = "${var.project_id}-transform-${random_id.ao_transform_bucket_suffix.hex}"
+  name = "${var.project_id}-transform"
   force_destroy = true
   location =  var.data_location
   project = var.project_id
@@ -200,6 +259,12 @@ resource "google_storage_bucket_iam_member" "ao_transform_bucket_ao_service_acco
 
 resource "google_compute_network" "ao_network" {
   name = "ao-network"
+  depends_on = [google_project_service.compute_engine]
+}
+
+data "google_compute_subnetwork" "ao_subnetwork" {
+  name = "ao-network"
+  depends_on = [google_compute_network.ao_network] # necessary to force reading of data
 }
 
 resource "google_compute_firewall" "allow_http" {
@@ -268,6 +333,20 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   network = google_compute_network.ao_network.id
   service = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.airflow_db_private_ip.name]
+  depends_on = [google_project_service.services]
+}
+
+resource "random_id" "database_protector" {
+  count = var.environment == "prod" ? 1 : 0
+  byte_length = 8
+  keepers = {
+    ao_db_instance = google_sql_database_instance.ao_db_instance.id
+    airflow_db = google_sql_database.airflow_db.id
+    users = google_sql_user.users.id
+  }
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "random_id" "airflow_db_name_suffix" {
@@ -275,12 +354,13 @@ resource "random_id" "airflow_db_name_suffix" {
 }
 
 resource "google_sql_database_instance" "ao_db_instance" {
-  name = "ao-db-instance-${random_id.airflow_db_name_suffix.hex}"
+  name = var.environment == "prod" ? "ao-db-instance" : "ao-db-instance-${random_id.airflow_db_name_suffix.hex}"
   database_version = "POSTGRES_12"
   region = var.region
-  depends_on = [google_service_networking_connection.private_vpc_connection]
+
+  depends_on = [google_service_networking_connection.private_vpc_connection, google_project_service.services]
   settings {
-    tier = var.database_tier
+    tier = var.database["tier"]
     ip_configuration {
       ipv4_enabled = false
       private_network = google_compute_network.ao_network.id
@@ -289,7 +369,7 @@ resource "google_sql_database_instance" "ao_db_instance" {
       binary_log_enabled = false
       enabled = true
       location = var.data_location
-      start_time = var.backup_start_time
+      start_time = var.database["backup_start_time"]
     }
   }
 }
@@ -303,125 +383,68 @@ resource "google_sql_database" "airflow_db" {
 resource "google_sql_user" "users" {
   name = "airflow"
   instance = google_sql_database_instance.ao_db_instance.name
-  password = var.postgres_password
+  password = var.airflow_secrets["postgres_password"]
 }
 
 ########################################################################################################################
 # Airflow Secrets
 ########################################################################################################################
 # These secrets are used by the VMs
-# Fernet key
-module "fernet_key_secret" {
-  source = "./secret"
-  secret_id = "fernet_key"
-  secret_data = var.fernet_key
-  service_account_email = local.compute_service_account_email
-}
 
-# Postgres password
-module "postgres_password_secret" {
+module "airflow_secret"{
+  for_each = var.airflow_secrets
   source = "./secret"
-  secret_id = "postgres_password"
-  secret_data = urlencode(var.postgres_password)
-  service_account_email = local.compute_service_account_email
-}
-
-# Airflow UI airflow user password
-module "airflow_ui_user_password_secret" {
-  source = "./secret"
-  secret_id = "airflow_ui_user_password"
-  secret_data = var.airflow_ui_user_password
-  service_account_email = local.compute_service_account_email
-}
-
-# Airflow UI airflow user email
-module "airflow_ui_user_email_secret" {
-  source = "./secret"
-  secret_id = "airflow_ui_user_email"
-  secret_data = var.airflow_ui_user_email
-  service_account_email = local.compute_service_account_email
-}
-
-# Redis password
-module "redis_password_secret" {
-  source = "./secret"
-  secret_id = "redis_password"
-  secret_data = var.redis_password
-  service_account_email = local.compute_service_account_email
+  secret_id = each.key
+  secret_data = contains(["postgres_password", "redis_password"], each.key) ? urlencode(each.value) : each.value
+  service_account_email = data.google_compute_default_service_account.default.email
+  depends_on = [google_project_service.services]
 }
 
 ########################################################################################################################
 # Airflow Connection Secrets
 ########################################################################################################################
 
-# mag_releases_table connection
-module "mag_releases_table_connection_secret" {
+module "airflow_connection_secret"{
+  for_each = var.airflow_connections
   source = "./secret"
-  secret_id = "airflow-connections-mag_releases_table"
-  secret_data = var.mag_releases_table_connection
+  secret_id = "airflow-connections-${each.key}"
+  secret_data = each.value
   service_account_email = google_service_account.ao_service_account.email
+  depends_on = [google_project_service.services]
 }
 
-# mag_snapshots_container connection
-module "mag_snapshots_container_connection_secret" {
-  source = "./secret"
-  secret_id = "airflow-connections-mag_snapshots_container"
-  secret_data = var.mag_snapshots_container_connection
-  service_account_email = google_service_account.ao_service_account.email
-}
-
-# crossref connection
-module "crossref_conn_secret" {
-  source = "./secret"
-  secret_id = "airflow-connections-crossref"
-  secret_data = var.crossref_connection
-  service_account_email = google_service_account.ao_service_account.email
-}
 
 ########################################################################################################################
-# Airflow Variables Secrets
+# Airflow Variables
 ########################################################################################################################
 
-module "data_path_var_secret" {
-  source = "./secret"
-  secret_id = "airflow-variables-data_path"
-  secret_data = "/opt/observatory/data"
-  service_account_email = google_service_account.ao_service_account.email
-}
+locals {
+  airflow_variables = merge({
+    data_path = "/opt/observatory/data"
+    project_id = var.project_id
+    data_location = var.data_location
+    download_bucket_name = google_storage_bucket.ao_download_bucket.name
+    transform_bucket_name = google_storage_bucket.ao_download_bucket.name
+    terraform_organization =  local.organization
+    terraform_prefix = local.workspace_prefix
+    environment = local.workspace_suffix
+  },
+   var.airflow_variables)
 
-module "project_id_var_secret" {
-  source = "./secret"
-  secret_id = "airflow-variables-project_id"
-  secret_data = var.project_id
-  service_account_email = google_service_account.ao_service_account.email
-}
-
-module "data_location_var_secret" {
-  source = "./secret"
-  secret_id = "airflow-variables-data_location"
-  secret_data = var.data_location
-  service_account_email = google_service_account.ao_service_account.email
-}
-
-module "download_bucket_name_var_secret" {
-  source = "./secret"
-  secret_id = "airflow-variables-download_bucket_name"
-  secret_data = google_storage_bucket.ao_download_bucket.name
-  service_account_email = google_service_account.ao_service_account.email
-}
-
-module "transform_bucket_name_var_secret" {
-  source = "./secret"
-  secret_id = "airflow-variables-transform_bucket_name"
-  secret_data = google_storage_bucket.ao_transform_bucket.name
-  service_account_email = google_service_account.ao_service_account.email
-}
-
-module "environment_var_secret" {
-  source = "./secret"
-  secret_id = "airflow-variables-environment"
-  secret_data = var.environment
-  service_account_email = google_service_account.ao_service_account.email
+  metadata_variables = {
+    host_airflow_home = "/opt/airflow"
+    host_ao_home = "/opt/observatory"
+    project_id = var.project_id
+    postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
+    redis_hostname = module.airflow_main_vm.private_ip_address
+    data_location = var.data_location
+    download_bucket_name = google_storage_bucket.ao_download_bucket.name
+    transform_bucket_name = google_storage_bucket.ao_download_bucket.name
+    terraform_organization =  local.organization
+    terraform_prefix = local.workspace_prefix
+    environment = local.workspace_suffix
+    airflow_variables = local.airflow_variables
+  }
 }
 
 ########################################################################################################################
@@ -431,19 +454,14 @@ module "environment_var_secret" {
 # Compute Image shared by both VMs
 data "google_compute_image" "ao_image" {
   name = "ao-image"
+  depends_on = [google_project_service.compute_engine]
 }
 
-# Airflow Main VM
-data "template_file" "airflow_main_vm_startup" {
-  template = file("terraform/startup-main.tpl")
-  vars = {
-    host_airflow_home = "/opt/airflow"
-    host_ao_home = "/opt/observatory"
-    project_id = var.project_id
-    postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
-    redis_hostname = module.airflow_main_vm.private_ip_address
-  }
-}
+//resource "google_project_iam_member" "secret_member" {
+//  project = var.project_id
+//  role = "roles/secretmanager.secretAccessor"
+//  member = "serviceAccount:${google_service_account.ao_service_account.email}"
+//}
 
 module "airflow_main_vm" {
   source = "./vm"
@@ -451,46 +469,40 @@ module "airflow_main_vm" {
   depends_on = [
     google_sql_database_instance.ao_db_instance,
     module.google_application_credentials_secret,
-    module.fernet_key_secret,
-    module.postgres_password_secret,
-    module.airflow_ui_user_password_secret,
-    module.redis_password_secret
+    module.airflow_secret,
+    module.airflow_connection_secret,
   ]
   network = google_compute_network.ao_network
+  subnetwork = data.google_compute_subnetwork.ao_subnetwork
   image = data.google_compute_image.ao_image
-  machine_type = var.airflow_main_machine_type
-  disk_size = var.airflow_main_disk_size
-  disk_type = var.airflow_main_disk_type
+  machine_type = var.airflow_main["machine_type"]
+  disk_size = var.airflow_main["disk_size"]
+  disk_type = var.airflow_main["disk_type"]
   region = var.region
   service_account_email = local.compute_service_account_email
-  metadata_startup_script = data.template_file.airflow_main_vm_startup.rendered
+  startup_script_path = "./startup-main.tpl"
+  metadata_variables = local.metadata_variables
+//  airflow_variables = local.airflow_variables
 }
 
 ########################################################################################################################
 # Observatory Platform Worker VM
 ########################################################################################################################
 
-data "template_file" "airflow_worker_vm_startup" {
-  template = file("terraform/startup-worker.tpl")
-  vars = {
-    host_airflow_home = "/opt/airflow"
-    host_ao_home = "/opt/observatory"
-    project_id = var.project_id
-    postgres_hostname = google_sql_database_instance.ao_db_instance.private_ip_address
-    redis_hostname = module.airflow_main_vm.private_ip_address
-  }
-}
-
 module "airflow_worker_vm" {
+  count = var.airflow_worker_create == true ? 1 : 0
   source = "./vm"
   name = "airflow-worker-vm"
   depends_on = [module.airflow_main_vm]
   network = google_compute_network.ao_network
+  subnetwork = data.google_compute_subnetwork.ao_subnetwork
   image = data.google_compute_image.ao_image
-  machine_type = var.airflow_worker_machine_type
-  disk_size = var.airflow_worker_disk_size
-  disk_type = var.airflow_worker_disk_type
+  machine_type = var.airflow_worker["machine_type"]
+  disk_size = var.airflow_worker["disk_size"]
+  disk_type = var.airflow_worker["disk_type"]
   region = var.region
   service_account_email = local.compute_service_account_email
-  metadata_startup_script = data.template_file.airflow_worker_vm_startup.rendered
+  startup_script_path = "./startup-worker.tpl"
+  metadata_variables = local.metadata_variables
+//  airflow_variables = local.airflow_variables
 }
