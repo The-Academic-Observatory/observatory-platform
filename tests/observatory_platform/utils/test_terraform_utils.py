@@ -20,6 +20,7 @@ import os
 import tarfile
 import unittest
 from click.testing import CliRunner
+from datetime import datetime
 
 from observatory_platform.utils.terraform_utils import TerraformApi
 from tests.observatory_platform.config import test_fixtures_path
@@ -28,7 +29,7 @@ from tests.observatory_platform.config import test_fixtures_path
 class TestTerraformApi(unittest.TestCase):
     # TODO change to 'observatory-unit-testing' once latest version is available
     organisation = 'COKI-project'
-    workspace = 'test_workspace'
+    workspace = datetime.now().strftime("%d_%m_%Y-%H_%M_%S_%f")
     token = os.getenv('TESTS_TERRAFORM_TOKEN')
     terraform_api = TerraformApi(token)
 
@@ -290,7 +291,7 @@ class TestTerraformApi(unittest.TestCase):
             self.assertEqual(response_code, 200)
 
     def test_create_run(self):
-        """ Test creating a run (without apply) """
+        """ Test creating a run (with auto-apply) """
         # get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
         # create configuration version
