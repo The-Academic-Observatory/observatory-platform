@@ -44,6 +44,7 @@ import observatory_platform.database.workflows.sql
 import terraform
 from observatory_platform import dags
 from observatory_platform.utils.airflow_utils import AirflowVariable
+from observatory_platform.utils.jinja2_utils import render_template
 
 # The path where data is saved on the system
 data_path = None
@@ -648,9 +649,10 @@ class ObservatoryConfig:
             # Create default dictionary and obtain default values from 'meta' data in schema.
             default_dict = iterate_over_terraform_schema(schema, {}, {}, test_config=test)
 
-        with open(os.path.join(os.path.dirname(__file__), 'default_config.jinja2')) as template_in, open(config_path, 'w') as config_out:
-            template = Template(template_in.read())
-            config_out.write(template.render(default_dict=default_dict))
+        rendered = render_template(os.path.join(os.path.dirname(__file__), 'default_config.jinja2'),
+                                   default_dict=default_dict)
+        with open(config_path, 'w') as config_out:
+            config_out.write(rendered)
 
 
 def customise_pointer(field, value, error):
