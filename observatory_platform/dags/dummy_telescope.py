@@ -27,7 +27,8 @@ default_args = {
 
 with DAG(dag_id="dummy_telescope", schedule_interval="@daily", default_args=default_args, catchup=True) as dag:
     telescope = DummyOperator(
-        task_id="telescope"
+        task_id="telescope",
+        queue='remote_queue'
     )
 
     telescope
