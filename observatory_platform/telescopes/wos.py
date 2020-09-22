@@ -818,9 +818,19 @@ class WosJsonParser:
         for thing in recognised_types:
             field[thing] = None
 
-        if 'dynamic_data' not in data or 'cluster_related' not in data['dynamic_data'] or 'identifiers' not in \
-                data['dynamic_data']['cluster_related'] or 'identifier' not in data['dynamic_data']['cluster_related'][
-            'identifiers']:
+        if 'dynamic_data' not in data:
+            return field
+
+        if 'cluster_related' not in data['dynamic_data']:
+            return field
+
+        if 'identifiers' not in data['dynamic_data']['cluster_related']:
+            return field
+
+        if data['dynamic_data']['cluster_related']['identifiers'] is None:
+            return field
+
+        if 'identifier' not in data['dynamic_data']['cluster_related']['identifiers']:
             return field
 
         identifiers = data['dynamic_data']['cluster_related']['identifiers']
