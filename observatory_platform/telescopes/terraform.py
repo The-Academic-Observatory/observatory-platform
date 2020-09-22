@@ -27,9 +27,17 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 
 from observatory_platform.utils.airflow_utils import AirflowVariable as Variable, change_task_log_level
-from observatory_platform.utils.terraform_utils import TerraformApi
 from observatory_platform.utils.config_utils import (check_variables, check_connections, AirflowVar, AirflowConn,
                                                      Environment)
+from observatory_platform.utils.terraform_utils import TerraformApi
+# used for telescope DAG ids
+from observatory_platform.telescopes.crossref_metadata import CrossrefMetadataTelescope
+from observatory_platform.telescopes.fundref import FundrefTelescope
+from observatory_platform.telescopes.geonames import GeonamesTelescope
+from observatory_platform.telescopes.grid import GridTelescope
+from observatory_platform.telescopes.mag import MagTelescope
+from observatory_platform.telescopes.open_citations import OpenCitationsTelescope
+from observatory_platform.telescopes.unpaywall import UnpaywallTelescope
 
 
 def get_workspace_id() -> str:
@@ -156,14 +164,14 @@ class TerraformTelescope:
     TASK_ID_RUN_STATUS = "terraform_check_run_status"
     TASK_ID_VM_RUNTIME = "check_runtime_vm"
 
-    # TODO set to actual list of DAG ids
     # watch list of dag ids of which their states will be checked
-    DAG_IDS_WATCH_LIST = ['dummy_telescope']
+    DAG_IDS_WATCH_LIST = [CrossrefMetadataTelescope.DAG_ID, FundrefTelescope.DAG_ID, GeonamesTelescope.DAG_ID,
+                          GridTelescope.DAG_ID, MagTelescope.DAG_ID, OpenCitationsTelescope.DAG_ID,
+                          UnpaywallTelescope.DAG_ID]
     # name of variable in terraform configuration that will be updated
     TERRAFORM_CREATE_VARIABLE = 'airflow_worker_create'
     # name of module in terraform configuration that will be targeted
     TERRAFORM_MODULE_WORKER_VM = "module.airflow_worker_vm"
-    # TODO decide on warning & frequency hours
     # no. hours for VM to be turned on until a slack notification is send
     VM_RUNTIME_H_WARNING = 20
     # frequency in hours of how often a warning message is sent on slack
