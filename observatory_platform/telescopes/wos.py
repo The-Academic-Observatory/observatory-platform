@@ -767,7 +767,7 @@ class WosJsonParser:
         """
 
         if target not in base:
-            return None
+            return []
 
         if type(base[target]) != type(list()):
             return [base[target]]
