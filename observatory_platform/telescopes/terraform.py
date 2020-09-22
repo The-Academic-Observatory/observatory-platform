@@ -25,6 +25,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+
 from observatory_platform.utils.airflow_utils import AirflowVariable as Variable, change_task_log_level
 from observatory_platform.utils.terraform_utils import TerraformApi
 from observatory_platform.utils.config_utils import (check_variables, check_connections, AirflowVar, AirflowConn,
@@ -155,14 +156,16 @@ class TerraformTelescope:
     TASK_ID_RUN_STATUS = "terraform_check_run_status"
     TASK_ID_VM_RUNTIME = "check_runtime_vm"
 
+    # TODO set to actual list of DAG ids
     # watch list of dag ids of which their states will be checked
     DAG_IDS_WATCH_LIST = ['dummy_telescope']
     # name of variable in terraform configuration that will be updated
     TERRAFORM_CREATE_VARIABLE = 'airflow_worker_create'
     # name of module in terraform configuration that will be targeted
     TERRAFORM_MODULE_WORKER_VM = "module.airflow_worker_vm"
+    # TODO decide on warning & frequency hours
     # no. hours for VM to be turned on until a slack notification is send
-    VM_RUNTIME_H_WARNING = 10
+    VM_RUNTIME_H_WARNING = 20
     # frequency in hours of how often a warning message is sent on slack
     WARNING_FREQUENCY_H = 5
 

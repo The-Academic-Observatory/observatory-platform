@@ -32,11 +32,11 @@ import jsonlines
 import pendulum
 import requests
 from airflow.exceptions import AirflowException
-from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
+from observatory_platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory_platform.utils.config_utils import (AirflowVar,
                                                      SubFolder,
                                                      check_variables,
