@@ -39,6 +39,9 @@ from airflow.models import Variable
 from observatory_platform.utils.telescope_utils import (
     build_schedule,
     delete_msg_files,
+    get_as_list,
+    get_as_list_or_none,
+    get_entry_or_none,
     json_to_db,
     validate_date,
     write_xml_to_json,
@@ -585,8 +588,8 @@ class WosTelescope:
                                   include_prior_dates=False)
 
         harvest_times = ti.xcom_pull(key=WosTelescope.XCOM_JSON_HARVEST,
-                                  task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
-                                  include_prior_dates=False)
+                                     task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
+                                     include_prior_dates=False)
 
         json_harvest_pair = list(zip(json_files, harvest_times))
         json_harvest_pair.sort()  # Sort by institution and date
@@ -715,7 +718,7 @@ class WosNameAttributes:
         contrib_dict = dict()
 
         if 'contributors' in data['static_data']:
-            contributors = WosJsonParser.get_as_list(data['static_data']['contributors'], 'contributor')
+            contributors = get_as_list(data['static_data']['contributors'], 'contributor')
             for contributor in contributors:
                 name_field = contributor['name']
                 first_name = name_field['first_name']
@@ -758,51 +761,6 @@ class WosJsonParser:
     """ Helper methods to process the the converted json from Web of Science. """
 
     @staticmethod
-    def get_as_list(base: dict, target):
-        """ Helper function that returns the target as a list.
-
-        :param base: dictionary to query.
-        :param target: target key.
-        :return: base[target] as a list (if it isn't already).
-        """
-
-        if target not in base:
-            return []
-
-        if type(base[target]) != type(list()):
-            return [base[target]]
-
-        return base[target]
-
-    @staticmethod
-    def get_as_list_or_none(base: dict, key, subkey):
-        """ Helper function that returns a list or None if key is missing.
-
-        :param base: dictionary to query.
-        :param target: target key.
-        :param subkey: subkey to target.
-        :return: entry or None.
-        """
-
-        if key not in base or base[key]['@count'] == "0":
-            return None
-
-        return WosJsonParser.get_as_list(base[key], subkey)
-
-    @staticmethod
-    def get_entry_or_none(base: dict, target):
-        """ Helper function that returns an entry or None if key is missing.
-
-        :param base: dictionary to query.
-        :param target: target key.
-        :return: entry or None.
-        """
-
-        if target not in base:
-            return None
-        return base[target]
-
-    @staticmethod
     def get_identifiers(data: dict):
         """ Extract identifier information.
 
@@ -834,7 +792,7 @@ class WosJsonParser:
             return field
 
         identifiers = data['dynamic_data']['cluster_related']['identifiers']
-        identifier = WosJsonParser.get_as_list(identifiers, 'identifier')
+        identifier = get_as_list(identifiers, 'identifier')
         if type(identifier) != type(list()):  # Fix another 'gotcha'
             identifier = [identifier]
 
@@ -878,14 +836,14 @@ class WosJsonParser:
             field['publisher_city'] = publisher['address_spec']['city']
 
         if 'titles' in summary and 'title' in summary['titles']:
-            titles = WosJsonParser.get_as_list(summary['titles'], 'title')
+            titles = get_as_list(summary['titles'], 'title')
             for title in titles:
                 if title['@type'] == 'source':
                     field['source'] = title['#text']
                     break
 
         if 'doctypes' in summary:
-            doctypes = WosJsonParser.get_as_list(summary['doctypes'], 'doctype')
+            doctypes = get_as_list(summary['doctypes'], 'doctype')
             field['doc_type'] = doctypes[0]
 
         return field
@@ -924,17 +882,17 @@ class WosJsonParser:
             return field
 
         attrib = WosNameAttributes(data)
-        names = WosJsonParser.get_as_list(data['static_data']['summary']['names'], 'name')
+        names = get_as_list(data['static_data']['summary']['names'], 'name')
 
         for name in names:
             entry = dict()
-            entry['seq_no'] = int(WosJsonParser.get_entry_or_none(name, '@seq_no'))
-            entry['role'] = WosJsonParser.get_entry_or_none(name, '@role')
-            entry['first_name'] = WosJsonParser.get_entry_or_none(name, 'first_name')
-            entry['last_name'] = WosJsonParser.get_entry_or_none(name, 'last_name')
-            entry['wos_standard'] = WosJsonParser.get_entry_or_none(name, 'wos_standard')
-            entry['daisng_id'] = WosJsonParser.get_entry_or_none(name, '@daisng_id')
-            entry['full_name'] = WosJsonParser.get_entry_or_none(name, 'full_name')
+            entry['seq_no'] = int(get_entry_or_none(name, '@seq_no'))
+            entry['role'] = get_entry_or_none(name, '@role')
+            entry['first_name'] = get_entry_or_none(name, 'first_name')
+            entry['last_name'] = get_entry_or_none(name, 'last_name')
+            entry['wos_standard'] = get_entry_or_none(name, 'wos_standard')
+            entry['daisng_id'] = get_entry_or_none(name, '@daisng_id')
+            entry['full_name'] = get_entry_or_none(name, 'full_name')
 
             # Get around errors / booby traps for name retrieval
             first_name = entry['first_name']
@@ -961,7 +919,7 @@ class WosJsonParser:
         if 'language' not in data['static_data']['fullrecord_metadata']['languages']:
             return lang_list
 
-        languages = WosJsonParser.get_as_list(data['static_data']['fullrecord_metadata']['languages'], 'language')
+        languages = get_as_list(data['static_data']['fullrecord_metadata']['languages'], 'language')
         for entry in languages:
             lang_list.append({"type": entry['@type'], "name": entry['#text']})
         return lang_list
@@ -996,9 +954,9 @@ class WosJsonParser:
         if 'abstract' not in data['static_data']['fullrecord_metadata']['abstracts']:
             return abstract_list
 
-        abstracts = WosJsonParser.get_as_list(data['static_data']['fullrecord_metadata']['abstracts'], 'abstract')
+        abstracts = get_as_list(data['static_data']['fullrecord_metadata']['abstracts'], 'abstract')
         for abstract in abstracts:
-            texts = WosJsonParser.get_as_list(abstract['abstract_text'], 'p')
+            texts = get_as_list(abstract['abstract_text'], 'p')
             for text in texts:
                 abstract_list.append(text)
         return abstract_list
@@ -1017,9 +975,9 @@ class WosJsonParser:
         if 'keyword' not in data['static_data']['fullrecord_metadata']['keywords']:
             return keywords
 
-        keywords = WosJsonParser.get_as_list(data['static_data']['fullrecord_metadata']['keywords'], 'keyword')
+        keywords = get_as_list(data['static_data']['fullrecord_metadata']['keywords'], 'keyword')
         if 'item' in data['static_data'] and 'keywords_plus' in data['static_data']['item']:
-            plus = WosJsonParser.get_as_list(data['static_data']['item']['keywords_plus'], 'keyword')
+            plus = get_as_list(data['static_data']['item']['keywords_plus'], 'keyword')
             keywords = keywords + plus
         return keywords
 
@@ -1037,14 +995,14 @@ class WosJsonParser:
         if 'conference' not in data['static_data']['summary']['conferences']:
             return conferences
 
-        conf_list = WosJsonParser.get_as_list(data['static_data']['summary']['conferences'], 'conference')
+        conf_list = get_as_list(data['static_data']['summary']['conferences'], 'conference')
         for conf in conf_list:
             conference = dict()
-            conference['id'] = int(WosJsonParser.get_entry_or_none(conf, '@conf_id'))
+            conference['id'] = int(get_entry_or_none(conf, '@conf_id'))
             conference['name'] = None
 
             if 'conf_titles' in conf and 'conf_title' in conf['conf_titles']:
-                titles = WosJsonParser.get_as_list(conf['conf_titles'], 'conf_title')
+                titles = get_as_list(conf['conf_titles'], 'conf_title')
                 conference['name'] = titles[0]
             conferences.append(conference)
         return conferences
@@ -1062,20 +1020,20 @@ class WosJsonParser:
         if 'addresses' not in data['static_data']['fullrecord_metadata']:
             return orgs
 
-        addr_list = WosJsonParser.get_as_list(data['static_data']['fullrecord_metadata']['addresses'], 'address_name')
+        addr_list = get_as_list(data['static_data']['fullrecord_metadata']['addresses'], 'address_name')
         for addr in addr_list:
             spec = addr['address_spec']
             org = dict()
 
-            org['city'] = WosJsonParser.get_entry_or_none(spec, 'city')
-            org['state'] = WosJsonParser.get_entry_or_none(spec, 'state')
-            org['country'] = WosJsonParser.get_entry_or_none(spec, 'country')
+            org['city'] = get_entry_or_none(spec, 'city')
+            org['state'] = get_entry_or_none(spec, 'state')
+            org['country'] = get_entry_or_none(spec, 'country')
 
             if 'organizations' not in addr['address_spec']:
                 orgs.append(org)
                 return orgs
 
-            org_list = WosJsonParser.get_as_list(addr['address_spec']['organizations'], 'organization')
+            org_list = get_as_list(addr['address_spec']['organizations'], 'organization')
             for entry in org_list:
                 if '@pref' in entry and entry['@pref'] == 'Y':
                     org['org_name'] = entry['#text']
@@ -1086,18 +1044,18 @@ class WosJsonParser:
                     raise AirflowException('Schema parsing error for org.')
 
             if 'suborganizations' in addr['address_spec']:
-                org['suborgs'] = WosJsonParser.get_as_list(addr['address_spec']['suborganizations'], 'suborganization')
+                org['suborgs'] = get_as_list(addr['address_spec']['suborganizations'], 'suborganization')
 
             if 'names' in addr and 'name' in addr['names']:
-                names = WosJsonParser.get_as_list(addr['names'], 'name')
+                names = get_as_list(addr['names'], 'name')
                 names_list = list()
                 for name in names:
                     entry = dict()
-                    entry['first_name'] = WosJsonParser.get_entry_or_none(name, 'first_name')
-                    entry['last_name'] = WosJsonParser.get_entry_or_none(name, 'last_name')
-                    entry['daisng_id'] = WosJsonParser.get_entry_or_none(name, '@daisng_id')
-                    entry['full_name'] = WosJsonParser.get_entry_or_none(name, 'full_name')
-                    entry['wos_standard'] = WosJsonParser.get_entry_or_none(name, 'wos_standard')
+                    entry['first_name'] = get_entry_or_none(name, 'first_name')
+                    entry['last_name'] = get_entry_or_none(name, 'last_name')
+                    entry['daisng_id'] = get_entry_or_none(name, '@daisng_id')
+                    entry['full_name'] = get_entry_or_none(name, 'full_name')
+                    entry['wos_standard'] = get_entry_or_none(name, 'wos_standard')
                     names_list.append(entry)
                 org['names'] = names_list
             orgs.append(org)
@@ -1120,18 +1078,18 @@ class WosJsonParser:
 
         entry = data['static_data']['fullrecord_metadata']['fund_ack']
         if 'fund_text' in entry and 'p' in entry['fund_text']:
-            fund_ack['text'] = WosJsonParser.get_as_list(entry['fund_text'], 'p')
+            fund_ack['text'] = get_as_list(entry['fund_text'], 'p')
 
         if 'grants' not in entry:
             return fund_ack
 
-        grants = WosJsonParser.get_as_list(entry['grants'], 'grant')
+        grants = get_as_list(entry['grants'], 'grant')
         for grant in grants:
             grant_info = dict()
-            grant_info['agency'] = WosJsonParser.get_entry_or_none(grant, 'grant_agency')
+            grant_info['agency'] = get_entry_or_none(grant, 'grant_agency')
             grant_info['ids'] = list()
             if 'grant_ids' in grant:
-                grant_info['ids'] = WosJsonParser.get_as_list(grant['grant_ids'], 'grant_id')
+                grant_info['ids'] = get_as_list(grant['grant_ids'], 'grant_id')
             fund_ack['grants'].append(grant_info)
         return fund_ack
 
@@ -1148,16 +1106,16 @@ class WosJsonParser:
             return category_info
 
         entry = data['static_data']['fullrecord_metadata']['category_info']
-        category_info['headings'] = WosJsonParser.get_as_list_or_none(entry, 'headings', 'heading')
-        category_info['subheadings'] = WosJsonParser.get_as_list_or_none(entry, 'subheadings', 'subheading')
+        category_info['headings'] = get_as_list_or_none(entry, 'headings', 'heading')
+        category_info['subheadings'] = get_as_list_or_none(entry, 'subheadings', 'subheading')
 
         subject_list = list()
-        subjects = WosJsonParser.get_as_list_or_none(entry, 'subjects', 'subject')
+        subjects = get_as_list_or_none(entry, 'subjects', 'subject')
         for subject in subjects:
             subject_dict = dict()
-            subject_dict['ascatype'] = WosJsonParser.get_entry_or_none(subject, '@ascatype')
-            subject_dict['code'] = WosJsonParser.get_entry_or_none(subject, '@code')
-            subject_dict['text'] = WosJsonParser.get_entry_or_none(subject, '#text')
+            subject_dict['ascatype'] = get_entry_or_none(subject, '@ascatype')
+            subject_dict['code'] = get_entry_or_none(subject, '@code')
+            subject_dict['text'] = get_entry_or_none(subject, '#text')
             subject_list.append(subject_dict)
         category_info['subjects'] = subject_list
 

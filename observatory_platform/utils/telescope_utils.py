@@ -76,6 +76,51 @@ def delete_msg_files(ti: TaskInstance, topic: str, task_id: str, msg_key: str = 
             logging.warning(f"No such file or directory {file}: {e}")
 
 
+def get_as_list(base: dict, target):
+    """ Helper function that returns the target as a list.
+
+    :param base: dictionary to query.
+    :param target: target key.
+    :return: base[target] as a list (if it isn't already).
+    """
+
+    if target not in base:
+        return []
+
+    if type(base[target]) != type(list()):
+        return [base[target]]
+
+    return base[target]
+
+
+def get_as_list_or_none(base: dict, key, subkey):
+    """ Helper function that returns a list or None if key is missing.
+
+    :param base: dictionary to query.
+    :param target: target key.
+    :param subkey: subkey to target.
+    :return: entry or None.
+    """
+
+    if key not in base or base[key]['@count'] == "0":
+        return None
+
+    return get_as_list(base[key], subkey)
+
+
+def get_entry_or_none(base: dict, target):
+    """ Helper function that returns an entry or None if key is missing.
+
+    :param base: dictionary to query.
+    :param target: target key.
+    :return: entry or None.
+    """
+
+    if target not in base:
+        return None
+    return base[target]
+
+
 def json_to_db(json_list: List[str], release_date: str, parser) -> List[str]:
     """ Transform json from query into database format.
 
