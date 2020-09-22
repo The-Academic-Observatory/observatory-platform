@@ -16,7 +16,7 @@
 
 from datetime import datetime
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.bash_operator import BashOperator
 
 
 default_args = {
@@ -26,9 +26,16 @@ default_args = {
 
 
 with DAG(dag_id="dummy_telescope", schedule_interval="@daily", default_args=default_args, catchup=True) as dag:
-    telescope = DummyOperator(
-        task_id="telescope",
+    task1 = BashOperator(
+        task_id="task1",
+        bash_command="echo 'hello'",
         queue='remote_queue'
     )
 
-    telescope
+    task2 = BashOperator(
+        task_id="task2",
+        bash_command="echo 'world'",
+        queue='remote_queue'
+    )
+
+    task1 >> task2
