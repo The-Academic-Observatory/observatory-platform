@@ -140,14 +140,14 @@ class ScopusTelescope:
         :return: the identifier of the task to execute next.
         """
 
-        HTTP_CODE_OK = 200
+        http_code_ok = 200
 
         try:
             http_code = urllib.request.urlopen(ScopusTelescope.API_SERVER).getcode()
         except URLError as e:
             raise ValueError(f'Failed to fetch url because of: {e}')
 
-        if http_code != HTTP_CODE_OK:
+        if http_code != http_code_ok:
             raise ValueError(f'HTTP response code {http_code} received.')
 
     @staticmethod
@@ -224,6 +224,12 @@ class ScopusTelescope:
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
+
+    @staticmethod
+    def pull_release(ti: TaskInstance):
+        """ Get the ScopusRelease object from XCOM message. """
+        return ti.xcom_pull(key=ScopusTelescope.XCOM_RELEASES, task_ids=ScopusTelescope.TASK_ID_CHECK_DEPENDENCIES,
+                            include_prior_dates=False)
 
 
 class ScopusUtilConst:
