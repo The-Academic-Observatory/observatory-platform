@@ -201,7 +201,7 @@ class TerraformApi:
         workspace_vars = json.loads(response.text)['data']
         return workspace_vars
 
-    def create_configuration_version(self, workspace_id: str) -> str:
+    def create_configuration_version(self, workspace_id: str) -> Tuple[str, str]:
         """
         Create a configuration version. A configuration version is a resource used to reference the uploaded
         configuration files. It is associated with the run to use the uploaded configuration files for performing the
@@ -221,7 +221,29 @@ class TerraformApi:
             exit(os.EX_CONFIG)
 
         upload_url = json.loads(response.text)['data']['attributes']['upload-url']
-        return upload_url
+        configuration_id = json.loads(response.text)['data']['id']
+        return upload_url, configuration_id
+
+    def get_configuration_version_status(self, configuration_id: str) -> str:
+        """
+        Show the configuration version and return it's status. The status will be pending when the
+        configuration version is initially created and will remain pending until configuration files are supplied via
+        upload, and while they are processed. The status will then be changed to 'uploaded'. Runs cannot be created
+        using pending or errored configuration versions.
+        :param configuration_id: the configuration version id
+        :return: configuration version status
+        """
+        response = requests.get(f'{self.api_url}/configuration-versions/{configuration_id}', headers=self.headers)
+        if response.status_code == 200:
+            logging.info(f"Retrieved configuration version info.")
+            logging.debug(f"response: {response.text}")
+        else:
+            logging.error(f"Response status: {response.status_code}")
+            logging.error(f"Unsuccessful retrieving configuration version info, response: {response.text}")
+            exit(os.EX_CONFIG)
+
+        status = json.loads(response.text)['data']['attributes']['status']
+        return status
 
     @staticmethod
     def upload_configuration_files(upload_url: str, configuration_path: str) -> int:
@@ -269,8 +291,7 @@ class TerraformApi:
         else:
             logging.error(f"Response status: {response.status_code}")
             logging.error(f"Unsuccessful creating run, response: {response.text}")
-            return 'NA'
-            # exit(os.EX_CONFIG)
+            exit(os.EX_CONFIG)
 
         run_id = json.loads(response.text)['data']['id']
         return run_id

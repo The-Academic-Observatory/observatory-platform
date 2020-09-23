@@ -268,9 +268,21 @@ class TestTerraformApi(unittest.TestCase):
         """ Test that configuration version is uploaded successfully """
         # get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
+
         # create configuration version
-        upload_url = self.terraform_api.create_configuration_version(workspace_id)
+        upload_url, _ = self.terraform_api.create_configuration_version(workspace_id)
         self.assertIsInstance(upload_url, str)
+
+    def test_check_configuration_version_status(self):
+        # get workspace id
+        workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
+
+        # create configuration version
+        _, configuration_id = self.terraform_api.create_configuration_version(workspace_id)
+
+        # get status
+        configuration_status = self.terraform_api.get_configuration_version_status(configuration_id)
+        self.assertIn(configuration_status, ['pending', 'uploaded', 'errored'])
 
     def test_upload_configuration_files(self):
         """ Test that configuration files are uploaded successfully """
@@ -278,7 +290,7 @@ class TestTerraformApi(unittest.TestCase):
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
 
         # create configuration version
-        upload_url = self.terraform_api.create_configuration_version(workspace_id)
+        upload_url, _ = self.terraform_api.create_configuration_version(workspace_id)
 
         configuration_path = os.path.join(test_fixtures_path(), 'utils', 'terraform_utils', 'main.tf')
         configuration_tar = 'conf.tar.gz'
@@ -297,7 +309,7 @@ class TestTerraformApi(unittest.TestCase):
         # get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
         # create configuration version
-        upload_url = self.terraform_api.create_configuration_version(workspace_id)
+        upload_url, configuration_id = self.terraform_api.create_configuration_version(workspace_id)
 
         configuration_path = os.path.join(test_fixtures_path(), 'utils', 'terraform_utils', 'main.tf')
         configuration_tar = 'conf.tar.gz'
@@ -309,22 +321,26 @@ class TestTerraformApi(unittest.TestCase):
             # upload configuration files
             self.terraform_api.upload_configuration_files(upload_url, configuration_tar)
 
-        print(workspace_id)
+        # wait until configuration files are processed and uploaded
+        configuration_status = None
+        while configuration_status != 'uploaded':
+            configuration_status = self.terraform_api.get_configuration_version_status(configuration_id)
+
         # create run without target
         run_id = self.terraform_api.create_run(workspace_id, target_addrs=None, message="No target")
-        # self.assertIsInstance(run_id, str)
+        self.assertIsInstance(run_id, str)
 
         # create run with target
         run_id = self.terraform_api.create_run(workspace_id, target_addrs="random_id.random", message="Targeting "
                                                                                                       "random_id")
-        # self.assertIsInstance(run_id, str)
+        self.assertIsInstance(run_id, str)
 
     def test_get_run_details(self):
         """ Test retrieval of run details """
         # get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
         # create configuration version
-        upload_url = self.terraform_api.create_configuration_version(workspace_id)
+        upload_url, configuration_id = self.terraform_api.create_configuration_version(workspace_id)
 
         configuration_path = os.path.join(test_fixtures_path(), 'utils', 'terraform_utils', 'main.tf')
         configuration_tar = 'conf.tar.gz'
@@ -335,6 +351,11 @@ class TestTerraformApi(unittest.TestCase):
                 tar.add(configuration_path, arcname=os.path.basename(configuration_path))
             # upload configuration files
             self.terraform_api.upload_configuration_files(upload_url, configuration_tar)
+
+        # wait until configuration files are processed and uploaded
+        configuration_status = None
+        while configuration_status != 'uploaded':
+            configuration_status = self.terraform_api.get_configuration_version_status(configuration_id)
 
         # possible states
         run_states = ['pending', 'plan_queued', 'planning', 'planned', 'cost_estimating', 'cost_estimated',
