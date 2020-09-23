@@ -333,7 +333,7 @@ class TerraformApi:
         }
 
         if category != 'env' and category != 'terraform':
-            print('Category has to be either "env" or "terraform"')
+            logging.error('Category has to be either "env" or "terraform"')
             exit(os.EX_CONFIG)
         else:
             attributes["category"] = category
