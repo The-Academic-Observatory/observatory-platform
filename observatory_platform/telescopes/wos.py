@@ -462,7 +462,7 @@ class WosTelescope:
 
         logging.info(
             f'WosRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: ' +
-            '{release.transform_bucket_name}, data_location: {release.data_location}')
+            f'{release.transform_bucket_name}, data_location: {release.data_location}')
 
         ti: TaskInstance = kwargs['ti']
         ti.xcom_push(WosTelescope.XCOM_RELEASES, release)
