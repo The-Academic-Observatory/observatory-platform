@@ -98,6 +98,7 @@ class ScopusTelescope:
     DATASET_ID = 'elsevier'
     SCHEMA_PATH = 'telescopes'
     TABLE_NAME = DAG_ID
+    SCHEMA_VER = 'scopus1'  # Internal version. SCOPUS returns no version in response.
 
     TASK_ID_CHECK_DEPENDENCIES = 'check_dependencies'
     TASK_CHECK_API_SERVER = 'check_api_server'
@@ -135,34 +136,63 @@ class ScopusTelescope:
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
-        conns = list_connections('scopus')
+        conn = kwargs['conn']
 
-        # Make sure there are connections configured
-        if len(conns) == 0:
-            raise AirflowException('No connection ids are set')
+        # Validate extra field is set correctly.
+        logging.info(f'Validating json in extra field of {conn}')
+        extra = conn.extra
+        try:
+            extra_dict = json.loads(extra)
+        except Exception as e:
+            raise AirflowException(f'Error processing json extra fields in {conn} connection id profile: {e}')
 
-        # Validate start_date exists in every connection and is set correctly
-        for conn in conns:
-            extra = conn.extra
+        logging.info(f'Validating extra field keys for {conn}')
 
-            try:
-                print(f'Attempting to parse:\n{extra}')
-                extra_dict = json.loads(extra)
-            except:
-                raise AirflowException(f'Error processing json extra fields in {conn} connection id profile')
+        # Check date is ok
+        start_date = extra_dict['start_date']
+        if not validate_date(start_date):
+            raise AirflowException(f'Invalid date string for {conn}: {start_date}')
 
-            # Check date is ok
-            start_date = extra_dict['start_date']
-            if not validate_date(start_date):
-                raise AirflowException(f'Invalid date string for {conn}: {start_date}')
+        # Check institution id is set
+        if 'id' not in extra_dict:
+            raise AirflowException(f'The "id" field is not set for {conn}.')
 
-            # Check institution id is set
-            if 'id' not in extra_dict:
-                raise AirflowException(f'The "id" field is not set for {conn}.')
+        # Check API keys are present
+        if 'api_keys' not in extra_dict or len(extra_dict['api_keys']) == 0:
+            raise AirflowException(f'No API keys are set for {conn}.')
 
-            # Check API keys are present
-            if 'api_keys' not in extra_dict or len(extra_dict['api_keys']) == 0:
-                raise AirflowException(f'No API keys are set for {conn}.')
+        logging.info(f'Checking for airflow override variables of {conn}')
+        # Set project id override
+        project_id = Variable.get(AirflowVar.project_id.get())
+        if 'project_id' in extra_dict:
+            project_id = extra_dict['project_id']
+            logging.info(f'Override for project_id found. Using: {project_id}')
+
+        # Set download bucket name override
+        download_bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
+        if 'download_bucket_name' in extra_dict:
+            download_bucket_name = extra_dict['download_bucket_name']
+            logging.info(f'Override for download_bucket_name found. Using: {download_bucket_name}')
+
+        # Set transform bucket name override
+        transform_bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
+        if 'transform_bucket_name' in extra_dict:
+            transform_bucket_name = extra_dict['transform_bucket_name']
+            logging.info(f'Override for transform_bucket_name found. Using: {transform_bucket_name}')
+
+        # Set data location override
+        data_location = Variable.get(AirflowVar.data_location.get())
+        if 'data_location' in extra_dict:
+            data_location = extra_dict['data_location']
+            logging.info(f'Override for data_location found. Using: {data_location}')
+
+        # Push release information for other tasks
+        scopus_inst_id = get_as_list(extra_dict, 'id')
+        release = ScopusRelease(inst_id=kwargs['institution'], scopus_inst_id=scopus_inst_id,
+                             release_date=kwargs['execution_date'].date(),
+                             dag_start=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
+                             download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
+                             data_location=data_location, schema_ver=ScopusTelescope.SCHEMA_VER)
 
     @staticmethod
     def check_api_server(**kwargs):
@@ -633,3 +663,19 @@ def zip_files(file_list: List[str]):
                 shutil.copyfileobj(f_in, f_out)
 
     return zip_list
+
+def get_as_list(base: dict, target):
+    """ Helper function that returns the target as a list.
+
+    :param base: dictionary to query.
+    :param target: target key.
+    :return: base[target] as a list (if it isn't already).
+    """
+
+    if target not in base:
+        return []
+
+    if not isinstance(base[target], list):
+        return [base[target]]
+
+    return base[target]
