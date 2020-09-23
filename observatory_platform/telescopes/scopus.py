@@ -41,6 +41,8 @@ from airflow.models import Variable
 from observatory_platform.utils.config_utils import (
     AirflowVar,
     check_variables,
+    SubFolder,
+    telescope_path,
 )
 
 # Remove these later
@@ -52,6 +54,36 @@ import shutil
 import pickle
 from airflow.utils.db import create_session
 from airflow.models import Connection
+
+
+class ScopusRelease:
+    """ Used to store info on a given SCOPUS release.
+
+    :param inst_id: institution id from the airflow connection (minus the wos_)
+    :param scopus_inst_id: List of institution ids to use in the SCOPUS query.
+    :param release_date: Release date (currently the execution date).
+    :param dag_start: Start date of the dag (not execution date).
+    :param project_id: The project id to use.
+    :param download_bucket_name: Download bucket name to use for storing downloaded files in the cloud.
+    :param transform_bucket_name: Transform bucket name to use for storing transformed files in the cloud.
+    :param data_location: Location of the data servers
+    """
+
+    def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.Pendulum,
+                 dag_start: pendulum.Pendulum, project_id: str,
+                 download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str):
+        self.inst_id = inst_id
+        self.scopus_inst_id = scopus_inst_id
+        self.release_date = release_date
+        self.dag_start = dag_start
+        self.download_path = telescope_path(SubFolder.downloaded, ScopusTelescope.DAG_ID)
+        self.transform_path = telescope_path(SubFolder.transformed, ScopusTelescope.DAG_ID)
+        self.telescope_path = f'telescopes/{ScopusTelescope.DAG_ID}/{release_date}'
+        self.project_id = project_id
+        self.download_bucket_name = download_bucket_name
+        self.transform_bucket_name = transform_bucket_name
+        self.data_location = data_location
+        self.schema_ver = schema_ver
 
 
 class ScopusTelescope:
