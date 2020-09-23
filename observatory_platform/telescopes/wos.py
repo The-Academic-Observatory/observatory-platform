@@ -29,6 +29,7 @@ from google.cloud.bigquery import SourceFormat, WriteDisposition
 from math import ceil
 from ratelimit import limits, sleep_and_retry
 from suds import WebFault
+from typing import List
 from urllib.error import URLError
 from wos import WosClient
 
@@ -83,18 +84,26 @@ class WosUtility:
     """ Handles the interaction with Web of Science """
 
     @staticmethod
-    def build_query(inst_id: str, period: tuple) -> OrderedDict:
+    def build_query(wos_inst_id: List[str], period: tuple) -> OrderedDict:
         """ Build a WoS API query.
 
-        :param inst_id: Institution ID needed to filter the search results.
+        :param wos_inst_id: List of Institutional ID to query, e.g, "Curtin University"
         :param period: A tuple containing start and end dates.
         :return: Constructed web query.
         """
         start_date = period[0].isoformat()
         end_date = period[1].isoformat()
-        organisation = inst_id
 
-        query = OrderedDict([('query', f'OG={organisation}'),
+        organisations = str()
+        n_institutes = len(wos_inst_id)
+        for i, inst in enumerate(wos_inst_id):
+            organisations += inst
+            if i < n_institutes - 1:
+                organisations += " OR "
+
+        query_str = f'OG=({organisations})'
+        logging.info(f'Query string: {query_str}')
+        query = OrderedDict([('query', query_str),
                              ('count', WosUtilConst.RESULT_LIMIT),
                              ('offset', 1),
                              ('timeSpan', {'begin': start_date, 'end': end_date})
@@ -136,20 +145,21 @@ class WosUtility:
         return records['REC'], schema_ver
 
     @staticmethod
-    def download_wos_period(client: WosClient, conn: str, period: tuple, inst_id: str, download_path: str) -> str:
+    def download_wos_period(client: WosClient, conn: str, period: tuple, wos_inst_id: List[str],
+                            download_path: str) -> str:
         """ Download records for a stated date range.
 
         :param client: WebClient object.
         :param conn: file name for saved response as a pickle file.
         :param period: Period tuple containing (start date, end date).
-        :param inst_id: institution id to query.
+        :param wos_inst_id: List of Institutional ID to query, e.g, "Curtin University"
         :param download_path: Path to download files to.
          """
 
         timestamp = pendulum.datetime.now().isoformat()
         inst_str = conn[4:]
         save_file_prefix = os.path.join(download_path, period[0].isoformat(), inst_str, timestamp)
-        query = WosUtility.build_query(inst_id, period)
+        query = WosUtility.build_query(wos_inst_id, period)
         result = WosUtility.make_query(client, query)
         logging.info(f'{conn} with session id {client._SID}: retrieving period {period[0]} - {period[1]}')
 
@@ -166,7 +176,8 @@ class WosUtility:
     @staticmethod
     @backoff.on_exception(backoff.constant, WebFault, max_tries=WosUtilConst.RETRIES,
                           interval=WosUtilConst.SESSION_CALL_PERIOD)
-    def download_wos_batch(login: str, password: str, batch: list, conn: str, inst_id: str, download_path: str):
+    def download_wos_batch(login: str, password: str, batch: list, conn: str, wos_inst_id: List[str],
+                           download_path: str):
         """ Download one batch of WoS snapshots. Throttling limits are more conservative than WoS limits.
         Throttle limits may or may not be enforced. Probably depends on how executors spin up tasks.
 
@@ -174,7 +185,7 @@ class WosUtility:
         :param password: password.
         :param batch: List of tuples of (start_date, end_date) to fetch.
         :param conn: connection_id string from Airflow variable.
-        :param inst_id: institution id to query.
+        :param wos_inst_id: List of Institutional ID to query, e.g, "Curtin University"
         :param download_path: download path to save response to.
         :return: List of saved files from this batch.
         """
@@ -182,19 +193,20 @@ class WosUtility:
         file_list = list()
         with WosClient(login, password) as client:
             for period in batch:
-                files = WosUtility.download_wos_period(client, conn, period, inst_id, download_path)
+                files = WosUtility.download_wos_period(client, conn, period, wos_inst_id, download_path)
                 file_list += files
         return file_list
 
     @staticmethod
-    def download_wos_parallel(login: str, password: str, schedule: list, conn: str, inst_id: str, download_path: str):
+    def download_wos_parallel(login: str, password: str, schedule: list, conn: str, wos_inst_id: List[str],
+                              download_path: str):
         """ Download WoS snapshot with parallel sessions. Using threads.
 
         :param login: WoS login
         :param password: WoS password
         :param schedule: List of date range (start_date, end_date) tuples to download.
         :param conn: Airflow connection_id string.
-        :param inst_id: Institutioanl ID to query, .e.g, "Curtin University"
+        :param wos_inst_id: List of Institutional ID to query, e.g, "Curtin University"
         :param download_path: Path to download to.
         :return: List of files downloaded.
         """
@@ -211,7 +223,7 @@ class WosUtility:
             futures = []
             for i in range(sessions):
                 futures.append(
-                    executor.submit(WosUtility.download_wos_batch, login, password, batches[i], conn, inst_id,
+                    executor.submit(WosUtility.download_wos_batch, login, password, batches[i], conn, wos_inst_id,
                                     download_path))
             for future in as_completed(futures):
                 files = future.result()
@@ -220,32 +232,33 @@ class WosUtility:
         return file_list
 
     @staticmethod
-    def download_wos_sequential(login: str, password: str, schedule: list, conn: str, inst_id: str, download_path: str):
+    def download_wos_sequential(login: str, password: str, schedule: list, conn: str, wos_inst_id: List[str],
+                                download_path: str):
         """ Download WoS snapshot sequentially.
 
         :param login: WoS login
         :param password: WoS password
         :param schedule: List of date range (start_date, end_date) tuples to download.
         :param conn: Airflow connection_id string.
-        :param inst_id: Institutioanl ID to query, .e.g, "Curtin University"
+        :param wos_inst_id: List of Institutional ID to query, e.g, "Curtin University"
         :param download_path: Path to download to.
         :return: List of files downloaded.
         """
 
-        return WosUtility.download_wos_batch(login, password, schedule, conn, inst_id, download_path)
+        return WosUtility.download_wos_batch(login, password, schedule, conn, wos_inst_id, download_path)
 
     @staticmethod
-    def download_wos_snapshot(download_path: str, conn, end_date, mode: str):
+    def download_wos_snapshot(download_path: str, conn, wos_inst_id: List[str], end_date, mode: str):
         """ Download snapshot from Web of Science for the given institution.
 
         :param download_path: the directory where the downloaded wos snapshot should be saved.
         :param conn: Airflow connection object.
+        :param wos_inst_id: List of wos institution ids to use in query.
         :param end_date: end date of schedule. Usually the DAG start date of this DAG run.
         :param mode: Download mode to use. 'sequential' or 'parallel'
         """
 
         extra = json.loads(conn.extra)
-        inst_id = extra['id']  # Institution id
         login = conn.login
         password = conn.password
         start_date = pendulum.parse(extra['start_date']).date()
@@ -253,11 +266,11 @@ class WosUtility:
 
         if mode == 'sequential' or len(schedule) <= WosUtilConst.SESSION_CALL_LIMIT:
             logging.info('Downloading snapshot with sequential method')
-            return WosUtility.download_wos_sequential(login, password, schedule, str(conn), inst_id, download_path)
+            return WosUtility.download_wos_sequential(login, password, schedule, str(conn), wos_inst_id, download_path)
 
         if mode == 'parallel':
             logging.info('Downloading snapshot with parallel method')
-            return WosUtility.download_wos_parallel(login, password, schedule, str(conn), inst_id, download_path)
+            return WosUtility.download_wos_parallel(login, password, schedule, str(conn), wos_inst_id, download_path)
 
     @staticmethod
     def make_query(client: WosClient, query: OrderedDict):
@@ -303,6 +316,7 @@ class WosRelease:
     """ Used to store info on a given WoS release.
 
     :param inst_id: institution id from the airflow connection (minus the wos_)
+    :param wos_inst_id: List of institution ids to use in the WoS query.
     :param release_date: Release date (currently the execution date).
     :param dag_start: Start date of the dag (not execution date).
     :param project_id: The project id to use.
@@ -311,9 +325,11 @@ class WosRelease:
     :param data_location: Location of the data servers
     """
 
-    def __init__(self, inst_id: str, release_date: pendulum.Pendulum, dag_start: pendulum.Pendulum, project_id: str,
+    def __init__(self, inst_id: str, wos_inst_id: List[str], release_date: pendulum.Pendulum,
+                 dag_start: pendulum.Pendulum, project_id: str,
                  download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str):
         self.inst_id = inst_id
+        self.wos_inst_id = wos_inst_id
         self.release_date = release_date
         self.dag_start = dag_start
         self.download_path = telescope_path(SubFolder.downloaded, WosTelescope.DAG_ID)
@@ -438,7 +454,9 @@ class WosTelescope:
             logging.info(f'Override for data_location found. Using: {data_location}')
 
         # Push release information for other tasks
-        release = WosRelease(inst_id=kwargs['institution'], release_date=kwargs['execution_date'].date(),
+        wos_inst_id = get_as_list(extra_dict, 'id')
+        release = WosRelease(inst_id=kwargs['institution'], wos_inst_id=wos_inst_id,
+                             release_date=kwargs['execution_date'].date(),
                              dag_start=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
                              download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
                              data_location=data_location, schema_ver=WosTelescope.SCHEMA_VER)
@@ -489,8 +507,8 @@ class WosTelescope:
         release: WosRelease = WosTelescope.pull_release(ti)
 
         # Prepare paths
-        download_files = WosUtility.download_wos_snapshot(release.download_path, kwargs['conn'], release.dag_start,
-                                                          WosTelescope.DOWNLOAD_MODE)
+        download_files = WosUtility.download_wos_snapshot(release.download_path, kwargs['conn'], release.wos_inst_id,
+                                                          release.dag_start, WosTelescope.DOWNLOAD_MODE)
 
         # Notify next task of the files downloaded.
         ti.xcom_push(WosTelescope.XCOM_DOWNLOAD_PATH, download_files)
@@ -597,7 +615,8 @@ class WosTelescope:
 
         # Apply field extraction and transformation to jsonlines
         logging.info('transform_db_format: parsing and transforming into db format')
-        jsonl_list = json_to_db(json_harvest_pair, release.release_date.isoformat(), WosJsonParser.parse_json)
+        jsonl_list = json_to_db(json_harvest_pair, release.release_date.isoformat(), WosJsonParser.parse_json,
+                                release.wos_inst_id)
 
         # Notify next task
         ti.xcom_push(WosTelescope.XCOM_JSONL_PATH, jsonl_list)
@@ -1123,12 +1142,13 @@ class WosJsonParser:
         return category_info
 
     @staticmethod
-    def parse_json(data: dict, harvest_datetime: str, release_date: str) -> dict:
+    def parse_json(data: dict, harvest_datetime: str, release_date: str, institutes: List[str]) -> dict:
         """ Turn json data into db schema format.
 
         :param data: dictionary of web response.
         :param harvest_datetime: isoformat string of time the fetch took place.
         :param release_date: DAG execution date.
+        :param institutes: List of institution ids used in the query.
         :return: dict of data in right field format.
         """
 
@@ -1147,5 +1167,6 @@ class WosJsonParser:
         entry['fund_ack'] = WosJsonParser.get_fund_ack(data)
         entry['categories'] = WosJsonParser.get_categories(data)
         entry['orgs'] = WosJsonParser.get_orgs(data)
+        entry['institution_ids'] = institutes
 
         return entry

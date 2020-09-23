@@ -121,13 +121,14 @@ def get_entry_or_none(base: dict, target):
     return base[target]
 
 
-def json_to_db(json_list: List[str], release_date: str, parser) -> List[str]:
+def json_to_db(json_list: List[str], release_date: str, parser, institutes: List[str]) -> List[str]:
     """ Transform json from query into database format.
 
     :param json_list: json data to transform.
     :param release_date: release date of the snapshot.
-    :param parser: Parser function accepting (json entry, harvest date, release date), and returning schema conforming
-                    data structure.
+    :param parser: Parser function accepting (json entry, harvest date, release date, institutes), and returning
+                    schema conforming data structure.
+    :param institutes: List of institution ids used in the query.
     :return: Saved file name.
     """
 
@@ -147,7 +148,7 @@ def json_to_db(json_list: List[str], release_date: str, parser) -> List[str]:
 
             parsed_entries = list()
             for entry in data:
-                parsed_entry = parser(entry, harvest_date, release_date)
+                parsed_entry = parser(entry, harvest_date, release_date, institutes)
                 parsed_entries.append(parsed_entry)
 
             for entry in parsed_entries:

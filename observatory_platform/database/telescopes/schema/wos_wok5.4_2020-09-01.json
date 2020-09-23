@@ -410,5 +410,12 @@
     "mode": "NULLABLE",
     "name": "release_date",
     "type": "DATE"
+  },
+  {
+    "description": "Institution ID used to fetch record",
+    "mode": "REPEATED",
+    "name": "institution_ids",
+    "type": "STRING"
   }
+
 ]
