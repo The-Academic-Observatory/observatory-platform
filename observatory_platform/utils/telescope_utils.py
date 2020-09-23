@@ -25,8 +25,9 @@ import pendulum
 import shutil
 
 from airflow.models.taskinstance import TaskInstance
+from collections import OrderedDict
 from pathlib import Path
-from typing import List
+from typing import List, Tuple, Any
 
 
 def build_schedule(sched_start_date, sched_end_date):
@@ -87,25 +88,25 @@ def get_as_list(base: dict, target):
     if target not in base:
         return []
 
-    if type(base[target]) != type(list()):
+    if not isinstance(base[target], list):
         return [base[target]]
 
     return base[target]
 
 
-def get_as_list_or_none(base: dict, key, subkey):
+def get_as_list_or_none(base: dict, key, sub_key):
     """ Helper function that returns a list or None if key is missing.
 
     :param base: dictionary to query.
-    :param target: target key.
-    :param subkey: subkey to target.
+    :param key: target key.
+    :param sub_key: sub_key to target.
     :return: entry or None.
     """
 
     if key not in base or base[key]['@count'] == "0":
         return None
 
-    return get_as_list(base[key], subkey)
+    return get_as_list(base[key], sub_key)
 
 
 def get_entry_or_none(base: dict, target):
@@ -121,7 +122,7 @@ def get_entry_or_none(base: dict, target):
     return base[target]
 
 
-def json_to_db(json_list: List[str], release_date: str, parser, institutes: List[str]) -> List[str]:
+def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str]) -> List[str]:
     """ Transform json from query into database format.
 
     :param json_list: json data to transform.
@@ -148,6 +149,8 @@ def json_to_db(json_list: List[str], release_date: str, parser, institutes: List
 
             parsed_entries = list()
             for entry in data:
+                if not isinstance(entry, dict):
+                    continue
                 parsed_entry = parser(entry, harvest_date, release_date, institutes)
                 parsed_entries.append(parsed_entry)
 
@@ -177,7 +180,8 @@ def validate_date(date_string):
     """
     try:
         pendulum.parse(date_string)
-    except:
+    except Exception as e:
+        print(f'Pendulum parsing encountered exception: {e}')
         return False
     return True
 
