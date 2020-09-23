@@ -55,7 +55,6 @@ from observatory_platform.utils.config_utils import (
     SubFolder,
     check_variables,
     find_schema,
-    list_connections,
     telescope_path,
     schema_path,
 )
@@ -130,7 +129,8 @@ class WosUtility:
         prefix_loc = schema_string.find(WosTelescope.SCHEMA_ID_PREFIX)
         if prefix_loc == -1:
             logging.warning(
-                f'WOS schema has changed.\nExpecting prefix: {WosTelescope.SCHEMA_ID_PREFIX}\nReceived: {schema_string}')
+                f'WOS schema has changed.\nExpecting prefix: {WosTelescope.SCHEMA_ID_PREFIX}\n'
+                f'Received: {schema_string}')
             return None
 
         ver_start = prefix_len
@@ -146,7 +146,7 @@ class WosUtility:
 
     @staticmethod
     def download_wos_period(client: WosClient, conn: str, period: tuple, wos_inst_id: List[str],
-                            download_path: str) -> str:
+                            download_path: str) -> List[str]:
         """ Download records for a stated date range.
 
         :param client: WebClient object.
@@ -405,8 +405,8 @@ class WosTelescope:
         logging.info(f'Validating json in extra field of {conn}')
         try:
             extra_dict = json.loads(extra)
-        except:
-            raise AirflowException(f'Error processing json extra fields in {conn} connection id profile')
+        except Exception as e:
+            raise AirflowException(f'Error processing json extra fields in {conn} connection id profile: {e}')
 
         logging.info(f'Validating extra field keys for {conn}')
 
@@ -472,13 +472,10 @@ class WosTelescope:
     def check_api_server():
         """ Check that http://scientific.thomsonreuters.com is still contactable.
 
-        :param kwargs: the context passed from the BranchPythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
         :return: the identifier of the task to execute next.
         """
 
-        HTTP_CODE_OK = 200
+        http_code_ok = 200
 
         logging.info(f'Checking API server {WosTelescope.API_SERVER} is up.')
 
@@ -487,7 +484,7 @@ class WosTelescope:
         except URLError as e:
             raise ValueError(f'Failed to fetch url because of: {e}')
 
-        if http_code != HTTP_CODE_OK:
+        if http_code != http_code_ok:
             raise ValueError(f'HTTP response code {http_code} received.')
 
     @staticmethod
@@ -686,7 +683,8 @@ class WosTelescope:
             if schema_file_path is None:
                 logging.error(
                     f'No schema found with search parameters: analysis_schema_path={WosTelescope.SCHEMA_PATH}, '
-                    f'table_name={WosTelescope.TABLE_NAME}, release_date={release.release_date}, schema_ver={release.schema_ver}')
+                    f'table_name={WosTelescope.TABLE_NAME}, release_date={release.release_date}, '
+                    f'schema_ver={release.schema_ver}')
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table
@@ -726,12 +724,13 @@ class WosNameAttributes:
     """ Helper class for parsing name attributes."""
 
     def __init__(self, data: dict):
-        self._contribs = self._get_contribs(data)
+        self._contribs = WosNameAttributes._get_contribs(data)
 
-    def _get_contribs(self, data: dict):
+    @staticmethod
+    def _get_contribs(data: dict):
         """ Helper function to parse the contributors structure to aid extraction of fields.
 
-        :param base: dictionary to query.
+        :param data: dictionary to query.
         :return: Dictionary of attributes keyed by full_name string.
         """
 
@@ -813,8 +812,6 @@ class WosJsonParser:
 
         identifiers = data['dynamic_data']['cluster_related']['identifiers']
         identifier = get_as_list(identifiers, 'identifier')
-        if type(identifier) != type(list()):  # Fix another 'gotcha'
-            identifier = [identifier]
 
         for entry in identifier:
             type_ = entry['@type']
@@ -882,7 +879,6 @@ class WosJsonParser:
             if '@type' in entry and entry['@type'] == 'item' and '#text' in entry:
                 return entry['#text']
 
-        entry = data['static_data']['summary']['titles']['title']
         raise AirflowException('Schema change detected in title field. Please review.')
 
     @staticmethod
@@ -1060,7 +1056,7 @@ class WosJsonParser:
                     break
             else:
                 org['org_name'] = org_list[0]
-                if type(org['org_name']) != type(str()):
+                if not isinstance(org['org_name'], str):
                     raise AirflowException('Schema parsing error for org.')
 
             if 'suborganizations' in addr['address_spec']:
