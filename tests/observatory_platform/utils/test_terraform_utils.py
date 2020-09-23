@@ -106,21 +106,23 @@ class TestTerraformApi(unittest.TestCase):
         """ Test response codes of successfully creating a workspace and when trying to create a workspace that
         already exists. """
         # first time, successful
-        response_code = self.terraform_api.create_workspace(self.organisation, 'unittest', auto_apply=True,
+        response_code = self.terraform_api.create_workspace(self.organisation, self.workspace+'unittest',
+                                                            auto_apply=True,
                                                             description='test', version="0.13.0-beta3")
         self.assertEqual(response_code, 201)
 
         # second time, workspace already exists
-        response_code = self.terraform_api.create_workspace(self.organisation, 'unittest', auto_apply=True,
+        response_code = self.terraform_api.create_workspace(self.organisation, self.workspace+'unittest',
+                                                            auto_apply=True,
                                                             description='test', version="0.13.0-beta3")
         self.assertEqual(response_code, 422)
 
         # delete workspace
-        response_code = self.terraform_api.delete_workspace(self.organisation, 'unittest')
+        response_code = self.terraform_api.delete_workspace(self.organisation, self.workspace+'unittest')
         self.assertEqual(response_code, 200)
 
         # try to delete non-existing workspace
-        response_code = self.terraform_api.delete_workspace(self.organisation, 'unittest')
+        response_code = self.terraform_api.delete_workspace(self.organisation, self.workspace+'unittest')
         self.assertEqual(response_code, 404)
 
     def test_workspace_id(self):
@@ -310,13 +312,11 @@ class TestTerraformApi(unittest.TestCase):
         print(workspace_id)
         # create run without target
         run_id = self.terraform_api.create_run(workspace_id, target_addrs=None, message="No target")
-        print(run_id)
         # self.assertIsInstance(run_id, str)
 
         # create run with target
         run_id = self.terraform_api.create_run(workspace_id, target_addrs="random_id.random", message="Targeting "
                                                                                                       "random_id")
-        print(run_id)
         # self.assertIsInstance(run_id, str)
 
     def test_get_run_details(self):
