@@ -90,6 +90,7 @@ class ScopusTelescope:
     """ A container for holding the constants and static functions for the SCOPUS telescope."""
 
     DAG_ID = 'scopus'
+    ID_STRING_OFFSET = len(DAG_ID) + 1
     DESCRIPTION = 'SCOPUS: https://www.scopus.com'
     API_SERVER = 'https://api.elsevier.com'
     SCHEDULE_INTERVAL = '@monthly'
