@@ -412,10 +412,9 @@
     "type": "DATE"
   },
   {
-    "description": "Institution ID used to fetch record",
+    "description": "Institution IDs used to fetch record.  This indicates the list of institutions fetched under same key in a OR query, e.g., OG=(Curtin University OR Other authorised institution)",
     "mode": "REPEATED",
     "name": "institution_ids",
     "type": "STRING"
   }
-
 ]
