@@ -189,10 +189,17 @@ class ScopusTelescope:
         # Push release information for other tasks
         scopus_inst_id = get_as_list(extra_dict, 'id')
         release = ScopusRelease(inst_id=kwargs['institution'], scopus_inst_id=scopus_inst_id,
-                             release_date=kwargs['execution_date'].date(),
-                             dag_start=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
-                             download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
-                             data_location=data_location, schema_ver=ScopusTelescope.SCHEMA_VER)
+                                release_date=kwargs['execution_date'].date(),
+                                dag_start=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
+                                download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
+                                data_location=data_location, schema_ver=ScopusTelescope.SCHEMA_VER)
+
+        logging.info(
+            f'ScopusRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: ' +
+            f'{release.transform_bucket_name}, data_location: {release.data_location}')
+
+        ti: TaskInstance = kwargs['ti']
+        ti.xcom_push(ScopusTelescope.XCOM_RELEASES, release)
 
     @staticmethod
     def check_api_server(**kwargs):
@@ -494,7 +501,6 @@ def list_connections(source):
         return query.all()
 
 
-
 def build_schedule(sched_start_date, sched_end_date):
     """ Useful for API based data sources.
     Create a fetch schedule to specify what date ranges to use for each API call. Will default to once a month
@@ -663,6 +669,7 @@ def zip_files(file_list: List[str]):
                 shutil.copyfileobj(f_in, f_out)
 
     return zip_list
+
 
 def get_as_list(base: dict, target):
     """ Helper function that returns the target as a list.
