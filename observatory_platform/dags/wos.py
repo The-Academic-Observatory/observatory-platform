@@ -40,7 +40,7 @@ def subdag_factory(parent_dag_id, connection, args):
     :return: DAG object.
     """
 
-    institution = str(connection)[4:]
+    institution = str(connection)[WosTelescope.ID_STRING_OFFSET:]
     logging.info(f'Spawning ETL subdag for: {institution}')
 
     subdag = DAG(
@@ -140,10 +140,10 @@ with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INT
 
     # Spawn a subdag to handle ETL for each institution
     subdags = list()
-    conns = list_connections('wos')
+    conns = list_connections(WosTelescope.DAG_ID)
     for conn in conns:
         subdag = SubDagOperator(
-            task_id=str(conn)[4:],
+            task_id=str(conn)[WosTelescope.ID_STRING_OFFSET:],
             subdag=subdag_factory(WosTelescope.DAG_ID, conn, default_args),
             default_args=default_args,
             dag=dag

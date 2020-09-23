@@ -157,7 +157,7 @@ class WosUtility:
          """
 
         timestamp = pendulum.datetime.now().isoformat()
-        inst_str = conn[4:]
+        inst_str = conn[WosTelescope.ID_STRING_OFFSET:]
         save_file_prefix = os.path.join(download_path, period[0].isoformat(), inst_str, timestamp)
         query = WosUtility.build_query(wos_inst_id, period)
         result = WosUtility.make_query(client, query)
@@ -346,6 +346,7 @@ class WosTelescope:
     """ A container for holding the constants and static functions for the Web of Science telescope."""
 
     DAG_ID = 'wos'
+    ID_STRING_OFFSET = len(DAG_ID) + 1
     DESCRIPTION = 'Web of Science: https://www.clarivate.com/webofsciencegroup'
     SCHEDULE_INTERVAL = '@monthly'
     QUEUE = 'remote_queue'
