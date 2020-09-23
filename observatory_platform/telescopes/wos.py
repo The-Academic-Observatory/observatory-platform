@@ -364,7 +364,6 @@ class WosTelescope:
     TASK_ID_UPLOAD_TRANSFORMED = 'upload_transformed'
     TASK_ID_BQ_LOAD = 'bq_load'
     TASK_ID_CLEANUP = 'cleanup'
-    TASK_ID_STOP = 'stop_dag'
 
     XCOM_RELEASES = 'releases'
     XCOM_DOWNLOAD_PATH = 'download_path'
