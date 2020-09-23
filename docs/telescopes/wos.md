@@ -1,6 +1,6 @@
 # WOS (Web of science)
 
-It will follow general ETL design pattern of the other DAGs.  SubDAGs will be used for each step requiring per institution handling. SubDAGs might be taskgroups in the future once Airflow 2.0 lands.
+It will follow general ETL design pattern of the other DAGs.  SubDAGs will be used for handling ETL for each institution. SubDAGs might be taskgroups in the future once Airflow 2.0 lands.
 
 The DAG will check for any connection id entries for institutions where we want to pull.  Each institution must have access credentials, and entries will be pulled from the specified start date in the connection id to the start date of the dag.
 
@@ -25,24 +25,45 @@ wos_curtin
 ```
 username: for the institution
 password: for the institution
-start_date:  Python pendulum or datetime parseable date string
 ```
 
+In the extras field, a json compatible string with ```start_date, id```, where ```start_date``` is a Pendulum parsable date string, and ```id``` is a WoS searchable institution id, or list of ids (if there is more than one institution). For example,
+
+```
+{
+  "start_date" : "2020-09-01",
+  "id" : ["Curtin University", "Some other valid institution id"]
+}
+```
+or
+```
+{
+  "start_date" : "2020-09-01",
+  "id" : "Curtin University"
+}
+```
 
 ## DAG flow
+For each subdag: ```check_api_server >> subdag```
+
+Within each subdag:
 ```
-check_airflow >> check_source_server >> download_data >> upload_raw_data >> transform_data >> upload_transformed_data >> bq_load >> cleanup
+check_dependencies >> download >> upload_downloaded >> transform_xml_to_json >> transform_db_format >> upload_transformed >> bq_load >> cleanup
 ```
 
 
-## check_airflow [maybe this can be skipped]
+## check_api_server
 
 See if http://scientific.thomsonreuters.com is contactable.
 
 
+## check_dependencies
+
+Airflow configuration check.
+
 ## download_data
 
-This will be a subDAG to handle institution downloads separately. It will pull the full record from the specified start date in the connection id, to the start date of the DAG. This will be chunked into monthly blocks.  Some throttling and retry mechanisms will be baked into the code to obey the following limits.
+Downloads the data. Currently it will make API calls for each month of data. Extendible to have finer control. Throttling and retry limits will be more conservative than the WoS limits.  See WosTelescope and helper classes for more details.
 
 ***Obey the bandwidth limits:***
 
@@ -54,25 +75,30 @@ New session creation: 5 per 5-min period.
   * Max records retrievable in period: licence dependent. Unclear what Curtin’s limit is if any.
 
 
-## transform_data
+## upload_downloaded
 
-Transform list of json into jsonlines and gzip the data.
+Upload gzipped xml data.
 
+## transform_xml_to_json
 
-## upload_transformed_data
+Transform xml to json.
+
+## transform_db_format
+
+Transform json into schema compatible format, and convert to jsonlines.
+
+## upload_transformed
 
 Upload jsonlines data.
-
 
 ## bq_load
 
 Load the entries into BigQuery.
 
-
 ## cleanup
 
 Do any necessary cleanup/deletion.
 
-## Database schema
+# Database schema
 
 Refer to docs/datasets/provider_wos for schema information.
