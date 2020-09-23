@@ -90,13 +90,14 @@ class ScopusTelescope:
     """ A container for holding the constants and static functions for the SCOPUS telescope."""
 
     DAG_ID = 'scopus'
-    SUBDAG_ID_DOWNLOAD = 'download'
     DESCRIPTION = 'SCOPUS: https://www.scopus.com'
     API_SERVER = 'https://api.elsevier.com'
     SCHEDULE_INTERVAL = '@monthly'
-    RELEASES_TOPIC_NAME = 'releases'
     QUEUE = 'remote_queue'
     RETRIES = 3
+    DATASET_ID = 'elsevier'
+    SCHEMA_PATH = 'telescopes'
+    TABLE_NAME = DAG_ID
 
     TASK_ID_CHECK_DEPENDENCIES = 'check_dependencies'
     TASK_CHECK_API_SERVER = 'check_api_server'
@@ -106,16 +107,17 @@ class ScopusTelescope:
     TASK_ID_UPLOAD_TRANSFORMED = 'upload_transformed'
     TASK_ID_BQ_LOAD = 'bq_load'
     TASK_ID_CLEANUP = 'cleanup'
-    TASK_ID_STOP = 'stop_dag'
 
+    XCOM_RELEASES = 'releases'
     XCOM_DOWNLOAD_PATH = 'download_path'
     XCOM_UPLOAD_ZIP_PATH = 'download_zip_path'
-    XCOM_HARVEST_DATETIME = 'harvest_datetime'
+    XCOM_JSON_PATH = 'json_path'
+    XCOM_JSON_HARVEST = 'json_harvest'
     XCOM_JSONL_PATH = 'jsonl_path'
     XCOM_JSONL_ZIP_PATH = 'jsonl_zip_path'
     XCOM_JSONL_BLOB_PATH = 'jsonl_blob_path'
 
-    DOWNLOAD_MODE = 'parallel'  # Valid options: ['sequential', 'parallel']
+    DOWNLOAD_MODE = 'sequential'  # Valid options: ['sequential', 'parallel']
 
     @staticmethod
     def check_dependencies(**kwargs):
