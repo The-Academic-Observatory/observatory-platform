@@ -269,10 +269,11 @@ class TerraformApi:
         else:
             logging.error(f"Response status: {response.status_code}")
             logging.error(f"Unsuccessful creating run, response: {response.text}")
-            exit(os.EX_CONFIG)
+            return response.text
+            # exit(os.EX_CONFIG)
 
         run_id = json.loads(response.text)['data']['id']
-        return run_id
+        return response.text
 
     def get_run_details(self, run_id: str) -> dict:
         """
