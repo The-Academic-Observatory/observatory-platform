@@ -25,7 +25,7 @@ import xmltodict
 
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from google.cloud.bigquery import SourceFormat
+from google.cloud.bigquery import SourceFormat, WriteDisposition
 from math import ceil
 from ratelimit import limits, sleep_and_retry
 from suds import WebFault
@@ -675,7 +675,8 @@ class WosTelescope:
             logging.info(f"URI: {uri}")
 
             load_bigquery_table(uri, WosTelescope.DATASET_ID, release.data_location, table_id, schema_file_path,
-                                SourceFormat.NEWLINE_DELIMITED_JSON)
+                                SourceFormat.NEWLINE_DELIMITED_JSON,
+                                write_disposition=WriteDisposition.WRITE_APPEND)
 
     @staticmethod
     def cleanup(**kwargs):
