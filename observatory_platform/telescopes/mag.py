@@ -29,7 +29,6 @@ from typing import List
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud import storage
 from google.cloud.bigquery import SourceFormat
@@ -38,6 +37,7 @@ from mag_archiver.mag import MagArchiverClient, MagDateType, MagRelease, MagStat
 from natsort import natsorted
 from pendulum import Pendulum
 
+from observatory_platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory_platform.utils.config_utils import (AirflowConn,
                                                      AirflowVar,
                                                      SubFolder,

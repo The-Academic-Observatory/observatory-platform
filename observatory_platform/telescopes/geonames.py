@@ -26,11 +26,11 @@ from zipfile import ZipFile
 import pendulum
 import requests
 from airflow.exceptions import AirflowException
-from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
+from observatory_platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory_platform.utils.config_utils import AirflowVar, SubFolder, find_schema, schema_path, telescope_path
 from observatory_platform.utils.config_utils import check_variables
 from observatory_platform.utils.data_utils import get_file

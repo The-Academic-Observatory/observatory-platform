@@ -30,12 +30,23 @@ build {
   # let you exclude files. Don't want folders e.g. venv or secrets to be uploaded.
   provisioner "shell" {
     inline = [
-      "mkdir -p /tmp/observatory-platform/docs"]
+      "mkdir -p /tmp/observatory-platform/docs",
+      "mkdir -p /tmp/observatory-platform/terraform"]
   }
 
   provisioner "file" {
     source = "observatory_platform"
     destination = "/tmp/observatory-platform"
+  }
+
+  provisioner "file" {
+    source = "terraform/variables.tf"
+    destination = "/tmp/observatory-platform/terraform/variables.tf"
+  }
+
+  provisioner "file" {
+    source = "terraform/__init__.py"
+    destination = "/tmp/observatory-platform/terraform/__init__.py"
   }
 
   provisioner "file" {

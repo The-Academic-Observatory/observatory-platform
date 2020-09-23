@@ -3,7 +3,7 @@ Licenses of third party code included in this project are documented in this fil
 The below files are included from https://github.com/keras-team/keras and have the following license:
 
 - observatory_platform/utils/data_utils.py
-- observatory_platform/utils/generic_utils.py
+- observatory_platform/utils/progbar_utils.py
 
 # COPYRIGHT
 #

@@ -13,3 +13,4 @@ config.yaml
 .terraform/**
 .coverage
 coverage.xml
+config_terraform.yaml
