@@ -1,4 +1,3 @@
-# Normal Variables
 variable "project_id" {
   description = "The Google Cloud project identifier"
   type = string
@@ -93,7 +92,6 @@ variable "airflow_worker_create"{
   default = false
 }
 
-# Airflow secret variables
 variable "airflow_secrets"{
   description = <<EOF
 fernet_key: The fernet key which is used to encrypt the secrets in the airflow database.

@@ -457,12 +457,6 @@ data "google_compute_image" "ao_image" {
   depends_on = [google_project_service.compute_engine]
 }
 
-//resource "google_project_iam_member" "secret_member" {
-//  project = var.project_id
-//  role = "roles/secretmanager.secretAccessor"
-//  member = "serviceAccount:${google_service_account.ao_service_account.email}"
-//}
-
 module "airflow_main_vm" {
   source = "./vm"
   name = "airflow-main-vm"
@@ -482,7 +476,6 @@ module "airflow_main_vm" {
   service_account_email = local.compute_service_account_email
   startup_script_path = "./startup-main.tpl"
   metadata_variables = local.metadata_variables
-//  airflow_variables = local.airflow_variables
 }
 
 ########################################################################################################################
@@ -504,5 +497,4 @@ module "airflow_worker_vm" {
   service_account_email = local.compute_service_account_email
   startup_script_path = "./startup-worker.tpl"
   metadata_variables = local.metadata_variables
-//  airflow_variables = local.airflow_variables
 }
