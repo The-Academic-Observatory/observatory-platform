@@ -346,6 +346,21 @@ class ScopusUtility:
 class ScopusJsonParser:
     """ Helper methods to process the json from SCOPUS into desired structure. """
 
+    def get_affiliations(self, data):
+        """ Get the affiliation field. """
+
+        affiliations = list()
+        if 'affiliation' not in data:
+            return affiliations
+
+        for affiliation in data['affiliations']:
+            affil = dict()
+            affil['name'] = get_entry_or_none(affiliation, 'affilname')
+            affil['city'] = get_entry_or_none(affiliation, 'affiliation-city')
+            affil['country'] = get_entry_or_none(affiliation, 'affiliation-country')
+            affiliations.append(affil)
+
+        return affiliations
 
     @staticmethod
     def parse_json(data: dict, harvest_datetime: str, release_date: str) -> dict:
@@ -356,6 +371,42 @@ class ScopusJsonParser:
         :param release_date: DAG execution date.
         :return: dict of data in right field format.
         """
+
+        entry = dict()
+        entry['title'] = get_entry_or_none(data, 'dc:title')
+        entry['identifier'] = get_entry_or_none(data, 'dc:identifier')
+        entry['creator'] = get_entry_or_none(data, 'dc:creator')
+        entry['publication_name'] = get_entry_or_none(data, 'prism:publicationName')
+        entry['cover_date'] = get_entry_or_none(data, 'prism:coverDate')
+        entry['doi'] = get_entry_or_none(data, 'prism:doi')
+        entry['eissn'] = get_entry_or_none(data, 'prism:eIssn')
+        entry['issn'] = get_entry_or_none(data, 'prism:issn')
+        entry['aggregation_type'] = get_entry_or_none(data, 'prism:aggregationType')
+        entry['pubmed-id'] = get_entry_or_none(data, 'pubmed-id')
+        entry['pii'] = get_entry_or_none(data, 'pii')
+        entry['eid'] = get_entry_or_none(data, 'eid')
+        entry['subtype_description'] = get_entry_or_none(data, 'subtypeDescription')
+        entry['open_access'] = get_entry_or_none(data, 'openaccess')
+        entry['open_access_flag'] = get_entry_or_none(data, 'openaccessFlag')
+        entry['citedby_count'] = get_entry_or_none(data, 'citedby-count')
+        entry['source-id'] = get_entry_or_none(data, 'source-id')
+        entry['affiliations'] = ScopusJsonParser.get_affiliations(data)
+        return entry
+
+
+################################
+# Put in telescope_utils maybe
+
+def get_entry_or_none(base: dict, target):
+    """ Helper function that returns an entry or None if key is missing.
+    :param base: dictionary to query.
+    :param target: target key.
+    :return: entry or None.
+    """
+
+    if target not in base:
+        return None
+    return base[target]
 
 
 ################################
