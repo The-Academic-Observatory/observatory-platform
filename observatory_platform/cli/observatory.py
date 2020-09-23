@@ -25,6 +25,7 @@ import urllib.request
 from subprocess import Popen
 
 import click
+import json
 import docker
 import requests
 from cryptography.fernet import Fernet
@@ -34,8 +35,10 @@ from observatory_platform.utils.config_utils import AirflowVar, \
     observatory_home, \
     observatory_package_path, \
     dags_path as default_dags_path, \
-    ObservatoryConfig
-from observatory_platform.utils.proc_utils import wait_for_process
+    ObservatoryConfig, \
+    terraform_credentials_path as default_terraform_credentials_path
+from observatory_platform.utils.proc_utils import wait_for_process, stream_process
+from observatory_platform.utils.terraform_utils import TerraformApi
 
 
 @click.group()
@@ -59,47 +62,68 @@ def gen_fernet_key() -> str:
     return Fernet.generate_key().decode()
 
 
-def gen_config_interface():
-    """ Command line user interface for generating config.yaml
+def gen_config_interface(backend: str, terraform_variables_path: str = ObservatoryConfig.TERRAFORM_VARIABLES_PATH):
+    """
+    Command line user interface for generating config.yaml
 
-    :return: None.
+    :param backend: Which type of config file, either 'local' or 'terraform'.
+    :param terraform_variables_path: Path to the terraform variables.tf file.
+    :return: None
     """
 
     print("Generating config.yaml...")
-    config = ObservatoryConfig.make_default()
-    config_path = ObservatoryConfig.HOST_DEFAULT_PATH
+    if backend == 'local':
+        config_path = ObservatoryConfig.LOCAL_DEFAULT_PATH
+        terraform_variables_path = None
+    else:
+        config_path = ObservatoryConfig.TERRAFORM_DEFAULT_PATH
+        print(f"- Terraform variables.tf path: {terraform_variables_path}")
 
     if not os.path.exists(config_path) or click.confirm(f'The file "{config_path}" exists, do you want to '
                                                         f'overwrite it?'):
-        config.save(config_path)
+        ObservatoryConfig.save_default(backend, config_path, terraform_variables_path)
         print(f'config.yaml saved to: "{config_path}"')
-        print(f'Please customise the following parameters in config.yaml:')
-        params = config.to_dict()
-        for key, val in params.items():
-            if val is None:
-                print(f'  - {key}')
-            if type(val) is dict:
-                for val_key, val_val in val.items():
-                    if val_val is None:
-                        print(f'  - {val_key}')
+        print(f"Please customise the parameters with '<--' in the config file. Parameters with '#' are optional.")
     else:
         print("Not generating config.yaml")
 
 
-@cli.command()
-@click.argument('command', type=click.Choice(['fernet-key', 'config.yaml']))
-def generate(command):
+class OptionRequiredIfTerraform(click.Option):
+    """ Make variables.tf file required when generating config file for terraform. """
+    def full_process_value(self, ctx, value):
+        value = super(OptionRequiredIfTerraform, self).full_process_value(ctx, value)
+
+        if value is None and ctx.params['command'] == 'config_terraform.yaml':
+            msg = 'Terraform variables.tf file required if command is "config_terraform.yaml"'
+            raise click.MissingParameter(ctx=ctx, param=self, message=msg)
+        return value
+
+
+# increase content width for cleaner help output
+@cli.command(context_settings=dict(max_content_width=120))
+@click.argument('command',
+                type=click.Choice(['fernet-key', 'config.yaml', 'config_terraform.yaml']))
+@click.option('--terraform-variables-path',
+              type=click.Path(exists=True, file_okay=True, dir_okay=False),
+              default=ObservatoryConfig.TERRAFORM_VARIABLES_PATH,
+              cls=OptionRequiredIfTerraform,
+              help='Terraform variables.tf file.',
+              show_default=True)
+def generate(command, terraform_variables_path):
     """ Generate information for the Observatory Platform platform.\n
 
     COMMAND: the command to give the generator:\n
       - fernet-key: generate a fernet key.\n
       - config.yaml: generate a config.yaml file.\n
+      - config_terraform.yaml: generate a config_terraform.yaml file.\n
     """
 
     if command == 'fernet-key':
         print(gen_fernet_key())
     elif command == 'config.yaml':
-        gen_config_interface()
+        gen_config_interface('local')
+    elif command == 'config_terraform.yaml':
+        gen_config_interface('terraform', terraform_variables_path)
 
 
 def get_docker_path() -> str:
@@ -151,6 +175,7 @@ def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, 
     """
 
     env = os.environ.copy()
+    config = config.local
 
     # Host settings
     env['HOST_USER_ID'] = str(host_uid)
@@ -211,6 +236,7 @@ def indent(string: str, num_spaces: int) -> str:
 
 
 def build_compose_files(working_dir: str):
+    """ Concatenate the docker compose files and store output in pipe. """
     return subprocess.Popen(['cat', 'docker-compose.local.yml', 'docker-compose.observatory.yml'],
                             stdout=subprocess.PIPE, cwd=working_dir)
 
@@ -220,7 +246,7 @@ def build_compose_files(working_dir: str):
                 type=click.Choice(['start', 'stop']))
 @click.option('--config-path',
               type=click.Path(exists=False, file_okay=True, dir_okay=False),
-              default=ObservatoryConfig.HOST_DEFAULT_PATH,
+              default=ObservatoryConfig.LOCAL_DEFAULT_PATH,
               help='The path to the config.yaml configuration file.',
               show_default=True)
 @click.option('--dags-path',
@@ -279,10 +305,12 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
     docker_compose_path = get_docker_compose_path()
     docker_running = is_docker_running()
     config_exists = os.path.exists(config_path)
-    config = ObservatoryConfig.load(config_path)
     config_is_valid = False
-    if config is not None:
-        config_is_valid = config.is_valid
+    config = None
+    if config_exists:
+        config = ObservatoryConfig(config_path)
+        if config is not None:
+            config_is_valid = config.is_valid
 
     # Check that all dependencies are met
     all_deps = all([docker_path is not None,
@@ -346,7 +374,7 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
                         print(indent('- {}: {}'.format(key, *values), indent3))
     else:
         print(indent("- file not found, generating a default file", indent2))
-        gen_config_interface()
+        gen_config_interface('local')
 
     if not all_deps:
         exit(os.EX_CONFIG)
@@ -372,16 +400,12 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
         cat_proc = build_compose_files(package_path)
         proc: Popen = subprocess.Popen(compose_args + ['build'], stdin=cat_proc.stdout, stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE, env=env, cwd=package_path)
-        output, error = wait_for_process(proc)
-
-        if debug:
-            print(output)
+        output, error = stream_process(proc, debug)
 
         if proc.returncode == 0:
             print('Observatory Platform: built'.ljust(min_line_chars))
         else:
             print('Observatory Platform: build error'.ljust(min_line_chars))
-            print(error)
             exit(os.EX_CONFIG)
 
         # Start the built containers
@@ -389,10 +413,7 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
         cat_proc = build_compose_files(package_path)
         proc: Popen = subprocess.Popen(compose_args + ['up', '-d'], stdin=cat_proc.stdout, stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE, env=env, cwd=package_path)
-        output, error = wait_for_process(proc)
-
-        if debug:
-            print(output)
+        output, error = stream_process(proc, debug)
 
         if proc.returncode == 0:
             ui_url = f'http://localhost:8080'
@@ -406,7 +427,6 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
                 print(f'Could not find the Airflow UI at {ui_url}')
         else:
             print("Error starting the Observatory Platform")
-            print(error)
             exit(os.EX_CONFIG)
 
     elif command == 'stop':
@@ -426,6 +446,222 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
             print(error)
             exit(os.EX_CONFIG)
     exit(os.EX_OK)
+
+
+def create_terraform_variables(config: ObservatoryConfig) -> list:
+    """
+    Create a list of variable attributes from variables defined in the config file
+    :param config: the config object
+    :return: terraform variables
+    """
+    terraform_variables = []
+    for variable, value in config.dict.items():
+        hcl = False
+        # terraform uses lowercase bool values
+        if isinstance(value, bool):
+            value = str(value).lower()
+        # turn python dict into hcl syntax dict
+        elif isinstance(value, dict):
+            value = json.dumps(value, separators=(',', '='))
+            hcl = True
+        # if value is a local path that exists, use the content of this file instead of the literal path string
+        elif os.path.exists(str(value)):
+            lines = ''
+            with open(value, 'r') as file:
+                for line in file:
+                    lines += line
+            value = lines
+        # add description if available
+        try:
+            description = config.schema[variable]['meta']['description']
+        except KeyError:
+            description = None
+        # whether variable should be marked as sensitive in terraform cloud
+        sensitive = True if variable in config.sensitive_variables else False
+
+        # create variable attributes dict
+        terraform_variable = TerraformApi.create_var_attributes(variable, value, category='terraform',
+                                                                description=description, hcl=hcl, sensitive=sensitive)
+        terraform_variables.append(terraform_variable)
+    return terraform_variables
+
+
+# increase content width for cleaner help output
+@cli.command(context_settings=dict(max_content_width=120))
+@click.argument('command',
+                type=click.Choice(['create-workspace', 'update-workspace']))
+# The path to the config_terraform.yaml configuration file.
+@click.argument('config-path',
+                type=click.Path(exists=True, file_okay=True, dir_okay=False),
+                )
+@click.option('--terraform-variables-path',
+              type=click.Path(exists=False, file_okay=True, dir_okay=False),
+              default=ObservatoryConfig.TERRAFORM_VARIABLES_PATH,
+              help='Terraform variables.tf file',
+              show_default=True)
+@click.option('--terraform-credentials-file',
+              type=click.Path(exists=False, file_okay=True, dir_okay=False),
+              default=default_terraform_credentials_path(),
+              help='',
+              show_default=True)
+@click.option('-v', '--verbose',
+              count=True,
+              help='Set the verbosity level of terraform API (max -vv).')
+def terraform(command, config_path, terraform_variables_path, terraform_credentials_file, verbose):
+    """
+    Uses file at CONFIG_PATH to create or update a workspace in Terraform Cloud.
+    A default config file can be created with `observatory generate config_terraform.yaml`
+    """
+    # The minimum number of characters per line
+    min_line_chars = 80
+
+    ######################
+    # Check dependencies #
+    ######################
+
+    print("Observatory Terraform: checking dependencies...".ljust(min_line_chars), end='\r')
+
+    # Get all dependencies
+    config_exists = os.path.exists(config_path)
+    terraform_variables_exists = os.path.exists(terraform_variables_path)
+    terraform_credentials_exists = os.path.exists(terraform_credentials_file)
+    config_is_valid = False
+    config = None
+    if terraform_variables_exists:
+        config = ObservatoryConfig(config_path, terraform_variables_path)
+        if config is not None:
+            config_is_valid = config.is_valid
+
+    # Check that all dependencies are met
+    all_deps = all(
+        [config_exists, terraform_variables_exists,
+         terraform_credentials_exists, config_is_valid, config is not None])
+
+    # Indentation variables
+    indent1 = 2
+    indent2 = 3
+    indent3 = 4
+
+    if not all_deps:
+        print("Observatory Terraform: dependencies missing".ljust(min_line_chars))
+    else:
+        print("Observatory Terraform: all dependencies found".ljust(min_line_chars))
+
+    print(indent("Terraform variables.tf file:", indent1))
+    if terraform_variables_exists:
+        print(indent(f"- path: {terraform_variables_path}", indent2))
+    else:
+        print(indent("- file not found, check path to your variables file", indent2))
+
+    print(indent("Config:", indent1))
+    if config_exists:
+        print(indent(f"- path: {config_path}", indent2))
+
+        if not terraform_variables_exists:
+            print(indent("- need terraform variables file to determine whether file is valid", indent2))
+        elif config.is_valid:
+            print(indent("- file valid", indent2))
+        else:
+            print(indent("- file invalid", indent2))
+            for key, value in config.validator.errors.items():
+                print(indent(f'- {key}: {value}', indent3))
+    else:
+        if not terraform_variables_exists:
+            print(indent("- file not found, need terraform variables.tf file to generate default config", indent2))
+        else:
+            print(indent("- file not found, generating a default file", indent2))
+            gen_config_interface('terraform', terraform_variables_path)
+
+    print(indent("Terraform credentials file:", indent1))
+    if terraform_credentials_exists:
+        print(indent(f"- path: {terraform_credentials_file}", indent2))
+    else:
+        print(indent("- file not found, create one by running 'terraform login'", indent2))
+
+    if not all_deps:
+        exit(os.EX_CONFIG)
+
+    ####################
+    # Create Workspace #
+    ####################
+
+    # Get terraform token
+    token = TerraformApi.token_from_file(terraform_credentials_file)
+    terraform_api = TerraformApi(token, verbose)
+
+    # Get variables
+    terraform_variables = create_terraform_variables(config)
+
+    # Get environment and prefix
+    prefix = config.terraform.backend['terraform']['workspaces_prefix']
+    environment = config.terraform.environment
+
+    # Get organization, use with api
+    organization = config.terraform.backend['terraform']['organization']
+
+    workspace = prefix + environment
+
+    # display settings for workspace
+    print('\nTerraform Cloud Workspace: ')
+    print(indent(f'Organization: {organization}', indent1))
+    print(indent(f"- Name: {workspace} (prefix: '{prefix}' + suffix: '{environment}')", indent1))
+    print(indent(f'- Settings: ', indent1))
+    print(indent(f'- Auto apply: True', indent2))
+    print(indent(f'- Terraform Cloud Version: 0.13.0-beta3', indent2))
+    print(indent(f'- Terraform Variables:', indent1))
+    # creating a new workspace
+    if command == 'create-workspace':
+        for variable in terraform_variables:
+            if variable['sensitive'] == 'true':
+                print(indent(f"* \x1B[3m{variable['key']}\x1B[23m: sensitive", indent2))
+            else:
+                print(indent(f"* \x1B[3m{variable['key']}\x1B[23m: {variable['value']}", indent2))
+        # confirm creating workspace
+        if click.confirm("Would you like to create a new workspace with these settings?"):
+            print("Creating workspace...")
+            # Create new workspace
+            terraform_api.create_workspace(organization, workspace, auto_apply=True,
+                                           description="")
+            # Get workspace ID
+            workspace_id = terraform_api.workspace_id(organization, workspace)
+
+            # Add variables to workspace
+            for var in terraform_variables:
+                terraform_api.add_workspace_variable(var, workspace_id)
+            print('Successfully created workspace')
+    # updating an existing workspace
+    elif command == 'update-workspace':
+        # Get workspace ID
+        workspace_id = terraform_api.workspace_id(organization, workspace)
+        add, edit, unchanged, delete = terraform_api.plan_variable_changes(terraform_variables, workspace_id)
+        if add:
+            print(indent(f'NEW', indent1))
+            for variable in add:
+                print(indent(f"* \x1B[3m{variable['key']}\x1B[23m: {variable['value']}", indent2))
+        if edit:
+            print(indent(f'UPDATE', indent1))
+            for variable in edit:
+                if variable[0]['sensitive'] == 'true':
+                    print(indent(f"* \x1B[3m{variable[0]['key']}\x1B[23m: {variable[2]} -> sensitive", indent2))
+                else:
+                    print(
+                        indent(f"* \x1B[3m{variable[0]['key']}\x1B[23m: {variable[2]} -> {variable[0]['value']}",
+                               indent2))
+        if delete:
+            print(indent(f'DELETE', indent1))
+            for variable in delete:
+                print(indent(f"* \x1B[3m{variable[0]}\x1B[23m: {variable[2]}", indent2))
+        if unchanged:
+            print(indent(f'UNCHANGED', indent1))
+            for variable in unchanged:
+                print(indent(f"* \x1B[3m{variable['key']}\x1B[23m: {variable['value']}", indent2))
+
+        # confirm creating workspace
+        if click.confirm("Would you like to update the workspace with these settings?"):
+            print("Updating workspace...")
+            # Update variables in workspace
+            terraform_api.update_workspace_variables(add, edit, delete, workspace_id)
+            print('Successfully updated workspace')
 
 
 if __name__ == "__main__":

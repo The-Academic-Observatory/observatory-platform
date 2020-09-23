@@ -65,7 +65,7 @@ try:
 except ImportError:
     import Queue as queue
 
-from observatory_platform.utils.generic_utils import Progbar
+from observatory_platform.utils.progbar_utils import Progbar
 
 if sys.version_info[0] == 2:
     def urlretrieve(url, filename, reporthook=None, data=None):

@@ -1,5 +1,3 @@
-
-
 variable "secret_id" {
   type = string
   description = "The id of the Google Secret Manager secret."

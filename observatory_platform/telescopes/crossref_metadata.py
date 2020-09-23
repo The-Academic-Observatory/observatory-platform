@@ -30,11 +30,11 @@ import pendulum
 import requests
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from natsort import natsorted
 
+from observatory_platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory_platform.utils.config_utils import (AirflowConn,
                                                      AirflowVar,
                                                      SubFolder,
