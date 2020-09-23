@@ -258,7 +258,9 @@ class TestWosParse(unittest.TestCase):
 
         self.assertEqual(len(self.data), 429)
         entry = self.data[0]
-        entry = WosJsonParser.parse_json(entry, self.harvest_datetime, self.release_date)
+
+        wos_inst_id = ['Curtin University']
+        entry = WosJsonParser.parse_json(entry, self.harvest_datetime, self.release_date, wos_inst_id)
         self.assertEqual(entry['harvest_datetime'], self.harvest_datetime)
         self.assertEqual(entry['release_date'], self.release_date)
         self.assertEqual(entry['identifiers']['uid'], 'WOS:000471362100020')
@@ -311,7 +313,8 @@ class TestWos(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             with vcr.use_cassette(self.wos_2019_07_01_path):
                 dag_start = pendulum.date(2019, 7, 31)
-                files = WosUtility.download_wos_snapshot('.', self.conn, dag_start, 'sequential')
+                wos_inst_id = ['Curtin University']
+                files = WosUtility.download_wos_snapshot('.', self.conn, wos_inst_id, dag_start, 'sequential')
                 # Check that returned downloads has correct length
                 self.assertEqual(5, len(files))
 
@@ -328,7 +331,8 @@ class TestWos(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             with vcr.use_cassette(self.wos_2019_07_01_path):
                 dag_start = pendulum.date(2019, 7, 31)
-                files = WosUtility.download_wos_snapshot('.', self.conn, dag_start, 'sequential')
+                wos_inst_id = ['Curtin University']
+                files = WosUtility.download_wos_snapshot('.', self.conn, wos_inst_id, dag_start, 'sequential')
                 json_file_list, _ = write_xml_to_json('.', '2020-09-01', 'institute', files, WosUtility.parse_query)
                 self.assertEqual(len(files), len(json_file_list))
                 json_file = json_file_list[0]
