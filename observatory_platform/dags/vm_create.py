@@ -24,11 +24,11 @@ from observatory_platform.telescopes.terraform import TerraformTelescope
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2020, 1, 1)
+    "start_date": datetime(2020, 7, 1)
 }
 
 
-with DAG(dag_id=TerraformTelescope.DAG_ID_CREATE_VM, schedule_interval=None, default_args=default_args,
+with DAG(dag_id=TerraformTelescope.DAG_ID_CREATE_VM, schedule_interval="@weekly", default_args=default_args,
          catchup=False, max_active_runs=1) as dag:
     # Check that dependencies exist before starting
     check = PythonOperator(
