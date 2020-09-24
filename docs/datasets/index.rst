@@ -8,5 +8,6 @@ Datasets
     provider_grid/index
     provider_mag/index
     provider_unpaywall/index
+    provider_wos/index
 
 
