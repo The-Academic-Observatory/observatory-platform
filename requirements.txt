@@ -35,3 +35,5 @@ ratelimit==2.2.*
 wos==0.2.*
 backoff==1.10.*
 oauth2client==1.5.2
+importlib-metadata==1.7.*
+
