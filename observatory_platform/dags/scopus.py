@@ -24,24 +24,7 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
 
 from observatory_platform.telescopes.scopus import ScopusTelescope
-# from observatory_platform.utils.config_utils import list_connections
-
-# Remove later when WoS branch merges.
-from airflow.utils.db import create_session
-from airflow.models import Connection
-
-
-def list_connections(source):
-    """Get a list of data source connections with name starting with <source>_, e.g., scopus_curtin.
-
-    :param source: Data source (conforming to name convention) as a string, e.g., 'scopus'.
-    :return: A list of connection id strings with the prefix <source>_, e.g., ['scopus_curtin', 'scopus_auckland'].
-    """
-    with create_session() as session:
-        query = session.query(Connection)
-        query = query.filter(Connection.conn_id.like(f'{source}_%'))
-        return query.all()
-
+from observatory_platform.utils.config_utils import list_connections
 
 default_args = {'owner': 'airflow',
                 'start_date': datetime(2018, 1, 1),
