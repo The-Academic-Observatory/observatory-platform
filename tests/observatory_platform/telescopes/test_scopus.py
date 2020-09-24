@@ -27,22 +27,13 @@ from click.testing import CliRunner
 from unittest.mock import patch
 
 from observatory_platform.telescopes.scopus import (
-    ScopusRelease
+    ScopusRelease,
+    ScopusUtility,
 )
 
 
 class TestScopusRelease(unittest.TestCase):
     """ Test the ScopusRelease class. """
-
-    # def __init__(self, *args, **kwargs):
-    #     """ Constructor which sets up variables used by tests.
-    #
-    #     :param args: arguments.
-    #     :param kwargs: keyword arguments.
-    #     """
-    #
-    #     super(TestScopusRelease, self).__init__(*args, **kwargs)
-
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get', return_value='teletest')
     def test_init(self, tele):
@@ -53,7 +44,6 @@ class TestScopusRelease(unittest.TestCase):
                             dag_start=pendulum.date(2000, 1, 1), project_id='project_id',
                             download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
                             data_location='data_location', schema_ver='schema_ver')
-
 
         self.assertEqual(obj.inst_id, 'inst_id')
         self.assertEqual(obj.scopus_inst_id[0], 'scopus_inst_id')
@@ -68,6 +58,21 @@ class TestScopusRelease(unittest.TestCase):
         self.assertEqual(obj.data_location, 'data_location')
         self.assertEqual(obj.schema_ver, 'schema_ver')
         self.assertEqual(tele.call_count, 1)
+
+
+class TestScopusUtility(unittest.TestCase):
+    """ Test the SCOPUS utility class. """
+
+    def test_build_query(self):
+        """ Test query builder. """
+
+        scopus_inst_id = ["test1", "test2"]
+        period = (pendulum.date(2018, 10, 1), pendulum.date(2019,2,1))
+        query = ScopusUtility.build_query(scopus_inst_id, period)
+        query_truth = '(AF-ID(test1) OR AF-ID(test2)) AND PUBDATETXT("October 2018" or "November 2018" or "December 2018" or "January 2019" or "February 2019")'
+        self.assertEqual(query, query_truth)
+
+
 
 # class TestScopus(unittest.TestCase):
 #     """ Tests for the functions used by the SCOPUS telescope """
