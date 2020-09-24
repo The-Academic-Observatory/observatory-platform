@@ -335,8 +335,8 @@ class ScopusUtility:
         search_months = str()
         for year in range(period[0].year, period[1].year+1):
             for month in range(1, 13):
-                slice = pendulum.date(year, month, 1)
-                if period[0] <= slice <= period[1]:
+                search_month = pendulum.date(year, month, 1)
+                if period[0] <= search_month <= period[1]:
                     month_name = calendar.month_name[month]
                     search_months += f'"{month_name} {year}" or '
         search_months = search_months[:-4]  # remove last ' or '
