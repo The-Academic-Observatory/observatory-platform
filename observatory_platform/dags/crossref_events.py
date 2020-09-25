@@ -18,17 +18,19 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python_operator import ShortCircuitOperator
 
 from observatory_platform.telescopes.crossref_events import CrossrefEventsTelescope
 
 default_args = {
-    "owner": "Airflow",
-    "start_date": datetime(2017, 2, 17)
+    "owner": "airflow",
+    "start_date": datetime(2020, 1, 1)
+    #TODO change back start date
+    # "start_date": datetime(2017, 2, 17)
 }
 
-#TODO adjust settings
-with DAG(dag_id="crossref_events", schedule_interval="@daily", default_args=default_args,
-         max_active_runs=1) as dag:
+with DAG(dag_id="crossref_events", schedule_interval="@weekly", default_args=default_args,
+         catchup=False, max_active_runs=1) as dag:
     # Check that dependencies exist before starting
     check = PythonOperator(
         task_id=CrossrefEventsTelescope.TASK_ID_CHECK_DEPENDENCIES,
@@ -37,7 +39,7 @@ with DAG(dag_id="crossref_events", schedule_interval="@daily", default_args=defa
     )
 
     # Downloads the releases
-    download = PythonOperator(
+    download = ShortCircuitOperator(
         task_id=CrossrefEventsTelescope.TASK_ID_DOWNLOAD,
         python_callable=CrossrefEventsTelescope.download,
         provide_context=True,
