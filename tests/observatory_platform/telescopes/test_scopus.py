@@ -22,6 +22,7 @@ import pendulum
 import unittest
 import vcr
 
+from elsapy.elsclient import ElsClient
 from typing import List, Dict
 from click.testing import CliRunner
 from unittest.mock import patch
@@ -63,16 +64,29 @@ class TestScopusRelease(unittest.TestCase):
 class TestScopusUtility(unittest.TestCase):
     """ Test the SCOPUS utility class. """
 
+    def __init__(self, *args, **kwargs):
+        super(TestScopusUtility, self).__init__(*args, **kwargs)
+        self.scopus_2019_09_01_path = '/tmp/scopus_curtin_2019_09_01.yml'
+
     def test_build_query(self):
         """ Test query builder. """
 
         scopus_inst_id = ["test1", "test2"]
-        period = (pendulum.date(2018, 10, 1), pendulum.date(2019,2,1))
+        period = (pendulum.date(2018, 10, 1), pendulum.date(2019, 2, 1))
         query = ScopusUtility.build_query(scopus_inst_id, period)
         query_truth = '(AF-ID(test1) OR AF-ID(test2)) AND PUBDATETXT("October 2018" or "November 2018" or "December 2018" or "January 2019" or "February 2019")'
         self.assertEqual(query, query_truth)
 
-
+    # def test_download_scopus_period(self):
+    #     """ Test downloading of a period. Can help record cassettes too. """
+    #
+    #     with vcr.use_cassette(self.scopus_2019_09_01_path):
+    #         scopus_inst_id = ["60031226"]  # Curtin University
+    #         api_key = "test_key"
+    #         client = ElsClient(api_key)
+    #         period = (pendulum.date(2020, 9, 1), pendulum.date(2020,9,30))
+    #         save_file = ScopusUtility.download_scopus_period(client, "scopus_curtin", period, scopus_inst_id, "/tmp")
+    #         self.assertTrue(save_file != '')
 
 # class TestScopus(unittest.TestCase):
 #     """ Tests for the functions used by the SCOPUS telescope """

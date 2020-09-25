@@ -53,6 +53,7 @@ from observatory_platform.utils.telescope_utils import (
     write_to_file,
 )
 
+
 class ScopusRelease:
     """ Used to store info on a given SCOPUS release.
 
@@ -70,7 +71,7 @@ class ScopusRelease:
                  dag_start: pendulum.Pendulum, project_id: str,
                  download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str):
         self.inst_id = inst_id
-        self.scopus_inst_id = scopus_inst_id
+        self.scopus_inst_id = sorted(scopus_inst_id)
         self.release_date = release_date
         self.dag_start = dag_start
         self.download_path = telescope_path(SubFolder.downloaded, ScopusTelescope.DAG_ID)
@@ -333,7 +334,7 @@ class ScopusUtility:
 
         # Build publication date range
         search_months = str()
-        for year in range(period[0].year, period[1].year+1):
+        for year in range(period[0].year, period[1].year + 1):
             for month in range(1, 13):
                 search_month = pendulum.date(year, month, 1)
                 if period[0] <= search_month <= period[1]:
@@ -345,7 +346,8 @@ class ScopusUtility:
         return query
 
     @staticmethod
-    def download_scopus_period(client: ElsClient, conn: str, period: tuple, inst_id: str, download_path: str) -> str:
+    def download_scopus_period(client: ElsClient, conn: str, period: tuple, inst_id: List[str],
+                               download_path: str) -> str:
         """ Download records for a stated date range.
         The elsapy package currently has a cap of 5000 results per query. So in the unlikely event any institution has
         more than 5000 entries per month, this will present a problem.
@@ -359,23 +361,21 @@ class ScopusUtility:
          """
 
         timestamp = pendulum.datetime.now().isoformat()
-        inst_str = conn[4:]
-        save_file = os.path.join(download_path, f'{inst_str}-{period[0]}_{timestamp}.json')
+        inst_str = conn[ScopusTelescope.ID_STRING_OFFSET:]
+
+        save_file = os.path.join(download_path, f'{inst_str}-{period[0]}-{period[1]}_{timestamp}.json')
         logging.info(f'{conn}: retrieving period {period[0]} - {period[1]}')
         query = ScopusUtility.build_query(inst_id, period)
         search = ElsSearch(query, 'scopus')
         search.execute(client, get_all=True)  # This could throw a HTTPError if we exceed quota.
         result = json.dumps(search.results)
-        quota_remaining = search.quota_remaining  # String of integers
-        quota_reset = search.quota_reset  # Pendulum parsable string
 
-        if len(result) >= ScopusUtilConst.ELSAPY_RESULT_LIMIT:
+        if len(search.results) >= ScopusUtilConst.ELSAPY_RESULT_LIMIT:
             logging.warning(
                 f'{conn}: Result limit {ScopusUtilConst.ELSAPY_RESULT_LIMIT} reached for {period[0]} - {period[1]}')
 
         write_to_file(result, save_file)
-
-        return save_file, quota_remaining, quota_reset
+        return save_file
 
     @staticmethod
     def download_scopus_sequential(api_keys: List[str], schedule: list, conn: str, inst_id: str, download_path: str):
