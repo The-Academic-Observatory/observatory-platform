@@ -15,24 +15,22 @@
 # Author: Tuan Chien
 
 
-import backoff
 import calendar
 import json
 import logging
 import pendulum
 import os
 import urllib.request
-import xmltodict
 
-from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from elsapy.elsclient import ElsClient
 from elsapy.elssearch import ElsSearch
 from google.cloud.bigquery import SourceFormat
+from queue import Queue, Empty
+from threading import Event
+from time import sleep
 from typing import List
-from math import ceil
 from ratelimit import limits, sleep_and_retry
-from requests import HTTPError
 from urllib.error import URLError
 
 from airflow.exceptions import AirflowException
@@ -47,6 +45,7 @@ from observatory_platform.utils.config_utils import (
 )
 
 from observatory_platform.utils.telescope_utils import (
+    build_schedule,
     get_entry_or_none,
     get_as_list,
     validate_date,
@@ -57,10 +56,11 @@ from observatory_platform.utils.telescope_utils import (
 class ScopusRelease:
     """ Used to store info on a given SCOPUS release.
 
-    :param inst_id: institution id from the airflow connection (minus the wos_)
+    :param inst_id: institution id from the airflow connection (minus the scopus_)
     :param scopus_inst_id: List of institution ids to use in the SCOPUS query.
     :param release_date: Release date (currently the execution date).
-    :param dag_start: Start date of the dag (not execution date).
+    :param start_date: Start date of the dag where to start pulling records from.
+    :param end_date: End of records to pull.
     :param project_id: The project id to use.
     :param download_bucket_name: Download bucket name to use for storing downloaded files in the cloud.
     :param transform_bucket_name: Transform bucket name to use for storing transformed files in the cloud.
@@ -68,12 +68,13 @@ class ScopusRelease:
     """
 
     def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.Pendulum,
-                 dag_start: pendulum.Pendulum, project_id: str,
+                 start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, project_id: str,
                  download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str):
         self.inst_id = inst_id
         self.scopus_inst_id = sorted(scopus_inst_id)
         self.release_date = release_date
-        self.dag_start = dag_start
+        self.start_date = start_date
+        self.end_date = end_date
         self.download_path = telescope_path(SubFolder.downloaded, ScopusTelescope.DAG_ID)
         self.transform_path = telescope_path(SubFolder.transformed, ScopusTelescope.DAG_ID)
         self.telescope_path = f'telescopes/{ScopusTelescope.DAG_ID}/{release_date}'
@@ -189,7 +190,8 @@ class ScopusTelescope:
         scopus_inst_id = get_as_list(extra_dict, 'id')
         release = ScopusRelease(inst_id=kwargs['institution'], scopus_inst_id=scopus_inst_id,
                                 release_date=kwargs['execution_date'].date(),
-                                dag_start=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
+                                start_date=pendulum.parse(start_date).date(),
+                                end_date=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
                                 download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
                                 data_location=data_location, schema_ver=ScopusTelescope.SCHEMA_VER)
 
@@ -201,13 +203,10 @@ class ScopusTelescope:
         ti.xcom_push(ScopusTelescope.XCOM_RELEASES, release)
 
     @staticmethod
-    def check_api_server(**kwargs):
+    def check_api_server():
         """ Check that the API server is still contactable.
 
-        :param kwargs: the context passed from the BranchPythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: the identifier of the task to execute next.
+        :return: None.
         """
 
         http_code_ok = 200
@@ -311,7 +310,21 @@ class ScopusUtilConst:
     CALL_PERIOD = 1  # seconds
     API_KEY_QUERY_QUOTA = 20000  # API key limit for the Curtin scopus keys.
     RETRIES = 3
-    ELSAPY_RESULT_LIMIT = 5000  # Upper limit on number of results returned
+    SCOPUS_RESULT_LIMIT = 5000  # Upper limit on number of results returned
+
+
+class ScopusUtilWorker:
+    """ Worker class """
+
+    def __init__(self, client_id: int, client: ElsClient, quota_reset_date: pendulum.datetime):
+        """ Constructor.
+
+        :param client: ElsClient object for an API key.
+        """
+
+        self.client_id = client_id  # Internal identifier. Use this to identify the client in debug messages.
+        self.client = client
+        self.quota_reset_date = quota_reset_date
 
 
 class ScopusUtility:
@@ -352,15 +365,9 @@ class ScopusUtility:
         The elsapy package currently has a cap of 5000 results per query. So in the unlikely event any institution has
         more than 5000 entries per month, this will present a problem.
 
-        :param client: ElsClient object.
-        :param conn: file name for saved response as a pickle file.
-        :param period: Period to fetch (start_date, end_date). Will fetch up to
-        :param inst_id: Institutional ID to query, e.g, "60031226" (Curtin University)
-        :param download_path: Path to download to.
-        :return: Save file, quota remaining (str), and quota reset date (str)
          """
 
-        timestamp = pendulum.datetime.now().isoformat()
+        timestamp = pendulum.datetime.now('UTC').isoformat()
         inst_str = conn[ScopusTelescope.ID_STRING_OFFSET:]
 
         save_file = os.path.join(download_path, f'{inst_str}-{period[0]}-{period[1]}_{timestamp}.json')
@@ -370,57 +377,193 @@ class ScopusUtility:
         search.execute(client, get_all=True)  # This could throw a HTTPError if we exceed quota.
         result = json.dumps(search.results)
 
-        if len(search.results) >= ScopusUtilConst.ELSAPY_RESULT_LIMIT:
+        if len(search.results) >= ScopusUtilConst.SCOPUS_RESULT_LIMIT:
             logging.warning(
-                f'{conn}: Result limit {ScopusUtilConst.ELSAPY_RESULT_LIMIT} reached for {period[0]} - {period[1]}')
+                f'{conn}: Result limit {ScopusUtilConst.SCOPUS_RESULT_LIMIT} reached for {period[0]} - {period[1]}')
 
         write_to_file(result, save_file)
         return save_file
 
     @staticmethod
-    def download_scopus_sequential(api_keys: List[str], schedule: list, conn: str, inst_id: str, download_path: str):
+    def download_sequential(workers: List[ScopusUtilWorker], taskq: Queue, conn: str, inst_id: List[str],
+                            download_path: str):
         """ Download SCOPUS snapshot sequentially. Tasks will be distributed in a round robin to the available keys.
+        Block each task until it's done or failed.
 
-        :param api_keys: List of API keys used to access SCOPUS service.
-        :param schedule: List of date range (start_date, end_date) tuples to download.
-        :param conn: Airflow connection_id string.
-        :param inst_id: Institutioanl ID to query, e.g, "60031226" (Curtin University)
-        :param download_path: Path to download to.
-        :return: List of files downloaded.
+
         """
 
-        return ScopusUtility.download_scopus_batch(api_keys, schedule, conn, inst_id, download_path)
+        timeout = 20
+        qe_workers = list()  # Quota exceeded workers
+        saved_files = list()
+        reset_date = pendulum.now('UTC')
+
+        workerq = Queue()
+        for worker in workers:
+            workerq.put(worker)
+
+        while True:
+            # Fetch a task to farm out
+            try:
+                logging.info(f'{conn}: Attempting to get task')
+                task = taskq.get(block=True, timeout=timeout)
+            except Empty:
+                logging.info(f'{conn}: Task queue empty. All work done.')
+                break  # All work done
+
+            # Got a job. Need to find a worker to give it to.
+            try:
+                logging.info(f'{conn}: Attempting to get free worker')
+                worker = workerq.get(block=True, timeout=timeout)
+
+            # If we have a job and no workers it means quota has been exceeded on all workers. Sleep until cooldown
+            # for at least one key has passed, then restart matching process.
+            except Empty:
+                logging.info(f'{conn}: no free workers. All workers exceeded quota. Sleeping until worker available.')
+                now = pendulum.now('UTC')
+                sleep_time = (reset_date - now).seconds + 1
+                logging.info(f'{conn}: Sleeping for {sleep_time} seconds until one is ready.')
+                sleep(sleep_time)  # + 1 just to be sure
+                for worker in qe_workers:
+                    if now >= worker.quota_reset_date:
+                        logging.info(f'{conn}: adding client {worker.client_id} back to queue.')
+                        workerq.put(worker)
+                qe_workers = [x for x in qe_workers if now < x.quota_reset_date]
+                taskq.put(task)
+                continue
+
+            # Got a task and a worker.  Assign the job.
+            try:
+                logging.info(f'{conn}: using client {worker.client_id} to fetch {task}')
+                saved_file = ScopusUtility.download_scopus_period(worker.client, conn, task, inst_id, download_path)
+                saved_files.append(saved_file)
+                workerq.put(worker)
+            except Exception as e:
+                # If quota exceeded, handle reset to date
+                error_msg = repr(e)
+                if error_msg.startswith("HTTPError('QuotaExceeded"):
+                    renews_ts = int(error_msg[37:-2])  # Maybe? Might throw error if old code out of date.
+                    logging.warning(
+                        f'{conn}: Quota exceeded for client {worker.client_id} Received renews_ts: {renews_ts}')
+                    # Elsevier probably gave ms even though documentation says s
+                    if renews_ts >= pendulum.datetime.max.timestamp():
+                        renews_ts /= 1000  # Convert back into seconds
+                    worker.quota_reset_date = pendulum.from_timestamp(renews_ts)
+                    taskq.put(task)
+                    reset_date = min(worker.quota_reset_date, reset_date)
+                    logging.warning(f'{conn}: new reset_date: {reset_date.isoformat()}')
+                    qe_workers.append(worker)
+                    continue
+                else:
+                    raise AirflowException(
+                        f'{conn}: uncaught exception processing client {worker.client_id} and task {task} with message {error_msg}')
+                # If some other error, raise airflow exception because there is an unexpected error
+
+        return saved_files
 
     @staticmethod
-    def download_scopus_parallel(api_keys: List[str], schedule: list, conn: str, inst_id: str, download_path: str):
+    def download_worker(worker: ScopusUtilWorker, exit_event: Event, taskq: Queue, conn: str, inst_id: List[str],
+                        download_path: str):
+        """ Download thread. Pulls tasks from queue when available """
+
+        timeout = 20
+        saved_files = list()
+
+        while True:
+            now = pendulum.now('UTC')
+            if worker.quota_reset_date > now:
+                offset = (worker.quota_reset_date - now).seconds + 1
+                logging.warning(f'{conn} client {worker.client_id}: cool down required. Sleeping for {offset} seconds.')
+                sleep(offset)
+
+            try:
+                logging.info(f'{conn} client {worker.client_id}: attempting to get a task')
+                task = taskq.get(block=True, timeout=timeout)
+            except Empty:
+                if exit_event.is_set():
+                    logging.info(f'{conn} client {worker.client_id}: received exit event. Returning results.')
+                    break
+                logging.info(f'{conn} client {worker.client_id}: failed to get task but did not exit. Retrying.')
+                continue
+
+            # Got a task. Try to process it.
+            try:
+                logging.info(f'{conn} using client {worker.client_id}: fetching {task}')
+                saved_file = ScopusUtility.download_scopus_period(worker.client, conn, task, inst_id, download_path)
+                saved_files.append(saved_file)
+                taskq.task_done()
+            except Exception as e:
+                # If quota exceeded, handle reset to date
+                error_msg = repr(e)
+                if error_msg.startswith("HTTPError('QuotaExceeded"):
+                    renews_ts = int(error_msg[37:-2])  # Maybe? Might throw error if old code out of date.
+                    logging.warning(
+                        f'{conn} client {worker.client_id}: Quota exceeded, renews_ts: {renews_ts}')
+
+                    # Elsevier probably gave ms even though documentation says s
+                    if renews_ts >= pendulum.datetime.max.timestamp():
+                        renews_ts /= 1000  # Convert back into seconds
+                    worker.quota_reset_date = pendulum.from_timestamp(renews_ts)
+                    taskq.put(task)
+                    taskq.task_done()
+                    continue
+
+        return saved_files
+
+    @staticmethod
+    def download_parallel(workers: List[ScopusUtilWorker], taskq: Queue, conn: str, inst_id: List[str],
+                          download_path: str):
         """ Download SCOPUS snapshot with parallel sessions. Tasks will be distributed in parallel to the available
-        keys.
+        keys. Each key will independently fetch a task from the queue when it's free so there's no guarantee of load
+        balance.
 
-        :param api_keys: List of API keys used to access SCOPUS service.
-        :param schedule: List of date range (start_date, end_date) tuples to download.
-        :param conn: Airflow connection_id string.
-        :param inst_id: Institutioanl ID to query, .e.g, "Curtin University"
-        :param download_path: Path to download to.
         :return: List of files downloaded.
         """
 
+        saved_files = list()
+        sessions = len(workers)
+        with ThreadPoolExecutor(max_workers=sessions) as executor:
+            futures = list()
+            thread_exit = Event()
+
+            for worker in workers:
+                futures.append(
+                    executor.submit(ScopusUtility.download_worker, worker, thread_exit, taskq, conn, inst_id,
+                                    download_path))
+
+            taskq.join()  # Wait until all tasks done
+            logging.info(f'{conn}: all tasks fetched. Signalling threads to exit.')
+            thread_exit.set()  # Notify for threads to return results
+
+            for future in as_completed(futures):
+                saved_files += future.result()
+
+        return saved_files
+
     @staticmethod
-    def download_scopus_batch(api_key: str, batch: list, conn: str, inst_id: str, download_path: str):
-        """ Download one batch of SCOPUS snapshots. Handle quota backoff in here.
+    def download_snapshot(api_keys: List[str], release: ScopusRelease, mode: str):
+        """ Download snapshot from SCOPUS for the given institution.
 
-            quota_exceeded = True if fetch_log["error"].startswith("HTTPError('QuotaExceeded") else False
-            if quota_exceeded:
-                renews_at = str(fetch_log["error"])[37:-2]
-
-                fetch_log["quota_renews_at"] = renews_at
-
-        :param api_key: API key used to access SCOPUS service.
-        :param batch: List of tuples of (start_date, end_date) to fetch.
-        :param conn: connection_id string from Airflow variable.
-        :param inst_id: institution id to query.
-        :param download_path: download path to save response to.
-        :return: List of saved files from this batch.
         """
+
+        logging.info(f'Downloading snapshot with {mode} method.')
+
+        schedule = build_schedule(release.start_date, release.end_date)
+        task_queue = Queue()
+        for period in schedule:
+            task_queue.put(period)
+
+        now = pendulum.now('UTC')
+        clients = [ScopusUtilWorker(i, ElsClient(key), now) for i, key in enumerate(api_keys)]
+
+        if mode == 'sequential':
+            return ScopusUtility.download_sequential(clients, task_queue, release.inst_id, release.scopus_inst_id,
+                                                     release.download_path)
+        if mode == 'parallel':
+            return ScopusUtility.download_parallel(clients, task_queue, release.inst_id, release.scopus_inst_id,
+                                                   release.download_path)
+
+        raise AirflowException(f'Unsupported mode {mode} received')
 
     @staticmethod
     def make_query(client: ElsClient, query: str):

@@ -23,6 +23,7 @@ import unittest
 import vcr
 
 from elsapy.elsclient import ElsClient
+from queue import Queue
 from typing import List, Dict
 from click.testing import CliRunner
 from unittest.mock import patch
@@ -30,6 +31,11 @@ from unittest.mock import patch
 from observatory_platform.telescopes.scopus import (
     ScopusRelease,
     ScopusUtility,
+    ScopusUtilWorker,
+)
+
+from observatory_platform.utils.telescope_utils import (
+    build_schedule,
 )
 
 
@@ -42,14 +48,16 @@ class TestScopusRelease(unittest.TestCase):
 
         obj = ScopusRelease(inst_id='inst_id', scopus_inst_id=['scopus_inst_id'],
                             release_date=pendulum.date(1984, 1, 1),
-                            dag_start=pendulum.date(2000, 1, 1), project_id='project_id',
+                            start_date=pendulum.date(2000, 5, 1),
+                            end_date=pendulum.date(2000, 1, 1), project_id='project_id',
                             download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
                             data_location='data_location', schema_ver='schema_ver')
 
         self.assertEqual(obj.inst_id, 'inst_id')
         self.assertEqual(obj.scopus_inst_id[0], 'scopus_inst_id')
         self.assertEqual(obj.release_date, pendulum.date(1984, 1, 1))
-        self.assertEqual(obj.dag_start, pendulum.date(2000, 1, 1))
+        self.assertEqual(obj.start_date, pendulum.date(2000, 5, 1))
+        self.assertEqual(obj.end_date, pendulum.date(2000, 1, 1))
         self.assertEqual(obj.project_id, 'project_id')
         self.assertEqual(obj.download_path, 'teletest/telescopes/download/scopus')
         self.assertEqual(obj.transform_path, 'teletest/telescopes/transform/scopus')
@@ -59,6 +67,21 @@ class TestScopusRelease(unittest.TestCase):
         self.assertEqual(obj.data_location, 'data_location')
         self.assertEqual(obj.schema_ver, 'schema_ver')
         self.assertEqual(tele.call_count, 1)
+
+
+class TestScopusUtilWorker(unittest.TestCase):
+    """ Test the ScopusUtilWorker class. """
+
+    def test_init(self):
+        """ Test the constructor. """
+
+        now = pendulum.now('UTC')
+        client = ElsClient('api_key')
+        client_id = 1
+        worker = ScopusUtilWorker(client_id, client, now)
+        self.assertEqual(now, worker.quota_reset_date)
+        self.assertEqual(client_id, worker.client_id)
+        self.assertTrue(isinstance(worker.client, ElsClient))
 
 
 class TestScopusUtility(unittest.TestCase):
@@ -87,6 +110,57 @@ class TestScopusUtility(unittest.TestCase):
     #         period = (pendulum.date(2020, 9, 1), pendulum.date(2020,9,30))
     #         save_file = ScopusUtility.download_scopus_period(client, "scopus_curtin", period, scopus_inst_id, "/tmp")
     #         self.assertTrue(save_file != '')
+
+    # def test_sequential(self):
+    #     """ Sequential download test. """
+    #
+    #     now = pendulum.now('UTC')
+    #     workers = list()
+    #
+    #     workers.append(ScopusUtilWorker(1, ElsClient('api_key1'), now))
+    #     workers.append(ScopusUtilWorker(2, ElsClient('api_key2'), now))
+    #
+    #     scopus_inst_id = ["60031226"]
+    #     schedule = build_schedule(pendulum.date(1990, 5, 1), pendulum.date(1990, 9, 1))
+    #     taskq = Queue()
+    #     for period in schedule:
+    #         taskq.put(period)
+    #     download_path = '/tmp'
+    #
+    #     saved_files = ScopusUtility.download_sequential(workers, taskq, 'scopus_curtin', scopus_inst_id, download_path)
+    #     # self.assertEqual(len(saved_files), 5)
+
+    # def test_parallel(self):
+    #     """ Parallel download test. """
+    #
+    #     now = pendulum.now('UTC')
+    #     workers = list()
+    #
+    #     workers.append(ScopusUtilWorker(1, ElsClient('api_key1'), now))
+    #     workers.append(ScopusUtilWorker(2, ElsClient('api_key2'), now))
+    #
+    #     scopus_inst_id = ["60031226"]
+    #     schedule = build_schedule(pendulum.date(1990, 5, 1), pendulum.date(1990, 9, 1))
+    #     taskq = Queue()
+    #     for period in schedule:
+    #         taskq.put(period)
+    #     download_path = '/tmp'
+    #
+    #     saved_files = ScopusUtility.download_parallel(workers, taskq, 'scopus_curtin', scopus_inst_id, download_path)
+    #     self.assertEqual(len(saved_files), 5)
+
+    def test_download_snapshot(self):
+
+        release = ScopusRelease(inst_id='curtin', scopus_inst_id=['60031226'],
+                            release_date=pendulum.date(2020, 1, 1),
+                            start_date=pendulum.date(1990, 5, 1),
+                            end_date=pendulum.date(1990, 9, 1), project_id='project_id',
+                            download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
+                            data_location='data_location', schema_ver='schema_ver')
+
+        api_keys = []
+
+        ScopusUtility.download_snapshot(api_keys, release, 'sequential')
 
 # class TestScopus(unittest.TestCase):
 #     """ Tests for the functions used by the SCOPUS telescope """
