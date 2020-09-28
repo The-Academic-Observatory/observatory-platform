@@ -607,7 +607,11 @@ class ScopusJsonParser:
 
     @staticmethod
     def get_affiliations(data):
-        """ Get the affiliation field. """
+        """ Get the affiliation field.
+
+        :param data: json response from SCOPUS.
+        :return list of affiliation details.
+        """
 
         affiliations = list()
         if 'affiliation' not in data:
@@ -630,6 +634,9 @@ class ScopusJsonParser:
     def get_authors(data):
         """ Get the author field. Won't know if this parser is going to throw error unless we get access to api key
             with complete view access.
+
+        :param data: json response from SCOPUS.
+        :return list of authors' details.
         """
 
         author_list = list()
