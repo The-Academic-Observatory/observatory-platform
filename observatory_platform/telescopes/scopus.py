@@ -65,12 +65,13 @@ class ScopusRelease:
     :param download_bucket_name: Download bucket name to use for storing downloaded files in the cloud.
     :param transform_bucket_name: Transform bucket name to use for storing transformed files in the cloud.
     :param data_location: Location of the data servers
+    :param view: SCOPUS what 'view' level of access your apis key can access.
     """
 
     def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.Pendulum,
                  start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, project_id: str,
                  download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str,
-                 view: str = 'standard'):
+                 view: str):
         self.inst_id = inst_id
         self.scopus_inst_id = sorted(scopus_inst_id)
         self.release_date = release_date
