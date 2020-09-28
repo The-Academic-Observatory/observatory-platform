@@ -109,16 +109,21 @@ def get_as_list_or_none(base: dict, key, sub_key):
     return get_as_list(base[key], sub_key)
 
 
-def get_entry_or_none(base: dict, target):
+def get_entry_or_none(base: dict, target, var_type = None):
     """ Helper function that returns an entry or None if key is missing.
 
     :param base: dictionary to query.
     :param target: target key.
+    :param var_type: Type of variable this is supposed to be (for casting).
     :return: entry or None.
     """
 
     if target not in base:
         return None
+
+    if var_type is not None:
+        return var_type(base[target])
+
     return base[target]
 
 
