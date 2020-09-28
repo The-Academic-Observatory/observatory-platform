@@ -69,7 +69,8 @@ class ScopusRelease:
 
     def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.Pendulum,
                  start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, project_id: str,
-                 download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str):
+                 download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str,
+                 view: str = 'standard'):
         self.inst_id = inst_id
         self.scopus_inst_id = sorted(scopus_inst_id)
         self.release_date = release_date
@@ -83,6 +84,7 @@ class ScopusRelease:
         self.transform_bucket_name = transform_bucket_name
         self.data_location = data_location
         self.schema_ver = schema_ver
+        self.view = view
 
 
 class ScopusTelescope:
@@ -186,6 +188,12 @@ class ScopusTelescope:
             data_location = extra_dict['data_location']
             logging.info(f'Override for data_location found. Using: {data_location}')
 
+        # Check if view is set. Options: 'standard' or 'complete'. Default if not set is 'standard'.
+        # Used if elsapy is replaced.
+        view = 'standard'
+        if 'view' in extra_dict:
+            view = extra_dict['view']
+
         # Push release information for other tasks
         scopus_inst_id = get_as_list(extra_dict, 'id')
         release = ScopusRelease(inst_id=kwargs['institution'], scopus_inst_id=scopus_inst_id,
@@ -193,7 +201,7 @@ class ScopusTelescope:
                                 start_date=pendulum.parse(start_date).date(),
                                 end_date=pendulum.parse(kwargs['dag_start']).date(), project_id=project_id,
                                 download_bucket_name=download_bucket_name, transform_bucket_name=transform_bucket_name,
-                                data_location=data_location, schema_ver=ScopusTelescope.SCHEMA_VER)
+                                data_location=data_location, schema_ver=ScopusTelescope.SCHEMA_VER, view=view)
 
         logging.info(
             f'ScopusRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: ' +
