@@ -32,6 +32,7 @@ from observatory_platform.telescopes.scopus import (
     ScopusRelease,
     ScopusUtility,
     ScopusUtilWorker,
+    ScopusJsonParser,
 )
 
 from observatory_platform.utils.telescope_utils import (
@@ -51,7 +52,7 @@ class TestScopusRelease(unittest.TestCase):
                             start_date=pendulum.date(2000, 5, 1),
                             end_date=pendulum.date(2000, 1, 1), project_id='project_id',
                             download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
-                            data_location='data_location', schema_ver='schema_ver')
+                            data_location='data_location', schema_ver='schema_ver', view='standard')
 
         self.assertEqual(obj.inst_id, 'inst_id')
         self.assertEqual(obj.scopus_inst_id[0], 'scopus_inst_id')
@@ -67,6 +68,7 @@ class TestScopusRelease(unittest.TestCase):
         self.assertEqual(obj.data_location, 'data_location')
         self.assertEqual(obj.schema_ver, 'schema_ver')
         self.assertEqual(tele.call_count, 1)
+        self.assertEqual(obj.view, 'standard')
 
 
 class TestScopusUtilWorker(unittest.TestCase):
@@ -149,18 +151,163 @@ class TestScopusUtility(unittest.TestCase):
     #     saved_files = ScopusUtility.download_parallel(workers, taskq, 'scopus_curtin', scopus_inst_id, download_path)
     #     self.assertEqual(len(saved_files), 5)
 
-    def test_download_snapshot(self):
+    # def test_download_snapshot(self):
+    #
+    #     release = ScopusRelease(inst_id='curtin', scopus_inst_id=['60031226'],
+    #                         release_date=pendulum.date(2020, 1, 1),
+    #                         start_date=pendulum.date(1990, 5, 1),
+    #                         end_date=pendulum.date(1990, 9, 1), project_id='project_id',
+    #                         download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
+    #                         data_location='data_location', schema_ver='schema_ver', view='standard')
+    #
+    #     api_keys = []
+    #
+    #     ScopusUtility.download_snapshot(api_keys, release, 'sequential')
 
-        release = ScopusRelease(inst_id='curtin', scopus_inst_id=['60031226'],
-                            release_date=pendulum.date(2020, 1, 1),
-                            start_date=pendulum.date(1990, 5, 1),
-                            end_date=pendulum.date(1990, 9, 1), project_id='project_id',
-                            download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
-                            data_location='data_location', schema_ver='schema_ver')
 
-        api_keys = []
+class TestScopusJsonParser(unittest.TestCase):
+    """ Test parsing facilities. """
 
-        ScopusUtility.download_snapshot(api_keys, release, 'sequential')
+    def __init__(self, *args, **kwargs):
+        super(TestScopusJsonParser, self).__init__(*args, **kwargs)
+
+        self.data = {
+            "dc:identifier": "scopusid",
+            "eid": "testid",
+            "dc:title": "arttitle",
+            "prism:aggregationType": "source",
+            "subtypeDescription": "typedesc",
+            "citedby-count": "345",
+            "prism:publicationName": "pubname",
+            "prism:isbn": "isbn",
+            "prism:issn": "issn",
+            "prism:eIssn": "eissn",
+            "prism:coverDate": "2010-12-01",
+            "prism:doi": "doi",
+            "pii": "pii",
+            "pubmed-id": "med",
+            "orcid": "orcid",
+            "dc:creator": "firstauth",
+            "source-id": "1000",
+            "openaccess": "1",
+            "openaccessFlag": False,
+            "affiliation": [
+                {
+                    "affilname": "aname",
+                    "affiliation-city": "acity",
+                    "affiliation-country": "country",
+                    "afid": "id",
+                    "name-variant": "variant",
+                }
+            ],
+            "author": [
+                {
+                    "authid": "id",
+                    "orcid": "id",
+                    "authname": "name",
+                    "given-name": "first",
+                    "surname": "last",
+                    "initials": "mj",
+                    "afid": "id"
+                }
+            ],
+            "dc:description": "abstract",
+            "authkeywords": ["words"],
+            "article-number": "artno",
+            "fund-acr": "acr",
+            "fund-no": "no",
+            "fund-sponsor": "sponsor"
+        }
+
+    def test_get_affiliations(self):
+        """ Test get affiliations """
+
+        affil = ScopusJsonParser.get_affiliations({})
+        self.assertEqual(len(affil), 0)
+
+        affil = ScopusJsonParser.get_affiliations(self.data)
+        self.assertEqual(len(affil), 1)
+        af = affil[0]
+        self.assertEqual(af['name'], 'aname')
+        self.assertEqual(af['city'], 'acity')
+        self.assertEqual(af['country'], 'country')
+        self.assertEqual(af['id'], 'id')
+        self.assertEqual(af['name_variant'], 'variant')
+
+    def test_get_authors(self):
+        """ Test get authors """
+
+        author = ScopusJsonParser.get_authors({})
+        self.assertEqual(len(author), 0)
+
+        author = ScopusJsonParser.get_authors(self.data)
+        self.assertEqual(len(author), 1)
+        au = author[0]
+        self.assertEqual(au['authid'], "id")
+        self.assertEqual(au['orcid'], "id")
+        self.assertEqual(au['full_name'], "name")
+        self.assertEqual(au['first_name'], "first")
+        self.assertEqual(au['last_name'], "last")
+        self.assertEqual(au['initials'], "mj")
+        self.assertEqual(au['afid'], "id")
+
+    def test_parse_json(self):
+        """ Test the parser. """
+
+        harvest_datetime = pendulum.now().isoformat()
+        release_date = "2018-01-01"
+        entry = ScopusJsonParser.parse_json(self.data, harvest_datetime, release_date)
+        self.assertEqual(entry['harvest_datetime'], harvest_datetime)
+        self.assertEqual(entry['release_date'], release_date)
+        self.assertEqual(entry['title'], 'arttitle')
+        self.assertEqual(entry['identifier'], 'scopusid')
+        self.assertEqual(entry['creator'], 'firstauth')
+        self.assertEqual(entry['publication_name'], 'pubname')
+        self.assertEqual(entry['cover_date'], '2010-12-01')
+        self.assertEqual(entry['doi'], 'doi')
+        self.assertEqual(entry['eissn'], 'eissn')
+        self.assertEqual(entry['issn'], 'issn')
+        self.assertEqual(entry['isbn'], 'isbn')
+        self.assertEqual(entry['aggregation_type'], 'source')
+        self.assertEqual(entry['pubmed_id'], 'med')
+        self.assertEqual(entry['pii'], 'pii')
+        self.assertEqual(entry['eid'], 'testid')
+        self.assertEqual(entry['subtype_description'], 'typedesc')
+        self.assertEqual(entry['open_access'], 1)
+        self.assertEqual(entry['open_access_flag'], False)
+        self.assertEqual(entry['citedby_count'], 345)
+        self.assertEqual(entry['source_id'], 1000)
+        self.assertEqual(entry['orcid'], 'orcid')
+
+        self.assertEqual(len(entry['affiliations']), 1)
+        af = entry['affiliations'][0]
+        self.assertEqual(af['name'], 'aname')
+        self.assertEqual(af['city'], 'acity')
+        self.assertEqual(af['country'], 'country')
+        self.assertEqual(af['id'], 'id')
+        self.assertEqual(af['name_variant'], 'variant')
+
+        self.assertEqual(entry['abstract'], 'abstract')
+        self.assertEqual(entry['article_number'], 'artno')
+        self.assertEqual(entry['grant_agency_ac'], 'acr')
+        self.assertEqual(entry['grant_agency_id'], 'no')
+        self.assertEqual(entry['grant_agency_name'], 'sponsor')
+
+        words = entry['keywords']
+        self.assertEqual(len(words), 1)
+        self.assertEqual(words[0], "words")
+
+        authors = entry['authors']
+        self.assertEqual(len(authors), 1)
+        au = authors[0]
+        self.assertEqual(au['authid'], "id")
+        self.assertEqual(au['orcid'], "id")
+        self.assertEqual(au['full_name'], "name")
+        self.assertEqual(au['first_name'], "first")
+        self.assertEqual(au['last_name'], "last")
+        self.assertEqual(au['initials'], "mj")
+        self.assertEqual(au['afid'], "id")
+
 
 # class TestScopus(unittest.TestCase):
 #     """ Tests for the functions used by the SCOPUS telescope """

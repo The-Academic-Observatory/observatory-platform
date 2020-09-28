@@ -85,6 +85,10 @@ class ScopusRelease:
         self.transform_bucket_name = transform_bucket_name
         self.data_location = data_location
         self.schema_ver = schema_ver
+
+        if view != 'standard' and view != 'complete':
+            raise AirflowException(f'view received: {view}, but can only be "standard" or "complete".')
+
         self.view = view
 
 
@@ -430,7 +434,7 @@ class ScopusUtility:
             except Empty:
                 logging.info(f'{conn}: no free workers. All workers exceeded quota. Sleeping until worker available.')
                 now = pendulum.now('UTC')
-                sleep_time = (reset_date - now).seconds + 1
+                sleep_time = max(0, (reset_date - now).seconds + 1)
                 logging.info(f'{conn}: Sleeping for {sleep_time} seconds until one is ready.')
                 sleep(sleep_time)  # + 1 just to be sure
                 for worker in qe_workers:
@@ -481,7 +485,7 @@ class ScopusUtility:
         while True:
             now = pendulum.now('UTC')
             if worker.quota_reset_date > now:
-                offset = (worker.quota_reset_date - now).seconds + 1
+                offset = max(0, (worker.quota_reset_date - now).seconds + 1)
                 logging.warning(f'{conn} client {worker.client_id}: cool down required. Sleeping for {offset} seconds.')
                 sleep(offset)
 
@@ -556,7 +560,6 @@ class ScopusUtility:
         """
 
         logging.info(f'Downloading snapshot with {mode} method.')
-
         schedule = build_schedule(release.start_date, release.end_date)
         task_queue = Queue()
         for period in schedule:
@@ -602,21 +605,51 @@ class ScopusUtility:
 class ScopusJsonParser:
     """ Helper methods to process the json from SCOPUS into desired structure. """
 
-    def get_affiliations(self, data):
+    @staticmethod
+    def get_affiliations(data):
         """ Get the affiliation field. """
 
         affiliations = list()
         if 'affiliation' not in data:
             return affiliations
 
-        for affiliation in data['affiliations']:
+        for affiliation in data['affiliation']:
             affil = dict()
             affil['name'] = get_entry_or_none(affiliation, 'affilname')
             affil['city'] = get_entry_or_none(affiliation, 'affiliation-city')
             affil['country'] = get_entry_or_none(affiliation, 'affiliation-country')
+
+            # Available in complete view
+            affil['id'] = get_entry_or_none(affiliation, 'afid')
+            affil['name_variant'] = get_entry_or_none(affiliation, 'name-variant')
             affiliations.append(affil)
 
         return affiliations
+
+    @staticmethod
+    def get_authors(data):
+        """ Get the author field. Won't know if this parser is going to throw error unless we get access to api key
+            with complete view access.
+        """
+
+        author_list = list()
+        if 'author' not in data:
+            return author_list
+
+        # Assuming there's a list given the doc says complete author list
+        authors = data['author']
+        for author in authors:
+            ad = dict()
+            ad['authid'] = get_entry_or_none(author, 'authid')  # Not sure what this is or how it's diff to afid
+            ad['orcid'] = get_entry_or_none(author, 'orcid')
+            ad['full_name'] = get_entry_or_none(author, 'authname')  # Taking a guess that this is what it is
+            ad['first_name'] = get_entry_or_none(author, 'given-name')
+            ad['last_name'] = get_entry_or_none(author, 'surname')
+            ad['initials'] = get_entry_or_none(author, 'initials')
+            ad['afid'] = get_entry_or_none(author, 'afid')
+            author_list.append(ad)
+
+        return author_list
 
     @staticmethod
     def parse_json(data: dict, harvest_datetime: str, release_date: str) -> dict:
@@ -629,22 +662,36 @@ class ScopusJsonParser:
         """
 
         entry = dict()
-        entry['title'] = get_entry_or_none(data, 'dc:title')
-        entry['identifier'] = get_entry_or_none(data, 'dc:identifier')
-        entry['creator'] = get_entry_or_none(data, 'dc:creator')
-        entry['publication_name'] = get_entry_or_none(data, 'prism:publicationName')
-        entry['cover_date'] = get_entry_or_none(data, 'prism:coverDate')
-        entry['doi'] = get_entry_or_none(data, 'prism:doi')
-        entry['eissn'] = get_entry_or_none(data, 'prism:eIssn')
-        entry['issn'] = get_entry_or_none(data, 'prism:issn')
-        entry['aggregation_type'] = get_entry_or_none(data, 'prism:aggregationType')
-        entry['pubmed-id'] = get_entry_or_none(data, 'pubmed-id')
-        entry['pii'] = get_entry_or_none(data, 'pii')
-        entry['eid'] = get_entry_or_none(data, 'eid')
-        entry['subtype_description'] = get_entry_or_none(data, 'subtypeDescription')
-        entry['open_access'] = get_entry_or_none(data, 'openaccess')
-        entry['open_access_flag'] = get_entry_or_none(data, 'openaccessFlag')
-        entry['citedby_count'] = get_entry_or_none(data, 'citedby-count')
-        entry['source-id'] = get_entry_or_none(data, 'source-id')
-        entry['affiliations'] = ScopusJsonParser.get_affiliations(data)
+        entry['harvest_datetime'] = harvest_datetime  # Time of harvest (datetime string)
+        entry['release_date'] = release_date  # Release date (date string)
+        entry['title'] = get_entry_or_none(data, 'dc:title')  # Article title
+        entry['identifier'] = get_entry_or_none(data, 'dc:identifier')  # Scopus ID
+        entry['creator'] = get_entry_or_none(data, 'dc:creator')  # First author name
+        entry['publication_name'] = get_entry_or_none(data, 'prism:publicationName')  # Source title
+        entry['cover_date'] = get_entry_or_none(data, 'prism:coverDate')  # Publication date
+        entry['doi'] = get_entry_or_none(data, 'prism:doi')  # DOI
+        entry['eissn'] = get_entry_or_none(data, 'prism:eIssn') # Electronic ISSN
+        entry['issn'] = get_entry_or_none(data, 'prism:issn')  # ISSN
+        entry['isbn'] = get_entry_or_none(data, 'prism:isbn')  # ISBN
+        entry['aggregation_type'] = get_entry_or_none(data, 'prism:aggregationType')  # Source type
+        entry['pubmed_id'] = get_entry_or_none(data, 'pubmed-id')  # MEDLINE identifier
+        entry['pii'] = get_entry_or_none(data, 'pii')  # PII Publisher item identifier
+        entry['eid'] = get_entry_or_none(data, 'eid')  # Electronic ID
+        entry['subtype_description'] = get_entry_or_none(data, 'subtypeDescription')  # Document Type description
+        entry['open_access'] = get_entry_or_none(data, 'openaccess', int)  # Open access status. (Integer)
+        entry['open_access_flag'] = get_entry_or_none(data, 'openaccessFlag')  # Open access status. (Boolean)
+        entry['citedby_count'] = get_entry_or_none(data, 'citedby-count', int)  # Cited by count (integer)
+        entry['source_id'] = get_entry_or_none(data, 'source-id', int)  # Source ID (integer)
+        entry['affiliations'] = ScopusJsonParser.get_affiliations(data)  # Affiliations
+        entry['orcid'] = get_entry_or_none(data, 'orcid')  # ORCID
+
+        # Available in complete view
+        entry['authors'] = ScopusJsonParser.get_authors(data)  # List of authors
+        entry['abstract'] = get_entry_or_none(data, 'dc:description')  # Abstract
+        entry['keywords'] = get_as_list(data, 'authkeywords')  # Assuming it's a list of strings.
+        entry['article_number'] = get_entry_or_none(data, 'article-number')  # Article number (unclear if int or str)
+        entry['grant_agency_ac'] = get_entry_or_none(data, 'fund-acr')  # Funding agency acronym
+        entry['grant_agency_id'] = get_entry_or_none(data, 'fund-no')  # Funding agency identification
+        entry['grant_agency_name'] = get_entry_or_none(data, 'fund-sponsor')  # Funding agency name
+
         return entry
