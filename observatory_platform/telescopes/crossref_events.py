@@ -107,6 +107,7 @@ def list_batch_dates(release: 'CrossrefEventsRelease'):
 
 
 def download_events_batch(release: 'CrossrefEventsRelease', start_date, end_date) -> list:
+    #TODO separate function to download batch for edited/deleted until until-updated-date isn't working
     batch_results = []
     # Extract all new, edited and deleted events
     for event_type, url in release.urls.items():
@@ -119,8 +120,8 @@ def download_events_batch(release: 'CrossrefEventsRelease', start_date, end_date
 
         logging.info(f"Downloading from url: {url}")
 
-        events_path = release.download_batch_path(event_type, start_date_str)
-        cursor_path = release.cursor_path(event_type, start_date_str)
+        events_path = release.download_batch_path(event_type, start_date_str, end_date_str)
+        cursor_path = release.cursor_path(event_type, start_date_str, end_date_str)
         # check if cursor files exist from a previous failed request
         if os.path.isfile(cursor_path):
             # retrieve cursor
@@ -148,7 +149,7 @@ def download_events_batch(release: 'CrossrefEventsRelease', start_date, end_date
     return batch_results
 
 
-def download_release(release: 'CrossrefEventsRelease'):
+def download_release(release: 'CrossrefEventsRelease') -> bool:
     all_results = []
 
     if CrossrefEventsTelescope.DOWNLOAD_MODE == 'parallel':
@@ -220,23 +221,24 @@ def change_keys(obj, convert):
 class CrossrefEventsRelease:
     """ Used to store info on a given crossref release """
 
-    def __init__(self, start_date: datetime, end_date: datetime):
+    def __init__(self, start_date: datetime, end_date: datetime, first_release: bool):
         self.start_date = start_date
         self.end_date = end_date
-
-        self.urls = {'events': CrossrefEventsTelescope.EVENTS_URL, 'edited': CrossrefEventsTelescope.EDITED_URL,
-                     'deleted': CrossrefEventsTelescope.DELETED_URL}
+        if first_release:
+            self.urls = {'events': CrossrefEventsTelescope.EVENTS_URL}
+        else:
+            self.urls = {'events': CrossrefEventsTelescope.EVENTS_URL, 'edited': CrossrefEventsTelescope.EDITED_URL,
+                         'deleted': CrossrefEventsTelescope.DELETED_URL}
 
     @property
     def download_path(self):
-        #TODO fix up paths, create subdir for each release
         return self.get_path(SubFolder.downloaded, CrossrefEventsTelescope.DAG_ID)
 
-    def download_batch_path(self, event_type: str, batch_start: str):
-        return self.get_path(SubFolder.downloaded, f'{event_type}_{batch_start}')
+    def download_batch_path(self, event_type: str, batch_start: str, batch_end: str):
+        return self.get_path(SubFolder.downloaded, f'{event_type}_{batch_start}-{batch_end}')
 
-    def cursor_path(self, event_type: str, batch_start: str):
-        return self.get_path(SubFolder.downloaded, f'{event_type}_{batch_start}_cursor')
+    def cursor_path(self, event_type: str, batch_start: str, batch_end: str):
+        return self.get_path(SubFolder.downloaded, f'{event_type}_{batch_start}_{batch_end}_cursor')
 
     @property
     def transform_path(self):
@@ -252,9 +254,14 @@ class CrossrefEventsRelease:
 
         date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
 
-        file_name = f"{name}_{date_str}.json"
+        release_folder = os.path.join(telescope_path(sub_folder, CrossrefEventsTelescope.DAG_ID), date_str)
+        if not os.path.exists(release_folder):
+            os.makedirs(release_folder, exist_ok=True)
 
-        path = os.path.join(telescope_path(sub_folder, CrossrefEventsTelescope.DAG_ID), file_name)
+        file_name = f"{name}.json"
+
+        path = os.path.join(release_folder, file_name)
+
         return path
 
     def get_blob_name(self, sub_folder: SubFolder) -> str:
@@ -337,14 +344,18 @@ class CrossrefEventsTelescope:
 
         prev_start_date = kwargs['prev_start_date_success']
         # if DAG is run for first time, set to start date of this DAG (note: different than start date of DAG run)
-        if not prev_start_date:
+        if prev_start_date:
+            first_release = False
+        else:
+            first_release = True
             prev_start_date = kwargs['dag'].default_args['start_date']
         start_date = pendulum.instance(kwargs['dag_run'].start_date)
 
-        release = CrossrefEventsRelease(prev_start_date, start_date)
+        release = CrossrefEventsRelease(prev_start_date, start_date, first_release)
         ti.xcom_push(CrossrefEventsTelescope.RELEASES_TOPIC_NAME, release)
 
-        download_release(release)
+        continue_dag = download_release(release)
+        return continue_dag
 
     @staticmethod
     def upload_downloaded(**kwargs):
