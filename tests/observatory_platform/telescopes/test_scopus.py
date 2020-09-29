@@ -43,7 +43,7 @@ from observatory_platform.utils.telescope_utils import (
 class TestScopusRelease(unittest.TestCase):
     """ Test the ScopusRelease class. """
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('airflow.models.Variable.get', return_value='data')
     def test_init(self, tele):
         """ Test initialisation. """
 
@@ -208,11 +208,11 @@ class TestScopusUtility(unittest.TestCase):
         """ Download snapshot test. """
 
         release = ScopusRelease(inst_id='curtin', scopus_inst_id=['60031226'],
-                            release_date=pendulum.date(2020, 1, 1),
-                            start_date=pendulum.date(1990, 5, 1),
-                            end_date=pendulum.date(1990, 9, 1), project_id='project_id',
-                            download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
-                            data_location='data_location', schema_ver='schema_ver', view='standard')
+                                release_date=pendulum.date(2020, 1, 1),
+                                start_date=pendulum.date(1990, 5, 1),
+                                end_date=pendulum.date(1990, 9, 1), project_id='project_id',
+                                download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
+                                data_location='data_location', schema_ver='schema_ver', view='standard')
 
         api_keys = [self.api_key1, self.api_key2]
         saved_files = ScopusUtility.download_snapshot(api_keys, release, 'sequential')
