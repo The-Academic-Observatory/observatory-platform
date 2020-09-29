@@ -24,9 +24,7 @@ from observatory_platform.telescopes.crossref_events import CrossrefEventsTelesc
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2020, 1, 1)
-    #TODO change back start date
-    # "start_date": datetime(2017, 2, 17)
+    "start_date": datetime(2017, 2, 17)
 }
 
 with DAG(dag_id="crossref_events", schedule_interval="@weekly", default_args=default_args,
@@ -43,6 +41,7 @@ with DAG(dag_id="crossref_events", schedule_interval="@weekly", default_args=def
         task_id=CrossrefEventsTelescope.TASK_ID_DOWNLOAD,
         python_callable=CrossrefEventsTelescope.download,
         provide_context=True,
+        retries=CrossrefEventsTelescope.MAX_RETRIES,
         queue=CrossrefEventsTelescope.QUEUE,
     )
 
