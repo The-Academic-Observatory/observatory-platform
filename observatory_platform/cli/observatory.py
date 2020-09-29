@@ -14,7 +14,7 @@
 
 # Author: James Diprose, Aniek Roelofs
 
-import itertools
+import json
 import os
 import shutil
 import subprocess
@@ -25,20 +25,69 @@ import urllib.request
 from subprocess import Popen
 
 import click
-import json
 import docker
 import requests
 from cryptography.fernet import Fernet
 
-from observatory_platform.utils.config_utils import AirflowVar, \
-    AirflowConn, \
-    observatory_home, \
+from observatory_platform.utils.config_utils import observatory_home, \
     observatory_package_path, \
     dags_path as default_dags_path, \
     ObservatoryConfig, \
-    terraform_credentials_path as default_terraform_credentials_path
+    terraform_credentials_path as default_terraform_credentials_path, docker_path
+from observatory_platform.utils.jinja2_utils import render_template
 from observatory_platform.utils.proc_utils import wait_for_process, stream_process
 from observatory_platform.utils.terraform_utils import TerraformApi
+
+
+def build_file(template_file_name: str, output_file_name: str, working_dir: str, **kwargs):
+    template_path = os.path.join(docker_path(), template_file_name)
+    render = render_template(template_path, **kwargs)
+
+    output_path = os.path.join(working_dir, output_file_name)
+    with open(output_path, 'w') as f:
+        f.write(render)
+
+
+def build_docker_files(config: ObservatoryConfig, working_dir: str, is_env_local: bool):
+    build_file('Dockerfile.observatory.jinja2', 'Dockerfile.observatory', working_dir,
+               dags_projects=config.dags_projects,
+               is_env_local=is_env_local)
+    build_file('docker-compose.observatory.yml.jinja2', 'docker-compose.observatory.yml', working_dir,
+               dags_projects=config.dags_projects,
+               airflow_connections=config.airflow_connections,
+               airflow_variables=config.airflow_variables,
+               is_env_local=is_env_local)
+    build_file('entrypoint-airflow.sh.jinja2', 'entrypoint-airflow.sh', working_dir,
+               dags_projects=config.dags_projects,
+               is_env_local=is_env_local)
+
+
+def build_requirements_files(config: ObservatoryConfig, working_dir: str):
+    # Copy observatory requirements.txt
+    input_file = os.path.join(observatory_package_path(), 'requirements.txt')
+    output_file = os.path.join(working_dir, f'requirements.txt')
+    shutil.copy(input_file, output_file)
+
+    # Copy all project requirements files for local projects
+    for project in config.dags_projects:
+        if project.type == 'local':
+            input_file = os.path.join(project.value, 'requirements.txt')
+            output_file = os.path.join(working_dir, f'requirements.{project.name}.txt')
+            shutil.copy(input_file, output_file)
+
+
+def build_observatory(config: ObservatoryConfig, working_dir: str, is_env_local: bool = True):
+    # Build Docker and requirements files
+    build_docker_files(config, working_dir, is_env_local)
+    build_requirements_files(config, working_dir)
+
+    # Copy other files
+    file_names = ['entrypoint-root.sh', 'elasticsearch.yml']
+    for file_name in file_names:
+        input_file = os.path.join(docker_path(), file_name)
+        output_file = os.path.join(working_dir, file_name)
+        shutil.copy(input_file, output_file)
+
 
 
 @click.group()
@@ -90,6 +139,7 @@ def gen_config_interface(backend: str, terraform_variables_path: str = Observato
 
 class OptionRequiredIfTerraform(click.Option):
     """ Make variables.tf file required when generating config file for terraform. """
+
     def full_process_value(self, ctx, value):
         value = super(OptionRequiredIfTerraform, self).full_process_value(ctx, value)
 
@@ -158,6 +208,10 @@ def is_docker_running() -> bool:
     return is_running
 
 
+# def make_airflow_var_dags_paths(dags_projects: List[DagsProject]):
+#     return ':'.join([f'/opt/observatory/{project.name}/{project.dags_path}' for project in dags_projects])
+
+
 def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, host_uid: int, host_gid: int,
             package_path: str, config: ObservatoryConfig):
     """ Make an environment containing the environment variables that are required to build and start the
@@ -175,7 +229,8 @@ def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, 
     """
 
     env = os.environ.copy()
-    config = config.local
+    # TODO: make config file normal again!
+    # config_ = config.local
 
     # Host settings
     env['HOST_USER_ID'] = str(host_uid)
@@ -190,13 +245,24 @@ def get_env(dags_path: str, data_path: str, logs_path: str, postgres_path: str, 
     env['HOST_GOOGLE_APPLICATION_CREDENTIALS'] = config.google_application_credentials
     env['FERNET_KEY'] = config.fernet_key
 
+    # Create Airflow variables
+    env['AIRFLOW_VAR_LOAD_DEFAULT_DAGS'] = str(config.load_default_dags)
+    env['AIRFLOW_VAR_DAGS_PACKAGE_NAMES'] = ':'.join([project.name.replace('-', '_') for project in
+                                                      config.dags_projects])
+    for variable in config.airflow_variables:
+        env[variable.env_var_name] = variable.value
+
+    # Airflow connections
+    for conn in config.airflow_connections:
+        env[conn.env_var_name] = conn.value
+
     # Set connections and variables
-    for obj in itertools.chain(AirflowConn, AirflowVar):
-        if obj.value['schema']:
-            if type(obj) == AirflowConn:
-                env[f'AIRFLOW_CONN_{obj.get().upper()}'] = config.airflow_connections[obj.get()]
-            else:
-                env[f'AIRFLOW_VAR_{obj.get().upper()}'] = config.airflow_variables[obj.get()]
+    # for obj in itertools.chain(AirflowConn, AirflowVar):
+    #     if obj.value['schema']:
+    #         if type(obj) == AirflowConn:
+    #             env[f'AIRFLOW_CONN_{obj.get().upper()}'] = config_.airflow_connections[obj.get()]
+    #         else:
+    #             env[f'AIRFLOW_VAR_{obj.get().upper()}'] = config_.airflow_variables[obj.get()]
 
     return env
 
@@ -233,12 +299,6 @@ def wait_for_airflow_ui(ui_url: str, timeout=60) -> bool:
 
 def indent(string: str, num_spaces: int) -> str:
     return string.rjust(len(string) + num_spaces)
-
-
-def build_compose_files(working_dir: str):
-    """ Concatenate the docker compose files and store output in pipe. """
-    return subprocess.Popen(['cat', 'docker-compose.local.yml', 'docker-compose.observatory.yml'],
-                            stdout=subprocess.PIPE, cwd=working_dir)
 
 
 @cli.command()
@@ -301,7 +361,7 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
     print("Observatory Platform: checking dependencies...".ljust(min_line_chars), end='\r')
 
     # Get all dependencies
-    docker_path = get_docker_path()
+    docker_exe_path = get_docker_path()
     docker_compose_path = get_docker_compose_path()
     docker_running = is_docker_running()
     config_exists = os.path.exists(config_path)
@@ -313,7 +373,7 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
             config_is_valid = config.is_valid
 
     # Check that all dependencies are met
-    all_deps = all([docker_path is not None,
+    all_deps = all([docker_exe_path is not None,
                     docker_compose_path is not None,
                     docker_running,
                     config_exists,
@@ -332,8 +392,8 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
         print("Observatory Platform: all dependencies found".ljust(min_line_chars))
 
     print(indent("Docker:", indent1))
-    if docker_path is not None:
-        print(indent(f"- path: {docker_path}", indent2))
+    if docker_exe_path is not None:
+        print(indent(f"- path: {docker_exe_path}", indent2))
 
         if docker_running:
             print(indent(f"- running", indent2))
@@ -385,21 +445,24 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
 
     # Working directory for running the build etc
     package_path = observatory_package_path()
+    current_working_dir = observatory_home('build')
 
     # Make environment variables for running commands
     env = get_env(dags_path, data_path, logs_path, postgres_path, host_uid, host_gid, package_path, config)
 
+    # Build observatory files
+    build_observatory(config, current_working_dir, is_env_local=True)
+
     # Docker compose commands
-    compose_args = ['docker-compose', '-f', '-']
+    compose_args = ['docker-compose', '-f', 'docker-compose.observatory.yml']
 
     # Start the appropriate process
     if command == 'start':
         print('Observatory Platform: building...'.ljust(min_line_chars), end="\r")
 
         # Build the containers first
-        cat_proc = build_compose_files(package_path)
-        proc: Popen = subprocess.Popen(compose_args + ['build'], stdin=cat_proc.stdout, stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE, env=env, cwd=package_path)
+        proc: Popen = subprocess.Popen(compose_args + ['build'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       env=env, cwd=current_working_dir)
         output, error = stream_process(proc, debug)
 
         if proc.returncode == 0:
@@ -410,9 +473,8 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
 
         # Start the built containers
         print('Observatory Platform: starting...'.ljust(min_line_chars), end='\r')
-        cat_proc = build_compose_files(package_path)
-        proc: Popen = subprocess.Popen(compose_args + ['up', '-d'], stdin=cat_proc.stdout, stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE, env=env, cwd=package_path)
+        proc: Popen = subprocess.Popen(compose_args + ['up', '-d'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       env=env, cwd=current_working_dir)
         output, error = stream_process(proc, debug)
 
         if proc.returncode == 0:
@@ -431,9 +493,8 @@ def platform(command, config_path, dags_path, data_path, logs_path, postgres_pat
 
     elif command == 'stop':
         print('Observatory Platform: stopping...'.ljust(min_line_chars), end='\r')
-        cat_proc = build_compose_files(package_path)
-        proc = subprocess.Popen(compose_args + ['down'], stdin=cat_proc.stdout, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, env=env, cwd=package_path)
+        proc = subprocess.Popen(compose_args + ['down'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
+                                cwd=current_working_dir)
         output, error = wait_for_process(proc)
 
         if debug:

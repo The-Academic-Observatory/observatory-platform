@@ -13,6 +13,10 @@ See the documentation here: https://coki-academic-observatory.readthedocs-hosted
 The Observatory Platform is compatible with Python 3.7.
 '''
 
+# Read requirements.txt files
+# with open('requirements.platform.txt') as f:
+#     install_requires = f.read().splitlines()
+
 with open('requirements.txt') as f:
     install_requires = f.read().splitlines()
 
@@ -28,7 +32,7 @@ setup(
     author='Curtin University',
     author_email='agent@observatory.academy',
     url='https://github.com/The-Academic-Observatory/observatory-platform',
-    packages=find_packages(),
+    packages=find_packages(exclude='tests'),
     download_url='https://github.com/The-Academic-Observatory/observatory-platfor/v20.7.0.tar.gz',
     keywords=['science', 'data', 'workflows', 'academic institutes', 'observatory-platform'],
     install_requires=install_requires,

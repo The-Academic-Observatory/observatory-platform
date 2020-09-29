@@ -16,12 +16,14 @@
 
 
 import glob
+import importlib
 import itertools
 import logging
 import os
 import pathlib
+from dataclasses import dataclass
 from enum import Enum
-from types import SimpleNamespace
+from typing import List
 from typing import Union
 
 import airflow
@@ -30,18 +32,15 @@ import hcl
 import pendulum
 import yaml
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.db import create_session
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from cerberus import Validator
 from cryptography.fernet import Fernet
-from jinja2 import Template
 from natsort import natsorted
 from pendulum import Pendulum
 from yaml.loader import SafeLoader
 from yaml.nodes import ScalarNode
 
-import observatory_platform.database
-import observatory_platform.database.workflows.sql
+import observatory_platform.docker
 import terraform
 from observatory_platform import dags
 from observatory_platform.utils.airflow_utils import AirflowVariable
@@ -49,6 +48,29 @@ from observatory_platform.utils.jinja2_utils import render_template
 
 # The path where data is saved on the system
 data_path = None
+
+
+def get_dags_path(package_name: str, dags_module_name: str = 'dags') -> str:
+    """ Get the path to a project's DAGs folder.
+
+    :param package_name: the name of the Python package.
+    :param dags_module_name: the name of the DAGs module.
+    :return: the path to the DAGs folder.
+    """
+
+    dags_module = importlib.import_module(f'{package_name}.{dags_module_name}')
+    file_path = pathlib.Path(dags_module.__file__).resolve()
+    return str(pathlib.Path(*file_path.parts[:-1]).resolve())
+
+
+def docker_path() -> str:
+    """ Get the path to the docker templates.
+
+    :return: the path to docker templates.
+    """
+
+    file_path = pathlib.Path(observatory_platform.docker.__file__).resolve()
+    return str(pathlib.Path(*file_path.parts[:-1]).resolve())
 
 
 def observatory_home(*subdirs) -> str:
@@ -133,30 +155,25 @@ def schema_path(database: str) -> str:
     return str(pathlib.Path(*file_path.parts[:-1], database, 'schema').resolve())
 
 
-def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str = '', ver: str = '') -> Union[str, None]:
+def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str = '') -> Union[str, None]:
     """ Finds a schema file on a given path, with a particular table name, release date and optional prefix.
-    If no version string is sepcified, the most recent schema with a date less than or equal to the release date of the
-    dataset is returned. If a version string is specified, the most current (date) schema in that series is returned.
-
+    The most recent schema with a date less than or equal to the release date of the dataset is returned.
     Use the schema_path function to find the path to the folder containing the schemas.
 
     For example (grid schemas):
      - grid2015-09-22.json
      - grid2016-04-28.json
-     - wos_wok5.4_2016-01-01.json  (versioned schema with version 'wok5.4')
 
     For GRID releases between 2015-09-22 and 2016-04-28 grid_2015-09-22.json is returned and for GRID releases or after
     2016-04-28 grid_2016-04-28.json is returned (until a new schema with a later date is added).
 
-    Unversioned schemas are named with the following pattern: prefix + table_name + YYYY-MM-DD + .json
-    Versioned schemas are named as: prefix + table_name + '_' + ver + '_' + YYYY-MM-DD + .json
+    Schemas are named with the following pattern: prefix + table_name + YYYY-MM-DD + .json
     * prefix: an optional prefix for datasets with multiple tables, for instance the Microsoft Academic Graph (MAG)
     dataset schema file names are prefixed with Mag, e.g. MagAffiliations2020-05-21.json, MagAuthors2020-05-21.json.
     The GRID dataset only has one table, so there is no prefix, e.g. grid2015-09-22.json.
     * table_name: the name of the table.
-    * ver: version string.
     * YYYY-MM-DD: schema file names end in the release date that the particular schema should be used from in YYYY-MM-DD
-    format. For versioned schemas, this is the date of schema creation.
+    format.
     * prefix and table_name follow the naming conventions of the dataset, e.g. MAG uses CamelCase for tables and fields
     so CamelCase is used. When there is no preference from the dataset then lower snake case is used.
 
@@ -164,27 +181,15 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
     :param table_name: the name of the table.
     :param release_date: the release date of the table.
     :param prefix: an optional prefix.
-    :param ver: Schema version.
     :return: the path to the schema or None if no schema was found.
     """
 
     # Make search path for schemas
-    if ver != '':
-        search_path = os.path.join(path, f'{prefix}{table_name}_{ver}_*.json')
-    else:
-        search_path = os.path.join(path, f'{prefix}{table_name}*.json')
+    search_path = os.path.join(path, f'{prefix}{table_name}*.json')
 
     # Find potential schemas with a glob search and sort them naturally
     schema_paths = glob.glob(search_path)
     schema_paths = natsorted(schema_paths)
-
-    # No schemas were found
-    if len(schema_paths) == 0:
-        return None
-
-    # Deal with versioned schema first since it's simpler. Return most recent for versioned schema.
-    if ver != '':
-        return schema_paths[-1]
 
     # Get schemas with dates <= release date
     prefix_len = len(prefix + table_name)
@@ -247,18 +252,6 @@ def check_connections(*connections):
             logging.error(f"Airflow connection '{name}' not set.")
             is_valid = False
     return is_valid
-
-
-def list_connections(source):
-    """Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
-
-    :param source: Data source (conforming to name convention) as a string, e.g., 'wos'.
-    :return: A list of connection id strings with the prefix <source>_, e.g., ['wos_curtin', 'wos_auckland'].
-    """
-    with create_session() as session:
-        query = session.query(Connection)
-        query = query.filter(Connection.conn_id.like(f'{source}_%'))
-        return query.all()
 
 
 def telescope_path(sub_folder: SubFolder, name: str) -> str:
@@ -440,6 +433,7 @@ def get_default_airflow(variable: str, airflow_class: Union[AirflowConn, Airflow
 
 class ObservatoryConfigValidator(Validator):
     """ Custom config Validator"""
+
     def _validate_google_application_credentials(self, google_application_credentials, field, value):
         """ Validate that the Google Application Credentials file exists.
 
@@ -486,7 +480,7 @@ def iterate_over_local_schema(schema: dict, tmp_schema: dict, new_schema: dict, 
     if not new_schema:
         new_schema = tmp_schema
     for k, v in schema.items():
-        var_name = k if v['required'] or test_config else '#'+k
+        var_name = k if v['required'] or test_config else '#' + k
 
         try:
             nested_schema = v['schema']
@@ -531,7 +525,7 @@ def iterate_over_terraform_schema(schema: dict, tmp_schema: dict, new_schema: di
     for k, v in schema.items():
         var_name = '!sensitive ' + k if k in ['google_application_credentials', 'airflow_secrets',
                                               'airflow_connections'] else k
-        var_name = var_name if v['required'] or test_config else '#'+var_name
+        var_name = var_name if v['required'] or test_config else '#' + var_name
 
         try:
             nested_schema = v['schema']
@@ -565,12 +559,48 @@ def change_keys(obj):
     if isinstance(obj, dict):
         new = obj.__class__()
         for k, v in list(obj.items()):
-            new['#'+k] = change_keys(v)
+            new['#' + k] = change_keys(v)
     elif isinstance(obj, (list, set, tuple)):
         new = obj.__class__(change_keys(v) for v in obj)
     else:
         return obj
     return new
+
+
+# class ProjectType(Enum):
+#     local = 'local'
+#     git = 'git'
+#     pypi = 'pypi'
+
+
+@dataclass
+class DagsProject:
+    name: str
+    value: str
+
+    @property
+    def type(self) -> str:
+        return 'local'
+
+
+@dataclass
+class AirflowConnection:
+    name: str
+    value: str
+
+    @property
+    def env_var_name(self):
+        return f'AIRFLOW_CONN_{self.name.upper()}'
+
+
+@dataclass
+class AirflowVariable:
+    name: str
+    value: str
+
+    @property
+    def env_var_name(self):
+        return f'AIRFLOW_VAR_{self.name.upper()}'
 
 
 class ObservatoryConfig:
@@ -586,25 +616,65 @@ class ObservatoryConfig:
         """
         self.path = config_path
         self.sensitive_variables = []
-        config_dict = self.load()
-        if 'terraform' in config_dict['backend']:
-            self.backend = 'terraform'
-        elif config_dict['backend'] == 'local':
-            self.backend = 'local'
-        else:
-            print('backend has to be either "local" or "terraform"')
-            exit(os.EX_CONFIG)
+        self.dict = self.load()
         self.schema = self.get_schema(self.backend, terraform_variables_path)
         self.validator = ObservatoryConfigValidator(self.schema)
-        # fill default values for empty airflow connections
-        self.dict = self.validator.normalized(config_dict)
 
-        if self.backend == 'local':
-            self.local = SimpleNamespace(**self.dict)
-            self.terraform = None
-        else:
-            self.local = None
-            self.terraform = SimpleNamespace(**self.dict)
+        # fill default values for empty airflow connections
+        # self.dict = self.validator.normalized(config_dict)
+
+        # if self.backend == 'local':
+        #     self.local = SimpleNamespace(**self.dict)
+        #     self.terraform = None
+        # else:
+        #     self.local = None
+        #     self.terraform = SimpleNamespace(**self.dict)
+
+        # if 'terraform' in config_dict['backend']:
+        #     self.backend = 'terraform'
+        # elif config_dict['backend'] == 'local':
+        #     self.backend = 'local'
+        # else:
+        #     print('backend has to be either "local" or "terraform"')
+        #     exit(os.EX_CONFIG)
+
+    @property
+    def backend(self):
+        return self.dict.get('backend')
+
+    @property
+    def fernet_key(self) -> str:
+        return self.dict.get('fernet_key')
+
+    @property
+    def google_application_credentials(self):
+        return self.dict.get('google_application_credentials')
+
+    @property
+    def load_default_dags(self):
+        return self.dict.get('load_default_dags')
+
+    @property
+    def airflow_connections(self) -> List[AirflowConnection]:
+        conns = []
+        for key, value in self.dict.get('airflow_connections', dict()).items():
+            conns.append(AirflowConnection(key, value))
+        return conns
+
+    @property
+    def airflow_variables(self) -> List[AirflowVariable]:
+        variables = []
+        for key, value in self.dict.get('airflow_variables', dict()).items():
+            variables.append(AirflowVariable(key, value))
+        return variables
+
+    @property
+    def dags_projects(self) -> List[DagsProject]:
+        projects = []
+        for project_name, value in self.dict.get('dags_projects').items():
+            projects.append(DagsProject(project_name, value))
+
+        return projects
 
     def yaml_constructor(self, loader: SafeLoader, node: ScalarNode) -> str:
         """
@@ -735,7 +805,7 @@ def create_terraform_schema(terraform_variables_path: str) -> dict:
             schema[variable] = {'required': True, 'type': var_type, 'check_with': customise_pointer}
             # add description and default value to 'meta'
             schema[variable]['meta'] = {'description': description, 'default': default}
-            if variable =='google_application_credentials':
+            if variable == 'google_application_credentials':
                 schema[variable]['google_application_credentials'] = True
 
         # transform terraform 'object' type to dictionary. 'object' is a dict of variable names & types
@@ -749,7 +819,8 @@ def create_terraform_schema(terraform_variables_path: str) -> dict:
                 # type 'bool' in terraform is 'boolean' in cerberus schema
                 if sub_type == 'bool':
                     sub_type = 'boolean'
-                schema[variable]['schema'][sub_name] = {'required': True, 'type': sub_type, 'check_with': customise_pointer}
+                schema[variable]['schema'][sub_name] = {'required': True, 'type': sub_type,
+                                                        'check_with': customise_pointer}
                 # hardcode that each connection validates URI string
                 if variable == 'airflow_connections':
                     schema[variable]['schema'][sub_name]['isuri'] = True
@@ -808,6 +879,14 @@ def create_local_schema() -> dict:
             'type': 'dict',
             'schema': {
             }
+        },
+        'load_default_dags': {
+            'required': True,
+            'type': 'boolean'
+        },
+        'dags_projects': {
+            'required': True,
+            'type': 'dict'
         }
     }
     # Add schema's of each individual airflow connection/variable to the schema dict

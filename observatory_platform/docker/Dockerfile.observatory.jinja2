@@ -1,0 +1,79 @@
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: James Diprose
+
+FROM apache/airflow:1.10.11-python3.7
+
+ARG HOST_USER_ID
+ARG HOST_GROUP_ID
+ARG OBSERVATORY_HOME=/opt/observatory
+
+# Install git which is required when installing dependencies with pip
+USER root
+RUN apt-get update -yqq && apt-get install git build-essential pigz mawk unzip -y
+
+# Change airflow user's user id to the hosts user id
+RUN usermod -u ${HOST_USER_ID} airflow
+
+# Change airflow user's group id to the hosts group id
+RUN groupmod -g ${HOST_GROUP_ID} airflow
+
+# Install Python dependencies for Observatory Platform as airflow user
+USER airflow
+
+# Set working directory to observatory-platform
+ARG WORKING_DIR=${OBSERVATORY_HOME}/observatory-platform
+WORKDIR ${WORKING_DIR}
+
+# Copy and install platform requirements
+COPY ./requirements.txt requirements.txt
+RUN pip3 install -r requirements.txt --user
+
+# If load_default_dags=true then install dependencies for default DAGs
+#{% if load_default_dags %}
+#COPY ./requirements.dags.txt requirements.dags.txt
+#RUN pip3 install -r requirements.dags.txt --user
+#{% endif %}
+
+# Install dependencies and projects
+{% for project in dags_projects %}
+# Set working directory for {{ project.name }}
+ARG WORKING_DIR=${OBSERVATORY_HOME}/{{ project.name }}
+WORKDIR ${WORKING_DIR}
+{% if project.type == 'local' -%}
+# Copy requirements file for {{ project.name }} and install
+COPY ./requirements.{{ project.name }}.txt requirements.txt
+RUN pip3 install -r requirements.txt --user
+{% elif project.type == 'git' %}
+# Clone {{ project.name }} and install
+RUN git clone {{ project.value }} .
+RUN pip3 install -e . --user
+{% else %}
+# Install {{ project.name }} from Github
+RUN pip3 install {{ project.value }} --user
+{% endif %}
+{% endfor %}
+
+# Set working directory to airflow home
+WORKDIR ${AIRFLOW_HOME}
+
+# Copy entry point scripts which install new dependencies at runtime and the Observatory Platform Python package
+USER root
+COPY entrypoint-root.sh /entrypoint-root.sh
+COPY entrypoint-airflow.sh /entrypoint-airflow.sh
+RUN chmod +x /entrypoint-root.sh
+RUN chmod +x /entrypoint-airflow.sh
+
+ENTRYPOINT ["/entrypoint-root.sh"]
