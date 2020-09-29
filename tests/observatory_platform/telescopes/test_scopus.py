@@ -43,7 +43,7 @@ from observatory_platform.utils.telescope_utils import (
 class TestScopusRelease(unittest.TestCase):
     """ Test the ScopusRelease class. """
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get', return_value='teletest')
+    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_init(self, tele):
         """ Test initialisation. """
 
@@ -60,8 +60,8 @@ class TestScopusRelease(unittest.TestCase):
         self.assertEqual(obj.start_date, pendulum.date(2000, 5, 1))
         self.assertEqual(obj.end_date, pendulum.date(2000, 1, 1))
         self.assertEqual(obj.project_id, 'project_id')
-        self.assertEqual(obj.download_path, 'teletest/telescopes/download/scopus')
-        self.assertEqual(obj.transform_path, 'teletest/telescopes/transform/scopus')
+        self.assertEqual(obj.download_path, 'data/telescopes/download/scopus')
+        self.assertEqual(obj.transform_path, 'data/telescopes/transform/scopus')
         self.assertEqual(obj.telescope_path, 'telescopes/scopus/1984-01-01')
         self.assertEqual(obj.download_bucket_name, 'download_bucket')
         self.assertEqual(obj.transform_bucket_name, 'transform_bucket')
