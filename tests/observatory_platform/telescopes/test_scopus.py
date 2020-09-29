@@ -349,9 +349,9 @@ class TestScopusJsonParser(unittest.TestCase):
 
         self.assertEqual(entry['abstract'], 'abstract')
         self.assertEqual(entry['article_number'], 'artno')
-        self.assertEqual(entry['grant_agency_ac'], 'acr')
-        self.assertEqual(entry['grant_agency_id'], 'no')
-        self.assertEqual(entry['grant_agency_name'], 'sponsor')
+        self.assertEqual(entry['fund_agency_ac'], 'acr')
+        self.assertEqual(entry['fund_agency_id'], 'no')
+        self.assertEqual(entry['fund_agency_name'], 'sponsor')
 
         words = entry['keywords']
         self.assertEqual(len(words), 1)
@@ -370,30 +370,3 @@ class TestScopusJsonParser(unittest.TestCase):
 
         self.assertEqual(len(entry['institution_ids']), 1)
         self.assertEqual(entry['institution_ids'], self.scopus_inst_id)
-
-# class TestScopus(unittest.TestCase):
-#     """ Tests for the functions used by the SCOPUS telescope """
-#
-#     def __init__(self, *args, **kwargs):
-#         """ Constructor which sets up variables used by tests.
-#
-#         :param args: arguments.
-#         :param kwargs: keyword arguments.
-#         """
-#
-#         super(TestScopus, self).__init__(*args, **kwargs)
-#
-#         # Paths
-#         self.work_dir = '.'
-#
-#         # Release <date>
-#
-#
-#         # Turn logging to warning because vcr prints too much at info level
-#         logging.basicConfig()
-#         logging.getLogger().setLevel(logging.WARNING)
-#
-#
-#     def test_build_query(self):
-#         """ Test query building code. """
-#
