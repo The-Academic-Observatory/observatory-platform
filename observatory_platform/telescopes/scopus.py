@@ -25,7 +25,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from elsapy.elsclient import ElsClient
 from elsapy.elssearch import ElsSearch
-from google.cloud.bigquery import SourceFormat
+from google.cloud.bigquery import SourceFormat, WriteDisposition
 from queue import Queue, Empty
 from threading import Event
 from time import sleep
@@ -39,13 +39,16 @@ from airflow.models import Variable
 
 from observatory_platform.utils.config_utils import (
     AirflowVar,
-    check_variables,
     SubFolder,
+    check_variables,
+    find_schema,
     telescope_path,
+    schema_path,
 )
 
 from observatory_platform.utils.telescope_utils import (
     build_schedule,
+    delete_msg_files,
     get_entry_or_none,
     get_as_list,
     json_to_db,
@@ -55,29 +58,34 @@ from observatory_platform.utils.telescope_utils import (
 )
 
 from observatory_platform.utils.gc_utils import (
+    bigquery_partitioned_table_id,
+    create_bigquery_dataset,
+    load_bigquery_table,
     upload_telescope_file_list,
 )
 
 
 class ScopusRelease:
-    """ Used to store info on a given SCOPUS release.
-
-    :param inst_id: institution id from the airflow connection (minus the scopus_)
-    :param scopus_inst_id: List of institution ids to use in the SCOPUS query.
-    :param release_date: Release date (currently the execution date).
-    :param start_date: Start date of the dag where to start pulling records from.
-    :param end_date: End of records to pull.
-    :param project_id: The project id to use.
-    :param download_bucket_name: Download bucket name to use for storing downloaded files in the cloud.
-    :param transform_bucket_name: Transform bucket name to use for storing transformed files in the cloud.
-    :param data_location: Location of the data servers
-    :param view: SCOPUS what 'view' level of access your apis key can access.
-    """
+    """ Used to store info on a given SCOPUS release. """
 
     def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.Pendulum,
                  start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, project_id: str,
                  download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str,
                  view: str):
+        """ Constructor.
+
+        :param inst_id: institution id from the airflow connection (minus the scopus_)
+        :param scopus_inst_id: List of institution ids to use in the SCOPUS query.
+        :param release_date: Release date (currently the execution date).
+        :param start_date: Start date of the dag where to start pulling records from.
+        :param end_date: End of records to pull.
+        :param project_id: The project id to use.
+        :param download_bucket_name: Download bucket name to use for storing downloaded files in the cloud.
+        :param transform_bucket_name: Transform bucket name to use for storing transformed files in the cloud.
+        :param data_location: Location of the data servers
+        :param view: SCOPUS what 'view' level of access your apis key can access.
+        """
+
         self.inst_id = inst_id
         self.scopus_inst_id = sorted(scopus_inst_id)
         self.release_date = release_date
@@ -106,7 +114,7 @@ class ScopusTelescope:
     DESCRIPTION = 'SCOPUS: https://www.scopus.com'
 
     # Elsevier's example call
-    API_SERVER_CHECK_URL = 'https://api.elsevier.com/content/search/scopus?query=all(gene)&'\
+    API_SERVER_CHECK_URL = 'https://api.elsevier.com/content/search/scopus?query=all(gene)&' \
                            'apiKey=7f59af901d2d86f78a1fd60c1bf9426a'
 
     SCHEDULE_INTERVAL = '@monthly'
@@ -294,8 +302,9 @@ class ScopusTelescope:
         json_harvest = list()
         for file in download_list:
             file_name = os.path.basename(file)
-            end = file_name.rfind('_')
+            end = file_name.find('_')
             harvest_datetime = file_name[:end]
+            logging.info(f'Harvest date time: {harvest_datetime}')
             json_harvest.append(harvest_datetime)
 
         # Notify next task of the files downloaded.
@@ -384,6 +393,41 @@ class ScopusTelescope:
         :return: None.
         """
 
+        ti: TaskInstance = kwargs['ti']
+        release: ScopusRelease = ScopusTelescope.pull_release(ti)
+
+        jsonl_zip_blobs = ti.xcom_pull(key=ScopusTelescope.XCOM_JSONL_BLOB_PATH,
+                                       task_ids=ScopusTelescope.TASK_ID_UPLOAD_TRANSFORMED,
+                                       include_prior_dates=False)
+
+        # Create dataset
+        create_bigquery_dataset(release.project_id, ScopusTelescope.DATASET_ID, release.data_location,
+                                ScopusTelescope.DESCRIPTION)
+
+        # Create table id
+        table_id = bigquery_partitioned_table_id(ScopusTelescope.TABLE_NAME, release.release_date)
+
+        # Load into BigQuery
+        analysis_schema_path = schema_path(ScopusTelescope.SCHEMA_PATH)
+
+        for file in jsonl_zip_blobs:
+            schema_file_path = find_schema(analysis_schema_path, ScopusTelescope.TABLE_NAME, release.release_date, '',
+                                           release.schema_ver)
+            if schema_file_path is None:
+                logging.error(
+                    f'No schema found with search parameters: analysis_schema_path={ScopusTelescope.SCHEMA_PATH}, '
+                    f'table_name={ScopusTelescope.TABLE_NAME}, release_date={release.release_date}, '
+                    f'schema_ver={release.schema_ver}')
+                exit(os.EX_CONFIG)
+
+            # Load BigQuery table
+            uri = f"gs://{release.transform_bucket_name}/{file}"
+            logging.info(f"URI: {uri}")
+
+            load_bigquery_table(uri, ScopusTelescope.DATASET_ID, release.data_location, table_id, schema_file_path,
+                                SourceFormat.NEWLINE_DELIMITED_JSON,
+                                write_disposition=WriteDisposition.WRITE_APPEND)
+
     @staticmethod
     def cleanup(**kwargs):
         """ Delete files of downloaded, extracted and transformed releases.
@@ -393,6 +437,13 @@ class ScopusTelescope:
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
+
+        ti: TaskInstance = kwargs['ti']
+
+        delete_msg_files(ti, ScopusTelescope.XCOM_DOWNLOAD_PATH, ScopusTelescope.TASK_ID_DOWNLOAD)
+        delete_msg_files(ti, ScopusTelescope.XCOM_UPLOAD_ZIP_PATH, ScopusTelescope.TASK_ID_UPLOAD_DOWNLOADED)
+        delete_msg_files(ti, ScopusTelescope.XCOM_JSONL_PATH, ScopusTelescope.TASK_ID_TRANSFORM_DB_FORMAT)
+        delete_msg_files(ti, ScopusTelescope.XCOM_JSONL_ZIP_PATH, ScopusTelescope.TASK_ID_UPLOAD_TRANSFORMED)
 
     @staticmethod
     def pull_release(ti: TaskInstance):
@@ -831,8 +882,8 @@ class ScopusJsonParser:
         entry['abstract'] = get_entry_or_none(data, 'dc:description')  # Abstract
         entry['keywords'] = get_as_list(data, 'authkeywords')  # Assuming it's a list of strings.
         entry['article_number'] = get_entry_or_none(data, 'article-number')  # Article number (unclear if int or str)
-        entry['grant_agency_ac'] = get_entry_or_none(data, 'fund-acr')  # Funding agency acronym
-        entry['grant_agency_id'] = get_entry_or_none(data, 'fund-no')  # Funding agency identification
-        entry['grant_agency_name'] = get_entry_or_none(data, 'fund-sponsor')  # Funding agency name
+        entry['fund_agency_ac'] = get_entry_or_none(data, 'fund-acr')  # Funding agency acronym
+        entry['fund_agency_id'] = get_entry_or_none(data, 'fund-no')  # Funding agency identification
+        entry['fund_agency_name'] = get_entry_or_none(data, 'fund-sponsor')  # Funding agency name
 
         return entry
