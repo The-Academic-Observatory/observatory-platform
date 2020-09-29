@@ -43,8 +43,7 @@ from observatory_platform.utils.telescope_utils import (
 class TestScopusRelease(unittest.TestCase):
     """ Test the ScopusRelease class. """
 
-    @patch('airflow.models.Variable.get', return_value='data')
-    def test_init(self, tele):
+    def test_init(self):
         """ Test initialisation. """
 
         obj = ScopusRelease(inst_id='inst_id', scopus_inst_id=['scopus_inst_id'],
@@ -67,7 +66,6 @@ class TestScopusRelease(unittest.TestCase):
         self.assertEqual(obj.transform_bucket_name, 'transform_bucket')
         self.assertEqual(obj.data_location, 'data_location')
         self.assertEqual(obj.schema_ver, 'schema_ver')
-        self.assertEqual(tele.call_count, 1)
         self.assertEqual(obj.view, 'standard')
 
 
