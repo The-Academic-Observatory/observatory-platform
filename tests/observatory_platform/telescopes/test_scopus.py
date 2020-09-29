@@ -229,6 +229,7 @@ class TestScopusJsonParser(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestScopusJsonParser, self).__init__(*args, **kwargs)
+        self.scopus_inst_id = ["60031226"]  # Curtin University
 
         self.data = {
             "dc:identifier": "scopusid",
@@ -315,7 +316,7 @@ class TestScopusJsonParser(unittest.TestCase):
 
         harvest_datetime = pendulum.now().isoformat()
         release_date = "2018-01-01"
-        entry = ScopusJsonParser.parse_json(self.data, harvest_datetime, release_date)
+        entry = ScopusJsonParser.parse_json(self.data, harvest_datetime, release_date, self.scopus_inst_id)
         self.assertEqual(entry['harvest_datetime'], harvest_datetime)
         self.assertEqual(entry['release_date'], release_date)
         self.assertEqual(entry['title'], 'arttitle')
@@ -366,6 +367,9 @@ class TestScopusJsonParser(unittest.TestCase):
         self.assertEqual(au['last_name'], "last")
         self.assertEqual(au['initials'], "mj")
         self.assertEqual(au['afid'], "id")
+
+        self.assertEqual(len(entry['institution_ids']), 1)
+        self.assertEqual(entry['institution_ids'], self.scopus_inst_id)
 
 # class TestScopus(unittest.TestCase):
 #     """ Tests for the functions used by the SCOPUS telescope """

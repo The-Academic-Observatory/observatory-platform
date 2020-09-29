@@ -48,8 +48,14 @@ from observatory_platform.utils.telescope_utils import (
     build_schedule,
     get_entry_or_none,
     get_as_list,
+    json_to_db,
     validate_date,
     write_to_file,
+    zip_files,
+)
+
+from observatory_platform.utils.gc_utils import (
+    upload_telescope_file_list,
 )
 
 
@@ -98,7 +104,11 @@ class ScopusTelescope:
     DAG_ID = 'scopus'
     ID_STRING_OFFSET = len(DAG_ID) + 1
     DESCRIPTION = 'SCOPUS: https://www.scopus.com'
-    API_SERVER = 'https://api.elsevier.com'
+
+    # Elsevier's example call
+    API_SERVER_CHECK_URL = 'https://api.elsevier.com/content/search/scopus?query=all(gene)&'\
+                           'apiKey=7f59af901d2d86f78a1fd60c1bf9426a'
+
     SCHEDULE_INTERVAL = '@monthly'
     QUEUE = 'remote_queue'
     RETRIES = 3
@@ -225,7 +235,7 @@ class ScopusTelescope:
         http_code_ok = 200
 
         try:
-            http_code = urllib.request.urlopen(ScopusTelescope.API_SERVER).getcode()
+            http_code = urllib.request.urlopen(ScopusTelescope.API_SERVER_CHECK_URL).getcode()
         except URLError as e:
             raise ValueError(f'Failed to fetch url because of: {e}')
 
@@ -245,6 +255,17 @@ class ScopusTelescope:
         :return: None.
         """
 
+        ti: TaskInstance = kwargs['ti']
+        release: ScopusRelease = ScopusTelescope.pull_release(ti)
+
+        # Prepare paths
+        extra = json.loads(kwargs['conn'].extra)
+        api_keys = get_as_list(extra, 'api_keys')
+        download_files = ScopusUtility.download_snapshot(api_keys, release, 'sequential')
+
+        # Notify next task of the files downloaded.
+        ti.xcom_push(ScopusTelescope.XCOM_DOWNLOAD_PATH, download_files)
+
     @staticmethod
     def upload_downloaded(**kwargs):
         """ Task to upload the downloaded SCOPUS snapshots.
@@ -257,6 +278,30 @@ class ScopusTelescope:
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
+
+        ti: TaskInstance = kwargs['ti']
+        release: ScopusRelease = ScopusTelescope.pull_release(ti)
+
+        # Pull messages
+        download_list = ti.xcom_pull(key=ScopusTelescope.XCOM_DOWNLOAD_PATH, task_ids=ScopusTelescope.TASK_ID_DOWNLOAD,
+                                     include_prior_dates=False)
+
+        # Upload each snapshot
+        logging.info('upload_downloaded: zipping and uploading downloaded files')
+        zip_list = zip_files(download_list)
+        upload_telescope_file_list(release.download_bucket_name, release.inst_id, release.telescope_path, zip_list)
+
+        json_harvest = list()
+        for file in download_list:
+            file_name = os.path.basename(file)
+            end = file_name.rfind('_')
+            harvest_datetime = file_name[:end]
+            json_harvest.append(harvest_datetime)
+
+        # Notify next task of the files downloaded.
+        ti.xcom_push(ScopusTelescope.XCOM_JSON_PATH, download_list)
+        ti.xcom_push(ScopusTelescope.XCOM_UPLOAD_ZIP_PATH, zip_list)
+        ti.xcom_push(ScopusTelescope.XCOM_JSON_HARVEST, json_harvest)
 
     @staticmethod
     def transform_db_format(**kwargs):
@@ -273,6 +318,30 @@ class ScopusTelescope:
         :return: None.
         """
 
+        ti: TaskInstance = kwargs['ti']
+        release: ScopusRelease = ScopusTelescope.pull_release(ti)
+
+        # Pull messages
+        json_files = ti.xcom_pull(key=ScopusTelescope.XCOM_JSON_PATH,
+                                  task_ids=ScopusTelescope.TASK_ID_UPLOAD_DOWNLOADED,
+                                  include_prior_dates=False)
+
+        harvest_times = ti.xcom_pull(key=ScopusTelescope.XCOM_JSON_HARVEST,
+                                     task_ids=ScopusTelescope.TASK_ID_UPLOAD_DOWNLOADED,
+                                     include_prior_dates=False)
+
+        json_harvest_pair = list(zip(json_files, harvest_times))
+        json_harvest_pair.sort()  # Sort by institution and date
+        print(f'json harvest pairs are:\n{json_harvest_pair}')
+
+        # Apply field extraction and transformation to jsonlines
+        logging.info('transform_db_format: parsing and transforming into db format')
+        jsonl_list = json_to_db(json_harvest_pair, release.release_date.isoformat(), ScopusJsonParser.parse_json,
+                                release.scopus_inst_id)
+
+        # Notify next task
+        ti.xcom_push(ScopusTelescope.XCOM_JSONL_PATH, jsonl_list)
+
     @staticmethod
     def upload_transformed(**kwargs):
         """ Task to upload the transformed SCOPUS data into jsonlines files.
@@ -286,6 +355,24 @@ class ScopusTelescope:
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
+
+        ti: TaskInstance = kwargs['ti']
+        release: ScopusRelease = ScopusTelescope.pull_release(ti)
+
+        # Pull messages
+        jsonl_paths = ti.xcom_pull(key=ScopusTelescope.XCOM_JSONL_PATH,
+                                   task_ids=ScopusTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
+                                   include_prior_dates=False)
+
+        # Upload each snapshot
+        logging.info('upload_transformed: zipping and uploading jsonlines to cloud')
+        zip_list = zip_files(jsonl_paths)
+        blob_list = upload_telescope_file_list(release.transform_bucket_name, release.inst_id, release.telescope_path,
+                                               zip_list)
+
+        # Notify next task of the files downloaded.
+        ti.xcom_push(ScopusTelescope.XCOM_JSONL_BLOB_PATH, blob_list)
+        ti.xcom_push(ScopusTelescope.XCOM_JSONL_ZIP_PATH, zip_list)
 
     @staticmethod
     def bq_load(**kwargs):
@@ -381,7 +468,7 @@ class ScopusUtility:
         more than 5000 entries per month, this will present a problem.
 
         :param worker: Worker that will do the downloading.
-        :param conn: Connection ID from Airflow.
+        :param conn: Connection ID from Airflow (minus scopus_)
         :param period: Period to download.
         :param inst_id: List of institutions to query concurrently.
         :param download_path: Path to save downloaded files to.
@@ -389,9 +476,8 @@ class ScopusUtility:
          """
 
         timestamp = pendulum.datetime.now('UTC').isoformat()
-        inst_str = conn[ScopusTelescope.ID_STRING_OFFSET:]
 
-        save_file = os.path.join(download_path, f'{inst_str}-{period[0]}-{period[1]}_{timestamp}.json')
+        save_file = os.path.join(download_path, f'{timestamp}_{period[0]}_{period[1]}.json')
         logging.info(f'{conn} worker {worker.client_id}: retrieving period {period[0]} - {period[1]}')
         query = ScopusUtility.build_query(inst_id, period)
         result, num_results = ScopusUtility.make_query(worker.client, query)
@@ -704,18 +790,21 @@ class ScopusJsonParser:
         return author_list
 
     @staticmethod
-    def parse_json(data: dict, harvest_datetime: str, release_date: str) -> dict:
+    def parse_json(data: dict, harvest_datetime: str, release_date: str, institutes: List[str]) -> dict:
         """ Turn json data into db schema format.
 
         :param data: json response from SCOPUS.
         :param harvest_datetime: isoformat string of time the fetch took place.
         :param release_date: DAG execution date.
+        :param institutes: List of institution ids used in the query.
         :return: dict of data in right field format.
         """
 
         entry = dict()
         entry['harvest_datetime'] = harvest_datetime  # Time of harvest (datetime string)
         entry['release_date'] = release_date  # Release date (date string)
+        entry['institution_ids'] = institutes
+
         entry['title'] = get_entry_or_none(data, 'dc:title')  # Article title
         entry['identifier'] = get_entry_or_none(data, 'dc:identifier')  # Scopus ID
         entry['creator'] = get_entry_or_none(data, 'dc:creator')  # First author name
