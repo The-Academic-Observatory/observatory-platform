@@ -91,7 +91,18 @@ class TestScopusUtility(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestScopusUtility, self).__init__(*args, **kwargs)
-        self.scopus_2019_09_01_path = '/tmp/scopus_curtin_2019_09_01.yml'
+        self.scopus_1990_09_01_path = '/tmp/scopus_curtin_1990_09_01.yml'
+        self.reset_past = pendulum.datetime(2019, 1, 1, 11, 11, 11)
+        self.reset_future = pendulum.datetime(9999, 9, 29, 1, 11, 11)
+        self.conn = 'test'
+        self.api_key1 = "test_key1"
+        self.api_key2 = "test_key2"
+        self.scopus_inst_id = ["60031226"]  # Curtin University
+        self.workers = [ScopusUtilWorker(1, ElsClient(self.api_key1), self.reset_past),
+                        ScopusUtilWorker(2, ElsClient(self.api_key2), self.reset_past)]
+        self.conn = 'scopus_curtin'
+        self.workdir = '.'
+        self.schedule = build_schedule(pendulum.date(1990, 5, 1), pendulum.date(1990, 9, 1))
 
     def test_build_query(self):
         """ Test query builder. """
@@ -102,67 +113,115 @@ class TestScopusUtility(unittest.TestCase):
         query_truth = '(AF-ID(test1) OR AF-ID(test2)) AND PUBDATETXT("October 2018" or "November 2018" or "December 2018" or "January 2019" or "February 2019")'
         self.assertEqual(query, query_truth)
 
-    # def test_download_scopus_period(self):
-    #     """ Test downloading of a period. Can help record cassettes too. """
-    #
-    #     with vcr.use_cassette(self.scopus_2019_09_01_path):
-    #         scopus_inst_id = ["60031226"]  # Curtin University
-    #         api_key = "test_key"
-    #         client = ElsClient(api_key)
-    #         period = (pendulum.date(2020, 9, 1), pendulum.date(2020,9,30))
-    #         save_file = ScopusUtility.download_scopus_period(client, "scopus_curtin", period, scopus_inst_id, "/tmp")
-    #         self.assertTrue(save_file != '')
+    @patch('observatory_platform.telescopes.scopus.sleep')
+    def test_sleep_if_needed(self, sleep_mock):
+        """ Test sleep calculation. """
+        ScopusUtility.sleep_if_needed(self.reset_past, self.conn)
+        sleep_mock.assert_not_called()
 
-    # def test_sequential(self):
-    #     """ Sequential download test. """
-    #
-    #     now = pendulum.now('UTC')
-    #     workers = list()
-    #
-    #     workers.append(ScopusUtilWorker(1, ElsClient('api_key1'), now))
-    #     workers.append(ScopusUtilWorker(2, ElsClient('api_key2'), now))
-    #
-    #     scopus_inst_id = ["60031226"]
-    #     schedule = build_schedule(pendulum.date(1990, 5, 1), pendulum.date(1990, 9, 1))
-    #     taskq = Queue()
-    #     for period in schedule:
-    #         taskq.put(period)
-    #     download_path = '/tmp'
-    #
-    #     saved_files = ScopusUtility.download_sequential(workers, taskq, 'scopus_curtin', scopus_inst_id, download_path)
-    #     # self.assertEqual(len(saved_files), 5)
+        ScopusUtility.sleep_if_needed(self.reset_future, self.conn)
+        sleep_mock.assert_called_once()
 
-    # def test_parallel(self):
-    #     """ Parallel download test. """
-    #
-    #     now = pendulum.now('UTC')
-    #     workers = list()
-    #
-    #     workers.append(ScopusUtilWorker(1, ElsClient('api_key1'), now))
-    #     workers.append(ScopusUtilWorker(2, ElsClient('api_key2'), now))
-    #
-    #     scopus_inst_id = ["60031226"]
-    #     schedule = build_schedule(pendulum.date(1990, 5, 1), pendulum.date(1990, 9, 1))
-    #     taskq = Queue()
-    #     for period in schedule:
-    #         taskq.put(period)
-    #     download_path = '/tmp'
-    #
-    #     saved_files = ScopusUtility.download_parallel(workers, taskq, 'scopus_curtin', scopus_inst_id, download_path)
-    #     self.assertEqual(len(saved_files), 5)
+    def test_qe_worker_maintenace(self):
+        """ Test quota exceeded worker maintenance. """
 
-    # def test_download_snapshot(self):
+        workerq = Queue()
+        qe_workers = [ScopusUtilWorker(1, ElsClient('test'), self.reset_past)]
+        qe_workers = ScopusUtility.qe_worker_maintenance(qe_workers, workerq, 'test')
+        self.assertEqual(workerq.qsize(), 1)
+        self.assertEqual(len(qe_workers), 0)
+
+        workerq = Queue()
+        qe_workers = [ScopusUtilWorker(1, ElsClient('test'), self.reset_future)]
+        qe_workers = ScopusUtility.qe_worker_maintenance(qe_workers, workerq, 'test')
+        self.assertEqual(workerq.qsize(), 0)
+        self.assertEqual(len(qe_workers), 1)
+
     #
-    #     release = ScopusRelease(inst_id='curtin', scopus_inst_id=['60031226'],
-    #                         release_date=pendulum.date(2020, 1, 1),
-    #                         start_date=pendulum.date(1990, 5, 1),
-    #                         end_date=pendulum.date(1990, 9, 1), project_id='project_id',
-    #                         download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
-    #                         data_location='data_location', schema_ver='schema_ver', view='standard')
-    #
-    #     api_keys = []
-    #
-    #     ScopusUtility.download_snapshot(api_keys, release, 'sequential')
+    def test_update_reset_date(self):
+        """ Test updating of reset date. """
+
+        reset_date = pendulum.now('UTC')
+        error_msg = '11111111111111111111111111111111111119999999999999XX'
+        worker = ScopusUtilWorker(1, ElsClient('test'), reset_date)
+
+        new_reset = ScopusUtility.update_reset_date(self.conn, error_msg, worker, reset_date)
+        self.assertTrue(new_reset > reset_date)
+
+        error_msg = '11111111111111111111111111111111111110000000000011XX'
+        new_reset = ScopusUtility.update_reset_date(self.conn, error_msg, worker, reset_date)
+        self.assertEqual(new_reset, pendulum.datetime(1970, 1, 1, 0, 0, 11))
+
+    @patch('observatory_platform.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
+    def test_download_scopus_period(self, mock_make_query):
+        """ Test downloading of a period. Mocks out actual api call. """
+
+        with CliRunner().isolated_filesystem():
+            period = (pendulum.date(1990, 9, 1), pendulum.date(1990, 9, 30))
+            worker = ScopusUtilWorker(1, ElsClient(self.api_key1), pendulum.now('UTC'))
+            save_file = ScopusUtility.download_scopus_period(worker, self.conn, period, self.scopus_inst_id,
+                                                             self.workdir)
+            self.assertEqual(mock_make_query.call_count, 1)
+            self.assertNotEqual(save_file, '')
+
+    @patch('observatory_platform.telescopes.scopus.ScopusUtilConst.QUEUE_WAIT_TIME', 1)
+    @patch('observatory_platform.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
+    def test_sequential(self, mock_make_query):
+        """ Sequential download test. """
+
+        now = pendulum.now('UTC')
+        workers = list()
+
+        workers.append(ScopusUtilWorker(1, ElsClient(self.api_key1), now))
+        workers.append(ScopusUtilWorker(2, ElsClient(self.api_key2), now))
+
+        taskq = Queue()
+        for period in self.schedule:
+            taskq.put(period)
+        download_path = '/tmp'
+
+        with CliRunner().isolated_filesystem():
+            saved_files = ScopusUtility.download_sequential(workers, taskq, self.conn, self.scopus_inst_id,
+                                                            download_path)
+            self.assertEqual(mock_make_query.call_count, 5)
+            self.assertEqual(len(saved_files), 5)
+
+    @patch('observatory_platform.telescopes.scopus.ScopusUtilConst.QUEUE_WAIT_TIME', 1)
+    @patch('observatory_platform.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
+    def test_parallel(self, mock_make_query):
+        """ Parallel download test. """
+
+        taskq = Queue()
+        for period in self.schedule:
+            taskq.put(period)
+        download_path = '/tmp'
+
+        with CliRunner().isolated_filesystem():
+            saved_files = ScopusUtility.download_parallel(self.workers, taskq, self.conn, self.scopus_inst_id,
+                                                          download_path)
+            self.assertEqual(mock_make_query.call_count, 5)
+            self.assertEqual(len(saved_files), 5)
+
+    @patch('observatory_platform.telescopes.scopus.ScopusUtilConst.QUEUE_WAIT_TIME', 1)
+    @patch('observatory_platform.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
+    def test_download_snapshot(self, mock_make_query):
+        """ Download snapshot test. """
+
+        release = ScopusRelease(inst_id='curtin', scopus_inst_id=['60031226'],
+                            release_date=pendulum.date(2020, 1, 1),
+                            start_date=pendulum.date(1990, 5, 1),
+                            end_date=pendulum.date(1990, 9, 1), project_id='project_id',
+                            download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
+                            data_location='data_location', schema_ver='schema_ver', view='standard')
+
+        api_keys = [self.api_key1, self.api_key2]
+        saved_files = ScopusUtility.download_snapshot(api_keys, release, 'sequential')
+        self.assertEqual(mock_make_query.call_count, 5)
+        self.assertEqual(len(saved_files), 5)
+
+        saved_files = ScopusUtility.download_snapshot(api_keys, release, 'parallel')
+        self.assertEqual(mock_make_query.call_count, 10)
+        self.assertEqual(len(saved_files), 5)
 
 
 class TestScopusJsonParser(unittest.TestCase):
@@ -307,7 +366,6 @@ class TestScopusJsonParser(unittest.TestCase):
         self.assertEqual(au['last_name'], "last")
         self.assertEqual(au['initials'], "mj")
         self.assertEqual(au['afid'], "id")
-
 
 # class TestScopus(unittest.TestCase):
 #     """ Tests for the functions used by the SCOPUS telescope """
