@@ -40,6 +40,9 @@ from observatory_platform.utils.test_utils import gzip_file_crc
 
 from tests.observatory_platform.config import test_fixtures_path
 
+from observatory_platform.utils.telescope_utils import (
+    SchedulePeriod
+)
 
 # class TestRecordWosVcr(unittest.TestCase):
 #     """ A test that records the WoS response into a vcr cassette. This is in lieu of creating a separate program to
@@ -53,9 +56,9 @@ from tests.observatory_platform.config import test_fixtures_path
 #     def test_record(self):
 #         ts = pendulum.now().date().isoformat()
 #         params = dict()
-#         period = (pendulum.date(2019, 7, 1), pendulum.date(2019, 7, 31))
+#         period = SchedulePeriod(pendulum.date(2019, 7, 1), pendulum.date(2019, 7, 31))
 #
-#         with vcr.use_cassette(f'/tmp/wos_{period[0].isoformat()}_{period[1].isoformat()}.yaml'):
+#         with vcr.use_cassette(f'/tmp/wos_{period.start.isoformat()}_{period.end.isoformat()}.yaml'):
 #             with WosClient('login', 'password') as client:
 #                 self.record(client, 'Curtin University', period)
 
