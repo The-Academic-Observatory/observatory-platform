@@ -22,20 +22,18 @@ import pendulum
 import os
 import urllib.request
 
+from airflow.exceptions import AirflowException
+from airflow.models.taskinstance import TaskInstance
+from airflow.models import Variable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from elsapy.elsclient import ElsClient
-from elsapy.elssearch import ElsSearch
 from google.cloud.bigquery import SourceFormat, WriteDisposition
 from queue import Queue, Empty
 from threading import Event
 from time import sleep
 from typing import List, Tuple
 from ratelimit import limits, sleep_and_retry
-from urllib.error import URLError
-
-from airflow.exceptions import AirflowException
-from airflow.models.taskinstance import TaskInstance
-from airflow.models import Variable
+from urllib.error import HTTPError
+from urllib.parse import quote_plus
 
 from observatory_platform.utils.config_utils import (
     AirflowVar,
@@ -240,14 +238,14 @@ class ScopusTelescope:
         :return: None.
         """
 
-        http_code_ok = 200
+        http_ok = 200
 
         try:
             http_code = urllib.request.urlopen(ScopusTelescope.API_SERVER_CHECK_URL).getcode()
-        except URLError as e:
+        except HTTPError as e:
             raise ValueError(f'Failed to fetch url because of: {e}')
 
-        if http_code != http_code_ok:
+        if http_code != http_ok:
             raise ValueError(f'HTTP response code {http_code} received.')
 
     @staticmethod
@@ -452,21 +450,112 @@ class ScopusTelescope:
                             include_prior_dates=False)
 
 
-class ScopusUtilConst:
-    """ Constants for the SCOPUS utility class. """
-
-    RESULT_LIMIT = 100  # Return 100 results max per query.
+class ScopusClientThrottleLimits:
+    """ API throttling constants for ScopusClient. """
     CALL_LIMIT = 1  # WoS says they can do 2 api calls / second.
     CALL_PERIOD = 1  # seconds
-    API_KEY_QUERY_QUOTA = 20000  # API key limit for the Curtin scopus keys.
-    SCOPUS_RESULT_LIMIT = 5000  # Upper limit on number of results returned (Elsevier limit)
-    QUEUE_WAIT_TIME = 20  # Wait time for Queue.get() call
+
+class ScopusClient:
+    """ Handles URL fetching of SCOPUS search. """
+
+    RESULTS_PER_PAGE = 25
+    MAX_RESULTS = 5000  # Upper limit on number of results returned
+    QUOTA_EXCEED_ERROR_PREFIX = 'QuotaExceeded. Resets at: '
+
+    def __init__(self, api_key, view='standard'):
+        """ Constructor.
+
+        :param api_key: API key.
+        :param view: The 'view' access level. Can be 'standard' or 'complete'.
+        """
+
+        self._headers = {
+            'X-ELS-APIKey': api_key,
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0'
+        }
+
+        self._view = view
+
+    @staticmethod
+    def get_reset_date_from_error(msg):
+        """ Get the reset date timestamp in seconds from the exception message.
+
+        :param msg: exception message.
+        :return: Reset date timestamp in seconds.
+        """
+
+        ts_offset = len(ScopusClient.QUOTA_EXCEED_ERROR_PREFIX)
+        return int(msg[ts_offset:]) / 1000  # Elsevier docs says reports seconds, but headers report milliseconds.
+
+    @staticmethod
+    def get_next_page_url(links):
+        """ Get the URL for the next result page.
+
+        :param links: The list of links returned from the last query.
+        :return None if next page not found, otherwise string to next page's url.
+        """
+
+        for link in links:
+            if link['@ref'] == 'next':
+                return link['@href']
+        return None
+
+    @sleep_and_retry
+    @limits(calls=ScopusClientThrottleLimits.CALL_LIMIT, period=ScopusClientThrottleLimits.CALL_PERIOD)
+    def retrieve(self, query):
+        """ Execute the query.
+
+        :param query: Query string.
+        :return: (results of query, quota remaining, quota reset date timestamp in seconds)
+        """
+
+        http_ok = 200
+        http_quota_exceeded = 429
+
+        url = f'https://api.elsevier.com/content/search/scopus?view={self._view}&query={quote_plus(query)}'
+        request = urllib.request.Request(url, headers=self._headers)
+        results = list()
+
+        while len(results) < ScopusClient.MAX_RESULTS:
+            response = urllib.request.urlopen(request)
+            quota_remaining = response.getheader('X-RateLimit-Remaining')
+            quota_reset = response.getheader('X-RateLimit-Reset')
+
+            request_code = response.getcode()
+            if request_code == http_quota_exceeded:
+                raise Exception(f'{ScopusClient.QUOTA_EXCEED_ERROR_PREFIX}{quota_reset}')
+
+            response_dict = json.loads(response.read().decode('utf-8'))
+
+            if request_code != http_ok:
+                raise Exception(f'HTTP {request_code}:{response_dict}')
+
+            if 'search-results' not in response_dict:
+                break
+
+            results += response_dict['search-results']['entry']
+
+            total_results = int(response_dict['search-results']['opensearch:totalResults'])
+            if len(results) == total_results:
+                break
+
+            url = ScopusClient.get_next_page_url(response_dict['search-results']['link'])
+            if url is None:
+                raise AirflowException(f'A missing links list was encountered while fetching results for {query}')
+
+            request = urllib.request.Request(url, headers=self._headers)
+
+        return results, quota_remaining, quota_reset
 
 
 class ScopusUtilWorker:
     """ Worker class """
 
-    def __init__(self, client_id: int, client: ElsClient, quota_reset_date: pendulum.datetime):
+    DEFAULT_KEY_QUOTA = 20000  # API key query limit default per 7 days.
+    QUEUE_WAIT_TIME = 20  # Wait time for Queue.get() call
+
+    def __init__(self, client_id: int, client: ScopusClient, quota_reset_date: pendulum.datetime, quota_remaining: int):
         """ Constructor.
 
         :param client_id: Client id to use for debug messages so we don't leak the API key.
@@ -477,6 +566,7 @@ class ScopusUtilWorker:
         self.client_id = client_id
         self.client = client
         self.quota_reset_date = quota_reset_date
+        self.quota_remaining = quota_remaining
 
 
 class ScopusUtility:
@@ -531,11 +621,11 @@ class ScopusUtility:
         save_file = os.path.join(download_path, f'{timestamp}_{period[0]}_{period[1]}.json')
         logging.info(f'{conn} worker {worker.client_id}: retrieving period {period[0]} - {period[1]}')
         query = ScopusUtility.build_query(inst_id, period)
-        result, num_results = ScopusUtility.make_query(worker.client, query)
+        result, num_results = ScopusUtility.make_query(worker, query)
 
-        if num_results >= ScopusUtilConst.SCOPUS_RESULT_LIMIT:
+        if num_results >= ScopusClient.MAX_RESULTS:
             logging.warning(
-                f'{conn}: Result limit {ScopusUtilConst.SCOPUS_RESULT_LIMIT} reached for {period[0]} - {period[1]}')
+                f'{conn}: Result limit {ScopusClient.MAX_RESULTS} reached for {period[0]} - {period[1]}')
 
         write_to_file(result, save_file)
         return save_file
@@ -584,10 +674,7 @@ class ScopusUtility:
         """
 
         now = pendulum.now('UTC')
-        renews_ts = int(error_msg[37:-2])  # This needs to be validated.
-        # Elsevier probably gave ms even though documentation says s
-        if renews_ts >= pendulum.datetime.max.timestamp():
-            renews_ts /= 1000  # Convert back into seconds
+        renews_ts = ScopusClient.get_reset_date_from_error(error_msg)
         worker.quota_reset_date = pendulum.from_timestamp(renews_ts)
 
         logging.warning(
@@ -625,14 +712,14 @@ class ScopusUtility:
 
             try:
                 logging.info(f'{conn}: attempting to get task')
-                task = taskq.get(block=True, timeout=ScopusUtilConst.QUEUE_WAIT_TIME)
+                task = taskq.get(block=True, timeout=ScopusUtilWorker.QUEUE_WAIT_TIME)
             except Empty:
                 logging.info(f'{conn}: task queue empty. All work done.')
                 break
 
             try:
                 logging.info(f'{conn}: attempting to get free worker')
-                worker = workerq.get(block=True, timeout=ScopusUtilConst.QUEUE_WAIT_TIME)
+                worker = workerq.get(block=True, timeout=ScopusUtilWorker.QUEUE_WAIT_TIME)
 
             except Empty:
                 logging.info(f'{conn}: no free workers. Sleeping until worker available.')
@@ -645,8 +732,8 @@ class ScopusUtility:
                 saved_files.append(saved_file)
                 workerq.put(worker)
             except Exception as e:
-                error_msg = repr(e)
-                if error_msg.startswith("HTTPError('QuotaExceeded"):  # This needs to be validated later.
+                error_msg = str(e)
+                if error_msg.startswith(ScopusClient.QUOTA_EXCEED_ERROR_PREFIX):
                     reset_date = ScopusUtility.update_reset_date(conn, error_msg, worker, reset_date)
                     taskq.put(task)
                     qe_workers.append(worker)
@@ -680,7 +767,7 @@ class ScopusUtility:
 
             try:
                 logging.info(f'{conn} worker {worker.client_id}: attempting to get a task')
-                task = taskq.get(block=True, timeout=ScopusUtilConst.QUEUE_WAIT_TIME)
+                task = taskq.get(block=True, timeout=ScopusUtilWorker.QUEUE_WAIT_TIME)
             except Empty:
                 if exit_event.is_set():
                     logging.info(f'{conn} worker {worker.client_id}: received exit event. Returning results.')
@@ -693,9 +780,9 @@ class ScopusUtility:
                 saved_files.append(saved_file)
                 taskq.task_done()
             except Exception as e:
-                error_msg = repr(e)
-                if error_msg.startswith("HTTPError('QuotaExceeded"):
-                    _ = ScopusUtility.update_reset_date(conn, error_msg, worker, worker.quota_reset_date)
+                error_msg = str(e)
+                if error_msg.startswith(ScopusClient.QUOTA_EXCEED_ERROR_PREFIX):
+                    reset_date = ScopusUtility.update_reset_date(conn, error_msg, worker, worker.quota_reset_date)
                     taskq.put(task)
                     taskq.task_done()
                     continue
@@ -754,21 +841,20 @@ class ScopusUtility:
             task_queue.put(period)
 
         now = pendulum.now('UTC')
-        clients = [ScopusUtilWorker(i, ElsClient(key), now) for i, key in enumerate(api_keys)]
+        workers = [ScopusUtilWorker(i, ScopusClient(key, 'standard'), now, ScopusUtilWorker.DEFAULT_KEY_QUOTA) for
+                   i, key in enumerate(api_keys)]
 
         if mode == 'sequential':
-            return ScopusUtility.download_sequential(clients, task_queue, release.inst_id, release.scopus_inst_id,
+            return ScopusUtility.download_sequential(workers, task_queue, release.inst_id, release.scopus_inst_id,
                                                      release.download_path)
         if mode == 'parallel':
-            return ScopusUtility.download_parallel(clients, task_queue, release.inst_id, release.scopus_inst_id,
+            return ScopusUtility.download_parallel(workers, task_queue, release.inst_id, release.scopus_inst_id,
                                                    release.download_path)
 
         raise AirflowException(f'Unsupported mode {mode} received')
 
     @staticmethod
-    @sleep_and_retry
-    @limits(calls=ScopusUtilConst.CALL_LIMIT, period=ScopusUtilConst.CALL_PERIOD)
-    def make_query(client: ElsClient, query: str) -> Tuple[str, int]:
+    def make_query(worker: ScopusUtilWorker, query: str) -> Tuple[str, int]:
         """ Throttling wrapper for the API call. This is a global limit for this API when called from a program on the
         same machine. Limits specified in ScopusUtilConst class.
 
@@ -779,9 +865,10 @@ class ScopusUtility:
         :returns: Query results.
         """
 
-        search = ElsSearch(query, 'scopus')
-        search.execute(client, get_all=True)  # This could throw a HTTPError if we exceed quota.
-        return json.dumps(search.results), len(search.results)
+        results, quota_remaining, quota_reset = worker.client.retrieve(query)
+        worker.quota_reset_date = quota_reset
+        worker.quota_remaining = quota_remaining
+        return json.dumps(results), len(results)
 
 
 class ScopusJsonParser:
