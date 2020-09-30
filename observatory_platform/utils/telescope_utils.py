@@ -28,6 +28,13 @@ from airflow.models.taskinstance import TaskInstance
 from collections import OrderedDict
 from pathlib import Path
 from typing import List, Tuple, Any
+from dataclasses import dataclass
+
+@dataclass
+class SchedulePeriod:
+    """ Contiguous time period used in schedules. """
+    start: pendulum.date  # Start of period
+    end: pendulum.date  # End of period
 
 
 def build_schedule(sched_start_date, sched_end_date):
