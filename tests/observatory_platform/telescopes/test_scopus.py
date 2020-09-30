@@ -108,14 +108,14 @@ class TestScopusUtility(unittest.TestCase):
         query_truth = '(AF-ID(test1) OR AF-ID(test2)) AND PUBDATETXT("October 2018" or "November 2018" or "December 2018" or "January 2019" or "February 2019")'
         self.assertEqual(query, query_truth)
 
-    # @patch('observatory_platform.telescopes.scopus.sleep')
-    # def test_sleep_if_needed(self, sleep_mock):
-    #     """ Test sleep calculation. """
-    #     ScopusUtility.sleep_if_needed(self.reset_past, self.conn)
-    #     sleep_mock.assert_not_called()
-    #
-    #     ScopusUtility.sleep_if_needed(self.reset_future, self.conn)
-    #     sleep_mock.assert_called_once()
+    @patch('observatory_platform.telescopes.scopus.sleep')
+    def test_sleep_if_needed(self, sleep_mock):
+        """ Test sleep calculation. """
+        ScopusUtility.sleep_if_needed(self.reset_past, self.conn)
+        sleep_mock.assert_not_called()
+
+        ScopusUtility.sleep_if_needed(self.reset_future, self.conn)
+        sleep_mock.assert_called_once()
 
     def test_qe_worker_maintenace(self):
         """ Test quota exceeded worker maintenance. """
@@ -227,7 +227,7 @@ class TestScopusUtility(unittest.TestCase):
         self.assertEqual(mock_telepath.call_count, 2)
 
         with CliRunner().isolated_filesystem():
-            api_keys = [self.api_key1, self.api_key2]
+            api_keys = [{"key": self.api_key1}, {"key": self.api_key2}]
             saved_files = ScopusUtility.download_snapshot(api_keys, release, 'sequential')
             self.assertEqual(mock_make_query.call_count, 5)
             self.assertEqual(len(saved_files), 5)

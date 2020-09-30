@@ -841,8 +841,15 @@ class ScopusUtility:
             task_queue.put(period)
 
         now = pendulum.now('UTC')
-        workers = [ScopusUtilWorker(i, ScopusClient(key, 'standard'), now, ScopusUtilWorker.DEFAULT_KEY_QUOTA) for
-                   i, key in enumerate(api_keys)]
+        workers = list()
+
+        for i, apikey in enumerate(api_keys):
+            view = 'standard'
+            if 'view' in apikey:
+                view = apikey['view']
+            key = apikey['key']
+            worker = ScopusUtilWorker(i, ScopusClient(key, view), now, ScopusUtilWorker.DEFAULT_KEY_QUOTA)
+            workers.append(worker)
 
         if mode == 'sequential':
             return ScopusUtility.download_sequential(workers, task_queue, release.inst_id, release.scopus_inst_id,
