@@ -1,111 +1,77 @@
 # SCOPUS
 
-The DAG will be a slight modification of the snapshot data source DAGs.  DAGs will be dynamically generated for each institution. Each dynamically generated DAG will be similar to the snapshot DAGs and offload the work to a Telescope class.
+The DAG will look for connections conforming to the Airflow connection ID naming convention (below) and generate a
+subdag to handle the entire ETL pipeline for each institution.
 
+## Airflow Connection ID naming
 
-## Dag naming
-
-A dynamic dag will be generated with name:
-```
-scopus_<institution>_<optional attributes>
-```
-e.g.,
-```
-scopus_curtin
-```
-
-
-## Connection id
-
-Relying on Python elsapy libraries for establishing connections. Just need to store enough credentials and parameters to fetch for each of the frameworks.
-
-
-### Naming convention of each connection id
-
-```
-scopus_<institution>[_optionally a list of _ separated other attributes]
-```
-e.g.,
-```
-scopus_curtin
-```
-
+Each connection id will have a name of the form ```scopus_<institution>```, for example ```scopus_curin```. 
 
 ### Attributes / extra fields
+The extra field of the Airflow connection should be a json parsable dictionary with the following keys. 
 ```
-api_key: (if relevant)
-start_date:  Python pendulum or datetime parseable date string
-max_record_quota: (if relevant)
+"api_keys": [list of dictionaries of the form {"key": "keystring", (optionally) "view": "standard or complete"]
+"start_date":  Python pendulum or datetime parseable date string
+"id": [list of scopus institution id strings]
 ```
-
-At some point it might be worthwhile to programmatically determine the optimal date ranges to minimise API calls.
-
+For example:
+```
+{
+  "api_keys" : [ {"key": "test_key", "view": "standard"}, {"key": "another_key"}],
+  "start_date" : "2020-09-01",
+  "id" : "60031226"
+}
+```
 
 ## DAG definition
 
-There will be a slight difference compared to the snapshot DAGs. It will query Airflow for a list of connection ids relevant to this particular data source, e.g., scopus_curtin, scopus_auckland, etc. A dynamically generated DAG will be used for each institution.
+The main dag will check that the API server is up.  If this is the case, each subdag will proceed to execute its ETL
+pipeline.
 
-The template for the dynamically generated DAGs will follow the pattern in the snapshot DAG, where the heavy lifting is done by Telescope classes.
-
-Listing airflow connections can be done with
-```python
-session.query(Connection)
+## Subdag flow
+```
+check_dependencies >> download >> upload_downloaded >> transform_db_format >> upload_transformed >> bq_load >> cleanup
 ```
 
+### check_dependencies
 
-## DAG flow
-```
-check_airflow >> check_source_server >> download_data >> upload_raw_data >> transform_data >> upload_transformed_data >> bq_load >> cleanup
-```
+This checks the airflow configuration variables (including overrides), and configures some release parameters.
 
+### download
 
-## check_airflow [maybe this can be skipped]
+Two download modes are available. ```sequential``` and ```parallel```. The current way to configure this is in the
+```ScopusTelescope``` code.
 
-See if https://dev.elsevier.com is contactable.
+Sequential mode distributes jobs out to each API key in a round robin.  The process blocks until the worker succeeds or
+ fails, before serving new jobs. If a key has exceeded its quota, it is put on cool down and will be added back when the
+ cool down period has elapsed.
+ 
+Parallel mode allows each key client to fetch jobs when they have free cycles. If a client exceeds their quota, they 
+will relinquish their task to the others, and sleep until cool down period has elapsed, before making itself available
+for further processing.
 
+Sequential mode will more likely evenly distribute the tasks, while parallel mode offers no load balance guarantees.
 
-## download_data
+***Throttling limits***
+ * API calls are rate limited to 1 call/s (Elsevier sets 2 call/s as their documented rate).
+ * Number of results returned per call is capped at 25 (Elsevier limit).
+ * Maximum number of results per query is 5000 (Elsevier limit).
 
-From the start date til the most recently completed month, pull data from the data source using an adapted version of Richard’s code, and append to a file on GC containing a list of json responses. Not sure if you want timing information like you did before. Maybe also round robin multiple API keys when they exist for each query.
+## upload_downloaded
 
-***Obey the bandwidth limits:***
+Gzips up downloaded files and uploads to the cloud.
 
-_Web of science bandwidth limits_
-New session creation: 5 per 5-min period.
-  * API calls: 2 calls/s (unclear what SCOPUS limit is, using WOS ones)
-  * Remaining quota: 20000 per API key per weekRemaining quota: 20000 per API key per week
-  * Cool down period: 1 week if exceed quota
-  * Returned results: 100 max per call.  Unclear what SCOPUS limit is, using WOS limit.
+## transform_db_format
 
-Use Airflow params:
-```python
-retries=2
-retry_delay=timedelta(minutes=15) # Does pendulum.duration work too?
-```
-
-Since all download is lumped into 1 task, the task would need to have retry and delay code baked into it.
-
-***ALTERNATIVELY***, dynamically generate tasks for each query. One benefit is being able to leverage Airflow’s parameters to do retries, but would create a massive amount of download tasks and an unwieldly looking DAG.
-
-
-## transform_data
-
-Transform list of json into jsonlines
-
-
-## upload_transformed_data
-
-Upload jsonlines data.
-
+Transforms json data into BigQuery schema compatible fields, and converts this into jsonlines format.
 
 ## bq_load
 
-Load the entries into BigQuery.
-
+Loads the jsonlines entries into BigQuery.
 
 ## cleanup
 
-Do any necessary cleanup/deletion.
+Deletes any temporary files.
 
 ## Database schema
 
