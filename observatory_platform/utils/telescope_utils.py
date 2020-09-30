@@ -23,12 +23,15 @@ import logging
 import os
 import pendulum
 import shutil
+import sys
 
 from airflow.models.taskinstance import TaskInstance
-from collections import OrderedDict
+from collections import deque
+from math import ceil
 from pathlib import Path
 from typing import List, Tuple, Any
 from dataclasses import dataclass
+
 
 @dataclass
 class SchedulePeriod:
@@ -56,7 +59,7 @@ def build_schedule(sched_start_date, sched_end_date):
             if sched_start_date <= start_date <= sched_end_date:
                 if end_date > sched_end_date:
                     end_date = sched_end_date
-                schedule.append((start_date, end_date))
+                schedule.append(SchedulePeriod(start_date, end_date))
     return schedule
 
 
@@ -116,7 +119,7 @@ def get_as_list_or_none(base: dict, key, sub_key):
     return get_as_list(base[key], sub_key)
 
 
-def get_entry_or_none(base: dict, target, var_type = None):
+def get_entry_or_none(base: dict, target, var_type=None):
     """ Helper function that returns an entry or None if key is missing.
 
     :param base: dictionary to query.
@@ -266,3 +269,79 @@ def zip_files(file_list: List[str]):
                 shutil.copyfileobj(f_in, f_out)
 
     return zip_list
+
+
+@dataclass
+class PeriodCount:
+    """ Descriptive wrapper for a (period, count) object. """
+    period: SchedulePeriod
+    count: int
+
+
+class ScheduleOptimiser:
+    """ Calculate a schedule that minimises API calls using historic retrieval data.
+        Given a list of tuples (period, count) that indicates how many results were retrieved for a given period from a
+        historical query, the maximum number of results per API call, and the maximum number of results per query, get
+        a schedule that minimises the number of API calls made.
+    """
+
+    @staticmethod
+    def get_num_calls(num_results, max_per_call):
+        return ceil(float(num_results) / max_per_call)
+
+    @staticmethod
+    def extract_schedule(historic_counts: List[PeriodCount], moves: List[int]) -> List[SchedulePeriod]:
+        stack = deque()
+
+        j = len(moves) - 1
+        while j >= 0:
+            i = moves[j]
+            period = SchedulePeriod(historic_counts[i].period.start, historic_counts[j].period.end)
+            stack.append(period)
+            j = i - 1
+
+        schedule = list()
+        while len(stack) > 0:
+            schedule.append(stack.pop())
+
+        return schedule
+
+    @staticmethod
+    def optimise(max_per_call: int, max_per_query: int, historic_counts: List[PeriodCount]) -> Tuple[
+        List[SchedulePeriod], int]:
+        """ Calculate and return an optimal schedule with the given constraints.
+
+        :param max_per_call: Maximum number of results returned per API call.
+        :param max_per_query: Maximum number of results returned per query.
+        :param historic_counts: Histogram of results per period, i.e., tuples of form (period, count).
+        :return: New schedule of periods that minimises API calls, and the api calls required for it.
+        """
+
+        n = len(historic_counts)
+        if n <= 1:
+            return historic_counts
+
+        min_calls = [sys.maxsize] * n
+        moves = [0] * n
+        min_calls[0] = ScheduleOptimiser.get_num_calls(historic_counts[0].count, max_per_call)
+
+        for i in range(1, n):
+            result_count = 0
+            min_calls[i] = ScheduleOptimiser.get_num_calls(historic_counts[i].count, max_per_call) + min_calls[i-1]
+
+            for j in range(i, -1, -1):
+                curr_count = historic_counts[j].count
+                result_count += curr_count
+                if result_count > max_per_query:
+                    break
+
+                candidate = ScheduleOptimiser.get_num_calls(result_count, max_per_call)
+                if j-1>=0:
+                    candidate += min_calls[j-1]
+
+                if candidate <= min_calls[i]:
+                    min_calls[i] = candidate
+                    moves[i] = j
+
+        schedule = ScheduleOptimiser.extract_schedule(historic_counts, moves)
+        return schedule, min_calls[-1]
