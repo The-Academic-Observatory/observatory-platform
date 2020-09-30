@@ -33,6 +33,7 @@ from observatory_platform.telescopes.scopus import (
 
 from observatory_platform.utils.telescope_utils import (
     build_schedule,
+    SchedulePeriod,
 )
 
 
@@ -103,7 +104,7 @@ class TestScopusUtility(unittest.TestCase):
         """ Test query builder. """
 
         scopus_inst_id = ["test1", "test2"]
-        period = (pendulum.date(2018, 10, 1), pendulum.date(2019, 2, 1))
+        period = SchedulePeriod(pendulum.date(2018, 10, 1), pendulum.date(2019, 2, 1))
         query = ScopusUtility.build_query(scopus_inst_id, period)
         query_truth = '(AF-ID(test1) OR AF-ID(test2)) AND PUBDATETXT("October 2018" or "November 2018" or "December 2018" or "January 2019" or "February 2019")'
         self.assertEqual(query, query_truth)
@@ -151,7 +152,7 @@ class TestScopusUtility(unittest.TestCase):
         """ Test downloading of a period. Mocks out actual api call. """
 
         with CliRunner().isolated_filesystem():
-            period = (pendulum.date(1990, 9, 1), pendulum.date(1990, 9, 30))
+            period = SchedulePeriod(pendulum.date(1990, 9, 1), pendulum.date(1990, 9, 30))
             worker = ScopusUtilWorker(1, ScopusClient(self.api_key1), pendulum.now('UTC'), 20000)
             save_file = ScopusUtility.download_scopus_period(worker, self.conn, period, self.scopus_inst_id,
                                                              self.workdir)

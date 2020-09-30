@@ -45,6 +45,7 @@ from observatory_platform.utils.config_utils import (
 )
 
 from observatory_platform.utils.telescope_utils import (
+    SchedulePeriod,
     build_schedule,
     delete_msg_files,
     get_entry_or_none,
@@ -573,11 +574,11 @@ class ScopusUtility:
     """ Handles the SCOPUS interactions. """
 
     @staticmethod
-    def build_query(scopus_inst_id: List[str], period: tuple) -> str:
+    def build_query(scopus_inst_id: List[str], period: SchedulePeriod) -> str:
         """ Build a SCOPUS API query.
 
         :param scopus_inst_id: List of Institutional ID to query, e.g, ["60031226"] (Curtin University)
-        :param period: A tuple containing start and end dates.
+        :param period: A schedule period.
         :return: Constructed web query.
         """
 
@@ -590,10 +591,10 @@ class ScopusUtility:
 
         # Build publication date range
         search_months = str()
-        for year in range(period[0].year, period[1].year + 1):
+        for year in range(period.start.year, period.end.year + 1):
             for month in range(1, 13):
                 search_month = pendulum.date(year, month, 1)
-                if period[0] <= search_month <= period[1]:
+                if period.start <= search_month <= period.end:
                     month_name = calendar.month_name[month]
                     search_months += f'"{month_name} {year}" or '
         search_months = search_months[:tail_offset]
@@ -602,7 +603,7 @@ class ScopusUtility:
         return query
 
     @staticmethod
-    def download_scopus_period(worker: ScopusUtilWorker, conn: str, period: tuple, inst_id: List[str],
+    def download_scopus_period(worker: ScopusUtilWorker, conn: str, period: SchedulePeriod, inst_id: List[str],
                                download_path: str) -> str:
         """ Download records for a stated date range.
         The elsapy package currently has a cap of 5000 results per query. So in the unlikely event any institution has
@@ -618,14 +619,14 @@ class ScopusUtility:
 
         timestamp = pendulum.datetime.now('UTC').isoformat()
 
-        save_file = os.path.join(download_path, f'{timestamp}_{period[0]}_{period[1]}.json')
-        logging.info(f'{conn} worker {worker.client_id}: retrieving period {period[0]} - {period[1]}')
+        save_file = os.path.join(download_path, f'{timestamp}_{period.start}_{period.end}.json')
+        logging.info(f'{conn} worker {worker.client_id}: retrieving period {period.start} - {period.end}')
         query = ScopusUtility.build_query(inst_id, period)
         result, num_results = ScopusUtility.make_query(worker, query)
 
         if num_results >= ScopusClient.MAX_RESULTS:
             logging.warning(
-                f'{conn}: Result limit {ScopusClient.MAX_RESULTS} reached for {period[0]} - {period[1]}')
+                f'{conn}: Result limit {ScopusClient.MAX_RESULTS} reached for {period.start} - {period.end}')
 
         write_to_file(result, save_file)
         return save_file
