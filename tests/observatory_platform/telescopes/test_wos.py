@@ -23,11 +23,13 @@ import os
 import unittest
 import vcr
 import xmltodict
+import unittest.mock as mock
 
 from airflow.models import Connection
 from click.testing import CliRunner
 from collections import OrderedDict
 from pathlib import Path
+from unittest.mock import patch
 from wos import WosClient
 from observatory_platform.telescopes.wos import (
     WosTelescope,
@@ -271,65 +273,41 @@ class TestWosParse(unittest.TestCase):
         self.assertEqual(entry['categories']['headings'][0], 'Hynology')
         self.assertEqual(len(entry['orgs']), 1)
 
-# class TestWos(unittest.TestCase):
-#     """Test the WosTelescope."""
-#
-#     def __init__(self, *args, **kwargs):
-#         """ Constructor which sets up variables used by tests.
-#
-#         :param args: arguments.
-#         :param kwargs: keyword arguments.
-#         """
-#
-#         super(TestWos, self).__init__(*args, **kwargs)
-#
-#         logging.basicConfig()
-#         logging.getLogger().setLevel(logging.WARNING)
-#
-#         # Connection details
-#         self.conn = Connection()
-#         self.conn.conn_id = 'wos_curtin'
-#         self.conn.login = 'test'
-#         self.conn.password = 'test'
-#         self.conn.extra = '{\r\n "start_date": "2019-07-01",\r\n "id": "Curtin University" \r\n}'
-#
-#         # Paths
-#         self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
-#         self.work_dir = '.'
-#
-#         # Wos Snapshot 2019-07-01 to 2019-07-31
-#         self.wos_2019_07_01_path = os.path.join(self.vcr_cassettes_path, 'wos_2019-07-01.yaml')
-#         self.wos_2019_07_01_json_hash = '638e66049e0147bbd8fbbf9699adc1ca'
-#
-#     def test_download_wos_snapshot(self):
-#         """ Test whether we can successfully download and save a snapshot. """
-#
-#         with CliRunner().isolated_filesystem():
-#             with vcr.use_cassette(self.wos_2019_07_01_path):
-#                 dag_start = pendulum.date(2019, 7, 31)
-#                 wos_inst_id = ['Curtin University']
-#                 files = WosUtility.download_wos_snapshot('.', self.conn, wos_inst_id, dag_start, 'sequential')
-#                 # Check that returned downloads has correct length
-#                 self.assertEqual(5, len(files))
-#
-#                 # Check that file has expected hash
-#                 file_path = files[0]
-#
-#                 self.assertGreater(Path(self.wos_2019_07_01_path).stat().st_size, 500000)
-#                 self.assertTrue(os.path.exists(file_path))
-#                 self.assertGreater(Path(file_path).stat().st_size, 500000)
-#
-#     def test_transform_xml(self):
-#         """ Test whether we can transform xml to json correctly. """
-#
-#         with CliRunner().isolated_filesystem():
-#             with vcr.use_cassette(self.wos_2019_07_01_path):
-#                 dag_start = pendulum.date(2019, 7, 31)
-#                 wos_inst_id = ['Curtin University']
-#                 files = WosUtility.download_wos_snapshot('.', self.conn, wos_inst_id, dag_start, 'sequential')
-#                 json_file_list, _ = write_xml_to_json('.', '2020-09-01', 'institute', files, WosUtility.parse_query)
-#                 self.assertEqual(len(files), len(json_file_list))
-#                 json_file = json_file_list[0]
-#
-#                 Disable all file checks until it's feasible to generate completely synthetic data.
-#                 self.assertEqual(self.wos_2019_07_01_json_hash, _hash_file(json_file, algorithm='md5'))
+
+class TestWos(unittest.TestCase):
+    """Test the WosTelescope."""
+
+    def __init__(self, *args, **kwargs):
+        """ Constructor which sets up variables used by tests.
+
+        :param args: arguments.
+        :param kwargs: keyword arguments.
+        """
+
+        super(TestWos, self).__init__(*args, **kwargs)
+
+        logging.basicConfig()
+        logging.getLogger().setLevel(logging.WARNING)
+
+        # Connection details
+        self.conn = Connection()
+        self.conn.conn_id = 'wos_curtin'
+        self.conn.login = 'test'
+        self.conn.password = 'test'
+        self.conn.extra = '{\r\n "start_date": "2019-07-01",\r\n "id": "Curtin University" \r\n}'
+
+        # Paths
+        self.work_dir = '.'
+
+    @patch('observatory_platform.telescopes.wos.WosClient')
+    @patch('observatory_platform.telescopes.wos.WosUtility.make_query', return_value=[''])
+    def test_download_wos_snapshot(self, mock_query, mock_client):
+        """ Test whether we can successfully download and save a snapshot. """
+
+        with CliRunner().isolated_filesystem():
+            dag_start = pendulum.date(2019, 11, 1)
+            wos_inst_id = ['Curtin University']
+            files = WosUtility.download_wos_snapshot('.', self.conn, wos_inst_id, dag_start, 'sequential')
+            self.assertEqual(5, len(files))
+            self.assertEqual(mock_query.call_count, 5)
+            self.assertEqual(mock_client.call_count, 1)
