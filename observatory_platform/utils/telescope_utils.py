@@ -309,7 +309,7 @@ class ScheduleOptimiser:
     @staticmethod
     def optimise(max_per_call: int, max_per_query: int, historic_counts: List[PeriodCount]) -> Tuple[
         List[SchedulePeriod], int]:
-        """ Calculate and return an optimal schedule with the given constraints.
+        """ Calculate and return a schedule that minimises the number of API calls with the given constraints.
 
         :param max_per_call: Maximum number of results returned per API call.
         :param max_per_query: Maximum number of results returned per query.
