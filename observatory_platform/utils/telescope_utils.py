@@ -274,8 +274,8 @@ def zip_files(file_list: List[str]):
 @dataclass
 class PeriodCount:
     """ Descriptive wrapper for a (period, count) object. """
-    period: SchedulePeriod
-    count: int
+    period: SchedulePeriod  # The schedule period in question
+    count: int  # Number of results for this period.
 
 
 class ScheduleOptimiser:
@@ -286,11 +286,25 @@ class ScheduleOptimiser:
     """
 
     @staticmethod
-    def get_num_calls(num_results, max_per_call):
+    def get_num_calls(num_results: int, max_per_call: int) -> int:
+        """ Calculate the number of required API calls based on number of results and max results per call.
+
+        :param num_results: Number of results.
+        :param max_per_call: The max returnable results per call.
+        :return: Number of API calls you need to make.
+        """
+
         return ceil(float(num_results) / max_per_call)
 
     @staticmethod
     def extract_schedule(historic_counts: List[PeriodCount], moves: List[int]) -> List[SchedulePeriod]:
+        """ Extract a solution schedule from the optimisation.
+
+        :param historic_counts: the histogram of periods and their counts.
+        :param moves: the moves the optimiser took to compute the minimum.
+        :return: Optimised schedule.
+        """
+        
         stack = deque()
 
         j = len(moves) - 1
