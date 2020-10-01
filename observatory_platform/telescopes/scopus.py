@@ -303,9 +303,9 @@ class ScopusTelescope:
         """ Task to transform the json into db field format (and in jsonlines form).
 
         Pushes the following xcom:
-            version (str): the version of the GRID release.
-            json_gz_file_name (str): the file name for the transformed GRID release.
-            json_gz_file_path (str): the path to the transformed GRID release (including file name).
+            version (str): the version of the SCOPUS release.
+            json_gz_file_name (str): the file name for the transformed SCOPUS release.
+            json_gz_file_path (str): the path to the transformed SCOPUS release (including file name).
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -342,7 +342,7 @@ class ScopusTelescope:
         """ Task to upload the transformed SCOPUS data into jsonlines files.
 
         Pushes the following xcom:
-            release_date (str): the release date of the GRID release.
+            release_date (str): the release date of the SCOPUS release.
             blob_name (str): the name of the blob on the Google Cloud storage bucket.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -440,7 +440,7 @@ class ScopusTelescope:
 
 class ScopusClientThrottleLimits:
     """ API throttling constants for ScopusClient. """
-    CALL_LIMIT = 1  # WoS says they can do 2 api calls / second.
+    CALL_LIMIT = 1  # SCOPUS allows 2 api calls / second.
     CALL_PERIOD = 1  # seconds
 
 class ScopusClient:
