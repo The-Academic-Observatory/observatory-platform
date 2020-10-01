@@ -37,7 +37,6 @@ from observatory_platform.telescopes.wos import (
 )
 from observatory_platform.utils.data_utils import _hash_file
 from observatory_platform.utils.test_utils import gzip_file_crc
-
 from tests.observatory_platform.config import test_fixtures_path
 
 from observatory_platform.utils.telescope_utils import (
@@ -50,17 +49,15 @@ from observatory_platform.utils.telescope_utils import (
 #     """
 #
 #     def record(self, client, inst_id, period):
-#         query = build_query(inst_id, period)
-#         make_query(client, query)
+#         query = WosUtility.build_query(inst_id, period)
+#         WosUtility.make_query(client, query)
 #
 #     def test_record(self):
-#         ts = pendulum.now().date().isoformat()
-#         params = dict()
-#         period = SchedulePeriod(pendulum.date(2019, 7, 1), pendulum.date(2019, 7, 31))
+#         period = SchedulePeriod(pendulum.date(1965, 10, 1), pendulum.date(1965, 10, 1))
 #
-#         with vcr.use_cassette(f'/tmp/wos_{period.start.isoformat()}_{period.end.isoformat()}.yaml'):
+#         with vcr.use_cassette(f'/tmp/wos_cassette.yaml'):
 #             with WosClient('login', 'password') as client:
-#                 self.record(client, 'Curtin University', period)
+#                 self.record(client, ['Curtin University'], period)
 
 
 class TestWosParse(unittest.TestCase):
