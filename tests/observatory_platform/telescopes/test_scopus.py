@@ -49,7 +49,7 @@ class TestScopusRelease(unittest.TestCase):
                             start_date=pendulum.date(2000, 5, 1),
                             end_date=pendulum.date(2000, 1, 1), project_id='project_id',
                             download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
-                            data_location='data_location', schema_ver='schema_ver', view='standard')
+                            data_location='data_location', schema_ver='schema_ver')
 
         self.assertEqual(obj.inst_id, 'inst_id')
         self.assertEqual(obj.scopus_inst_id[0], 'scopus_inst_id')
@@ -64,7 +64,6 @@ class TestScopusRelease(unittest.TestCase):
         self.assertEqual(obj.transform_bucket_name, 'transform_bucket')
         self.assertEqual(obj.data_location, 'data_location')
         self.assertEqual(obj.schema_ver, 'schema_ver')
-        self.assertEqual(obj.view, 'standard')
         self.assertEqual(mock_target.call_count, 2)
 
 class TestScopusUtilWorker(unittest.TestCase):
@@ -224,7 +223,7 @@ class TestScopusUtility(unittest.TestCase):
                                 start_date=pendulum.date(1990, 5, 1),
                                 end_date=pendulum.date(1990, 9, 1), project_id='project_id',
                                 download_bucket_name='download_bucket', transform_bucket_name='transform_bucket',
-                                data_location='data_location', schema_ver='schema_ver', view='standard')
+                                data_location='data_location', schema_ver='schema_ver')
         self.assertEqual(mock_telepath.call_count, 2)
 
         with CliRunner().isolated_filesystem():
