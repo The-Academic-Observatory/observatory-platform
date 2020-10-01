@@ -172,7 +172,7 @@ class TestScopusUtility(unittest.TestCase):
         taskq = Queue()
         for period in self.schedule:
             taskq.put(period)
-        download_path = '/tmp'
+        download_path = '.'
 
         def side_effect(*args):
             side_effect.count += 1
@@ -196,7 +196,7 @@ class TestScopusUtility(unittest.TestCase):
         taskq = Queue()
         for period in self.schedule:
             taskq.put(period)
-        download_path = '/tmp'
+        download_path = '.'
 
         def side_effect(*args):
             side_effect.count += 1
