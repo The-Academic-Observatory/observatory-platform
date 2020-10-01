@@ -98,10 +98,12 @@ class WosUtility:
         n_institutes = len(wos_inst_id)
         for i, inst in enumerate(wos_inst_id):
             organisations += inst
-            if i < n_institutes - 1:
-                organisations += " OR "
+            organisations += " OR "
+
+        organisations = organisations[:-4]  # Remove last ' OR '
 
         query_str = f'OG=({organisations})'
+
         logging.info(f'Query string: {query_str}')
         query = OrderedDict([('query', query_str),
                              ('count', WosUtilConst.RESULT_LIMIT),
