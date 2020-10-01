@@ -67,8 +67,8 @@ from observatory_platform.utils.gc_utils import (
 class ScopusRelease:
     """ Used to store info on a given SCOPUS release. """
 
-    def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.Pendulum,
-                 start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, project_id: str,
+    def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.datetime,
+                 start_date: pendulum.datetime, end_date: pendulum.datetime, project_id: str,
                  download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str,
                  view: str):
         """ Constructor.
