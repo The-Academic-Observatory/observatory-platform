@@ -70,53 +70,58 @@ class TestScheduleOptimiser(unittest.TestCase):
         self.assertEqual(schedule[1].end.month, 4)
 
     def test_optimise_leading_zeros(self):
-        historic_counts_leading_zeros = [
+        historic_counts = [
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 4, 1), end=pendulum.date(1000, 4, 21)), 1),
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query,
-                                                         historic_counts_leading_zeros)
-        self.assertTrue(len(schedule), 1)
-        self.assertTrue(schedule[0].start, pendulum.date(1000, 1, 1))
-        self.assertTrue(schedule[0].end, pendulum.date(1000, 4, 21))
+        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        self.assertEqual(len(schedule), 1)
+        self.assertEqual(schedule[0].start, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[0].end, pendulum.date(1000, 4, 21))
         self.assertEqual(min_calls, 1)
         self.assertEqual(len(schedule), 1)
 
     def test_optimise_leading_zeros2(self):
-        historic_counts_leading_zeros2 = [
+        historic_counts = [
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query,
-                                                         historic_counts_leading_zeros2)
-        self.assertTrue(len(schedule), 1)
+        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        self.assertEqual(len(schedule), 1)
         self.assertEqual(min_calls, 0)
+        self.assertEqual(schedule[0].start.month, 1)
+        self.assertEqual(schedule[0].end.month, 1)
 
     def test_optimise_leading_trivial(self):
         schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query,
                                                          self.historic_counts_trivial)
-        self.assertTrue(len(schedule), 1)
-        self.assertEqual(min_calls, 3)
         self.assertEqual(len(schedule), 1)
+        self.assertEqual(min_calls, 3)
+        self.assertEqual(schedule[0].start.month, 1)
+        self.assertEqual(schedule[0].end.month, 4)
 
     def test_optimise_historic_counts_case1(self):
-        historic_counts_case1 = [
+        historic_counts = [
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 10),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 2, 1), end=pendulum.date(1000, 2, 1)), 1),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 3, 1), end=pendulum.date(1000, 3, 1)), 2),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 4, 1), end=pendulum.date(1000, 4, 1)), 3),
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts_case1)
-        self.assertTrue(len(schedule), 2)
+        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        self.assertEqual(len(schedule), 2)
         self.assertEqual(min_calls, 8)
+        self.assertEqual(schedule[0].start.month, 1)
+        self.assertEqual(schedule[0].end.month, 1)
+        self.assertEqual(schedule[1].start.month, 2)
+        self.assertEqual(schedule[1].end.month, 4)
 
     def test_optimise_historic_counts_case2(self):
-        historic_counts_case2 = [
+        historic_counts = [
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 5),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 2, 1), end=pendulum.date(1000, 2, 1)), 6),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 3, 1), end=pendulum.date(1000, 3, 1)), 0),
@@ -124,20 +129,20 @@ class TestScheduleOptimiser(unittest.TestCase):
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 5, 1), end=pendulum.date(1000, 5, 1)), 2),
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts_case2)
-        self.assertTrue(len(schedule), 4)  # Naive is 5
+        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        self.assertEqual(len(schedule), 4)  # Naive is 5
         self.assertEqual(min_calls, 12)  # Naive is 12
-        self.assertTrue(schedule[0].start, pendulum.datetime(1000, 1, 1))
-        self.assertTrue(schedule[0].end, pendulum.datetime(1000, 1, 1))
-        self.assertTrue(schedule[1].start, pendulum.datetime(1000, 2, 1))
-        self.assertTrue(schedule[1].end, pendulum.datetime(1000, 2, 1))
-        self.assertTrue(schedule[2].start, pendulum.datetime(1000, 4, 1))
-        self.assertTrue(schedule[2].end, pendulum.datetime(1000, 3, 1))
-        self.assertTrue(schedule[3].start, pendulum.datetime(1000, 5, 1))
-        self.assertTrue(schedule[3].end, pendulum.datetime(1000, 5, 1))
+        self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
+        self.assertEqual(schedule[0].end, pendulum.datetime(1000, 1, 1))
+        self.assertEqual(schedule[1].start, pendulum.datetime(1000, 2, 1))
+        self.assertEqual(schedule[1].end, pendulum.datetime(1000, 2, 1))
+        self.assertEqual(schedule[2].start, pendulum.datetime(1000, 3, 1))
+        self.assertEqual(schedule[2].end, pendulum.datetime(1000, 4, 1))
+        self.assertEqual(schedule[3].start, pendulum.datetime(1000, 5, 1))
+        self.assertEqual(schedule[3].end, pendulum.datetime(1000, 5, 1))
 
     def test_optimise_historic_counts_case3(self):
-        historic_counts_case3 = [
+        historic_counts = [
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 1),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 2, 1), end=pendulum.date(1000, 2, 1)), 1),
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 3, 1), end=pendulum.date(1000, 3, 1)), 0),
@@ -145,6 +150,25 @@ class TestScheduleOptimiser(unittest.TestCase):
             PeriodCount(SchedulePeriod(start=pendulum.date(1000, 5, 1), end=pendulum.date(1000, 5, 1)), 2),
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts_case3)
-        self.assertTrue(len(schedule), 3)  # Naive is 5
+        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        self.assertEqual(len(schedule), 1)  # Naive is 5
         self.assertEqual(min_calls, 3)  # Naive is 5
+        self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
+        self.assertEqual(schedule[0].end, pendulum.datetime(1000, 5, 1))
+
+    def test_optimise_historic_counts_case4(self):
+        historic_counts = [
+            PeriodCount(SchedulePeriod(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 3),
+            PeriodCount(SchedulePeriod(start=pendulum.date(1000, 2, 1), end=pendulum.date(1000, 2, 1)), 3),
+            PeriodCount(SchedulePeriod(start=pendulum.date(1000, 3, 1), end=pendulum.date(1000, 3, 1)), 3),
+            PeriodCount(SchedulePeriod(start=pendulum.date(1000, 4, 1), end=pendulum.date(1000, 4, 1)), 1),
+            PeriodCount(SchedulePeriod(start=pendulum.date(1000, 5, 1), end=pendulum.date(1000, 5, 1)), 3),
+        ]
+
+        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        self.assertEqual(len(schedule), 2)  # Naive is 5
+        self.assertEqual(min_calls, 7)  # Naive is 13
+        self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
+        self.assertEqual(schedule[0].end, pendulum.datetime(1000, 1, 1))
+        self.assertEqual(schedule[1].start, pendulum.datetime(1000, 2, 1))
+        self.assertEqual(schedule[1].end, pendulum.datetime(1000, 5, 1))

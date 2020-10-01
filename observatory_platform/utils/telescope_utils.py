@@ -313,7 +313,8 @@ class ScheduleOptimiser:
 
         :param max_per_call: Maximum number of results returned per API call.
         :param max_per_query: Maximum number of results returned per query.
-        :param historic_counts: Histogram of results per period, i.e., tuples of form (period, count).
+        :param historic_counts: List of results per period, i.e., tuples of form (period, count). Please sort by
+                                date beforehand.
         :return: New schedule of periods that minimises API calls, and the api calls required for it.
         """
 
