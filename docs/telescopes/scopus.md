@@ -12,14 +12,21 @@ The extra field of the Airflow connection should be a json parsable dictionary w
 ```
 "api_keys": [list of dictionaries of the form {"key": "keystring", (optionally) "view": "standard or complete"]
 "start_date":  Python pendulum or datetime parseable date string
-"id": [list of scopus institution id strings]
+"id": [list of scopus institution id strings],
+"project_id": "optional override for project_id",
+"transform_bucket_name": "optional override for transform_bucket_name",
+"download_bucket_name": "optional override for download_bucket_name",
+"data_location": "optional override for data_location"
 ```
 For example:
 ```
 {
   "api_keys" : [ {"key": "test_key", "view": "standard"}, {"key": "another_key"}],
   "start_date" : "2020-09-01",
-  "id" : "60031226"
+  "id" : "60031226",
+  "project_id": "new_project_id",
+  "transform_bucket_name": "new_transform_bucket_name",
+  "download_bucket_name": "new_download_bucket_name"
 }
 ```
 
@@ -52,7 +59,7 @@ for further processing.
 
 Sequential mode will more likely evenly distribute the tasks, while parallel mode offers no load balance guarantees.
 
-***Throttling limits***
+***Throttling limits*** (see [link](https://dev.elsevier.com/api_key_settings.html))
  * API calls are rate limited to 1 call/s (Elsevier sets 2 call/s as their documented rate).
  * Number of results returned per call is capped at 25 (Elsevier limit).
  * Maximum number of results per query is 5000 (Elsevier limit).
@@ -76,3 +83,10 @@ Deletes any temporary files.
 ## Database schema
 
 Refer to docs/datasets/provider_wos for schema information.
+
+# External references
+* [Developer API portal](https://dev.elsevier.com/scopus.html)
+* [SCOPUS API specification](https://dev.elsevier.com/documentation/ScopusSearchAPI.wadl)
+* [Search tips](https://dev.elsevier.com/sc_search_tips.html)
+* [Search views (response description)](https://dev.elsevier.com/sc_search_views.html)
+* [API key settings](https://dev.elsevier.com/api_key_settings.html)
