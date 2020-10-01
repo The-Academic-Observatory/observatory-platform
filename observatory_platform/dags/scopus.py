@@ -95,7 +95,7 @@ def subdag_factory(parent_dag_id, connection, args):
             retries=ScopusTelescope.RETRIES
         )
 
-        # Load the transformed WoS snapshot to BigQuery
+        # Load the transformed SCOPUS snapshot to BigQuery
         # Depends on past so that BigQuery load jobs are not all created at once
         bq_load = PythonOperator(
             task_id=ScopusTelescope.TASK_ID_BQ_LOAD,
@@ -119,7 +119,7 @@ def subdag_factory(parent_dag_id, connection, args):
 
 with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDULE_INTERVAL, catchup=False,
          default_args=default_args) as dag:
-    # Only process if the Web of Science API server is up.
+    # Only process if the SCOPUS API server is up.
     check_api_server = PythonOperator(
         task_id=ScopusTelescope.TASK_CHECK_API_SERVER,
         python_callable=ScopusTelescope.check_api_server,
