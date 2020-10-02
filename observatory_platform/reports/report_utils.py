@@ -18,14 +18,16 @@ import numpy as np
 import pandas as pd
 import pydata_google_auth
 from num2words import num2words
+from typing import Union
+from precipy.analytics_function import AnalyticsFunction
 
 from observatory_platform.reports.charts.oapc_time_chart import *
 
 
-def generate_table_data(batch,
+def generate_table_data(af: AnalyticsFunction,
                         title,
                         df: pd.DataFrame,
-                        identifier: str,
+                        identifier: Union[str, None],
                         columns: list,
                         identifier_column: str = 'id',
                         sort_column: str = 'Year of Publication',
@@ -37,10 +39,12 @@ def generate_table_data(batch,
     """
 
     table_data = pd.DataFrame()
-    df = df[df[identifier_column] == identifier]
-    df.sort_values('Year of Publication', inplace=True)
+    if identifier is not None:
+        filtered = df[df[identifier_column] == identifier]
+    else:
+        filtered = df
     for i, column in enumerate(columns):
-        col_data = df[column]
+        col_data = filtered[column]
         if short_column_names:
             column = short_column_names[i]
         if col_data.dtype == 'float64':
