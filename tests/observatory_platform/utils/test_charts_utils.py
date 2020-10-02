@@ -20,8 +20,10 @@ import pydata_google_auth
 from observatory_platform.reports.tables import (
     InstitutionOpenAccessTable,
     InstitutionFundersTable,
-    InstitutionOutputsTable
+    InstitutionOutputsTable,
+    InstitutionCitationsTable
 )
+from observatory_platform.reports.chart_utils import calculate_confidence_interval
 from observatory_platform.utils.test_utils import fixtures_data_dir
 
 def update_chart_test_data():
@@ -36,19 +38,22 @@ def update_chart_test_data():
         scopes,
     )
 
-    scope = """
-LIMIT 1000
+    scope = """AND
+  id in (SELECT id from `open-knowledge-publications.institutional_oa_evaluation_2020.named_grids_in_scope`)
 """
     # Set the arguments up for table production
     args = [credentials, 'coki-scratch-space', scope, 2018, (2016, 2020)]
     openaccess = InstitutionOpenAccessTable(*args)
+    calculate_confidence_interval(openaccess.df, ['percent_oa'])
     funders = InstitutionFundersTable(*args)
     output_types = InstitutionOutputsTable(*args)
+    citations = InstitutionCitationsTable(*args)
 
     fixtures_path = Path(fixtures_data_dir(__file__))
     openaccess.df.to_csv(fixtures_path / 'reports' / 'test_oa_data.csv')
     funders.df.to_csv(fixtures_path / 'reports'/ 'test_funding_data.csv')
     output_types.df.to_csv(fixtures_path / 'reports' / 'test_outputs_data.csv')
+    citations.df.to_csv(fixtures_path / 'reports' / 'test_citations_data.csv')
 
 
 if __name__ == '__main__':

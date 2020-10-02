@@ -48,7 +48,7 @@ class TestAbstractChart(unittest.TestCase):
         test_data_file = os.path.join(fixtures_data_dir(__file__),
                                       'reports', self.test_data)
         self.df = pd.read_csv(test_data_file)
-        self.available_ids = self.df.id.unique()
+        self.available_ids = list(self.df.id.unique())
 
     def test_init(self):
         if self.test_class:
@@ -96,7 +96,7 @@ class TestTimePlot(TestAbstractChart):
         super().setUp()
         self.test_class = TimePlot
         self.init_args = {
-            'year_range': (2010, 2018),
+            'year_range': (2016, 2020),
             'unis': self.available_ids[0:4],
             'plot_column': 'percent_oa'
         }
@@ -110,13 +110,13 @@ class TestTimePlotLayout(TestAbstractChart):
         self.test_class = TimePlotLayout
         self.init_args = {
             'plots': [
-                {'year_range': (2010, 2018),
+                {'year_range': (2016, 2020),
                  'unis': self.available_ids[0:4],
                  'y_column': 'percent_oa'},
-                {'year_range': (2010, 2018),
+                {'year_range': (2016, 2020),
                  'unis': self.available_ids[0:3],
                  'y_column': 'percent_gold'},
-                {'year_range': (2010, 2018),
+                {'year_range': (2016, 2020),
                  'unis': self.available_ids[0:4],
                  'y_column': 'percent_green'}
             ]
@@ -130,7 +130,7 @@ class TestTimePath(TestAbstractChartWithAnimation):
         super().setUp()
         self.test_class = TimePath
         self.init_args = {
-            'year_range': (2010, 2018),
+            'year_range': (2016, 2020),
             'unis': self.available_ids[0:4],
             'x': 'percent_gold',
             'y': 'percent_green'
@@ -181,13 +181,13 @@ class TestBoxScatter(TestAbstractChart):
 
 class TestOutputTypesPieChart(TestAbstractChart):
     def setUp(self):
+        self.test_data = 'test_outputs_data.csv'
         super().setUp()
         self.test_class = OutputTypesPieChart
         self.init_args = {
             'identifier': self.available_ids[0],
             'focus_year': 2018
         }
-        self.test_data = 'test_outputs_data.csv'
         self.plot_args = {}
 
 
@@ -226,6 +226,7 @@ class TestOApcTimeChart(TestAbstractChart):
 
 class TestCitationCountTimeChart(TestAbstractChart):
     def setUp(self):
+        self.test_data = 'test_citations_data.csv'
         super().setUp()
         self.test_class = CitationCountTimeChart
         self.init_args = {
@@ -237,6 +238,7 @@ class TestCitationCountTimeChart(TestAbstractChart):
 
 class TestOAAdvantageBarChart(TestAbstractChart):
     def setUp(self):
+        self.test_data = 'test_citations_data.csv'
         super().setUp()
         self.test_class = OAAdvantageBarChart
         self.init_args = {
@@ -260,13 +262,14 @@ class TestBarComparisonChart(TestAbstractChart):
 
 class TestFunderGraph(TestAbstractChart):
     def setUp(self):
+        self.test_data = 'test_funding_data.csv'
         super().setUp()
         self.test_class = FunderGraph
         self.init_args = {
             'focus_year': 2018,
             'identifier': self.available_ids[0]
         }
-        self.test_data = 'test_funding_data.csv'
+
         self.plot_args = {}
 
 
@@ -277,7 +280,7 @@ class TestDistributionComparisonChart(TestAbstractChart):
         self.init_args = {
             'focus_year': 2018,
             'identifier': self.available_ids[0],
-            'plot_column': 'percent_total_oa',
+            'plot_column': 'percent_oa',
             'comparison': self.available_ids[0:4]
         }
         self.plot_args = {}
