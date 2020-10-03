@@ -17,11 +17,11 @@
 import fileinput
 import json
 import logging
-import math
 import os
 import pathlib
 import pendulum
-from datetime import datetime, timedelta
+import shutil
+from datetime import timedelta
 from multiprocessing import cpu_count
 from requests.exceptions import RetryError
 from typing import Tuple, Union
@@ -30,7 +30,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from croniter import croniter_range
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 
@@ -39,16 +38,21 @@ from observatory_platform.utils.config_utils import (AirflowVar,
                                                      check_variables,
                                                      find_schema,
                                                      schema_path,
-                                                     telescope_path)
-from observatory_platform.utils.gc_utils import (create_bigquery_dataset,
+                                                     telescope_path,
+                                                     telescope_templates_path)
+from observatory_platform.utils.jinja2_utils import (make_sql_jinja2_filename,
+                                                     render_template)
+from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 create_bigquery_dataset,
+                                                 run_bigquery_query,
                                                  load_bigquery_table,
                                                  upload_file_to_cloud_storage)
 from observatory_platform.utils.url_utils import retry_session
 from tests.observatory_platform.config import test_fixtures_path
 
 
-def extract_events(url: str, events_path: str, next_cursor: str = None, success: bool = True) -> Tuple[bool,
-                                                                                                       Union[str, None]]:
+def extract_events(url: str, events_path: str, next_cursor: str = None, success: bool = True) -> \
+        Tuple[bool, Union[str, None], Union[int, None]]:
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -56,72 +60,36 @@ def extract_events(url: str, events_path: str, next_cursor: str = None, success:
     }
     tmp_url = url + f'&cursor={next_cursor}' if next_cursor else url
     try:
-        session = retry_session(num_retries=10, backoff_factor=1.0).get(tmp_url, headers=headers)
-        #TODO prevent unclosed socket warning
+        session = retry_session(num_retries=15, backoff_factor=0.5).get(tmp_url, headers=headers)
+        # TODO prevent unclosed socket warning
         # # close session to prevent unclosed socket warning
         # session.close()
     except RetryError:
-        return False, next_cursor
+        return False, next_cursor, None
     if session.status_code == 200:
         response_dict = json.loads(session.text)
+        total_events = response_dict['message']['total-results']
         events = response_dict['message']['events']
         next_cursor = response_dict['message']['next-cursor']
         # write events so far
         with open(events_path, 'a') as f:
             f.write(json.dumps(events) + '\n')
         if next_cursor:
-            success, next_cursor = extract_events(url, events_path, next_cursor, success)
-            return success, next_cursor
+            success, next_cursor, total_events = extract_events(url, events_path, next_cursor, success)
+            return success, next_cursor, total_events
         else:
-            return True, None
+            return True, None, total_events
     else:
         raise ConnectionError(f"Error requesting url: {url}, response: {session.text}")
 
 
-def list_batch_dates(release: 'CrossrefEventsRelease'):
-    # number of days between start and end
-    total_no_days = (release.end_date - release.start_date).days
-    #TODO check that works when batch no days is 1 (e.g. only 2 days and 6 cpu)
-    # number of days in each batch, minimal is 1
-    batch_no_days = math.ceil(total_no_days / CrossrefEventsTelescope.MAX_PROCESSES)
-
-    # create batch start and end date
-    batches = []
-    # transform to datetime objects
-    start_date = datetime.fromtimestamp(release.start_date.timestamp())
-    end_date = datetime.fromtimestamp(release.end_date.timestamp())
-    days = 0
-    batch_start_date = start_date
-    for dt in croniter_range(start_date, end_date, f"0 0 * * *"):
-        days += 1
-        # add start and end date every x no of days (where x = batch_no_days)
-        if days % batch_no_days == 0:
-            batch_end_date = dt
-            batches.append((batch_start_date, batch_end_date))
-            # end date is included, so start date should be one day later
-            batch_start_date = batch_end_date + timedelta(days=1)
-    # check if final batch has to be added
-    if batch_start_date < end_date:
-        batches.append((batch_start_date, end_date))
-    return batches
-
-
-def download_events_batch(release: 'CrossrefEventsRelease', start_date, end_date) -> list:
-    #TODO separate function to download batch for edited/deleted until until-updated-date isn't working
+def download_events_batch(release: 'CrossrefEventsRelease', i: int) -> list:
     batch_results = []
     # Extract all new, edited and deleted events
-    for event_type, url in release.urls.items():
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
-        if event_type == 'events':
-            url = url.format(start_date=start_date_str, end_date=end_date_str)
-        else:
-            url = url.format(start_date=start_date_str)
-
-        logging.info(f"Downloading from url: {url}")
-
-        events_path = release.download_batch_path(event_type, start_date_str, end_date_str)
-        cursor_path = release.cursor_path(event_type, start_date_str, end_date_str)
+    for j, url in enumerate(release.urls[i]):
+        logging.info(f"{i+1}.{j+1} Downloading from url: {url}")
+        events_path = release.batch_path(url)
+        cursor_path = release.batch_path(url, cursor=True)
         # check if cursor files exist from a previous failed request
         if os.path.isfile(cursor_path):
             # retrieve cursor
@@ -130,21 +98,22 @@ def download_events_batch(release: 'CrossrefEventsRelease', start_date, end_date
                 # delete file
                 pathlib.Path(cursor_path).unlink()
             # extract events
-            success, next_cursor = extract_events(url, events_path, next_cursor)
+            success, next_cursor, total_events = extract_events(url, events_path, next_cursor)
         # if events path exists but no cursor file previous request has finished & successful
         elif os.path.isfile(events_path):
             success = True
             next_cursor = None
+            total_events = 'See previous successful attempt'
         # first time request
         else:
             # extract events
-            success, next_cursor = extract_events(url, events_path)
+            success, next_cursor, total_events = extract_events(url, events_path)
 
         if not success:
             with open(cursor_path, 'w') as f:
                 json.dump(next_cursor, f)
         batch_results.append((events_path, success))
-        logging.info(f'Extracted events from url {url}, successful: {success}')
+        logging.info(f'{i+1}.{j+1} successful: {success}, number of events: {total_events}')
 
     return batch_results
 
@@ -153,26 +122,21 @@ def download_release(release: 'CrossrefEventsRelease') -> bool:
     all_results = []
 
     if CrossrefEventsTelescope.DOWNLOAD_MODE == 'parallel':
-        logging.info('Downloading events with parallel method')
-
-        batch_dates = list_batch_dates(release)
         no_workers = CrossrefEventsTelescope.MAX_PROCESSES
-        with ThreadPoolExecutor(max_workers=no_workers) as executor:
-            futures = []
-            for i in range(no_workers):
-                start_date = batch_dates[i][0]
-                end_date = batch_dates[i][1]
-                futures.append(executor.submit(download_events_batch, release, start_date, end_date))
-            for future in as_completed(futures):
-                batch_result = future.result()
-                all_results += batch_result
+        logging.info(f'Downloading events with parallel method, no. workers: {no_workers}')
 
-    elif CrossrefEventsTelescope.DOWNLOAD_MODE == 'sequential':
-        logging.info('Downloading events with sequential method')
-        all_results = download_events_batch(release, release.start_date, release.end_date)
     else:
-        raise AirflowException(f'Download mode has to be either "sequential" or "parallel", '
-                               f'not "{CrossrefEventsTelescope.DOWNLOAD_MODE}"')
+        logging.info('Downloading events with sequential method')
+        no_workers = 1
+
+    with ThreadPoolExecutor(max_workers=no_workers) as executor:
+        futures = []
+        # select min if no of batches is smaller than no of workers
+        for i in range(min(no_workers, len(release.batches))):
+            futures.append(executor.submit(download_events_batch, release, i))
+        for future in as_completed(futures):
+            batch_result = future.result()
+            all_results += batch_result
 
     # get paths of failed request attempts
     failed_files = [result[0] for result in all_results if not result[1]]
@@ -189,12 +153,26 @@ def download_release(release: 'CrossrefEventsRelease') -> bool:
                 fout.write(line)
                 continue_dag = True
 
-    # delete all individual event files
-    for file_path in batch_files:
-        pathlib.Path(file_path).unlink()
-
     # only continue if file is not empty
     return continue_dag
+
+
+def transform_release(release: 'CrossrefEventsRelease'):
+    # load events
+    events = []
+    with open(release.download_path, 'r') as f:
+        for line in f:
+            events += json.loads(line)
+
+    # transform release
+    with open(release.transform_path, 'w') as f:
+        for event in events:
+            try:
+                pendulum.parse(event['occurred_at'])
+            except ValueError:
+                event['occurred_at'] = "0001-01-01T00:00:00Z"
+            event_updated = change_keys(event, convert)
+            f.write(json.dumps(event_updated) + '\n')
 
 
 def convert(k):
@@ -221,28 +199,85 @@ def change_keys(obj, convert):
 class CrossrefEventsRelease:
     """ Used to store info on a given crossref release """
 
-    def __init__(self, start_date: datetime, end_date: datetime, first_release: bool):
+    def __init__(self, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
         self.start_date = start_date
         self.end_date = end_date
-        if first_release:
-            self.urls = {'events': CrossrefEventsTelescope.EVENTS_URL}
+        self.first_release = first_release
+
+        if CrossrefEventsTelescope.DOWNLOAD_MODE == 'parallel':
+            self.batches = self.batch_dates
+        elif CrossrefEventsTelescope.DOWNLOAD_MODE == 'sequential':
+            self.batches = [(start_date, end_date)]
         else:
-            self.urls = {'events': CrossrefEventsTelescope.EVENTS_URL, 'edited': CrossrefEventsTelescope.EDITED_URL,
-                         'deleted': CrossrefEventsTelescope.DELETED_URL}
+            raise AirflowException(f'Download mode has to be either "sequential" or "parallel", '
+                                   f'not "{CrossrefEventsTelescope.DOWNLOAD_MODE}"')
+
+        self.urls = []
+        edited_deleted = False
+        for batch in self.batches:
+            start_date = batch[0]
+            end_date = batch[1]
+            event_type_urls = [CrossrefEventsTelescope.EVENTS_URL.format(start_date=start_date, end_date=end_date)]
+            if edited_deleted or first_release:
+                pass
+            else:
+                event_type_urls.append(CrossrefEventsTelescope.EDITED_URL.format(start_date=start_date))
+                event_type_urls.append(CrossrefEventsTelescope.DELETED_URL.format(start_date=start_date))
+                edited_deleted = True
+            self.urls.append(event_type_urls)
+
+    @property
+    def batch_dates(self):
+        start_date = self.start_date.date()
+        end_date = self.end_date.date()
+        max_processes = CrossrefEventsTelescope.MAX_PROCESSES
+
+        # number of days between start and end, add 1, because end date is included
+        total_no_days = (end_date - start_date).days + 1
+
+        # number of days in each batch, rounded down, minimal is 1
+        batch_no_days = max(1, round(total_no_days / max_processes))
+
+        batches = []
+        batch_start_date = start_date
+        no_batches = total_no_days if total_no_days < max_processes else max_processes
+        # subtract one for possible final batch
+        for x in range(no_batches - 1):
+            batch_end_date = batch_start_date + timedelta(days=batch_no_days-1)
+            batches.append((batch_start_date.strftime("%Y-%m-%d"), batch_end_date.strftime("%Y-%m-%d")))
+            # end date is included, so start date should be one day later
+            batch_start_date = batch_end_date + timedelta(days=1)
+
+        # check if final batch has to be added
+        if batch_start_date <= end_date:
+            batches.append((batch_start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))
+        return batches
 
     @property
     def download_path(self):
         return self.get_path(SubFolder.downloaded, CrossrefEventsTelescope.DAG_ID)
 
-    def download_batch_path(self, event_type: str, batch_start: str, batch_end: str):
-        return self.get_path(SubFolder.downloaded, f'{event_type}_{batch_start}-{batch_end}')
+    def batch_path(self, url, cursor: bool = False):
+        event_type = url.split('?mailto')[0].split('/')[-1]
+        if event_type == 'events':
+            batch_start = url.split('from-collected-date=')[1].split('&')[0]
+            batch_end = url.split('until-collected-date=')[1].split('&')[0]
+        else:
+            batch_start = self.start_date.strftime("%Y-%m-%d")
+            batch_end = self.end_date.strftime("%Y-%m-%d")
 
-    def cursor_path(self, event_type: str, batch_start: str, batch_end: str):
-        return self.get_path(SubFolder.downloaded, f'{event_type}_{batch_start}_{batch_end}_cursor')
+        if cursor:
+            return self.get_path(SubFolder.downloaded, f'{event_type}_{batch_start}-{batch_end}_cursor')
+        else:
+            return self.get_path(SubFolder.downloaded, f'{event_type}_{batch_start}-{batch_end}')
 
     @property
     def transform_path(self):
         return self.get_path(SubFolder.transformed, CrossrefEventsTelescope.DAG_ID)
+
+    def subdir(self, sub_folder: SubFolder):
+        date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
+        return os.path.join(telescope_path(sub_folder, CrossrefEventsTelescope.DAG_ID), date_str)
 
     def get_path(self, sub_folder: SubFolder, name: str) -> str:
         """ Gets complete path of file for download/transform directory or file.
@@ -252,26 +287,24 @@ class CrossrefEventsRelease:
         :return: the path.
         """
 
-        date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
-
-        release_folder = os.path.join(telescope_path(sub_folder, CrossrefEventsTelescope.DAG_ID), date_str)
-        if not os.path.exists(release_folder):
-            os.makedirs(release_folder, exist_ok=True)
+        release_subdir = self.subdir(sub_folder)
+        if not os.path.exists(release_subdir):
+            os.makedirs(release_subdir, exist_ok=True)
 
         file_name = f"{name}.json"
 
-        path = os.path.join(release_folder, file_name)
-
+        path = os.path.join(release_subdir, file_name)
         return path
 
-    def get_blob_name(self, sub_folder: SubFolder) -> str:
+    @property
+    def blob_name(self) -> str:
         """ Gives blob name that is used to determine path inside storage bucket
 
-        :param sub_folder: name of subfolder
         :return: blob name
         """
+        date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
 
-        file_name = os.path.basename(self.get_path(sub_folder, CrossrefEventsTelescope.DAG_ID))
+        file_name = f"{CrossrefEventsTelescope.DAG_ID}_{date_str}.json"
         blob_name = f'telescopes/{CrossrefEventsTelescope.DAG_ID}/{file_name}'
 
         return blob_name
@@ -303,10 +336,10 @@ class CrossrefEventsTelescope:
     DOWNLOAD_MODE = 'parallel'  # Valid options: ['sequential', 'parallel']
 
     MAILTO = 'aniek.roelofs@curtin.edu.au'
-    #TODO remove source reddit
-    EVENTS_URL = f'https://api.eventdata.crossref.org/v1/events?mailto={MAILTO}&source=reddit&from-collected-date={{' \
+    # TODO remove source reddit
+    EVENTS_URL = f'https://api.eventdata.crossref.org/v1/events?mailto={MAILTO}&from-collected-date={{' \
                  f'start_date}}&until-collected-date={{end_date}}&rows=10000'
-    #TODO get info in false 'until-updated-date' field
+    # TODO get info in false 'until-updated-date' field
     # EDITED_URL = f'https://api.eventdata.crossref.org/v1/events/edited?mailto={MAILTO}&from-updated-date={{' \
     #              f'start_date}}&until-updated-date={{end_date}}&rows=10000'
     EDITED_URL = f'https://api.eventdata.crossref.org/v1/events/edited?mailto={MAILTO}&from-updated-date={{' \
@@ -316,14 +349,16 @@ class CrossrefEventsTelescope:
     DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
-    TASK_ID_CHECK_RELEASE = f"check_release"
-    TASK_ID_DOWNLOAD = f"download"
+    TASK_ID_CHECK_RELEASE = "check_release"
+    TASK_ID_DOWNLOAD = "download"
     TASK_ID_UPLOAD_DOWNLOADED = 'upload_downloaded'
-    TASK_ID_EXTRACT = f"extract"
-    TASK_ID_TRANSFORM = f"transform_releases"
+    TASK_ID_EXTRACT = "extract"
+    TASK_ID_TRANSFORM = "transform_releases"
     TASK_ID_UPLOAD_TRANSFORMED = 'upload_transformed'
-    TASK_ID_BQ_LOAD = f"bq_load"
-    TASK_ID_CLEANUP = f"cleanup"
+    TASK_ID_BQ_LOAD_PARTITION = "bq_load_partition"
+    TASK_ID_BQ_DELETE_OLD = "bq_delete_old"
+    TASK_ID_BQ_APPEND_NEW = "bq_append_new"
+    TASK_ID_CLEANUP = "cleanup"
 
     @staticmethod
     def check_dependencies():
@@ -349,7 +384,9 @@ class CrossrefEventsTelescope:
         else:
             first_release = True
             prev_start_date = kwargs['dag'].default_args['start_date']
-        start_date = pendulum.instance(kwargs['dag_run'].start_date)
+        start_date = pendulum.instance(kwargs['dag_run'].start_date) - timedelta(days=1)
+
+        logging.info(f'Start date: {prev_start_date}, end date:{start_date}, first release: {first_release}')
 
         release = CrossrefEventsRelease(prev_start_date, start_date, first_release)
         ti.xcom_push(CrossrefEventsTelescope.RELEASES_TOPIC_NAME, release)
@@ -375,7 +412,7 @@ class CrossrefEventsTelescope:
         bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
 
         # Upload each release
-        upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.downloaded),
+        upload_file_to_cloud_storage(bucket_name, release.blob_name,
                                      file_path=release.download_path)
 
     @staticmethod
@@ -392,17 +429,7 @@ class CrossrefEventsTelescope:
         ti: TaskInstance = kwargs['ti']
         release = pull_release(ti)
 
-        # load events
-        events = []
-        with open(release.download_path, 'r') as f:
-            for line in f:
-                events += json.loads(line)
-
-        # transform release
-        with open(release.transform_path, 'w') as f:
-            for event in events:
-                event_updated = change_keys(event, convert)
-                f.write(json.dumps(event_updated) + '\n')
+        transform_release(release)
 
     @staticmethod
     def upload_transformed(**kwargs):
@@ -423,8 +450,7 @@ class CrossrefEventsTelescope:
 
         # Upload files
         logging.info(f'Uploading transformed file')
-        success = upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.transformed),
-                                               file_path=release.transform_path)
+        success = upload_file_to_cloud_storage(bucket_name, release.blob_name, file_path=release.transform_path)
         if success:
             logging.info(f'upload_transformed success: {release}')
         else:
@@ -432,7 +458,66 @@ class CrossrefEventsTelescope:
             exit(os.EX_DATAERR)
 
     @staticmethod
-    def bq_load(**kwargs):
+    def bq_load_partition(**kwargs):
+        # Pull releases
+        ti: TaskInstance = kwargs['ti']
+        release = pull_release(ti)
+
+        if release.first_release:
+            logging.info('Skipped, because first release')
+            return
+
+        # Get variables
+        data_location = Variable.get(AirflowVar.data_location.get())
+        bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
+
+        # Select schema file based on release date
+        analysis_schema_path = schema_path('telescopes')
+        release_date = pendulum.instance(release.end_date)
+        schema_file_path = find_schema(analysis_schema_path, CrossrefEventsTelescope.DAG_ID, release_date)
+        if schema_file_path is None:
+            logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
+                          f'table_name={CrossrefEventsTelescope.DAG_ID}, release_date={release_date}')
+            exit(os.EX_CONFIG)
+
+        # Load BigQuery table
+        uri = f"gs://{bucket_name}/{release.blob_name}"
+        logging.info(f"URI: {uri}")
+
+        # Create partition with events related to release
+        table_id = bigquery_partitioned_table_id(CrossrefEventsTelescope.DAG_ID, release_date)
+
+        # Create separate partitioned table
+        dataset_id = CrossrefEventsTelescope.DATASET_ID
+        load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
+                            SourceFormat.NEWLINE_DELIMITED_JSON)
+
+    @staticmethod
+    def bq_delete_old(**kwargs):
+        # Pull releases
+        ti: TaskInstance = kwargs['ti']
+        release = pull_release(ti)
+
+        if release.first_release:
+            logging.info('Skipped, because first release')
+            return
+
+        # Get merge variables
+        dataset_id = CrossrefEventsTelescope.DATASET_ID
+        release_date = pendulum.instance(release.end_date)
+        main_table = CrossrefEventsTelescope.DAG_ID
+        partition_table = bigquery_partitioned_table_id(CrossrefEventsTelescope.DAG_ID, release_date)
+        merge_condition_field = 'id'
+        updated_date_field = 'updated_date'
+
+        template_path = os.path.join(telescope_templates_path(), make_sql_jinja2_filename('merge_delete_matched'))
+        query = render_template(template_path, dataset=dataset_id, main_table=main_table,
+                                partition_table=partition_table, merge_condition_field=merge_condition_field,
+                                updated_date_field=updated_date_field)
+        run_bigquery_query(query)
+
+    @staticmethod
+    def bq_append_new(**kwargs):
         """ Upload transformed release to a bigquery table.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -464,12 +549,12 @@ class CrossrefEventsTelescope:
             exit(os.EX_CONFIG)
 
         # Load BigQuery table
-        uri = f"gs://{bucket_name}/{release.get_blob_name(SubFolder.transformed)}"
+        uri = f"gs://{bucket_name}/{release.blob_name}"
         logging.info(f"URI: {uri}")
 
+        # Append to current events table
         load_bigquery_table(uri, dataset_id, data_location, CrossrefEventsTelescope.DAG_ID, schema_file_path,
-                            SourceFormat.NEWLINE_DELIMITED_JSON, partition=True, partition_field='timestamp',
-                            partition_type=bigquery.TimePartitioningType.DAY, require_partition_filter=True,
+                            SourceFormat.NEWLINE_DELIMITED_JSON,
                             write_disposition=bigquery.WriteDisposition.WRITE_APPEND)
 
     @staticmethod
@@ -486,13 +571,14 @@ class CrossrefEventsTelescope:
         ti: TaskInstance = kwargs['ti']
         release = pull_release(ti)
 
-        # Delete files for the release
         try:
-            pathlib.Path(release.download_path).unlink()
+            print(release.subdir(SubFolder.downloaded))
+            shutil.rmtree(release.subdir(SubFolder.downloaded))
         except FileNotFoundError as e:
-            logging.warning(f"No such file or directory {release.download_path}: {e}")
+            logging.warning(f"No such file or directory {release.subdir(SubFolder.downloaded)}: {e}")
 
         try:
-            pathlib.Path(release.transform_path).unlink()
+            print(release.subdir(SubFolder.transformed))
+            shutil.rmtree(release.subdir(SubFolder.transformed))
         except FileNotFoundError as e:
-            logging.warning(f"No such file or directory {release.transform_path}: {e}")
+            logging.warning(f"No such file or directory {release.subdir(SubFolder.transformed)}: {e}")

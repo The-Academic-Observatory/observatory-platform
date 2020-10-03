@@ -17,8 +17,8 @@
 from datetime import datetime
 
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.python_operator import ShortCircuitOperator
+from airflow.operators.python_operator import (PythonOperator,
+                                               ShortCircuitOperator)
 
 from observatory_platform.telescopes.crossref_events import CrossrefEventsTelescope
 
@@ -27,8 +27,8 @@ default_args = {
     "start_date": datetime(2017, 2, 17)
 }
 
-with DAG(dag_id="crossref_events", schedule_interval="@weekly", default_args=default_args,
-         catchup=False, max_active_runs=1) as dag:
+with DAG(dag_id="crossref_events", schedule_interval="@weekly", catchup=False, default_args=default_args,
+         max_active_runs=1) as dag:
     # Check that dependencies exist before starting
     check = PythonOperator(
         task_id=CrossrefEventsTelescope.TASK_ID_CHECK_DEPENDENCIES,
@@ -69,12 +69,29 @@ with DAG(dag_id="crossref_events", schedule_interval="@weekly", default_args=def
         queue=CrossrefEventsTelescope.QUEUE
     )
 
-    # Upload download to BigQuery table
-    bq_load = PythonOperator(
-        task_id=CrossrefEventsTelescope.TASK_ID_BQ_LOAD,
-        python_callable=CrossrefEventsTelescope.bq_load,
+    # Upload release as partition to separate BigQuery table
+    bq_load_partition = PythonOperator(
+        task_id=CrossrefEventsTelescope.TASK_ID_BQ_LOAD_PARTITION,
+        python_callable=CrossrefEventsTelescope.bq_load_partition,
         provide_context=True,
         queue=CrossrefEventsTelescope.QUEUE
+    )
+
+    # Delete events in main table which are edited/deleted in this release
+    bq_delete_old = PythonOperator(
+        task_id=CrossrefEventsTelescope.TASK_ID_BQ_DELETE_OLD,
+        python_callable=CrossrefEventsTelescope.bq_delete_old,
+        provide_context=True,
+        queue=CrossrefEventsTelescope.QUEUE
+    )
+
+    # Append release to main BigQuery table
+    bq_append_new = PythonOperator(
+        task_id=CrossrefEventsTelescope.TASK_ID_BQ_APPEND_NEW,
+        python_callable=CrossrefEventsTelescope.bq_append_new,
+        provide_context=True,
+        queue=CrossrefEventsTelescope.QUEUE,
+        wait_for_downstream=True
     )
 
     # Delete locally stored files
@@ -86,4 +103,5 @@ with DAG(dag_id="crossref_events", schedule_interval="@weekly", default_args=def
     )
 
     # Task dependencies
-    check >> download >> upload_downloaded >> transform >> upload_transformed >> bq_load >> cleanup
+    check >> download >> upload_downloaded >> transform >> upload_transformed >> bq_load_partition >> bq_delete_old \
+        >> bq_append_new >> cleanup
