@@ -40,9 +40,9 @@ class OAAdvantageBarChart(AbstractObservatoryChart):
         """
 
         self.df['Citations per non-OA Output'] = (self.df.total_citations -
-                                                  self.df.oa_citations) / (self.df.total - self.df.total_oa)
+                                                  self.df.oa_citations) / (self.df.total - self.df.oa)
         self.df['Citations per Output (all)'] = self.df.total_citations / self.df.total
-        self.df['Citations per OA Output'] = self.df.oa_citations / self.df.total_oa
+        self.df['Citations per OA Output'] = self.df.oa_citations / self.df.oa
         self.df['Citations per Gold OA Output'] = self.df.gold_citations / self.df.gold
         self.df['Citations per Green OA Output'] = self.df.green_citations / self.df.green
         self.df['Citations per Hybrid OA Output'] = self.df.hybrid_citations / self.df.hybrid
