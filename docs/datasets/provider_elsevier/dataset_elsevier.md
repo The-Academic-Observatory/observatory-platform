@@ -1,4 +1,6 @@
-# SCOPUS database
+# Elesevier
+
+## SCOPUS search
 
 SCOPUS is an Elsevier bibliometrics database containing abstracts, citations, of journals, books, and conference
 proceedings. - source: [SCOPUS](https://www.elsevier.com/en-gb/solutions/scopus) and
