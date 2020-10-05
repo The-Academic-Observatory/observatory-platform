@@ -24,7 +24,7 @@ from observatory_platform.telescopes.crossref_events import CrossrefEventsTelesc
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2017, 2, 17)
+    "start_date": datetime(2020, 1, 1)
 }
 
 with DAG(dag_id="crossref_events", schedule_interval="@weekly", catchup=False, default_args=default_args,
