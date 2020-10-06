@@ -30,16 +30,16 @@ from click.testing import CliRunner
 
 import observatory_platform.dags
 import observatory_platform.database.telescopes.schema
-import terraform
+import observatory_platform.database.telescopes.sql
 import observatory_platform.database.workflows.sql
+import terraform
 from observatory_platform.utils.config_utils import (AirflowConn,
                                                      AirflowVar,
                                                      ObservatoryConfig,
                                                      ObservatoryConfigValidator,
+                                                     SubFolder,
                                                      customise_pointer,
                                                      dags_path,
-                                                     workflow_templates_path,
-                                                     SubFolder,
                                                      find_schema,
                                                      get_default_airflow,
                                                      iterate_over_local_schema,
@@ -48,7 +48,9 @@ from observatory_platform.utils.config_utils import (AirflowConn,
                                                      observatory_package_path,
                                                      schema_path,
                                                      telescope_path,
-                                                     terraform_variables_tf_path)
+                                                     telescope_templates_path,
+                                                     terraform_variables_tf_path,
+                                                     workflow_templates_path)
 from tests.observatory_platform.config import test_fixtures_path
 
 
@@ -106,6 +108,13 @@ class TestConfigUtils(unittest.TestCase):
         expected_path = pathlib.Path(observatory_platform.database.workflows.sql.__file__).resolve()
         expected_path = str(pathlib.Path(*expected_path.parts[:-1]).resolve())
         actual_path = workflow_templates_path()
+        self.assertEqual(expected_path, actual_path)
+        self.assertTrue(os.path.exists(actual_path))
+
+    def test_telescope_templates_path(self):
+        expected_path = pathlib.Path(observatory_platform.database.telescopes.sql.__file__).resolve()
+        expected_path = str(pathlib.Path(*expected_path.parts[:-1]).resolve())
+        actual_path = telescope_templates_path()
         self.assertEqual(expected_path, actual_path)
         self.assertTrue(os.path.exists(actual_path))
 
@@ -296,26 +305,26 @@ class TestObservatoryConfigValidator(unittest.TestCase):
 
             # google_application_credentials tag and existing file
             validator.validate({
-                                   'google_application_credentials': credentials_file_path
-                               })
+                'google_application_credentials': credentials_file_path
+            })
             self.assertEqual(len(validator.errors), 0)
 
             # google_application_credentials tag and non-existing file
             validator.validate({
-                                   'google_application_credentials': 'missing_file.json'
-                               })
+                'google_application_credentials': 'missing_file.json'
+            })
             self.assertEqual(len(validator.errors), 1)
 
             # no google_application_credentials tag and non-existing file
             validator.validate({
-                                   'variable': 'google_application_credentials.json'
-                               })
+                'variable': 'google_application_credentials.json'
+            })
             self.assertEqual(len(validator.errors), 0)
 
             # no google_application_credentials tag and existing file
             validator.validate({
-                                   'variable': 'google_application_credentials.json'
-                               })
+                'variable': 'google_application_credentials.json'
+            })
             self.assertEqual(len(validator.errors), 0)
 
     def test_validate_isuri(self):
@@ -323,26 +332,26 @@ class TestObservatoryConfigValidator(unittest.TestCase):
         validator = ObservatoryConfigValidator(self.schema)
         # isuri tag and valid uri
         validator.validate({
-                               'crossref': 'mysql://myname:mypassword@myhost.com'
-                           })
+            'crossref': 'mysql://myname:mypassword@myhost.com'
+        })
         self.assertEqual(len(validator.errors), 0)
 
         # isuri tag and invalid uri
         validator.validate({
-                               'crossref': 'mysql://mypassword@myhost.com'
-                           })
+            'crossref': 'mysql://mypassword@myhost.com'
+        })
         self.assertEqual(len(validator.errors), 1)
 
         # no uri tag and invalid uri
         validator.validate({
-                               'variable': 'mysql://mypassword@myhost.com'
-                           })
+            'variable': 'mysql://mypassword@myhost.com'
+        })
         self.assertEqual(len(validator.errors), 0)
 
         # no uri tag and valid uri
         validator.validate({
-                               'variable': 'mysql://myname:mypassword@myhost.com'
-                           })
+            'variable': 'mysql://myname:mypassword@myhost.com'
+        })
         self.assertEqual(len(validator.errors), 0)
 
 
