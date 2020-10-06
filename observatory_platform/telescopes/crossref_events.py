@@ -47,11 +47,20 @@ from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  upload_file_to_cloud_storage)
 from observatory_platform.utils.jinja2_utils import (make_sql_jinja2_filename, render_template)
 from observatory_platform.utils.url_utils import retry_session
-from tests.observatory_platform.config import test_fixtures_path
 
 
-def extract_events(url: str, events_path: str, next_cursor: str = None, success: bool = True) -> Tuple[
-    bool, Union[str, None], Union[int, None]]:
+def extract_events(url: str, events_path: str, next_cursor: str = None, success: bool = True) -> \
+        Tuple[bool, Union[str, None], Union[int, None]]:
+    """
+    Extract the events from the given url until no new cursor is returned or a RetryError occurs. The extracted events
+    are appended to a json file, with 1 list per request.
+
+    :param url: The crossref events api url
+    :param events_path: Path to the file in which events are stored
+    :param next_cursor: The next cursor, this is in the response of the api
+    :param success: Whether all events were extracted successfully or an error occurred
+    :return: success, next_cursor and number of total events
+    """
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/39.0.2171.95 Safari/537.36'
@@ -79,6 +88,14 @@ def extract_events(url: str, events_path: str, next_cursor: str = None, success:
 
 
 def download_events_batch(release: 'CrossrefEventsRelease', i: int) -> list:
+    """
+    Download one batch (time period) of events.
+
+    :param release: The crossref events release
+    :param i: The batch number
+    :return: A list of batch results with a tuple of (events_path, success). These describe the path to the events
+    file and whether the events were extracted successfully
+    """
     batch_results = []
     # Extract all new, edited and deleted events
     for j, url in enumerate(release.urls[i]):
@@ -114,6 +131,14 @@ def download_events_batch(release: 'CrossrefEventsRelease', i: int) -> list:
 
 
 def download_release(release: 'CrossrefEventsRelease') -> bool:
+    """
+    Download one release of crossref events, this is from the start date of the previous successful DAG until the
+    start date of this DAG. The release can be split up in periods (multiple batches), if the download mode is set to
+    'parallel'.
+
+    :param release: The crossref events release
+    :return: Boolean whether to continue DAG. Continue DAG is True if the events file is not empty.
+    """
     all_results = []
 
     if CrossrefEventsTelescope.DOWNLOAD_MODE == 'parallel':
@@ -153,6 +178,14 @@ def download_release(release: 'CrossrefEventsRelease') -> bool:
 
 
 def transform_release(release: 'CrossrefEventsRelease'):
+    """
+    Transforms the crossref events release. The download file contains multiple lists, one for each request,
+    and each list contains multiple events. Each event is transformed so that the field names do not contain
+    '-' and have a valid timestamp at 'occurred_at'. The events are written out individually and separated by a newline.
+
+    :param release: The crossref events release
+    :return: None
+    """
     # load events
     events = []
     with open(release.download_path, 'r') as f:
@@ -170,13 +203,23 @@ def transform_release(release: 'CrossrefEventsRelease'):
             f.write(json.dumps(event_updated) + '\n')
 
 
-def convert(k):
+def convert(k: str) -> str:
+    """
+    Replaces '-' with '_'
+
+    :param k: Dictionary key
+    :return: Updated dictionary key
+    """
     return k.replace('-', '_')
 
 
 def change_keys(obj, convert):
     """
-    Recursively goes through the dictionary obj and replaces keys with the convert function.
+    Recursively goes through the dictionary obj and updates keys with the convert function.
+
+    :param obj: The dictionary
+    :param convert: The convert function that is used to update the key
+    :return: The updated dictionary
     """
     if isinstance(obj, (str, int, float)):
         return obj
@@ -192,9 +235,15 @@ def change_keys(obj, convert):
 
 
 class CrossrefEventsRelease:
-    """ Used to store info on a given crossref release """
+    """ Used to store info on a given crossref events release """
 
     def __init__(self, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool = False):
+        """
+        :param start_date: Start date of this release
+        :param end_date: End date of this release
+        :param first_release: Whether this is the first release that is downloaded (if so, no edited/deleted events
+        need to be obtained)
+        """
         self.start_date = start_date
         self.end_date = end_date
         self.first_release = first_release
@@ -213,6 +262,7 @@ class CrossrefEventsRelease:
             start_date = batch[0]
             end_date = batch[1]
             event_type_urls = [CrossrefEventsTelescope.EVENTS_URL.format(start_date=start_date, end_date=end_date)]
+            # only add edited/deleted urls to first batch, since no end date can be specified
             if edited_deleted or first_release:
                 pass
             else:
@@ -222,7 +272,14 @@ class CrossrefEventsRelease:
             self.urls.append(event_type_urls)
 
     @property
-    def batch_dates(self):
+    def batch_dates(self) -> list:
+        """
+        Create batches of time periods, based on the start and end date of the release and the max number of
+        processes available.
+
+        :return: List of batches, where each batch is a tuple of (start_date, end_date). Both dates are strings in
+        format YYYY-MM-DD
+        """
         start_date = self.start_date.date()
         end_date = self.end_date.date()
         max_processes = CrossrefEventsTelescope.MAX_PROCESSES
@@ -249,14 +306,27 @@ class CrossrefEventsRelease:
         return batches
 
     @property
-    def download_path(self):
+    def download_path(self) -> str:
+        """
+        :return: The file path for the downloaded crossref events
+        """
         return self.get_path(SubFolder.downloaded, CrossrefEventsTelescope.DAG_ID)
 
     @property
-    def transform_path(self):
+    def transform_path(self) -> str:
+        """
+        :return: The file path for the transformed crossref events
+        """
         return self.get_path(SubFolder.transformed, CrossrefEventsTelescope.DAG_ID)
 
-    def batch_path(self, url, cursor: bool = False):
+    def batch_path(self, url, cursor: bool = False) -> str:
+        """
+        Gets the appropriate file path for a single batch, either for an events or cursor file.
+
+        :param url: The url used for a specific batch
+        :param cursor: Whether this is a cursor file or file with actual events
+        :return: Path to the events or cursor file
+        """
         event_type = url.split('?mailto')[0].split('/')[-1]
         if event_type == 'events':
             batch_start = url.split('from-collected-date=')[1].split('&')[0]
@@ -271,15 +341,22 @@ class CrossrefEventsRelease:
             return self.get_path(SubFolder.downloaded, f'{event_type}_{batch_start}_{batch_end}')
 
     def subdir(self, sub_folder: SubFolder):
+        """
+        Path to subdirectory of a specific release for either downloaded/transformed files.
+
+        :param sub_folder:
+        :return:
+        """
         date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
         return os.path.join(telescope_path(sub_folder, CrossrefEventsTelescope.DAG_ID), date_str)
 
     def get_path(self, sub_folder: SubFolder, name: str) -> str:
-        """ Gets complete path of file for download/transform directory or file.
+        """
+        Gets path to json file based on subfolder and name. Will also create the subfolder if it doesn't exist yet.
 
-        :param sub_folder: name of subfolder
-        :param name: partial file name
-        :return: the path.
+        :param sub_folder: Name of the subfolder
+        :param name: File base name, without extension
+        :return: The file path.
         """
 
         release_subdir = self.subdir(sub_folder)
@@ -293,9 +370,10 @@ class CrossrefEventsRelease:
 
     @property
     def blob_name(self) -> str:
-        """ Gives blob name that is used to determine path inside storage bucket
+        """
+        Returns blob name that is used to determine path inside google cloud storage bucket
 
-        :return: blob name
+        :return: The blob name
         """
         date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
 
@@ -306,10 +384,11 @@ class CrossrefEventsRelease:
 
 
 def pull_release(ti: TaskInstance) -> CrossrefEventsRelease:
-    """ Pull a CrossrefMetadataRelease instance with xcom.
+    """
+    Pull a CrossrefEventsRelease instance with xcom.
 
     :param ti: the Apache Airflow task instance.
-    :return: the list of CrossrefMetadataRelease instances.
+    :return: the CrossrefEventsRelease instance.
     """
 
     return ti.xcom_pull(key=CrossrefEventsTelescope.RELEASES_TOPIC_NAME,
@@ -317,7 +396,7 @@ def pull_release(ti: TaskInstance) -> CrossrefEventsRelease:
 
 
 class CrossrefEventsTelescope:
-    """ A container for holding the constants and static functions for the crossref metadata telescope. """
+    """ A container for holding the constants and static functions for the crossref events telescope. """
 
     DAG_ID = 'crossref_events'
     DATASET_ID = 'crossref'
@@ -340,7 +419,6 @@ class CrossrefEventsTelescope:
                  f'start_date}}&rows=10000'
     DELETED_URL = f'https://api.eventdata.crossref.org/v1/events/deleted?mailto={MAILTO}&from-updated-date={{' \
                   f'start_date}}&rows=10000'
-    DEBUG_FILE_PATH = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
     TASK_ID_CHECK_RELEASE = "check_release"
@@ -349,14 +427,16 @@ class CrossrefEventsTelescope:
     TASK_ID_EXTRACT = "extract"
     TASK_ID_TRANSFORM = "transform_releases"
     TASK_ID_UPLOAD_TRANSFORMED = 'upload_transformed'
-    TASK_ID_BQ_LOAD_PARTITION = "bq_load_partition"
+    TASK_ID_BQ_LOAD_SHARD = "bq_load_shard"
     TASK_ID_BQ_DELETE_OLD = "bq_delete_old"
     TASK_ID_BQ_APPEND_NEW = "bq_append_new"
     TASK_ID_CLEANUP = "cleanup"
 
     @staticmethod
     def check_dependencies():
-        """ Check that all variables exist that are required to run the DAG.
+        """
+        Check that all variables exist that are required to run the DAG.
+
         :return: None.
         """
 
@@ -369,6 +449,22 @@ class CrossrefEventsTelescope:
 
     @staticmethod
     def download(**kwargs):
+        """
+        Download the crossref events release. The start date of this release is set to the DAG run start date of the
+        previous successful run, the end date of this release is set to the start date of this DAG run minus 1 day.
+        One day is subtracted from the end date, because the day has not finished yet so all events of that day can not
+        be collected on the same day.
+        If this is the first time a release is obtained, the start date will be set to the start date in the
+        default_args of this DAG.
+
+        This function is used for a shortcircuitoperator, so it will return a boolean value which determines whether
+        the DAG will be continued or not.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: Boolean whether to continue DAG or not
+        """
         ti: TaskInstance = kwargs['ti']
 
         prev_start_date = kwargs['prev_start_date_success']
@@ -381,6 +477,8 @@ class CrossrefEventsTelescope:
         start_date = pendulum.instance(kwargs['dag_run'].start_date) - timedelta(days=1)
 
         logging.info(f'Start date: {prev_start_date}, end date:{start_date}, first release: {first_release}')
+        if prev_start_date < start_date:
+            raise AirflowException("Start date has to be before end date.")
 
         release = CrossrefEventsRelease(prev_start_date, start_date, first_release)
         ti.xcom_push(CrossrefEventsTelescope.RELEASES_TOPIC_NAME, release)
@@ -390,7 +488,8 @@ class CrossrefEventsTelescope:
 
     @staticmethod
     def upload_downloaded(**kwargs):
-        """ Upload the downloaded files to a Google Cloud Storage bucket.
+        """
+        Upload the downloaded events file to a Google Cloud Storage bucket.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -410,7 +509,8 @@ class CrossrefEventsTelescope:
 
     @staticmethod
     def transform(**kwargs):
-        """ Transform release with sed command and save to new file.
+        """
+        Transform the downloaded events and save to a new file.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -418,7 +518,7 @@ class CrossrefEventsTelescope:
         :return: None.
         """
 
-        # Pull releases
+        # Pull release
         ti: TaskInstance = kwargs['ti']
         release = pull_release(ti)
 
@@ -426,7 +526,8 @@ class CrossrefEventsTelescope:
 
     @staticmethod
     def upload_transformed(**kwargs):
-        """ Upload transformed release to a Google Cloud Storage bucket.
+        """
+        Upload the transformed events file to a Google Cloud Storage bucket.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -434,7 +535,7 @@ class CrossrefEventsTelescope:
         :return: None.
         """
 
-        # Pull releases
+        # Pull release
         ti: TaskInstance = kwargs['ti']
         release = pull_release(ti)
 
@@ -451,8 +552,17 @@ class CrossrefEventsTelescope:
             exit(os.EX_DATAERR)
 
     @staticmethod
-    def bq_load_partition(**kwargs):
-        # Pull releases
+    def bq_load_shard(**kwargs):
+        """
+        Create a table shard containing only events of this release. The date in the table name is based on the end
+        date of this release.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None
+        """
+        # Pull release
         ti: TaskInstance = kwargs['ti']
         release = pull_release(ti)
 
@@ -487,6 +597,18 @@ class CrossrefEventsTelescope:
 
     @staticmethod
     def bq_delete_old(**kwargs):
+        """
+        Run a BigQuery MERGE query, merging the sharded table of this release into the main table containing all
+        events.
+        The tables are matched on the 'id' field and if a match occurs, a check will be done to determine whether the
+        'updated date' of the corresponding event in the main table either does not exist or is older than that of the
+        event in the sharded table. If this is the case, the event will be deleted from the main table.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None
+        """
         # Pull releases
         ti: TaskInstance = kwargs['ti']
         release = pull_release(ti)
@@ -499,19 +621,20 @@ class CrossrefEventsTelescope:
         dataset_id = CrossrefEventsTelescope.DATASET_ID
         release_date = pendulum.instance(release.end_date)
         main_table = CrossrefEventsTelescope.DAG_ID
-        partition_table = bigquery_partitioned_table_id(CrossrefEventsTelescope.DAG_ID, release_date)
+        sharded_table = bigquery_partitioned_table_id(CrossrefEventsTelescope.DAG_ID, release_date)
         merge_condition_field = 'id'
         updated_date_field = 'updated_date'
 
         template_path = os.path.join(telescope_templates_path(), make_sql_jinja2_filename('merge_delete_matched'))
         query = render_template(template_path, dataset=dataset_id, main_table=main_table,
-                                partition_table=partition_table, merge_condition_field=merge_condition_field,
+                                sharded_table=sharded_table, merge_condition_field=merge_condition_field,
                                 updated_date_field=updated_date_field)
         run_bigquery_query(query)
 
     @staticmethod
     def bq_append_new(**kwargs):
-        """ Upload transformed release to a bigquery table.
+        """
+        All events from this release in the corresponding table shard will be appended to the main table.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -519,7 +642,7 @@ class CrossrefEventsTelescope:
         :return: None.
         """
 
-        # Pull releases
+        # Pull release
         ti: TaskInstance = kwargs['ti']
         release = pull_release(ti)
 
@@ -552,7 +675,8 @@ class CrossrefEventsTelescope:
 
     @staticmethod
     def cleanup(**kwargs):
-        """ Delete files of downloaded, extracted and transformed release.
+        """
+        Delete subdirectories for downloaded and transformed events files.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -560,7 +684,7 @@ class CrossrefEventsTelescope:
         :return: None.
         """
 
-        # Pull releases
+        # Pull release
         ti: TaskInstance = kwargs['ti']
         release = pull_release(ti)
 

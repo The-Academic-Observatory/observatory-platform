@@ -45,11 +45,15 @@ class TestCrossrefEvents(unittest.TestCase):
         logging.basicConfig()
 
     def test_extract_events(self):
+        """
+        Tests whether events are extracted appropriately from a temporary url which should return only 42 events.
+        The number of events per row is set to 30, so it tests using this function recursively and returning a cursor.
+        """
         tmp_url = 'https://api.eventdata.crossref.org/v1/events?mailto=aniek.roelofs@curtin.edu.au&source=reddit&from' \
-                  '-collected-date=2020-01-02&until-collected-date=2020-01-02&rows=10000'
+                  '-collected-date=2020-01-02&until-collected-date=2020-01-02&rows=30'
         events_response_path = os.path.join(test_fixtures_path(), 'vcr_cassettes', 'crossref_events.yaml')
-        events_response_hash = 'fb0334653f8828dd6d0ea2528fec7713'
-        events_hash = 'dac865bebbe37f3a9e61fdef1e5f8068'
+        events_response_hash = '22f0e10f7b09939ee2acf44d790d4f11'
+        events_file_hash = '81b6c93643aa8f1283c473a567a6dc85'
 
         with CliRunner().isolated_filesystem():
             events_path = 'events.json'
@@ -64,9 +68,13 @@ class TestCrossrefEvents(unittest.TestCase):
 
                 # check file hash of corresponding events
                 self.assertTrue(os.path.isfile(events_path))
-                self.assertEqual(events_hash, _hash_file(events_path, algorithm='md5'))
+                self.assertEqual(events_file_hash, _hash_file(events_path, algorithm='md5'))
 
     def test_batch_dates(self):
+        """
+        Tests the lists of batch dates that result from splitting up a release period in batches of multiple periods.
+        This is tested for a few different batch sizes.
+        """
         with patch.object(CrossrefEventsTelescope, 'MAX_PROCESSES', 4):
             # 1 day only
             start_date = pendulum.parse('2020-01-02 11:48:23.795099+00:00')
@@ -100,6 +108,9 @@ class TestCrossrefEvents(unittest.TestCase):
             self.assertEqual(release.batch_dates, expected_batch_dates)
 
     def test_change_keys(self):
+        """
+        Test changing the keys of a nested dictionary, replacing '-' with '_'.
+        """
         old_dict = {
             'key-1': {
                 'key-2': 'value-2'
@@ -133,6 +144,11 @@ class TestCrossrefEvents(unittest.TestCase):
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_crossref_events_release(self, mock_variable_get):
+        """
+        Test initiating a CrossrefEventsRelease class, both for sequential/parallel download mode and
+        first_release/later release.
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        """
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
@@ -170,6 +186,10 @@ class TestCrossrefEvents(unittest.TestCase):
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_subdir(self, mock_variable_get):
+        """
+        Test the path to a subdirectory to store download/transformed events files.
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        """
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
@@ -189,6 +209,10 @@ class TestCrossrefEvents(unittest.TestCase):
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_download_path(self, mock_variable_get):
+        """
+        Test the file path for downloaded events and check if the parent directory exists.
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        """
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
@@ -206,6 +230,10 @@ class TestCrossrefEvents(unittest.TestCase):
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_transform_path(self, mock_variable_get):
+        """
+        Test the file path for downloaded events and check if the parent directory exists.
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        """
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
@@ -223,6 +251,10 @@ class TestCrossrefEvents(unittest.TestCase):
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_batch_path(self, mock_variable_get):
+        """
+        Test the file path for cursor and events file of a single batch for all 3 urls (events/edited/deleted).
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        """
         release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
         for j, url in enumerate(release.urls[0]):
             # test extracted events path
@@ -231,6 +263,12 @@ class TestCrossrefEvents(unittest.TestCase):
             self.batch_path_test(mock_variable_get, False, j)
 
     def batch_path_test(self, mock_variable_get: patch, cursor: bool, j: int):
+        """
+        Test the file path of a single batch for one of the urls.
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        :param cursor: Whether cursor or events file
+        :param j: Determines which of the 3 urls (events/edited/deleted)
+        """
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
@@ -259,6 +297,10 @@ class TestCrossrefEvents(unittest.TestCase):
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_blob_name(self, mock_variable_get):
+        """
+        Test the blob name used to determine path in Google Cloud Storage
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        """
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
@@ -276,6 +318,13 @@ class TestCrossrefEvents(unittest.TestCase):
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     @patch('observatory_platform.telescopes.crossref_events.CrossrefEventsTelescope.DOWNLOAD_MODE', 'sequential')
     def test_download_events_batch(self, mock_variable_get, mock_extract_events):
+        """
+        Test downloading one complete batch in different conditions. Mocking when an error has occurred (cursor file
+        is present), mocking when all events were successfully downloaded (no cursor file, events file is present) and
+        mocking a fresh start (no cursor file, no events file present)
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        :param mock_extract_events:
+        """
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
@@ -322,6 +371,12 @@ class TestCrossrefEvents(unittest.TestCase):
     @patch('observatory_platform.telescopes.crossref_events.download_events_batch')
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_download_release(self, mock_variable_get, mock_download_events_batch):
+        """
+        Test downloading a complete release in different conditions. Testing while using different download modes and
+        testing for both first time downloading a release and later.
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        :param mock_download_events_batch:
+        """
         # use sequential download mode
         with patch.object(CrossrefEventsTelescope, 'DOWNLOAD_MODE', 'sequential'):
             # test for both first_release False and True
@@ -335,6 +390,12 @@ class TestCrossrefEvents(unittest.TestCase):
             self.download_release_tests(mock_download_events_batch, mock_variable_get, True)
 
     def download_release_tests(self, mock_download_events_batch: patch, mock_variable_get: patch, first_release: bool):
+        """
+        Test downloading a single release.
+        :param mock_download_events_batch:
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        :param first_release:
+        """
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
@@ -381,6 +442,10 @@ class TestCrossrefEvents(unittest.TestCase):
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_transform_release(self, mock_variable_get):
+        """
+        Test transforming a release, using a test download file it checks whether the transformed file is as expected.
+        :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
+        """
         download_release_path = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_events.json')
         transform_release_hash = '898c605bb10840d5b5c1f097e32df457'
 
