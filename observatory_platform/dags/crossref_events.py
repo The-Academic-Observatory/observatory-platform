@@ -24,7 +24,7 @@ from observatory_platform.telescopes.crossref_events import CrossrefEventsTelesc
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2020, 1, 1)
+    "start_date": datetime(2017, 2, 17)
 }
 
 with DAG(dag_id="crossref_events", schedule_interval="@weekly", catchup=False, default_args=default_args,
@@ -36,7 +36,7 @@ with DAG(dag_id="crossref_events", schedule_interval="@weekly", catchup=False, d
         queue=CrossrefEventsTelescope.QUEUE
     )
 
-    # Downloads the releases
+    # Downloads the events of this release
     download = ShortCircuitOperator(
         task_id=CrossrefEventsTelescope.TASK_ID_DOWNLOAD,
         python_callable=CrossrefEventsTelescope.download,
@@ -45,7 +45,7 @@ with DAG(dag_id="crossref_events", schedule_interval="@weekly", catchup=False, d
         queue=CrossrefEventsTelescope.QUEUE,
     )
 
-    # Upload downloaded data for a given interval
+    # Upload downloaded events file to google cloud storage
     upload_downloaded = PythonOperator(
         task_id=CrossrefEventsTelescope.TASK_ID_UPLOAD_DOWNLOADED,
         provide_context=True,
@@ -53,7 +53,7 @@ with DAG(dag_id="crossref_events", schedule_interval="@weekly", catchup=False, d
         queue=CrossrefEventsTelescope.QUEUE
     )
 
-    # Transforms download
+    # Transform events file
     transform = PythonOperator(
         task_id=CrossrefEventsTelescope.TASK_ID_TRANSFORM,
         python_callable=CrossrefEventsTelescope.transform,
@@ -61,7 +61,7 @@ with DAG(dag_id="crossref_events", schedule_interval="@weekly", catchup=False, d
         queue=CrossrefEventsTelescope.QUEUE
     )
 
-    # Upload download to gcs bucket
+    # Upload transformed events file to google cloud storage
     upload_transformed = PythonOperator(
         task_id=CrossrefEventsTelescope.TASK_ID_UPLOAD_TRANSFORMED,
         python_callable=CrossrefEventsTelescope.upload_transformed,
@@ -69,10 +69,10 @@ with DAG(dag_id="crossref_events", schedule_interval="@weekly", catchup=False, d
         queue=CrossrefEventsTelescope.QUEUE
     )
 
-    # Upload release as partition to separate BigQuery table
-    bq_load_partition = PythonOperator(
-        task_id=CrossrefEventsTelescope.TASK_ID_BQ_LOAD_PARTITION,
-        python_callable=CrossrefEventsTelescope.bq_load_partition,
+    # Upload this release as partition to separate BigQuery table
+    bq_load_shard = PythonOperator(
+        task_id=CrossrefEventsTelescope.TASK_ID_BQ_LOAD_SHARD,
+        python_callable=CrossrefEventsTelescope.bq_load_shard,
         provide_context=True,
         queue=CrossrefEventsTelescope.QUEUE
     )
@@ -85,7 +85,7 @@ with DAG(dag_id="crossref_events", schedule_interval="@weekly", catchup=False, d
         queue=CrossrefEventsTelescope.QUEUE
     )
 
-    # Append release to main BigQuery table
+    # Append this release to main BigQuery table
     bq_append_new = PythonOperator(
         task_id=CrossrefEventsTelescope.TASK_ID_BQ_APPEND_NEW,
         python_callable=CrossrefEventsTelescope.bq_append_new,
@@ -103,5 +103,5 @@ with DAG(dag_id="crossref_events", schedule_interval="@weekly", catchup=False, d
     )
 
     # Task dependencies
-    check >> download >> upload_downloaded >> transform >> upload_transformed >> bq_load_partition >> bq_delete_old \
-        >> bq_append_new >> cleanup
+    check >> download >> upload_downloaded >> transform >> upload_transformed >> bq_load_shard >> bq_delete_old \
+    >> bq_append_new >> cleanup
