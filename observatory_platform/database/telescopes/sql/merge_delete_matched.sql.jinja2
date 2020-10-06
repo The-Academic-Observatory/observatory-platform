@@ -17,8 +17,8 @@
 MERGE
   {{ dataset }}.{{ main_table }} M
 USING
-  {{ dataset }}.{{ partition_table }} P
+  {{ dataset }}.{{ sharded_table }} S
 ON
-  M.{{ merge_condition_field }} = P.{{ merge_condition_field }}
-WHEN MATCHED AND M.{{ updated_date_field }} < P.{{ updated_date_field }} THEN
+  M.{{ merge_condition_field }} = S.{{ merge_condition_field }}
+WHEN MATCHED AND M.{{ updated_date_field }} <= S.{{ updated_date_field }} OR M.{{ updated_date_field }} is null THEN
   DELETE
