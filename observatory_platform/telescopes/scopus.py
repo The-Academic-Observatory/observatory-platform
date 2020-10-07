@@ -923,6 +923,29 @@ class ScopusJsonParser:
         return author_list
 
     @staticmethod
+    def get_identifier_list(data: dict, id_type: str):
+        """ Get the list of document identifiers or null of it does not exist.  This string/list behaviour was observed
+        for ISBNs so using it for other identifiers just in case.
+
+        :param data: json response from SCOPUS.
+        :param id_type: type of identifier, e.g., 'isbn'
+        :return: List of identifiers.
+        """
+
+        identifier = list()
+        if id_type not in data:
+            return None
+
+        id_data = data[id_type]
+        if isinstance(id_data, str):
+            identifier.append(id_data)
+        else:  # Only other observed case is list
+            for entry in id_data:
+                identifier.append(entry['$'])  # This is what showed up in ISBN example in list situation
+
+        return identifier
+
+    @staticmethod
     def parse_json(data: dict, harvest_datetime: str, release_date: str, institutes: List[str]) -> dict:
         """ Turn json data into db schema format.
 
@@ -943,10 +966,10 @@ class ScopusJsonParser:
         entry['creator'] = get_entry_or_none(data, 'dc:creator')  # First author name
         entry['publication_name'] = get_entry_or_none(data, 'prism:publicationName')  # Source title
         entry['cover_date'] = get_entry_or_none(data, 'prism:coverDate')  # Publication date
-        entry['doi'] = get_entry_or_none(data, 'prism:doi')  # DOI
-        entry['eissn'] = get_entry_or_none(data, 'prism:eIssn')  # Electronic ISSN
-        entry['issn'] = get_entry_or_none(data, 'prism:issn')  # ISSN
-        entry['isbn'] = get_entry_or_none(data, 'prism:isbn')  # ISBN
+        entry['doi'] = ScopusJsonParser.get_identifier_list(data, 'prism:doi')  # DOI
+        entry['eissn'] = ScopusJsonParser.get_identifier_list(data, 'prism:eIssn')  # Electronic ISSN
+        entry['issn'] = ScopusJsonParser.get_identifier_list(data, 'prism:issn')  # ISSN
+        entry['isbn'] = ScopusJsonParser.get_identifier_list(data, 'prism:isbn')  # ISBN
         entry['aggregation_type'] = get_entry_or_none(data, 'prism:aggregationType')  # Source type
         entry['pubmed_id'] = get_entry_or_none(data, 'pubmed-id')  # MEDLINE identifier
         entry['pii'] = get_entry_or_none(data, 'pii')  # PII Publisher item identifier

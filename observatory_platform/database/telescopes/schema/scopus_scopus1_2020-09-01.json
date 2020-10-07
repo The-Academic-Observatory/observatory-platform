@@ -99,7 +99,7 @@
   },
   {
     "description": "International standard book number",
-    "mode": "NULLABLE",
+    "mode": "REPEATED",
     "name": "isbn",
     "type": "STRING"
   },
@@ -129,7 +129,7 @@
   },
   {
     "description": "Document object identifier",
-    "mode": "NULLABLE",
+    "mode": "REPEATED",
     "name": "doi",
     "type": "STRING"
   },
@@ -165,13 +165,13 @@
   },
   {
     "description": "International standard serial number",
-    "mode": "NULLABLE",
+    "mode": "REPEATED",
     "name": "issn",
     "type": "STRING"
   },
   {
     "description": "Electronic international standard serial number",
-    "mode": "NULLABLE",
+    "mode": "REPEATED",
     "name": "eissn",
     "type": "STRING"
   },
