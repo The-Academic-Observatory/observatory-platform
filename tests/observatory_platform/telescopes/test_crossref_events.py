@@ -40,7 +40,7 @@ class TestCrossrefEvents(unittest.TestCase):
         self.prev_start_date = pendulum.parse('2020-01-02 11:48:23.795099+00:00')
         self.start_date = pendulum.instance(datetime.strptime('2020-01-03 03:16:49.041842+00:00', '%Y-%m-%d '
                                                                                                   '%H:%M:%S.%f%z'))
-
+        self.mailto = 'unit@test.com'
         # Turn logging to warning because vcr prints too much at info level
         logging.basicConfig()
 
@@ -60,8 +60,8 @@ class TestCrossrefEvents(unittest.TestCase):
             with vcr.use_cassette(events_response_path):
                 success, next_cursor, total_events = extract_events(tmp_url, events_path)
                 self.assertTrue(success)
-                self.assertEqual(next_cursor, None)
-                self.assertEqual(total_events, 42)
+                self.assertEqual(None, next_cursor)
+                self.assertEqual(42, total_events)
 
                 # check file hash of response
                 self.assertEqual(events_response_hash, _hash_file(events_response_path, algorithm='md5'))
@@ -79,33 +79,33 @@ class TestCrossrefEvents(unittest.TestCase):
             # 1 day only
             start_date = pendulum.parse('2020-01-02 11:48:23.795099+00:00')
             end_date = pendulum.parse('2020-01-02 23:48:23.795099+00:00')
-            release = CrossrefEventsRelease(start_date, end_date)
+            release = CrossrefEventsRelease(start_date, end_date, self.mailto)
             expected_batch_dates = [('2020-01-02', '2020-01-02')]
-            self.assertEqual(release.batch_dates, expected_batch_dates)
+            self.assertEqual(expected_batch_dates, release.batch_dates)
 
             # exactly 2 days per batch
             start_date = pendulum.parse('2020-01-02 11:48:23.795099+00:00')
             end_date = pendulum.parse('2020-01-09 23:48:23.795099+00:00')
-            release = CrossrefEventsRelease(start_date, end_date)
+            release = CrossrefEventsRelease(start_date, end_date, self.mailto)
             expected_batch_dates = [('2020-01-02', '2020-01-03'), ('2020-01-04', '2020-01-05'),
                                     ('2020-01-06', '2020-01-07'), ('2020-01-08', '2020-01-09')]
-            self.assertEqual(release.batch_dates, expected_batch_dates)
+            self.assertEqual(expected_batch_dates, release.batch_dates)
 
             # 1.5 day per batch
             start_date = pendulum.parse('2020-01-02 11:48:23.795099+00:00')
             end_date = pendulum.parse('2020-01-07 23:48:23.795099+00:00')
-            release = CrossrefEventsRelease(start_date, end_date)
+            release = CrossrefEventsRelease(start_date, end_date, self.mailto)
             expected_batch_dates = [('2020-01-02', '2020-01-03'), ('2020-01-04', '2020-01-05'),
                                     ('2020-01-06', '2020-01-07')]
-            self.assertEqual(release.batch_dates, expected_batch_dates)
+            self.assertEqual(expected_batch_dates, release.batch_dates)
 
             # 2.25 day per batch
             start_date = pendulum.parse('2020-01-02 11:48:23.795099+00:00')
             end_date = pendulum.parse('2020-01-10 23:48:23.795099+00:00')
-            release = CrossrefEventsRelease(start_date, end_date)
+            release = CrossrefEventsRelease(start_date, end_date, self.mailto)
             expected_batch_dates = [('2020-01-02', '2020-01-03'), ('2020-01-04', '2020-01-05'),
                                     ('2020-01-06', '2020-01-07'), ('2020-01-08', '2020-01-10')]
-            self.assertEqual(release.batch_dates, expected_batch_dates)
+            self.assertEqual(expected_batch_dates, release.batch_dates)
 
     def test_change_keys(self):
         """
@@ -140,7 +140,7 @@ class TestCrossrefEvents(unittest.TestCase):
                 }
             }
         }
-        self.assertEqual(actual_new_dict, expected_new_dict)
+        self.assertEqual(expected_new_dict, actual_new_dict)
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_crossref_events_release(self, mock_variable_get):
@@ -154,35 +154,35 @@ class TestCrossrefEvents(unittest.TestCase):
             mock_variable_get.return_value = 'data'
 
             with patch.object(CrossrefEventsTelescope, 'DOWNLOAD_MODE', 'sequential'):
-                release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
+                release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
                 # check number of batches / urls is 1
-                self.assertEqual(len(release.urls), 1)
+                self.assertEqual(1, len(release.urls))
                 # check that first batch also contains urls for edited/deleted events
-                self.assertEqual(len(release.urls[0]), 3)
+                self.assertEqual(3, len(release.urls[0]))
 
-                release = CrossrefEventsRelease(self.prev_start_date, self.start_date, True)
+                release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto, True)
                 # check number of batches / urls is 1
-                self.assertEqual(len(release.urls), 1)
+                self.assertEqual(1, len(release.urls))
                 # check that first batch does not contain urls for edited/deleted events
-                self.assertEqual(len(release.urls[0]), 1)
+                self.assertEqual(1, len(release.urls[0]))
 
             with patch.object(CrossrefEventsTelescope, 'DOWNLOAD_MODE', 'parallel'):
-                release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
+                release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
                 # check number of batches / urls is 2
-                self.assertEqual(len(release.urls), 2)
+                self.assertEqual(2, len(release.urls))
                 # check that first batch also contains urls for edited/deleted events
-                self.assertEqual(len(release.urls[0]), 3)
+                self.assertEqual(3, len(release.urls[0]))
 
-                release = CrossrefEventsRelease(self.prev_start_date, self.start_date, True)
+                release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto, True)
                 # check number of batches / urls is 2
-                self.assertEqual(len(release.urls), 2)
+                self.assertEqual(2, len(release.urls))
                 # check that first batch does not contain urls for edited/deleted events
-                self.assertEqual(len(release.urls[0]), 1)
+                self.assertEqual(1, len(release.urls[0]))
 
             with patch.object(CrossrefEventsTelescope, 'DOWNLOAD_MODE', 'error'):
                 # check that invalid download mode raises exception
                 with self.assertRaises(AirflowException):
-                    CrossrefEventsRelease(self.prev_start_date, self.start_date)
+                    CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_subdir(self, mock_variable_get):
@@ -193,19 +193,19 @@ class TestCrossrefEvents(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
-            release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
+            release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
 
             # download subdir
             actual_dir = release.subdir(SubFolder.downloaded)
             date_str = self.prev_start_date.strftime("%Y_%m_%d") + "-" + self.start_date.strftime("%Y_%m_%d")
             expected_dir = os.path.join(telescope_path(SubFolder.downloaded, CrossrefEventsTelescope.DAG_ID), date_str)
-            self.assertEqual(actual_dir, expected_dir)
+            self.assertEqual(expected_dir, actual_dir)
 
             # transform subdir
             actual_dir = release.subdir(SubFolder.transformed)
             date_str = self.prev_start_date.strftime("%Y_%m_%d") + "-" + self.start_date.strftime("%Y_%m_%d")
             expected_dir = os.path.join(telescope_path(SubFolder.transformed, CrossrefEventsTelescope.DAG_ID), date_str)
-            self.assertEqual(actual_dir, expected_dir)
+            self.assertEqual(expected_dir, actual_dir)
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
     def test_download_path(self, mock_variable_get):
@@ -216,7 +216,7 @@ class TestCrossrefEvents(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
-            release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
+            release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
 
             file_name = 'crossref_events'
 
@@ -224,7 +224,7 @@ class TestCrossrefEvents(unittest.TestCase):
             actual_path = release.get_path(SubFolder.downloaded, file_name)
             sub_dir = release.subdir(SubFolder.downloaded)
             expected_path = os.path.join(sub_dir, f"{file_name}.json")
-            self.assertEqual(actual_path, expected_path)
+            self.assertEqual(expected_path, actual_path)
             # check that subdir exists
             self.assertTrue(os.path.exists(os.path.dirname(actual_path)))
 
@@ -237,7 +237,7 @@ class TestCrossrefEvents(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
-            release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
+            release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
 
             file_name = 'crossref_events'
 
@@ -245,7 +245,7 @@ class TestCrossrefEvents(unittest.TestCase):
             actual_path = release.get_path(SubFolder.transformed, file_name)
             sub_dir = release.subdir(SubFolder.transformed)
             expected_path = os.path.join(sub_dir, f"{file_name}.json")
-            self.assertEqual(actual_path, expected_path)
+            self.assertEqual(expected_path, actual_path)
             # check that subdir exists
             self.assertTrue(os.path.exists(os.path.dirname(actual_path)))
 
@@ -255,7 +255,7 @@ class TestCrossrefEvents(unittest.TestCase):
         Test the file path for cursor and events file of a single batch for all 3 urls (events/edited/deleted).
         :param mock_variable_get: MagicMock instance of airflow's Variable.get() function
         """
-        release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
+        release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
         for j, url in enumerate(release.urls[0]):
             # test extracted events path
             self.batch_path_test(mock_variable_get, True, j)
@@ -272,7 +272,7 @@ class TestCrossrefEvents(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
-            release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
+            release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
 
             sub_dir = release.subdir(SubFolder.downloaded)
             i = 0
@@ -292,7 +292,7 @@ class TestCrossrefEvents(unittest.TestCase):
                 # get path for events/edited/deleted of first batch
                 actual_path = release.batch_path(release.urls[i][j])
                 expected_path = os.path.join(sub_dir, f"{event_type}_{batch_start_date}_{batch_end_date}.json")
-            self.assertEqual(actual_path, expected_path)
+            self.assertEqual(expected_path, actual_path)
             self.assertTrue(os.path.exists(os.path.dirname(actual_path)))
 
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
@@ -304,7 +304,7 @@ class TestCrossrefEvents(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
-            release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
+            release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
 
             date_str = self.prev_start_date.strftime("%Y_%m_%d") + "-" + self.start_date.strftime("%Y_%m_%d")
             file_name = f"{CrossrefEventsTelescope.DAG_ID}_{date_str}.json"
@@ -312,7 +312,7 @@ class TestCrossrefEvents(unittest.TestCase):
             # get blob name
             actual_path = release.blob_name
             expected_path = f'telescopes/{CrossrefEventsTelescope.DAG_ID}/{file_name}'
-            self.assertEqual(actual_path, expected_path)
+            self.assertEqual(expected_path, actual_path)
 
     @patch('observatory_platform.telescopes.crossref_events.extract_events')
     @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
@@ -328,7 +328,7 @@ class TestCrossrefEvents(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
-            release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
+            release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
 
             i = 0
             # with cursor file -> success is False
@@ -343,7 +343,7 @@ class TestCrossrefEvents(unittest.TestCase):
                 # delete cursor file
                 pathlib.Path(cursor_path).unlink()
             for count, result in enumerate(batch_results):
-                self.assertEqual(result[0], events_paths[count])
+                self.assertEqual(events_paths[count], result[0])
                 # check that success is false
                 self.assertFalse(result[1])
 
@@ -354,7 +354,7 @@ class TestCrossrefEvents(unittest.TestCase):
                     f.write('')
             batch_results = download_events_batch(release, i)
             for count, result in enumerate(batch_results):
-                self.assertEqual(result[0], events_paths[count])
+                self.assertEqual(events_paths[count], result[0])
                 # check that success is true
                 self.assertTrue(result[1])
                 # delete event file
@@ -364,7 +364,7 @@ class TestCrossrefEvents(unittest.TestCase):
             mock_extract_events.return_value = (True, None, 42)
             batch_results = download_events_batch(release, i)
             for count, result in enumerate(batch_results):
-                self.assertEqual(result[0], events_paths[count])
+                self.assertEqual(events_paths[count], result[0])
                 # check that success is true
                 self.assertTrue(result[1])
 
@@ -399,7 +399,7 @@ class TestCrossrefEvents(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
-            release = CrossrefEventsRelease(self.prev_start_date, self.start_date, first_release)
+            release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto, first_release)
 
             i = 0
             # collect batch results
@@ -452,7 +452,7 @@ class TestCrossrefEvents(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             # set telescope data path variable
             mock_variable_get.return_value = 'data'
-            release = CrossrefEventsRelease(self.prev_start_date, self.start_date)
+            release = CrossrefEventsRelease(self.prev_start_date, self.start_date, self.mailto)
 
             # copy test release file to download path
             shutil.copy(download_release_path, release.download_path)

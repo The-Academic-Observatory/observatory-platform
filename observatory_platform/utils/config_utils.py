@@ -385,9 +385,17 @@ class AirflowConn(Enum):
     file).
     If 'schema' isn't empty it should contain at least {'type': string, 'required': bool}
     """
-    crossref = {
-        'name': 'crossref',
+    crossref_metadata = {
+        'name': 'crossref_metadata',
         'default': 'mysql://:crossref-token@ <--',
+        'schema': {
+            'type': 'string',
+            'required': False
+        }
+    }
+    crossref_events = {
+        'name': 'crossref_events',
+        'default': 'mysql://:name%40email.com@ <--',
         'schema': {
             'type': 'string',
             'required': False

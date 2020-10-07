@@ -293,7 +293,7 @@ class CrossrefMetadataTelescope:
         vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
                                      AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
                                      AirflowVar.transform_bucket_name.get())
-        conns_valid = check_connections(AirflowConn.crossref.get())
+        conns_valid = check_connections(AirflowConn.crossref_metadata.get())
 
         if not vars_valid or not conns_valid:
             raise AirflowException('Required variables or connections are missing')
@@ -355,7 +355,7 @@ class CrossrefMetadataTelescope:
         if environment == 'dev':
             shutil.copy(CrossrefMetadataTelescope.DEBUG_FILE_PATH, release.download_path)
         else:
-            connection = BaseHook.get_connection(AirflowConn.crossref.get())
+            connection = BaseHook.get_connection(AirflowConn.crossref_metadata.get())
             api_token = connection.password
             download_release(release, api_token)
 
