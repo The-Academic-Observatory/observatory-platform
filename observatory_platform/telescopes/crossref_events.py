@@ -22,19 +22,21 @@ import pathlib
 import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import timedelta
-from multiprocessing import cpu_count
 from typing import Tuple, Union
 
 import pendulum
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 from requests.exceptions import RetryError
 
-from observatory_platform.utils.config_utils import (AirflowVar,
+from observatory_platform.utils.config_utils import (AirflowConn,
+                                                     AirflowVar,
                                                      SubFolder,
+                                                     check_connections,
                                                      check_variables,
                                                      find_schema,
                                                      schema_path,
@@ -62,8 +64,8 @@ def extract_events(url: str, events_path: str, next_cursor: str = None, success:
     :return: success, next_cursor and number of total events
     """
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) '
-                      'Chrome/39.0.2171.95 Safari/537.36'
+        'User-Agent': 'Observatory Platform (+https://github.com/The-Academic-Observatory/observatory-platform; '
+                      f'mailto:{url.split("mailto=")[1].split("&")[0]})'
     }
     tmp_url = url + f'&cursor={next_cursor}' if next_cursor else url
     try:
@@ -107,8 +109,8 @@ def download_events_batch(release: 'CrossrefEventsRelease', i: int) -> list:
             # retrieve cursor
             with open(cursor_path, 'r') as f:
                 next_cursor = json.load(f)
-                # delete file
-                pathlib.Path(cursor_path).unlink()
+            # delete file
+            pathlib.Path(cursor_path).unlink()
             # extract events
             success, next_cursor, total_events = extract_events(url, events_path, next_cursor)
         # if events path exists but no cursor file previous request has finished & successful
@@ -237,7 +239,8 @@ def change_keys(obj, convert):
 class CrossrefEventsRelease:
     """ Used to store info on a given crossref events release """
 
-    def __init__(self, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool = False):
+    def __init__(self, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, mail_address: str, first_release: \
+        bool = False):
         """
         :param start_date: Start date of this release
         :param end_date: End date of this release
@@ -261,13 +264,16 @@ class CrossrefEventsRelease:
         for batch in batches:
             start_date = batch[0]
             end_date = batch[1]
-            event_type_urls = [CrossrefEventsTelescope.EVENTS_URL.format(start_date=start_date, end_date=end_date)]
+            event_type_urls = [CrossrefEventsTelescope.EVENTS_URL.format(mailto=mail_address, start_date=start_date,
+                                                                         end_date=end_date)]
             # only add edited/deleted urls to first batch, since no end date can be specified
             if edited_deleted or first_release:
                 pass
             else:
-                event_type_urls.append(CrossrefEventsTelescope.EDITED_URL.format(start_date=start_date))
-                event_type_urls.append(CrossrefEventsTelescope.DELETED_URL.format(start_date=start_date))
+                event_type_urls.append(CrossrefEventsTelescope.EDITED_URL.format(mailto=mail_address,
+                                                                                 start_date=start_date))
+                event_type_urls.append(CrossrefEventsTelescope.DELETED_URL.format(mailto=mail_address,
+                                                                                  start_date=start_date))
                 edited_deleted = True
             self.urls.append(event_type_urls)
 
@@ -287,22 +293,24 @@ class CrossrefEventsRelease:
         # number of days between start and end, add 1, because end date is included
         total_no_days = (end_date - start_date).days + 1
 
-        # number of days in each batch, rounded down, minimal is 1
+        # number of days in each batch, rounded to nearest integer, minimal is 1
         batch_no_days = max(1, round(total_no_days / max_processes))
 
         batches = []
-        batch_start_date = start_date
-        no_batches = total_no_days if total_no_days < max_processes else max_processes
-        # subtract one for possible final batch
-        for x in range(no_batches - 1):
-            batch_end_date = batch_start_date + timedelta(days=batch_no_days - 1)
-            batches.append((batch_start_date.strftime("%Y-%m-%d"), batch_end_date.strftime("%Y-%m-%d")))
-            # end date is included, so start date should be one day later
-            batch_start_date = batch_end_date + timedelta(days=1)
+        period = pendulum.period(start_date, end_date)
+        for i, dt in enumerate(period.range('days', batch_no_days)):
+            batch_start_date = dt.strftime("%Y-%m-%d")
+            # if final batch or end date is reached before end of period, use end date of release instead
+            if i == (max_processes-1) or dt == end_date:
+                batch_end_date = end_date.strftime("%Y-%m-%d")
+                batches.append((batch_start_date, batch_end_date))
+                break
+            # use end date of period
+            else:
+                # end date is included, so subtract 1 day from batch_no_days
+                batch_end_date = (dt+timedelta(days=batch_no_days-1)).strftime("%Y-%m-%d")
+                batches.append((batch_start_date, batch_end_date))
 
-        # check if final batch has to be added
-        if batch_start_date <= end_date:
-            batches.append((batch_start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))
         return batches
 
     @property
@@ -400,25 +408,24 @@ class CrossrefEventsTelescope:
 
     DAG_ID = 'crossref_events'
     DATASET_ID = 'crossref'
-    DESCRIPTION = 'The Crossref Metadata Plus dataset: ' \
-                  'https://www.crossref.org/services/metadata-retrieval/metadata-plus/'
+    DESCRIPTION = 'The Crossref Events dataset: https://www.eventdata.crossref.org/guide/'
     RELEASES_TOPIC_NAME = "releases"
     QUEUE = 'remote_queue'
-    MAX_PROCESSES = cpu_count()
-    MAX_CONNECTIONS = cpu_count()
+    # max processes based on 7 days x 3 url categories
+    MAX_PROCESSES = 21
     MAX_RETRIES = 3
     DOWNLOAD_MODE = 'parallel'  # Valid options: ['sequential', 'parallel']
 
-    MAILTO = 'aniek.roelofs@curtin.edu.au'
-    EVENTS_URL = f'https://api.eventdata.crossref.org/v1/events?mailto={MAILTO}&from-collected-date={{' \
-                 f'start_date}}&until-collected-date={{end_date}}&rows=10000'
+    # MAILTO = 'aniek.roelofs@curtin.edu.au'
+    EVENTS_URL = 'https://api.eventdata.crossref.org/v1/events?mailto={mailto}&from-collected-date={' \
+                 'start_date}&until-collected-date={end_date}&rows=10000'
     # TODO get info in false 'until-updated-date' field
-    # EDITED_URL = f'https://api.eventdata.crossref.org/v1/events/edited?mailto={MAILTO}&from-updated-date={{' \
-    #              f'start_date}}&until-updated-date={{end_date}}&rows=10000'
-    EDITED_URL = f'https://api.eventdata.crossref.org/v1/events/edited?mailto={MAILTO}&from-updated-date={{' \
-                 f'start_date}}&rows=10000'
-    DELETED_URL = f'https://api.eventdata.crossref.org/v1/events/deleted?mailto={MAILTO}&from-updated-date={{' \
-                  f'start_date}}&rows=10000'
+    # EDITED_URL = f'https://api.eventdata.crossref.org/v1/events/edited?mailto={mailto}&from-updated-date={' \
+    #              f'start_date}&until-updated-date={end_date}&rows=10000'
+    EDITED_URL = 'https://api.eventdata.crossref.org/v1/events/edited?mailto={mailto}&from-updated-date={' \
+                 'start_date}&rows=10000'
+    DELETED_URL = 'https://api.eventdata.crossref.org/v1/events/deleted?mailto={mailto}&from-updated-date={' \
+                  'start_date}&rows=10000'
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
     TASK_ID_CHECK_RELEASE = "check_release"
@@ -443,8 +450,9 @@ class CrossrefEventsTelescope:
         vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
                                      AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
                                      AirflowVar.transform_bucket_name.get())
+        conns_valid = check_connections(AirflowConn.crossref_events.get())
 
-        if not vars_valid:
+        if not vars_valid or not conns_valid:
             raise AirflowException('Required variables or connections are missing')
 
     @staticmethod
@@ -477,10 +485,11 @@ class CrossrefEventsTelescope:
         start_date = pendulum.instance(kwargs['dag_run'].start_date) - timedelta(days=1)
 
         logging.info(f'Start date: {prev_start_date}, end date:{start_date}, first release: {first_release}')
-        if prev_start_date < start_date:
+        if prev_start_date > start_date:
             raise AirflowException("Start date has to be before end date.")
 
-        release = CrossrefEventsRelease(prev_start_date, start_date, first_release)
+        mail_address = BaseHook.get_connection(AirflowConn.crossref_events.get()).password
+        release = CrossrefEventsRelease(prev_start_date, start_date, mail_address, first_release)
         ti.xcom_push(CrossrefEventsTelescope.RELEASES_TOPIC_NAME, release)
 
         continue_dag = download_release(release)
