@@ -335,8 +335,12 @@ class ScheduleOptimiser:
         """
 
         n = len(historic_counts)
-        if n <= 1:
-            return historic_counts
+
+        if n == 0:
+            raise Exception('Empty historic_counts received.')
+
+        if n == 1:
+            return historic_counts, ScheduleOptimiser.get_num_calls(historic_counts[0].count, max_per_call)
 
         min_calls = [sys.maxsize] * n
         moves = [0] * n
