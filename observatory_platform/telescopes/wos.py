@@ -29,7 +29,7 @@ from google.cloud.bigquery import SourceFormat, WriteDisposition
 from math import ceil
 from ratelimit import limits, sleep_and_retry
 from suds import WebFault
-from typing import List
+from typing import List, Type
 from urllib.error import URLError
 from wos import WosClient
 
@@ -38,7 +38,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models import Variable
 
 from observatory_platform.utils.telescope_utils import (
-    SchedulePeriod,
     build_schedule,
     delete_msg_files,
     get_as_list,
@@ -84,7 +83,7 @@ class WosUtility:
     """ Handles the interaction with Web of Science """
 
     @staticmethod
-    def build_query(wos_inst_id: List[str], period: SchedulePeriod) -> OrderedDict:
+    def build_query(wos_inst_id: List[str], period: Type[pendulum.Period]) -> OrderedDict:
         """ Build a WoS API query.
 
         :param wos_inst_id: List of Institutional ID to query, e.g, "Curtin University"
@@ -148,7 +147,7 @@ class WosUtility:
         return records['REC'], schema_ver
 
     @staticmethod
-    def download_wos_period(client: WosClient, conn: str, period: SchedulePeriod, wos_inst_id: List[str],
+    def download_wos_period(client: WosClient, conn: str, period: pendulum.Period, wos_inst_id: List[str],
                             download_path: str) -> List[str]:
         """ Download records for a stated date range.
 
