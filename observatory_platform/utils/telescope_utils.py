@@ -29,15 +29,8 @@ from airflow.models.taskinstance import TaskInstance
 from collections import deque
 from math import ceil
 from pathlib import Path
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Type
 from dataclasses import dataclass
-
-
-@dataclass
-class SchedulePeriod:
-    """ Contiguous time period used in schedules. """
-    start: pendulum.date  # Start of period
-    end: pendulum.date  # End of period
 
 
 def build_schedule(sched_start_date, sched_end_date):
@@ -51,15 +44,12 @@ def build_schedule(sched_start_date, sched_end_date):
     """
 
     schedule = []
-    for year in range(sched_start_date.year, sched_end_date.year + 1, 1):
-        for month in range(1, 13):
-            start_date = pendulum.date(year, month, 1)
-            last_day_start_month = calendar.monthrange(year, month)[1]
-            end_date = pendulum.date(year, month, last_day_start_month)
-            if sched_start_date <= start_date <= sched_end_date:
-                if end_date > sched_end_date:
-                    end_date = sched_end_date
-                schedule.append(SchedulePeriod(start_date, end_date))
+
+    for start_date in pendulum.Period(start=sched_start_date, end=sched_end_date).range('months'):
+        last_day = calendar.monthrange(start_date.year, start_date.month)[1]
+        end_date = pendulum.date(start_date.year, start_date.month, last_day)
+        schedule.append(pendulum.Period(start_date, end_date))
+
     return schedule
 
 
@@ -274,7 +264,7 @@ def zip_files(file_list: List[str]):
 @dataclass
 class PeriodCount:
     """ Descriptive wrapper for a (period, count) object. """
-    period: SchedulePeriod  # The schedule period in question
+    period: pendulum.Period  # The schedule period in question
     count: int  # Number of results for this period.
 
 
@@ -297,7 +287,7 @@ class ScheduleOptimiser:
         return ceil(float(num_results) / max_per_call)
 
     @staticmethod
-    def extract_schedule(historic_counts: List[PeriodCount], moves: List[int]) -> List[SchedulePeriod]:
+    def extract_schedule(historic_counts: List[PeriodCount], moves: List[int]) -> List[Type[pendulum.Period]]:
         """ Extract a solution schedule from the optimisation.
 
         :param historic_counts: the histogram of periods and their counts.
@@ -310,7 +300,7 @@ class ScheduleOptimiser:
         j = len(moves) - 1
         while j >= 0:
             i = moves[j]
-            period = SchedulePeriod(historic_counts[i].period.start, historic_counts[j].period.end)
+            period = pendulum.Period(historic_counts[i].period.start, historic_counts[j].period.end)
             stack.append(period)
             j = i - 1
 
@@ -321,8 +311,8 @@ class ScheduleOptimiser:
         return schedule
 
     @staticmethod
-    def optimise(max_per_call: int, max_per_query: int, historic_counts: List[PeriodCount]) -> Tuple[
-        List[SchedulePeriod], int]:
+    def optimise(max_per_call: int, max_per_query: int, historic_counts: List[Type[PeriodCount]]) -> Tuple[
+        List[Type[pendulum.Period]], int]:
         """ Calculate and return a schedule that minimises the number of API calls with the given constraints. Behaviour
             if there are 0 results in any of the periods is still to return 1 period covering the entire span, but the
             minimum number of calls reported will be 0.
