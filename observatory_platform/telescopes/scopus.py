@@ -30,7 +30,7 @@ from google.cloud.bigquery import SourceFormat, WriteDisposition
 from queue import Queue, Empty
 from threading import Event
 from time import sleep
-from typing import List, Tuple
+from typing import List, Tuple, Type
 from ratelimit import limits, sleep_and_retry
 from urllib.error import HTTPError
 from urllib.parse import quote_plus
@@ -45,7 +45,6 @@ from observatory_platform.utils.config_utils import (
 )
 
 from observatory_platform.utils.telescope_utils import (
-    SchedulePeriod,
     build_schedule,
     delete_msg_files,
     get_entry_or_none,
@@ -561,7 +560,7 @@ class ScopusUtility:
     """ Handles the SCOPUS interactions. """
 
     @staticmethod
-    def build_query(scopus_inst_id: List[str], period: SchedulePeriod) -> str:
+    def build_query(scopus_inst_id: List[str], period: Type[pendulum.Period]) -> str:
         """ Build a SCOPUS API query.
 
         :param scopus_inst_id: List of Institutional ID to query, e.g, ["60031226"] (Curtin University)
@@ -578,19 +577,17 @@ class ScopusUtility:
 
         # Build publication date range
         search_months = str()
-        for year in range(period.start.year, period.end.year + 1):
-            for month in range(1, 13):
-                search_month = pendulum.date(year, month, 1)
-                if period.start <= search_month <= period.end:
-                    month_name = calendar.month_name[month]
-                    search_months += f'"{month_name} {year}" or '
+
+        for point in period.range('months'):
+            month_name = calendar.month_name[point.month]
+            search_months += f'"{month_name} {point.year}" or '
         search_months = search_months[:tail_offset]
 
         query = f'({organisations}) AND PUBDATETXT({search_months})'
         return query
 
     @staticmethod
-    def download_scopus_period(worker: ScopusUtilWorker, conn: str, period: SchedulePeriod, inst_id: List[str],
+    def download_scopus_period(worker: ScopusUtilWorker, conn: str, period: Type[pendulum.Period], inst_id: List[str],
                                download_path: str) -> str:
         """ Download records for a stated date range.
         The elsapy package currently has a cap of 5000 results per query. So in the unlikely event any institution has
