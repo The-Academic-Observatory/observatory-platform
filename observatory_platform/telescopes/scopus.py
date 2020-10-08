@@ -66,8 +66,8 @@ from observatory_platform.utils.gc_utils import (
 class ScopusRelease:
     """ Used to store info on a given SCOPUS release. """
 
-    def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.datetime,
-                 start_date: pendulum.datetime, end_date: pendulum.datetime, project_id: str,
+    def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.date,
+                 start_date: pendulum.date, end_date: pendulum.date, project_id: str,
                  download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str):
         """ Constructor.
 
@@ -330,8 +330,9 @@ class ScopusTelescope:
 
         # Apply field extraction and transformation to jsonlines
         logging.info('transform_db_format: parsing and transforming into db format')
+        path_prefix = os.path.join(release.transform_path, release.release_date.isoformat(), release.inst_id)
         jsonl_list = json_to_db(json_harvest_pair, release.release_date.isoformat(), ScopusJsonParser.parse_json,
-                                release.scopus_inst_id)
+                                release.scopus_inst_id, path_prefix)
 
         # Notify next task
         ti.xcom_push(ScopusTelescope.XCOM_JSONL_PATH, jsonl_list)
@@ -602,7 +603,6 @@ class ScopusUtility:
          """
 
         timestamp = pendulum.datetime.now('UTC').isoformat()
-
         save_file = os.path.join(download_path, f'{timestamp}_{period.start}_{period.end}.json')
         logging.info(f'{conn} worker {worker.client_id}: retrieving period {period.start} - {period.end}')
         query = ScopusUtility.build_query(inst_id, period)
@@ -819,6 +819,8 @@ class ScopusUtility:
         :return: List of files downloaded.
         """
 
+        download_path = os.path.join(release.download_path, release.release_date.isoformat(), release.inst_id)
+
         logging.info(f'Downloading snapshot with {mode} method.')
         schedule = build_schedule(release.start_date, release.end_date)
         task_queue = Queue()
@@ -838,10 +840,10 @@ class ScopusUtility:
 
         if mode == 'sequential':
             return ScopusUtility.download_sequential(workers, task_queue, release.inst_id, release.scopus_inst_id,
-                                                     release.download_path)
+                                                     download_path)
         if mode == 'parallel':
             return ScopusUtility.download_parallel(workers, task_queue, release.inst_id, release.scopus_inst_id,
-                                                   release.download_path)
+                                                   download_path)
 
         raise AirflowException(f'Unsupported mode {mode} received')
 
