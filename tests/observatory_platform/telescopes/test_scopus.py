@@ -294,7 +294,7 @@ class TestScopusJsonParser(unittest.TestCase):
         """ Test get affiliations """
 
         affil = ScopusJsonParser.get_affiliations({})
-        self.assertEqual(len(affil), 0)
+        self.assertEqual(affil, None)
 
         affil = ScopusJsonParser.get_affiliations(self.data)
         self.assertEqual(len(affil), 1)
@@ -309,7 +309,7 @@ class TestScopusJsonParser(unittest.TestCase):
         """ Test get authors """
 
         author = ScopusJsonParser.get_authors({})
-        self.assertEqual(len(author), 0)
+        self.assertEqual(author, None)
 
         author = ScopusJsonParser.get_authors(self.data)
         self.assertEqual(len(author), 1)
