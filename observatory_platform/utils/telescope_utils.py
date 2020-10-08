@@ -149,8 +149,8 @@ def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institute
     if path_prefix:
         filename = os.path.basename(save_file)
         save_file = os.path.join(path_prefix, filename)
+        Path(path_prefix).mkdir(parents=True, exist_ok=True)
 
-    Path(path_prefix).mkdir(parents=True, exist_ok=True)
     jsonlines_files.append(save_file)
 
     with jsonlines.open(save_file, mode='w') as writer:
