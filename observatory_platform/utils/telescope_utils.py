@@ -127,7 +127,7 @@ def get_entry_or_none(base: dict, target, var_type=None):
     return base[target]
 
 
-def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str]) -> List[str]:
+def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str], path_prefix:str=None) -> List[str]:
     """ Transform json from query into database format.
 
     :param json_list: json data to transform.
@@ -135,6 +135,7 @@ def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institute
     :param parser: Parser function accepting (json entry, harvest date, release date, institutes), and returning
                     schema conforming data structure.
     :param institutes: List of institution ids used in the query.
+    :param path_prefix: If specified, gives the new path prefix for the file you want to save.
     :return: Saved file name.
     """
 
@@ -144,6 +145,12 @@ def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institute
 
     first_file = json_list[0][0]
     save_file = f'{first_file}l'
+
+    if path_prefix:
+        filename = os.path.basename(save_file)
+        save_file = os.path.join(path_prefix, filename)
+
+    Path(path_prefix).mkdir(parents=True, exist_ok=True)
     jsonlines_files.append(save_file)
 
     with jsonlines.open(save_file, mode='w') as writer:
