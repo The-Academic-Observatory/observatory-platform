@@ -876,7 +876,7 @@ class ScopusJsonParser:
 
         affiliations = list()
         if 'affiliation' not in data:
-            return affiliations
+            return None
 
         for affiliation in data['affiliation']:
             affil = dict()
@@ -902,7 +902,7 @@ class ScopusJsonParser:
 
         author_list = list()
         if 'author' not in data:
-            return author_list
+            return None
 
         # Assuming there's a list given the doc says complete author list
         authors = data['author']
