@@ -15,3 +15,5 @@ config.yaml
 coverage.xml
 config_terraform.yaml
 *.pyc
+AUTHORS
+ChangeLog
