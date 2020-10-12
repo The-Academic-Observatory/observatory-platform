@@ -20,6 +20,7 @@ from urllib.parse import urlparse, urljoin, ParseResult
 
 import requests
 import tldextract
+from pbr.util import cfg_to_args
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -86,3 +87,18 @@ def retry_session(num_retries: int = 3, backoff_factor: float = 0.5,
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
+
+def get_ao_user_agent():
+    """ Return a standardised user agent that can be used by custom web clients to indicate it came from the
+        Academic Observatory.
+
+    :return: User agent string.
+    """
+
+    pkg_info = cfg_to_args()
+    version = pkg_info['version']
+    url = pkg_info['url']
+    mailto = pkg_info['author_email']
+    ua = f'Observatory Platform v{version} (+{url}; mailto: {mailto})'
+
+    return ua
