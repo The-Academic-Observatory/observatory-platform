@@ -396,6 +396,6 @@ FROM(
 
     FROM `{{ project_id }}.observatory.doi{{ release_date.strftime('%Y%m%d') }}` as dois, UNNEST(dois.affiliations.{{ aggregation_field }}) as aggregrate
     WHERE aggregrate.in_mag IS TRUE AND aggregrate.identifier IS NOT NULL
-    GROUP BY aggregrate.identifier, crossref.published_year) as base
+    GROUP BY aggregrate.identifier, crossref.{{ group_by_time_field }}) as base
     GROUP BY base.id
 )
