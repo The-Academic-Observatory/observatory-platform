@@ -58,7 +58,6 @@ LEFT JOIN(
 SELECT
   doi,
     MAX(crossref.published_year) as published_year,
-    #ARRAY_AGG(institution.id in (SELECT id from filtered_list)) as in_filtered,
     
     ARRAY_AGG(
       STRUCT(
@@ -75,7 +74,6 @@ SELECT
         institution.id in UNNEST(dois.wos.grids) as in_wos,
         institution.id in UNNEST(dois.scopus.grids) as in_scopus,
         institution.id in UNNEST(dois.microsoft_academic_graph.grids) as in_mag
-        #institution.id in (SELECT id from filtered_list) as in_filtered
       )
     ) as institutions,
 
@@ -94,7 +92,6 @@ SELECT
         institution.id in UNNEST(dois.wos.grids) as in_wos,
         institution.id in UNNEST(dois.scopus.grids) as in_scopus,
         institution.id in UNNEST(dois.microsoft_academic_graph.grids) as in_mag,
-        #institution.id in (SELECT id from filtered_list) as in_filtered,
         institution.id as institutional_identifier
       )
     ) as countries,
@@ -114,7 +111,6 @@ SELECT
         institution.id in UNNEST(dois.wos.grids) as in_wos,
         institution.id in UNNEST(dois.scopus.grids) as in_scopus,
         institution.id in UNNEST(dois.microsoft_academic_graph.grids) as in_mag,
-        #institution.id in (SELECT id from filtered_list) as in_filtered,
         institution.id as institutional_identifier
       )
     ) as subregions,
@@ -134,7 +130,6 @@ SELECT
         institution.id in UNNEST(dois.wos.grids) as in_wos,
         institution.id in UNNEST(dois.scopus.grids) as in_scopus,
         institution.id in UNNEST(dois.microsoft_academic_graph.grids) as in_mag,
-        #institution.id in (SELECT id from filtered_list) as in_filtered,
         institution.id as institutional_identifier
       )
     ) as regions,
@@ -154,7 +149,6 @@ SELECT
         institution.id in UNNEST(dois.wos.grids) as in_wos,
         institution.id in UNNEST(dois.scopus.grids) as in_scopus,
         institution.id in UNNEST(dois.microsoft_academic_graph.grids) as in_mag,
-        #institution.id in (SELECT id from filtered_list) as in_filtered,
         institution.id as institutional_identifier
       )
     ) as groupings,
