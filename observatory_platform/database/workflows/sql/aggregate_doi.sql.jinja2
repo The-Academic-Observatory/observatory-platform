@@ -147,12 +147,13 @@ CREATE TEMP FUNCTION compute_metrics(items ARRAY<STRUCT<doi STRING, citations_to
   FROM UNNEST(items))
 );
 
-CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING, Score FLOAT64, is_oa BOOL, green BOOL, gold BOOL, funding BOOL, international_funding BOOL, domestic_funding BOOL, government_funding BOOL, private_funding BOOL, international_colab BOOL>>) as (
+CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING, Score FLOAT64, CitationCount INT64, is_oa BOOL, green BOOL, gold BOOL, funding BOOL, international_funding BOOL, domestic_funding BOOL, government_funding BOOL, private_funding BOOL, international_colab BOOL>>) as (
   ARRAY(
     (SELECT AS STRUCT
         DisplayName as field,
         COUNT(DisplayName) as count,
         SUM(Score) as sum_of_scores,
+        SUM(CitationCount) as total_citations,
         COUNTIF(is_oa = True) as oa,
         COUNTIF(green = True) as green,
         COUNTIF(gold = True) as gold,
@@ -361,6 +362,7 @@ FROM(
         compute_disciplines( ARRAY_CONCAT_AGG( ARRAY(
           (SELECT AS STRUCT
               fields.DisplayName, fields.Score,
+              dois.microsoft_academic_graph.CitationCount as CitationCount,
               unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold,
 
               (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE) as funding,
