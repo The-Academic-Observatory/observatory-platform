@@ -235,7 +235,8 @@ FROM(
                  MAX(collaborator.country_code) as country_code,
                  MAX(collaborator.region) as region,
                  MAX(collaborator.subregion) as subregion,
-                 MAX(collaborator.coordinates) as coordinates
+                 MAX(collaborator.coordinates) as coordinates,
+                 COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold
               FROM UNNEST(collaborations) as collaborator WHERE collaborator.identifier <> id GROUP BY collaborator.identifier ) as collaborations,
 
          -- Funders
@@ -355,7 +356,7 @@ FROM(
       compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.bronze as is_x)), "Bronze", "Not Bronze") as bronze_citations,
 
       -- Collaboration Analysis
-      ARRAY_CONCAT_AGG( ARRAY((SELECT as STRUCT * FROM UNNEST(affiliations.{{ aggregation_field }}) as collab WHERE collab.in_mag IS TRUE) )) as collaborations,
+      ARRAY_CONCAT_AGG( ARRAY((SELECT as STRUCT *, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, in_wos, in_scopus, in_mag FROM UNNEST(affiliations.{{ aggregation_field }}) as collab WHERE collab.in_mag IS TRUE) )) as collaborations,
 
       -- Output Types
       count_output_types(ARRAY_AGG(STRUCT(unpaywall.output_type, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as output_types,
