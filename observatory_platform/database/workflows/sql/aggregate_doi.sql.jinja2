@@ -209,14 +209,14 @@ SELECT
   id, types, name, country, country_code, region, subregion, coordinates,
 
   -- Summary
-  (SELECT SUM(metrics.total) from UNNEST(years)) as total_publications,
-  ARRAY_LENGTH(years) as total_years,
-  SAFE_DIVIDE((SELECT SUM(metrics.total) from UNNEST(years)), ARRAY_LENGTH(years)) as average_per_year,
-  (SELECT MIN(published_year) from UNNEST(years)) as first_year,
-  (SELECT MAX(published_year) from UNNEST(years)) as last_year,
+  (SELECT SUM(metrics.total) from UNNEST(time_periods)) as total_publications,
+  ARRAY_LENGTH(time_periods) as total_time_periods,
+  SAFE_DIVIDE((SELECT SUM(metrics.total) from UNNEST(time_periods)), ARRAY_LENGTH(time_periods)) as average_per_time_period,
+  (SELECT MIN(time_period) from UNNEST(time_periods)) as first_time_period,
+  (SELECT MAX(time_period) from UNNEST(time_periods)) as last_time_period,
 
-  -- Per year Information
-  years
+  -- Per Time Period Information
+  time_periods
 FROM(
   SELECT
     base.id as id,
@@ -229,8 +229,8 @@ FROM(
     MAX(coordinates) as coordinates,
     ARRAY_AGG(
       STRUCT(
-         -- Year
-         base.published_year,
+         -- Time Period
+         base.time_period as time_period,
 
          -- Metrics
          combined as metrics,
@@ -345,12 +345,12 @@ FROM(
          -- Unpaywall History
          --process_unpaywall_release(unpaywall_history) as unpaywall_history
       )
-    ) as years
+    ) as time_periods
 
   FROM(
     SELECT
       aggregrate.identifier as id,
-      dois.crossref.published_year,
+      dois.crossref.{{ group_by_time_field }} as time_period,
 
       ARRAY_CONCAT_AGG(aggregrate.types) as types,
       MAX(aggregrate.name) as name,
