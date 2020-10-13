@@ -94,7 +94,7 @@ CREATE TEMP FUNCTION process_unpaywall_release(unpaywall_history ANY TYPE) as (
 );
 
 -- Compute Citation Analysis
-CREATE TEMP FUNCTION compute_oa_citations(items ARRAY<STRUCT<citations_total INT64, is_x BOOL>>, positive_label STRING, negative_label STRING) as (
+CREATE TEMP FUNCTION compute_oa_citations(items ARRAY<STRUCT<citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, is_x BOOL>>, positive_label STRING, negative_label STRING) as (
   ARRAY((
     SELECT as STRUCT
       CASE
@@ -104,16 +104,20 @@ CREATE TEMP FUNCTION compute_oa_citations(items ARRAY<STRUCT<citations_total INT
       as label,
       is_x as status,
       COUNT(*) as articles,
-      COUNTIF(citations_total > 0) as articles_with_citations,
-      COUNTIF(citations_total is null) as articles_without_citations,
-      SUM(citations_total) as citations,
+      COUNTIF(citations.mag > 0 OR citations.crossref > 0 OR citations.open_citations > 0) as articles_with_citations,
+      COUNTIF( (citations.mag IS NULL OR citations.mag = 0) AND (citations.crossref IS NULL OR citations.crossref = 0) AND (citations.open_citations IS NULL OR citations.open_citations = 0) ) as articles_without_citations,
+      STRUCT(
+        SUM(citations.mag) as mag,
+        SUM(citations.crossref) as crosssref,
+        SUM(citations.open_citations) as open_citations
+      ) as citations,
 
     FROM UNNEST(items)
     GROUP BY is_x
   ))
 );
 
-CREATE TEMP FUNCTION compute_metrics(items ARRAY<STRUCT<doi STRING, citations_total INT64, is_oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>) as (
+CREATE TEMP FUNCTION compute_metrics(items ARRAY<STRUCT<doi STRING, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, is_oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>) as (
   (SELECT AS STRUCT
     -- Total outputs
     COUNT(doi) as total,
@@ -138,22 +142,44 @@ CREATE TEMP FUNCTION compute_metrics(items ARRAY<STRUCT<doi STRING, citations_to
     SAFE_DIVIDE( (COUNTIF(bronze is True)) * 100 , COUNT(doi)) as percent_bronze,
 
     -- Citation counts
-    SUM(citations_total) as total_citations,
-    SAFE_DIVIDE( SUM(citations_total) , COUNT(doi)) as citations_per_article,
-    COUNTIF(citations_total > 0) as articles_with_citations,
-    COUNTIF(citations_total is null) as articles_without_citations,
-    SAFE_DIVIDE(SUM(citations_total), COUNTIF(citations_total > 0)) as citations_per_citated_article
+    STRUCT(
+      STRUCT(
+        SUM(citations.mag) as total_citations,
+        SAFE_DIVIDE( SUM(citations.mag) , COUNT(doi)) as citations_per_article,
+        COUNTIF(citations.mag > 0) as articles_with_citations,
+        COUNTIF(citations.mag is null) as articles_without_citations,
+        SAFE_DIVIDE(SUM(citations.mag), COUNTIF(citations.mag > 0)) as citations_per_citated_article
+      ) as mag,
+      STRUCT(
+        SUM(citations.crossref) as total_citations,
+        SAFE_DIVIDE( SUM(citations.crossref) , COUNT(doi)) as citations_per_article,
+        COUNTIF(citations.crossref > 0) as articles_with_citations,
+        COUNTIF(citations.crossref is null) as articles_without_citations,
+        SAFE_DIVIDE(SUM(citations.crossref), COUNTIF(citations.crossref > 0)) as citations_per_citated_article
+      ) as crossref,
+      STRUCT(
+        SUM(citations.open_citations) as total_citations,
+        SAFE_DIVIDE( SUM(citations.open_citations) , COUNT(doi)) as citations_per_article,
+        COUNTIF(citations.open_citations > 0) as articles_with_citations,
+        COUNTIF(citations.open_citations is null) as articles_without_citations,
+        SAFE_DIVIDE(SUM(citations.open_citations), COUNTIF(citations.open_citations > 0)) as citations_per_citated_article
+      ) as open_citations
+    ) as citations
 
   FROM UNNEST(items))
 );
 
-CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING, Score FLOAT64, CitationCount INT64, is_oa BOOL, green BOOL, gold BOOL, funding BOOL, international_funding BOOL, domestic_funding BOOL, government_funding BOOL, private_funding BOOL, international_colab BOOL>>) as (
+CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING, Score FLOAT64, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, is_oa BOOL, green BOOL, gold BOOL, funding BOOL, international_funding BOOL, domestic_funding BOOL, government_funding BOOL, private_funding BOOL, international_colab BOOL>>) as (
   ARRAY(
     (SELECT AS STRUCT
         DisplayName as field,
         COUNT(DisplayName) as count,
         SUM(Score) as sum_of_scores,
-        SUM(CitationCount) as total_citations,
+        STRUCT(
+          SUM(citations.mag) as mag,
+          SUM(citations.crossref) as crosssref,
+          SUM(citations.open_citations) as open_citations
+        ) as citations,
         COUNTIF(is_oa = True) as oa,
         COUNTIF(green = True) as green,
         COUNTIF(gold = True) as gold,
@@ -207,14 +233,13 @@ FROM(
          base.published_year,
 
          -- Metrics
-         STRUCT(
-            combined.total, combined.oa, combined.green, combined.gold, combined.hybrid, combined.bronze, combined.green_only, combined.gold_just_doaj,
-            combined.percent_OA, combined.percent_green, combined.percent_green_only, combined.percent_gold, combined.percent_gold_doaj, combined.percent_hybrid, combined.percent_bronze,
-            combined.total_citations, combined.citations_per_article, combined.articles_with_citations, combined.articles_without_citations, combined.citations_per_citated_article
+         combined as metrics,
+         
+         --STRUCT(
             --just_scopus as scopus,
             --just_wos as wos,
             --just_mag as mag,
-          ) as metrics,
+          --) as comparison_metrics
 
          -- Citation Analysis
          STRUCT(
@@ -338,18 +363,18 @@ FROM(
       MAX(aggregrate.coordinates) as coordinates,
 
       -- Computed Metrics: Combined, Scopus, WoS, Mag
-      compute_metrics(ARRAY_AGG(STRUCT(dois.doi, dois.microsoft_academic_graph.CitationCount, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as combined,
+      compute_metrics(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as combined,
       --compute_metrics(ARRAY_AGG( IF(in_scopus, STRUCT( dois.doi, open_citations.citations_total, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only), NULL) IGNORE NULLS)) as just_scopus,
       --compute_metrics(ARRAY_AGG( IF(in_wos, STRUCT(dois.doi, open_citations.citations_total, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only), NULL) IGNORE NULLS)) as just_wos,
       --compute_metrics(ARRAY_AGG( IF(in_mag, STRUCT(dois.doi, open_citations.citations_total, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only), NULL) IGNORE NULLS)) as just_mag,
 
       -- Citation Analysis: OA, Gold, Green, Green_Only, Hybrid, Bronze
-      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.is_oa as is_x)), "Open Access", "Not Open Access") as oa_citations,
-      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.gold as is_x)), "Gold", "Not Gold") as gold_citations,
-      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.green as is_x)), "Green", "Not Green") as green_citations,
-      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.green_only as is_x)), "Green Only", "Not Green Only") as green_only_citations,
-      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.hybrid as is_x)), "Hybrid", "Not Hybrid") as hybrid_citations,
-      compute_oa_citations(ARRAY_AGG(STRUCT(dois.microsoft_academic_graph.CitationCount as citation_total, unpaywall.bronze as is_x)), "Bronze", "Not Bronze") as bronze_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_x)), "Open Access", "Not Open Access") as oa_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.gold as is_x)), "Gold", "Not Gold") as gold_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.green as is_x)), "Green", "Not Green") as green_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.green_only as is_x)), "Green Only", "Not Green Only") as green_only_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.hybrid as is_x)), "Hybrid", "Not Hybrid") as hybrid_citations,
+      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.bronze as is_x)), "Bronze", "Not Bronze") as bronze_citations,
 
       -- Collaboration Analysis
       ARRAY_CONCAT_AGG( ARRAY((SELECT as STRUCT *, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, in_wos, in_scopus, in_mag FROM UNNEST(affiliations.{{ aggregation_field }}) as collab WHERE collab.in_mag IS TRUE) )) as collaborations,
@@ -362,7 +387,11 @@ FROM(
         compute_disciplines( ARRAY_CONCAT_AGG( ARRAY(
           (SELECT AS STRUCT
               fields.DisplayName, fields.Score,
-              dois.microsoft_academic_graph.CitationCount as CitationCount,
+              STRUCT(
+                dois.microsoft_academic_graph.CitationCount as mag,
+                dois.crossref.references_count as crossref,
+                dois.open_citations.citations_total as open_citations
+              ) as citations,
               unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold,
 
               (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE) as funding,
