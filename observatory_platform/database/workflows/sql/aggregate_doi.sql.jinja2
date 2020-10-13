@@ -121,25 +121,53 @@ CREATE TEMP FUNCTION compute_metrics(items ARRAY<STRUCT<doi STRING, citations ST
   (SELECT AS STRUCT
     -- Total outputs
     COUNT(doi) as total,
-    COUNTIF(is_oa = True) as oa,
-    COUNTIF(green = True) as green,
-    COUNTIF(gold = True) as gold,
-    COUNTIF(gold = True) as gold_just_doaj,
-    COUNTIF(hybrid) as hybrid,
-    COUNTIF(bronze) as bronze,
-    COUNTIF(green_only) as green_only,
-    --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as green_in_home_repo,
 
-    -- OA percentages for outputs
-    SAFE_DIVIDE( (COUNTIF(is_oa is True)) * 100 , COUNT(doi)) as percent_OA,
-    SAFE_DIVIDE( (COUNTIF(green is True)) * 100 , COUNT(doi)) as percent_green,
-    SAFE_DIVIDE( (COUNTIF(green_only is True)) * 100 , COUNT(doi)) as percent_green_only,
+    STRUCT(
+      STRUCT(
+        COUNTIF(is_oa = True) as oa,
+        SAFE_DIVIDE( (COUNTIF(is_oa is True)) * 100 , COUNT(doi)) as percent_OA,
+        compute_oa(ARRAY_AGG(STRUCT(citations, is_oa as is_x)), "Open Access", "Not Open Access") as oa_citations
+      ) as oa,
+
+      STRUCT(
+        COUNTIF(green = True) as green,
+        SAFE_DIVIDE( (COUNTIF(green is True)) * 100 , COUNT(doi)) as percent_green,
+        compute_oa(ARRAY_AGG(STRUCT(citations, green as is_x)), "Green", "Not Green") as green_citations
+      ) as green,
+
+      STRUCT(
+        COUNTIF(gold = True) as gold,
+        SAFE_DIVIDE( (COUNTIF(gold is True)) * 100 , COUNT(doi)) as percent_gold,
+        compute_oa(ARRAY_AGG(STRUCT(citations, gold as is_x)), "Gold", "Not Gold") as gold_citations
+      ) as gold,
+
+      STRUCT(
+        COUNTIF(gold = True) as gold_just_doaj,
+        SAFE_DIVIDE( (COUNTIF(gold_just_doaj is True)) * 100 , COUNT(doi)) as percent_gold_doaj
+      ) as gold_doaj,
+
+      STRUCT(
+        COUNTIF(hybrid) as hybrid,
+        SAFE_DIVIDE( (COUNTIF(hybrid is True)) * 100 , COUNT(doi)) as percent_hybrid,
+        compute_oa(ARRAY_AGG(STRUCT(citations, hybrid as is_x)), "Hybrid", "Not Hybrid") as hybrid_citations
+      ) as hybrid,
+
+      STRUCT(
+        COUNTIF(bronze) as bronze,
+        SAFE_DIVIDE( (COUNTIF(bronze is True)) * 100 , COUNT(doi)) as percent_bronze,
+        compute_oa(ARRAY_AGG(STRUCT(citations, bronze as is_x)), "Bronze", "Not Bronze") as bronze_citations
+      ) as bronze,
+
+      STRUCT(
+        COUNTIF(green_only) as green_only,
+        SAFE_DIVIDE( (COUNTIF(green_only is True)) * 100 , COUNT(doi)) as percent_green_only,
+        compute_oa(ARRAY_AGG(STRUCT(citations, green_only as is_x)), "Green Only", "Not Green Only") as green_only_citations
+      ) as green_only
+    ) as open_access,
+    
+    --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as green_in_home_repo,
     --(COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100 / COUNT(doi) as percent_in_home_repo,
     --SAFE_DIVIDE((COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100, COUNTIF(unpaywall.green is True)) as percent_of_just_green_in_home_repo,
-    SAFE_DIVIDE( (COUNTIF(gold is True)) * 100 , COUNT(doi)) as percent_gold,
-    SAFE_DIVIDE( (COUNTIF(gold_just_doaj is True)) * 100 , COUNT(doi)) as percent_gold_doaj,
-    SAFE_DIVIDE( (COUNTIF(hybrid is True)) * 100 , COUNT(doi)) as percent_hybrid,
-    SAFE_DIVIDE( (COUNTIF(bronze is True)) * 100 , COUNT(doi)) as percent_bronze,
 
     -- Citation counts
     STRUCT(
@@ -241,10 +269,10 @@ FROM(
             --just_mag as mag,
           --) as comparison_metrics
 
-         -- Citation Analysis
-         STRUCT(
-            oa_citations as oa, gold_citations as gold, green_citations as green, green_only_citations as green_only, hybrid_citations as hybrid, bronze_citations as bronze
-         ) as citations,
+         -- Open Access Analysis
+         --STRUCT(
+         --   oa_citations as oa, gold_citations as gold, green_citations as green, green_only_citations as green_only, hybrid_citations as hybrid, bronze_citations as bronze
+         --) as open_access,
 
          -- Output Types
          output_types,
@@ -368,13 +396,13 @@ FROM(
       --compute_metrics(ARRAY_AGG( IF(in_wos, STRUCT(dois.doi, open_citations.citations_total, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only), NULL) IGNORE NULLS)) as just_wos,
       --compute_metrics(ARRAY_AGG( IF(in_mag, STRUCT(dois.doi, open_citations.citations_total, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only), NULL) IGNORE NULLS)) as just_mag,
 
-      -- Citation Analysis: OA, Gold, Green, Green_Only, Hybrid, Bronze
-      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_x)), "Open Access", "Not Open Access") as oa_citations,
-      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.gold as is_x)), "Gold", "Not Gold") as gold_citations,
-      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.green as is_x)), "Green", "Not Green") as green_citations,
-      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.green_only as is_x)), "Green Only", "Not Green Only") as green_only_citations,
-      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.hybrid as is_x)), "Hybrid", "Not Hybrid") as hybrid_citations,
-      compute_oa_citations(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.bronze as is_x)), "Bronze", "Not Bronze") as bronze_citations,
+      -- Open Access Analysis: OA, Gold, Green, Green_Only, Hybrid, Bronze
+      --compute_oa(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_x)), "Open Access", "Not Open Access") as oa_citations,
+      --compute_oa(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.gold as is_x)), "Gold", "Not Gold") as gold_citations,
+      --compute_oa(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.green as is_x)), "Green", "Not Green") as green_citations,
+      --compute_oa(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.green_only as is_x)), "Green Only", "Not Green Only") as green_only_citations,
+      --compute_oa(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.hybrid as is_x)), "Hybrid", "Not Hybrid") as hybrid_citations,
+      --compute_oa(ARRAY_AGG(STRUCT(STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.bronze as is_x)), "Bronze", "Not Bronze") as bronze_citations,
 
       -- Collaboration Analysis
       ARRAY_CONCAT_AGG( ARRAY((SELECT as STRUCT *, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, in_wos, in_scopus, in_mag FROM UNNEST(affiliations.{{ aggregation_field }}) as collab WHERE collab.in_mag IS TRUE) )) as collaborations,
