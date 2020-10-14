@@ -50,7 +50,7 @@ EOF
 }
 
 
-variable "airflow_main"{
+variable "airflow_main_vm"{
   description = <<EOF
 machine_type: The machine type for the Airflow Main virtual machine.
 disk_size: The disk size for the Airflow Main virtual machine in GB.
@@ -68,7 +68,7 @@ EOF
   }
 }
 
-variable "airflow_worker"{
+variable "airflow_worker_vm"{
   description = <<EOF
 machine_type: The machine type for the Airflow Worker virtual machine(s).
 disk_size: The disk size for the Airflow Worker virtual machine(s) in GB.

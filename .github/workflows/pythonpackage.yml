@@ -29,11 +29,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[tests]
+          pip install -e observatory-platform[tests]
+          pip install -e observatory-dags
+          pip install -e observatory-reports
       - name: Check licenses
         run: |
           # stop the build if there are licensing issues
-          liccheck --sfile strategy.ini --rfile requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
+          liccheck --sfile strategy.ini --rfile observatory-platform/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
+          liccheck --sfile strategy.ini --rfile observatory-dags/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
+          liccheck --sfile strategy.ini --rfile observatory-reports/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names

@@ -1,0 +1,9 @@
+observatory-platform
+matplotlib==3.1.*
+pandas==0.25.*
+seaborn==0.10.*
+geopandas==0.8.*
+numpy==1.19.*
+ipython==7.16.*
+pydata-google-auth==1.1.*
+num2words==0.5.*

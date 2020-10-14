@@ -32,7 +32,7 @@ airflow_connections:
   terraform: Stores the terraform user token as a password (used to create/destroy VMs)
   slack: Stores the URL for the Slack webhook as a host and the token as a password
 airflow_variables:
-  environment: The environment type, has to either be 'dev', 'test' or 'prod'
+  environment: The environment type, has to either be 'develop', 'test' or 'production'
   project_id: The Google Cloud project project identifier
   data_location: The location where BigQuery data will be stored (same as the bucket location)
   download_bucket_name: The name of the Google Cloud Storage bucket where downloaded data will be stored
