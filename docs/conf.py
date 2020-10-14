@@ -21,16 +21,13 @@ project = 'Observatory Platform'
 copyright = '2020 Curtin University'
 author = 'Curtin University'
 
-# The full version, including alpha/beta/rc tags
-release = '20.7.0'
-
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'pbr.sphinxext',
     'sphinx_rtd_theme',
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
