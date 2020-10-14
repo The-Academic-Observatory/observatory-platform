@@ -93,8 +93,8 @@ def nice_column_names(df):
         ('Books', 'authored_books'),
         ('Book Sections', 'book_sections'),
         ('Edited Volumes', 'edited_volumes'),
-        ('Reports‡', 'reports'),
-        ('Datasets‡', 'datasets')
+        ('Reports', 'reports'),
+        ('Datasets', 'datasets')
     ]
     for col in cols:
         if col[1] in df.columns.values:
