@@ -17,7 +17,7 @@ sudo chmod +x /usr/local/bin/packer
 
 Install Terraform:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/0.13.0-beta3/terraform_0.13.0-beta3_linux_amd64.zip" -o /usr/local/bin/terraform
+sudo curl -L "https://releases.hashicorp.com/terraform/0.13.4/terraform_0.13.4_linux_amd64.zip" -o /usr/local/bin/terraform
 sudo chmod +x /usr/local/bin/terraform
 ```
 
@@ -156,7 +156,7 @@ backend:
     workspaces_prefix: observatory- <--
 project_id: your-project-id <--
 !sensitive google_application_credentials: /path/to/service/account/key.json <--
-environment: dev
+environment: develop
 region: us-west1
 zone: us-west1-c
 data_location: us
