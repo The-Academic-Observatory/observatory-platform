@@ -62,6 +62,7 @@ from observatory_platform.utils.gc_utils import (
     upload_telescope_file_list,
 )
 
+from observatory_platform.utils.url_utils import get_ao_user_agent
 
 class ScopusRelease:
     """ Used to store info on a given SCOPUS release. """
@@ -460,7 +461,7 @@ class ScopusClient:
         self._headers = {
             'X-ELS-APIKey': api_key,
             'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0'
+            'User-Agent': get_ao_user_agent()
         }
 
         self._view = view

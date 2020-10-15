@@ -14,7 +14,7 @@
 
 # Author: Tuan Chien
 
-
+import os
 import pendulum
 import unittest
 import unittest.mock as mock
@@ -34,6 +34,24 @@ from observatory_platform.telescopes.scopus import (
 from observatory_platform.utils.telescope_utils import (
     build_schedule,
 )
+
+from observatory_platform.utils.url_utils import get_ao_user_agent
+
+from pbr.util import cfg_to_args
+
+class TestScopusClient(unittest.TestCase):
+    """ Test the ScopusClient class. """
+
+    def test_scopus_client_user_agent(self):
+        """ Test to make sure the user agent string is set correctly. """
+        obj = ScopusClient('')
+        
+        # Need to set override isolated_filesystem for cfg_to_args
+        pwd = os.getcwd()
+        setupfile = os.path.join(pwd, 'setup.cfg')
+        with patch('observatory_platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
+            generated_ua = obj._headers['User-Agent']
+            self.assertEqual(generated_ua, get_ao_user_agent())
 
 
 class TestScopusRelease(unittest.TestCase):
@@ -149,13 +167,17 @@ class TestScopusUtility(unittest.TestCase):
     def test_download_scopus_period(self, mock_make_query):
         """ Test downloading of a period. Mocks out actual api call. """
 
-        with CliRunner().isolated_filesystem():
-            period = pendulum.Period(pendulum.date(1990, 9, 1), pendulum.date(1990, 9, 30))
-            worker = ScopusUtilWorker(1, ScopusClient(self.api_key1), pendulum.now('UTC'), 20000)
-            save_file = ScopusUtility.download_scopus_period(worker, self.conn, period, self.scopus_inst_id,
-                                                             self.workdir)
-            self.assertEqual(mock_make_query.call_count, 1)
-            self.assertNotEqual(save_file, '')
+        # Need to set override isolated_filesystem for cfg_to_args
+        pwd = os.getcwd()
+        setupfile = os.path.join(pwd, 'setup.cfg')
+        with patch('observatory_platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
+            with CliRunner().isolated_filesystem():
+                period = pendulum.Period(pendulum.date(1990, 9, 1), pendulum.date(1990, 9, 30))
+                worker = ScopusUtilWorker(1, ScopusClient(self.api_key1), pendulum.now('UTC'), 20000)
+                save_file = ScopusUtility.download_scopus_period(worker, self.conn, period, self.scopus_inst_id,
+                                                                self.workdir)
+                self.assertEqual(mock_make_query.call_count, 1)
+                self.assertNotEqual(save_file, '')
 
     @patch('observatory_platform.telescopes.scopus.ScopusUtilWorker.QUEUE_WAIT_TIME', 1)
     @patch('observatory_platform.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
@@ -225,14 +247,18 @@ class TestScopusUtility(unittest.TestCase):
                                 data_location='data_location', schema_ver='schema_ver')
         self.assertEqual(mock_telepath.call_count, 2)
 
-        with CliRunner().isolated_filesystem():
-            api_keys = [{"key": self.api_key1}, {"key": self.api_key2}]
-            saved_files = ScopusUtility.download_snapshot(api_keys, release, 'sequential')
-            self.assertEqual(mock_make_query.call_count, 5)
-            self.assertEqual(len(saved_files), 5)
-            saved_files = ScopusUtility.download_snapshot(api_keys, release, 'parallel')
-            self.assertEqual(mock_make_query.call_count, 10)
-            self.assertEqual(len(saved_files), 5)
+        # Need to set override isolated_filesystem for cfg_to_args
+        pwd = os.getcwd()
+        setupfile = os.path.join(pwd, 'setup.cfg')
+        with patch('observatory_platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
+            with CliRunner().isolated_filesystem():
+                api_keys = [{"key": self.api_key1}, {"key": self.api_key2}]
+                saved_files = ScopusUtility.download_snapshot(api_keys, release, 'sequential')
+                self.assertEqual(mock_make_query.call_count, 5)
+                self.assertEqual(len(saved_files), 5)
+                saved_files = ScopusUtility.download_snapshot(api_keys, release, 'parallel')
+                self.assertEqual(mock_make_query.call_count, 10)
+                self.assertEqual(len(saved_files), 5)
 
 
 class TestScopusJsonParser(unittest.TestCase):
