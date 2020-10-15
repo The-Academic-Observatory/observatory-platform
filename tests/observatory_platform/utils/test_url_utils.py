@@ -16,12 +16,13 @@
 
 import unittest
 from typing import List
+from unittest.mock import patch
 
 import httpretty
 import requests
 
 from observatory_platform.utils.url_utils import (get_url_domain_suffix, unique_id, is_url_absolute, strip_query_params,
-                                                  retry_session)
+                                                  retry_session, get_ao_user_agent)
 
 
 class TestUrlUtils(unittest.TestCase):
@@ -112,3 +113,11 @@ class TestUrlUtils(unittest.TestCase):
         # Cleanup
         httpretty.disable()
         httpretty.reset()
+
+    @patch('observatory_platform.utils.url_utils.cfg_to_args', return_value={'version': 1, 'url': 2, 'author_email': 3})
+    def test_ao_user_agent(self, mock_cfg):
+        """ Test user agent generation """
+
+        gt = f'Observatory Platform v1 (+2; mailto: 3)'
+        ua = get_ao_user_agent()
+        self.assertEqual(ua, gt)
