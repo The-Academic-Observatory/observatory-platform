@@ -26,6 +26,13 @@ from observatory.platform.terraform_api import TerraformApi
 class TerraformCommand:
 
     def __init__(self, config_path: str, terraform_credentials_path: str, verbose: int = 0):
+        """
+
+        :param config_path: the path to the terraform config file.
+        :param terraform_credentials_path: the path to the Terraform credentials file.
+        :param verbose: whether to run the terraform API in verbose mode.
+        """
+
         self.config_path = config_path
         self.terraform_credentials_path = terraform_credentials_path
         self.verbose = verbose
@@ -41,22 +48,45 @@ class TerraformCommand:
 
     @property
     def is_environment_valid(self):
+        """ Whether is the parameters passed to the TerraformCommand are valid.
+
+        :return: whether the parameters passed to the TerraformCommand are valid.
+        """
+
         return all([self.config_exists, self.terraform_credentials_exists, self.config_is_valid,
                     self.config is not None])
 
     def print_variable(self, var: TerraformVariable):
+        """ Print the output for the CLI for a single TerraformVariable instance.
+
+        :param var: the TerraformVariable instance.
+        :return: None.
+        """
+
         if var.sensitive:
             print(indent(f"* \x1B[3m{var.key}\x1B[23m: sensitive", INDENT2))
         else:
             print(indent(f"* \x1B[3m{var.key}\x1B[23m: {var.value}", INDENT2))
 
     def print_variable_update(self, old_var: TerraformVariable, new_var: TerraformVariable):
+        """ Print the output for the CLI for a terraform variable that is being updated.
+
+        :param old_var: the old TerraformVariable instance.
+        :param new_var: the new TerraformVariable instance.
+        :return: None.
+        """
+
         if old_var.sensitive:
             print(indent(f"* \x1B[3m{old_var.key}\x1B[23m: sensitive -> sensitive", INDENT2))
         else:
             print(indent(f"* \x1B[3m{old_var.key}\x1B[23m: {old_var.value} -> {new_var.value}", INDENT2))
 
     def create_workspace(self):
+        """ Create a Terraform workspace.
+
+        :return: None.
+        """
+
         # Get terraform token
         token = TerraformApi.token_from_file(self.terraform_credentials_path)
         terraform_api = TerraformApi(token, self.verbose)
@@ -88,6 +118,11 @@ class TerraformCommand:
             print('Successfully created workspace')
 
     def update_workspace(self):
+        """ Update a Terraform workspace.
+
+        :return: None.
+        """
+
         # Get terraform token
         token = TerraformApi.token_from_file(self.terraform_credentials_path)
         terraform_api = TerraformApi(token, self.verbose)

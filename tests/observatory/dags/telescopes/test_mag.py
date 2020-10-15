@@ -26,11 +26,11 @@ from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud import storage
 from google.cloud.storage import Blob
-
-from observatory_platform.telescopes.mag import list_mag_release_files, transform_mag_file, transform_mag_release, \
-    db_load_mag_release
 from observatory.platform.utils.data_utils import _hash_file
 from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
+
+from observatory.dags.telescopes.mag import (list_mag_release_files, transform_mag_file, transform_mag_release,
+                                             db_load_mag_release)
 from tests.observatory.config import random_id, test_fixtures_path
 
 

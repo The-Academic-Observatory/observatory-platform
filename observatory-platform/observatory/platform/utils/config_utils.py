@@ -174,8 +174,7 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
 
 
 def check_variables(*variables):
-    """
-    Checks whether all given airflow variables exist.
+    """ Checks whether all given airflow variables exist.
 
     :param variables: name of airflow variable
     :return: True if all variables are valid
@@ -191,8 +190,7 @@ def check_variables(*variables):
 
 
 def check_connections(*connections):
-    """
-    Checks whether all given airflow connections exist.
+    """ Checks whether all given airflow connections exist.
 
     :param connections: name of airflow connection
     :return: True if all connections are valid
@@ -208,7 +206,8 @@ def check_connections(*connections):
 
 
 def list_connections(source):
-    """Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
+    """ Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
+
     :param source: Data source (conforming to name convention) as a string, e.g., 'wos'.
     :return: A list of connection id strings with the prefix <source>_, e.g., ['wos_curtin', 'wos_auckland'].
     """

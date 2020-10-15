@@ -22,7 +22,7 @@ import unittest
 from click.testing import CliRunner
 from datetime import datetime
 
-from observatory.platform.utils.terraform_utils import TerraformApi
+from observatory.platform.terraform_api import TerraformApi
 from tests.observatory.config import test_fixtures_path
 
 

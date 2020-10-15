@@ -17,7 +17,7 @@
 import os
 
 import click
-from cryptography.fernet import Fernet
+from airflow.configuration import generate_fernet_key
 
 from observatory.platform.observatory_config import BackendType, ObservatoryConfig, TerraformConfig
 from observatory.platform.utils.config_utils import observatory_home
@@ -27,22 +27,18 @@ class GenerateCommand:
     LOCAL_CONFIG_PATH = os.path.join(observatory_home(), 'config.yaml')
     TERRAFORM_CONFIG_PATH = os.path.join(observatory_home(), 'config-terraform.yaml')
 
-    def __init__(self):
-        pass
-
     def generate_fernet_key(self) -> str:
         """ Generate a Fernet key.
 
         :return: the Fernet key.
         """
 
-        return Fernet.generate_key().decode()
+        return generate_fernet_key()
 
     def generate_config_file(self, backend_type: BackendType):
-        """
-        Command line user interface for generating config.yaml
+        """ Command line user interface for generating config.yaml or config-terraform.yaml.
 
-        :param backend_type: Which type of config file, either 'local' or 'terraform'.
+        :param backend_type: Which type of config file, either BackendType.local or BackendType.terraform.
         :return: None
         """
 

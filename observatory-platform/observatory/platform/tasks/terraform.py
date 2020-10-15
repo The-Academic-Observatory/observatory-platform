@@ -34,8 +34,8 @@ from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 
 
 def get_workspace_id() -> str:
-    """
-    Uses terraform API and workspace name to get the id of this workspace.
+    """ Uses terraform API and workspace name to get the id of this workspace.
+
     :return: workspace id
     """
     token = BaseHook.get_connection(AirflowConns.TERRAFORM).password
@@ -56,8 +56,8 @@ def get_workspace_id() -> str:
 
 
 def create_slack_webhook(comments: str = "", **kwargs) -> SlackWebhookHook:
-    """
-    Creates a slack webhook using the token in the slack airflow connection.
+    """ Creates a slack webhook using the token in the slack airflow connection.
+
     :param comments: Additional comments in slack message
     :param kwargs: the context passed from the PythonOperator. See
     https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
@@ -80,11 +80,12 @@ def create_slack_webhook(comments: str = "", **kwargs) -> SlackWebhookHook:
 
 
 def get_last_execution_prev(dag: DAG, dag_id: str, prev_start_time_vm: Union[datetime, None]) -> Union[datetime, None]:
-    """
-    Find the execution date of the last DAG run before the previous time the VM was turned on.
+    """ Find the execution date of the last DAG run before the previous time the VM was turned on.
     If there aren't any DAG runs before this time or the time is None (first/second time turning off VM) the
     execution date is set to the start_date of the DAG instead.
+
     If a DAG is currently running it will return None and the remaining tasks are skipped.
+
     :param dag: DAG object
     :param dag_id: the dag id
     :param prev_start_time_vm: previous time the VM was turned on
@@ -115,9 +116,10 @@ def get_last_execution_prev(dag: DAG, dag_id: str, prev_start_time_vm: Union[dat
 
 
 def check_success_runs(dag_id: str, execution_dates: list) -> bool:
-    """
-    For each date in the execution dates it checks if a DAG run exists and if so if the state is set to success.
+    """ For each date in the execution dates it checks if a DAG run exists and if so if the state is set to success.
+
     Only if both of these are true for all dates it will return True.
+
     :param dag_id: the dag id
     :param execution_dates: list of execution dates
     :return: True or False
@@ -139,6 +141,7 @@ def check_success_runs(dag_id: str, execution_dates: list) -> bool:
 class TerraformTasks:
     """ A container for holding the functions for the Terraform telescope. Both DAGs vm_create and vm_destroy use
     functions from this telescope."""
+
     # DAG variables
     DAG_ID_CREATE_VM = "vm_create"
     DAG_ID_DESTROY_VM = "vm_destroy"

@@ -34,6 +34,12 @@ from observatory.platform.utils.jinja2_utils import render_template
 
 
 def to_hcl(value: Dict) -> str:
+    """ Convert a Python dictionary into HCL.
+
+    :param value: the dictionary.
+    :return: the HCL string.
+    """
+
     return json.dumps(value, separators=(',', '='))
 
 
@@ -54,9 +60,12 @@ class Environment(Enum):
 
 @dataclass
 class Backend:
-    """
+    """ The backend settings for the Observatory Platform.
 
-    """
+    Attributes:
+        type: the type of backend being used (local environment or Terraform).
+        environment: what type of environment is being deployed (develop, staging or production).
+     """
 
     type: BackendType
     environment: Environment
@@ -76,6 +85,14 @@ class Backend:
 
 @dataclass
 class Airflow:
+    """ The Apache Airflow settings for the Observatory Platform.
+
+    Attributes:
+        fernet_key: the Fernet key.
+        ui_user_password: the password for the Apache Airflow UI admin user.
+        ui_user_email: the email address for the Apache Airflow UI admin user.
+     """
+
     fernet_key: str
     ui_user_password: str = None
     ui_user_email: str = None
@@ -105,6 +122,13 @@ class Airflow:
 
 @dataclass
 class CloudStorageBucket:
+    """ Represents a Google Cloud Storage Bucket.
+
+    Attributes:
+        id: ?
+        name: the name of the Google Cloud storage bucket.
+     """
+
     id: str
     name: str
 
@@ -115,6 +139,17 @@ class CloudStorageBucket:
 
 @dataclass
 class GoogleCloud:
+    """ The Google Cloud settings for the Observatory Platform.
+
+    Attributes:
+        project_id:
+        credentials:
+        region:
+        zone:
+        data_location:
+        buckets:
+     """
+
     project_id: str = None
     credentials: str = None
     region: str = None
@@ -177,12 +212,25 @@ def parse_dict_to_list(dict_: Dict, cls: ClassVar) -> List[Any]:
 
 @dataclass
 class DagsProject:
+    """ The Google Cloud settings for the Observatory Platform.
+
+    Attributes:
+        package_name:
+        path:
+        dags_module:
+     """
+
     package_name: str
     path: str
     dags_module: str
 
     @property
     def type(self) -> str:
+        """ The type of DAGs project: local, Github or PyPI.
+
+        :return: the type of DAGs project.
+        """
+
         return 'local'
 
     @staticmethod
@@ -203,6 +251,12 @@ class DagsProject:
 
 
 def list_to_hcl(items: List[Union[AirflowConnection, AirflowVariable]]) -> str:
+    """ Convert a list of AirflowConnection or AirflowVariable instances into HCL.
+
+    :param items: the list of AirflowConnection or AirflowVariable instances.
+    :return: the HCL string.
+    """
+
     dict_ = dict()
     for item in items:
         dict_[item.name] = item.value
@@ -211,11 +265,24 @@ def list_to_hcl(items: List[Union[AirflowConnection, AirflowVariable]]) -> str:
 
 @dataclass
 class AirflowConnection:
+    """ An Airflow Connection.
+
+    Attributes:
+        name: the name of the Airflow Connection.
+        value: the value of the Airflow Connection.
+     """
+
     name: str
     value: str
 
     @property
-    def conn_name(self):
+    def conn_name(self) -> str:
+        """ The Airflow Connection environment variable name, which is required to set the connection from an
+        environment variable.
+
+        :return: the Airflow Connection environment variable name.
+        """
+
         return f'AIRFLOW_CONN_{self.name.upper()}'
 
     @staticmethod
@@ -231,11 +298,24 @@ class AirflowConnection:
 
 @dataclass
 class AirflowVariable:
+    """ An Airflow Variable.
+
+    Attributes:
+        name: the name of the Airflow Variable.
+        value: the value of the Airflow Variable.
+     """
+
     name: str
     value: str
 
     @property
     def env_var_name(self):
+        """ The Airflow Variable environment variable name, which is required to set the variable from an
+        environment variable.
+
+        :return: the Airflow Variable environment variable name.
+        """
+
         return f'AIRFLOW_VAR_{self.name.upper()}'
 
     @staticmethod
@@ -251,6 +331,13 @@ class AirflowVariable:
 
 @dataclass
 class Terraform:
+    """ The Terraform settings for the Observatory Platform.
+
+    Attributes:
+        organization: the Terraform Organisation name.
+        workspace_prefix: the Terraform workspace prefix.
+     """
+
     organization: str
     workspace_prefix: str
 
@@ -269,6 +356,14 @@ class Terraform:
 
 @dataclass
 class CloudSqlDatabase:
+    """ The Google Cloud SQL database settings for the Observatory Platform.
+
+    Attributes:
+        tier: the database machine tier.
+        backup_start_time: the start time for backups.
+        postgres_password: the Postgres SQL password.
+     """
+
     tier: str
     backup_start_time: str
     postgres_password: str

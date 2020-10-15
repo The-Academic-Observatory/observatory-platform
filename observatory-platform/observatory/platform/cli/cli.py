@@ -142,6 +142,7 @@ def platform(command: str, config_path: str, dags_path: str, data_path: str, log
     cmd = PlatformCommand(config_path, dags_path, data_path, logs_path, postgres_path, host_uid, host_gid,
                           redis_port, flower_ui_port, airflow_ui_port, elastic_port, kibana_port, docker_network_name,
                           debug)
+    generate_cmd = GenerateCommand()
 
     # The minimum number of characters per line
     min_line_chars = 80
@@ -200,7 +201,7 @@ def platform(command: str, config_path: str, dags_path: str, data_path: str, log
                         print(indent('- {}: {}'.format(key, *values), INDENT3))
     else:
         print(indent("- file not found, generating a default file", INDENT2))
-        # gen_config_interface('local')
+        generate_cmd.generate_config_file(BackendType.local)
 
     if not cmd.is_environment_valid:
         exit(os.EX_CONFIG)

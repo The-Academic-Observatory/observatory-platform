@@ -21,9 +21,9 @@ from unittest.mock import patch
 import pendulum
 import vcr
 
-from observatory_platform.telescopes.open_citations import (list_open_citations_releases,
-                                                            fetch_open_citations_versions,
-                                                            OpenCitationsRelease, File)
+from observatory.dags.telescopes.open_citations import (list_open_citations_releases,
+                                                        fetch_open_citations_versions,
+                                                        OpenCitationsRelease, File)
 from tests.observatory.config import test_fixtures_path
 
 

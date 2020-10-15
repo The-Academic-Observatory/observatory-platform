@@ -18,9 +18,11 @@
 import calendar
 import json
 import logging
-import pendulum
 import os
 import unittest
+from pathlib import Path
+
+import pendulum
 import vcr
 import xmltodict
 import unittest.mock as mock
@@ -166,7 +168,7 @@ class TestWosParse(unittest.TestCase):
         """ Extract the abstract """
         data = self.data[0]
         abstract = WosJsonParser.get_abstract(data)
-        self.assertEqual(len(abstract),1)
+        self.assertEqual(len(abstract), 1)
         head = abstract[0][0:38]
         truth = "Jupiter hypnotoads lead mysterious liv"
         self.assertEqual(head, truth)
