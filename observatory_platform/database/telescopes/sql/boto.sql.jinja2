@@ -14,11 +14,10 @@
 
 # Author: Aniek Roelofs#}
 
-MERGE
-  {{ dataset }}.{{ main_table }} M
-USING
-  (SELECT {{ merge_condition_field }}, {{ updated_date_field }} FROM {{ dataset }}.{{ partitioned_table }} WHERE _PARTITIONDATE BETWEEN '{{ start_date }}' AND '{{ end_date }}') P
-ON
-  M.{{ merge_condition_field }} = P.{{ merge_condition_field }}
-WHEN MATCHED AND M.{{ updated_date_field }} <= P.{{ updated_date_field }} OR M.{{ updated_date_field }} is null THEN
-  DELETE
+[s3]
+calling_format = boto.s3.connection.OrdinaryCallingFormat
+host = {{ s3_host }}
+
+[Credentials]
+aws_access_key_id = {{ aws_access_key_id }}
+aws_secret_access_key = {{ aws_secret_access_key }}

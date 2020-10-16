@@ -371,6 +371,14 @@ class AirflowVar(Enum):
             'required': False
         }
     }
+    orcid_bucket_name = {
+        'name': 'orcid_bucket_name',
+        'default': 'orcid_summary_sync <--',
+        'schema': {
+            'type': 'string',
+            'required': False
+        }
+    }
 
     def get(self):
         """Method to slightly shorten way to get name"""
@@ -841,10 +849,14 @@ def create_local_schema() -> dict:
         if obj.value['schema']:
             obj.value['schema']['check_with'] = customise_pointer
             if type(obj) == AirflowConn:
+                # add default for connections
+                obj.value['schema']['default'] = "my-conn-type://my-login:my-password@my-host"
                 # add custom rule to check for valid uri
                 obj.value['schema']['isuri'] = True
                 schema['airflow_connections']['schema'][obj.get()] = obj.value['schema']
             else:
+                # add default for variables
+                obj.value['schema']['default'] = "default_variable"
                 schema['airflow_variables']['schema'][obj.get()] = obj.value['schema']
 
     return schema

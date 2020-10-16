@@ -26,6 +26,8 @@ fi
 # Install the Observatory Platform Python package
 pip3 install -e . --user
 
+gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+
 # Enter airflow home folder. Must be in the AIRFLOW_HOME folder (i.e. /opt/airflow) before running the next command
 # otherwise the system will start but the workers and scheduler will not find the DAGs and other files because
 # they look for them based on the current working directory.
