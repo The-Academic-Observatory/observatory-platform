@@ -14,6 +14,8 @@
 
 # Author: Aniek Roelofs, James Diprose
 
+from __future__ import annotations
+
 import functools
 import glob
 import logging
@@ -34,9 +36,10 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from natsort import natsorted
 
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.dags.config import schema_path
-from observatory.platform.utils.config_utils import (AirflowVars, AirflowConns, SubFolder, find_schema, telescope_path, check_variables, check_connections)
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
+from observatory.platform.utils.config_utils import (AirflowVars, AirflowConns, SubFolder, find_schema, telescope_path,
+                                                     check_variables, check_connections)
 from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,
@@ -45,10 +48,9 @@ from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  upload_files_to_cloud_storage)
 from observatory.platform.utils.proc_utils import wait_for_process
 from observatory.platform.utils.url_utils import retry_session
-from observatory.platform.utils.config_utils import test_data_path
 
 
-def download_release(release: 'CrossrefMetadataRelease', api_token: str):
+def download_release(release: CrossrefMetadataRelease, api_token: str):
     """ Downloads release
 
     :param release: Instance of CrossrefRelease class
@@ -77,7 +79,7 @@ def download_release(release: 'CrossrefMetadataRelease', api_token: str):
     logging.info(f"Successfully download url to {release.download_path}")
 
 
-def extract_release(release: 'CrossrefMetadataRelease') -> bool:
+def extract_release(release: CrossrefMetadataRelease) -> bool:
     """ Extract release.
 
     :param release: Instance of CrossrefRelease class
@@ -135,7 +137,7 @@ def transform_file(input_file_path: str, output_file_path: str) -> bool:
     return success
 
 
-def transform_release(release: 'CrossrefMetadataRelease', max_workers: int = cpu_count()) -> bool:
+def transform_release(release: CrossrefMetadataRelease, max_workers: int = cpu_count()) -> bool:
     """ Transform a Crossref Metadata release into a form that can be loaded into BigQuery.
 
     :param release: the CrossrefMetadataRelease release
@@ -262,7 +264,7 @@ class CrossrefMetadataTelescope:
     MAX_RETRIES = 3
 
     TELESCOPE_URL = 'https://api.crossref.org/snapshots/monthly/{year}/{month:02d}/all.json.tar.gz'
-    DEBUG_FILE_PATH = os.path.join(test_data_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
+    # DEBUG_FILE_PATH = os.path.join(test_data_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
     TASK_ID_CHECK_RELEASE = f"check_release"

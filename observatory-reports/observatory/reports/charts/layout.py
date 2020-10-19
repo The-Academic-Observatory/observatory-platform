@@ -16,7 +16,7 @@
 
 import matplotlib.pyplot as plt
 
-from observatory.reports import AbstractObservatoryChart
+from observatory.reports.abstract_chart import AbstractObservatoryChart
 
 
 class Layout(AbstractObservatoryChart):

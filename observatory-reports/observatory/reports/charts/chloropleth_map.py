@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from observatory.reports import AbstractObservatoryChart
+from observatory.reports.abstract_chart import AbstractObservatoryChart
 
 
 class ChloroplethMap(AbstractObservatoryChart):

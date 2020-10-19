@@ -59,7 +59,7 @@ class TestFundref(unittest.TestCase):
         self.list_fundref_releases_hash = 'a7cf8190dcbda7992e3ae839ebab9f95'
 
         # FundRef test release
-        self.fundref_test_path = FundrefTelescope.DEBUG_FILE_PATH
+        self.fundref_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'fundref.tar.gz')
         self.fundref_test_url = FundrefTelescope.TELESCOPE_DEBUG_URL
         self.fundref_nested_element = ET.Element(
             '{http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/}country',

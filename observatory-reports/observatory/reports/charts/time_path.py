@@ -20,7 +20,7 @@ import seaborn as sns
 from IPython.display import HTML
 from matplotlib import animation
 
-from observatory.reports import AbstractObservatoryChart
+from observatory.reports.abstract_chart import AbstractObservatoryChart
 
 
 class TimePath(AbstractObservatoryChart):

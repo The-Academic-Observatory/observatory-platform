@@ -511,7 +511,7 @@ class FundrefTelescope:
     QUEUE = "remote_queue"
     TELESCOPE_URL = 'https://gitlab.com/api/v4/projects/crossref%2Fopen_funder_registry/releases'
     TELESCOPE_DEBUG_URL = 'debug_fundref_url'
-    DEBUG_FILE_PATH = os.path.join(test_data_path(), 'telescopes', 'fundref.tar.gz')
+    # DEBUG_FILE_PATH = os.path.join(test_data_path(), 'telescopes', 'fundref.tar.gz')
     RETRIES = 3
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"

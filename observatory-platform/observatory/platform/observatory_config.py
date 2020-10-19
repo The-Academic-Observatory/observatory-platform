@@ -28,19 +28,10 @@ import yaml
 from airflow.configuration import generate_fernet_key
 from cerberus import Validator
 
+from observatory.platform.terraform_api import TerraformVariable, to_hcl
 from observatory.platform.utils.airflow_utils import AirflowVariable
 from observatory.platform.utils.config_utils import AirflowVars, module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
-
-
-def to_hcl(value: Dict) -> str:
-    """ Convert a Python dictionary into HCL.
-
-    :param value: the dictionary.
-    :return: the HCL string.
-    """
-
-    return json.dumps(value, separators=(',', '='))
 
 
 class BackendType(Enum):
@@ -582,71 +573,6 @@ class ObservatoryConfig:
             print(f'cerberus.validator.DocumentError: {e}')
 
         return cls.from_dict(dict_)
-
-
-class TerraformVariableCategory(Enum):
-    terraform = 'terraform'
-    env = 'env'
-
-
-@dataclass
-class TerraformVariable:
-    key: str
-    value: str
-    var_id: str = None
-    description: str = ''
-    category: TerraformVariableCategory = TerraformVariableCategory.terraform
-    hcl: bool = False
-    sensitive: bool = False
-
-    def __str__(self):
-        return self.key
-
-    def __hash__(self):
-        return hash(str(self))
-
-    def __eq__(self, other):
-        return self.key == other.key
-
-    @staticmethod
-    def from_dict(dict_) -> TerraformVariable:
-        var_id = dict_.get('id')
-        attributes = dict_['attributes']
-        key = attributes.get('key')
-        value = attributes.get('value')
-        sensitive = attributes.get('sensitive')
-        category = attributes.get('category')
-        hcl = attributes.get('hcl')
-        description = attributes.get('description')
-
-        return TerraformVariable(
-            key, value,
-            sensitive=sensitive,
-            category=TerraformVariableCategory(category),
-            hcl=hcl,
-            description=description,
-            var_id=var_id
-        )
-
-    def to_dict(self):
-        data = {
-            "data": {
-                "type": "vars",
-                "attributes": {
-                    'key': self.key,
-                    'value': self.value,
-                    'description': self.description,
-                    'category': self.category.value,
-                    'hcl': self.hcl,
-                    'sensitive': self.sensitive
-                }
-            }
-        }
-
-        if self.var_id is not None:
-            data['data']['id'] = self.var_id
-
-        return data
 
 
 class TerraformConfig(ObservatoryConfig):

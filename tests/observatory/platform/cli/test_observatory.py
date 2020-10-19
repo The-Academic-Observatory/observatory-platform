@@ -24,7 +24,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 from click.testing import CliRunner
-
+from observatory.platform.cli import cli
 from observatory.platform.cli.observatory import ObservatoryConfig, cli, create_terraform_variables, gen_fernet_key
 from observatory.platform.utils.config_utils import terraform_variables_tf_path
 from observatory.platform.utils.terraform_utils import TerraformApi

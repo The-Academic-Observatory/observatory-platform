@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from observatory.reports import AbstractObservatoryChart
+from observatory.reports.abstract_chart import AbstractObservatoryChart
 
 
 class GenericTimeChart(AbstractObservatoryChart):

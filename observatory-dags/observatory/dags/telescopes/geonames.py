@@ -166,7 +166,7 @@ class GeonamesTelescope:
 
     UNZIPPED_FILE_NAME = 'allCountries.txt'
     DOWNLOAD_URL = 'https://download.geonames.org/export/dump/allCountries.zip'
-    DEBUG_FILE_PATH = os.path.join(test_data_path(), 'telescopes', 'geonames.txt')
+    # DEBUG_FILE_PATH = os.path.join(test_data_path(), 'telescopes', 'geonames.txt')
     RELEASES_TOPIC_NAME = 'releases'
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"

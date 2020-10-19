@@ -12,51 +12,91 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs
+# Author: Aniek Roelofs, James Diprose
+
+from __future__ import annotations
 
 import json
 import logging
 import os
-from typing import Tuple, List
+from dataclasses import dataclass
+from enum import Enum
+from typing import Tuple, List, Dict
 
 import requests
 
-from observatory.platform.observatory_config import TerraformVariable
+
+def to_hcl(value: Dict) -> str:
+    """ Convert a Python dictionary into HCL.
+
+    :param value: the dictionary.
+    :return: the HCL string.
+    """
+
+    return json.dumps(value, separators=(',', '='))
 
 
-#
-# @staticmethod
-# def create_var_attributes(key: str, value: str, category: str = 'terraform', description: str = '',
-#                           hcl: bool = False,
-#                           sensitive: bool = False) -> dict:
-#     """
-#     Creates attributes dictionary for a variable.
-#     :param key: Key of variable
-#     :param value: Value of variable
-#     :param description: Description of variable
-#     :param hcl: Whether the value is hcl syntax
-#     :param sensitive: Whether the value is sensitive
-#     :param category: The category of the value ('terraform' or 'env')
-#     :return: attributes dict
-#     """
-#
-#     attributes = {
-#         "key": key,
-#         "value": value,
-#         "description": description,
-#         "hcl": str(hcl).lower(),
-#         "sensitive": str(sensitive).lower()
-#     }
-#
-#     if category != 'env' and category != 'terraform':
-#         logging.error('Category has to be either "env" or "terraform"')
-#         exit(os.EX_CONFIG)
-#     else:
-#         attributes["category"] = category
-#     return attributes
-#
-#
-#
+class TerraformVariableCategory(Enum):
+    terraform = 'terraform'
+    env = 'env'
+
+
+@dataclass
+class TerraformVariable:
+    key: str
+    value: str
+    var_id: str = None
+    description: str = ''
+    category: TerraformVariableCategory = TerraformVariableCategory.terraform
+    hcl: bool = False
+    sensitive: bool = False
+
+    def __str__(self):
+        return self.key
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __eq__(self, other):
+        return self.key == other.key
+
+    @staticmethod
+    def from_dict(dict_) -> TerraformVariable:
+        var_id = dict_.get('id')
+        attributes = dict_['attributes']
+        key = attributes.get('key')
+        value = attributes.get('value')
+        sensitive = attributes.get('sensitive')
+        category = attributes.get('category')
+        hcl = attributes.get('hcl')
+        description = attributes.get('description')
+
+        return TerraformVariable(
+            key, value,
+            sensitive=sensitive,
+            category=TerraformVariableCategory(category),
+            hcl=hcl,
+            description=description,
+            var_id=var_id
+        )
+
+    def to_dict(self):
+        var = {
+            "type": "vars",
+            "attributes": {
+                'key': self.key,
+                'value': self.value,
+                'description': self.description,
+                'category': self.category.value,
+                'hcl': self.hcl,
+                'sensitive': self.sensitive
+            }
+        }
+
+        if self.var_id is not None:
+            var['id'] = self.var_id
+
+        return var
 
 
 class TerraformApi:
@@ -81,10 +121,9 @@ class TerraformApi:
         :param file_path: path to credentials file
         :return: token
         """
+
         with open(file_path, 'r') as file:
-            for line in file:
-                if "token" in line:
-                    token = line.split('"token":')[1].strip().strip('"}')
+            token = json.load(file)["credentials"]["app.terraform.io"]["token"]
         return token
 
     def create_workspace(self, organisation: str, workspace: str, auto_apply: bool, description: str,
@@ -155,30 +194,30 @@ class TerraformApi:
         return workspace_id
 
     def add_workspace_variable(self, variable: TerraformVariable, workspace_id: str) -> str:
-        """
-        Add a new variable to the workspace. Will return an error if the variable already exists.
+        """ Add a new variable to the workspace. Will return an error if the variable already exists.
+
         :param variable: the TerraformVariable instance.
         :param workspace_id: the workspace id
         :return: The var id
         """
 
         response = requests.post(f'{self.api_url}/workspaces/{workspace_id}/vars',
-                                 headers=self.headers, json=variable.to_dict())
+                                 headers=self.headers, json={'data': variable.to_dict()})
 
         key = variable.key
         if response.status_code == 201:
             logging.info(f"Added variable {key}")
         else:
-            logging.error(f"Response status: {response.status_code}")
-            logging.error(f"Unsuccessful adding variable {key}, response: {response.text}")
-            exit(os.EX_CONFIG)
+            msg = f"Unsuccessful adding variable {key}, response: {response.text}, status_code: {response.status_code}"
+            logging.error(msg)
+            raise ValueError(msg)
 
         var_id = json.loads(response.text)['data']['id']
         return var_id
 
     def update_workspace_variable(self, variable: TerraformVariable, workspace_id: str) -> int:
-        """
-        Update a workspace variable that is identified by its id.
+        """ Update a workspace variable that is identified by its id.
+
         :param variable: attributes of the variable
         :param var_id: the variable id
         :param workspace_id: the workspace id
@@ -186,7 +225,7 @@ class TerraformApi:
         """
         response = requests.patch(f'{self.api_url}/workspaces/{workspace_id}/vars/{variable.var_id}',
                                   headers=self.headers,
-                                  json=variable.to_dict())
+                                  json={'data': variable.to_dict()})
         try:
             key = json.loads(response.text)['data']['attributes']['key']
         except KeyError:
@@ -197,16 +236,16 @@ class TerraformApi:
         if response.status_code == 200:
             logging.info(f"Updated variable {key}")
         else:
-            logging.error(f"Response status: {response.status_code}")
-            logging.error(f"Unsuccessful updating variable with id {variable.var_id} and key {key}, response: {response.text}")
-            exit(os.EX_CONFIG)
+            msg = f"Unsuccessful updating variable with id {variable.var_id} and key {key}, response: {response.text}, status_code: {response.status_code}"
+            logging.error(msg)
+            raise ValueError(msg)
 
         return response.status_code
 
     def delete_workspace_variable(self, var: TerraformVariable, workspace_id: str) -> int:
-        """
-        Delete a workspace variable identified by its id. Should not return any content in response.
-        :param var_id: the variable id
+        """ Delete a workspace variable identified by its id. Should not return any content in response.
+
+        :param var: the variable
         :param workspace_id: the workspace id
         :return: The response code
         """
@@ -215,9 +254,9 @@ class TerraformApi:
         if response.status_code == 204:
             logging.info(f"Deleted variable with id {var.var_id}")
         else:
-            logging.error(f"Response status: {response.status_code}")
-            logging.error(f"Unsuccessful deleting variable with id {var.var_id}, response: {response.text}")
-            exit(os.EX_CONFIG)
+            msg = f"Unsuccessful deleting variable with id {var.var_id}, response: {response.text}, status_code: {response.status_code}"
+            logging.error(msg)
+            raise ValueError(msg)
 
         return response.status_code
 

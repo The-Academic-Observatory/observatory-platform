@@ -21,7 +21,7 @@ import pandas as pd
 from IPython.display import HTML
 from matplotlib import animation
 
-from observatory.reports import AbstractObservatoryChart
+from observatory.reports.abstract_chart import AbstractObservatoryChart
 from observatory.reports.chart_utils import _collect_kwargs_for
 from observatory.reports.defaults import *
 
