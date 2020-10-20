@@ -20,12 +20,12 @@ import os
 import pathlib
 import sys
 import unittest
+from datetime import datetime
 from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from observatory_platform.cli.observatory import cli, create_terraform_variables, gen_config_interface, \
-    gen_fernet_key, ObservatoryConfig
+from observatory_platform.cli.observatory import ObservatoryConfig, cli, create_terraform_variables, gen_fernet_key
 from observatory_platform.utils.config_utils import terraform_variables_tf_path
 from observatory_platform.utils.terraform_utils import TerraformApi
 
@@ -132,8 +132,7 @@ class TestObservatoryPlatform(unittest.TestCase):
 
             # Check that google credentials file does not exist is printed
             self.assertIn(f'google_application_credentials: the file {config.local.google_application_credentials} '
-                          f'does not exist',
-                          result.output)
+                          f'does not exist', result.output)
 
             # Check that Docker is not running message printed
             self.assertIn('Docker:\n   - path: /docker\n   - not running, please start', result.output)
@@ -145,6 +144,7 @@ class TestObservatoryPlatform(unittest.TestCase):
 class TestObservatoryTerraform(unittest.TestCase):
     # TODO change to 'observatory-unit-testing' once latest version is available
     organisation = 'COKI-project'
+    workspaces_prefix = datetime.now().strftime("%Y-%M-%d_%H-%M-%S-%f")
     token = os.getenv('TESTS_TERRAFORM_TOKEN')
     terraform_api = TerraformApi(token)
 
@@ -197,6 +197,7 @@ class TestObservatoryTerraform(unittest.TestCase):
             ObservatoryConfig.save_default('terraform', config_file_path, terraform_variables_tf_path(), test=True)
             # Update 'organisation', 'workspace' and 'google_application_credentials'
             replace_value_in_file(config_file_path, 'organization', self.organisation)
+            replace_value_in_file(config_file_path, 'workspaces_prefix', self.workspaces_prefix)
             replace_value_in_file(config_file_path, 'google_application_credentials', credentials_file_path)
 
             # Create token file
@@ -211,34 +212,37 @@ class TestObservatoryTerraform(unittest.TestCase):
             config = ObservatoryConfig(config_file_path)
             # Create terraform api instance
             terraform_api = TerraformApi(self.token)
-            workspace_prefix = config.terraform.backend['terraform']['workspaces_prefix']
-            workspace = workspace_prefix + config.terraform.environment
+            workspace = self.workspaces_prefix + config.terraform.environment
 
             # As a safety measure, delete workspace even though it shouldn't exist yet
             terraform_api.delete_workspace(self.organisation, workspace)
 
             # Create workspace, confirm yes
             mock_click_confirm.return_value = 'y'
-            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
-                                         '--terraform-credentials-file', terraform_credentials_path])
+            result = runner.invoke(cli,
+                                   ['terraform', 'create-workspace', config_file_path, '--terraform-credentials-file',
+                                    terraform_credentials_path])
             self.assertIn("Successfully created workspace", result.output)
 
             # Create workspace, confirm no
             mock_click_confirm.return_value = False
-            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
-                                         '--terraform-credentials-file', terraform_credentials_path])
+            result = runner.invoke(cli,
+                                   ['terraform', 'create-workspace', config_file_path, '--terraform-credentials-file',
+                                    terraform_credentials_path])
             self.assertNotIn("Creating workspace...", result.output)
 
             # Update workspace, same config file but sensitive values will be replaced
             mock_click_confirm.return_value = 'y'
-            result = runner.invoke(cli, ['terraform', 'update-workspace', config_file_path,
-                                         '--terraform-credentials-file', terraform_credentials_path])
+            result = runner.invoke(cli,
+                                   ['terraform', 'update-workspace', config_file_path, '--terraform-credentials-file',
+                                    terraform_credentials_path])
             self.assertIn("Successfully updated workspace", result.output)
 
             # Update workspace, confirm no
             mock_click_confirm.return_value = False
-            result = runner.invoke(cli, ['terraform', 'update-workspace', config_file_path,
-                                         '--terraform-credentials-file', terraform_credentials_path])
+            result = runner.invoke(cli,
+                                   ['terraform', 'update-workspace', config_file_path, '--terraform-credentials-file',
+                                    terraform_credentials_path])
             self.assertNotIn("Updating workspace...", result.output)
 
             # Delete workspace
@@ -266,9 +270,9 @@ class TestObservatoryTerraform(unittest.TestCase):
             # Run again with existing config, specifying terraform files that don't exist. Check that correct exit
             # code and output are returned
             ObservatoryConfig.save_default('terraform', config_file_path, terraform_variables_tf_path(), test=True)
-            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
-                                         '--terraform-credentials-file', terraform_credentials_path,
-                                         '--terraform-variables-path', terraform_variables_path])
+            result = runner.invoke(cli,
+                                   ['terraform', 'create-workspace', config_file_path, '--terraform-credentials-file',
+                                    terraform_credentials_path, '--terraform-variables-path', terraform_variables_path])
             # No terraform credentials file
             self.assertIn("Terraform credentials file:\n   - file not found, create one by running 'terraform login'",
                           result.output)
