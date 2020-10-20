@@ -24,10 +24,25 @@ from typing import List, Tuple, Union
 import docker
 import requests
 
-from observatory.platform.utils.config_utils import observatory_home, module_file_path
 from observatory.platform.observatory_config import ObservatoryConfig
+from observatory.platform.utils.config_utils import observatory_home, module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
+
+DAGS_MODULE = module_file_path('observatory.platform.dags')
+DATA_PATH = observatory_home('data')
+LOGS_PATH = observatory_home('logs')
+POSTGRES_PATH = observatory_home('postgres')
+BUILD_PATH = observatory_home('build')
+HOST_UID = os.getuid()
+HOST_GID = os.getgid()
+REDIS_PORT = 6379
+FLOWER_UI_PORT = 5555
+AIRFLOW_UI_PORT = 8080
+ELASTIC_PORT = 9200
+KIBANA_PORT = 5601
+DOCKER_NETWORK_NAME = None
+DEBUG = False
 
 
 class PlatformBuilder:
@@ -36,10 +51,13 @@ class PlatformBuilder:
     COMPOSE_START_ARGS = ['up', '-d']
     COMPOSE_STOP_ARGS = ['down']
 
-    def __init__(self, config_path: str, dags_path: str, data_path: str, logs_path: str, postgres_path: str,
-                 host_uid: int, host_gid: int, redis_port: int, flower_ui_port: int, airflow_ui_port: int,
-                 elastic_port: int, kibana_port: int, docker_network_name: Union[None, str], debug: bool,
-                 is_env_local: bool):
+    def __init__(self, config_path: str, build_path: str = BUILD_PATH, dags_path: str = DAGS_MODULE,
+                 data_path: str = DATA_PATH, logs_path: str = LOGS_PATH, postgres_path: str = POSTGRES_PATH,
+                 host_uid: int = HOST_UID, host_gid: int = HOST_GID, redis_port: int = REDIS_PORT,
+                 flower_ui_port: int = FLOWER_UI_PORT, airflow_ui_port: int = AIRFLOW_UI_PORT,
+                 elastic_port: int = ELASTIC_PORT, kibana_port: int = KIBANA_PORT,
+                 docker_network_name: Union[None, int] = DOCKER_NETWORK_NAME, debug: bool = DEBUG,
+                 is_env_local: bool = True):
         """
 
         :param config_path:
@@ -68,7 +86,7 @@ class PlatformBuilder:
         self.host_gid = host_gid
         self.debug = debug
         self.package_path = module_file_path('observatory.platform', nav_back_steps=-3)
-        self.working_dir = observatory_home('build')
+        self.build_path = build_path
         self.redis_port = redis_port
         self.flower_ui_port = flower_ui_port
         self.airflow_ui_port = airflow_ui_port
@@ -142,15 +160,15 @@ class PlatformBuilder:
 
     def make_observatory_files(self):
         # Build Docker files
-        self.__make_file('Dockerfile.observatory.jinja2', 'Dockerfile.observatory', self.working_dir,
+        self.__make_file('Dockerfile.observatory.jinja2', 'Dockerfile.observatory', self.build_path,
                          config=self.config,
                          is_env_local=self.is_env_local)
-        self.__make_file('docker-compose.observatory.yml.jinja2', 'docker-compose.observatory.yml', self.working_dir,
+        self.__make_file('docker-compose.observatory.yml.jinja2', 'docker-compose.observatory.yml', self.build_path,
                          config=self.config,
                          docker_network_is_external=self.docker_network_is_external,
                          docker_network_name=self.docker_network_name,
                          is_env_local=self.is_env_local)
-        self.__make_file('entrypoint-airflow.sh.jinja2', 'entrypoint-airflow.sh', self.working_dir,
+        self.__make_file('entrypoint-airflow.sh.jinja2', 'entrypoint-airflow.sh', self.build_path,
                          config=self.config,
                          is_env_local=self.is_env_local)
 
@@ -161,7 +179,7 @@ class PlatformBuilder:
         file_names = ['entrypoint-root.sh', 'elasticsearch.yml']
         for file_name in file_names:
             input_file = os.path.join(self.docker_module_path, file_name)
-            output_file = os.path.join(self.working_dir, file_name)
+            output_file = os.path.join(self.build_path, file_name)
             shutil.copy(input_file, output_file)
 
     def __make_file(self, template_file_name: str, output_file_name: str, working_dir: str, **kwargs):
@@ -175,14 +193,14 @@ class PlatformBuilder:
     def __make_requirements_files(self):
         # Copy observatory requirements.txt
         input_file = os.path.join(self.package_path, 'requirements.txt')
-        output_file = os.path.join(self.working_dir, 'requirements.txt')
+        output_file = os.path.join(self.build_path, 'requirements.txt')
         shutil.copy(input_file, output_file)
 
         # Copy all project requirements files for local projects
         for project in self.config.dags_projects:
             if project.type == 'local':
                 input_file = os.path.join(project.path, 'requirements.txt')
-                output_file = os.path.join(self.working_dir, f'requirements.{project.package_name}.txt')
+                output_file = os.path.join(self.build_path, f'requirements.{project.package_name}.txt')
                 shutil.copy(input_file, output_file)
 
     def make_environment(self):
@@ -265,7 +283,7 @@ class PlatformBuilder:
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE,
                                        env=env,
-                                       cwd=self.working_dir)
+                                       cwd=self.build_path)
 
         # Wait for results
         output, error = stream_process(proc, self.debug)

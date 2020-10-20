@@ -14,18 +14,13 @@
 
 # Author: James Diprose, Aniek Roelofs
 
-import os
-
 import click
 from airflow.configuration import generate_fernet_key
 
-from observatory.platform.observatory_config import BackendType, ObservatoryConfig, TerraformConfig
-from observatory.platform.utils.config_utils import observatory_home
+from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig
 
 
 class GenerateCommand:
-    LOCAL_CONFIG_PATH = os.path.join(observatory_home(), 'config.yaml')
-    TERRAFORM_CONFIG_PATH = os.path.join(observatory_home(), 'config-terraform.yaml')
 
     def generate_fernet_key(self) -> str:
         """ Generate a Fernet key.
@@ -35,29 +30,30 @@ class GenerateCommand:
 
         return generate_fernet_key()
 
-    def generate_config_file(self, backend_type: BackendType):
-        """ Command line user interface for generating config.yaml or config-terraform.yaml.
+    def generate_local_config(self, config_path: str):
+        """ Command line user interface for generating an Observatory Config config.yaml.
 
-        :param backend_type: Which type of config file, either BackendType.local or BackendType.terraform.
+        :param config_path: the path where the config file should be saved.
         :return: None
         """
 
-        print("Generating config.yaml...")
+        file_type = 'Observatory Config'
+        click.echo(f"Generating {file_type}...")
+        ObservatoryConfig.save_default(config_path)
+        click.echo(f'{file_type} saved to: "{config_path}"')
+        click.echo("Please customise the parameters with '<--' in the config file. "
+                   "Parameters commented out with '#' are optional.")
 
-        if backend_type == BackendType.local:
-            config_path = GenerateCommand.LOCAL_CONFIG_PATH
-            backend_cls = ObservatoryConfig
-        elif backend_type == BackendType.terraform:
-            config_path = GenerateCommand.TERRAFORM_CONFIG_PATH
-            backend_cls = TerraformConfig
-        else:
-            raise ValueError(f'generate_config_file: backend type not known: {backend_type}')
+    def generate_terraform_config(self, config_path: str):
+        """ Command line user interface for generating a Terraform Config config-terraform.yaml.
 
-        if not os.path.exists(config_path) or \
-                click.confirm(f'The file "{config_path}" exists, do you want to overwrite it?'):
-            backend_cls.save_default(config_path)
-            print(f'config.yaml saved to: "{config_path}"')
-            print(f"Please customise the parameters with '<--' in the config file. "
-                  f"Parameters commented out with '#' are optional.")
-        else:
-            print("Not generating config.yaml")
+        :param config_path: the path where the config file should be saved.
+        :return: None
+        """
+
+        file_type = 'Observatory Config'
+        click.echo(f"Generating {file_type}...")
+        TerraformConfig.save_default(config_path)
+        click.echo(f'{file_type} saved to: "{config_path}"')
+        click.echo("Please customise the parameters with '<--' in the config file. "
+                   "Parameters commented out with '#' are optional.")

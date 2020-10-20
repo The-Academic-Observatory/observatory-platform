@@ -20,14 +20,20 @@ import urllib.parse
 import urllib.request
 from typing import Union
 
-from observatory.platform.platform_builder import PlatformBuilder
+from observatory.platform.platform_builder import (PlatformBuilder, BUILD_PATH, DAGS_MODULE, DATA_PATH, LOGS_PATH,
+                                                   POSTGRES_PATH, HOST_UID, HOST_GID, REDIS_PORT, FLOWER_UI_PORT,
+                                                   AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
+                                                   DOCKER_NETWORK_NAME, DEBUG)
 
 
 class PlatformCommand(PlatformBuilder):
 
-    def __init__(self, config_path: str, dags_path: str, data_path: str, logs_path: str, postgres_path: str,
-                 host_uid: int, host_gid: int, redis_port: int, flower_ui_port: int, airflow_ui_port: int,
-                 elastic_port: int, kibana_port: int, docker_network_name: Union[None, int], debug: bool):
+    def __init__(self, config_path: str, build_path: str = BUILD_PATH, dags_path: str = DAGS_MODULE,
+                 data_path: str = DATA_PATH, logs_path: str = LOGS_PATH, postgres_path: str = POSTGRES_PATH,
+                 host_uid: int = HOST_UID, host_gid: int = HOST_GID, redis_port: int = REDIS_PORT,
+                 flower_ui_port: int = FLOWER_UI_PORT, airflow_ui_port: int = AIRFLOW_UI_PORT,
+                 elastic_port: int = ELASTIC_PORT, kibana_port: int = KIBANA_PORT,
+                 docker_network_name: Union[None, int] = DOCKER_NETWORK_NAME, debug: bool = DEBUG):
         """ Create a PlatformCommand, which is able to start and stop Observatory Platform instances.
 
         :param config_path: the path to the configuration file.
@@ -46,10 +52,13 @@ class PlatformCommand(PlatformBuilder):
         :param debug: whether to run the Observatory in debug mode or not; in which case it prints extra information.
         """
 
-        is_local_env = True
-        super().__init__(config_path, dags_path, data_path, logs_path, postgres_path, host_uid, host_gid,
-                         redis_port, flower_ui_port, airflow_ui_port, elastic_port, kibana_port, docker_network_name,
-                         debug, is_local_env)
+        is_env_local = True
+        super().__init__(config_path, build_path=build_path, dags_path=dags_path,
+                         data_path=data_path, logs_path=logs_path, postgres_path=postgres_path,
+                         host_uid=host_uid, host_gid=host_gid, redis_port=redis_port,
+                         flower_ui_port=flower_ui_port, airflow_ui_port=airflow_ui_port,
+                         elastic_port=elastic_port, kibana_port=kibana_port,
+                         docker_network_name=docker_network_name, debug=debug, is_env_local=is_env_local)
 
     @property
     def ui_url(self) -> str:

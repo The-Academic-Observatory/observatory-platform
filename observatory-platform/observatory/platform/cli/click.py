@@ -21,4 +21,5 @@ INDENT4 = 5
 
 
 def indent(string: str, num_spaces: int) -> str:
+    assert num_spaces > 0, "indent: num_spaces must be > 0"
     return string.rjust(len(string) + num_spaces)

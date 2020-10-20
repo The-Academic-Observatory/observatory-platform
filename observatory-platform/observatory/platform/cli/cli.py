@@ -24,24 +24,18 @@ from observatory.platform.cli.click import indent
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
-from observatory.platform.observatory_config import BackendType
-from observatory.platform.utils.config_utils import observatory_home, module_file_path, \
+from observatory.platform.platform_builder import (BUILD_PATH, DAGS_MODULE, DATA_PATH, LOGS_PATH,
+                                                   POSTGRES_PATH, HOST_UID, HOST_GID, REDIS_PORT, FLOWER_UI_PORT,
+                                                   AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
+                                                   DOCKER_NETWORK_NAME, DEBUG)
+from observatory.platform.utils.config_utils import observatory_home, \
     terraform_credentials_path as default_terraform_credentials_path
 
 PLATFORM_NAME = 'Observatory Platform'
 TERRAFORM_NAME = 'Observatory Terraform'
-CONFIG_PATH = os.path.join(observatory_home(), 'config.yaml')
-DAGS_MODULE = module_file_path('observatory.platform.dags')
-DATA_PATH = observatory_home('data')
-LOGS_PATH = observatory_home('logs')
-POSTGRES_PATH = observatory_home('postgres')
-REDIS_PORT = 6379
-FLOWER_UI_PORT = 5555
-AIRFLOW_UI_PORT = 8080
-ELASTIC_PORT = 9200
-KIBANA_PORT = 5601
-DOCKER_NETWORK_NAME = None
-DEBUG = False
+
+LOCAL_CONFIG_PATH = os.path.join(observatory_home(), 'config.yaml')
+TERRAFORM_CONFIG_PATH = os.path.join(observatory_home(), 'config-terraform.yaml')
 
 
 @click.group()
@@ -61,8 +55,13 @@ def cli():
                 type=click.Choice(['start', 'stop']))
 @click.option('--config-path',
               type=click.Path(exists=False, file_okay=True, dir_okay=False),
-              default=CONFIG_PATH,
+              default=LOCAL_CONFIG_PATH,
               help='The path to the config.yaml configuration file.',
+              show_default=True)
+@click.option('--build-path',
+              type=click.Path(exists=True, file_okay=False, dir_okay=True),
+              default=BUILD_PATH,
+              help='The path on the host machine to use for building the Observatory Platform.',
               show_default=True)
 @click.option('--dags-path',
               type=click.Path(exists=True, file_okay=False, dir_okay=True),
@@ -86,12 +85,12 @@ def cli():
               show_default=True)
 @click.option('--host-uid',
               type=click.INT,
-              default=os.getuid(),
+              default=HOST_UID,
               help='The user id of the host system. Used to set the user id in the Docker containers.',
               show_default=True)
 @click.option('--host-gid',
               type=click.INT,
-              default=os.getgid(),
+              default=HOST_GID,
               help='The group id of the host system. Used to set the group id in the Docker containers.',
               show_default=True)
 @click.option('--redis-port',
@@ -128,9 +127,9 @@ def cli():
               is_flag=True,
               default=DEBUG,
               help='Print debugging information.')
-def platform(command: str, config_path: str, dags_path: str, data_path: str, logs_path: str, postgres_path: str,
-             host_uid: int, host_gid: int, redis_port: int, flower_ui_port: int, airflow_ui_port: int,
-             elastic_port: int, kibana_port: int, docker_network_name: Union[None, str], debug):
+def platform(command: str, config_path: str, build_path: str, dags_path: str, data_path: str, logs_path: str,
+             postgres_path: str, host_uid: int, host_gid: int, redis_port: int, flower_ui_port: int,
+             airflow_ui_port: int, elastic_port: int, kibana_port: int, docker_network_name: Union[None, str], debug):
     """ Run the local Observatory Platform platform.\n
 
     COMMAND: the command to give the platform:\n
@@ -139,9 +138,12 @@ def platform(command: str, config_path: str, dags_path: str, data_path: str, log
     """
 
     # Make the platform command, which encapsulates functionality for running the observatory
-    cmd = PlatformCommand(config_path, dags_path, data_path, logs_path, postgres_path, host_uid, host_gid,
-                          redis_port, flower_ui_port, airflow_ui_port, elastic_port, kibana_port, docker_network_name,
-                          debug)
+    cmd = PlatformCommand(config_path, build_path=build_path, dags_path=dags_path,
+                          data_path=data_path, logs_path=logs_path, postgres_path=postgres_path,
+                          host_uid=host_uid, host_gid=host_gid, redis_port=redis_port,
+                          flower_ui_port=flower_ui_port, airflow_ui_port=airflow_ui_port,
+                          elastic_port=elastic_port, kibana_port=kibana_port,
+                          docker_network_name=docker_network_name, debug=debug)
     generate_cmd = GenerateCommand()
 
     # The minimum number of characters per line
@@ -200,8 +202,8 @@ def platform(command: str, config_path: str, dags_path: str, data_path: str, log
                     else:
                         print(indent('- {}: {}'.format(key, *values), INDENT3))
     else:
-        print(indent("- file not found, generating a default file", INDENT2))
-        generate_cmd.generate_config_file(BackendType.local)
+        print(indent(f"- file not found, generating a default file on path: {config_path}", INDENT2))
+        generate_cmd.generate_local_config(config_path)
 
     if not cmd.is_environment_valid:
         exit(os.EX_CONFIG)
@@ -254,10 +256,9 @@ def platform(command: str, config_path: str, dags_path: str, data_path: str, log
     exit(os.EX_OK)
 
 
-# increase content width for cleaner help output
+# Increase content width for cleaner help output
 @cli.command(context_settings=dict(max_content_width=120))
-@click.argument('command',
-                type=click.Choice(['fernet-key', 'config.yaml', 'config-terraform.yaml']))
+@click.argument('command', type=click.Choice(['fernet-key', 'config.yaml', 'config-terraform.yaml']))
 def generate(command):
     """ Generate information for the Observatory Platform platform.\n
 
@@ -272,10 +273,23 @@ def generate(command):
 
     if command == 'fernet-key':
         print(cmd.generate_fernet_key())
-    elif command == 'config.yaml':
-        cmd.generate_config_file(BackendType.local)
-    elif command == 'config-terraform.yaml':
-        cmd.generate_config_file(BackendType.terraform)
+    else:
+        config_path = None
+        cmd_func = None
+        if command == 'config.yaml':
+            config_path = LOCAL_CONFIG_PATH
+            cmd_func = cmd.generate_local_config
+        elif command == 'config-terraform.yaml':
+            config_path = TERRAFORM_CONFIG_PATH
+            cmd_func = cmd.generate_terraform_config
+
+        if config_path is not None \
+                and cmd_func is not None \
+                and (not os.path.exists(config_path) or
+                     click.confirm(f'The file "{config_path}" exists, do you want to overwrite it?')):
+            cmd_func(config_path)
+        else:
+            click.echo(f"Not generating {command}")
 
 
 # increase content width for cleaner help output
@@ -294,10 +308,10 @@ def generate(command):
               count=True,
               help='Set the verbosity level of terraform API (max -vv).')
 def terraform(command, config_path, terraform_credentials_path, verbose):
-    """
-    Uses file at CONFIG_PATH to create or update a workspace in Terraform Cloud.
+    """ Uses file at CONFIG_PATH to create or update a workspace in Terraform Cloud.
     A default config file can be created with `observatory generate config-terraform.yaml`
     """
+
     # The minimum number of characters per line
     min_line_chars = 80
 
@@ -326,7 +340,7 @@ def terraform(command, config_path, terraform_credentials_path, verbose):
                 print(indent(f'- {key}: {value}', INDENT3))
     else:
         print(indent("- file not found, generating a default file", INDENT2))
-        generate_cmd.generate_config_file(BackendType.terraform)
+        generate_cmd.generate_terraform_config(config_path)
 
     print(indent("Terraform credentials file:", INDENT1))
     if terraform_cmd.terraform_credentials_exists:
