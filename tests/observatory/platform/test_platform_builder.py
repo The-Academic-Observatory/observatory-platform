@@ -101,7 +101,16 @@ class TestPlatformBuilder(unittest.TestCase):
     def test_is_environment_valid(self):
         with CliRunner().isolated_filesystem():
             self.set_dirs()
+
+            # Environment should be invalid because there is no config.yaml
             cmd = self.make_platform_command()
+            self.assertFalse(cmd.is_environment_valid)
+
+            # Environment should be valid because there is a config.yaml
+            # Assumes that Docker is setup on the system where the tests are run
+            ObservatoryConfig.save_default(self.config_path)
+            cmd = self.make_platform_command()
+            self.assertTrue(cmd.is_environment_valid)
 
     def test_docker_module_path(self):
         """ Test that the path to the Docker module  is found """
@@ -322,7 +331,7 @@ class TestPlatformBuilder(unittest.TestCase):
             self.assertEqual(expected_return_code, return_code)
 
     def test_build_start_stop(self):
-        """ Test starting and stopping of the observatory platform """
+        """ Test buildng, starting and stopping of the Observatory Platform """
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem():
