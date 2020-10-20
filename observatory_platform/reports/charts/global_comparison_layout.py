@@ -66,7 +66,7 @@ class GlobalComparisonLayout(AbstractObservatoryChart):
                                       figsize=(8, 3))
         self.globalscatter.plot(ax=axes[0], xlim=(0, 100), ylim=(0, 100))
 
-        numcountries = len(self.region_data.country.unique())
+        numcountries = len(self.region_data[self.region_data.published_year==self.focus_year].country.unique())
         colorpalette = sns.color_palette(
             palette='bright', n_colors=numcountries)
         self.regionscatter.plot(ax=axes[1],

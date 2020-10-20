@@ -129,25 +129,34 @@ You should see the following output:
 ```bash
 The file "/home/user/.observatory/config.yaml" exists, do you want to overwrite it? [y/N]: y
 config.yaml saved to: "/home/user/.observatory/config.yaml"
-Please customise the following parameters in config.yaml:
-  - project_id
-  - data_location
-  - download_bucket_name
-  - transform_bucket_name
-  - google_application_credentials
+Please customise the parameters with '<--' in the config file. Parameters with '#' are optional.
 ```
 
-The following parameters in the generated config.yaml need to be customised:
-* project_id: a Google Cloud project id. See 
-[Creating and managing projects](https://cloud.google.com/resource-manager/docs/creating-managing-projects) for more 
-details.
-* data_location: the location where BigQuery data will be stored (same as the bucket location).
-* download_bucket_name: the name of the Google Cloud Storage bucket where downloaded data will be stored.
-* transform_bucket_name: the name of the Google Cloud Storage bucket where transformed data will be stored.
-* google_application_credentials: the path to the JSON key for a Google Cloud service account that has permissions
-to access the two buckets and the roles `roles/bigquery.admin` and `roles/storagetransfer.admin`.
-See [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for 
+See [Creating and managing projects](https://cloud.google.com/resource-manager/docs/creating-managing-projects) for more 
+details on creating a project and [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for 
 instructions on how to create a service account key.
+
+Parameters explained: 
+```yaml
+backend: The backend of the config file, either 'local' or 'terraform'.
+fernet_key: The fernet key which is used to encrypt the secrets in the airflow database 
+google_application_credentials: The path to the JSON key for a Google Cloud service account that has permissions
+airflow_connections:
+  crossref: Stores the token for the crossref API as a password
+  mag_releases_table: Stores the azure-storage-account-name as a login and url-encoded-sas-token as password
+  mag_snapshots_container: Stores the azure-storage-account-name as a login and url-encoded-sas-token as password
+  terraform: Stores the terraform user token as a password (used to create/destroy VMs)
+  slack: Stores the URL for the Slack webhook as a host and the token as a password
+airflow_variables:
+  environment: The environment type, has to either be 'dev', 'test' or 'prod'
+  project_id: The Google Cloud project project identifier
+  data_location: The location where BigQuery data will be stored (same as the bucket location)
+  download_bucket_name: The name of the Google Cloud Storage bucket where downloaded data will be stored
+To access the two buckets add the roles `roles/bigquery.admin` and `roles/storagetransfer.admin` to the service account connected to google_application_credentials above.
+  transform_bucket_name: The name of the Google Cloud Storage bucket where transformed data will be stored
+  terraform_organization: The name of the Terraform Cloud organization (used to create/destroy VMs)
+  terraform_prefix: The name of the Terraform Cloud workspace prefix (used to create/destroy VMs)
+```
 
 ### Start the Observatory Platform
 To start the local Observatory Platform development environment:

@@ -44,7 +44,7 @@ class OutputTypesPieChart(AbstractObservatoryChart):
         figdata = self.df[(self.df.id == self.identifier) &
                           (self.df.published_year == self.focus_year) &
                           (self.df.type.isin(type_categories))
-                          ][['type', 'total']]
+                          ][['type', 'count']]
         figdata['type_category'] = pd.Categorical(
             figdata.type,
             categories=defaults.output_types,
@@ -62,7 +62,7 @@ class OutputTypesPieChart(AbstractObservatoryChart):
         else:
             self.fig = ax.get_figure()
         palette = [defaults.outputs_palette[k] for k in defaults.output_types]
-        outputs_pie = self.figdata.plot.pie(y='total',
+        outputs_pie = self.figdata.plot.pie(y='count',
                                             startangle=90,
                                             labels=None,
                                             legend=True,

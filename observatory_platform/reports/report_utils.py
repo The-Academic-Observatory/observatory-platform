@@ -18,17 +18,17 @@ import numpy as np
 import pandas as pd
 import pydata_google_auth
 from num2words import num2words
+from typing import Union
 
 from observatory_platform.reports.charts.oapc_time_chart import *
 
 
-def generate_table_data(batch,
-                        title,
+def generate_table_data(title: str,
                         df: pd.DataFrame,
-                        identifier: str,
+                        identifier: Union[str, None],
                         columns: list,
                         identifier_column: str = 'id',
-                        sort_column: str = 'Year of Publication',
+                        sort_column: Union[str, None] = 'Year of Publication',
                         sort_ascending: bool = True,
                         decimals: int = 0,
                         short_column_names: list = None,
@@ -37,16 +37,22 @@ def generate_table_data(batch,
     """
 
     table_data = pd.DataFrame()
-    df = df[df[identifier_column] == identifier]
-    df.sort_values('Year of Publication', inplace=True)
+    if identifier is not None:
+        filtered = df[df[identifier_column] == identifier]
+    else:
+        filtered = df
     for i, column in enumerate(columns):
-        col_data = df[column]
+        col_data = filtered[column]
         if short_column_names:
             column = short_column_names[i]
         if col_data.dtype == 'float64':
-            col_data = np.int_(col_data.round(decimals=decimals))
+            if decimals == 0:
+                col_data = (col_data.round(decimals=decimals)).astype(int, errors='ignore')
+            else:
+                col_data = (col_data.round(decimals=decimals)).astype(float, errors='ignore')
         table_data[column] = col_data
-    table_data.sort_values(sort_column, ascending=sort_ascending, inplace=True)
+    if sort_column:
+        table_data.sort_values(sort_column, ascending=sort_ascending, inplace=True)
     table_data_list = table_data.to_dict(orient='records')
 
     if short_column_names:

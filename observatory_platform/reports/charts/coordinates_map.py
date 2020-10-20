@@ -63,8 +63,14 @@ class CoordinatesMap(AbstractObservatoryChart):
         else:
             self.fig = ax.get_figure()
         self.world.plot(ax=ax, zorder=1)
-        self.collab_gdf.plot(ax=ax, markersize='count',
-                             zorder=2, color='black', alpha=0.4)
+
+        if 'marker_scale' in kwargs:
+            scale = kwargs.pop('marker_scale')
+            markersize = self.collab_gdf['count'] / scale
+        else:
+            markersize = self.collab_gdf.count
+        self.collab_gdf.plot(ax=ax, markersize=markersize,
+                             zorder=2, color='black', alpha=0.4, **kwargs)
         ax.set_axis_off()
         if self.xlim:
             ax.set(xlim=self.xlim)

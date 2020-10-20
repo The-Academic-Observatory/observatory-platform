@@ -49,6 +49,8 @@ class ScatterPlot(AbstractObservatoryChart):
                  hue_column: str = 'region',
                  size_column: str = 'total',
                  focus_id: str = None,
+                 focus_marker: str='x',
+                 focus_marker_color: str='black',
                  **kwargs):
         """Initialisation Method
 
@@ -93,6 +95,8 @@ class ScatterPlot(AbstractObservatoryChart):
         self.hue_column = hue_column
         self.size_column = size_column
         self.focus_id = focus_id
+        self.focus_marker = focus_marker
+        self.focus_marker_color = focus_marker_color
         self.kwargs = kwargs
 
     def process_data(self) -> pd.DataFrame:
@@ -163,7 +167,7 @@ class ScatterPlot(AbstractObservatoryChart):
         if self.focus_id:
             sns.scatterplot(x=self.x, y=self.y,
                             data=figdata[figdata.id == self.focus_id],
-                            color="black", s=500, marker='X', legend=False,
+                            color=self.focus_marker_color, s=200, marker=self.focus_marker, legend=False,
                             ax=self.ax)
         self.ax.spines['top'].set_visible(False)
         self.ax.spines['right'].set_visible(False)
