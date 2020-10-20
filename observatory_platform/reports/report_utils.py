@@ -19,13 +19,11 @@ import pandas as pd
 import pydata_google_auth
 from num2words import num2words
 from typing import Union
-from precipy.analytics_function import AnalyticsFunction
 
 from observatory_platform.reports.charts.oapc_time_chart import *
 
 
-def generate_table_data(af: AnalyticsFunction,
-                        title,
+def generate_table_data(title: str,
                         df: pd.DataFrame,
                         identifier: Union[str, None],
                         columns: list,
