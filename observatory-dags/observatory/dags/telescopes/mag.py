@@ -38,14 +38,15 @@ from natsort import natsorted
 from pendulum import Pendulum
 
 from observatory.dags.config import schema_path
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.config_utils import (AirflowConns,
                                                      AirflowVars,
                                                      SubFolder,
                                                      check_connections,
                                                      check_variables,
-                                                     telescope_path)
+                                                     telescope_path,
+                                                     test_data_path)
 from observatory.platform.utils.config_utils import find_schema
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
                                                  bigquery_partitioned_table_id,
                                                  create_bigquery_dataset,
@@ -273,7 +274,7 @@ class MagTelescope:
         if environment == 'develop':
             # TODO: this is a bit messy. In the future, for the test environment we should just have smaller files at
             # the MAG endpoint so that the transferring can be tested too
-            mag_zip = os.path.join(test_fixtures_path(), 'telescopes', 'mag-2020-05-21.zip')
+            mag_zip = os.path.join(test_data_path(), 'telescopes', 'mag-2020-05-21.zip')
 
             for release in releases:
                 extracted_path = os.path.join('/tmp', release.source_container)
