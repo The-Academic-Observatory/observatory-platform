@@ -744,20 +744,21 @@ def make_schema(backend_type: BackendType) -> Dict:
                 'required': is_backend_terraform,
                 'type': 'string',
                 'check_with': customise_pointer
-            },
-            'buckets': {
-                'required': False,
-                'type': 'dict',
-                'keysrules': {
-                    'type': 'string'
-                },
-                'valuesrules': {
-                    'type': 'string',
-                    'check_with': customise_pointer
-                }
             }
         }
     }
+
+    if not is_backend_terraform:
+        schema['google_cloud']['schema']['buckets'] = {
+            'required': False,
+            'type': 'dict',
+            'keysrules': {
+                'type': 'string'
+            },
+            'valuesrules': {
+                'type': 'string'
+            }
+        }
 
     # Airflow settings
     schema['airflow'] = {

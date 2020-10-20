@@ -187,11 +187,7 @@ class TestTerraformConfig(unittest.TestCase):
                 'credentials': '/path/to/creds.json',
                 'region': 'us-west1',
                 'zone': 'us-west1-c',
-                'data_location': 'us',
-                'buckets': {
-                    'download_bucket': 'my-download-bucket-1234',
-                    'transform_bucket': 'my-transform-bucket-1234'
-                }
+                'data_location': 'us'
             },
             'cloud_sql_database': {
                 'tier': 'db-custom-2-7680',
@@ -240,11 +236,7 @@ class TestTerraformConfig(unittest.TestCase):
                 'credentials': '/path/to/creds.json',
                 'region': 'us-west1',
                 'zone': 'us-west1-c',
-                'data_location': 'us',
-                'buckets': {
-                    'download_bucket': 'my-download-bucket-1234',
-                    'transform_bucket': 'my-transform-bucket-1234'
-                }
+                'data_location': 'us'
             },
             'cloud_sql_database': {
                 'tier': 'db-custom-2-7680',
@@ -468,7 +460,7 @@ class TestSchema(unittest.TestCase):
             {
                 'backend': {
                     'type': 'local',
-                    'environment': 'stag'
+                    'environment': 'staging'
                 }
             },
             {
@@ -752,11 +744,7 @@ class TestSchema(unittest.TestCase):
                     'credentials': '/path/to/creds.json',
                     'region': 'us-west1',
                     'zone': 'us-west1-c',
-                    'data_location': 'us',
-                    'buckets': {
-                        'download_bucket': 'my-download-bucket-1234',
-                        'transform_bucket': 'my-transform-bucket-1234'
-                    }
+                    'data_location': 'us'
                 }
             }
         ]
@@ -768,7 +756,7 @@ class TestSchema(unittest.TestCase):
         ]
 
         expected_errors = [{'google_cloud': ['required field']},
-                           {'google_cloud': [{'buckets': ['required field'], 'credentials': ['required field'],
+                           {'google_cloud': [{'credentials': ['required field'],
                                               'data_location': ['required field'], 'project_id': ['required field'],
                                               'region': ['required field'], 'zone': ['required field']}]}]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
