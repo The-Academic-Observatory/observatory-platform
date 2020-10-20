@@ -30,7 +30,7 @@ def generate_table_data(af: AnalyticsFunction,
                         identifier: Union[str, None],
                         columns: list,
                         identifier_column: str = 'id',
-                        sort_column: str = 'Year of Publication',
+                        sort_column: Union[str, None] = 'Year of Publication',
                         sort_ascending: bool = True,
                         decimals: int = 0,
                         short_column_names: list = None,
@@ -48,9 +48,13 @@ def generate_table_data(af: AnalyticsFunction,
         if short_column_names:
             column = short_column_names[i]
         if col_data.dtype == 'float64':
-            col_data = np.int_(col_data.round(decimals=decimals))
+            if decimals == 0:
+                col_data = (col_data.round(decimals=decimals)).astype(int, errors='ignore')
+            else:
+                col_data = (col_data.round(decimals=decimals)).astype(float, errors='ignore')
         table_data[column] = col_data
-    table_data.sort_values(sort_column, ascending=sort_ascending, inplace=True)
+    if sort_column:
+        table_data.sort_values(sort_column, ascending=sort_ascending, inplace=True)
     table_data_list = table_data.to_dict(orient='records')
 
     if short_column_names:
