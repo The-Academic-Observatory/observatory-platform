@@ -15,22 +15,38 @@
 # Author: James Diprose, Aniek Roelofs
 
 import os
+import pathlib
 import unittest
 from unittest.mock import patch
 
 import pendulum
 from click.testing import CliRunner
 
+import tests.observatory.platform.utils as platform_utils_tests
 from observatory.platform.utils.config_utils import (
     SubFolder,
     find_schema,
     observatory_home,
     telescope_path,
+    module_file_path,
+    terraform_credentials_path,
+    test_data_path
 )
 from tests.observatory.config import test_fixtures_path
 
 
 class TestConfigUtils(unittest.TestCase):
+
+    def test_module_file_path(self):
+        # Go back one step (the default)
+        expected_path = str(pathlib.Path(*pathlib.Path(platform_utils_tests.__file__).resolve().parts[:-1]).resolve())
+        actual_path = module_file_path('tests.observatory.platform.utils', nav_back_steps=-1)
+        self.assertEqual(expected_path, actual_path)
+
+        # Go back two steps
+        expected_path = str(pathlib.Path(*pathlib.Path(platform_utils_tests.__file__).resolve().parts[:-2]).resolve())
+        actual_path = module_file_path('tests.observatory.platform.utils', nav_back_steps=-2)
+        self.assertEqual(expected_path, actual_path)
 
     @patch('observatory.platform.utils.config_utils.pathlib.Path.home')
     def test_observatory_home(self, home_mock):
@@ -51,6 +67,11 @@ class TestConfigUtils(unittest.TestCase):
                 path = observatory_home('subfolder')
                 self.assertTrue(os.path.exists(path))
                 self.assertEqual(f'{home_path}/.observatory/subfolder', path)
+
+    def test_terraform_credentials_path(self):
+        expected_path = os.path.expanduser('~/.terraform.d/credentials.tfrc.json')
+        actual_path = terraform_credentials_path()
+        self.assertEqual(expected_path, actual_path)
 
     def test_find_schema(self):
         schemas_path = os.path.join(test_fixtures_path(), 'telescopes')
@@ -153,3 +174,12 @@ class TestConfigUtils(unittest.TestCase):
             expected = os.path.join(root_path, SubFolder.transformed.value, telescope_name)
             self.assertEqual(expected, path_transformed)
             self.assertTrue(os.path.exists(path_transformed))
+
+    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    def test_test_data_path(self, mock_variable_get):
+        # Mock test data path variable
+        expected_path = '/tmp/test_data'
+        mock_variable_get.return_value = expected_path
+
+        actual_path = test_data_path()
+        self.assertEqual(expected_path, actual_path)
