@@ -70,6 +70,6 @@ class CollaborationsLayout(AbstractObservatoryChart):
                            wspace=0.3)
         axes = [self.fig.add_subplot(grid[:, :-1]), self.fig.add_subplot(grid[1:2, 1])]
 
-        self.map.plot(ax=axes[0])
+        self.map.plot(ax=axes[0], **kwargs)
         self.bar.plot(ax=axes[1])
         return self.fig

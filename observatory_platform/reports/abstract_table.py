@@ -15,6 +15,7 @@
 # Author: Cameron Neylon & Richard Hosking
 
 import pandas as pd
+from typing import Optional
 
 from observatory_platform.reports import chart_utils, report_utils
 from observatory_platform.reports import defaults
@@ -33,6 +34,7 @@ class AbstractObservatoryTable:
                  scope: str = defaults.scope,
                  focus_year: int = None,
                  year_range: tuple = None,
+                 bq_table: Optional[str] = None,
                  collect_and_run: bool = True,
                  **kwargs):
         """Initialisation function
@@ -45,6 +47,8 @@ class AbstractObservatoryTable:
         self.scope = scope
         self.focus_year = focus_year
         self.year_range = year_range
+        if bq_table:
+            self.bq_table = bq_table
 
         if collect_and_run:
             self.collect_data()
