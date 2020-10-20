@@ -30,12 +30,16 @@ class OutputTypesTimeChart(GenericTimeChart):
     def __init__(self,
                  df: pd.DataFrame,
                  identifier: str,
-                 year_range: tuple = (2000, 2020)
+                 year_range: tuple = (2000, 2020),
+                 typecolumn: str = 'type',
+                 countcolumn: str = 'count'
                  ):
         """Initialisation function
         """
 
         columns = ['Output Types', 'value']
+        self.typecolumn = typecolumn
+        self.countcolumn = countcolumn
         super().__init__(df, columns, identifier, year_range)
         self.melt_var_name = 'Output Types'
 
@@ -43,8 +47,8 @@ class OutputTypesTimeChart(GenericTimeChart):
         """Data selection and processing function
         """
 
-        self.df['Output Types'] = self.df.type
-        self.df['value'] = self.df.total
+        self.df['Output Types'] = self.df[self.typecolumn]
+        self.df['value'] = self.df[self.countcolumn]
         columns = ['id', 'Year of Publication'] + self.columns
         self.columns = defaults.output_types
         figdata = self.df[self.df.id == self.identifier][columns]
@@ -53,13 +57,15 @@ class OutputTypesTimeChart(GenericTimeChart):
         return self.figdata
 
     def plot(self,
-             palette=defaults.outputs_palette,
+             palette=None,
              ax=None,
              **kwargs):
         """Plotting function
         """
 
-        super().plot(palette=defaults.outputs_palette,
+        if not palette:
+            palette = defaults.outputs_palette
+        super().plot(palette=palette,
                      ax=ax, **kwargs)
         plt.ylabel('Number of Outputs')
         return self.fig

@@ -48,6 +48,7 @@ class TestAbstractChart(unittest.TestCase):
         test_data_file = os.path.join(fixtures_data_dir(__file__),
                                       'reports', self.test_data)
         self.df = pd.read_csv(test_data_file)
+        self.available_ids = list(self.df.id.unique())
 
     def test_init(self):
         if self.test_class:
@@ -78,6 +79,7 @@ class TestAbstractChartWithAnimation(TestAbstractChart):
 class TestScatterPlot(TestAbstractChartWithAnimation):
 
     def setUp(self):
+        super().setUp()
         self.test_class = ScatterPlot
         self.init_args = {
             'x': 'percent_green',
@@ -86,69 +88,54 @@ class TestScatterPlot(TestAbstractChartWithAnimation):
             'filter_value': 2017
         }
         self.plot_args = {}
-        super().setUp()
 
 
 class TestTimePlot(TestAbstractChart):
 
     def setUp(self):
+        super().setUp()
         self.test_class = TimePlot
         self.init_args = {
-            'year_range': (2010, 2018),
-            'unis': ['grid.1032.0',
-                     'grid.20861.3d',
-                     'grid.4991.5',
-                     'grid.6571.5'],
-            'plot_column': 'percent_total_oa'
+            'year_range': (2016, 2020),
+            'unis': self.available_ids[0:4],
+            'plot_column': 'percent_oa'
         }
         self.plot_args = {}
-        super().setUp()
 
 
 class TestTimePlotLayout(TestAbstractChart):
 
     def setUp(self):
+        super().setUp()
         self.test_class = TimePlotLayout
         self.init_args = {
             'plots': [
-                {'year_range': (2010, 2018),
-                 'unis': ['grid.1032.0',
-                          'grid.20861.3d',
-                          'grid.4991.5',
-                          'grid.6571.5'],
-                 'y_column': 'percent_total_oa'},
-                {'year_range': (2010, 2018),
-                 'unis': ['grid.1032.0',
-                          'grid.20861.3d',
-                          'grid.6571.5'],
+                {'year_range': (2016, 2020),
+                 'unis': self.available_ids[0:4],
+                 'y_column': 'percent_oa'},
+                {'year_range': (2016, 2020),
+                 'unis': self.available_ids[0:3],
                  'y_column': 'percent_gold'},
-                {'year_range': (2010, 2018),
-                 'unis': ['grid.1032.0',
-                          'grid.20861.3d',
-                          'grid.4991.5',
-                          'grid.6571.5'],
+                {'year_range': (2016, 2020),
+                 'unis': self.available_ids[0:4],
                  'y_column': 'percent_green'}
             ]
         }
         self.plot_args = {}
-        super().setUp()
 
 
 class TestTimePath(TestAbstractChartWithAnimation):
 
     def setUp(self):
+        super().setUp()
         self.test_class = TimePath
         self.init_args = {
-            'year_range': (2010, 2018),
-            'unis': ['grid.1032.0',
-                     'grid.20861.3d',
-                     'grid.4991.5',
-                     'grid.6571.5'],
+            'year_range': (2016, 2020),
+            'unis': self.available_ids[0:4],
             'x': 'percent_gold',
             'y': 'percent_green'
         }
         self.plot_args = {}
-        super().setUp()
 
 
 class TestLayout(TestAbstractChart):
@@ -157,6 +144,7 @@ class TestLayout(TestAbstractChart):
 
 class TestRankChart(TestAbstractChart):
     def setUp(self):
+        super().setUp()
         self.test_class = RankChart
         self.init_args = {
             'rankcol': 'percent_gold',
@@ -164,136 +152,136 @@ class TestRankChart(TestAbstractChart):
             'filter_value': 2017
         }
         self.plot_args = {}
-        super().setUp()
 
 
 class TestConfidenceInternalRankChart(TestAbstractChart):
     def setUp(self):
+        super().setUp()
         self.test_class = ConfidenceIntervalRank
         self.init_args = {
-            'rankcol': 'percent_total_oa',
-            'errorcol': 'percent_total_oa_err',
+            'rankcol': 'percent_oa',
+            'errorcol': 'percent_oa_err',
             'filter_name': 'published_year',
             'filter_value': 2017
         }
         self.plot_args = {}
-        super().setUp()
 
 
 class TestBoxScatter(TestAbstractChart):
     def setUp(self):
+        super().setUp()
         self.test_class = BoxScatter
         self.init_args = {
             'year': 2017,
             'group_column': 'country',
-            'plot_column': 'percent_total_oa'
+            'plot_column': 'percent_oa'
         }
         self.plot_args = {}
-        super().setUp()
 
 
 class TestOutputTypesPieChart(TestAbstractChart):
     def setUp(self):
+        self.test_data = 'test_outputs_data.csv'
+        super().setUp()
         self.test_class = OutputTypesPieChart
         self.init_args = {
-            'identifier': 'grid.1032.0',
+            'identifier': self.available_ids[0],
             'focus_year': 2018
         }
-        self.test_data = 'test_outputs_data.csv'
         self.plot_args = {}
-        super().setUp()
 
 
 class TestGenericTimeChart(TestAbstractChart):
     def setUp(self):
+        super().setUp()
         self.test_class = GenericTimeChart
         self.init_args = {
-            'columns': ['percent_total_oa', 'percent_green', 'percent_gold'],
-            'identifier': 'grid.1032.0'
+            'columns': ['percent_oa', 'percent_green', 'percent_gold'],
+            'identifier': self.available_ids[0]
         }
         self.plot_args = {}
-        super().setUp()
 
 
 class TestOutputTypesTimeChart(TestAbstractChart):
     def setUp(self):
+        self.test_data = 'test_outputs_data.csv'
+        super().setUp()
         self.test_class = OutputTypesTimeChart
         self.init_args = {
-            'identifier': 'grid.1032.0'
+            'identifier': self.available_ids[0]
         }
-        self.test_data = 'test_outputs_data.csv'
         self.plot_args = {}
-        super().setUp()
 
 
 class TestOApcTimeChart(TestAbstractChart):
     def setUp(self):
+        super().setUp()
         self.test_class = OApcTimeChart
         self.init_args = {
-            'identifier': 'grid.1032.0'
+            'identifier': self.available_ids[0]
         }
         self.plot_args = {}
-        super().setUp()
+
 
 
 class TestCitationCountTimeChart(TestAbstractChart):
     def setUp(self):
+        self.test_data = 'test_citations_data.csv'
+        super().setUp()
         self.test_class = CitationCountTimeChart
         self.init_args = {
-            'identifier': 'grid.1032.0'
+            'identifier': self.available_ids[0]
         }
         self.plot_args = {}
-        super().setUp()
+
 
 
 class TestOAAdvantageBarChart(TestAbstractChart):
     def setUp(self):
+        self.test_data = 'test_citations_data.csv'
+        super().setUp()
         self.test_class = OAAdvantageBarChart
         self.init_args = {
             'focus_year': 2017,
-            'identifier': 'grid.1032.0'
+            'identifier': self.available_ids[0]
         }
         self.plot_args = {}
-        super().setUp()
 
 
 class TestBarComparisonChart(TestAbstractChart):
     def setUp(self):
+        super().setUp()
         self.test_class = BarComparisonChart
         self.init_args = {
-            'comparison': ['grid.1032.0',
-                           'grid.20861.3d',
-                           'grid.4991.5',
-                           'grid.6571.5'],
+            'comparison': self.available_ids[0:5],
             'focus_year': 2017,
         }
         self.plot_args = {}
-        super().setUp()
+
 
 
 class TestFunderGraph(TestAbstractChart):
     def setUp(self):
+        self.test_data = 'test_funding_data.csv'
+        super().setUp()
         self.test_class = FunderGraph
         self.init_args = {
             'focus_year': 2018,
-            'identifier': 'grid.1032.0'
+            'identifier': self.available_ids[0]
         }
-        self.test_data = 'test_funding_data.csv'
+
         self.plot_args = {}
-        super().setUp()
 
 
 class TestDistributionComparisonChart(TestAbstractChart):
     def setUp(self):
+        super().setUp()
         self.test_class = DistributionComparisonChart
         self.init_args = {
             'focus_year': 2018,
-            'identifier': 'grid.1032.0',
-            'plot_column': 'percent_total_oa',
-            'comparison': ['grid.1032.0',
-                           'grid.20861.3d',
-                           'grid.4991.5',
-                           'grid.6571.5']
+            'identifier': self.available_ids[0],
+            'plot_column': 'percent_oa',
+            'comparison': self.available_ids[0:4]
         }
         self.plot_args = {}
-        super().setUp()
+

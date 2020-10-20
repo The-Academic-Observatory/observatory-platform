@@ -63,10 +63,10 @@ class FunderGraph(AbstractObservatoryChart):
             data = data[data.id == self.identifier]
         data = data.sort_values('count', ascending=False)[0:self.num_funders]
 
-        data = data.melt(id_vars=['published_year', 'name'],
+        data = data.melt(id_vars=['published_year', 'funder'],
                          var_name='variables')
 
-        data.loc[:, 'name'] = data['name'].apply(
+        data.loc[:, 'funder'] = data['funder'].apply(
             lambda s: s[0:self.shorten_names])
         self.figdata = data
         return self.figdata
@@ -77,17 +77,17 @@ class FunderGraph(AbstractObservatoryChart):
 
         self.fig, axes = plt.subplots(
             nrows=1, ncols=2, sharey=True, figsize=(8, 4))
-        sns.barplot(y="name",
-                    x="value",
-                    hue="variables",
+        sns.barplot(y='funder',
+                    x='value',
+                    hue='variables',
                     data=self.figdata[self.figdata.variables.isin(['count',
                                                                    'oa'])],
                     ax=axes[0])
         axes[0].set(ylabel=None, xlabel='Number of Outputs')
         handles, labels = axes[0].get_legend_handles_labels()
         axes[0].legend(handles, ['Total', 'Open Access'])
-        sns.barplot(y="name",
-                    x="value",
+        sns.barplot(y='funder',
+                    x='value',
                     data=self.figdata[self.figdata.variables == 'percent_oa'],
                     color='blue', ax=axes[1])
         axes[1].set(ylabel=None, xlabel='% Open Access')

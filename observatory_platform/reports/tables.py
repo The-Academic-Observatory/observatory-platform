@@ -49,7 +49,8 @@ FROM `{bq_table}` as table,
     UNNEST(years) as years
 WHERE
     years.published_year > {year_range[0]} and
-    years.published_year < {year_range[1]} {scope}
+    years.published_year < {year_range[1]} 
+    {scope}
 """
 
 
@@ -79,7 +80,8 @@ FROM `{bq_table}` as table,
 WHERE
     years.published_year > {year_range[0]} and
     years.published_year < {year_range[1]} and
-    type.total > 5 {scope}
+    type.total > 3 
+    {scope}
 """
 
     def clean_data(self):
@@ -114,7 +116,8 @@ FROM `{bq_table}` as table,
 WHERE
     years.published_year > {year_range[0]} and
     years.published_year < {year_range[1]} and
-    collabs.count > 5 {scope}
+    collabs.count > 5 
+    {scope}
 """
 
 
@@ -143,7 +146,8 @@ FROM `{bq_table}` as table,
 WHERE
     years.published_year > {year_range[0]} and
     years.published_year < {year_range[1]} and
-    publishers.count > 50 {scope}
+    publishers.count > 4 
+    {scope}
 """
 
     def clean_data(self):
@@ -181,7 +185,8 @@ FROM `{bq_table}` as table,
 WHERE
     years.published_year > {year_range[0]} and
     years.published_year < {year_range[1]} and
-    journals.count > 5 {scope}
+    journals.count > 1 
+    {scope}
 """
 
     def clean_data(self):
@@ -209,6 +214,7 @@ SELECT
   years.published_year as published_year,
   years.metrics.total as total,
   funders.name as funder,
+  funders.funding_body_type as funder_type,
   funders.count as count,
   funders.oa as oa,
   funders.gold as gold,
@@ -219,7 +225,8 @@ FROM `{bq_table}` as table,
 WHERE
     years.published_year > {year_range[0]} and
     years.published_year < {year_range[1]} and
-    funders.count > 20 {scope}
+    funders.count > 2 
+    {scope}
 """
 
     def clean_data(self):
@@ -228,7 +235,8 @@ WHERE
 
         chart_utils.calculate_percentages(self.df,
                                           ['oa', 'green', 'gold'],
-                                          'count')
+                                            'count')
+        self.df['Funder Type'] = self.df.funder_type.map(chart_utils.funder_type_clean['funder_type'])
         super().clean_data()
 
 
