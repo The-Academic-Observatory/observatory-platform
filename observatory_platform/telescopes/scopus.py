@@ -995,7 +995,7 @@ class ScopusJsonParser:
         # Available in complete view
         entry['authors'] = ScopusJsonParser.get_authors(data)  # List of authors
         entry['abstract'] = get_entry_or_none(data, 'dc:description')  # Abstract
-        entry['keywords'] = get_as_list_or_none(data, 'authkeywords')  # Assuming it's a list of strings.
+        entry['keywords'] = get_as_list(data, 'authkeywords')  # Assuming it's a list of strings.
         entry['article_number'] = get_entry_or_none(data, 'article-number')  # Article number (unclear if int or str)
         entry['fund_agency_ac'] = get_entry_or_none(data, 'fund-acr')  # Funding agency acronym
         entry['fund_agency_id'] = get_entry_or_none(data, 'fund-no')  # Funding agency identification
