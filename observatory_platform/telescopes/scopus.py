@@ -49,6 +49,7 @@ from observatory_platform.utils.telescope_utils import (
     delete_msg_files,
     get_entry_or_none,
     get_as_list,
+    get_as_list_or_none,
     json_to_db,
     validate_date,
     write_to_file,
@@ -892,6 +893,9 @@ class ScopusJsonParser:
             affil['name_variant'] = get_entry_or_none(affiliation, 'name-variant')
             affiliations.append(affil)
 
+        if len(affiliations) == 0:
+            return None
+
         return affiliations
 
     @staticmethod
@@ -920,6 +924,9 @@ class ScopusJsonParser:
             ad['afid'] = get_entry_or_none(author, 'afid')
             author_list.append(ad)
 
+        if len(author_list) == 0:
+            return None
+
         return author_list
 
     @staticmethod
@@ -942,6 +949,9 @@ class ScopusJsonParser:
         else:  # Only other observed case is list
             for entry in id_data:
                 identifier.append(entry['$'])  # This is what showed up in ISBN example in list situation
+
+        if len(identifier) == 0:
+            return None
 
         return identifier
 
@@ -985,7 +995,7 @@ class ScopusJsonParser:
         # Available in complete view
         entry['authors'] = ScopusJsonParser.get_authors(data)  # List of authors
         entry['abstract'] = get_entry_or_none(data, 'dc:description')  # Abstract
-        entry['keywords'] = get_as_list(data, 'authkeywords')  # Assuming it's a list of strings.
+        entry['keywords'] = get_as_list_or_none(data, 'authkeywords')  # Assuming it's a list of strings.
         entry['article_number'] = get_entry_or_none(data, 'article-number')  # Article number (unclear if int or str)
         entry['fund_agency_ac'] = get_entry_or_none(data, 'fund-acr')  # Funding agency acronym
         entry['fund_agency_id'] = get_entry_or_none(data, 'fund-no')  # Funding agency identification
