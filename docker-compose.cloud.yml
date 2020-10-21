@@ -1,7 +1,10 @@
 version: '3.8'
 
 x-environment: &environment
-  # Airflow settings
+  # Observatory platform project dir
+  AO_HOME: "/opt/observatory/observatory-platform"
+
+# Airflow settings
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres://airflow:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
   AIRFLOW__CORE__FERNET_KEY: "${FERNET_KEY}"

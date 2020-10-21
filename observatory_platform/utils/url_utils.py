@@ -20,6 +20,7 @@ from urllib.parse import urlparse, urljoin, ParseResult
 
 import requests
 import tldextract
+import os
 from pbr.util import cfg_to_args
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -95,7 +96,15 @@ def get_ao_user_agent():
     :return: User agent string.
     """
 
+    cwd = os.getcwd()
+
+    if 'AO_HOME' in os.environ:
+        ao_home = os.environ['AO_HOME']
+        os.chdir(ao_home)
+
     pkg_info = cfg_to_args()
+    os.chdir(cwd)
+
     version = pkg_info['version']
     url = pkg_info['url']
     mailto = pkg_info['author_email']
