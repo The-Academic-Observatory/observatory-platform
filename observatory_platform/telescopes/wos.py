@@ -29,7 +29,7 @@ from google.cloud.bigquery import SourceFormat, WriteDisposition
 from math import ceil
 from ratelimit import limits, sleep_and_retry
 from suds import WebFault
-from typing import List
+from typing import List, Type
 from urllib.error import URLError
 from wos import WosClient
 
@@ -83,24 +83,26 @@ class WosUtility:
     """ Handles the interaction with Web of Science """
 
     @staticmethod
-    def build_query(wos_inst_id: List[str], period: tuple) -> OrderedDict:
+    def build_query(wos_inst_id: List[str], period: Type[pendulum.Period]) -> OrderedDict:
         """ Build a WoS API query.
 
         :param wos_inst_id: List of Institutional ID to query, e.g, "Curtin University"
         :param period: A tuple containing start and end dates.
         :return: Constructed web query.
         """
-        start_date = period[0].isoformat()
-        end_date = period[1].isoformat()
+        start_date = period.start.isoformat()
+        end_date = period.end.isoformat()
 
         organisations = str()
         n_institutes = len(wos_inst_id)
         for i, inst in enumerate(wos_inst_id):
             organisations += inst
-            if i < n_institutes - 1:
-                organisations += " OR "
+            organisations += " OR "
+
+        organisations = organisations[:-4]  # Remove last ' OR '
 
         query_str = f'OG=({organisations})'
+
         logging.info(f'Query string: {query_str}')
         query = OrderedDict([('query', query_str),
                              ('count', WosUtilConst.RESULT_LIMIT),
@@ -145,7 +147,7 @@ class WosUtility:
         return records['REC'], schema_ver
 
     @staticmethod
-    def download_wos_period(client: WosClient, conn: str, period: tuple, wos_inst_id: List[str],
+    def download_wos_period(client: WosClient, conn: str, period: pendulum.Period, wos_inst_id: List[str],
                             download_path: str) -> List[str]:
         """ Download records for a stated date range.
 
@@ -158,10 +160,10 @@ class WosUtility:
 
         timestamp = pendulum.datetime.now().isoformat()
         inst_str = conn[WosTelescope.ID_STRING_OFFSET:]
-        save_file_prefix = os.path.join(download_path, period[0].isoformat(), inst_str, timestamp)
+        save_file_prefix = os.path.join(download_path, period.start.isoformat(), inst_str, timestamp)
         query = WosUtility.build_query(wos_inst_id, period)
         result = WosUtility.make_query(client, query)
-        logging.info(f'{conn} with session id {client._SID}: retrieving period {period[0]} - {period[1]}')
+        logging.info(f'{conn} with session id {client._SID}: retrieving period {period.start} - {period.end}')
 
         counter = 0
         saved_files = list()

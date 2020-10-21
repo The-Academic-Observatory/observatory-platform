@@ -1,0 +1,214 @@
+[
+  {
+    "description": "%E4Y-%m-%d currently keyed to the DAG execution date.",
+    "mode": "NULLABLE",
+    "name": "release_date",
+    "type": "DATE"
+  },
+  {
+    "description": "Timestamp from when the query was performed",
+    "mode": "NULLABLE",
+    "name": "harvest_datetime",
+    "type": "TIMESTAMP"
+  },
+  {
+    "description": "Author keywords",
+    "mode": "REPEATED",
+    "name": "keywords",
+    "type": "STRING"
+  },
+  {
+    "description": "Abstract",
+    "mode": "NULLABLE",
+    "name": "abstract",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "description": "Affiliation ID",
+        "mode": "NULLABLE",
+        "name": "id",
+        "type": "STRING"
+      },
+      {
+        "description": "Alternate affiliation name",
+        "mode": "NULLABLE",
+        "name": "name_variant",
+        "type": "STRING"
+      },
+      {
+        "description": "Affiliation country",
+        "mode": "NULLABLE",
+        "name": "country",
+        "type": "STRING"
+      },
+      {
+        "description": "Affiliation city",
+        "mode": "NULLABLE",
+        "name": "city",
+        "type": "STRING"
+      },
+      {
+        "description": "Affiliation name",
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      }
+    ],
+    "description": "Affiliations",
+    "mode": "REPEATED",
+    "name": "affiliations",
+    "type": "RECORD"
+  },
+  {
+    "description": "Source type",
+    "mode": "NULLABLE",
+    "name": "aggregation_type",
+    "type": "STRING"
+  },
+  {
+    "description": "Source ID",
+    "mode": "NULLABLE",
+    "name": "source_id",
+    "type": "INTEGER"
+  },
+  {
+    "description": "Electronic ID",
+    "mode": "NULLABLE",
+    "name": "eid",
+    "type": "STRING"
+  },
+  {
+    "description": "Publisher item identifier",
+    "mode": "NULLABLE",
+    "name": "pii",
+    "type": "STRING"
+  },
+  {
+    "description": "MEDLINE identifier",
+    "mode": "NULLABLE",
+    "name": "pubmed_id",
+    "type": "INTEGER"
+  },
+  {
+    "description": "SCOPUS ID",
+    "mode": "NULLABLE",
+    "name": "identifier",
+    "type": "STRING"
+  },
+  {
+    "description": "International standard book number",
+    "mode": "REPEATED",
+    "name": "isbn",
+    "type": "STRING"
+  },
+  {
+    "description": "Open access flag",
+    "mode": "NULLABLE",
+    "name": "open_access_flag",
+    "type": "BOOLEAN"
+  },
+  {
+    "description": "List of authors",
+    "mode": "REPEATED",
+    "name": "authors",
+    "type": "STRING"
+  },
+  {
+    "description": "%E4Y-%m-%d Publication Date",
+    "mode": "NULLABLE",
+    "name": "cover_date",
+    "type": "DATE"
+  },
+  {
+    "description": "Open access status (appears to be 1 for yes, 0 for no)",
+    "mode": "NULLABLE",
+    "name": "open_access",
+    "type": "INTEGER"
+  },
+  {
+    "description": "Document object identifier",
+    "mode": "REPEATED",
+    "name": "doi",
+    "type": "STRING"
+  },
+  {
+    "description": "Source Title",
+    "mode": "NULLABLE",
+    "name": "publication_name",
+    "type": "STRING"
+  },
+  {
+    "description": "List of institution ids used for this query",
+    "mode": "REPEATED",
+    "name": "institution_ids",
+    "type": "INTEGER"
+  },
+  {
+    "description": "First author",
+    "mode": "NULLABLE",
+    "name": "creator",
+    "type": "STRING"
+  },
+  {
+    "description": "Article number",
+    "mode": "NULLABLE",
+    "name": "article_number",
+    "type": "STRING"
+  },
+  {
+    "description": "Article title",
+    "mode": "NULLABLE",
+    "name": "title",
+    "type": "STRING"
+  },
+  {
+    "description": "International standard serial number",
+    "mode": "REPEATED",
+    "name": "issn",
+    "type": "STRING"
+  },
+  {
+    "description": "Electronic international standard serial number",
+    "mode": "REPEATED",
+    "name": "eissn",
+    "type": "STRING"
+  },
+  {
+    "description": "ORCID ID",
+    "mode": "NULLABLE",
+    "name": "orcid",
+    "type": "STRING"
+  },
+  {
+    "description": "Document type description",
+    "mode": "NULLABLE",
+    "name": "subtype_description",
+    "type": "STRING"
+  },
+  {
+    "description": "Funding agency name",
+    "mode": "NULLABLE",
+    "name": "fund_agency_name",
+    "type": "STRING"
+  },
+  {
+    "description": "Funding agency id",
+    "mode": "NULLABLE",
+    "name": "fund_agency_id",
+    "type": "STRING"
+  },
+  {
+    "description": "Funding agency acronym",
+    "mode": "NULLABLE",
+    "name": "fund_agency_ac",
+    "type": "STRING"
+  },
+  {
+    "description": "Cited by count",
+    "mode": "NULLABLE",
+    "name": "citedby_count",
+    "type": "INTEGER"
+  }
+]

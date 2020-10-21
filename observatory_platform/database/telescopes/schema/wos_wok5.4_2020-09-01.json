@@ -62,7 +62,7 @@
             "type": "STRING"
           }
         ],
-        "description": "Garnt information",
+        "description": "Grant information",
         "mode": "REPEATED",
         "name": "grants",
         "type": "RECORD"
