@@ -29,6 +29,7 @@ from observatory.platform.cli.cli import cli
 from observatory.platform.observatory_config import TerraformConfig
 from observatory.platform.observatory_config import ValidationError
 from observatory.platform.terraform_api import TerraformApi
+from tests.observatory.config import random_id
 
 
 class TestObservatoryGenerate(unittest.TestCase):
@@ -266,146 +267,203 @@ class TestObservatoryPlatform(unittest.TestCase):
             # Check return code
             self.assertEqual(result.exit_code, os.EX_CONFIG)
 
-#
-# class TestObservatoryTerraform(unittest.TestCase):
-#     organisation = os.getenv('TESTS_TERRAFORM_ORGANISATION')
-#     token = os.getenv('TESTS_TERRAFORM_TOKEN')
-#     terraform_api = TerraformApi(token)
-#     version = '0.13.0-beta3'
-#     description = 'test'
-#
-#     # TODO change to 'observatory-unit-testing' once latest version is available
-#     # organisation = 'COKI-project'
-#     # token = os.getenv('TESTS_TERRAFORM_TOKEN')
-#     # terraform_api = TerraformApi(token)
-#
-#     def test_create_terraform_variables(self):
-#         """ Test that all variables in config file are correctly formatted to variable 'attributes' dict"""
-#         with CliRunner().isolated_filesystem():
-#             # File paths
-#             working_dir = pathlib.Path().absolute()
-#             config_file_path = os.path.join(working_dir, 'config.yaml')
-#             # Create default config file
-#             TerraformConfig.save_default('terraform', config_file_path, terraform_variables_tf_path(), test=True)
-#             # Initiate config
-#             config = TerraformConfig(config_file_path)
-#             # Create variables
-#             terraform_variables = create_terraform_variables(config)
-#             for var in terraform_variables:
-#                 self.assertIsInstance(var, dict)
-#                 self.assertEqual(var.keys(), {'key', 'value', 'description', 'hcl', 'sensitive', 'category'})
-#
-#                 if var['key'] == 'backend':
-#                     for key, value in var.items():
-#                         if key == 'description':
-#                             self.assertEqual(value, None)
-#                         else:
-#                             self.assertIsInstance(value, str)
-#                 else:
-#                     for value in var.values():
-#                         self.assertIsInstance(value, str)
-#
-#     @patch("click.confirm")
-#     def test_terraform_create_update(self, mock_click_confirm):
-#         """ Test creating and updating a terraform cloud workspace"""
-#         # Create token json
-#         token_json = {
-#             "credentials": {
-#                 "app.terraform.io": {
-#                     "token": self.token
-#                 }
-#             }
-#         }
-#         runner = CliRunner()
-#         with runner.isolated_filesystem():
-#             # File paths
-#             working_dir = pathlib.Path().absolute()
-#             terraform_credentials_path = os.path.join(working_dir, 'token.json')
-#             config_file_path = os.path.join(working_dir, 'config_terraform.yaml')
-#             credentials_file_path = os.path.join(working_dir, 'google_application_credentials.json')
-#
-#             # Create config file
-#             TerraformConfig.save_default('terraform', config_file_path, terraform_variables_tf_path(), test=True)
-#             # Update 'organisation', 'workspace' and 'google_application_credentials'
-#             replace_value_in_file(config_file_path, 'organization', self.organisation)
-#             replace_value_in_file(config_file_path, 'google_application_credentials', credentials_file_path)
-#
-#             # Create token file
-#             with open(terraform_credentials_path, 'w') as f:
-#                 json.dump(token_json, f)
-#
-#             # Make a fake google application credentials as it is required schema validation
-#             with open(credentials_file_path, 'w') as f:
-#                 f.write('')
-#
-#             # Create config instance
-#             config = TerraformConfig(config_file_path)
-#             # Create terraform api instance
-#             terraform_api = TerraformApi(self.token)
-#             workspace_prefix = config.terraform.workspace_prefix
-#             workspace = workspace_prefix + config.backend.environment.value
-#
-#             # As a safety measure, delete workspace even though it shouldn't exist yet
-#             terraform_api.delete_workspace(self.organisation, workspace)
-#
-#             # Create workspace, confirm yes
-#             mock_click_confirm.return_value = 'y'
-#             result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
-#                                          '--terraform-credentials-file', terraform_credentials_path])
-#             self.assertIn("Successfully created workspace", result.output)
-#
-#             # Create workspace, confirm no
-#             mock_click_confirm.return_value = False
-#             result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
-#                                          '--terraform-credentials-file', terraform_credentials_path])
-#             self.assertNotIn("Creating workspace...", result.output)
-#
-#             # Update workspace, same config file but sensitive values will be replaced
-#             mock_click_confirm.return_value = 'y'
-#             result = runner.invoke(cli, ['terraform', 'update-workspace', config_file_path,
-#                                          '--terraform-credentials-file', terraform_credentials_path])
-#             self.assertIn("Successfully updated workspace", result.output)
-#
-#             # Update workspace, confirm no
-#             mock_click_confirm.return_value = False
-#             result = runner.invoke(cli, ['terraform', 'update-workspace', config_file_path,
-#                                          '--terraform-credentials-file', terraform_credentials_path])
-#             self.assertNotIn("Updating workspace...", result.output)
-#
-#             # Delete workspace
-#             terraform_api.delete_workspace(self.organisation, workspace)
 
-    # def test_terraform_check_dependencies(self):
-    #     """ Test that checking for dependencies prints the correct output when files are missing"""
-    #     runner = CliRunner()
-    #     with runner.isolated_filesystem():
-    #         working_dir = pathlib.Path().absolute()
-    #         # No config file should exist because we are in a new isolated filesystem
-    #         config_file_path = os.path.join(working_dir, 'config_terraform.yaml')
-    #
-    #         # Check that correct exit code and output are returned
-    #         result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path])
-    #         # No config file
-    #         self.assertIn(f"Error: Invalid value for 'CONFIG_PATH': File '{config_file_path}' does not exist.",
-    #                       result.output)
-    #         # Check return code, exit from click invalid option
-    #         self.assertEqual(result.exit_code, 2)
-    #
-    #         terraform_credentials_path = os.path.join(working_dir, 'credentials.tfrc.json')
-    #         terraform_variables_path = os.path.join(working_dir, 'variables.tf')
-    #
-    #         # Run again with existing config, specifying terraform files that don't exist. Check that correct exit
-    #         # code and output are returned
-    #         TerraformConfig.save_default('terraform', config_file_path, terraform_variables_tf_path(), test=True)
-    #         result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
-    #                                      '--terraform-credentials-file', terraform_credentials_path,
-    #                                      '--terraform-variables-path', terraform_variables_path])
-    #         # No terraform credentials file
-    #         self.assertIn("Terraform credentials file:\n   - file not found, create one by running 'terraform login'",
-    #                       result.output)
-    #         # No terraform variables file
-    #         self.assertIn("Terraform variables.tf file:\n   - file not found, check path to your variables file",
-    #                       result.output)
-    #         self.assertIn("- need terraform variables file to determine whether file is valid", result.output)
-    #         # Check return code
-    #         self.assertEqual(result.exit_code, os.EX_CONFIG)
+class TestObservatoryTerraform(unittest.TestCase):
+    organisation = os.getenv('TESTS_TERRAFORM_ORGANISATION')
+    token = os.getenv('TESTS_TERRAFORM_TOKEN')
+    terraform_api = TerraformApi(token)
+    version = '0.13.0-beta3'
+    description = 'test'
+
+    @patch("click.confirm")
+    @patch("observatory.platform.observatory_config.TerraformConfig.load")
+    def test_terraform_create_update(self, mock_load_config, mock_click_confirm):
+        """ Test creating and updating a terraform cloud workspace"""
+
+        # Create token json
+        token_json = {
+            "credentials": {
+                "app.terraform.io": {
+                    "token": self.token
+                }
+            }
+        }
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # File paths
+            working_dir = pathlib.Path().absolute()
+            terraform_credentials_path = os.path.join(working_dir, 'token.json')
+            config_file_path = os.path.join(working_dir, 'config-terraform.yaml')
+            credentials_file_path = os.path.join(working_dir, 'google_application_credentials.json')
+            workspaces_prefix = random_id() + '-'
+
+            # Create token file
+            with open(terraform_credentials_path, 'w') as f:
+                json.dump(token_json, f)
+
+            # Make a fake google application credentials as it is required schema validation
+            with open(credentials_file_path, 'w') as f:
+                f.write('')
+
+            # Make a fake config-terraform.yaml file
+            with open(config_file_path, 'w') as f:
+                f.write('')
+
+            # Create config instance
+            config = TerraformConfig.from_dict({
+                'backend': {
+                    'type': 'terraform',
+                    'environment': 'develop'
+                },
+                'airflow': {
+                    'fernet_key': 'random-fernet-key',
+                    'ui_user_password': 'password',
+                    'ui_user_email': 'password'
+                },
+                'terraform': {
+                    'organization': self.organisation,
+                    'workspace_prefix': workspaces_prefix
+                },
+                'google_cloud': {
+                    'project_id': 'my-project',
+                    'credentials': credentials_file_path,
+                    'region': 'us-west1',
+                    'zone': 'us-west1-c',
+                    'data_location': 'us'
+                },
+                'cloud_sql_database': {
+                    'tier': 'db-custom-2-7680',
+                    'backup_start_time': '23:00',
+                    'postgres_password': 'my-password'
+                },
+                'airflow_main_vm': {
+                    'machine_type': 'n2-standard-2',
+                    'disk_size': 1,
+                    'disk_type': 'pd-ssd',
+                    'create': True
+                },
+                'airflow_worker_vm': {
+                    'machine_type': 'n2-standard-2',
+                    'disk_size': 1,
+                    'disk_type': 'pd-standard',
+                    'create': False
+                }
+            })
+            mock_load_config.return_value = config
+
+            # Create terraform api instance
+            terraform_api = TerraformApi(self.token)
+            workspace_prefix = config.terraform.workspace_prefix
+            workspace = workspace_prefix + config.backend.environment.value
+
+            # As a safety measure, delete workspace even though it shouldn't exist yet
+            terraform_api.delete_workspace(self.organisation, workspace)
+
+            # Create workspace, confirm yes
+            mock_click_confirm.return_value = 'y'
+            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
+                                         '--terraform-credentials-path', terraform_credentials_path])
+            self.assertIn("Successfully created workspace", result.output)
+
+            # Create workspace, confirm no
+            mock_click_confirm.return_value = False
+            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
+                                         '--terraform-credentials-path', terraform_credentials_path])
+            self.assertNotIn("Creating workspace...", result.output)
+
+            # Update workspace, same config file but sensitive values will be replaced
+            mock_click_confirm.return_value = 'y'
+            result = runner.invoke(cli, ['terraform', 'update-workspace', config_file_path,
+                                         '--terraform-credentials-path', terraform_credentials_path])
+            self.assertIn("Successfully updated workspace", result.output)
+
+            # Update workspace, confirm no
+            mock_click_confirm.return_value = False
+            result = runner.invoke(cli, ['terraform', 'update-workspace', config_file_path,
+                                         '--terraform-credentials-path', terraform_credentials_path])
+            self.assertNotIn("Updating workspace...", result.output)
+
+            # Delete workspace
+            terraform_api.delete_workspace(self.organisation, workspace)
+
+    @patch("observatory.platform.observatory_config.TerraformConfig.load")
+    def test_terraform_check_dependencies(self, mock_load_config):
+        """ Test that checking for dependencies prints the correct output when files are missing"""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            working_dir = pathlib.Path().absolute()
+            credentials_file_path = os.path.join(working_dir, 'google_application_credentials.json')
+            workspaces_prefix = random_id() + '-'
+
+            # No config file should exist because we are in a new isolated filesystem
+            config_file_path = os.path.join(working_dir, 'config-terraform.yaml')
+            terraform_credentials_path = os.path.join(working_dir, 'terraform-creds.yaml')
+
+            # Check that correct exit code and output are returned
+            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
+                                         '--terraform-credentials-path', terraform_credentials_path])
+
+            # No config file
+            self.assertIn(f"Error: Invalid value for 'CONFIG_PATH': File '{config_file_path}' does not exist.",
+                          result.output)
+
+            # Check return code, exit from click invalid option
+            self.assertEqual(result.exit_code, 2)
+
+            # Make a fake config-terraform.yaml file
+            with open(config_file_path, 'w') as f:
+                f.write('')
+
+            # Create config instance
+            config = TerraformConfig.from_dict({
+                'backend': {
+                    'type': 'terraform',
+                    'environment': 'develop'
+                },
+                'airflow': {
+                    'fernet_key': 'random-fernet-key',
+                    'ui_user_password': 'password',
+                    'ui_user_email': 'password'
+                },
+                'terraform': {
+                    'organization': self.organisation,
+                    'workspace_prefix': workspaces_prefix
+                },
+                'google_cloud': {
+                    'project_id': 'my-project',
+                    'credentials': credentials_file_path,
+                    'region': 'us-west1',
+                    'zone': 'us-west1-c',
+                    'data_location': 'us'
+                },
+                'cloud_sql_database': {
+                    'tier': 'db-custom-2-7680',
+                    'backup_start_time': '23:00',
+                    'postgres_password': 'my-password'
+                },
+                'airflow_main_vm': {
+                    'machine_type': 'n2-standard-2',
+                    'disk_size': 1,
+                    'disk_type': 'pd-ssd',
+                    'create': True
+                },
+                'airflow_worker_vm': {
+                    'machine_type': 'n2-standard-2',
+                    'disk_size': 1,
+                    'disk_type': 'pd-standard',
+                    'create': False
+                }
+            })
+            mock_load_config.return_value = config
+
+            # Run again with existing config, specifying terraform files that don't exist. Check that correct exit
+            # code and output are returned
+            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
+                                         '--terraform-credentials-path', terraform_credentials_path])
+
+            # No terraform credentials file
+            self.assertIn("Terraform credentials file:\n   - file not found, create one by running 'terraform login'",
+                          result.output)
+
+            # Check return code
+            self.assertEqual(result.exit_code, os.EX_CONFIG)
