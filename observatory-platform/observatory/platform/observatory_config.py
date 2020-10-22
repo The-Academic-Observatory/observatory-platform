@@ -415,6 +415,26 @@ def customise_pointer(field, value, error):
         error(field, "Customise value ending with ' <--'")
 
 
+class ObservatoryConfigValidator(Validator):
+    """ Custom config Validator"""
+
+    def _validate_google_application_credentials(self, google_application_credentials, field, value):
+        """ Validate that the Google Application Credentials file exists.
+        The rule's arguments are validated against this schema: {'type': 'boolean'}
+        """
+        if google_application_credentials and value is not None and isinstance(value, str) and not os.path.isfile(
+                value):
+            self._error(field, f"the file {value} does not exist. See "
+                               f"https://cloud.google.com/docs/authentication/getting-started for instructions on "
+                               f"how to create a service account and save the JSON key to your workstation.")
+
+
+@dataclass
+class ValidationError:
+    key: str
+    value: Any
+
+
 class ObservatoryConfig:
 
     def __init__(self,
@@ -453,6 +473,19 @@ class ObservatoryConfig:
         """
 
         return self.validator is None or not len(self.validator._errors)
+
+    @property
+    def errors(self) -> List[ValidationError]:
+        errors = []
+        for key, values in self.validator.errors.items():
+            for value in values:
+                if type(value) is dict:
+                    for nested_key, nested_value in value.items():
+                        errors.append(ValidationError(f'{key}.{nested_key}', *nested_value))
+                else:
+                    errors.append(ValidationError(key, *values))
+
+        return errors
 
     def make_airflow_variables(self) -> List[AirflowVariable]:
         """ Make all airflow variables for the observatory platform.
@@ -658,21 +691,6 @@ class TerraformConfig(ObservatoryConfig):
         ObservatoryConfig._save_default(config_path, 'config-terraform.yaml.jinja2')
 
 
-class ObservatoryConfigValidator(Validator):
-    """ Custom config Validator"""
-
-    def _validate_google_application_credentials(self, google_application_credentials, field, value):
-        """ Validate that the Google Application Credentials file exists.
-
-        The rule's arguments are validated against this schema: {'type': 'boolean'}
-        """
-        if google_application_credentials and value is not None and isinstance(value, str) and not os.path.isfile(
-                value):
-            self._error(field, f"the file {value} does not exist. See "
-                               f"https://cloud.google.com/docs/authentication/getting-started for instructions on "
-                               f"how to create a service account and save the JSON key to your workstation.")
-
-
 def make_schema(backend_type: BackendType) -> Dict:
     schema = dict()
     is_backend_terraform = backend_type == BackendType.terraform
@@ -726,7 +744,8 @@ def make_schema(backend_type: BackendType) -> Dict:
             'credentials': {
                 'required': is_backend_terraform,
                 'type': 'string',
-                'check_with': customise_pointer
+                'check_with': customise_pointer,
+                'google_application_credentials': True
             },
             'region': {
                 'required': is_backend_terraform,

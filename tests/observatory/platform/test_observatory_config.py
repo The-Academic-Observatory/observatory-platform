@@ -22,13 +22,57 @@ from typing import List, Dict
 import yaml
 from cerberus.validator import Validator
 from click.testing import CliRunner
-
-from observatory.platform.observatory_config import make_schema, BackendType, ObservatoryConfig, TerraformConfig
+import os
+import pathlib
+from observatory.platform.observatory_config import (make_schema, BackendType, ObservatoryConfig, TerraformConfig,
+                                                     ObservatoryConfigValidator)
 
 
 def save_yaml(file_path: str, dict_: Dict):
     with open(file_path, 'w') as yaml_file:
         yaml.dump(dict_, yaml_file, default_flow_style=False)
+
+
+class TestObservatoryConfigValidator(unittest.TestCase):
+    def setUp(self) -> None:
+        self.schema = dict()
+        self.schema['google_cloud'] = {
+            'required': True,
+            'type': 'dict',
+            'schema': {
+                'credentials': {
+                    'required': True,
+                    'type': 'string',
+                    'google_application_credentials': True
+                }
+            }
+        }
+
+    def test_validate_google_application_credentials(self):
+        """ Check if an error occurs for pointing to a file that does not exist when the
+        'google_application_credentials' tag is present in the schema. """
+        with CliRunner().isolated_filesystem():
+            # Make google application credentials
+            credentials_file_path = os.path.join(pathlib.Path().absolute(), 'google_application_credentials.json')
+            with open(credentials_file_path, 'w') as f:
+                f.write('')
+            validator = ObservatoryConfigValidator(self.schema)
+
+            # google_application_credentials tag and existing file
+            validator.validate({
+                'google_cloud': {
+                    'credentials': credentials_file_path
+                }
+            })
+            self.assertEqual(len(validator.errors), 0)
+
+            # google_application_credentials tag and non-existing file
+            validator.validate({
+                'google_cloud': {
+                    'credentials': 'missing_file.json'
+                }
+            })
+            self.assertEqual(len(validator.errors), 1)
 
 
 class TestObservatoryConfig(unittest.TestCase):
@@ -53,46 +97,49 @@ class TestObservatoryConfig(unittest.TestCase):
             self.assertIsInstance(config, ObservatoryConfig)
             self.assertTrue(config.is_valid)
 
-        # Test that a typical configuration works
-        dict_ = {
-            'backend': {
-                'type': 'local',
-                'environment': 'develop'
-            },
-            'google_cloud': {
-                'project_id': 'my-project-id',
-                'credentials': '/path/to/creds.json',
-                'data_location': 'us',
-                'buckets': {
-                    'download_bucket': 'my-download-bucket-1234',
-                    'transform_bucket': 'my-transform-bucket-1234'
-                }
-            },
-            'airflow': {
-                'fernet_key': 'random-fernet-key'
-            },
-            'airflow_variables': {
-                'my-variable-name': 'my-variable-value'
-            },
-            'airflow_connections': {
-                'my-connection': 'http://:my-token-key@'
-            },
-            'dags_projects': [
-                {
-                    'package_name': 'observatory-dags',
-                    'path': '/path/to/dags/project',
-                    'dags_module': 'observatory.dags.dags'
-                },
-                {
-                    'package_name': 'observatory-dags',
-                    'path': '/path/to/dags/project',
-                    'dags_module': 'observatory.dags.dags'
-                }
-            ]
-        }
-
         file_path = 'config-valid-typical.yaml'
         with CliRunner().isolated_filesystem():
+            credentials_path = os.path.abspath('creds.json')
+            open(credentials_path, 'a').close()
+
+            # Test that a typical configuration works
+            dict_ = {
+                'backend': {
+                    'type': 'local',
+                    'environment': 'develop'
+                },
+                'google_cloud': {
+                    'project_id': 'my-project-id',
+                    'credentials': credentials_path,
+                    'data_location': 'us',
+                    'buckets': {
+                        'download_bucket': 'my-download-bucket-1234',
+                        'transform_bucket': 'my-transform-bucket-1234'
+                    }
+                },
+                'airflow': {
+                    'fernet_key': 'random-fernet-key'
+                },
+                'airflow_variables': {
+                    'my-variable-name': 'my-variable-value'
+                },
+                'airflow_connections': {
+                    'my-connection': 'http://:my-token-key@'
+                },
+                'dags_projects': [
+                    {
+                        'package_name': 'observatory-dags',
+                        'path': '/path/to/dags/project',
+                        'dags_module': 'observatory.dags.dags'
+                    },
+                    {
+                        'package_name': 'observatory-dags',
+                        'path': '/path/to/dags/project',
+                        'dags_module': 'observatory.dags.dags'
+                    }
+                ]
+            }
+
             save_yaml(file_path, dict_)
 
             config = ObservatoryConfig.load(file_path)
@@ -168,115 +215,122 @@ class TestTerraformConfig(unittest.TestCase):
 
     def test_load(self):
         # Test that a minimal configuration works
-        dict_ = {
-            'backend': {
-                'type': 'terraform',
-                'environment': 'develop'
-            },
-            'airflow': {
-                'fernet_key': 'random-fernet-key',
-                'ui_user_password': 'password',
-                'ui_user_email': 'password'
-            },
-            'terraform': {
-                'organization': 'hello world',
-                'workspace_prefix': 'my-workspaces-'
-            },
-            'google_cloud': {
-                'project_id': 'my-project',
-                'credentials': '/path/to/creds.json',
-                'region': 'us-west1',
-                'zone': 'us-west1-c',
-                'data_location': 'us'
-            },
-            'cloud_sql_database': {
-                'tier': 'db-custom-2-7680',
-                'backup_start_time': '23:00',
-                'postgres_password': 'my-password'
-            },
-            'airflow_main_vm': {
-                'machine_type': 'n2-standard-2',
-                'disk_size': 1,
-                'disk_type': 'pd-ssd',
-                'create': True
-            },
-            'airflow_worker_vm': {
-                'machine_type': 'n2-standard-2',
-                'disk_size': 1,
-                'disk_type': 'pd-standard',
-                'create': False
-            }
-        }
 
-        file_path = 'config-valid-minimal.yaml'
+        file_path = 'config-valid-typical.yaml'
         with CliRunner().isolated_filesystem():
+            credentials_path = os.path.abspath('creds.json')
+            open(credentials_path, 'a').close()
+
+            dict_ = {
+                'backend': {
+                    'type': 'terraform',
+                    'environment': 'develop'
+                },
+                'airflow': {
+                    'fernet_key': 'random-fernet-key',
+                    'ui_user_password': 'password',
+                    'ui_user_email': 'password'
+                },
+                'terraform': {
+                    'organization': 'hello world',
+                    'workspace_prefix': 'my-workspaces-'
+                },
+                'google_cloud': {
+                    'project_id': 'my-project',
+                    'credentials': credentials_path,
+                    'region': 'us-west1',
+                    'zone': 'us-west1-c',
+                    'data_location': 'us'
+                },
+                'cloud_sql_database': {
+                    'tier': 'db-custom-2-7680',
+                    'backup_start_time': '23:00',
+                    'postgres_password': 'my-password'
+                },
+                'airflow_main_vm': {
+                    'machine_type': 'n2-standard-2',
+                    'disk_size': 1,
+                    'disk_type': 'pd-ssd',
+                    'create': True
+                },
+                'airflow_worker_vm': {
+                    'machine_type': 'n2-standard-2',
+                    'disk_size': 1,
+                    'disk_type': 'pd-standard',
+                    'create': False
+                }
+            }
+
             save_yaml(file_path, dict_)
 
             config = TerraformConfig.load(file_path)
             self.assertIsInstance(config, TerraformConfig)
             self.assertTrue(config.is_valid)
 
-        # Test that a typical configuration is loaded
-        dict_ = {
-            'backend': {
-                'type': 'terraform',
-                'environment': 'develop'
-            },
-            'airflow': {
-                'fernet_key': 'random-fernet-key',
-                'ui_user_password': 'password',
-                'ui_user_email': 'password'
-            },
-            'terraform': {
-                'organization': 'hello world',
-                'workspace_prefix': 'my-workspaces-'
-            },
-            'google_cloud': {
-                'project_id': 'my-project',
-                'credentials': '/path/to/creds.json',
-                'region': 'us-west1',
-                'zone': 'us-west1-c',
-                'data_location': 'us'
-            },
-            'cloud_sql_database': {
-                'tier': 'db-custom-2-7680',
-                'backup_start_time': '23:00',
-                'postgres_password': 'my-password'
-            },
-            'airflow_main_vm': {
-                'machine_type': 'n2-standard-2',
-                'disk_size': 1,
-                'disk_type': 'pd-ssd',
-                'create': True
-            },
-            'airflow_worker_vm': {
-                'machine_type': 'n2-standard-2',
-                'disk_size': 1,
-                'disk_type': 'pd-standard',
-                'create': False
-            },
-            'airflow_variables': {
-                'my-variable-name': 'my-variable-value'
-            },
-            'airflow_connections': {
-                'my-connection': 'http://:my-token-key@'
-            },
-            'dags_projects': [
-                {
-                    'package_name': 'observatory-dags',
-                    'path': '/path/to/dags/project',
-                    'dags_module': 'observatory.dags.dags'
-                },
-                {
-                    'package_name': 'observatory-dags',
-                    'path': '/path/to/dags/project',
-                    'dags_module': 'observatory.dags.dags'
-                }
-            ]
-        }
-
         file_path = 'config-valid-typical.yaml'
         with CliRunner().isolated_filesystem():
+            credentials_path = os.path.abspath('creds.json')
+            open(credentials_path, 'a').close()
+
+            # Test that a typical configuration is loaded
+            dict_ = {
+                'backend': {
+                    'type': 'terraform',
+                    'environment': 'develop'
+                },
+                'airflow': {
+                    'fernet_key': 'random-fernet-key',
+                    'ui_user_password': 'password',
+                    'ui_user_email': 'password'
+                },
+                'terraform': {
+                    'organization': 'hello world',
+                    'workspace_prefix': 'my-workspaces-'
+                },
+                'google_cloud': {
+                    'project_id': 'my-project',
+                    'credentials': credentials_path,
+                    'region': 'us-west1',
+                    'zone': 'us-west1-c',
+                    'data_location': 'us'
+                },
+                'cloud_sql_database': {
+                    'tier': 'db-custom-2-7680',
+                    'backup_start_time': '23:00',
+                    'postgres_password': 'my-password'
+                },
+                'airflow_main_vm': {
+                    'machine_type': 'n2-standard-2',
+                    'disk_size': 1,
+                    'disk_type': 'pd-ssd',
+                    'create': True
+                },
+                'airflow_worker_vm': {
+                    'machine_type': 'n2-standard-2',
+                    'disk_size': 1,
+                    'disk_type': 'pd-standard',
+                    'create': False
+                },
+                'airflow_variables': {
+                    'my-variable-name': 'my-variable-value'
+                },
+                'airflow_connections': {
+                    'my-connection': 'http://:my-token-key@'
+                },
+                'dags_projects': [
+                    {
+                        'package_name': 'observatory-dags',
+                        'path': '/path/to/dags/project',
+                        'dags_module': 'observatory.dags.dags'
+                    },
+                    {
+                        'package_name': 'observatory-dags',
+                        'path': '/path/to/dags/project',
+                        'dags_module': 'observatory.dags.dags'
+                    }
+                ]
+            }
+
             save_yaml(file_path, dict_)
 
             config = TerraformConfig.load(file_path)
@@ -405,7 +459,7 @@ class TestSchema(unittest.TestCase):
 
     def assert_sub_schema_valid(self, valid_docs: List[Dict], invalid_docs: List[Dict], schema, sub_schema_key,
                                 expected_errors):
-        validator = Validator()
+        validator = ObservatoryConfigValidator()
         sub_schema = dict()
         sub_schema[sub_schema_key] = schema[sub_schema_key]
 
@@ -531,46 +585,50 @@ class TestSchema(unittest.TestCase):
         schema = make_schema(BackendType.local)
         schema_key = 'google_cloud'
 
-        valid_docs = [
-            {},
-            {
-                'google_cloud': {
-                    'project_id': 'my-project',
-                    'credentials': '/path/to/creds.json',
-                    'region': 'us-west1',
-                    'zone': 'us-west1-c',
-                    'data_location': 'us',
-                    'buckets': {
-                        'download_bucket': 'my-download-bucket-1234',
-                        'transform_bucket': 'my-transform-bucket-1234'
-                    }
-                }
-            }
-        ]
-        invalid_docs = [
-            {
-                'google_cloud': {
-                    'project_id': 1,
-                    'credentials': dict(),
-                    'region': 'us-west',
-                    'zone': 'us-west1',
-                    'data_location': list(),
-                    'buckets': {
-                        1: 2,
-                        'download_bucket': list()
-                    }
-                }
-            }
-        ]
+        with CliRunner().isolated_filesystem():
+            credentials_path = os.path.abspath('creds.json')
+            open(credentials_path, 'a').close()
 
-        expected_errors = [{'google_cloud': [{'buckets': [
-            {1: ['must be of string type', 'must be of string type'], 'download_bucket': ['must be of string type']}],
-            'credentials': ['must be of string type'],
-            'data_location': ['must be of string type'],
-            'project_id': ['must be of string type'],
-            'region': ["value does not match regex '^\\w+\\-\\w+\\d+$'"],
-            'zone': ["value does not match regex '^\\w+\\-\\w+\\d+\\-[a-z]{1}$'"]}]}]
-        self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
+            valid_docs = [
+                {},
+                {
+                    'google_cloud': {
+                        'project_id': 'my-project',
+                        'credentials': credentials_path,
+                        'region': 'us-west1',
+                        'zone': 'us-west1-c',
+                        'data_location': 'us',
+                        'buckets': {
+                            'download_bucket': 'my-download-bucket-1234',
+                            'transform_bucket': 'my-transform-bucket-1234'
+                        }
+                    }
+                }
+            ]
+            invalid_docs = [
+                {
+                    'google_cloud': {
+                        'project_id': 1,
+                        'credentials': '/path/to/creds.json',
+                        'region': 'us-west',
+                        'zone': 'us-west1',
+                        'data_location': list(),
+                        'buckets': {
+                            1: 2,
+                            'download_bucket': list()
+                        }
+                    }
+                }
+            ]
+
+            expected_errors = [{'google_cloud': [{'buckets': [
+                {1: ['must be of string type', 'must be of string type'], 'download_bucket': ['must be of string type']}],
+                'credentials': ['the file /path/to/creds.json does not exist. See https://cloud.google.com/docs/authentication/getting-started for instructions on how to create a service account and save the JSON key to your workstation.'],
+                'data_location': ['must be of string type'],
+                'project_id': ['must be of string type'],
+                'region': ["value does not match regex '^\\w+\\-\\w+\\d+$'"],
+                'zone': ["value does not match regex '^\\w+\\-\\w+\\d+\\-[a-z]{1}$'"]}]}]
+            self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
     def test_local_schema_airflow(self):
         schema = make_schema(BackendType.local)
@@ -737,29 +795,33 @@ class TestSchema(unittest.TestCase):
         schema = make_schema(BackendType.terraform)
         schema_key = 'google_cloud'
 
-        valid_docs = [
-            {
-                'google_cloud': {
-                    'project_id': 'my-project',
-                    'credentials': '/path/to/creds.json',
-                    'region': 'us-west1',
-                    'zone': 'us-west1-c',
-                    'data_location': 'us'
-                }
-            }
-        ]
-        invalid_docs = [
-            {},
-            {
-                'google_cloud': {}
-            }
-        ]
+        with CliRunner().isolated_filesystem():
+            credentials_path = os.path.abspath('creds.json')
+            open(credentials_path, 'a').close()
 
-        expected_errors = [{'google_cloud': ['required field']},
-                           {'google_cloud': [{'credentials': ['required field'],
-                                              'data_location': ['required field'], 'project_id': ['required field'],
-                                              'region': ['required field'], 'zone': ['required field']}]}]
-        self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
+            valid_docs = [
+                {
+                    'google_cloud': {
+                        'project_id': 'my-project',
+                        'credentials': credentials_path,
+                        'region': 'us-west1',
+                        'zone': 'us-west1-c',
+                        'data_location': 'us'
+                    }
+                }
+            ]
+            invalid_docs = [
+                {},
+                {
+                    'google_cloud': {}
+                }
+            ]
+
+            expected_errors = [{'google_cloud': ['required field']},
+                               {'google_cloud': [{'credentials': ['required field'],
+                                                  'data_location': ['required field'], 'project_id': ['required field'],
+                                                  'region': ['required field'], 'zone': ['required field']}]}]
+            self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
     def test_terraform_schema_airflow(self):
         # Test that airflow ui password and email required

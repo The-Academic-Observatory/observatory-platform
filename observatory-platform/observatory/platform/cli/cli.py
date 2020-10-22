@@ -19,8 +19,7 @@ from typing import Union
 
 import click
 
-from observatory.platform.cli.click import INDENT1, INDENT2, INDENT3, INDENT4
-from observatory.platform.cli.click import indent
+from observatory.platform.cli.click import indent, INDENT1, INDENT2, INDENT3, INDENT4
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
@@ -28,8 +27,8 @@ from observatory.platform.platform_builder import (BUILD_PATH, DAGS_MODULE, DATA
                                                    POSTGRES_PATH, HOST_UID, HOST_GID, REDIS_PORT, FLOWER_UI_PORT,
                                                    AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
                                                    DOCKER_NETWORK_NAME, DEBUG)
-from observatory.platform.utils.config_utils import observatory_home, \
-    terraform_credentials_path as default_terraform_credentials_path
+from observatory.platform.utils.config_utils import (observatory_home,
+                                                     terraform_credentials_path as default_terraform_credentials_path)
 
 PLATFORM_NAME = 'Observatory Platform'
 TERRAFORM_NAME = 'Observatory Terraform'
@@ -193,14 +192,8 @@ def platform(command: str, config_path: str, build_path: str, dags_path: str, da
             print(indent("- file valid", INDENT2))
         else:
             print(indent("- file invalid", INDENT2))
-            for key, values in cmd.config.validator.errors.items():
-                for value in values:
-                    if type(value) is dict:
-                        print(indent(f'- {key}: ', INDENT3))
-                        for nested_key, nested_value in value.items():
-                            print(indent('- {}: {}'.format(nested_key, *nested_value), INDENT4))
-                    else:
-                        print(indent('- {}: {}'.format(key, *values), INDENT3))
+            for error in cmd.config.errors:
+                print(indent('- {}: {}'.format(error.key, error.value), INDENT3))
     else:
         print(indent(f"- file not found, generating a default file on path: {config_path}", INDENT2))
         generate_cmd.generate_local_config(config_path)
@@ -256,40 +249,50 @@ def platform(command: str, config_path: str, build_path: str, dags_path: str, da
     exit(os.EX_OK)
 
 
-# Increase content width for cleaner help output
-@cli.command(context_settings=dict(max_content_width=120))
-@click.argument('command', type=click.Choice(['fernet-key', 'config.yaml', 'config-terraform.yaml']))
-def generate(command):
-    """ Generate information for the Observatory Platform platform.\n
+@cli.group()
+def generate():
+    pass
 
-    COMMAND: the command to give the generator:\n
-      - fernet-key: generate a fernet key.\n
-      - config.yaml: generate a local observatory configuration file.\n
-      - config-terraform.yaml: generate a terraform configuration file.\n
-    """
 
-    # Make the platform command, which encapsulates functionality for running the observatory
-    cmd = GenerateCommand()
+@generate.command()
+@click.argument('command', type=click.Choice(['fernet-key']))
+def secrets(command: str):
+    # Make the generate command, which encapsulates functionality for generating data
 
     if command == 'fernet-key':
+        cmd = GenerateCommand()
         print(cmd.generate_fernet_key())
-    else:
-        config_path = None
-        cmd_func = None
-        if command == 'config.yaml':
-            config_path = LOCAL_CONFIG_PATH
-            cmd_func = cmd.generate_local_config
-        elif command == 'config-terraform.yaml':
-            config_path = TERRAFORM_CONFIG_PATH
-            cmd_func = cmd.generate_terraform_config
 
-        if config_path is not None \
-                and cmd_func is not None \
-                and (not os.path.exists(config_path) or
-                     click.confirm(f'The file "{config_path}" exists, do you want to overwrite it?')):
-            cmd_func(config_path)
-        else:
-            click.echo(f"Not generating {command}")
+
+@generate.command()
+@click.argument('command', type=click.Choice(['local', 'terraform']))
+@click.option('--config-path',
+              type=click.Path(exists=False, file_okay=True, dir_okay=False),
+              default=None,
+              help='The path to the config file to generate.',
+              show_default=True)
+def config(command: str, config_path: str):
+    # Make the generate command, which encapsulates functionality for generating data
+    cmd = GenerateCommand()
+
+    cmd_func = None
+    config_name = ''
+    if command == 'local':
+        if config_path is None:
+            config_path = LOCAL_CONFIG_PATH
+        cmd_func = cmd.generate_local_config
+        config_name = 'Observatory Config'
+    elif command == 'terraform':
+        if config_path is None:
+            config_path = TERRAFORM_CONFIG_PATH
+        cmd_func = cmd.generate_terraform_config
+        config_name = 'Terraform Config'
+
+    if not os.path.exists(config_path) or \
+            click.confirm(f'The file "{config_path}" exists, do you want to overwrite it?'):
+        cmd_func(config_path)
+    else:
+        click.echo(f"Not generating {config_name}")
 
 
 # increase content width for cleaner help output
@@ -315,7 +318,7 @@ def terraform(command, config_path, terraform_credentials_path, verbose):
     # The minimum number of characters per line
     min_line_chars = 80
 
-    terraform_cmd = TerraformCommand(config_path, terraform_credentials_path)
+    terraform_cmd = TerraformCommand(config_path, terraform_credentials_path, verbose=verbose)
     generate_cmd = GenerateCommand()
 
     ######################

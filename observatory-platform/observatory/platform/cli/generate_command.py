@@ -51,7 +51,7 @@ class GenerateCommand:
         :return: None
         """
 
-        file_type = 'Observatory Config'
+        file_type = 'Terraform Config'
         click.echo(f"Generating {file_type}...")
         TerraformConfig.save_default(config_path)
         click.echo(f'{file_type} saved to: "{config_path}"')
