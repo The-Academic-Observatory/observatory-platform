@@ -37,6 +37,7 @@ from airflow.models.taskinstance import TaskInstance
 
 def build_schedule(sched_start_date, sched_end_date):
     """ Useful for API based data sources.
+
     Create a fetch schedule to specify what date ranges to use for each API call. Will default to once a month
     for now, but in the future if we are minimising API calls, this can be a more complicated scheme.
 

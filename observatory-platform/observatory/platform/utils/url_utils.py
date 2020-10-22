@@ -15,6 +15,9 @@
 # Author: James Diprose
 
 import hashlib
+import time
+import urllib.error
+import urllib.request
 from typing import Tuple, Union
 from urllib.parse import urlparse, urljoin, ParseResult
 
@@ -88,6 +91,35 @@ def retry_session(num_retries: int = 3, backoff_factor: float = 0.5,
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
+
+def wait_for_url(url: str, timeout: int = 60):
+    """ Wait for a URL to return a 200 status code.
+
+    :param url: the url to wait for.
+    :param timeout: the number of seconds to wait before timing out.
+    :return: whether the URL returned a 200 status code or not.
+    """
+
+    start = time.time()
+    started = False
+    while True:
+        duration = time.time() - start
+        if duration >= timeout:
+            break
+
+        try:
+            if urllib.request.urlopen(url).getcode() == 200:
+                started = True
+                break
+            time.sleep(0.5)
+        except ConnectionResetError:
+            pass
+        except ConnectionRefusedError:
+            pass
+        except urllib.error.URLError:
+            pass
+
+    return started
 
 def get_ao_user_agent():
     """ Return a standardised user agent that can be used by custom web clients to indicate it came from the

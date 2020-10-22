@@ -21,5 +21,12 @@ INDENT4 = 5
 
 
 def indent(string: str, num_spaces: int) -> str:
+    """ Left indent a string.
+
+    :param string: the string to indent.
+    :param num_spaces: the number of spaces to indent the string with.
+    :return: the indented string.
+    """
+
     assert num_spaces > 0, "indent: num_spaces must be > 0"
     return string.rjust(len(string) + num_spaces)

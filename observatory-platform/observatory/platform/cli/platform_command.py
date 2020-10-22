@@ -14,16 +14,13 @@
 
 # Author: James Diprose
 
-import time
-import urllib.error
-import urllib.parse
-import urllib.request
 from typing import Union
 
 from observatory.platform.platform_builder import (PlatformBuilder, BUILD_PATH, DAGS_MODULE, DATA_PATH, LOGS_PATH,
                                                    POSTGRES_PATH, HOST_UID, HOST_GID, REDIS_PORT, FLOWER_UI_PORT,
                                                    AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
                                                    DOCKER_NETWORK_NAME, DEBUG)
+from observatory.platform.utils.url_utils import wait_for_url
 
 
 class PlatformCommand(PlatformBuilder):
@@ -34,7 +31,7 @@ class PlatformCommand(PlatformBuilder):
                  flower_ui_port: int = FLOWER_UI_PORT, airflow_ui_port: int = AIRFLOW_UI_PORT,
                  elastic_port: int = ELASTIC_PORT, kibana_port: int = KIBANA_PORT,
                  docker_network_name: Union[None, int] = DOCKER_NETWORK_NAME, debug: bool = DEBUG):
-        """ Create a PlatformCommand, which is able to start and stop Observatory Platform instances.
+        """ Create a PlatformCommand, which can be used to start and stop Observatory Platform instances.
 
         :param config_path: the path to the configuration file.
         :param dags_path: the path to the Observatory Platform DAGs.
@@ -72,28 +69,8 @@ class PlatformCommand(PlatformBuilder):
     def wait_for_airflow_ui(self, timeout: int = 60) -> bool:
         """ Wait for the Apache Airflow UI to start.
 
-        :param ui_url: the URL to the Apache Airflow UI.
         :param timeout: the number of seconds to wait before timing out.
         :return: whether connecting to the Apache Airflow UI was successful or not.
         """
 
-        start = time.time()
-        ui_started = False
-        while True:
-            duration = time.time() - start
-            if duration >= timeout:
-                break
-
-            try:
-                if urllib.request.urlopen(self.ui_url).getcode() == 200:
-                    ui_started = True
-                    break
-                time.sleep(0.5)
-            except ConnectionResetError:
-                pass
-            except ConnectionRefusedError:
-                pass
-            except urllib.error.URLError:
-                pass
-
-        return ui_started
+        return wait_for_url(self.ui_url, timeout=timeout)

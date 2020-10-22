@@ -15,6 +15,7 @@
 # Author: James Diprose
 
 import unittest
+from datetime import datetime
 from typing import List
 from unittest.mock import patch
 
@@ -24,6 +25,7 @@ import requests
 from observatory.platform.utils.url_utils import (get_url_domain_suffix, unique_id, is_url_absolute, strip_query_params,
                                                   retry_session, get_ao_user_agent)
 
+from tests.observatory.config import MockUrlOpen
 
 class TestUrlUtils(unittest.TestCase):
     relative_urls = ['#skip-to-content', '#', '/local/assets/css/tipso.css', 'acknowledgements/rogers.html',
@@ -113,6 +115,33 @@ class TestUrlUtils(unittest.TestCase):
         # Cleanup
         httpretty.disable()
         httpretty.reset()
+
+    @patch('observatory.platform.utils.url_utils.urllib.request.urlopen')
+    def test_wait_for_url_success(self, mock_url_open):
+        # Mock the status code return value: 200 should succeed
+        mock_url_open.return_value = MockUrlOpen(200)
+
+        start = datetime.now()
+        state = wait_for_url('http://localhost:8080')
+        end = datetime.now()
+        duration = (end - start).total_seconds()
+
+        self.assertTrue(state)
+        self.assertAlmostEquals(0, duration, delta=0.5)
+
+    @patch('observatory.platform.utils.url_utils.urllib.request.urlopen')
+    def test_wait_for_url_failed(self, mock_url_open):
+        # Mock the status code return value: 500 should fail
+        mock_url_open.return_value = MockUrlOpen(500)
+
+        expected_timeout = 10
+        start = datetime.now()
+        state = wait_for_url('http://localhost:8080', timeout=expected_timeout)
+        end = datetime.now()
+        duration = (end - start).total_seconds()
+
+        self.assertFalse(state)
+        self.assertAlmostEquals(expected_timeout, duration, delta=1)
 
     @patch('observatory_platform.utils.url_utils.cfg_to_args', return_value={'version': 1, 'url': 2, 'author_email': 3})
     def test_ao_user_agent(self, mock_cfg):

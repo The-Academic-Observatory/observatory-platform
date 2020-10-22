@@ -32,6 +32,7 @@ def wait_for_process(proc: Popen) -> Tuple[str, str]:
 
 def stream_process(proc: Popen, debug: bool) -> Tuple[str, str]:
     """ Print output while a process is running, returning the std output and std error streams as strings.
+
     :param proc: the process object.
     :param debug: whether debug info should be displayed.
     :return: std output and std error streams as strings.

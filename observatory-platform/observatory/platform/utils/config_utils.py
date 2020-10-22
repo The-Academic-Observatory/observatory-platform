@@ -105,6 +105,7 @@ def terraform_credentials_path() -> str:
 def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str = '', ver: str = '') \
         -> Union[str, None]:
     """ Finds a schema file on a given path, with a particular table name, release date and optional prefix.
+
     If no version string is sepcified, the most recent schema with a date less than or equal to the release date of the
     dataset is returned. If a version string is specified, the most current (date) schema in that series is returned.
     Use the schema_path function to find the path to the folder containing the schemas.
@@ -112,6 +113,7 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
      - grid2015-09-22.json
      - grid2016-04-28.json
      - wos_wok5.4_2016-01-01.json  (versioned schema with version 'wok5.4')
+
     For GRID releases between 2015-09-22 and 2016-04-28 grid_2015-09-22.json is returned and for GRID releases or after
     2016-04-28 grid_2016-04-28.json is returned (until a new schema with a later date is added).
     Unversioned schemas are named with the following pattern: prefix + table_name + YYYY-MM-DD + .json
@@ -125,6 +127,7 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
     format. For versioned schemas, this is the date of schema creation.
     * prefix and table_name follow the naming conventions of the dataset, e.g. MAG uses CamelCase for tables and fields
     so CamelCase is used. When there is no preference from the dataset then lower snake case is used.
+
     :param path: the path to search within.
     :param table_name: the name of the table.
     :param release_date: the release date of the table.

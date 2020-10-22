@@ -16,12 +16,7 @@
 
 import os
 import pathlib
-import time
 import unittest
-import urllib
-import urllib.error
-import urllib.parse
-import urllib.request
 from typing import Any
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -38,29 +33,7 @@ from observatory.platform.observatory_config import (ObservatoryConfig, Airflow,
                                                      AirflowConnection, DagsProject)
 from observatory.platform.platform_builder import PlatformBuilder
 from observatory.platform.utils.config_utils import module_file_path
-
-
-def wait_for_url(url: str, timeout=60):
-    start = time.time()
-    started = False
-    while True:
-        duration = time.time() - start
-        if duration >= timeout:
-            break
-
-        try:
-            if urllib.request.urlopen(url).getcode() == 200:
-                started = True
-                break
-            time.sleep(0.5)
-        except ConnectionResetError:
-            pass
-        except ConnectionRefusedError:
-            pass
-        except urllib.error.URLError:
-            pass
-
-    return started
+from observatory.platform.utils.url_utils import wait_for_url
 
 
 class MockFromEnv(Mock):

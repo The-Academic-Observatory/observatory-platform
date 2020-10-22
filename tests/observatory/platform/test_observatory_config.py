@@ -14,16 +14,16 @@
 
 # Author: James Diprose, Aniek Roelofs
 
+import os
+import pathlib
 import random
 import string
 import unittest
 from typing import List, Dict
 
 import yaml
-from cerberus.validator import Validator
 from click.testing import CliRunner
-import os
-import pathlib
+
 from observatory.platform.observatory_config import (make_schema, BackendType, ObservatoryConfig, TerraformConfig,
                                                      ObservatoryConfigValidator)
 
@@ -51,6 +51,7 @@ class TestObservatoryConfigValidator(unittest.TestCase):
     def test_validate_google_application_credentials(self):
         """ Check if an error occurs for pointing to a file that does not exist when the
         'google_application_credentials' tag is present in the schema. """
+
         with CliRunner().isolated_filesystem():
             # Make google application credentials
             credentials_file_path = os.path.join(pathlib.Path().absolute(), 'google_application_credentials.json')
@@ -622,8 +623,10 @@ class TestSchema(unittest.TestCase):
             ]
 
             expected_errors = [{'google_cloud': [{'buckets': [
-                {1: ['must be of string type', 'must be of string type'], 'download_bucket': ['must be of string type']}],
-                'credentials': ['the file /path/to/creds.json does not exist. See https://cloud.google.com/docs/authentication/getting-started for instructions on how to create a service account and save the JSON key to your workstation.'],
+                {1: ['must be of string type', 'must be of string type'],
+                 'download_bucket': ['must be of string type']}],
+                'credentials': [
+                    'the file /path/to/creds.json does not exist. See https://cloud.google.com/docs/authentication/getting-started for instructions on how to create a service account and save the JSON key to your workstation.'],
                 'data_location': ['must be of string type'],
                 'project_id': ['must be of string type'],
                 'region': ["value does not match regex '^\\w+\\-\\w+\\d+$'"],

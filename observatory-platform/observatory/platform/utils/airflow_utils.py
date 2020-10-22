@@ -24,8 +24,7 @@ from google.api_core.exceptions import PermissionDenied
 
 
 def get_variable(key: str) -> Optional[str]:
-    """
-    Get Airflow Variable by iterating over all Secret Backends.
+    """ Get Airflow Variable by iterating over all Secret Backends.
 
     :param key: Variable Key
     :return: Variable Value
@@ -63,8 +62,7 @@ class AirflowVariable(Variable):
 
 
 def change_task_log_level(new_levels: Union[List, int]) -> list:
-    """
-    Change the logging levels of all handlers for an airflow task.
+    """ Change the logging levels of all handlers for an airflow task.
 
     :param new_levels: New logging levels that all handlers will be set to
     :return: List of the old logging levels, can be used to restore logging levels.

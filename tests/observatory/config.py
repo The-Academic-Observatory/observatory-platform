@@ -16,6 +16,8 @@
 
 import pathlib
 import uuid
+from typing import Any
+from unittest.mock import Mock
 
 import tests.fixtures
 
@@ -37,3 +39,12 @@ def test_fixtures_path() -> str:
     file_path = pathlib.Path(tests.fixtures.__file__).resolve()
     path = pathlib.Path(*file_path.parts[:-1])
     return str(path.resolve())
+
+
+class MockUrlOpen(Mock):
+    def __init__(self, status: int, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.status = status
+
+    def getcode(self):
+        return self.status

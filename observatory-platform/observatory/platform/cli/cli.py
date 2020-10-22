@@ -19,7 +19,7 @@ from typing import Union
 
 import click
 
-from observatory.platform.cli.click import indent, INDENT1, INDENT2, INDENT3, INDENT4
+from observatory.platform.cli.click import indent, INDENT1, INDENT2, INDENT3
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
@@ -43,7 +43,8 @@ def cli():
 
     COMMAND: the commands to run include:\n
       - platform: start and stop the local Observatory Platform platform.\n
-      - generate: generate a variety of outputs\n.
+      - generate: generate a variety of outputs.\n
+      - terraform: manage Terraform Cloud workspaces.\n
     """
 
     pass
@@ -251,13 +252,24 @@ def platform(command: str, config_path: str, build_path: str, dags_path: str, da
 
 @cli.group()
 def generate():
+    """ The Observatory Platform generate command.
+
+    COMMAND: the commands to run include:\n
+      - secrets: generate secrets.\n
+      - config: generate configuration files for the Observatory Platform.\n
+    """
+
     pass
 
 
 @generate.command()
 @click.argument('command', type=click.Choice(['fernet-key']))
 def secrets(command: str):
-    # Make the generate command, which encapsulates functionality for generating data
+    """ Generate secrets for the Observatory Platform.\n
+
+    COMMAND: the type of secret to generate:\n
+      - fernet-key: generate a random Fernet Key.\n
+    """
 
     if command == 'fernet-key':
         cmd = GenerateCommand()
@@ -272,6 +284,13 @@ def secrets(command: str):
               help='The path to the config file to generate.',
               show_default=True)
 def config(command: str, config_path: str):
+    """ Generate config files for the Observatory Platform.\n
+
+    COMMAND: the type of config file to generate:\n
+      - local: generate a config file for running the Observatory Platform locally.\n
+      - terraform: generate a config file for running the Observatory Platform with Terraform.\n
+    """
+
     # Make the generate command, which encapsulates functionality for generating data
     cmd = GenerateCommand()
 
@@ -311,8 +330,11 @@ def config(command: str, config_path: str):
               count=True,
               help='Set the verbosity level of terraform API (max -vv).')
 def terraform(command, config_path, terraform_credentials_path, verbose):
-    """ Uses file at CONFIG_PATH to create or update a workspace in Terraform Cloud.
-    A default config file can be created with `observatory generate config-terraform.yaml`
+    """ Manage Terraform Cloud workspaces.\n
+
+    COMMAND: the type of config file to generate:\n
+      - create-workspace: create a Terraform Cloud workspace.\n
+      - update-workspace: update a Terraform Cloud workspace.\n
     """
 
     # The minimum number of characters per line

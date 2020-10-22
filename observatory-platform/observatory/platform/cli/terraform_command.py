@@ -26,9 +26,9 @@ from observatory.platform.terraform_api import TerraformApi
 class TerraformCommand:
 
     def __init__(self, config_path: str, terraform_credentials_path: str, verbose: int = 0):
-        """
+        """ Create a TerraformCommand, which can be used to create and update terraform workspaces.
 
-        :param config_path: the path to the terraform config file.
+        :param config_path: the path to the Terraform Config file.
         :param terraform_credentials_path: the path to the Terraform credentials file.
         :param verbose: whether to run the terraform API in verbose mode.
         """

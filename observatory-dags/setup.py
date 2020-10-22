@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
 setup(
     name='observatory-dags',
     version='20.10.0',
-    description='The Observatory Platform',
+    description='The Observatory DAGs',
     license='Apache License Version 2.0',
     author='Curtin University',
     author_email='agent@observatory.academy',
