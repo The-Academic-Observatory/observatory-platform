@@ -14,6 +14,7 @@
 
 # Author: James Diprose
 
+import logging
 import os
 import pathlib
 import unittest
@@ -336,9 +337,18 @@ class TestPlatformBuilder(unittest.TestCase):
                 self.assertEqual(expected_return_code, return_code)
 
                 # Verify that ports are active
+                urls = []
+                states = []
                 for port in expected_ports:
                     url = f'http://localhost:{port}'
+                    urls.append(url)
+                    logging.info(f'Waiting for URL: {url}')
                     state = wait_for_url(url)
+                    logging.info(f'URL {url} state: {state}')
+                    states.append(state)
+
+                # Assert states
+                for state in states:
                     self.assertTrue(state)
 
                 # Check if Redis is active

@@ -116,7 +116,7 @@ class CloudStorageBucket:
     """ Represents a Google Cloud Storage Bucket.
 
     Attributes:
-        id: ?
+        id: the id of the bucket (which gets set as an Airflow variable).
         name: the name of the Google Cloud storage bucket.
      """
 
@@ -133,12 +133,12 @@ class GoogleCloud:
     """ The Google Cloud settings for the Observatory Platform.
 
     Attributes:
-        project_id:
-        credentials:
-        region:
-        zone:
-        data_location:
-        buckets:
+        project_id: the Google Cloud project id.
+        credentials: the path to the Google Cloud credentials.
+        region: the Google Cloud region.
+        zone: the Google Cloud zone.
+        data_location: the data location for storing buckets.
+        buckets: a list of the Google Cloud buckets.
      """
 
     project_id: str = None
@@ -203,12 +203,12 @@ def parse_dict_to_list(dict_: Dict, cls: ClassVar) -> List[Any]:
 
 @dataclass
 class DagsProject:
-    """ The Google Cloud settings for the Observatory Platform.
+    """ Represents a project that contains DAGs to load.
 
     Attributes:
-        package_name:
-        path:
-        dags_module:
+        package_name: the package name.
+        path: the path to the DAGs folder. TODO: check
+        dags_module: the Python import path to the module that contains the Apache Airflow DAGs to load.
      """
 
     package_name: str
@@ -382,6 +382,15 @@ class CloudSqlDatabase:
 
 @dataclass
 class VirtualMachine:
+    """ A Google Cloud virtual machine.
+
+    Attributes:
+        machine_type: the type of Google Cloud virtual machine.
+        disk_size: the size of the disk.
+        disk_type: the disk type.
+        create: whether to create the VM or not.
+     """
+
     machine_type: str
     disk_size: int
     disk_type: str
@@ -411,6 +420,15 @@ class VirtualMachine:
 
 
 def customise_pointer(field, value, error):
+    """ Throw an error when a field contains the value ' <--' which means that the user should customise the
+    value in the config file.
+
+    :param field: the field.
+    :param value: the value.
+    :param error: ?
+    :return: None.
+    """
+
     if isinstance(value, str) and value.endswith(' <--'):
         error(field, "Customise value ending with ' <--'")
 
@@ -431,6 +449,13 @@ class ObservatoryConfigValidator(Validator):
 
 @dataclass
 class ValidationError:
+    """ A validation error found when parsing a config file.
+
+    Attributes:
+        key: the key in the config file.
+        value: the error.
+     """
+
     key: str
     value: Any
 
@@ -446,6 +471,18 @@ class ObservatoryConfig:
                  airflow_connections: List[AirflowConnection] = None,
                  dags_projects: List[DagsProject] = None,
                  validator: ObservatoryConfigValidator = None):
+        """ Create an ObservatoryConfig instance.
+
+        :param backend: the backend config.
+        :param airflow: the Airflow config.
+        :param google_cloud: the Google Cloud config.
+        :param terraform: the Terraform config.
+        :param airflow_variables: a list of Airflow variables.
+        :param airflow_connections: a list of Airflow connections.
+        :param dags_projects: a list of DAGs projects.
+        :param validator: an ObservatoryConfigValidator instance.
+        """
+
         self.backend = backend
         self.airflow = airflow
         self.google_cloud = google_cloud
@@ -476,6 +513,11 @@ class ObservatoryConfig:
 
     @property
     def errors(self) -> List[ValidationError]:
+        """ Returns a list of ValidationError instances that were created when parsing the config file.
+
+        :return: the list of ValidationError instances.
+        """
+
         errors = []
         for key, values in self.validator.errors.items():
             for value in values:
@@ -537,10 +579,23 @@ class ObservatoryConfig:
 
     @staticmethod
     def save_default(config_path: str):
+        """ Save a default config file.
+
+        :param config_path: the path where the config file should be saved.
+        :return: None.
+        """
+
         ObservatoryConfig._save_default(config_path, 'config.yaml.jinja2')
 
     @staticmethod
     def _save_default(config_path: str, template_file_name: str):
+        """ Save a default config file.
+
+        :param config_path:
+        :param template_file_name:
+        :return:
+        """
+
         # Render template
         template_path = os.path.join(module_file_path('observatory.platform'), template_file_name)
         fernet_key = generate_fernet_key()
