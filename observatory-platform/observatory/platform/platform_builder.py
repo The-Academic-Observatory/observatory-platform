@@ -110,6 +110,11 @@ class PlatformBuilder:
 
     @property
     def is_environment_valid(self):
+        """
+
+        :return:
+        """
+
         return all([self.docker_exe_path is not None,
                     self.docker_compose_path is not None,
                     self.is_docker_running,
@@ -159,6 +164,11 @@ class PlatformBuilder:
         return is_running
 
     def make_observatory_files(self):
+        """
+
+        :return: None.
+        """
+
         # Build Docker files
         self.__make_file('Dockerfile.observatory.jinja2', 'Dockerfile.observatory', self.build_path,
                          config=self.config,
@@ -183,6 +193,15 @@ class PlatformBuilder:
             shutil.copy(input_file, output_file)
 
     def __make_file(self, template_file_name: str, output_file_name: str, working_dir: str, **kwargs):
+        """
+
+        :param template_file_name:
+        :param output_file_name:
+        :param working_dir:
+        :param kwargs:
+        :return:
+        """
+
         template_path = os.path.join(self.docker_module_path, template_file_name)
         render = render_template(template_path, **kwargs)
 
@@ -191,6 +210,11 @@ class PlatformBuilder:
             f.write(render)
 
     def __make_requirements_files(self):
+        """
+
+        :return:
+        """
+
         # Copy observatory requirements.txt
         input_file = os.path.join(self.package_path, 'requirements.txt')
         output_file = os.path.join(self.build_path, 'requirements.txt')

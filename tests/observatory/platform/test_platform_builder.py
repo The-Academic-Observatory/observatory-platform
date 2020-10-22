@@ -329,11 +329,15 @@ class TestPlatformBuilder(unittest.TestCase):
 
             # Build the platform and assert that the platform builds
             output, error, return_code = cmd.build()
+            logging.info(output)
+            logging.error(error)
             self.assertEqual(expected_return_code, return_code)
 
             try:
                 # Start the platform
                 output, error, return_code = cmd.start()
+                logging.info(output)
+                logging.error(error)
                 self.assertEqual(expected_return_code, return_code)
 
                 # Verify that ports are active
@@ -357,6 +361,8 @@ class TestPlatformBuilder(unittest.TestCase):
 
                 # Verify that platform stops
                 output, error, return_code = cmd.stop()
+                logging.info(output)
+                logging.error(error)
                 self.assertEqual(expected_return_code, return_code)
             finally:
                 # Always the observatory, e.g. in case the start command got half way through

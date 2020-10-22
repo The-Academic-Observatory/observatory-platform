@@ -37,12 +37,26 @@ def to_hcl(value: Dict) -> str:
 
 
 class TerraformVariableCategory(Enum):
+    """  """
+
     terraform = 'terraform'
     env = 'env'
 
 
 @dataclass
 class TerraformVariable:
+    """ The Google Cloud settings for the Observatory Platform.
+
+    Attributes:
+        key: .
+        value: .
+        var_id: .
+        description: .
+        category: .
+        hcl: .
+        sensitive: .
+     """
+
     key: str
     value: str
     var_id: str = None
@@ -62,6 +76,12 @@ class TerraformVariable:
 
     @staticmethod
     def from_dict(dict_) -> TerraformVariable:
+        """
+
+        :param dict_:
+        :return:
+        """
+
         var_id = dict_.get('id')
         attributes = dict_['attributes']
         key = attributes.get('key')
@@ -81,6 +101,11 @@ class TerraformVariable:
         )
 
     def to_dict(self):
+        """
+
+        :return:
+        """
+
         var = {
             "type": "vars",
             "attributes": {
@@ -101,6 +126,12 @@ class TerraformVariable:
 
 class TerraformApi:
     def __init__(self, token: str, verbosity: int = 0):
+        """
+
+        :param token:
+        :param verbosity:
+        """
+
         self.token = token
         if verbosity == 0:
             logging.getLogger().setLevel(logging.WARNING)
@@ -116,8 +147,8 @@ class TerraformApi:
 
     @staticmethod
     def token_from_file(file_path: str) -> str:
-        """
-        Get the terraform token from a credentials file
+        """ Get the terraform token from a credentials file.
+
         :param file_path: path to credentials file
         :return: token
         """
@@ -128,8 +159,8 @@ class TerraformApi:
 
     def create_workspace(self, organisation: str, workspace: str, auto_apply: bool, description: str,
                          version: str = "0.13.0-beta3") -> int:
-        """
-        Create a new workspace in terraform cloud
+        """ Create a new workspace in terraform cloud.
+
         :param organisation: Name of terraform organisation
         :param workspace: Name of terraform workspace
         :param auto_apply: Whether the new workspace should be set to auto_apply
@@ -160,8 +191,8 @@ class TerraformApi:
         return response.status_code
 
     def delete_workspace(self, organisation: str, workspace: str) -> int:
-        """
-        Delete a workspace in terraform cloud
+        """ Delete a workspace in terraform cloud.
+
         :param organisation: Name of terraform organisation
         :param workspace: Name of terraform workspace
         :return: The response status code
@@ -172,8 +203,8 @@ class TerraformApi:
         return response.status_code
 
     def workspace_id(self, organisation: str, workspace: str) -> str:
-        """
-        Returns the workspace id
+        """ Returns the workspace id.
+
         :param organisation: Name of terraform organisation
         :param workspace: Name of terraform workspace
         :return: workspace id
@@ -261,8 +292,8 @@ class TerraformApi:
         return response.status_code
 
     def list_workspace_variables(self, workspace_id: str) -> List[TerraformVariable]:
-        """
-        Returns a list of variables in the workspace. Each variable is a dict.
+        """ Returns a list of variables in the workspace. Each variable is a dict.
+
         :param workspace_id: The workspace id
         :return: Variables in the workspace
         """
@@ -280,10 +311,10 @@ class TerraformApi:
         return [TerraformVariable.from_dict(dict_) for dict_ in workspace_vars]
 
     def create_configuration_version(self, workspace_id: str) -> Tuple[str, str]:
-        """
-        Create a configuration version. A configuration version is a resource used to reference the uploaded
+        """ Create a configuration version. A configuration version is a resource used to reference the uploaded
         configuration files. It is associated with the run to use the uploaded configuration files for performing the
         plan and apply.
+
         :param workspace_id: the workspace id
         :return: the upload url
         """
@@ -303,11 +334,11 @@ class TerraformApi:
         return upload_url, configuration_id
 
     def get_configuration_version_status(self, configuration_id: str) -> str:
-        """
-        Show the configuration version and return it's status. The status will be pending when the
+        """ Show the configuration version and return it's status. The status will be pending when the
         configuration version is initially created and will remain pending until configuration files are supplied via
         upload, and while they are processed. The status will then be changed to 'uploaded'. Runs cannot be created
         using pending or errored configuration versions.
+
         :param configuration_id: the configuration version id
         :return: configuration version status
         """
@@ -325,13 +356,14 @@ class TerraformApi:
 
     @staticmethod
     def upload_configuration_files(upload_url: str, configuration_path: str) -> int:
-        """
-        Uploads the configuration files. Auto-queue-runs is set to false when creating configuration version,
+        """ Uploads the configuration files. Auto-queue-runs is set to false when creating configuration version,
         so conf will not be queued automatically.
+
         :param upload_url: upload url, returned when creating configuration version
         :param configuration_path: path to tar.gz file containing config files (main.tf)
         :return: the response code
         """
+
         headers = {'Content-Type': 'application/octet-stream'}
         with open(configuration_path, 'rb') as configuration:
             response = requests.put(upload_url, headers=headers, data=configuration.read())
@@ -346,14 +378,15 @@ class TerraformApi:
         return response.status_code
 
     def create_run(self, workspace_id: str, target_addrs: str = None, message: str = "") -> str:
-        """
-        Creates a run, optionally targeted at a target address. If auto-apply is set to true the run will be applied
+        """ Creates a run, optionally targeted at a target address. If auto-apply is set to true the run will be applied
         afterwards as well.
+
         :param workspace_id: the workspace id
         :param target_addrs: the target address (id of the module/resource)
         :param message: additional message that will be displayed at the terraform cloud run
         :return: the run id
         """
+
         data = {"data": {"attributes": {"message": message},
                          "type": "runs",
                          "relationships": {"workspace": {"data": {"type": "workspaces", "id": workspace_id}}},
@@ -375,11 +408,11 @@ class TerraformApi:
         return run_id
 
     def get_run_details(self, run_id: str) -> dict:
-        """
-        Get details on a run identified by its id.
+        """ Get details on a run identified by its id.
         :param run_id: the run id
         :return: the response text
         """
+
         response = requests.get(f'{self.api_url}/runs/{run_id}', headers=self.headers)
         if not response.status_code == 200:
             logging.error(f"Response status: {response.status_code}")
@@ -391,10 +424,10 @@ class TerraformApi:
     def plan_variable_changes(self, new_vars: List[TerraformVariable], workspace_id: str) \
             -> Tuple[List[TerraformVariable], List[Tuple[TerraformVariable, TerraformVariable]],
                      List[TerraformVariable], List[TerraformVariable]]:
-        """
-        Compares the current variables in the workspace with a list of new variables. It sorts the new variables in
+        """ Compares the current variables in the workspace with a list of new variables. It sorts the new variables in
         one of 4 different categories and adds them to the corresponding list. Sensitive variables can never be
         'unchanged'.
+
         :param new_vars: list of potential new variables where each variable is a variable attributes dict
         :param workspace_id: the workspace id
         :return: lists of variables in different categories (add, edit, unchanged, delete).
@@ -403,6 +436,7 @@ class TerraformApi:
         unchanged: list of attributes dicts
         delete: list of tuples with (var key, var id, old value)
         """
+
         add: List[TerraformVariable] = []
         edit: List[Tuple[TerraformVariable, TerraformVariable]] = []
         unchanged: List[TerraformVariable] = []
@@ -437,14 +471,15 @@ class TerraformApi:
         return add, edit, unchanged, delete
 
     def update_workspace_variables(self, add: list, edit: list, delete: list, workspace_id: str):
-        """
-        Update workspace accordingly to the planned changes
+        """ Update workspace accordingly to the planned changes.
+
         :param add: list of attributes dicts of new variables
         :param edit: list of tuples with (attributes dict, var id, old value) of existing variables that will be updated
         :param delete: list of tuples with (var key, var id, old value) of variables that will be deleted
         :param workspace_id: the workspace id
         :return: None
         """
+
         for var in add:
             self.add_workspace_variable(var, workspace_id)
         for old_var, new_var in edit:

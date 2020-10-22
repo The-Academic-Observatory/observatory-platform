@@ -591,9 +591,9 @@ class ObservatoryConfig:
     def _save_default(config_path: str, template_file_name: str):
         """ Save a default config file.
 
-        :param config_path:
-        :param template_file_name:
-        :return:
+        :param config_path: the path where the config file should be saved.
+        :param template_file_name: the name of the template file name.
+        :return: None.
         """
 
         # Render template
@@ -676,6 +676,21 @@ class TerraformConfig(ObservatoryConfig):
                  airflow_main_vm: VirtualMachine = None,
                  airflow_worker_vm: VirtualMachine = None,
                  validator: ObservatoryConfigValidator = None):
+        """ Create a TerraformConfig instance.
+
+        :param backend: the backend config.
+        :param airflow: the Airflow config.
+        :param google_cloud: the Google Cloud config.
+        :param terraform: the Terraform config.
+        :param airflow_variables: a list of Airflow variables.
+        :param airflow_connections: a list of Airflow connections.
+        :param dags_projects: a list of DAGs projects.
+        :param cloud_sql_database: a Google Cloud SQL database config.
+        :param airflow_main_vm: the Airflow Main VM config.
+        :param airflow_worker_vm: the Airflow Worker VM config.
+        :param validator: an ObservatoryConfigValidator instance.
+        """
+
         super().__init__(backend=backend,
                          airflow=airflow,
                          google_cloud=google_cloud,
@@ -690,9 +705,19 @@ class TerraformConfig(ObservatoryConfig):
 
     @property
     def terraform_workspace_id(self):
+        """ The Terraform workspace id.
+
+        :return: the terraform workspace id.
+        """
+
         return self.terraform.workspace_prefix + self.backend.environment.value
 
     def terraform_variables(self) -> List[TerraformVariable]:
+        """ Create a list of TerraformVariable instances from the Terraform Config.
+
+        :return: a list of TerraformVariable instances.
+        """
+
         sensitive = True
         return [TerraformVariable('environment', self.backend.environment.value),
                 TerraformVariable('airflow', self.airflow.to_hcl(), sensitive=sensitive, hcl=True),
@@ -707,9 +732,10 @@ class TerraformConfig(ObservatoryConfig):
 
     @classmethod
     def from_dict(cls, dict_: Dict) -> TerraformConfig:
-        """ Make an TerraformConfig instance from a dictionary. If the dictionary is invalid,
-        then an ObservatoryConfig instance will be returned with no properties set, except for the validator,
-        which contains validation errors.
+        """ Make an TerraformConfig instance from a dictionary.
+
+        If the dictionary is invalid, then an ObservatoryConfig instance will be returned with no properties set,
+        except for the validator, which contains validation errors.
 
         :param dict_: the input dictionary that has been read via yaml.safe_load.
         :return: the TerraformConfig instance.
@@ -743,10 +769,22 @@ class TerraformConfig(ObservatoryConfig):
 
     @staticmethod
     def save_default(config_path: str):
+        """ Save a default TerraformConfig file.
+
+        :param config_path: the path where the config file should be saved.
+        :return: None.
+        """
+
         ObservatoryConfig._save_default(config_path, 'config-terraform.yaml.jinja2')
 
 
 def make_schema(backend_type: BackendType) -> Dict:
+    """ Make a schema for an Observatory or Terraform config file.
+
+    :param backend_type: the type of backend, local or terraform.
+    :return: a dictionary containing the schema.
+    """
+
     schema = dict()
     is_backend_terraform = backend_type == BackendType.terraform
 
