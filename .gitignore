@@ -18,3 +18,4 @@ config_terraform.yaml
 AUTHORS
 ChangeLog
 .eggs/
+.DS_Store
