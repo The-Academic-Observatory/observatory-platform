@@ -1,0 +1,97 @@
+[
+  {
+    "description": "Title of the book.",
+    "mode": "NULLABLE",
+    "name": "title",
+    "type": "STRING"
+  },
+  {
+    "description": "ISBN-13 of the book. There may be multiple ISBNs separated by space. That's why it is written as a string.",
+    "mode": "NULLABLE",
+    "name": "isbn",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "volume",
+    "type": "STRING"
+  },
+  {
+    "description": "Authors of the book. Separated by ';' or ','. Can be written as 'Surname, First_name' or 'First_name Surname'.",
+    "mode": "NULLABLE",
+    "name": "authors",
+    "type": "STRING"
+  },
+  {
+    "description": "Number of pages of the book.",
+    "mode": "NULLABLE",
+    "name": "pages",
+    "type": "STRING"
+  },
+  {
+    "description": "ISSN of the book.",
+    "mode": "NULLABLE",
+    "name": "issn",
+    "type": "STRING"
+  },
+  {
+    "description": "Name of the book series.",
+    "mode": "NULLABLE",
+    "name": "series_title",
+    "type": "STRING"
+  },
+  {
+    "description": "Name of the publisher.",
+    "mode": "NULLABLE",
+    "name": "publisher",
+    "type": "STRING"
+  },
+  {
+    "description": "Language(s) of the book. A book may have multiple languages, written in different ways (i.e. Deutsch, German, de, Deutschland). Can also have subjects inside. Separated by '/', ';', and ','.",
+    "mode": "NULLABLE",
+    "name": "language",
+    "type": "STRING"
+  },
+  {
+    "description": "Keywords for the book. Separated by ';'.",
+    "mode": "NULLABLE",
+    "name": "keywords",
+    "type": "STRING"
+  },
+  {
+    "description": "The year of publication of the book.",
+    "mode": "NULLABLE",
+    "name": "year_of_publication",
+    "type": "INTEGER"
+  },
+  {
+    "description": "Date and time of book's record entry (format dd/M/yy HH:mm).",
+    "mode": "NULLABLE",
+    "name": "added_on_date",
+    "type": "DATETIME"
+  },
+  {
+    "description": "Subject of the Book (LoC codes).",
+    "mode": "NULLABLE",
+    "name": "subjects",
+    "type": "STRING"
+  },
+  {
+    "description": "Creative commons license types.",
+    "mode": "NULLABLE",
+    "name": "license",
+    "type": "STRING"
+  },
+  {
+    "description": "URL of the content of the book.",
+    "mode": "NULLABLE",
+    "name": "full_text",
+    "type": "STRING"
+  },
+  {
+    "description": "Type of content. Can be 'book' or 'chapter'.",
+    "mode": "NULLABLE",
+    "name": "type",
+    "type": "STRING"
+  }
+]
