@@ -1,0 +1,38 @@
+[
+  {
+    "description": "Base URL of the book pages.",
+    "mode": "REQUIRED",
+    "name": "url",
+    "type": "STRING"
+  },
+  {
+    "description": "Title of the book.",
+    "mode": "REQUIRED",
+    "name": "title",
+    "type": "STRING"
+  },
+  {
+    "description": "Date of unique page view.",
+    "mode": "NULLABLE",
+    "name": "month",
+    "type": "DATE"
+  },
+  {
+    "description": "URL of the webpage that sends visitors to the site using a link. In other words, it’s the webpage that a person was on right before they landed on title's pages.",
+    "mode": "NULLABLE",
+    "name": "full_referrer",
+    "type": "STRING"
+  },
+  {
+    "description": "Type of data (\"UCL Web Monthly Unique Page Views per Full Referrer\").",
+    "mode": "REQUIRED",
+    "name": "type",
+    "type": "STRING"
+  },
+  {
+    "description": "Number of unique page views.",
+    "mode": "NULLABLE",
+    "name": "value",
+    "type": "INTEGER"
+  }
+]
