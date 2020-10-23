@@ -347,7 +347,7 @@ class TestPlatformBuilder(unittest.TestCase):
                     url = f'http://localhost:{port}'
                     urls.append(url)
                     logging.info(f'Waiting for URL: {url}')
-                    state = wait_for_url(url)
+                    state = wait_for_url(url, timeout=120)
                     logging.info(f'URL {url} state: {state}')
                     states.append(state)
 
