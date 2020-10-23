@@ -33,20 +33,20 @@ class PlatformCommand(PlatformBuilder):
                  docker_network_name: Union[None, int] = DOCKER_NETWORK_NAME, debug: bool = DEBUG):
         """ Create a PlatformCommand, which can be used to start and stop Observatory Platform instances.
 
-        :param config_path: the path to the configuration file.
-        :param dags_path: the path to the Observatory Platform DAGs.
-        :param data_path: the path to where data is stored.
-        :param logs_path: the path to log files.
-        :param postgres_path: the path to postgres SQL data files.
-        :param host_uid: the user of the host machine user.
-        :param host_gid: the group id of the host machine user.
-        :param redis_port: the host Redis port.
-        :param flower_ui_port: the host Flower UI port.
-        :param airflow_ui_port: the host Apache Airflow UI port.
-        :param elastic_port: the host Elasticsearch port.
-        :param kibana_port: the host Kibana port.
-        :param docker_network_name: the name of an external Docker network.
-        :param debug: whether to run the Observatory in debug mode or not; in which case it prints extra information.
+        :param config_path: The path to the config.yaml configuration file.
+        :param dags_path: The path on the host machine to mount as the Apache Airflow DAGs folder.
+        :param data_path: The path on the host machine to mount as the data folder.
+        :param logs_path: The path on the host machine to mount as the logs folder.
+        :param postgres_path: The path on the host machine to mount as the PostgreSQL data folder.
+        :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.
+        :param host_gid: The group id of the host system. Used to set the group id in the Docker containers.
+        :param redis_port: The host Redis port number.
+        :param flower_ui_port: The host's Flower UI port number.
+        :param airflow_ui_port: The host's Apache Airflow UI port number.
+        :param elastic_port: The host's Elasticsearch port number.
+        :param kibana_port: The host's Kibana port number.
+        :param docker_network_name: The Docker Network name, used to specify a custom Docker Network.
+        :param debug: Print debugging information.
         """
 
         is_env_local = True

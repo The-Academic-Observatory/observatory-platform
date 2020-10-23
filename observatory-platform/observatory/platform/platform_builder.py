@@ -58,23 +58,23 @@ class PlatformBuilder:
                  elastic_port: int = ELASTIC_PORT, kibana_port: int = KIBANA_PORT,
                  docker_network_name: Union[None, int] = DOCKER_NETWORK_NAME, debug: bool = DEBUG,
                  is_env_local: bool = True):
-        """
+        """ Create a PlatformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
-        :param config_path:
-        :param dags_path: the path to the DAGs folder on the host system.
-        :param data_path: the path to the data path on the host system.
-        :param logs_path: the path to the logs path on the host system.
-        :param postgres_path: the path to the Apache Airflow Postgres data folder on the host system.
-        :param host_uid: the user id of the host system.
-        :param host_gid: the group id of the host system.
-        :param redis_port:
-        :param flower_ui_port:
-        :param airflow_ui_port:
-        :param elastic_port:
-        :param kibana_port:
-        :param docker_network_name:
-        :param debug:
-        :param is_env_local:
+        :param config_path: The path to the config.yaml configuration file.
+        :param dags_path: The path on the host machine to mount as the Apache Airflow DAGs folder.
+        :param data_path: The path on the host machine to mount as the data folder.
+        :param logs_path: The path on the host machine to mount as the logs folder.
+        :param postgres_path: The path on the host machine to mount as the PostgreSQL data folder.
+        :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.
+        :param host_gid: The group id of the host system. Used to set the group id in the Docker containers.
+        :param redis_port: The host Redis port number.
+        :param flower_ui_port: The host's Flower UI port number.
+        :param airflow_ui_port: The host's Apache Airflow UI port number.
+        :param elastic_port: The host's Elasticsearch port number.
+        :param kibana_port: The host's Kibana port number.
+        :param docker_network_name: The Docker Network name, used to specify a custom Docker Network.
+        :param debug: Print debugging information.
+        :param is_env_local: whether we are running the local or terraform environment.
         """
 
         self.config_path = config_path
@@ -109,10 +109,10 @@ class PlatformBuilder:
             self.config_is_valid = self.config.is_valid
 
     @property
-    def is_environment_valid(self):
-        """
+    def is_environment_valid(self) -> bool:
+        """ Return whether the environment for building the Observatory Platform is valid.
 
-        :return:
+        :return: whether the environment for building the Observatory Platform is valid.
         """
 
         return all([self.docker_exe_path is not None,
@@ -164,7 +164,7 @@ class PlatformBuilder:
         return is_running
 
     def make_observatory_files(self):
-        """
+        """ Make the files required to build the Observatory Platform.
 
         :return: None.
         """
@@ -193,7 +193,7 @@ class PlatformBuilder:
             shutil.copy(input_file, output_file)
 
     def __make_file(self, template_file_name: str, output_file_name: str, working_dir: str, **kwargs):
-        """
+        """ Make a file from a template.
 
         :param template_file_name:
         :param output_file_name:
@@ -210,9 +210,9 @@ class PlatformBuilder:
             f.write(render)
 
     def __make_requirements_files(self):
-        """
+        """ Make the requirements files by copying them into the build folder.
 
-        :return:
+        :return: None.
         """
 
         # Copy observatory requirements.txt
@@ -230,6 +230,8 @@ class PlatformBuilder:
     def make_environment(self):
         """ Make an environment containing the environment variables that are required to build and start the
         Observatory docker environment.
+
+        :return: None.
         """
 
         env = os.environ.copy()

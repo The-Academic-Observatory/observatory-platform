@@ -28,10 +28,30 @@ import yaml
 from airflow.configuration import generate_fernet_key
 from cerberus import Validator
 
-from observatory.platform.terraform_api import TerraformVariable, to_hcl
+from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowVariable
 from observatory.platform.utils.config_utils import AirflowVars, module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
+
+
+def to_hcl(value: Dict) -> str:
+    """ Convert a Python dictionary into HCL.
+
+    :param value: the dictionary.
+    :return: the HCL string.
+    """
+
+    return json.dumps(value, separators=(',', '='))
+
+
+def from_hcl(string: str) -> Dict:
+    """ Convert an HCL string into a Dict.
+
+    :param string: the HCL string.
+    :return: the dict.
+    """
+
+    return json.loads(string, separators=(',', '='))
 
 
 class BackendType(Enum):
@@ -403,6 +423,10 @@ class VirtualMachine:
             'disk_type': self.disk_type,
             'create': self.create
         })
+
+    @staticmethod
+    def from_hcl(string: str) -> VirtualMachine:
+        return VirtualMachine.from_dict(from_hcl(string))
 
     @staticmethod
     def from_dict(dict_: Dict) -> VirtualMachine:

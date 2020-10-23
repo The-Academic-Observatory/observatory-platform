@@ -304,6 +304,7 @@ class TestPlatformBuilder(unittest.TestCase):
             expected_return_code = 0
             self.assertEqual(expected_return_code, return_code)
 
+    @unittest.skip
     def test_build_start_stop(self):
         """ Test buildng, starting and stopping of the Observatory Platform """
 

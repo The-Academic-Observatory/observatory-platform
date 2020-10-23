@@ -21,23 +21,13 @@ import logging
 import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple, List, Dict
+from typing import Tuple, List
 
 import requests
 
 
-def to_hcl(value: Dict) -> str:
-    """ Convert a Python dictionary into HCL.
-
-    :param value: the dictionary.
-    :return: the HCL string.
-    """
-
-    return json.dumps(value, separators=(',', '='))
-
-
 class TerraformVariableCategory(Enum):
-    """  """
+    """ The type of Terraform variable.  """
 
     terraform = 'terraform'
     env = 'env'
@@ -45,16 +35,16 @@ class TerraformVariableCategory(Enum):
 
 @dataclass
 class TerraformVariable:
-    """ The Google Cloud settings for the Observatory Platform.
+    """ A TerraformVariable class.
 
     Attributes:
-        key: .
-        value: .
-        var_id: .
-        description: .
-        category: .
-        hcl: .
-        sensitive: .
+        key: variable key.
+        value: variable value.
+        var_id: variable id, uniquely identifies the variable in the cloud.
+        description: variable description.
+        category: variable category.
+        hcl: whether the variable is HCL or not.
+        sensitive: whether the variable is sensitive or not.
      """
 
     key: str
@@ -76,10 +66,10 @@ class TerraformVariable:
 
     @staticmethod
     def from_dict(dict_) -> TerraformVariable:
-        """
+        """ Parse a dictionary into a TerraformVariable instance.
 
-        :param dict_:
-        :return:
+        :param dict_: the dictionary.
+        :return: the TerraformVariable instance.
         """
 
         var_id = dict_.get('id')
@@ -101,9 +91,9 @@ class TerraformVariable:
         )
 
     def to_dict(self):
-        """
+        """ Convert a TerraformVariable instance into a dictionary.
 
-        :return:
+        :return: the dictionary.
         """
 
         var = {
@@ -125,11 +115,12 @@ class TerraformVariable:
 
 
 class TerraformApi:
-    def __init__(self, token: str, verbosity: int = 0):
-        """
 
-        :param token:
-        :param verbosity:
+    def __init__(self, token: str, verbosity: int = 0):
+        """ Create a TerraformApi instance.
+
+        :param token: the Terraform API token.
+        :param verbosity: the verbosity for the Terraform API.
         """
 
         self.token = token
@@ -147,7 +138,7 @@ class TerraformApi:
 
     @staticmethod
     def token_from_file(file_path: str) -> str:
-        """ Get the terraform token from a credentials file.
+        """ Get the Terraform token from a credentials file.
 
         :param file_path: path to credentials file
         :return: token
@@ -159,7 +150,7 @@ class TerraformApi:
 
     def create_workspace(self, organisation: str, workspace: str, auto_apply: bool, description: str,
                          version: str = "0.13.0-beta3") -> int:
-        """ Create a new workspace in terraform cloud.
+        """ Create a new workspace in Terraform Cloud.
 
         :param organisation: Name of terraform organisation
         :param workspace: Name of terraform workspace

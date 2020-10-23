@@ -27,10 +27,10 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from croniter import croniter
 
-from observatory.platform.utils.config_utils import (check_variables, check_connections, AirflowVars, AirflowConns)
-from observatory.platform.observatory_config import Environment
+from observatory.platform.observatory_config import Environment, VirtualMachine
 from observatory.platform.terraform_api import TerraformApi
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, change_task_log_level
+from observatory.platform.utils.config_utils import (check_variables, check_connections, AirflowVars, AirflowConns)
 
 
 def get_workspace_id() -> str:
@@ -64,6 +64,7 @@ def create_slack_webhook(comments: str = "", **kwargs) -> SlackWebhookHook:
     this  argument.
     :return: slack webhook
     """
+
     ti: TaskInstance = kwargs['ti']
     message = """
     :red_circle: Task Alert. 
@@ -91,6 +92,7 @@ def get_last_execution_prev(dag: DAG, dag_id: str, prev_start_time_vm: Union[dat
     :param prev_start_time_vm: previous time the VM was turned on
     :return: execution date or None
     """
+
     # Get execution date of the last run before previous start date
     all_dag_runs = DagRun.find(dag_id=dag_id)
     # sort dag runs by start datetime, newest first
@@ -160,18 +162,23 @@ class TerraformTasks:
     TASK_ID_RUN_STATUS = "terraform_check_run_status"
     TASK_ID_VM_RUNTIME = "check_runtime_vm"
 
-    # watch list of dag ids of which their states will be checked
+    # Watch list of dag ids of which their states will be checked
     # TODO: enable these to be configured from the config file
     DAG_IDS_WATCH_LIST = ['crossref_metadata', 'fundref', 'geonames',
                           'grid', 'mag', 'open_citations',
                           'unpaywall']
-    # name of variable in terraform configuration that will be updated
-    TERRAFORM_CREATE_VARIABLE = 'airflow_worker_create'
-    # name of module in terraform configuration that will be targeted
+
+    # Name of variable in terraform configuration that will be updated
+    TERRAFORM_CREATE_VM_KEY = 'airflow_worker_vm'
+    TERRAFORM_CREATE_KEY = 'create'
+
+    # Name of module in terraform configuration that will be targeted
     TERRAFORM_MODULE_WORKER_VM = "module.airflow_worker_vm"
-    # no. hours for VM to be turned on until a slack notification is send
+
+    # No. hours for VM to be turned on until a slack notification is send
     VM_RUNTIME_H_WARNING = 20
-    # frequency in hours of how often a warning message is sent on slack
+
+    # Frequency in hours of how often a warning message is sent on slack
     WARNING_FREQUENCY_H = 5
 
     @staticmethod
@@ -189,30 +196,30 @@ class TerraformTasks:
 
     @staticmethod
     def get_variable_create(**kwargs) -> bool:
-        """
-        Retrieves the current value of the terraform variable from the cloud workspace, if this already has the value
+        """ Retrieves the current value of the terraform variable from the cloud workspace, if this already has the value
         that the DAG is planning to set it to, it will return False and remaining tasks are skipped.
+
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
         :return: True or False
         """
+
         token = BaseHook.get_connection(AirflowConns.TERRAFORM).password
         terraform_api = TerraformApi(token)
 
         # Add variable to workspace
         workspace_id = get_workspace_id()
         variables = terraform_api.list_workspace_variables(workspace_id)
-        value = None
+        vm = None
         for var in variables:
-            key = var['attributes']['key']
-            if key == TerraformTasks.TERRAFORM_CREATE_VARIABLE:
-                value = var['attributes']['value']
+            if var.key == TerraformTasks.TERRAFORM_CREATE_VM_KEY:
+                vm = VirtualMachine.from_hcl(var.value)
                 break
 
         # create_vm dag run and terraform create variable is already true (meaning VM is already on) or
         # destroy_vm dag run and terraform destroy variable is already false (meaning VM is already off)
-        vm_is_on = eval(value.capitalize())
+        vm_is_on = vm.create
         if (kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_CREATE_VM and vm_is_on) or \
                 (kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_DESTROY_VM and not vm_is_on):
             logging.info(f'VM is already in this state: {"on" if vm_is_on else "off"}')
@@ -223,43 +230,54 @@ class TerraformTasks:
 
     @staticmethod
     def update_terraform_variable(**kwargs):
-        """
-        Updates the value of the terraform variable from the cloud workspace. The value is dependent on which DAG
+        """ Updates the value of the terraform variable from the cloud workspace. The value is dependent on which DAG
         this function is executed from.
+
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
         :return: None
         """
+
         if kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_CREATE_VM:
-            value = 'true'
+            create_value = 'true'
         else:
-            value = 'false'
+            create_value = 'false'
+
         token = BaseHook.get_connection(AirflowConns.TERRAFORM).password
         terraform_api = TerraformApi(token)
 
-        # Add variable to workspace
+        # Get variable
         workspace_id = get_workspace_id()
-        terraform_variable = TerraformApi.create_var_attributes(TerraformTasks.TERRAFORM_CREATE_VARIABLE, value,
-                                                                'terraform')
-        workspace_vars = terraform_api.list_workspace_variables(workspace_id)
-        var_attributes = next(var for var in workspace_vars if var['attributes']['key'] ==
-                              TerraformTasks.TERRAFORM_CREATE_VARIABLE)
-        var_id = var_attributes['id']
-        terraform_api.update_workspace_variable(terraform_variable, var_id, workspace_id)
+        variables = terraform_api.list_workspace_variables(workspace_id)
+        vm = None
+        vm_var = None
+        for var in variables:
+            if var.key == TerraformTasks.TERRAFORM_CREATE_VM_KEY:
+                vm_var = var
+                vm = VirtualMachine.from_hcl(var.value)
+                break
+
+        # Update vm create value and convert to HCL
+        vm.create = create_value
+        vm_var.value = vm.to_hcl()
+
+        # Update value
+        terraform_api.update_workspace_variable(vm_var, workspace_id)
 
     @staticmethod
     def terraform_run(**kwargs):
-        """
-        Runs terraform configuration on specific target.
+        """ Runs terraform configuration on specific target.
         xcom values are pushed for the start and destroy time of the vm with the start time of this task. If this
         function is executed from the 'create' DAG, the time from when the previous vm was started will be set to the
         xcom value of this task from the previous run.
+
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
         :return: None
         """
+
         # Push xcom with start date of this DAG run both for start and destroy
         ti: TaskInstance = kwargs['ti']
         if kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_CREATE_VM:
@@ -286,16 +304,17 @@ class TerraformTasks:
 
     @staticmethod
     def check_terraform_run_status(**kwargs):
-        """
-        Retrieve the terraform run status until it is in a finished state, either successful or errored. See
+        """ Retrieve the terraform run status until it is in a finished state, either successful or errored. See
         https://www.terraform.io/docs/cloud/api/run.html for possible run_status values.
         If the run status is not successful and the environment isn't develop a warning message will be sent to a slack
         channel.
+
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
         :return: None
         """
+
         ti: TaskInstance = kwargs['ti']
         run_id = ti.xcom_pull(key=TerraformTasks.XCOM_TERRAFORM_RUN_ID, task_ids=TerraformTasks.TASK_ID_RUN)
 
@@ -321,14 +340,15 @@ class TerraformTasks:
 
     @staticmethod
     def check_success_dags(**kwargs) -> str:
-        """
-        Check if all expected runs for the DAGs in the watchlist are successful. If they are the task to update the
+        """ Check if all expected runs for the DAGs in the watchlist are successful. If they are the task to update the
         terraform variable will be executed, otherwise the task to check how long the VM has been on will be executed.
+
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
         :return: id of task which should be executed next
         """
+
         destroy_worker_vm = True
 
         ti: TaskInstance = kwargs['ti']
@@ -372,6 +392,7 @@ class TerraformTasks:
             # get a backfill of all expected runs between last execution date of prev cycle and the time the vm was
             # started. create iterator starting at the latest planned schedule before start_time_vm
             cron_iter = croniter(dag.normalized_schedule_interval, dag.previous_schedule(start_time_vm))
+
             # the last_execution_current is expected 1 schedule interval before the DAGs 'previous_schedule',
             # because airflow won't trigger a DAG until 1 schedule interval after the 'execution_date'.
             last_execution_current = cron_iter.get_prev(datetime)
@@ -397,15 +418,16 @@ class TerraformTasks:
 
     @staticmethod
     def check_runtime_vm(**kwargs):
-        """
-        Checks how long the VM has been turned on based on the xcom value from the terraform run task.
+        """ Checks how long the VM has been turned on based on the xcom value from the terraform run task.
         A warning message will be send in a slack channel if it has been on longer than the warning limit,
         the environment isn't develop and a message hasn't been send already in the last x hours.
+
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
         :return: None
         """
+
         ti: TaskInstance = kwargs['ti']
         last_warning_time = ti.xcom_pull(key=TerraformTasks.XCOM_WARNING_TIME,
                                          task_ids=TerraformTasks.TASK_ID_VM_RUNTIME,
