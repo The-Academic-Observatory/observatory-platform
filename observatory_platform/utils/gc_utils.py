@@ -657,7 +657,8 @@ def google_cloud_storage_transfer_job(job: dict, func_name: str, gc_project_id: 
 
             num_operations = len(operations)
             logging.info(f"{func_name}: transfer job {transfer_job_name} operations success={success_count}, "
-                         f"failed={failed_count}, aborted={aborted_count}, in_progress_count={in_progress_count}")
+                         f"failed={failed_count}, aborted={aborted_count}, in_progress_count={in_progress_count}, "
+                         f"objects_count={objects_count}")
 
             if success_count >= num_operations:
                 status = TransferStatus.success
@@ -789,9 +790,9 @@ def aws_to_google_cloud_storage_transfer(aws_access_key_id: str, aws_secret_key:
         }
     }
     if last_modified_since:
-        job['transferSpec']['objectConditions']['lastModifiedSince'] = last_modified_since.isoformat()
+        job['transferSpec']['objectConditions']['lastModifiedSince'] = last_modified_since.isoformat().replace('+00:00', 'Z')
     if last_modified_before:
-        job['transferSpec']['objectConditions']['lastModifiedBefore'] = last_modified_before.isoformat()
+        job['transferSpec']['objectConditions']['lastModifiedBefore'] = last_modified_before.isoformat().replace('+00:00', 'Z')
 
     status, objects_count = google_cloud_storage_transfer_job(job, func_name, gc_project_id)
     return status, objects_count

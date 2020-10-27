@@ -58,7 +58,7 @@ class TestOrcid(unittest.TestCase):
 
     # @patch('botocore.response.StreamingBody.read')
     @patch('botocore.client.BaseClient._make_api_call')
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_write_modified_record_prefixes(self, mock_variable_get, mock_api_call):
         modified_records_hash = '46e2733588b17dc5c441ff99de3fa03e'
         gc_download_bucket = 'orcid_sync'
@@ -87,7 +87,7 @@ class TestOrcid(unittest.TestCase):
             self.assertTrue(os.path.isfile(release.modified_records_path))
             self.assertEqual(modified_records_hash, _hash_file(release.modified_records_path, algorithm='md5'))
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_write_boto_config(self, mock_variable_get):
         boto_config_file_hash = '915c0ebc6a2eebe12e85fc6fae35e02a'
         with CliRunner().isolated_filesystem():
@@ -100,11 +100,13 @@ class TestOrcid(unittest.TestCase):
     @patch('observatory_platform.telescopes.orcid.write_modified_record_prefixes')
     @patch('observatory_platform.telescopes.orcid.args_list')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
-    def test_download_records(self, mock_variable_get, mock_get_connection, mock_args_list, mock_write_records):
+    @patch('observatory_platform.telescopes.orcid.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
+    def test_download_records(self, mock_variable_get, mock_variable_telescope_get, mock_get_connection,
+                              mock_args_list,  mock_write_records):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
-
+            mock_variable_telescope_get.side_effect = side_effect
             mock_get_connection.return_value = SimpleNamespace(login=self.aws_access_key_id,
                                                                password=self.aws_secret_access_key)
 
@@ -172,7 +174,7 @@ class TestOrcid(unittest.TestCase):
         self.assertEqual(expected_new_dict, actual_new_dict)
 
     @patch('observatory_platform.telescopes.orcid.OrcidRelease.download_dir', new_callable=PropertyMock)
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_transform_records(self, mock_variable_get, mock_download_dir):
         transform_hash = '25604802e68bda8eeffc2886d234a0ff'
         with CliRunner().isolated_filesystem():
@@ -196,10 +198,12 @@ class TestOrcid(unittest.TestCase):
             self.assertEqual(transform_hash, _hash_file(release.transform_path, algorithm='md5'))
 
     @patch('observatory_platform.telescopes.orcid.load_bigquery_table')
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
-    def test_bq_load_partition(self, mock_variable_get, mock_load_bq_table):
+    @patch('observatory_platform.telescopes.orcid.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
+    def test_bq_load_partition(self, mock_variable_get, mock_variable_telescope_get, mock_load_bq_table):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
+            mock_variable_telescope_get.side_effect = side_effect
             release = OrcidRelease(self.start_date, self.end_date)
 
             # create expected arguments with which load bq table should be called with
@@ -230,10 +234,12 @@ class TestOrcid(unittest.TestCase):
 
     @patch('observatory_platform.telescopes.orcid.copy_bigquery_table')
     @patch('observatory_platform.telescopes.orcid.create_bigquery_dataset')
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
-    def test_bq_append_from_partition(self, mock_variable_get, mock_create_bq_dataset, mock_copy_bq_table):
+    @patch('observatory_platform.telescopes.orcid.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
+    def test_bq_append_from_partition(self, mock_variable_get, mock_variable_telescope_get, mock_create_bq_dataset, mock_copy_bq_table):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
+            mock_variable_telescope_get.side_effect = side_effect
             release = OrcidRelease(self.start_date, self.end_date)
 
             bq_append_from_partition(release, pendulum.parse("2020-12-01"), pendulum.parse("2020-12-08"))
@@ -251,10 +257,13 @@ class TestOrcid(unittest.TestCase):
 
     @patch('observatory_platform.telescopes.orcid.load_bigquery_table')
     @patch('observatory_platform.telescopes.orcid.create_bigquery_dataset')
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
-    def test_bq_append_from_file(self, mock_variable_get, mock_create_bq_dataset, mock_load_bq_table):
+    @patch('observatory_platform.telescopes.orcid.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
+    def test_bq_append_from_file(self, mock_variable_get, mock_variable_telescope_get, mock_create_bq_dataset,
+                                 mock_load_bq_table):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
+            mock_variable_telescope_get.side_effect = side_effect
             release = OrcidRelease(self.start_date, self.end_date)
 
             # create expected arguments with which load bq table should be called with
@@ -270,7 +279,7 @@ class TestOrcid(unittest.TestCase):
                                                   write_disposition='WRITE_APPEND')
 
     @patch('observatory_platform.telescopes.orcid.logging.warning')
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_cleanup_dirs(self, mock_variable_get, mock_logging_warning):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -289,7 +298,7 @@ class TestOrcid(unittest.TestCase):
             cleanup_dirs(release)
             self.assertEqual(2, mock_logging_warning.call_count)
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_orcid_release(self, mock_variable_get):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -310,7 +319,7 @@ class TestOrcid(unittest.TestCase):
             release = OrcidRelease(self.start_date, self.end_date, False)
             self.assertFalse(release.first_release)
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_lambda_file_path(self, mock_variable_get):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -320,7 +329,7 @@ class TestOrcid(unittest.TestCase):
             expected_path = release.get_path(SubFolder.downloaded, 'last_modified.csv.tar')
             self.assertEqual(expected_path, actual_path)
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_modified_records_path(self, mock_variable_get):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -330,7 +339,7 @@ class TestOrcid(unittest.TestCase):
             expected_path = release.get_path(SubFolder.downloaded, 'modified_records.txt')
             self.assertEqual(expected_path, actual_path)
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_continuation_token_path(self, mock_variable_get):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -340,7 +349,7 @@ class TestOrcid(unittest.TestCase):
             expected_path = release.get_path(SubFolder.downloaded, 'continuation_token.txt')
             self.assertEqual(expected_path, actual_path)
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_download_dir(self, mock_variable_get):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -351,7 +360,7 @@ class TestOrcid(unittest.TestCase):
             self.assertEqual(expected_path, actual_path)
             self.assertTrue(os.path.exists(actual_path))
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_transform_path(self, mock_variable_get):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -362,7 +371,7 @@ class TestOrcid(unittest.TestCase):
             expected_path = release.get_path(SubFolder.transformed, f"{OrcidTelescope.DAG_ID}_{date_str}.json")
             self.assertEqual(expected_path, actual_path)
 
-    # @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    # @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     # def test_blob_dir_download(self, mock_variable_get):
     #     with CliRunner().isolated_filesystem():
     #         mock_variable_get.side_effect = side_effect
@@ -373,7 +382,7 @@ class TestOrcid(unittest.TestCase):
     #         expected_blob_name = f'telescopes/{OrcidTelescope.DAG_ID}/{date_str}'
     #         self.assertEqual(expected_blob_name, actual_blob_name)
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_blob_name(self, mock_variable_get):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -384,7 +393,7 @@ class TestOrcid(unittest.TestCase):
             expected_blob_name = f'telescopes/{OrcidTelescope.DAG_ID}/{OrcidTelescope.DAG_ID}_{date_str}.json'
             self.assertEqual(expected_blob_name, actual_blob_name)
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_subdir(self, mock_variable_get):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -396,7 +405,7 @@ class TestOrcid(unittest.TestCase):
                 expected_dir = os.path.join(telescope_path(subdir, OrcidTelescope.DAG_ID), date_str)
                 self.assertEqual(expected_dir, actual_dir)
 
-    @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_get_path(self, mock_variable_get):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -408,7 +417,7 @@ class TestOrcid(unittest.TestCase):
                 self.assertEqual(expected_path, actual_path)
                 self.assertTrue(os.path.exists(release.subdir(subdir)))
 
-    # @patch('observatory_platform.utils.config_utils.airflow.models.Variable.get')
+    # @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     # def test_transfer_all_records(self, mock_variable_get):
     #     with CliRunner().isolated_filesystem():
     #         mock_variable_get.side_effect = side_effect
