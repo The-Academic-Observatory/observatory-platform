@@ -123,6 +123,7 @@ mag_snapshots_container: The mag_snapshots_container connection.
 crossref: Contains the crossref API token.
 terraform: Contains the terraform API token.
 slack: Contains the webhook URL and webhook token.
+orcid: Contains the access id and access key for the ORCID s3 buckets.
 EOF
   type = object({
     mag_releases_table = string
@@ -130,6 +131,7 @@ EOF
     crossref = string
     terraform = string
     slack = string
+    orcid = string
   })
   default = {
     "mag_releases_table":"mysql://myname:mypassword@myhost.com <--",
@@ -137,6 +139,7 @@ EOF
     "crossref":"mysql://myname:mypassword@myhost.com <--",
     "terraform":"mysql://:terraform-token@ <--",
     "slack":"https://:T00000000%2FB00000000%2FXXXXXXXXXXXXXXXXXXXXXXXX@https%3A%2F%2Fhooks.slack.com%2Fservices <--"
+    "orcid":"aws://aws_access_key_id:aws_secret_access_key@ <--"
   }
 }
 
