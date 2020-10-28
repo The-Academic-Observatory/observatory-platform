@@ -241,8 +241,8 @@ FROM(
          -- Funders
          ARRAY((
           SELECT as STRUCT
-            funder.identifier,
-            MAX(funder.name) as name,
+            funder.name as identifier,
+            funder.name as name,
             MAX(funder.country) as country,
             MAX(funder.country_code) as country_code,
             MAX(funder.funding_body_type) as funding_body_type,
@@ -253,7 +253,7 @@ FROM(
             --STRUCT(COUNT(in_mag) as count, COUNTIF(is_oa AND in_mag) as oa, COUNTIF(green AND in_mag) as green, COUNTIF(gold AND in_mag) as gold) as mag,
             --STRUCT(COUNT(in_filtered) as count, COUNTIF(is_oa AND in_filtered) as oa, COUNTIF(green AND in_filtered) as green, COUNTIF(gold AND in_filtered) as gold) as filtered,
           FROM UNNEST(funders) as funder
-          GROUP BY funder.identifier
+          GROUP BY funder.name
           ORDER BY count DESC
           LIMIT 1500
          )) as funders,
