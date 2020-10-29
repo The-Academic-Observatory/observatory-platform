@@ -1,0 +1,146 @@
+[
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "status",
+        "type": "STRING",
+        "description": "An optional status attribute with a value of deleted indicates the withdrawal of availability of the specified metadata format for the item, dependent on the repository support for deletions."
+      },
+      {
+        "mode": "REQUIRED",
+        "name": "identifier",
+        "type": "STRING",
+        "description": "The unique identifier of an item in a repository"
+      },
+      {
+        "mode": "REQUIRED",
+        "name": "datestamp",
+        "type": "TIMESTAMP",
+        "description": "The date of creation, modification or deletion of the record for the purpose of selective harvesting."
+      },
+      {
+        "mode": "REPEATED",
+        "name": "setSpec",
+        "type": "STRING",
+        "description": "The set membership of the item for the purpose of selective harvesting."
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "header",
+    "type": "RECORD",
+    "description": "Contains the unique identifier of the item and properties necessary for selective harvesting (OAI-PMH)."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "title",
+        "type": "STRING",
+        "description": "Title of the book."
+      },
+      {
+        "mode": "REPEATED",
+        "name": "identifier",
+        "type": "STRING",
+        "description": "Identifiers"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "creator",
+        "type": "STRING",
+        "description": "Creator(s) of the book"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "language",
+        "type": "STRING",
+        "description": "Language(s) of the book. A book may have multiple languages, written in different ways (i.e. Deutsch, German, de, Deutschland)."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "description",
+        "type": "STRING",
+        "description": "Description of the book content."
+      },
+      {
+        "mode": "REPEATED",
+        "name": "subject",
+        "type": "STRING",
+        "description": "Subject(s) of the book."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "publisher",
+        "type": "STRING",
+        "description": "Name of the publisher."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "date",
+        "type": "INTEGER",
+        "description": "The year of publication of the book."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "type",
+        "type": "STRING",
+        "description": "Type of content. Can be 'book' or 'chapter'."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "rights",
+        "type": "STRING",
+        "description": "Creative commons license types."
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "metadata",
+    "type": "RECORD",
+    "description": "A single manifestation of the metadata from an item (OAI-PMH)."
+    },
+    {
+      "fields": [
+        {
+          "mode": "NULLABLE",
+          "name": "issn",
+          "type": "STRING",
+          "description": "ISSN of the book."
+        },
+        {
+          "mode": "NULLABLE",
+          "name": "volume",
+          "type": "STRING",
+          "description": "Book volume."
+        },
+        {
+          "mode": "NULLABLE",
+          "name": "pages",
+          "type": "STRING",
+          "description": "Number of pages of the book."
+        },
+        {
+          "mode": "NULLABLE",
+          "name": "series_title",
+          "type": "STRING",
+          "description": "Name of the book series."
+        },
+        {
+          "mode": "NULLABLE",
+          "name": "added_on_date",
+          "type": "DATETIME",
+          "description": "Date and time of book's record entry."
+        },
+        {
+          "mode": "REPEATED",
+          "name": "subjects",
+          "type": "STRING",
+          "description": "Subject of the Book (LoC codes)."
+        }
+      ],
+      "mode": "REPEATED",
+      "name": "csv",
+      "type": "RECORD",
+      "description": "Additional info from the csv file."
+    }
+]
