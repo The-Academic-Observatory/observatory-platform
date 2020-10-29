@@ -184,9 +184,11 @@ class TestOrcid(unittest.TestCase):
 
             # make download dir and add two record files
             os.makedirs(download_dir)
+            os.makedirs(os.path.join(download_dir, '060'))
+            os.makedirs(os.path.join(download_dir, '061'))
             orcid_record_path = os.path.join(test_fixtures_path(), 'telescopes', 'orcid_record.xml')
-            shutil.copyfile(orcid_record_path, os.path.join(download_dir, '0000-0003-0776-6060.xml'))
-            shutil.copyfile(orcid_record_path, os.path.join(download_dir, '0000-0003-0776-6061.xml'))
+            shutil.copyfile(orcid_record_path, os.path.join(download_dir, '060', '0000-0003-0776-6060.xml'))
+            shutil.copyfile(orcid_record_path, os.path.join(download_dir, '061', '0000-0003-0776-6061.xml'))
             # make file in download directory that should be ignored
             with open(os.path.join(download_dir, 'other_file.txt'), 'w') as f:
                 f.write('test')

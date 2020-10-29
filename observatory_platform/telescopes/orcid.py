@@ -396,30 +396,37 @@ def transform_records(release: 'OrcidRelease'):
                 continue
             # create dict of data in summary xml file
             with open(os.path.join(s_root, summary_file), 'r') as f:
-                orcid_dict = xmltodict.parse(f.read())['record:record']
+                orcid_dict = xmltodict.parse(f.read())
+                try:
+                    orcid_dict = orcid_dict['record:record']
+                except KeyError:
+                    try:
+                        orcid_dict = orcid_dict['error:error']
+                    except KeyError:
+                        raise AirflowException(f'Key error for file: {s_root}, {summary_file}')
 
-            # # one activity dir per record
-            # activity_dir = os.path.join(release.get_download_dir(OrcidTelescope.ACTIVITIES_BUCKET), orcid_id)
-            # # for one of the 5 activity categories
-            # for a_root, a_dirs, a_files in os.walk(activity_dir):
-            #     for activity_file in a_files:
-            #         activity = activity_file.split('_')[1]
-            #         activity_field = activity_fields[activity]
-            #         # create dict of data in activity xml file
-            #         with open(os.path.join(a_root, activity_file), 'r') as f:
-            #             activity_dict = xmltodict.parse(f.read())[activity_field]
-            #         # make list per activity category and append individual activity
-            #         try:
-            #             orcid_dict[activity_field].append(activity_dict)
-            #         except KeyError:
-            #             orcid_dict[activity_field] = [activity_dict]
+                # # one activity dir per record
+                # activity_dir = os.path.join(release.get_download_dir(OrcidTelescope.ACTIVITIES_BUCKET), orcid_id)
+                # # for one of the 5 activity categories
+                # for a_root, a_dirs, a_files in os.walk(activity_dir):
+                #     for activity_file in a_files:
+                #         activity = activity_file.split('_')[1]
+                #         activity_field = activity_fields[activity]
+                #         # create dict of data in activity xml file
+                #         with open(os.path.join(a_root, activity_file), 'r') as f:
+                #             activity_dict = xmltodict.parse(f.read())[activity_field]
+                #         # make list per activity category and append individual activity
+                #         try:
+                #             orcid_dict[activity_field].append(activity_dict)
+                #         except KeyError:
+                #             orcid_dict[activity_field] = [activity_dict]
 
-            # change keys & delete some values
-            orcid_dict = change_keys(orcid_dict, convert)
-            # one dict per orcid record, append to file.
-            with open(release.transform_path, 'a') as json_out:
-                with jsonlines.Writer(json_out) as writer:
-                    writer.write_all([orcid_dict])
+                # change keys & delete some values
+                orcid_dict = change_keys(orcid_dict, convert)
+                # one dict per orcid record, append to file.
+                with open(release.transform_path, 'a') as json_out:
+                    with jsonlines.Writer(json_out) as writer:
+                        writer.write_all([orcid_dict])
 
 
 def bq_load_partition(release: 'OrcidRelease'):

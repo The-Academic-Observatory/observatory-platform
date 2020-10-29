@@ -14648,11 +14648,11 @@
       {
         "fields": [
           {
-"mode": "NULLABLE",
-"name": "last_modified_date",
-"type": "TIMESTAMP",
-"description": "The date time when the element was last modified."
-},
+            "mode": "NULLABLE",
+            "name": "last_modified_date",
+            "type": "TIMESTAMP",
+            "description": "The date time when the element was last modified."
+          },
           {
     "fields": [
       {
@@ -33711,6 +33711,36 @@
     "name": "path",
     "type": "STRING",
     "description": "The activity-path attribute is present only when reading elements. It will be of the form /{orcid}/{activity-name}/{put-code} for activity elements or /{orcid}/person/{element-name}/{put-code} for person element"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "response_code",
+    "type": "INTEGER",
+    "description": "Error response code"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "developer_message",
+    "type": "STRING",
+    "description": "Error developer message"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "user_message",
+    "type": "STRING",
+    "description": "Error user message"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "error_code",
+    "type": "INTEGER",
+    "description": "Error code"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "more_info",
+    "type": "STRING",
+    "description": "More info on error"
   }
 ]
 
