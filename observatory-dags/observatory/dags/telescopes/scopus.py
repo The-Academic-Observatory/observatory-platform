@@ -18,52 +18,45 @@
 import calendar
 import json
 import logging
-import pendulum
 import os
 import urllib.request
-
-from airflow.exceptions import AirflowException
-from airflow.models.taskinstance import TaskInstance
-from airflow.models import Variable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from google.cloud.bigquery import SourceFormat, WriteDisposition
 from queue import Queue, Empty
 from threading import Event
-from time import sleep
 from typing import List, Tuple, Type
-from ratelimit import limits, sleep_and_retry
 from urllib.error import HTTPError
 from urllib.parse import quote_plus
 
-from observatory_platform.utils.config_utils import (
-    AirflowVar,
-    SubFolder,
-    check_variables,
-    find_schema,
-    telescope_path,
-    schema_path,
-)
+import pendulum
+from airflow.exceptions import AirflowException
+from airflow.models import Variable
+from airflow.models.taskinstance import TaskInstance
+from google.cloud.bigquery import SourceFormat, WriteDisposition
+from ratelimit import limits, sleep_and_retry
+from time import sleep
 
-from observatory_platform.utils.telescope_utils import (
-    build_schedule,
-    delete_msg_files,
-    get_entry_or_none,
-    get_as_list,
-    get_as_list_or_none,
-    json_to_db,
-    validate_date,
-    write_to_file,
-    zip_files,
-)
-
-from observatory_platform.utils.gc_utils import (
+from observatory.dags.config import schema_path
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
+from observatory.platform.utils.config_utils import (AirflowVars, SubFolder, find_schema, telescope_path,
+                                                     check_variables)
+from observatory.platform.utils.gc_utils import (
     bigquery_partitioned_table_id,
     create_bigquery_dataset,
     load_bigquery_table,
     upload_telescope_file_list,
 )
+from observatory.platform.utils.telescope_utils import (
+    build_schedule,
+    delete_msg_files,
+    get_entry_or_none,
+    get_as_list,
+    json_to_db,
+    validate_date,
+    write_to_file,
+    zip_files,
+)
+from observatory.platform.utils.url_utils import get_ao_user_agent
 
-from observatory_platform.utils.url_utils import get_ao_user_agent
 
 class ScopusRelease:
     """ Used to store info on a given SCOPUS release. """
@@ -148,9 +141,9 @@ class ScopusTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVar.data_path.get(), AirflowVar.project_id.get(),
-                                     AirflowVar.data_location.get(), AirflowVar.download_bucket_name.get(),
-                                     AirflowVar.transform_bucket_name.get())
+        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
+                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET_NAME,
+                                     AirflowVars.TRANSFORM_BUCKET_NAME)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -181,25 +174,25 @@ class ScopusTelescope:
 
         logging.info(f'Checking for airflow override variables of {conn}')
         # Set project id override
-        project_id = Variable.get(AirflowVar.project_id.get())
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
         if 'project_id' in extra_dict:
             project_id = extra_dict['project_id']
             logging.info(f'Override for project_id found. Using: {project_id}')
 
         # Set download bucket name override
-        download_bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
+        download_bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET_NAME)
         if 'download_bucket_name' in extra_dict:
             download_bucket_name = extra_dict['download_bucket_name']
             logging.info(f'Override for download_bucket_name found. Using: {download_bucket_name}')
 
         # Set transform bucket name override
-        transform_bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
+        transform_bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
         if 'transform_bucket_name' in extra_dict:
             transform_bucket_name = extra_dict['transform_bucket_name']
             logging.info(f'Override for transform_bucket_name found. Using: {transform_bucket_name}')
 
         # Set data location override
-        data_location = Variable.get(AirflowVar.data_location.get())
+        data_location = Variable.get(AirflowVars.DATA_LOCATION)
         if 'data_location' in extra_dict:
             data_location = extra_dict['data_location']
             logging.info(f'Override for data_location found. Using: {data_location}')
@@ -396,10 +389,8 @@ class ScopusTelescope:
         table_id = bigquery_partitioned_table_id(ScopusTelescope.TABLE_NAME, release.release_date)
 
         # Load into BigQuery
-        analysis_schema_path = schema_path(ScopusTelescope.SCHEMA_PATH)
-
         for file in jsonl_zip_blobs:
-            schema_file_path = find_schema(analysis_schema_path, ScopusTelescope.TABLE_NAME, release.release_date, '',
+            schema_file_path = find_schema(schema_path(), ScopusTelescope.TABLE_NAME, release.release_date, '',
                                            release.schema_ver)
             if schema_file_path is None:
                 logging.error(
@@ -444,6 +435,7 @@ class ScopusClientThrottleLimits:
     """ API throttling constants for ScopusClient. """
     CALL_LIMIT = 1  # SCOPUS allows 2 api calls / second.
     CALL_PERIOD = 1  # seconds
+
 
 class ScopusClient:
     """ Handles URL fetching of SCOPUS search. """

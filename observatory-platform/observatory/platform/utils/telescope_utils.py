@@ -21,18 +21,16 @@ import json
 import logging
 import os
 import shutil
-import sys
-
-from airflow.models.taskinstance import TaskInstance
 from collections import deque
-from math import ceil
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Tuple, Any, Type
-from dataclasses import dataclass
 
 import jsonlines
 import pendulum
+import sys
 from airflow.models.taskinstance import TaskInstance
+from math import ceil
 
 
 def build_schedule(sched_start_date, sched_end_date):
@@ -130,7 +128,8 @@ def get_entry_or_none(base: dict, target, var_type=None):
     return base[target]
 
 
-def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str], path_prefix:str=None) -> List[str]:
+def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str],
+               path_prefix: str = None) -> List[str]:
     """ Transform json from query into database format.
 
     :param json_list: json data to transform.
@@ -348,7 +347,7 @@ class ScheduleOptimiser:
 
         for i in range(1, n):
             result_count = 0
-            min_calls[i] = ScheduleOptimiser.get_num_calls(historic_counts[i].count, max_per_call) + min_calls[i-1]
+            min_calls[i] = ScheduleOptimiser.get_num_calls(historic_counts[i].count, max_per_call) + min_calls[i - 1]
 
             for j in range(i, -1, -1):
                 curr_count = historic_counts[j].count
@@ -357,8 +356,8 @@ class ScheduleOptimiser:
                     break
 
                 candidate = ScheduleOptimiser.get_num_calls(result_count, max_per_call)
-                if j-1>=0:
-                    candidate += min_calls[j-1]
+                if j - 1 >= 0:
+                    candidate += min_calls[j - 1]
 
                 if candidate <= min_calls[i]:
                     min_calls[i] = candidate

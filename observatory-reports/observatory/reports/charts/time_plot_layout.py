@@ -16,8 +16,8 @@
 
 import matplotlib.pyplot as plt
 
-from observatory.reports.abstract_chart import AbstractObservatoryChart
 from observatory.reports import chart_utils
+from observatory.reports.abstract_chart import AbstractObservatoryChart
 from observatory.reports.chart_utils import _collect_kwargs_for
 
 

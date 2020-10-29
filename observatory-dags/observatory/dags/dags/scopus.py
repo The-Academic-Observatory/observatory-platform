@@ -16,15 +16,14 @@
 
 
 import logging
-
 from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
 
-from observatory_platform.telescopes.scopus import ScopusTelescope
-from observatory_platform.utils.config_utils import list_connections
+from observatory.dags.telescopes.scopus import ScopusTelescope
+from observatory.platform.utils.config_utils import list_connections
 
 default_args = {'owner': 'airflow',
                 'start_date': datetime(2018, 1, 1),

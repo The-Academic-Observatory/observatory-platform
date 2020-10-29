@@ -15,29 +15,28 @@
 # Author: Tuan Chien
 
 import os
-import pendulum
 import unittest
 import unittest.mock as mock
-
 from queue import Queue
-from click.testing import CliRunner
 from unittest.mock import patch
 
-from observatory_platform.telescopes.scopus import (
+import pendulum
+from click.testing import CliRunner
+from pbr.util import cfg_to_args
+
+from observatory.dags.telescopes.scopus import (
     ScopusRelease,
     ScopusUtility,
     ScopusUtilWorker,
     ScopusJsonParser,
     ScopusClient
 )
-
-from observatory_platform.utils.telescope_utils import (
+from observatory.platform.utils.telescope_utils import (
     build_schedule,
 )
+from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.url_utils import get_ao_user_agent
 
-from observatory_platform.utils.url_utils import get_ao_user_agent
-
-from pbr.util import cfg_to_args
 
 class TestScopusClient(unittest.TestCase):
     """ Test the ScopusClient class. """
@@ -45,11 +44,11 @@ class TestScopusClient(unittest.TestCase):
     def test_scopus_client_user_agent(self):
         """ Test to make sure the user agent string is set correctly. """
         obj = ScopusClient('')
-        
+
         # Need to set override isolated_filesystem for cfg_to_args
         pwd = os.getcwd()
-        setupfile = os.path.join(pwd, 'setup.cfg')
-        with patch('observatory_platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
+        setupfile = os.path.join(module_file_path('observatory.platform', nav_back_steps=-3), 'setup.cfg')
+        with patch('observatory.platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
             generated_ua = obj._headers['User-Agent']
             self.assertEqual(generated_ua, get_ao_user_agent())
 
@@ -57,7 +56,7 @@ class TestScopusClient(unittest.TestCase):
 class TestScopusRelease(unittest.TestCase):
     """ Test the ScopusRelease class. """
 
-    @patch('observatory_platform.telescopes.scopus.telescope_path', return_value='test')
+    @patch('observatory.dags.telescopes.scopus.telescope_path', return_value='test')
     def test_init(self, mock_target):
         """ Test initialisation. """
 
@@ -82,6 +81,7 @@ class TestScopusRelease(unittest.TestCase):
         self.assertEqual(obj.data_location, 'data_location')
         self.assertEqual(obj.schema_ver, 'schema_ver')
         self.assertEqual(mock_target.call_count, 2)
+
 
 class TestScopusUtilWorker(unittest.TestCase):
     """ Test the ScopusUtilWorker class. """
@@ -125,7 +125,7 @@ class TestScopusUtility(unittest.TestCase):
         query_truth = '(AF-ID(test1) OR AF-ID(test2)) AND PUBDATETXT("October 2018" or "November 2018" or "December 2018" or "January 2019" or "February 2019")'
         self.assertEqual(query, query_truth)
 
-    @patch('observatory_platform.telescopes.scopus.sleep')
+    @patch('observatory.dags.telescopes.scopus.sleep')
     def test_sleep_if_needed(self, sleep_mock):
         """ Test sleep calculation. """
         ScopusUtility.sleep_if_needed(self.reset_past, self.conn)
@@ -163,24 +163,23 @@ class TestScopusUtility(unittest.TestCase):
         new_reset = ScopusUtility.update_reset_date(self.conn, error_msg, worker, reset_date)
         self.assertEqual(new_reset, pendulum.datetime(1970, 1, 1, 0, 0, 0))
 
-    @patch('observatory_platform.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
+    @patch('observatory.dags.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
     def test_download_scopus_period(self, mock_make_query):
         """ Test downloading of a period. Mocks out actual api call. """
 
         # Need to set override isolated_filesystem for cfg_to_args
-        pwd = os.getcwd()
-        setupfile = os.path.join(pwd, 'setup.cfg')
-        with patch('observatory_platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
+        setupfile = os.path.join(module_file_path('observatory.platform', nav_back_steps=-3), 'setup.cfg')
+        with patch('observatory.platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
             with CliRunner().isolated_filesystem():
                 period = pendulum.Period(pendulum.date(1990, 9, 1), pendulum.date(1990, 9, 30))
                 worker = ScopusUtilWorker(1, ScopusClient(self.api_key1), pendulum.now('UTC'), 20000)
                 save_file = ScopusUtility.download_scopus_period(worker, self.conn, period, self.scopus_inst_id,
-                                                                self.workdir)
+                                                                 self.workdir)
                 self.assertEqual(mock_make_query.call_count, 1)
                 self.assertNotEqual(save_file, '')
 
-    @patch('observatory_platform.telescopes.scopus.ScopusUtilWorker.QUEUE_WAIT_TIME', 1)
-    @patch('observatory_platform.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
+    @patch('observatory.dags.telescopes.scopus.ScopusUtilWorker.QUEUE_WAIT_TIME', 1)
+    @patch('observatory.dags.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
     def test_sequential(self, mock_make_query):
         """ Sequential download test. """
 
@@ -193,49 +192,55 @@ class TestScopusUtility(unittest.TestCase):
         taskq = Queue()
         for period in self.schedule:
             taskq.put(period)
-        download_path = '.'
 
         def side_effect(*args):
             side_effect.count += 1
             if side_effect.count <= 1:
                 raise Exception(f'{ScopusClient.QUOTA_EXCEED_ERROR_PREFIX}1601433684000')
             return mock.DEFAULT
+
         side_effect.count = 0
         mock_make_query.side_effect = side_effect
 
         with CliRunner().isolated_filesystem():
+            download_path = os.path.join(os.path.abspath(''), 'telescopes')
+            os.makedirs(download_path, exist_ok=True)
+
             saved_files = ScopusUtility.download_sequential(workers, taskq, self.conn, self.scopus_inst_id,
                                                             download_path)
             self.assertEqual(mock_make_query.call_count, 6)
             self.assertEqual(len(saved_files), 5)
 
-    @patch('observatory_platform.telescopes.scopus.ScopusUtilWorker.QUEUE_WAIT_TIME', 1)
-    @patch('observatory_platform.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
+    @patch('observatory.dags.telescopes.scopus.ScopusUtilWorker.QUEUE_WAIT_TIME', 1)
+    @patch('observatory.dags.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
     def test_parallel(self, mock_make_query):
         """ Parallel download test. """
 
         taskq = Queue()
         for period in self.schedule:
             taskq.put(period)
-        download_path = '.'
 
         def side_effect(*args):
             side_effect.count += 1
             if side_effect.count <= 4:
                 raise Exception(f'{ScopusClient.QUOTA_EXCEED_ERROR_PREFIX}1601433684000')
             return mock.DEFAULT
+
         side_effect.count = 0
         mock_make_query.side_effect = side_effect
 
         with CliRunner().isolated_filesystem():
+            download_path = os.path.join(os.path.abspath(''), 'telescopes')
+            os.makedirs(download_path, exist_ok=True)
+
             saved_files = ScopusUtility.download_parallel(self.workers, taskq, self.conn, self.scopus_inst_id,
                                                           download_path)
             self.assertEqual(mock_make_query.call_count, 9)
             self.assertEqual(len(saved_files), 5)
 
-    @patch('observatory_platform.telescopes.scopus.ScopusUtilWorker.QUEUE_WAIT_TIME', 1)
-    @patch('observatory_platform.telescopes.scopus.telescope_path', return_value='test')
-    @patch('observatory_platform.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
+    @patch('observatory.dags.telescopes.scopus.ScopusUtilWorker.QUEUE_WAIT_TIME', 1)
+    @patch('observatory.dags.telescopes.scopus.telescope_path', return_value='test')
+    @patch('observatory.dags.telescopes.scopus.ScopusUtility.make_query', return_value=('', 0))
     def test_download_snapshot(self, mock_make_query, mock_telepath):
         """ Download snapshot test. """
 
@@ -248,9 +253,8 @@ class TestScopusUtility(unittest.TestCase):
         self.assertEqual(mock_telepath.call_count, 2)
 
         # Need to set override isolated_filesystem for cfg_to_args
-        pwd = os.getcwd()
-        setupfile = os.path.join(pwd, 'setup.cfg')
-        with patch('observatory_platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
+        setupfile = os.path.join(module_file_path('observatory.platform', nav_back_steps=-3), 'setup.cfg')
+        with patch('observatory.platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
             with CliRunner().isolated_filesystem():
                 api_keys = [{"key": self.api_key1}, {"key": self.api_key2}]
                 saved_files = ScopusUtility.download_snapshot(api_keys, release, 'sequential')

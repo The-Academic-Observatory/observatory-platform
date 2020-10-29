@@ -14,11 +14,11 @@
 
 # Author: Cameron Neylon & Richard Hosing 
 
-import numpy as np
+from typing import Union
+
 import pandas as pd
 import pydata_google_auth
 from num2words import num2words
-from typing import Union
 
 from observatory.reports.charts.oapc_time_chart import *
 

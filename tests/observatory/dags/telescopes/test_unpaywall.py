@@ -24,8 +24,6 @@ from unittest.mock import patch
 import pendulum
 import vcr
 from click.testing import CliRunner
-from observatory.platform.utils.config_utils import telescope_path, SubFolder
-from observatory.platform.utils.data_utils import _hash_file
 
 from observatory.dags.telescopes.unpaywall import (
     UnpaywallRelease,
@@ -34,6 +32,8 @@ from observatory.dags.telescopes.unpaywall import (
     list_releases,
     transform_release
 )
+from observatory.platform.utils.config_utils import telescope_path, SubFolder
+from observatory.platform.utils.data_utils import _hash_file
 from tests.observatory.config import test_fixtures_path
 
 

@@ -235,7 +235,7 @@ WHERE
 
         chart_utils.calculate_percentages(self.df,
                                           ['oa', 'green', 'gold'],
-                                            'count')
+                                          'count')
         self.df['Funder Type'] = self.df.funder_type.map(chart_utils.funder_type_clean['funder_type'])
         super().clean_data()
 

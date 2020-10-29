@@ -25,9 +25,6 @@ from unittest.mock import patch
 import pendulum
 import vcr
 from click.testing import CliRunner
-from observatory.platform.utils.config_utils import telescope_path, SubFolder
-from observatory.platform.utils.data_utils import _hash_file
-from observatory.platform.utils.test_utils import gzip_file_crc
 
 from observatory.dags.telescopes.fundref import (
     FundrefRelease,
@@ -40,6 +37,9 @@ from observatory.dags.telescopes.fundref import (
     transform_release,
     download_release
 )
+from observatory.platform.utils.config_utils import telescope_path, SubFolder
+from observatory.platform.utils.data_utils import _hash_file
+from observatory.platform.utils.test_utils import gzip_file_crc
 from tests.observatory.config import test_fixtures_path
 
 

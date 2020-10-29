@@ -23,9 +23,9 @@ import httpretty
 import requests
 
 from observatory.platform.utils.url_utils import (get_url_domain_suffix, unique_id, is_url_absolute, strip_query_params,
-                                                  retry_session, get_ao_user_agent)
-
+                                                  retry_session, get_ao_user_agent, wait_for_url)
 from tests.observatory.config import MockUrlOpen
+
 
 class TestUrlUtils(unittest.TestCase):
     relative_urls = ['#skip-to-content', '#', '/local/assets/css/tipso.css', 'acknowledgements/rogers.html',
@@ -143,7 +143,7 @@ class TestUrlUtils(unittest.TestCase):
         self.assertFalse(state)
         self.assertAlmostEquals(expected_timeout, duration, delta=1)
 
-    @patch('observatory_platform.utils.url_utils.cfg_to_args', return_value={'version': 1, 'url': 2, 'author_email': 3})
+    @patch('observatory.platform.utils.url_utils.cfg_to_args', return_value={'version': 1, 'url': 2, 'author_email': 3})
     def test_ao_user_agent(self, mock_cfg):
         """ Test user agent generation """
 

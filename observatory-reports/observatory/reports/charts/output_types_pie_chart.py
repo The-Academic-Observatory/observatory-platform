@@ -17,8 +17,8 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from observatory.reports.abstract_chart import AbstractObservatoryChart
 from observatory.reports import defaults
+from observatory.reports.abstract_chart import AbstractObservatoryChart
 
 
 class OutputTypesPieChart(AbstractObservatoryChart):

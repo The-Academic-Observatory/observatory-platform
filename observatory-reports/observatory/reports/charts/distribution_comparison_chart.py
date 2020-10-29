@@ -19,8 +19,8 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import lines
 
-from observatory.reports.abstract_chart import AbstractObservatoryChart
 from observatory.reports import chart_utils
+from observatory.reports.abstract_chart import AbstractObservatoryChart
 
 
 class DistributionComparisonChart(AbstractObservatoryChart):

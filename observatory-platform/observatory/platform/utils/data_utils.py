@@ -50,12 +50,12 @@ from __future__ import print_function
 import hashlib
 import os
 import shutil
-import sys
 import tarfile
 import zipfile
 from contextlib import closing
 
 import six
+import sys
 from six.moves.urllib.error import HTTPError
 from six.moves.urllib.error import URLError
 from six.moves.urllib.request import urlopen

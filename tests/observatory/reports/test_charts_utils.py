@@ -15,16 +15,18 @@
 # Author: Cameron Neylon
 
 from pathlib import Path
+
 import pydata_google_auth
 
-from observatory_platform.reports.tables import (
+from observatory.platform.utils.test_utils import fixtures_data_dir
+from observatory.reports.chart_utils import calculate_confidence_interval
+from observatory.reports.tables import (
     InstitutionOpenAccessTable,
     InstitutionFundersTable,
     InstitutionOutputsTable,
     InstitutionCitationsTable
 )
-from observatory_platform.reports.chart_utils import calculate_confidence_interval
-from observatory_platform.utils.test_utils import fixtures_data_dir
+
 
 def update_chart_test_data():
     """ Use the current tables definition to get up to date test data if necessary"""
@@ -51,7 +53,7 @@ def update_chart_test_data():
 
     fixtures_path = Path(fixtures_data_dir(__file__))
     openaccess.df.to_csv(fixtures_path / 'reports' / 'test_oa_data.csv')
-    funders.df.to_csv(fixtures_path / 'reports'/ 'test_funding_data.csv')
+    funders.df.to_csv(fixtures_path / 'reports' / 'test_funding_data.csv')
     output_types.df.to_csv(fixtures_path / 'reports' / 'test_outputs_data.csv')
     citations.df.to_csv(fixtures_path / 'reports' / 'test_citations_data.csv')
 

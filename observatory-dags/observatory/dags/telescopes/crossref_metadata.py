@@ -23,13 +23,13 @@ import os
 import pathlib
 import shutil
 import subprocess
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
 from subprocess import Popen
 
 import pendulum
 import requests
+import time
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models.taskinstance import TaskInstance

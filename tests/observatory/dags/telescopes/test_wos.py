@@ -15,32 +15,20 @@
 # Author: Tuan Chien
 
 
-import calendar
 import json
 import logging
 import os
 import unittest
-from pathlib import Path
+from unittest.mock import patch
 
 import pendulum
-import vcr
-import xmltodict
-import unittest.mock as mock
-
 from airflow.models import Connection
 from click.testing import CliRunner
-from collections import OrderedDict
-from pathlib import Path
-from unittest.mock import patch
-from wos import WosClient
+
 from observatory.dags.telescopes.wos import (
-    WosTelescope,
     WosJsonParser,
     WosUtility,
-    write_xml_to_json,
 )
-from observatory.platform.utils.data_utils import _hash_file
-from observatory.platform.utils.test_utils import gzip_file_crc
 from tests.observatory.config import test_fixtures_path
 
 
@@ -216,9 +204,12 @@ class TestWosParse(unittest.TestCase):
         self.assertEqual(categories['headings'][0], 'Hynology')
         self.assertEqual(categories['subheadings'][0], 'Zoology')
 
-        self.assertDictEqual(categories['subjects'][0], {'ascatype': 'traditional', 'code':'XX', 'text':'Jupiter Toads'})
-        self.assertDictEqual(categories['subjects'][1], {'ascatype':'traditional', 'code': 'X', 'text': 'Jupiter life'})
-        self.assertDictEqual(categories['subjects'][2], {'ascatype': 'extended', 'code': None, 'text': 'Jupiter Science'})
+        self.assertDictEqual(categories['subjects'][0],
+                             {'ascatype': 'traditional', 'code': 'XX', 'text': 'Jupiter Toads'})
+        self.assertDictEqual(categories['subjects'][1],
+                             {'ascatype': 'traditional', 'code': 'X', 'text': 'Jupiter life'})
+        self.assertDictEqual(categories['subjects'][2],
+                             {'ascatype': 'extended', 'code': None, 'text': 'Jupiter Science'})
 
     def test_get_orgs(self):
         """ Extract Wos organisations """
@@ -261,7 +252,8 @@ class TestWosParse(unittest.TestCase):
         self.assertEqual(entry['release_date'], self.release_date)
         self.assertEqual(entry['identifiers']['uid'], 'WOS:000000000000000')
         self.assertEqual(entry['pub_info']['pub_type'], 'Journal')
-        self.assertEqual(entry['title'], 'The habitats of endangered hypnotoads on the southern oceans of Europa: a Ophiophagus hannah perspective')
+        self.assertEqual(entry['title'],
+                         'The habitats of endangered hypnotoads on the southern oceans of Europa: a Ophiophagus hannah perspective')
         self.assertEqual(entry['names'][0]['first_name'], 'Big Eaty')
         self.assertEqual(entry['languages'][0]['name'], 'Mindwaves')
         self.assertEqual(entry['ref_count'], 10000)
@@ -298,8 +290,8 @@ class TestWos(unittest.TestCase):
         # Paths
         self.work_dir = '.'
 
-    @patch('observatory_platform.telescopes.wos.WosClient')
-    @patch('observatory_platform.telescopes.wos.WosUtility.make_query', return_value=[''])
+    @patch('observatory.dags.telescopes.wos.WosClient')
+    @patch('observatory.dags.telescopes.wos.WosUtility.make_query', return_value=[''])
     def test_download_wos_snapshot(self, mock_query, mock_client):
         """ Test whether we can successfully download and save a snapshot. """
 

@@ -49,8 +49,8 @@ class ScatterPlot(AbstractObservatoryChart):
                  hue_column: str = 'region',
                  size_column: str = 'total',
                  focus_id: str = None,
-                 focus_marker: str='x',
-                 focus_marker_color: str='black',
+                 focus_marker: str = 'x',
+                 focus_marker_color: str = 'black',
                  **kwargs):
         """Initialisation Method
 

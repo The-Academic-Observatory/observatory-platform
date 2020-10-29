@@ -20,11 +20,11 @@ import unittest
 import pendulum
 from airflow.exceptions import AirflowException
 from google.cloud import bigquery
-from observatory.platform.utils.gc_utils import (create_bigquery_dataset, bigquery_partitioned_table_id,
-                                                 create_bigquery_table_from_query)
 
 from observatory.dags.workflows.doi import (select_table_suffixes,
                                             set_task_state)
+from observatory.platform.utils.gc_utils import (create_bigquery_dataset, bigquery_partitioned_table_id,
+                                                 create_bigquery_table_from_query)
 from tests.observatory.config import random_id
 
 

@@ -14,8 +14,9 @@
 
 # Author: Cameron Neylon & Richard Hosking
 
-import pandas as pd
 from typing import Optional
+
+import pandas as pd
 
 from observatory.reports import chart_utils, report_utils
 from observatory.reports import defaults

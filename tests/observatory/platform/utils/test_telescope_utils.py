@@ -14,10 +14,11 @@
 
 # Author: Tuan Chien
 
-import pendulum
 import unittest
 
-from observatory_platform.utils.telescope_utils import (
+import pendulum
+
+from observatory.platform.utils.telescope_utils import (
     PeriodCount,
     ScheduleOptimiser
 )

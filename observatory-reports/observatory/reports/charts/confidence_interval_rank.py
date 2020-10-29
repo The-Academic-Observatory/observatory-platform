@@ -19,8 +19,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from observatory.reports.abstract_chart import AbstractObservatoryChart
 from observatory.reports import defaults
+from observatory.reports.abstract_chart import AbstractObservatoryChart
 
 
 class ConfidenceIntervalRank(AbstractObservatoryChart):

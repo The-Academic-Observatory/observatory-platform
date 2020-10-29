@@ -20,13 +20,13 @@ import logging
 import multiprocessing
 import os
 import re
-import time
 from concurrent.futures import as_completed, ProcessPoolExecutor
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
 from typing import List, Union
 
 import pendulum
+import time
 from crc32c import Checksum as Crc32cChecksum
 from google.api_core.exceptions import Conflict
 from google.cloud import storage, bigquery

@@ -15,15 +15,16 @@
 # Author: James Diprose
 
 import hashlib
-import time
+import os
 import urllib.error
 import urllib.request
 from typing import Tuple, Union
 from urllib.parse import urlparse, urljoin, ParseResult
+from observatory.platform.utils.config_utils import module_file_path
 
 import requests
+import time
 import tldextract
-import os
 from pbr.util import cfg_to_args
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -92,6 +93,7 @@ def retry_session(num_retries: int = 3, backoff_factor: float = 0.5,
     session.mount("https://", adapter)
     return session
 
+
 def wait_for_url(url: str, timeout: int = 60):
     """ Wait for a URL to return a 200 status code.
 
@@ -121,6 +123,7 @@ def wait_for_url(url: str, timeout: int = 60):
 
     return started
 
+
 def get_ao_user_agent():
     """ Return a standardised user agent that can be used by custom web clients to indicate it came from the
         Academic Observatory.
@@ -128,13 +131,21 @@ def get_ao_user_agent():
     :return: User agent string.
     """
 
+    # Get current working directory so we can navigate back to it later
     cwd = os.getcwd()
 
-    if 'AO_HOME' in os.environ:
-        ao_home = os.environ['AO_HOME']
-        os.chdir(ao_home)
+    # On workstation, go to observatory-platform directory
+    platform_path = module_file_path('observatory.platform', nav_back_steps=-3)
 
+    # On Docker based environment go to AO_HOME/observatory-platform
+    if 'AO_HOME' in os.environ:
+        platform_path = os.path.join(os.environ['AO_HOME'], 'observatory-platform')
+
+    # Go to platform folder to get config info
+    os.chdir(platform_path)
     pkg_info = cfg_to_args()
+
+    # Go back to current working directory
     os.chdir(cwd)
 
     version = pkg_info['version']

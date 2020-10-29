@@ -21,9 +21,6 @@ import os
 import urllib.request
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from math import ceil
-from ratelimit import limits, sleep_and_retry
-from suds import WebFault
 from typing import List, Type
 from urllib.error import URLError
 
@@ -31,10 +28,10 @@ import backoff
 import pendulum
 import xmltodict
 from airflow.exceptions import AirflowException
-from airflow.models.taskinstance import TaskInstance
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat, WriteDisposition
+from math import ceil
 from ratelimit import limits, sleep_and_retry
 from suds import WebFault
 from wos import WosClient

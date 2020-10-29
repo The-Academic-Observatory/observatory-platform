@@ -19,6 +19,7 @@ import unittest
 
 import pandas as pd
 
+from observatory.platform.utils.test_utils import fixtures_data_dir
 from observatory.reports.charts import BarComparisonChart
 from observatory.reports.charts import BoxScatter
 from observatory.reports.charts import CitationCountTimeChart
@@ -35,7 +36,6 @@ from observatory.reports.charts import ScatterPlot
 from observatory.reports.charts import TimePath
 from observatory.reports.charts import TimePlot
 from observatory.reports.charts import TimePlotLayout
-from observatory.platform.utils.test_utils import fixtures_data_dir
 
 
 class TestAbstractChart(unittest.TestCase):
@@ -223,7 +223,6 @@ class TestOApcTimeChart(TestAbstractChart):
         self.plot_args = {}
 
 
-
 class TestCitationCountTimeChart(TestAbstractChart):
     def setUp(self):
         self.test_data = 'test_citations_data.csv'
@@ -233,7 +232,6 @@ class TestCitationCountTimeChart(TestAbstractChart):
             'identifier': self.available_ids[0]
         }
         self.plot_args = {}
-
 
 
 class TestOAAdvantageBarChart(TestAbstractChart):
@@ -257,7 +255,6 @@ class TestBarComparisonChart(TestAbstractChart):
             'focus_year': 2017,
         }
         self.plot_args = {}
-
 
 
 class TestFunderGraph(TestAbstractChart):
@@ -284,4 +281,3 @@ class TestDistributionComparisonChart(TestAbstractChart):
             'comparison': self.available_ids[0:4]
         }
         self.plot_args = {}
-

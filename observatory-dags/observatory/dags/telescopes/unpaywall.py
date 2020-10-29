@@ -31,10 +31,10 @@ from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
 
 from observatory.dags.config import schema_path
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.config_utils import AirflowVars, SubFolder, find_schema, telescope_path
 from observatory.platform.utils.config_utils import check_variables
 from observatory.platform.utils.config_utils import test_data_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  bigquery_table_exists,
