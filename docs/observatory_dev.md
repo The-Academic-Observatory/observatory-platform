@@ -6,7 +6,7 @@ Make sure that you have followed the installation instructions to install the Ob
 ## Prepare configuration files
 Generate a config.yaml file:
 ```bash
-observatory generate config.yaml
+observatory generate config local
 ```
 
 You should see the following output:
@@ -16,31 +16,63 @@ config.yaml saved to: "/home/user/.observatory/config.yaml"
 Please customise the parameters with '<--' in the config file. Parameters with '#' are optional.
 ```
 
+The generated file should look like (with inline comments removed):
+```yaml
+# The backend type: local
+# The environment type: develop, staging or production
+backend:
+  type: local
+  environment: develop
+
+# Apache Airflow settings
+airflow:
+  fernet_key: wbK_uYJ-x0tnUcy_WMwee6QYzI-7Ywbf-isKCvR1sZs=
+
+# Terraform settings: customise to use the vm_create and vm_destroy DAGs:
+# terraform:
+#   organization: my-terraform-org-name
+#   workspace_prefix: my-terraform-workspace-prefix-
+
+# Google Cloud settings: customise to use Google Cloud services
+# google_cloud:
+#   project_id: my-gcp-id # the Google Cloud project identifier
+#   credentials: /path/to/google_application_credentials.json # the path to the Google Cloud service account credentials
+#   data_location: us # the Google Cloud region where the resources will be deployed
+#   buckets:
+#     download_bucket: my-download-bucket-name # the bucket where downloads are stored
+#     transform_bucket: my-transform-bucket-name # the bucket where transformed files are stored
+
+# User defined Apache Airflow variables:
+# airflow_variables:
+#   my_variable_name: my-variable-value
+
+# User defined Apache Airflow Connections:
+# airflow_connections:
+#   my_connection: http://my-username:my-password@
+
+# User defined Observatory DAGs projects:
+# dags_projects:
+#   - package_name: observatory-dags
+#     path: /home/user/observatory-platform/observatory-dags/observatory/dags
+#     dags_module: observatory.dags.dags
+```
+
 See [Creating and managing projects](https://cloud.google.com/resource-manager/docs/creating-managing-projects) for more 
 details on creating a project and [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for 
 instructions on how to create a service account key.
 
-Parameters explained: 
-```yaml
-backend: The backend of the config file, either 'local' or 'terraform'.
-fernet_key: The fernet key which is used to encrypt the secrets in the airflow database 
-google_application_credentials: The path to the JSON key for a Google Cloud service account that has permissions
-airflow_connections:
-  crossref: Stores the token for the crossref API as a password
-  mag_releases_table: Stores the azure-storage-account-name as a login and url-encoded-sas-token as password
-  mag_snapshots_container: Stores the azure-storage-account-name as a login and url-encoded-sas-token as password
-  terraform: Stores the terraform user token as a password (used to create/destroy VMs)
-  slack: Stores the URL for the Slack webhook as a host and the token as a password
-airflow_variables:
-  environment: The environment type, has to either be 'develop', 'test' or 'production'
-  project_id: The Google Cloud project project identifier
-  data_location: The location where BigQuery data will be stored (same as the bucket location)
-  download_bucket_name: The name of the Google Cloud Storage bucket where downloaded data will be stored
-To access the two buckets add the roles `roles/bigquery.admin` and `roles/storagetransfer.admin` to the service account connected to google_application_credentials above.
-  transform_bucket_name: The name of the Google Cloud Storage bucket where transformed data will be stored
-  terraform_organization: The name of the Terraform Cloud organization (used to create/destroy VMs)
-  terraform_prefix: The name of the Terraform Cloud workspace prefix (used to create/destroy VMs)
-```
+Make sure that service account has roles `roles/bigquery.admin` and `roles/storagetransfer.admin` as well as 
+access to the download and transform buckets.
+
+The table below lists connections that are required for telescopes bundled with the observatory:
+
+| Connection Key | Example | Description |
+| -------- | -------- | -------- |
+| crossref     | `http://myname:mypassword@myhost.com`     | Stores the token for the crossref API as a password     |
+| mag_releases_table     | `http://myname:mypassword@myhost.com`     | Stores the azure-storage-account-name as a login and url-encoded-sas-token as password     |
+| mag_snapshots_container     | `http://myname:mypassword@myhost.com`     | Stores the azure-storage-account-name as a login and url-encoded-sas-token as password     |
+| terraform     | `mysql://:terraform-token@`     | Stores the terraform user token as a password (used to create/destroy VMs)     |
+| slack     | `https://:T00000000%2FB00000000%2FXXXXXXXXXXXXXXXX XXXXXXXX@https%3A%2F%2Fhooks.slack.com%2Fservices`     | Stores the URL for the Slack webhook as a host and the token as a password     |
 
 ## Running the local development environment
 See below for instructions on how to start the Observatory Platform, view Observatory Platform UIs, stop the 
@@ -140,6 +172,19 @@ when starting the Observatory Platform:
 observatory platform start --host-gid 5000
 ```
 
+### Override default ports
+You may override the host ports for Redis, Flower UI, Airflow UI, Elasticsearch and Kibana. An example is given
+below:
+```bash
+observatory platform start --redis-port 6380 --flower-ui-port 5556 --airflow-ui-port 8081 --elastic-port 9201 --kibana-port 5602
+```
+
+### Specify an existing Docker network
+You may use an existing Docker network by supplying the network name:
+```bash
+observatory platform start --docker-network-name observatory-network
+```
+
 # Observatory Terraform Environment
 The following is a tutorial for setting up the Observatory Terraform environment.
 
@@ -147,7 +192,7 @@ The following is a tutorial for setting up the Observatory Terraform environment
 ## Prepare configuration files
 Generate an individual config_terraform.yaml file for each terraform workspace:
 ```bash
-observatory generate config_terraform.yaml
+observatory generate config terraform
 ```
 
 You should see the following output:
@@ -157,44 +202,66 @@ config.yaml saved to: "/home/user/.observatory/config.yaml"
 Please customise the parameters with '<--' in the config file. Parameters with '#' are optional.
 ```
 
-Parameters explained:
+The generated file should look like (without the inline comments):
 ```yaml
+# The backend type: terraform
+# The environment type: develop, staging or production
 backend:
-  terraform:
-    organization: The terraform cloud organization
-    workspaces_prefix: The terraform cloud prefix of the workspace name
-project_id: The Google Cloud project identifier
-google_application_credentials: The path to the Google Cloud service account credentials
-environment: The environment type
-region: The Google Cloud region where the resources will be deployed
-zone: The Google Cloud zone where the resources will be deployed
-data_location: The location for storing data, including Google Cloud Storage buckets and Cloud SQL backups
-database:
-  tier: The machine tier to use for the Observatory Platform Cloud SQL database
-  backup_start_time: The time for Cloud SQL database backups to start in HH:MM format
-airflow_main:
-  machine_type: The machine type for the Airflow Main virtual machine
-  disk_size: The disk size for the Airflow Main virtual machine in GB
-  disk_type: The disk type for the Airflow Main virtual machine
-airflow_worker:
-  machine_type: The machine type for the Airflow Worker virtual machine(s).
-  disk_size: The disk size for the Airflow Worker virtual machine(s) in GB
-  disk_type: The disk type for the Airflow Worker virtual machine(s)
-airflow_worker_create: Determines whether the airflow worker VM is created or destroyed
-airflow_secrets:
-  fernet_key: The fernet key which is used to encrypt the secrets in the airflow database
-  postgres_password: The password for the airflow postgres database user
-  redis_password: The password for redis, which is used by Celery to send messages, e.g. task messages
-  airflow_ui_user_password: The password for the Apache Airflow UI's airflow user
-  airflow_ui_user_email: The email for the Apache Airflow UI's airflow user
-airflow_connections:
-  mag_releases_table: The mag_releases_table connection
-  mag_snapshots_container: The mag_snapshots_container connection
-  crossref: Contains the crossref API token
-  terraform: Contains the terraform API token
-  slack: Contains the webhook URL and webhook token
-airflow_variables:
-  example_name: Additional Airflow variable that isn't interpolated from Terraform resources
+  type: terraform
+  environment: develop
+
+# Apache Airflow settings
+airflow:
+  fernet_key: dm_FeYOmZjDV3ax_FTT84s7O9SU7-LfBFexQQxZC1Ec= # the fernet key which is used to encrypt the secrets in the airflow database
+  ui_user_email: my-email@example.com <-- # the email for the Apache Airflow UI's airflow user
+  ui_user_password: my-password <-- # the password for the Apache Airflow UI's airflow user
+
+# Terraform settings
+terraform:
+  organization: my-terraform-org-name <-- # the terraform cloud organization
+  workspace_prefix: my-terraform-workspace-prefix- <-- # the terraform cloud prefix of the workspace name
+
+# Google Cloud settings
+google_cloud:
+  project_id: my-gcp-id <-- # the Google Cloud project identifier
+  credentials: /path/to/google_application_credentials.json <-- # the path to the Google Cloud service account credentials
+  region: us-west1 <-- # the Google Cloud region where the resources will be deployed
+  zone: us-west1-a <-- # the Google Cloud zone where the resources will be deployed
+  data_location: us <-- # the location for storing data, including Google Cloud Storage buckets and Cloud SQL backups
+
+# Google Cloud CloudSQL database settings
+cloud_sql_database:
+  tier: db-custom-2-7680 # the machine tier to use for the Observatory Platform Cloud SQL database
+  backup_start_time: '23:00' # the time for Cloud SQL database backups to start in HH:MM format
+  postgres_password: my-password <-- # the password for the airflow postgres database user
+
+# Settings for the main VM that runs the Apache Airflow scheduler and webserver
+airflow_main_vm:
+  machine_type: n2-standard-2 # the machine type for the virtual machine
+  disk_size: 50 # the disk size for the virtual machine in GB
+  disk_type: pd-ssd # the disk type for the virtual machine
+  create: true # determines whether virtual machine is created or destroyed
+ 
+# Settings for the weekly on-demand VM that runs large tasks
+airflow_worker_vm:
+  machine_type: n1-standard-8 # the machine type for the virtual machine
+  disk_size: 3000 # the disk size for the virtual machine in GB
+  disk_type: pd-standard # the disk type for the virtual machine
+  create: false # determines whether virtual machine is created or destroyed
+
+# User defined Apache Airflow variables:
+# airflow_variables:
+#   my_variable_name: my-variable-value
+
+# User defined Apache Airflow Connections:
+# airflow_connections:
+#   my_connection: http://my-username:my-password@
+
+# User defined Observatory DAGs projects:
+# dags_projects:
+#   - package_name: observatory-dags
+#     path: /home/user/observatory-platform/observatory-dags/observatory/dags
+#     dags_module: observatory.dags.dags
 ```
 
 ## Creating and updating Terraform workspaces

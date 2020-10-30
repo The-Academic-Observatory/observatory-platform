@@ -94,7 +94,17 @@ Activate the virtual environment:
 source venv/bin/activate
 ```
 
-Install the package:
+Install the `observatory-platform` package:
 ```bash
-pip3 install -e .
+cd observatory-platform && pip3 install -e .
+```
+
+Install the `observatory-dags` package (optional):
+```bash
+cd observatory-dags && pip3 install -e .
+```
+
+Install the `observatory-reports` package (optional):
+```bash
+cd observatory-reports && pip3 install -e .
 ```
