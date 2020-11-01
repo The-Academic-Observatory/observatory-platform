@@ -42,6 +42,7 @@ AIRFLOW_UI_PORT = 8080
 ELASTIC_PORT = 9200
 KIBANA_PORT = 5601
 DOCKER_NETWORK_NAME = None
+DOCKER_COMPOSE_PROJECT_NAME = 'observatory'
 DEBUG = False
 
 
@@ -56,7 +57,9 @@ class PlatformBuilder:
                  host_uid: int = HOST_UID, host_gid: int = HOST_GID, redis_port: int = REDIS_PORT,
                  flower_ui_port: int = FLOWER_UI_PORT, airflow_ui_port: int = AIRFLOW_UI_PORT,
                  elastic_port: int = ELASTIC_PORT, kibana_port: int = KIBANA_PORT,
-                 docker_network_name: Union[None, int] = DOCKER_NETWORK_NAME, debug: bool = DEBUG,
+                 docker_network_name: Union[None, int] = DOCKER_NETWORK_NAME,
+                 docker_compose_project_name: str = DOCKER_COMPOSE_PROJECT_NAME,
+                 debug: bool = DEBUG,
                  is_env_local: bool = True):
         """ Create a PlatformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
@@ -73,6 +76,7 @@ class PlatformBuilder:
         :param elastic_port: The host's Elasticsearch port number.
         :param kibana_port: The host's Kibana port number.
         :param docker_network_name: The Docker Network name, used to specify a custom Docker Network.
+        :param docker_compose_project_name: The namespace for the Docker Compose containers: https://docs.docker.com/compose/reference/envvars/#compose_project_name.
         :param debug: Print debugging information.
         :param is_env_local: whether we are running the local or terraform environment.
         """
@@ -92,6 +96,7 @@ class PlatformBuilder:
         self.airflow_ui_port = airflow_ui_port
         self.elastic_port = elastic_port
         self.kibana_port = kibana_port
+        self.docker_compose_project_name = docker_compose_project_name
         self.is_env_local = is_env_local
 
         # Set Docker Network name
@@ -235,6 +240,9 @@ class PlatformBuilder:
         """
 
         env = os.environ.copy()
+
+        # Sets the name
+        env['COMPOSE_PROJECT_NAME'] = self.docker_compose_project_name
 
         # Host settings
         env['HOST_USER_ID'] = str(self.host_uid)

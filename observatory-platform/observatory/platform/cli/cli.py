@@ -26,7 +26,7 @@ from observatory.platform.cli.terraform_command import TerraformCommand
 from observatory.platform.platform_builder import (BUILD_PATH, DAGS_MODULE, DATA_PATH, LOGS_PATH,
                                                    POSTGRES_PATH, HOST_UID, HOST_GID, REDIS_PORT, FLOWER_UI_PORT,
                                                    AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
-                                                   DOCKER_NETWORK_NAME, DEBUG)
+                                                   DOCKER_NETWORK_NAME, DOCKER_COMPOSE_PROJECT_NAME, DEBUG)
 from observatory.platform.utils.config_utils import (observatory_home,
                                                      terraform_credentials_path as default_terraform_credentials_path)
 
@@ -123,13 +123,19 @@ def cli():
               default=DOCKER_NETWORK_NAME,
               help='The Docker Network name, used to specify a custom Docker Network.',
               show_default=True)
+@click.option('--docker-compose-project-name',
+              type=click.STRING,
+              default=DOCKER_COMPOSE_PROJECT_NAME,
+              help='The namespace for Docker containers.',
+              show_default=True)
 @click.option('--debug',
               is_flag=True,
               default=DEBUG,
               help='Print debugging information.')
 def platform(command: str, config_path: str, build_path: str, dags_path: str, data_path: str, logs_path: str,
              postgres_path: str, host_uid: int, host_gid: int, redis_port: int, flower_ui_port: int,
-             airflow_ui_port: int, elastic_port: int, kibana_port: int, docker_network_name: Union[None, str], debug):
+             airflow_ui_port: int, elastic_port: int, kibana_port: int, docker_network_name: Union[None, str],
+             docker_compose_project_name: str, debug):
     """ Run the local Observatory Platform platform.\n
 
     COMMAND: the command to give the platform:\n
@@ -143,7 +149,9 @@ def platform(command: str, config_path: str, build_path: str, dags_path: str, da
                           host_uid=host_uid, host_gid=host_gid, redis_port=redis_port,
                           flower_ui_port=flower_ui_port, airflow_ui_port=airflow_ui_port,
                           elastic_port=elastic_port, kibana_port=kibana_port,
-                          docker_network_name=docker_network_name, debug=debug)
+                          docker_network_name=docker_network_name,
+                          docker_compose_project_name=docker_compose_project_name,
+                          debug=debug)
     generate_cmd = GenerateCommand()
 
     # The minimum number of characters per line
