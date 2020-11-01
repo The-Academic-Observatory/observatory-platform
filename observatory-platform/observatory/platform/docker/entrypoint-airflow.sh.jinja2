@@ -40,6 +40,9 @@ if [ -d ${TESTS_DIRECTORY} ]; then
   rm -r ${TESTS_DIRECTORY}
 fi
 
+# Set PBR version for installing packages
+export PBR_VERSION=0.0.1
+
 # Install the Observatory Platform Python package
 pip3 install -e . --user
 
@@ -52,6 +55,9 @@ cd /opt/observatory/{{ project.package_name }}
 pip3 install -e . --user
 {% endif %}
 {% endfor %}
+
+# Unset PBR version after finishing installing packages
+unset PBR_VERSION
 
 # Enter airflow home folder. Must be in the AIRFLOW_HOME folder (i.e. /opt/airflow) before running the next command
 # otherwise the system will start but the workers and scheduler will not find the DAGs and other files because
