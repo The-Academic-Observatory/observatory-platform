@@ -625,7 +625,7 @@ class ObservatoryConfig:
         fernet_key = generate_fernet_key()
 
         try:
-            observatory_dags_path = module_file_path('observatory.dags')
+            observatory_dags_path = module_file_path('observatory.dags', nav_back_steps=-3)
         except ModuleNotFoundError:
             observatory_dags_path = '/path/to/observatory-platform/observatory-dags'
 
