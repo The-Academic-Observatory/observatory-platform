@@ -126,7 +126,7 @@ services:
       - {{ docker_network_name }}
 
   flower:
-    image: apache/airflow:1.10.11-python3.7
+    image: apache/airflow:1.10.12-python3.7
     environment: *environment
     restart: always
     networks:

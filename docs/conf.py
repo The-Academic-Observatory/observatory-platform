@@ -37,7 +37,7 @@ extensions = [
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = 'python'
-autoapi_dirs = ['../observatory_platform']
+autoapi_dirs = ['../observatory-platform', '../observatory-dags', '../observatory-reports']
 autoapi_add_toctree_entry = True
 
 # Add any paths that contain templates here, relative to this directory.
