@@ -35,10 +35,6 @@ from observatory_platform.utils.telescope_stream import (StreamTelescope, Stream
 from observatory_platform.utils.url_utils import retry_session, get_ao_user_agent
 
 
-def check_dependencies(kwargs):
-    pass
-
-
 def create_release(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, telescope: SimpleNamespace,
                    first_release: bool) -> 'DoabRelease':
     release = DoabRelease(start_date, end_date, telescope, first_release)
@@ -144,7 +140,6 @@ class DoabTelescope(StreamTelescope):
                                 csv_url='http://www.doabooks.org/doab?func=csv')
 
     # optional
-    check_dependencies_custom = check_dependencies
     create_release_custom = create_release
 
     # required
@@ -155,15 +150,15 @@ class DoabTelescope(StreamTelescope):
 class DoabRelease(StreamRelease):
     @property
     def oai_pmh_path(self) -> str:
-        return os.path.join(self.download_dir, 'oai_pmh.json')
+        return self.get_path(SubFolder.downloaded, 'oai_pmh', 'json')
 
     @property
     def csv_path(self) -> str:
-        return os.path.join(self.download_dir, 'doab.csv')
+        return self.get_path(SubFolder.downloaded, 'doab', 'csv')
 
     @property
     def token_path(self) -> str:
-        return self.get_path(SubFolder.downloaded, "continuation_token.txt")
+        return self.get_path(SubFolder.downloaded, "continuation_token", "txt")
 
 
 def extract_entries(url: str, entries_path: str, next_token: str = None, success: bool = True) -> \
@@ -190,7 +185,7 @@ def extract_entries(url: str, entries_path: str, next_token: str = None, success
     except RetryError:
         return False, next_token, None
     if response.status_code == 200:
-        response_dict = xmltodict.parse(response.text)
+        response_dict = xmltodict.parse(response.content.decode('utf-8'))
         total_entries = response_dict['OAI-PMH']['ListRecords']['resumptionToken']['@completeListSize']
         entries = response_dict['OAI-PMH']['ListRecords']['record']
         try:
