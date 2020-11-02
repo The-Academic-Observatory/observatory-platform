@@ -179,7 +179,7 @@ airflow:
 # User defined Observatory DAGs projects:
 # dags_projects:
 #   - package_name: observatory-dags
-#     path: /home/user/observatory-platform/observatory-dags/observatory/dags
+#     path: /home/user/observatory-platform/observatory-dags
 #     dags_module: observatory.dags.dags
 ```
 
