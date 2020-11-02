@@ -39,6 +39,7 @@ extensions = [
 autoapi_type = 'python'
 autoapi_dirs = ['../observatory-platform', '../observatory-dags', '../observatory-reports']
 autoapi_add_toctree_entry = True
+autoapi_python_use_implicit_namespaces = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['templates']
