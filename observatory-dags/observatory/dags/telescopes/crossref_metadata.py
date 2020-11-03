@@ -287,8 +287,8 @@ class CrossrefMetadataTelescope:
         """
 
         vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET_NAME,
-                                     AirflowVars.TRANSFORM_BUCKET_NAME)
+                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
+                                     AirflowVars.TRANSFORM_BUCKET)
         conns_valid = check_connections(AirflowConns.CROSSREF)
 
         if not vars_valid or not conns_valid:
@@ -370,7 +370,7 @@ class CrossrefMetadataTelescope:
         release = pull_release(ti)
 
         # Get variables
-        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET)
 
         # Upload each release
         upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.downloaded),
@@ -439,7 +439,7 @@ class CrossrefMetadataTelescope:
         release = pull_release(ti)
 
         # Get variables
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
         # List files and sort so that they are processed in ascending order
         logging.info(f'upload_transformed listing files')
@@ -478,7 +478,7 @@ class CrossrefMetadataTelescope:
         # Get variables
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
         # Create dataset
         dataset_id = CrossrefMetadataTelescope.DATASET_ID

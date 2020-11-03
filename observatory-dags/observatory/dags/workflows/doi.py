@@ -146,8 +146,8 @@ class DoiWorkflow:
         """
 
         vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET_NAME,
-                                     AirflowVars.TRANSFORM_BUCKET_NAME)
+                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
+                                     AirflowVars.TRANSFORM_BUCKET)
 
         if not vars_valid:
             raise AirflowException('Required variables are missing')

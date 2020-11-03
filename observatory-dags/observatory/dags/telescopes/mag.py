@@ -193,8 +193,8 @@ class MagTelescope:
         """
 
         vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET_NAME,
-                                     AirflowVars.TRANSFORM_BUCKET_NAME)
+                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
+                                     AirflowVars.TRANSFORM_BUCKET)
         conns_valid = check_connections(AirflowConns.MAG_RELEASES_TABLE, AirflowConns.MAG_SNAPSHOTS_CONTAINER)
 
         if not vars_valid or not conns_valid:
@@ -269,7 +269,7 @@ class MagTelescope:
         # Get variables
         environment = Variable.get(AirflowVars.ENVIRONMENT)
         gcp_project_id = Variable.get(AirflowVars.PROJECT_ID)
-        gcp_bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET_NAME)
+        gcp_bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET)
 
         if environment == 'develop':
             # TODO: this is a bit messy. In the future, for the test environment we should just have smaller files at
@@ -340,7 +340,7 @@ class MagTelescope:
         """
 
         # Get variables
-        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET)
 
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
@@ -403,7 +403,7 @@ class MagTelescope:
         """
 
         # Get variables
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
         # Get MAG releases
         ti: TaskInstance = kwargs['ti']
@@ -445,7 +445,7 @@ class MagTelescope:
         # Get config variables
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
         # For each release, load into BigQuery
         for release in releases:

@@ -142,8 +142,8 @@ class ScopusTelescope:
         """
 
         vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET_NAME,
-                                     AirflowVars.TRANSFORM_BUCKET_NAME)
+                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
+                                     AirflowVars.TRANSFORM_BUCKET)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -180,13 +180,13 @@ class ScopusTelescope:
             logging.info(f'Override for project_id found. Using: {project_id}')
 
         # Set download bucket name override
-        download_bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET_NAME)
+        download_bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET)
         if 'download_bucket_name' in extra_dict:
             download_bucket_name = extra_dict['download_bucket_name']
             logging.info(f'Override for download_bucket_name found. Using: {download_bucket_name}')
 
         # Set transform bucket name override
-        transform_bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        transform_bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
         if 'transform_bucket_name' in extra_dict:
             transform_bucket_name = extra_dict['transform_bucket_name']
             logging.info(f'Override for transform_bucket_name found. Using: {transform_bucket_name}')

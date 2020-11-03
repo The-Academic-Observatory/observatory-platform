@@ -253,8 +253,8 @@ class UnpaywallTelescope:
         """
 
         vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET_NAME,
-                                     AirflowVars.TRANSFORM_BUCKET_NAME)
+                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
+                                     AirflowVars.TRANSFORM_BUCKET)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -341,7 +341,7 @@ class UnpaywallTelescope:
         releases_list = pull_releases(ti)
 
         # Get variables
-        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET)
 
         # Upload each release
         for release in releases_list:
@@ -399,7 +399,7 @@ class UnpaywallTelescope:
         releases_list = pull_releases(ti)
 
         # Get variables
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
         # Upload each release
         for release in releases_list:
@@ -422,7 +422,7 @@ class UnpaywallTelescope:
 
         # Get variables
         project_id = Variable.get(AirflowVars.PROJECT_ID)
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
 
         # Create dataset

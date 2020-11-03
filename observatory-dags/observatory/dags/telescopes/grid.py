@@ -197,8 +197,8 @@ class GridTelescope:
         """
 
         vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET_NAME,
-                                     AirflowVars.TRANSFORM_BUCKET_NAME)
+                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
+                                     AirflowVars.TRANSFORM_BUCKET)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -289,7 +289,7 @@ class GridTelescope:
         """
 
         # Get bucket name
-        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET)
 
         # Pull messages
         ti: TaskInstance = kwargs['ti']
@@ -407,7 +407,7 @@ class GridTelescope:
                                include_prior_dates=False)
 
         # Upload each release
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
         msgs_out = []
         for msg_in in msgs_in:
             file_name = msg_in['json_gz_file_name']
@@ -445,7 +445,7 @@ class GridTelescope:
         # Upload each release
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
         # Create dataset
         create_bigquery_dataset(project_id, GridTelescope.DATASET_ID, data_location, GridTelescope.DESCRIPTION)

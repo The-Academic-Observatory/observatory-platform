@@ -188,8 +188,8 @@ class GeonamesTelescope:
         """
 
         vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET_NAME,
-                                     AirflowVars.TRANSFORM_BUCKET_NAME)
+                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
+                                     AirflowVars.TRANSFORM_BUCKET)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -252,7 +252,7 @@ class GeonamesTelescope:
         release: GeonamesRelease = pull_release(ti)
 
         # Get variables
-        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET)
 
         # Upload file
         upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.downloaded),
@@ -307,7 +307,7 @@ class GeonamesTelescope:
         release: GeonamesRelease = pull_release(ti)
 
         # Get variables
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
         # Upload file
         upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.transformed),
@@ -330,7 +330,7 @@ class GeonamesTelescope:
         # Get variables
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET_NAME)
+        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
         # Create dataset and make table_id
         dataset_id = GeonamesTelescope.DATASET_ID
