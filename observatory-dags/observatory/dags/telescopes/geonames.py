@@ -32,7 +32,8 @@ from pendulum import Pendulum
 
 from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
-from observatory.platform.utils.config_utils import AirflowVars, SubFolder, find_schema, telescope_path, check_variables
+from observatory.platform.utils.config_utils import (AirflowVars, SubFolder, find_schema, telescope_path,
+                                                     check_variables, test_data_path)
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  create_bigquery_dataset,
@@ -228,8 +229,8 @@ class GeonamesTelescope:
         release = GeonamesRelease(release_date)
 
         # Download release
-        if environment == 'develop':
-            shutil.copy(GeonamesTelescope.DEBUG_FILE_PATH, release.filepath_download)
+        if environment == 'test':
+            shutil.copy(test_data_path(), release.filepath_download)
         else:
             download_release(release)
 

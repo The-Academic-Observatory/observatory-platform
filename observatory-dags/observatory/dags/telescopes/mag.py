@@ -271,7 +271,7 @@ class MagTelescope:
         gcp_project_id = Variable.get(AirflowVars.PROJECT_ID)
         gcp_bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET)
 
-        if environment == 'develop':
+        if environment == 'test':
             # TODO: this is a bit messy. In the future, for the test environment we should just have smaller files at
             # the MAG endpoint so that the transferring can be tested too
             mag_zip = os.path.join(test_data_path(), 'telescopes', 'mag-2020-05-21.zip')

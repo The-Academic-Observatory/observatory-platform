@@ -320,7 +320,7 @@ class UnpaywallTelescope:
 
         # Download each release
         for release in releases_list:
-            if environment == 'develop':
+            if environment == 'test':
                 debug_file_path = os.path.join(test_data_path(), 'telescopes', 'unpaywall.jsonl.gz')
                 shutil.copy(debug_file_path, release.filepath_download)
             else:

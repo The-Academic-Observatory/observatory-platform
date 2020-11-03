@@ -39,7 +39,7 @@ from natsort import natsorted
 from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.config_utils import (AirflowVars, AirflowConns, SubFolder, find_schema, telescope_path,
-                                                     check_variables, check_connections)
+                                                     check_variables, check_connections, test_data_path)
 from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,
@@ -348,8 +348,8 @@ class CrossrefMetadataTelescope:
         environment = Variable.get(AirflowVars.ENVIRONMENT)
 
         # Download release
-        if environment == 'develop':
-            shutil.copy(CrossrefMetadataTelescope.DEBUG_FILE_PATH, release.download_path)
+        if environment == 'test':
+            shutil.copy(test_data_path(), release.download_path)
         else:
             connection = BaseHook.get_connection(AirflowConns.CROSSREF)
             api_token = connection.password
