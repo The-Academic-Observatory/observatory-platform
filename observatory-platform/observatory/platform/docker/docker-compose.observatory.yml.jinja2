@@ -146,8 +146,10 @@ services:
       - {{ docker_network_name }}
     depends_on:
       - redis
-    {% if config.google_cloud.credentials is not none -%}secrets:
-      - google_application_credentials.json{% endif -%}
+    {% if config.google_cloud.credentials is not none -%}
+    secrets:
+      - google_application_credentials.json
+    {%- endif %}
     ports:
       - ${HOST_AIRFLOW_UI_PORT}:8080
     command: webserver
@@ -166,8 +168,10 @@ services:
       - {{ docker_network_name }}
     depends_on:
       - webserver
-    {% if config.google_cloud.credentials is not none -%}secrets:
-      - google_application_credentials.json{% endif -%}
+    {% if config.google_cloud.credentials is not none -%}
+    secrets:
+      - google_application_credentials.json
+    {%- endif %}
     command: scheduler
 
   worker_local:
@@ -178,8 +182,10 @@ services:
     <<: *networks
     depends_on:
       - scheduler
-    {% if config.google_cloud.credentials is not none -%}secrets:
-      - google_application_credentials.json{% endif -%}
+    {% if config.google_cloud.credentials is not none -%}
+    secrets:
+      - google_application_credentials.json
+    {%- endif %}
     command: worker -q default
 
   worker_remote:
@@ -188,8 +194,10 @@ services:
     volumes: *volumes
     restart: always
     <<: *networks
-    {% if config.google_cloud.credentials is not none -%}secrets:
-      - google_application_credentials.json{% endif -%}
+    {% if config.google_cloud.credentials is not none -%}
+    secrets:
+      - google_application_credentials.json
+    {%- endif %}
     command: worker -q remote_queue
 
   elasticsearch:
