@@ -21,6 +21,7 @@ from observatory.platform.platform_builder import (PlatformBuilder, BUILD_PATH, 
                                                    AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
                                                    DOCKER_NETWORK_NAME, DOCKER_COMPOSE_PROJECT_NAME, DEBUG)
 from observatory.platform.utils.url_utils import wait_for_url
+from observatory.platform.observatory_config import BackendType
 
 
 class PlatformCommand(PlatformBuilder):
@@ -58,7 +59,7 @@ class PlatformCommand(PlatformBuilder):
                          elastic_port=elastic_port, kibana_port=kibana_port,
                          docker_network_name=docker_network_name,
                          docker_compose_project_name=docker_compose_project_name,
-                         debug=debug, is_env_local=is_env_local)
+                         debug=debug, backend_type=BackendType.local)
 
     @property
     def ui_url(self) -> str:

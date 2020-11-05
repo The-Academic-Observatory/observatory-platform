@@ -32,16 +32,14 @@ resource "google_compute_instance" "vm_instance" {
   }
 
   metadata_startup_script = templatefile(var.startup_script_path, {
-    host_airflow_home = var.metadata_variables["host_airflow_home"],
-    host_ao_home = var.metadata_variables["host_ao_home"],
-    project_id = var.metadata_variables["project_id"],
+    project_id = var.metadata_variables.project_id,
     postgres_hostname = var.metadata_variables["postgres_hostname"],
     redis_hostname = var.metadata_variables["redis_hostname"],
     data_location = var.metadata_variables["data_location"],
-    download_bucket_name = var.metadata_variables["download_bucket_name"],
-    transform_bucket_name = var.metadata_variables["transform_bucket_name"],
+    download_bucket = var.metadata_variables["download_bucket"],
+    transform_bucket = var.metadata_variables["transform_bucket"],
     terraform_organization =  var.metadata_variables["terraform_organization"],
-    terraform_prefix = var.metadata_variables["terraform_prefix"],
+    terraform_workspace_prefix = var.metadata_variables["terraform_workspace_prefix"],
     environment = var.metadata_variables["environment"],
     airflow_variables = var.metadata_variables["airflow_variables"]}
   )

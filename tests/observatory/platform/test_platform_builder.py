@@ -148,7 +148,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
             # Make observatory files
             cmd = self.make_platform_command()
-            cmd.make_observatory_files()
+            cmd.make_files()
 
             # Test that the expected files have been written
             build_file_names = ['docker-compose.observatory.yml', 'Dockerfile.observatory', 'elasticsearch.yml',

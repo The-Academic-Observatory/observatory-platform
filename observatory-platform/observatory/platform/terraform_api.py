@@ -149,7 +149,7 @@ class TerraformApi:
         return token
 
     def create_workspace(self, organisation: str, workspace: str, auto_apply: bool, description: str,
-                         version: str = "0.13.0-beta3") -> int:
+                         version: str = "0.13.5") -> int:
         """ Create a new workspace in Terraform Cloud.
 
         :param organisation: Name of terraform organisation

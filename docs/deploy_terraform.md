@@ -12,12 +12,16 @@ Cloud SDK including the gcloud command line tool.
 Install Packer:
 ```bash
 sudo curl -L "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_linux_amd64.zip" -o /usr/local/bin/packer
+# When asked to replace, answer 'y'
+unzip /usr/local/bin/packer -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/packer
 ```
 
 Install Terraform:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/0.13.4/terraform_0.13.4_linux_amd64.zip" -o /usr/local/bin/terraform
+sudo curl -L "https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_linux_amd64.zip" -o /usr/local/bin/terraform
+# When asked to replace, answer 'y'
+sudo unzip /usr/local/bin/terraform -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/terraform
 ```
 
@@ -32,7 +36,7 @@ sudo chmod +x /usr/local/bin/packer
 
 Install Terraform:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/0.12.28/terraform_0.12.28_darwin_amd64.zip" -o /usr/local/bin/terraform
+sudo curl -L "https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_darwin_amd64.zip" -o /usr/local/bin/terraform
 # When asked to replace, answer 'y'
 unzip /usr/local/bin/terraform -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/terraform

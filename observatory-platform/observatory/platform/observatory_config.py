@@ -260,6 +260,10 @@ class DagsProject:
             parsed_items.append(DagsProject(package_name, path, dags_module))
         return parsed_items
 
+    @staticmethod
+    def dags_projects_to_str(dags_projects: List[DagsProject]):
+        return f"'{str(json.dumps([project.dags_module for project in dags_projects]))}'"
+
 
 def list_to_hcl(items: List[Union[AirflowConnection, AirflowVariable]]) -> str:
     """ Convert a list of AirflowConnection or AirflowVariable instances into HCL.
@@ -371,7 +375,7 @@ class CloudSqlDatabase:
 
     Attributes:
         tier: the database machine tier.
-        backup_start_time: the start time for backups.
+        backup_start_time: the start time for backups in HH:MM format.
         postgres_password: the Postgres SQL password.
      """
 
@@ -406,8 +410,8 @@ class VirtualMachine:
 
     Attributes:
         machine_type: the type of Google Cloud virtual machine.
-        disk_size: the size of the disk.
-        disk_type: the disk type.
+        disk_size: the size of the disk in GB.
+        disk_type: the disk type; pd-standard or pd-ssd.
         create: whether to create the VM or not.
      """
 
@@ -560,10 +564,8 @@ class ObservatoryConfig:
         """
 
         # Create airflow variables from fixed config file values
-        dags_module_names = str(json.dumps([project.dags_module for project in self.dags_projects]))
         variables = [
-            AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value),
-            AirflowVariable(AirflowVars.DAGS_MODULE_NAMES, dags_module_names),
+            AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)
         ]
 
         if self.google_cloud.project_id is not None:
@@ -736,17 +738,45 @@ class TerraformConfig(ObservatoryConfig):
 
         return self.terraform.workspace_prefix + self.backend.environment.value
 
+    def make_airflow_variables(self) -> List[AirflowVariable]:
+        """ Make all airflow variables for the Observatory Platform.
+
+        :return: a list of AirflowVariable objects.
+        """
+
+        # Create airflow variables from fixed config file values
+        variables = [
+            AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)
+        ]
+
+        if self.google_cloud.project_id is not None:
+            variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
+
+        if self.google_cloud.data_location:
+            variables.append(AirflowVariable(AirflowVars.DATA_LOCATION, self.google_cloud.data_location))
+
+        if self.terraform.organization is not None:
+            variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
+
+        if self.terraform.workspace_prefix is not None:
+            variables.append(AirflowVariable(AirflowVars.TERRAFORM_PREFIX, self.terraform.workspace_prefix))
+
+        # Add user defined variables to list
+        variables += self.airflow_variables
+
+        return variables
+
     def terraform_variables(self) -> List[TerraformVariable]:
         """ Create a list of TerraformVariable instances from the Terraform Config.
 
         :return: a list of TerraformVariable instances.
         """
 
-        sensitive = True
+        sensitive = False
         return [TerraformVariable('environment', self.backend.environment.value),
                 TerraformVariable('airflow', self.airflow.to_hcl(), sensitive=sensitive, hcl=True),
-                TerraformVariable('google_cloud', self.airflow.to_hcl(), sensitive=sensitive, hcl=True),
-                TerraformVariable('database', self.airflow.to_hcl(), sensitive=sensitive, hcl=True),
+                TerraformVariable('google_cloud', self.google_cloud.to_hcl(), sensitive=sensitive, hcl=True),
+                TerraformVariable('cloud_sql_database', self.cloud_sql_database.to_hcl(), sensitive=sensitive, hcl=True),
                 TerraformVariable('airflow_main_vm', self.airflow_main_vm.to_hcl(), hcl=True),
                 TerraformVariable('airflow_worker_vm', self.airflow_worker_vm.to_hcl(), hcl=True),
                 TerraformVariable('airflow_variables', list_to_hcl(self.airflow_variables), hcl=True,

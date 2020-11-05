@@ -19,7 +19,7 @@ from typing import Union
 
 import click
 
-from observatory.platform.cli.click import indent, INDENT1, INDENT2, INDENT3
+from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2, INDENT3
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
@@ -244,6 +244,7 @@ def platform(command: str, config_path: str, build_path: str, dags_path: str, da
 
     elif command == 'stop':
         print(f'{PLATFORM_NAME}: stopping...'.ljust(min_line_chars), end='\r')
+        cmd.make_files()
         output, error, return_code = cmd.stop()
 
         if debug:
@@ -325,7 +326,7 @@ def config(command: str, config_path: str):
 # increase content width for cleaner help output
 @cli.command(context_settings=dict(max_content_width=120))
 @click.argument('command',
-                type=click.Choice(['create-workspace', 'update-workspace']))
+                type=click.Choice(['build-terraform', 'build-image', 'create-workspace', 'update-workspace']))
 # The path to the config-terraform.yaml configuration file.
 @click.argument('config-path',
                 type=click.Path(exists=True, file_okay=True, dir_okay=False))
@@ -338,11 +339,12 @@ def config(command: str, config_path: str):
               count=True,
               help='Set the verbosity level of terraform API (max -vv).')
 def terraform(command, config_path, terraform_credentials_path, verbose):
-    """ Manage Terraform Cloud workspaces.\n
+    """ Commands to manage the deployment of the Observatory Platform with Terraform Cloud.\n
 
     COMMAND: the type of config file to generate:\n
       - create-workspace: create a Terraform Cloud workspace.\n
       - update-workspace: update a Terraform Cloud workspace.\n
+      - build-image: build a Google Compute image for the Terraform deployment with Packer.\n
     """
 
     # The minimum number of characters per line
@@ -385,30 +387,37 @@ def terraform(command, config_path, terraform_credentials_path, verbose):
         exit(os.EX_CONFIG)
 
     ####################
-    # Create Workspace #
+    # Run commands     #
     ####################
 
-    # Get organization, environment and prefix
-    organization = terraform_cmd.config.terraform.organization
-    prefix = terraform_cmd.config.terraform.workspace_prefix
-    environment = terraform_cmd.config.backend.environment.value
-    workspace = terraform_cmd.config.terraform_workspace_id
+    if command == 'build-terraform':
+        # Build image with packer
+        terraform_cmd.build_terraform()
+    elif command == 'build-image':
+        # Build image with packer
+        terraform_cmd.build_image()
+    else:
+        # Get organization, environment and prefix
+        organization = terraform_cmd.config.terraform.organization
+        prefix = terraform_cmd.config.terraform.workspace_prefix
+        environment = terraform_cmd.config.backend.environment.value
+        workspace = terraform_cmd.config.terraform_workspace_id
 
-    # Display settings for workspace
-    print('\nTerraform Cloud Workspace: ')
-    print(indent(f'Organization: {organization}', INDENT1))
-    print(indent(f"- Name: {workspace} (prefix: '{prefix}' + suffix: '{environment}')", INDENT1))
-    print(indent(f'- Settings: ', INDENT1))
-    print(indent(f'- Auto apply: True', INDENT2))
-    print(indent(f'- Terraform Variables:', INDENT1))
+        # Display settings for workspace
+        print('\nTerraform Cloud Workspace: ')
+        print(indent(f'Organization: {organization}', INDENT1))
+        print(indent(f"- Name: {workspace} (prefix: '{prefix}' + suffix: '{environment}')", INDENT1))
+        print(indent(f'- Settings: ', INDENT1))
+        print(indent(f'- Auto apply: True', INDENT2))
+        print(indent(f'- Terraform Variables:', INDENT1))
 
-    # Create a new workspace
-    if command == 'create-workspace':
-        terraform_cmd.create_workspace()
+        # Create a new workspace
+        if command == 'create-workspace':
+            terraform_cmd.create_workspace()
 
-    # Update an existing workspace
-    elif command == 'update-workspace':
-        terraform_cmd.update_workspace()
+        # Update an existing workspace
+        elif command == 'update-workspace':
+            terraform_cmd.update_workspace()
 
 
 if __name__ == "__main__":

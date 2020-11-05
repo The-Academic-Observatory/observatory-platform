@@ -25,20 +25,32 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo curl -L "https://storage.googleapis.com/berglas/0.5.0/linux_amd64/berglas" -o /usr/local/bin/berglas
 sudo chmod +x /usr/local/bin/berglas
 
-# Move Observatory Platform onto a permanent path
+# Make directories
 sudo mkdir -p /opt/airflow/logs
 sudo mkdir /opt/airflow/dags
 sudo mkdir -p /opt/observatory/data
-sudo mv /tmp/observatory-platform /opt/observatory/observatory-platform
+sudo mkdir -p /opt/observatory/build/docker
 
-# Own observatory and airflow directories
-sudo chown -R airflow:airflow /opt/observatory/
-sudo chown -R airflow:airflow /opt/airflow/
+# Move all packages into /opt directory
+sudo mv /tmp/opt/packages/* /opt
 
-# Build the Docker containers
-cd /opt/observatory/observatory-platform
+# Move Docker files into /opt/observatory/build/docker directory
+sudo mv /tmp/opt/observatory/build/docker/* /opt/observatory/build/docker
+
+# Own all /opt directories
+sudo chown -R airflow:airflow /opt/
+
+# Set working directory and environment variables for building docker containers
+cd /opt/observatory/build/docker
 export HOST_USER_ID=$(id -u airflow)
 export HOST_GROUP_ID=$(id -g airflow)
-sudo -u airflow bash -c "cat docker-compose.cloud.yml docker-compose.observatory.yml > docker-compose.observatory-cloud.yml"
-sudo -u airflow bash -c "docker-compose -f docker-compose.observatory-cloud.yml pull"
-sudo -u airflow --preserve-env=HOST_USER_ID,HOST_GROUP_ID bash -c "docker-compose -f docker-compose.observatory-cloud.yml build"
+export HOST_REDIS_PORT=6379
+export HOST_FLOWER_UI_PORT=5555
+export HOST_AIRFLOW_UI_PORT=8080
+export HOST_ELASTIC_PORT=9200
+export HOST_KIBANA_PORT=5601
+
+# Pull and build Docker containers
+PRESERVE_ENV="HOST_USER_ID,HOST_GROUP_ID,HOST_REDIS_PORT,HOST_FLOWER_UI_PORT,HOST_AIRFLOW_UI_PORT,HOST_ELASTIC_PORT,HOST_KIBANA_PORT"
+sudo -u airflow --preserve-env=${PRESERVE_ENV} bash -c "docker-compose -f docker-compose.observatory.yml pull"
+sudo -u airflow --preserve-env=${PRESERVE_ENV} bash -c "docker-compose -f docker-compose.observatory.yml build"
