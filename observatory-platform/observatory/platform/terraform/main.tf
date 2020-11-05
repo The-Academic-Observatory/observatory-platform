@@ -59,7 +59,7 @@ resource "google_project_service" "cloud_resource_manager" {
   disable_dependent_services = true
 }
 
-# Can't disable dependent services, because of existing ao-image
+# Can't disable dependent services, because of existing observatory-image
 resource "google_project_service" "compute_engine" {
   project = var.google_cloud.project_id
   service = "compute.googleapis.com"

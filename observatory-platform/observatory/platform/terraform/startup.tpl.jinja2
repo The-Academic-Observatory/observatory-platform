@@ -7,7 +7,11 @@ export POSTGRES_HOSTNAME="${postgres_hostname}"
 export POSTGRES_PASSWORD="sm://${project_id}/postgres_password"
 export FERNET_KEY="sm://${project_id}/fernet_key"
 export REDIS_HOSTNAME="${redis_hostname}"
+export HOST_FLOWER_UI_PORT=5555
+export HOST_REDIS_PORT=6379
+export HOST_AIRFLOW_UI_PORT=8080
 
+# Set environment variables and docker container names based on whether this is the main or worker vm
 {%- if is_airflow_main_vm %}
 export AIRFLOW_UI_USER_PASSWORD="sm://${project_id}/airflow_ui_user_password"
 export AIRFLOW_UI_USER_EMAIL="sm://${project_id}/airflow_ui_user_email"
@@ -16,35 +20,28 @@ export AIRFLOW_UI_USER_EMAIL="sm://${project_id}/airflow_ui_user_email"
 {% set docker_containers="worker_remote"%}
 {%- endif %}
 
-# Create airflow variables
+# Export environment variables for all Airflow variables
 names=('${join("' '", keys(airflow_variables))}')
 values=('${join("' '", values(airflow_variables))}')
-
-# Set environment variables for all airflow variables
 for index in $${!names[*]};
 do export AIRFLOW_VAR_$${names[$index]^^}="$${values[$index]}";
 done
 
+# Hardcoded list of environment variables that need to be preserved
+PRESERVE_ENV="HOST_USER_ID,HOST_GROUP_ID,POSTGRES_HOSTNAME,POSTGRES_PASSWORD,FERNET_KEY,REDIS_HOSTNAME,\
+AIRFLOW_UI_USER_PASSWORD,AIRFLOW_UI_USER_EMAIL,HOST_FLOWER_UI_PORT,HOST_REDIS_PORT,HOST_AIRFLOW_UI_PORT"
+
+# Preserve all environment variables that begin with AIRFLOW_VAR or AIRFLOW_CONN
+PRESERVE_ENV=$(printenv | awk -v tmp="$PRESERVE_ENV" -F'=' '$0 ~ /AIRFLOW_VAR|AIRFLOW_CONN/ {printf "%s,", $1} END {print tmp}')
+
 # Save google application credentials to file
 sudo -u airflow bash -c "berglas access sm://${project_id}/google_application_credentials > /opt/observatory/google_application_credentials.json"
 
-# Pull latest images
+# Navigate to docker directory which contains all Docker and Docker Compose files
 cd /opt/observatory/build/docker
-sudo -u airflow bash -c "docker-compose -f docker-compose.observatory.yml pull {{ docker_containers }}"
 
-# Hardcoded list of environment variables that need to be preserved
-STANDARD_ENV_PRESERVE="HOST_GOOGLE_APPLICATION_CREDENTIALS,HOST_USER_ID,HOST_GROUP_ID"
-# Preserve all environment variables that begin with AIRFLOW_VAR or AIRFLOW_CONN
-ALL_ENV_PRESERVE=$(printenv | awk -v env_preserve="$STANDARD_ENV_PRESERVE" -F'=' '$0 ~ /AIRFLOW_VAR|AIRFLOW_CONN/ {printf "%s,", $1} END {print env_preserve}')
-
-sudo -u airflow --preserve-env=$ALL_ENV_PRESERVE \
-bash -c "docker-compose -f docker-compose.observatory.yml build {{ docker_containers }}"
-
-# Hardcoded list of environment variables that need to be preserved
-STANDARD_ENV_PRESERVE="HOST_USER_ID,HOST_GROUP_ID,POSTGRES_HOSTNAME,POSTGRES_PASSWORD,FERNET_KEY,REDIS_HOSTNAME,\
-AIRFLOW_UI_USER_PASSWORD,AIRFLOW_UI_USER_EMAIL"
-# Preserve all environment variables that begin with AIRFLOW_VAR or AIRFLOW_CONN
-ALL_ENV_PRESERVE=$(printenv | awk -v env_preserve="$STANDARD_ENV_PRESERVE" -F'=' '$0 ~ /AIRFLOW_VAR|AIRFLOW_CONN/ {printf "%s,", $1} END {print env_preserve}')
-
-sudo -u airflow -H --preserve-env=$ALL_ENV_PRESERVE \
-bash -c "berglas exec -- docker-compose -f docker-compose.observatory.yml up -d {{ docker_containers }}"
+# Pull, build and start Docker containers
+{% set docker_compose_cmd="docker-compose -f docker-compose.observatory.yml"%}
+sudo -u airflow --preserve-env=$PRESERVE_ENV bash -c "{{ docker_compose_cmd }} pull {{ docker_containers }}"
+sudo -u airflow --preserve-env=$PRESERVE_ENV bash -c "{{ docker_compose_cmd }} build {{ docker_containers }}"
+sudo -u airflow -H --preserve-env=$PRESERVE_ENV bash -c "berglas exec -- {{ docker_compose_cmd }} up -d {{ docker_containers }}"

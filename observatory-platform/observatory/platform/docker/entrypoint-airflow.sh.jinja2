@@ -31,7 +31,7 @@ fi
 # Install observatory-platform
 ###############################
 # Enter observatory platform folder
-cd /opt/observatory/observatory-platform
+cd /opt/observatory-platform
 
 # TODO: remove this
 # Remove tests directory which other packages install to sometimes
@@ -51,7 +51,7 @@ pip3 install -e . --user
 #########################
 {% for project in config.dags_projects %}
 {% if project.type == 'local' -%}
-cd /opt/observatory/{{ project.package_name }}
+cd /opt/{{ project.package_name }}
 pip3 install -e . --user
 {% endif %}
 {% endfor %}

@@ -34,15 +34,15 @@ version: '3.8'
 {%- else -%}
 
 {%- set postgres_password="${POSTGRES_PASSWORD}" -%}
-{%- set postgres_hostname="${REDIS_HOSTNAME}" -%}
+{%- set postgres_hostname="${POSTGRES_HOSTNAME}" -%}
 {%- set redis_hostname="${REDIS_HOSTNAME}" -%}
 {%- set airflow_ui_user_email="${AIRFLOW_UI_USER_EMAIL}" -%}
 {%- set airflow_ui_user_password="${AIRFLOW_UI_USER_PASSWORD}" -%}
 
 {%- set host_logs_path="/opt/airflow/logs" -%}
-{%- set host_dags_path="/opt/airflow/dags" -%}
+{%- set host_dags_path="/opt/observatory-platform/observatory/platform/dags" -%}
 {%- set host_data_path="/opt/observatory/data" -%}
-{%- set host_package_path="/opt/observatory/observatory-platform" -%}
+{%- set host_package_path="/opt/observatory-platform" -%}
 {%- set google_application_credentials="/opt/observatory/google_application_credentials.json" -%}
 
 {%- endif -%}
@@ -87,14 +87,14 @@ x-volumes: &volumes
   - "{{ host_logs_path }}:/opt/airflow/logs"
   - "{{ host_dags_path }}:/opt/airflow/dags"
   - "{{ host_data_path }}:/opt/observatory/data"
-  - "{{ host_package_path }}:/opt/observatory/observatory-platform"
+  - "{{ host_package_path }}:/opt/observatory-platform"
   {# Creates the volumes for local projects #}
   {%- for project in config.dags_projects %}
   {%- if project.type == 'local' %}
   {%- if config.backend.type.value == 'local' %}
-  - "{{ project.path }}:/opt/observatory/{{ project.package_name }}"
+  - "{{ project.path }}:/opt/{{ project.package_name }}"
   {%- else -%}
-  - "/opt/observatory/{{ project.package_name }}:/opt/observatory/{{ project.package_name }}"
+  - "/opt/{{ project.package_name }}:/opt/{{ project.package_name }}"
   {%- endif -%}
   {%- endif %}
   {%- endfor %}

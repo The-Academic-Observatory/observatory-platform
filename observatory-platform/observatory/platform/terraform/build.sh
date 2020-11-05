@@ -32,10 +32,13 @@ sudo mkdir -p /opt/observatory/data
 sudo mkdir -p /opt/observatory/build/docker
 
 # Move all packages into /opt directory
-sudo mv /tmp/opt/packages/* /opt
+sudo cp -r /tmp/opt/packages/* /opt
 
 # Move Docker files into /opt/observatory/build/docker directory
-sudo mv /tmp/opt/observatory/build/docker/* /opt/observatory/build/docker
+sudo cp -r /tmp/opt/observatory/build/docker/* /opt/observatory/build/docker
+
+# Remove tmp
+sudo rm -r /tmp
 
 # Own all /opt directories
 sudo chown -R airflow:airflow /opt/
