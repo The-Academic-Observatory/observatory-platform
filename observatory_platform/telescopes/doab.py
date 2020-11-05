@@ -36,15 +36,15 @@ from observatory_platform.utils.url_utils import retry_session, get_ao_user_agen
 
 
 def create_release(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, telescope: SimpleNamespace,
-                   first_release: bool) -> 'DoabRelease':
+                   first_release: bool = False) -> 'DoabRelease':
     release = DoabRelease(start_date, end_date, telescope, first_release)
     return release
 
 
-def download_oai_pmh(release: 'DoabRelease', telescope: SimpleNamespace):
+def download_oai_pmh(release: 'DoabRelease'):
     logging.info('Downloading OAI-PMH')
-    url = telescope.oai_pmh_url.format(start_date=release.start_date.strftime("%Y-%m-%d"),
-                                        end_date=release.end_date.strftime("%Y-%m-%d"))
+    url = release.telescope.oai_pmh_url.format(start_date=release.start_date.strftime("%Y-%m-%d"),
+                                       end_date=release.end_date.strftime("%Y-%m-%d"))
     # check if cursor files exist from a previous failed request
     if os.path.isfile(release.token_path):
         # retrieve token
@@ -73,12 +73,12 @@ def download_oai_pmh(release: 'DoabRelease', telescope: SimpleNamespace):
     return True if success and total_entries != '0' else False
 
 
-def download_csv(release: 'DoabRelease', telescope: SimpleNamespace):
+def download_csv(release: 'DoabRelease'):
     logging.info('Downloading csv')
     headers = {
         'User-Agent': 'test'
     }
-    response = retry_session().get(telescope.csv_url, headers=headers)
+    response = retry_session().get(release.telescope.csv_url, headers=headers)
     if response.status_code == 200:
         with open(release.csv_path, 'w') as f:
             f.write(response.content.decode('utf-8'))
@@ -88,15 +88,15 @@ def download_csv(release: 'DoabRelease', telescope: SimpleNamespace):
         raise AirflowException(f'Download csv unsuccessful, {response.text}')
 
 
-def download(release: 'DoabRelease', telescope: SimpleNamespace) -> bool:
-    success_oai_pmh = download_oai_pmh(release, telescope)
-    success_csv = download_csv(release, telescope)
+def download(release: 'DoabRelease') -> bool:
+    success_oai_pmh = download_oai_pmh(release)
+    success_csv = download_csv(release)
 
     logging.info(f"OAI-PMH status: {success_oai_pmh}, CSV status: {success_csv}")
     return True if success_oai_pmh and success_csv else False
 
 
-def transform(release: 'DoabRelease', telescope: SimpleNamespace):
+def transform(release: 'DoabRelease'):
     # create dict of data in summary xml file
     oai_pmh_entries = []
     with open(release.oai_pmh_path, 'r') as f:
@@ -162,7 +162,7 @@ class DoabRelease(StreamRelease):
 
 
 def extract_entries(url: str, entries_path: str, next_token: str = None, success: bool = True) -> \
-        Tuple[bool, Union[str, None], Union[int, None]]:
+        Tuple[bool, Union[str, None], Union[str, None]]:
     """
     Extract the events from the given url until no new cursor is returned or a RetryError occurs. The extracted events
     are appended to a json file, with 1 list per request.
