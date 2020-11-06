@@ -33,8 +33,8 @@ from observatory.dags.telescopes.geonames import (
 from observatory.dags.telescopes.geonames import fetch_release_date
 from observatory.platform.utils.config_utils import telescope_path, SubFolder
 from observatory.platform.utils.data_utils import _hash_file
-from observatory.platform.utils.test_utils import gzip_file_crc
-from tests.observatory.config import test_fixtures_path
+from observatory.platform.utils.gc_utils import gzip_file_crc
+from tests.observatory.test_utils import test_fixtures_path
 
 
 class TestGeonames(unittest.TestCase):

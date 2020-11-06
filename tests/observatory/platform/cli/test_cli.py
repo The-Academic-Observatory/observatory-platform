@@ -29,7 +29,7 @@ from observatory.platform.cli.cli import cli
 from observatory.platform.observatory_config import TerraformConfig
 from observatory.platform.observatory_config import ValidationError
 from observatory.platform.terraform_api import TerraformApi
-from tests.observatory.config import random_id
+from tests.observatory.test_utils import random_id
 
 
 class TestObservatoryGenerate(unittest.TestCase):

@@ -24,7 +24,7 @@ import requests
 
 from observatory.platform.utils.url_utils import (get_url_domain_suffix, unique_id, is_url_absolute, strip_query_params,
                                                   retry_session, get_ao_user_agent, wait_for_url)
-from tests.observatory.config import MockUrlOpen
+from tests.observatory.platform.cli.test_platform_command import MockUrlOpen
 
 
 class TestUrlUtils(unittest.TestCase):

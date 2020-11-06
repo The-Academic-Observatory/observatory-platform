@@ -16,7 +16,7 @@
 
 import unittest
 
-from observatory.platform.cli.click import indent, INDENT1, INDENT2, INDENT3, INDENT4
+from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2, INDENT3, INDENT4
 
 
 class TestClick(unittest.TestCase):

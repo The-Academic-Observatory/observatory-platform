@@ -17,10 +17,18 @@
 import random
 import unittest
 from datetime import datetime
-from unittest.mock import patch
-
+from typing import Any
+from unittest.mock import patch, Mock
 from observatory.platform.cli.platform_command import PlatformCommand
-from tests.observatory.config import MockUrlOpen
+
+
+class MockUrlOpen(Mock):
+    def __init__(self, status: int, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.status = status
+
+    def getcode(self):
+        return self.status
 
 
 class TestPlatformCommand(unittest.TestCase):

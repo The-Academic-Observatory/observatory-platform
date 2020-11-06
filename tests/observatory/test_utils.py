@@ -1,4 +1,4 @@
-# Copyright 2020 Curtin University
+# Copyright 2019-2020 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 import pathlib
 import uuid
-from typing import Any
-from unittest.mock import Mock
 
 import tests.fixtures
 
@@ -31,20 +29,11 @@ def random_id():
 
 
 def test_fixtures_path() -> str:
-    """ Get the path to the Observatory Platform package root folder.
+    """ Get the path to the Observatory Platform test data directory.
 
-    :return: the path to the Observatory Platform package root folder.
+    :return: he Observatory Platform test data directory.
     """
 
     file_path = pathlib.Path(tests.fixtures.__file__).resolve()
     path = pathlib.Path(*file_path.parts[:-1])
     return str(path.resolve())
-
-
-class MockUrlOpen(Mock):
-    def __init__(self, status: int, **kwargs: Any):
-        super().__init__(**kwargs)
-        self.status = status
-
-    def getcode(self):
-        return self.status

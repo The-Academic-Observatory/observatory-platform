@@ -20,13 +20,15 @@ import logging
 import multiprocessing
 import os
 import re
+import subprocess
+import time
 from concurrent.futures import as_completed, ProcessPoolExecutor
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
+from subprocess import Popen
 from typing import List, Union
 
 import pendulum
-import time
 from crc32c import Checksum as Crc32cChecksum
 from google.api_core.exceptions import Conflict
 from google.cloud import storage, bigquery
@@ -37,8 +39,22 @@ from googleapiclient import discovery as gcp_api
 from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
 
+from observatory.platform.utils.proc_utils import wait_for_process
+
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
 DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
+
+
+def gzip_file_crc(file_path: str) -> str:
+    """ Get the crc of a gzip file.
+
+    :param file_path: the path to the file.
+    :return: the crc.
+    """
+
+    proc: Popen = subprocess.Popen(['gzip', '-vl', file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, error = wait_for_process(proc)
+    return output.splitlines()[1].split(' ')[1].strip()
 
 
 def hex_to_base64_str(hex_str: bytes) -> str:

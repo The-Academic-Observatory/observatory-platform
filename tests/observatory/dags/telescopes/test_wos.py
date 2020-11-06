@@ -29,7 +29,7 @@ from observatory.dags.telescopes.wos import (
     WosJsonParser,
     WosUtility,
 )
-from tests.observatory.config import test_fixtures_path
+from tests.observatory.test_utils import test_fixtures_path
 
 
 # class TestRecordWosVcr(unittest.TestCase):

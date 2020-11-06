@@ -34,7 +34,7 @@ from observatory.dags.telescopes.unpaywall import (
 )
 from observatory.platform.utils.config_utils import telescope_path, SubFolder
 from observatory.platform.utils.data_utils import _hash_file
-from tests.observatory.config import test_fixtures_path
+from tests.observatory.test_utils import test_fixtures_path
 
 
 class TestUnpaywall(unittest.TestCase):

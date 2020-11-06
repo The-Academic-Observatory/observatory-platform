@@ -26,8 +26,8 @@ from click.testing import CliRunner
 from observatory.dags.telescopes.grid import (list_grid_releases, download_grid_release, extract_grid_release,
                                               transform_grid_release)
 from observatory.platform.utils.data_utils import _hash_file
-from observatory.platform.utils.test_utils import gzip_file_crc
-from tests.observatory.config import test_fixtures_path
+from observatory.platform.utils.gc_utils import gzip_file_crc
+from tests.observatory.test_utils import test_fixtures_path
 
 
 class TestGrid(unittest.TestCase):

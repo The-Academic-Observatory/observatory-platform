@@ -772,7 +772,7 @@ class TerraformConfig(ObservatoryConfig):
         :return: a list of TerraformVariable instances.
         """
 
-        sensitive = False
+        sensitive = True
         return [TerraformVariable('environment', self.backend.environment.value),
                 TerraformVariable('airflow', self.airflow.to_hcl(), sensitive=sensitive, hcl=True),
                 TerraformVariable('google_cloud', self.google_cloud.to_hcl(), sensitive=sensitive, hcl=True),

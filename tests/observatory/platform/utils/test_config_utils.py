@@ -32,7 +32,7 @@ from observatory.platform.utils.config_utils import (
     terraform_credentials_path,
     test_data_path
 )
-from tests.observatory.config import test_fixtures_path
+from tests.observatory.test_utils import test_fixtures_path
 
 
 class TestConfigUtils(unittest.TestCase):

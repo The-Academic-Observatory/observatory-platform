@@ -32,8 +32,8 @@ from observatory.platform.utils.gc_utils import (hex_to_base64_str, crc32c_base6
                                                  table_name_from_blob, run_bigquery_query,
                                                  copy_bigquery_table, create_bigquery_view, bigquery_table_exists,
                                                  create_bigquery_table_from_query)
-from tests.observatory.config import random_id
-from tests.observatory.config import test_fixtures_path
+from tests.observatory.test_utils import random_id
+from tests.observatory.test_utils import test_fixtures_path
 
 
 def make_account_url(account_name: str) -> str:

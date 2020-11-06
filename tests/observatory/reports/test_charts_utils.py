@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pydata_google_auth
 
-from observatory.platform.utils.test_utils import fixtures_data_dir
+from tests.observatory.test_utils import test_fixtures_path
 from observatory.reports.chart_utils import calculate_confidence_interval
 from observatory.reports.tables import (
     InstitutionOpenAccessTable,
@@ -51,7 +51,7 @@ def update_chart_test_data():
     output_types = InstitutionOutputsTable(*args)
     citations = InstitutionCitationsTable(*args)
 
-    fixtures_path = Path(fixtures_data_dir(__file__))
+    fixtures_path = Path(test_fixtures_path())
     openaccess.df.to_csv(fixtures_path / 'reports' / 'test_oa_data.csv')
     funders.df.to_csv(fixtures_path / 'reports' / 'test_funding_data.csv')
     output_types.df.to_csv(fixtures_path / 'reports' / 'test_outputs_data.csv')

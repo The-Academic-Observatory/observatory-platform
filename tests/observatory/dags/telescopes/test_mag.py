@@ -31,7 +31,7 @@ from observatory.dags.telescopes.mag import (list_mag_release_files, transform_m
                                              db_load_mag_release)
 from observatory.platform.utils.data_utils import _hash_file
 from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
-from tests.observatory.config import random_id, test_fixtures_path
+from tests.observatory.test_utils import random_id, test_fixtures_path
 
 
 def extract_mag_release(file_path: str, unzip_path: str):

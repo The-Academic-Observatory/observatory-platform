@@ -19,7 +19,7 @@ import unittest
 
 import pandas as pd
 
-from observatory.platform.utils.test_utils import fixtures_data_dir
+from tests.observatory.test_utils import test_fixtures_path
 from observatory.reports.charts import BarComparisonChart
 from observatory.reports.charts import BoxScatter
 from observatory.reports.charts import CitationCountTimeChart
@@ -45,8 +45,7 @@ class TestAbstractChart(unittest.TestCase):
     test_data = 'test_oa_data.csv'
 
     def setUp(self):
-        test_data_file = os.path.join(fixtures_data_dir(__file__),
-                                      'reports', self.test_data)
+        test_data_file = os.path.join(test_fixtures_path(), 'reports', self.test_data)
         self.df = pd.read_csv(test_data_file)
         self.available_ids = list(self.df.id.unique())
 
