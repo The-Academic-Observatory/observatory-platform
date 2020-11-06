@@ -12,25 +12,398 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Tuan Chien
-
+# Author: Tuan Chien, Aniek Roelofs
 
 import calendar
 import gzip
 import json
-import jsonlines
 import logging
 import os
-import pendulum
+import re
 import shutil
 import sys
-
-from airflow.models.taskinstance import TaskInstance
 from collections import deque
+from dataclasses import dataclass
 from math import ceil
 from pathlib import Path
-from typing import List, Tuple, Any, Type
-from dataclasses import dataclass
+from types import SimpleNamespace
+from typing import Any, List, Tuple, Type, Union
+
+import jsonlines
+import pendulum
+from airflow.models import Variable
+from airflow.models.taskinstance import TaskInstance
+from google.cloud import bigquery
+from google.cloud.bigquery import SourceFormat
+
+from observatory_platform.utils.airflow_utils import AirflowVariable as Variable
+from observatory_platform.utils.config_utils import (AirflowVar,
+                                                     SubFolder,
+                                                     find_schema,
+                                                     schema_path,
+                                                     telescope_path,
+                                                     telescope_templates_path)
+from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 copy_bigquery_table,
+                                                 create_bigquery_dataset,
+                                                 load_bigquery_table,
+                                                 run_bigquery_query,
+                                                 upload_file_to_cloud_storage,
+                                                 upload_files_to_cloud_storage)
+from observatory_platform.utils.jinja2_utils import (make_jinja2_filename, make_sql_jinja2_filename, render_template)
+
+
+class TelescopeRelease:
+    """ Used to store info on a given release"""
+    def __init__(self, start_date: Union[pendulum.Pendulum, None], end_date: pendulum.Pendulum,
+                 telescope: SimpleNamespace, first_release: bool = False):
+        self.start_date = start_date
+        self.end_date = end_date
+        self.release_date = end_date
+        self.first_release = first_release
+        self.telescope = telescope
+
+        self.date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
+
+        # paths
+        self.file_name = f"{telescope.dag_id}_{self.date_str}"
+        self.blob_dir = f'telescopes/{self.telescope.dag_id}'
+
+        self.download_path = self.get_path(SubFolder.downloaded, self.file_name, self.telescope.download_ext)
+        self.download_dir = self.subdir(SubFolder.downloaded)
+        self.download_blob = os.path.join(self.blob_dir, f"{self.file_name}.{self.telescope.download_ext}")
+
+        self.extract_path = self.get_path(SubFolder.extracted, self.file_name, self.telescope.extract_ext)
+        self.extract_dir = self.subdir(SubFolder.extracted)
+
+        self.transform_path = self.get_path(SubFolder.transformed, self.file_name, self.telescope.transform_ext)
+        self.transform_dir = self.subdir(SubFolder.transformed)
+        self.transform_blob = os.path.join(self.blob_dir, f"{self.file_name}.{self.telescope.transform_ext}")
+
+    def subdir(self, sub_folder: SubFolder) -> str:
+        """ Path to subdirectory of a specific release for either downloaded/extracted/transformed files.
+        Will also create the directory if it doesn't exist yet.
+        :param sub_folder: Name of the subfolder
+        :return: Path to the directory
+        """
+        subdir = os.path.join(telescope_path(sub_folder, self.telescope.dag_id), self.date_str)
+        if not os.path.exists(subdir):
+            os.makedirs(subdir, exist_ok=True)
+        return subdir
+
+    def get_path(self, sub_folder: SubFolder, file_name: str, ext: str) -> str:
+        """
+        Gets path to file based on subfolder, file name and extension.
+        :param sub_folder: Name of the subfolder
+        :param file_name: Name of the file
+        :param ext: The extension of the file
+        :return: The file path.
+        """
+        path = os.path.join(self.subdir(sub_folder), f"{file_name}.{ext}")
+        return path
+
+
+def check_dependencies_example(kwargs):
+    pass
+
+
+def transfer_example(release: TelescopeRelease) -> bool:
+    return True
+
+
+def download_example(release: TelescopeRelease) -> bool:
+    return True
+
+
+def download_transferred_example(release: TelescopeRelease):
+    pass
+
+
+def extract_example(release: TelescopeRelease):
+    pass
+
+
+def transform_example(release: TelescopeRelease):
+    pass
+
+
+def upload_downloaded(download_dir: str, blob_dir: str) -> bool:
+    """ Upload all files in download dir to the google cloud download bucket.
+
+    :param download_dir: Path to the download directory.
+    :param blob_dir: Name of the bucket blob directory.
+    :return: True if upload was successful, else False.
+    """
+    bucket_name = Variable.get(AirflowVar.download_bucket_name.get())
+    blob_names = []
+    file_paths = []
+    for root, dirs, files in os.walk(download_dir):
+        for file in files:
+            blob_names.append(os.path.join(blob_dir, file))
+            file_paths.append(os.path.join(root, file))
+
+    success = upload_files_to_cloud_storage(bucket_name, blob_names, file_paths)
+    return success
+
+
+def upload_transformed(transform_path: str, transform_blob: str) -> bool:
+    """ Upload the transformed file to the google cloud transform bucket.
+
+    :param transform_path: Path to the transformed file.
+    :param transform_blob: Name of the transform blob.
+    :return: True if upload was successful, else False.
+    """
+    bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
+    success = upload_file_to_cloud_storage(bucket_name, transform_blob, transform_path)
+    return success
+
+
+def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, table_id: str,
+                  schema_version: str):
+    """ Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
+
+    :param release_date: Release date.
+    :param transform_blob: Name of the transform blob.
+    :param dataset_id: Dataset id.
+    :param table_id: Table id.
+    :param schema_version: Schema version.
+    :return: None.
+    """
+    bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
+    data_location = Variable.get(AirflowVar.data_location.get())
+
+    # Select schema file based on release date
+    analysis_schema_path = schema_path('telescopes')
+    schema_file_path = find_schema(analysis_schema_path, table_id, release_date, ver=schema_version)
+    if schema_file_path is None:
+        logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
+                      f'table_name={table_id}, release_date={release_date}')
+        exit(os.EX_CONFIG)
+
+    table_id = bigquery_partitioned_table_id(table_id, release_date)
+    dataset_id = dataset_id
+    uri = f"gs://{bucket_name}/{transform_blob}"
+
+    load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path, SourceFormat.NEWLINE_DELIMITED_JSON)
+
+
+def bq_load_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
+                      partition_table_id: str, schema_version: str):
+    """ Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
+    given it will automatically partition by ingestion datetime.
+
+    :param end_date: End date.
+    :param transform_blob: Name of the transform blob.
+    :param dataset_id: Dataset id.
+    :param main_table_id: Main table id.
+    :param partition_table_id: Partition table id.
+    :param schema_version: Schema version.
+    :return: None.
+    """
+    bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
+    data_location = Variable.get(AirflowVar.data_location.get())
+
+    # Select schema file based on release date
+    analysis_schema_path = schema_path('telescopes')
+    schema_file_path = find_schema(analysis_schema_path, main_table_id, end_date, ver=schema_version)
+    if schema_file_path is None:
+        logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
+                      f'table_name={main_table_id}, release_date={end_date}, '
+                      f'version={schema_version}')
+        exit(os.EX_CONFIG)
+
+    uri = f"gs://{bucket_name}/{transform_blob}"
+
+    load_bigquery_table(uri, dataset_id, data_location, partition_table_id, schema_file_path,
+                        SourceFormat.NEWLINE_DELIMITED_JSON, partition=True, require_partition_filter=False)
+
+
+def bq_delete_old(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, dataset_id: str, main_table_id: str,
+                  partition_table_id: str, merge_partition_field: str, updated_date_field: str):
+    """ Will run a BigQuery query that deletes rows from the main table that are matched with rows from
+    specific partitions of the partition table.
+    The query is created from a template and the given info.
+
+    :param start_date: Start date.
+    :param end_date: End date.
+    :param dataset_id: Dataset id.
+    :param main_table_id: Main table id.
+    :param partition_table_id: Partition table id.
+    :param merge_partition_field: Merge partition field.
+    :param updated_date_field: Updated date field.
+    :return: None.
+    """
+    start_date = start_date.strftime("%Y-%m-%d")
+    end_date = end_date.strftime("%Y-%m-%d")
+    # Get merge variables
+    dataset_id = dataset_id
+    main_table = main_table_id
+    partitioned_table = partition_table_id
+
+    merge_condition_field = merge_partition_field
+    updated_date_field = updated_date_field
+
+    template_path = os.path.join(telescope_templates_path(), make_sql_jinja2_filename('merge_delete_matched'))
+    query = render_template(template_path, dataset=dataset_id, main_table=main_table,
+                            partitioned_table=partitioned_table, merge_condition_field=merge_condition_field,
+                            start_date=start_date, end_date=end_date, updated_date_field=updated_date_field)
+    run_bigquery_query(query)
+
+
+def bq_append_from_partition(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, dataset_id: str,
+                             main_table_id: str, partition_table_id: str, schema_version: str, description: str):
+    """ Appends rows to the main table by coping specific partitions from the partition table to the main table.
+
+    :param start_date: Start date.
+    :param end_date: End date.
+    :param dataset_id: Dataset id.
+    :param main_table_id: Main table id.
+    :param partition_table_id: Partition table id.
+    :param schema_version: Schema version.
+    :param description: Description.
+    :return:
+    """
+    project_id = Variable.get(AirflowVar.project_id.get())
+    data_location = Variable.get(AirflowVar.data_location.get())
+
+    # Create dataset
+    dataset_id = dataset_id
+    create_bigquery_dataset(project_id, dataset_id, data_location, description)
+
+    # Select schema file based on release date
+    analysis_schema_path = schema_path('telescopes')
+    schema_file_path = find_schema(analysis_schema_path, main_table_id, end_date, ver=schema_version)
+    if schema_file_path is None:
+        logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
+                      f'table_name={main_table_id}, end_date={end_date}, version={schema_version}')
+        exit(os.EX_CONFIG)
+
+    period = pendulum.period(start_date, end_date)
+    source_table_ids = []
+    for dt in period:
+        table_id = f"{project_id}.{dataset_id}.{partition_table_id}${dt.strftime('%Y%m%d')}"
+        source_table_ids.append(table_id)
+    copy_bigquery_table(source_table_ids, main_table_id, data_location, bigquery.WriteDisposition.WRITE_APPEND)
+
+
+def bq_append_from_file(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
+                        schema_version: str, description: str):
+    """ Appends rows to the main table by loading data from a specific file (blob) in the transform bucket.
+
+    :param end_date: End date.
+    :param transform_blob: Name of the transform blob.
+    :param dataset_id: Dataset id.
+    :param main_table_id: Main table id.
+    :param schema_version: Schema version.
+    :param description: The description.
+    :return: None.
+    """
+    project_id = Variable.get(AirflowVar.project_id.get())
+    data_location = Variable.get(AirflowVar.data_location.get())
+    bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
+
+    # Create dataset
+    dataset_id = dataset_id
+    create_bigquery_dataset(project_id, dataset_id, data_location, description)
+
+    # Select schema file based on release date
+    analysis_schema_path = schema_path('telescopes')
+    release_date = pendulum.instance(end_date)
+    schema_file_path = find_schema(analysis_schema_path, main_table_id, release_date, ver=schema_version)
+    if schema_file_path is None:
+        logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
+                      f'table_name={main_table_id}, release_date={release_date}, '
+                      f'version={schema_version}')
+        exit(os.EX_CONFIG)
+
+    # Load BigQuery table
+    uri = f"gs://{bucket_name}/{transform_blob}"
+    logging.info(f"URI: {uri}")
+
+    # Append to table table
+    table_id = main_table_id
+    load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path, SourceFormat.NEWLINE_DELIMITED_JSON,
+                        write_disposition=bigquery.WriteDisposition.WRITE_APPEND)
+
+
+def cleanup(download_dir: str, extract_dir: str, transform_dir: str):
+    """ Delete release directories from disk.
+
+    :param download_dir: Download dir.
+    :param extract_dir: Extract dir.
+    :param transform_dir: Transform dir.
+    :return: None.
+    """
+    try:
+        shutil.rmtree(download_dir)
+    except FileNotFoundError as e:
+        logging.warning(e)
+
+    try:
+        shutil.rmtree(extract_dir)
+    except FileNotFoundError as e:
+        logging.warning(e)
+
+    try:
+        shutil.rmtree(transform_dir)
+    except FileNotFoundError as e:
+        logging.warning(e)
+
+
+def args_list(args) -> list:
+    return args
+
+
+def write_boto_config(s3_host: str, aws_access_key_id: str, aws_secret_access_key: str, boto_config_path: str):
+    """ Write a boto3 configuration file, created by using a template and given info.
+
+    :param s3_host: Host of the s3 bucket.
+    :param aws_access_key_id: Access key id to bucket.
+    :param aws_secret_access_key: Secret access key to bucket.
+    :param boto_config_path: Path to write the boto config file to.
+    :return: None.
+    """
+    logging.info(f'Writing boto config file to {boto_config_path}')
+
+    template_path = os.path.join(telescope_templates_path(), make_jinja2_filename('boto'))
+    rendered = render_template(template_path, s3_host=s3_host, aws_access_key_id=aws_access_key_id,
+                               aws_secret_access_key=aws_secret_access_key)
+    with open(boto_config_path, 'w') as f:
+        f.write(rendered)
+
+
+def convert(k: str) -> str:
+    """ Convert a key name.
+    BigQuery specification for field names: Fields must contain only letters, numbers, and underscores, start with a
+    letter or underscore, and be at most 128 characters long.
+
+    :param k: Key.
+    :return: Converted key.
+    """
+    # Trim special characters at start:
+    k = re.sub('^[^A-Za-z0-9]+', "", k)
+    # Replace other special characters (except '_') in remaining string:
+    k = re.sub('\W+', '_', k)
+    return k
+
+
+def change_keys(obj, convert):
+    """ Recursively goes through the dictionary obj and replaces keys with the convert function.
+    :param obj: Dictionary object.
+    :param convert: Convert function.
+    :return: Updated dictionary object.
+    """
+    if isinstance(obj, (str, int, float)):
+        return obj
+    if isinstance(obj, dict):
+        new = obj.__class__()
+        for k, v in list(obj.items()):
+            new[convert(k)] = change_keys(v, convert)
+    elif isinstance(obj, (list, set, tuple)):
+        new = obj.__class__(change_keys(v, convert) for v in obj)
+    else:
+        return obj
+    return new
 
 
 def build_schedule(sched_start_date, sched_end_date):
@@ -127,7 +500,8 @@ def get_entry_or_none(base: dict, target, var_type=None):
     return base[target]
 
 
-def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str], path_prefix:str=None) -> List[str]:
+def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str],
+               path_prefix: str = None) -> List[str]:
     """ Transform json from query into database format.
 
     :param json_list: json data to transform.
@@ -301,7 +675,7 @@ class ScheduleOptimiser:
         :param moves: the moves the optimiser took to compute the minimum.
         :return: Optimised schedule.
         """
-        
+
         stack = deque()
 
         j = len(moves) - 1
@@ -345,7 +719,7 @@ class ScheduleOptimiser:
 
         for i in range(1, n):
             result_count = 0
-            min_calls[i] = ScheduleOptimiser.get_num_calls(historic_counts[i].count, max_per_call) + min_calls[i-1]
+            min_calls[i] = ScheduleOptimiser.get_num_calls(historic_counts[i].count, max_per_call) + min_calls[i - 1]
 
             for j in range(i, -1, -1):
                 curr_count = historic_counts[j].count
@@ -354,8 +728,8 @@ class ScheduleOptimiser:
                     break
 
                 candidate = ScheduleOptimiser.get_num_calls(result_count, max_per_call)
-                if j-1>=0:
-                    candidate += min_calls[j-1]
+                if j - 1 >= 0:
+                    candidate += min_calls[j - 1]
 
                 if candidate <= min_calls[i]:
                     min_calls[i] = candidate

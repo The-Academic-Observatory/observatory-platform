@@ -24,7 +24,6 @@ from enum import Enum
 from types import SimpleNamespace
 from typing import Union
 
-import airflow
 import cerberus.validator
 import hcl
 import pendulum
@@ -34,13 +33,13 @@ from airflow.utils.db import create_session
 from airflow.models import Connection
 from cerberus import Validator
 from cryptography.fernet import Fernet
-from jinja2 import Template
 from natsort import natsorted
 from pendulum import Pendulum
 from yaml.loader import SafeLoader
 from yaml.nodes import ScalarNode
 
 import observatory_platform.database
+import observatory_platform.database.telescopes.templates
 import observatory_platform.database.workflows.sql
 import terraform
 from observatory_platform import dags
@@ -75,6 +74,14 @@ def workflow_templates_path() -> str:
     """
 
     file_path = pathlib.Path(observatory_platform.database.workflows.sql.__file__).resolve()
+    return str(pathlib.Path(*file_path.parts[:-1]).resolve())
+
+
+def telescope_templates_path() -> str:
+    """ Get the path to the jinja telescope templates.
+    :return: the path to jinja templates.
+    """
+    file_path = pathlib.Path(observatory_platform.database.telescopes.templates.__file__).resolve()
     return str(pathlib.Path(*file_path.parts[:-1]).resolve())
 
 
@@ -274,7 +281,7 @@ def telescope_path(sub_folder: SubFolder, name: str) -> str:
     global data_path
     if data_path is None:
         logging.info('telescope_path: requesting data_path variable')
-        data_path = airflow.models.Variable.get(AirflowVar.data_path.get())
+        data_path = AirflowVariable.get(AirflowVar.data_path.get())
 
     # Create telescope path
     path = os.path.join(data_path, 'telescopes', sub_folder.value, name)

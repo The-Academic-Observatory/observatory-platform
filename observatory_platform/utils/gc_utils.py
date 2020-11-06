@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
 import codecs
+import datetime
 import json
 import logging
 import multiprocessing
@@ -24,11 +25,11 @@ import time
 from concurrent.futures import as_completed, ProcessPoolExecutor
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
-from typing import List, Union
+from typing import List, Union, Tuple
 
 import pendulum
 from crc32c import Checksum as Crc32cChecksum
-from google.api_core.exceptions import Conflict
+from google.api_core.exceptions import Conflict, Forbidden
 from google.cloud import storage, bigquery
 from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob, QueryJob
 from google.cloud.exceptions import NotFound
@@ -248,18 +249,20 @@ def run_bigquery_query(query: str) -> List:
     return list(rows)
 
 
-def copy_bigquery_table(source_table_id: str, destination_table_id: str, data_location: str) -> bool:
+def copy_bigquery_table(source_table_id: Union[str, list], destination_table_id: str, data_location: str,
+                        write_disposition: bigquery.WriteDisposition = bigquery.WriteDisposition.WRITE_TRUNCATE) -> bool:
     """ Copy a BigQuery table.
 
     :param source_table_id: the id of the source table, including the project name and dataset id.
     :param destination_table_id: the id of the destination table, including the project name and dataset id.
     :param data_location: the location of the datasets.
+    :param write_disposition: whether to append, overwrite or throw an error when data already exists in the table.
     :return: whether the table was copied successfully or not.
     """
 
     client = bigquery.Client()
     job_config = bigquery.CopyJobConfig()
-    job_config.write_disposition = "WRITE_TRUNCATE"
+    job_config.write_disposition = write_disposition
     job = client.copy_table(source_table_id, destination_table_id, location=data_location, job_config=job_config)
     result = job.result()
     return result.done()
@@ -358,6 +361,19 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
     success = query_job.done()
     logging.info(f"{func_name}: create bigquery table from query {msg}: {success}")
     return success
+
+
+def storage_bucket_exists(bucket_name: str):
+    """ Check if a storage bucket exists.
+    :param bucket_name: The bucket name.
+    :return: None.
+    """
+    client = storage.Client()
+    try:
+        bucket = client.get_bucket(bucket_name)
+    except Forbidden:
+        bucket = None
+    return True if bucket else None
 
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
@@ -550,7 +566,7 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
     :return: whether the upload was successful or not.
     """
     func_name = upload_file_to_cloud_storage.__name__
-    logging.info(f"{func_name}: bucket_name={bucket_name}, blob_name={blob_name}")
+    logging.info(f"{func_name}: bucket_name={bucket_name}, blob_name={blob_name}, file_path={str(file_path)}")
 
     # State
     upload = True
@@ -603,12 +619,69 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
     return success
 
 
+def google_cloud_storage_transfer_job(job: dict, func_name: str, gc_project_id: str) -> Tuple[bool, int]:
+    """
+    :param job: contains the details of the transfer job
+    :param func_name: function name used for detailed logging info
+    :param gc_project_id: the Google Cloud project id that holds the Google Cloud Storage bucket.
+    :return: whether the transfer was a success or not.
+    """
+    client = gcp_api.build('storagetransfer', 'v1')
+    create_result = client.transferJobs().create(body=job).execute()
+    transfer_job_name = create_result['name']
+
+    transfer_job_filter = json.dumps({
+        'project_id': gc_project_id,
+        'job_names': [transfer_job_name]
+    })
+    wait_time = 60
+    while True:
+        response = client.transferOperations().list(name='transferOperations', filter=transfer_job_filter).execute()
+        if 'operations' in response:
+            operations = response['operations']
+
+            in_progress_count, success_count, failed_count, aborted_count, objects_count = 0, 0, 0, 0, 0
+            for op in operations:
+                status = op['metadata']['status']
+                if status == TransferStatus.success.value:
+                    success_count += 1
+                elif status == TransferStatus.failed.value:
+                    failed_count += 1
+                elif status == TransferStatus.aborted.value:
+                    aborted_count += 1
+                elif status == TransferStatus.in_progress.value:
+                    in_progress_count += 1
+
+                try:
+                    objects_found = int(op['metadata']['counters']['objectsFoundFromSource'])
+                except KeyError:
+                    objects_found = 0
+                objects_count += objects_found
+
+            num_operations = len(operations)
+            logging.info(f"{func_name}: transfer job {transfer_job_name} operations success={success_count}, "
+                         f"failed={failed_count}, aborted={aborted_count}, in_progress_count={in_progress_count}, "
+                         f"objects_count={objects_count}")
+
+            if success_count >= num_operations:
+                status = TransferStatus.success
+                break
+            elif failed_count >= 1:
+                status = TransferStatus.failed
+                break
+            elif aborted_count >= 1:
+                status = TransferStatus.aborted
+                break
+
+        time.sleep(wait_time)
+
+    return status == TransferStatus.success, objects_count
+
+
 def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azure_sas_token: str, azure_container: str,
                                            include_prefixes: List[str], gc_project_id: str, gc_bucket: str,
-                                           description: str, start_date: Pendulum = pendulum.utcnow()) \
-        -> bool:
+                                           description: str, start_date: Pendulum = pendulum.utcnow()) -> bool:
     """ Transfer files from an Azure blob container to a Google Cloud Storage bucket.
-
     :param azure_storage_account_name: the name of the Azure Storage account that holds the Azure blob container.
     :param azure_sas_token: the shared access signature (SAS) for the Azure blob container.
     :param azure_container: the name of the Azure Blob container where files will be copied from.
@@ -658,49 +731,72 @@ def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azur
         }
     }
 
-    client = gcp_api.build('storagetransfer', 'v1')
-    create_result = client.transferJobs().create(body=job).execute()
-    transfer_job_name = create_result['name']
+    status, _ = google_cloud_storage_transfer_job(job, func_name, gc_project_id)
+    return status
 
-    transfer_job_filter = json.dumps({
-        'project_id': gc_project_id,
-        'job_names': [transfer_job_name]
-    })
-    wait_time = 60
-    while True:
-        response = client.transferOperations().list(name='transferOperations', filter=transfer_job_filter).execute()
-        if 'operations' in response:
-            operations = response['operations']
 
-            in_progress_count, success_count, failed_count, aborted_count = 0, 0, 0, 0
-            for op in operations:
-                status = op['metadata']['status']
-                if status == TransferStatus.success.value:
-                    success_count += 1
-                elif status == TransferStatus.failed.value:
-                    failed_count += 1
-                elif status == TransferStatus.aborted.value:
-                    aborted_count += 1
-                elif status == TransferStatus.in_progress.value:
-                    in_progress_count += 1
+def aws_to_google_cloud_storage_transfer(aws_access_key_id: str, aws_secret_key: str, aws_bucket: str,
+                                         include_prefixes: List[str], gc_project_id: str, gc_bucket: str,
+                                         description: str, last_modified_since: datetime = None,
+                                         last_modified_before: datetime = None,  start_date: Pendulum =
+                                         pendulum.utcnow()) -> Tuple[bool, int]:
+    """ Transfer files from an Azure blob container to a Google Cloud Storage bucket.
+    :param aws_access_key_id: the id of the key for the aws S3 bucket.
+    :param aws_secret_key: the secret key for the aws S3 bucket.
+    :param aws_bucket: the name of the aws S3 bucket where files will be copied from.
+    :param include_prefixes: the prefixes of blobs to download from the Azure blob container.
+    :param gc_project_id: the Google Cloud project id that holds the Google Cloud Storage bucket.
+    :param last_modified_since:
+    :param last_modified_before:
+    :param gc_bucket: the Google Cloud bucket name.
+    :param description: a description for the transfer job.
+    :param start_date: the date that the transfer job will start.
+    :return: whether the transfer was a success or not.
+    """
 
-            num_operations = len(operations)
-            logging.info(f"{func_name}: transfer job {transfer_job_name} operations success={success_count}, "
-                         f"failed={failed_count}, aborted={aborted_count}, in_progress_count={in_progress_count}")
+    # Leave out scheduleStartTime to make sure that the job starts immediately
+    # Make sure to specify scheduleEndDate as today otherwise the job will repeat
+    func_name = aws_to_google_cloud_storage_transfer.__name__
 
-            if success_count >= num_operations:
-                status = TransferStatus.success
-                break
-            elif failed_count >= 1:
-                status = TransferStatus.failed
-                break
-            elif aborted_count >= 1:
-                status = TransferStatus.aborted
-                break
+    job = {
+        'description': description,
+        'status': 'ENABLED',
+        'projectId': gc_project_id,
+        'schedule': {
+            'scheduleStartDate': {
+                'day': start_date.day,
+                'month': start_date.month,
+                'year': start_date.year
+            },
+            'scheduleEndDate': {
+                'day': start_date.day,
+                'month': start_date.month,
+                'year': start_date.year
+            },
+        },
+        'transferSpec': {
+            'awsS3DataSource': {
+                'bucketName': aws_bucket,
+                'awsAccessKey': {
+                    'accessKeyId': aws_access_key_id,
+                    'secretAccessKey': aws_secret_key,
+                }
+            },
+            'objectConditions': {
+                'includePrefixes': include_prefixes
+            },
+            'gcsDataSink': {
+                'bucketName': gc_bucket
+            }
+        }
+    }
+    if last_modified_since:
+        job['transferSpec']['objectConditions']['lastModifiedSince'] = last_modified_since.isoformat().replace('+00:00', 'Z')
+    if last_modified_before:
+        job['transferSpec']['objectConditions']['lastModifiedBefore'] = last_modified_before.isoformat().replace('+00:00', 'Z')
 
-        time.sleep(wait_time)
-
-    return status == TransferStatus.success
+    status, objects_count = google_cloud_storage_transfer_job(job, func_name, gc_project_id)
+    return status, objects_count
 
 
 def upload_telescope_file_list(bucket_name: str, inst_id: str, telescope_path: str, file_list: List[str]) -> List[str]:
