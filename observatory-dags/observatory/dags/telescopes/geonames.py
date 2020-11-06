@@ -161,7 +161,7 @@ class GeonamesTelescope:
     DAG_ID = 'geonames'
     DESCRIPTION = 'The GeoNames geographical database: https://www.geonames.org/'
     DATASET_ID = DAG_ID
-    QUEUE = 'remote_queue'
+    QUEUE = 'default'
     RETRIES = 3
 
     UNZIPPED_FILE_NAME = 'allCountries.txt'

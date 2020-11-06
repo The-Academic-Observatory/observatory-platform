@@ -508,7 +508,7 @@ class FundrefTelescope:
     DESCRIPTION = 'The Funder Registry dataset: https://www.crossref.org/services/funder-registry/'
     DATASET_ID = 'crossref'
     RELEASES_TOPIC_NAME = "releases"
-    QUEUE = "remote_queue"
+    QUEUE = "default"
     TELESCOPE_URL = 'https://gitlab.com/api/v4/projects/crossref%2Fopen_funder_registry/releases'
     TELESCOPE_DEBUG_URL = 'debug_fundref_url'
     # DEBUG_FILE_PATH = os.path.join(test_data_path(), 'telescopes', 'fundref.tar.gz')

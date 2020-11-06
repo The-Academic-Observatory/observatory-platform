@@ -104,7 +104,7 @@ class ScopusTelescope:
                            'apiKey=7f59af901d2d86f78a1fd60c1bf9426a'
 
     SCHEDULE_INTERVAL = '@monthly'
-    QUEUE = 'remote_queue'
+    QUEUE = 'default'
     RETRIES = 3
     DATASET_ID = 'elsevier'
     SCHEMA_PATH = 'telescopes'

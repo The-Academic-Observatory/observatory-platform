@@ -348,7 +348,7 @@ class WosTelescope:
     ID_STRING_OFFSET = len(DAG_ID) + 1
     DESCRIPTION = 'Web of Science: https://www.clarivate.com/webofsciencegroup'
     SCHEDULE_INTERVAL = '@monthly'
-    QUEUE = 'remote_queue'
+    QUEUE = 'default'
     RETRIES = 3
     DATASET_ID = 'clarivate'
     SCHEMA_PATH = 'telescopes'
