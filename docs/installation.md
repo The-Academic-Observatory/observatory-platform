@@ -96,15 +96,15 @@ source venv/bin/activate
 
 Install the `observatory-platform` package:
 ```bash
-cd observatory-platform && pip3 install -e .
+pip3 install -e observatory-platform
 ```
 
 Install the `observatory-dags` package (optional):
 ```bash
-cd observatory-dags && pip3 install -e .
+pip3 install -e observatory-dags
 ```
 
 Install the `observatory-reports` package (optional):
 ```bash
-cd observatory-reports && pip3 install -e .
+pip3 install -e observatory-reports
 ```
