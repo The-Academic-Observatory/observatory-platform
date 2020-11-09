@@ -31,7 +31,8 @@ from observatory_platform.utils.telescope_utils import (TelescopeRelease,
                                                         upload_downloaded,
                                                         extract_example,
                                                         transform_example,
-                                                        upload_transformed)
+                                                        upload_transformed,
+                                                        valid_cron_expression)
 
 
 def list_releases_example(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, telescope: SimpleNamespace) -> \
@@ -93,11 +94,13 @@ class SnapshotTelescope:
 
     telescope_schema = {'dag_id': 'string',
                         'queue': 'string',
+                        'schedule_interval': {'required': True, 'type': 'string', 'check_with': valid_cron_expression},
+                        'start_date': {'required': True, 'type': 'datetime'},
                         'max_retries': 'int',
                         'description': 'string',
                         'dataset_id': 'string',
                         'table_id': 'string',
-                        'schema_version': 'string',
+                        'schema_version': {'required': True, 'type': 'string'},
                         'download_ext': 'string',
                         'extract_ext': 'string',
                         'transform_ext': 'string',
