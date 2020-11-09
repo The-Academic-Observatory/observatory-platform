@@ -793,7 +793,7 @@ class TerraformConfig(ObservatoryConfig):
                 TerraformVariable('airflow_main_vm', self.airflow_main_vm.to_hcl(), hcl=True),
                 TerraformVariable('airflow_worker_vm', self.airflow_worker_vm.to_hcl(), hcl=True),
                 TerraformVariable('airflow_variables', list_to_hcl(self.airflow_variables), hcl=True,
-                                  sensitive=sensitive),
+                                  sensitive=False),
                 TerraformVariable('airflow_connections', list_to_hcl(self.airflow_connections), hcl=True,
                                   sensitive=sensitive)]
 
