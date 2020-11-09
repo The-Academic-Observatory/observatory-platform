@@ -37,7 +37,8 @@ from observatory_platform.utils.telescope_utils import (check_dependencies_examp
                                                         bq_delete_old,
                                                         bq_append_from_file,
                                                         bq_append_from_partition,
-                                                        cleanup
+                                                        cleanup,
+                                                        valid_cron_expression
                                                         )
 from observatory_platform.utils.telescope_utils import TelescopeRelease
 
@@ -111,6 +112,8 @@ class StreamTelescope:
 
     telescope_schema = {'dag_id': 'string',
                         'queue': 'string',
+                        'schedule_interval': {'required': True, 'type': 'string', 'check_with': valid_cron_expression},
+                        'start_date': {'required': True, 'type': 'datetime'},
                         'max_retries': 'int',
                         'description': 'string',
                         'dataset_id': 'string',
@@ -119,7 +122,7 @@ class StreamTelescope:
                         'merge_partition_field': 'string',
                         'updated_date_field': 'string',
                         'bq_merge_days': 'int',
-                        'schema_version': {'required': True,'type': 'string'},
+                        'schema_version': {'required': True, 'type': 'string'},
                         'download_ext': 'string',
                         'extract_ext': 'string',
                         'transform_ext': 'string',

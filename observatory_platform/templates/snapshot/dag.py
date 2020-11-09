@@ -14,7 +14,6 @@
 
 # Author: Aniek Roelofs
 
-from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -26,12 +25,12 @@ from observatory_platform.utils.telescope_utils import on_failure_callback
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2012, 1, 1),
+    "start_date": ExampleTelescope.telescope.start_date,
     'on_failure_callback': on_failure_callback
 }
 
-with DAG(dag_id=ExampleTelescope.telescope.dag_id, schedule_interval="@weekly", default_args=default_args,
-         catchup=True, doc_md=telescope.__doc__) as dag:
+with DAG(dag_id=ExampleTelescope.telescope.dag_id, schedule_interval=ExampleTelescope.telescope.schedule_interval,
+         default_args=default_args, catchup=True, doc_md=telescope.__doc__) as dag:
     # Check that variables exist
     check = PythonOperator(
         task_id=ExampleTelescope.TASK_ID_CHECK_DEPENDENCIES,

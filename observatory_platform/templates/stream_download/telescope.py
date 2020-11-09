@@ -26,6 +26,7 @@ import os
 import pathlib
 import pendulum
 import xmltodict
+from datetime import datetime
 from types import SimpleNamespace
 from typing import Tuple, Union
 from airflow.exceptions import AirflowException
@@ -131,6 +132,8 @@ def transform(release: ExampleRelease):
 class ExampleTelescope(StreamTelescope):
     """ A container for holding the constants and static functions of this telescope. """
     telescope = SimpleNamespace(dag_id='stream_download',
+                                schedule_interval='@weekly',
+                                start_date=datetime(2012, 1, 1),
                                 queue='remote_queue',
                                 max_retries=3,
                                 description='The description',

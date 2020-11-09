@@ -32,10 +32,13 @@ from typing import Any, List, Tuple, Type, Union
 
 import jsonlines
 import pendulum
+import six
 from airflow.hooks.base_hook import BaseHook
 from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils.dates import cron_presets
+from croniter import croniter
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 
@@ -56,6 +59,29 @@ from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  upload_file_to_cloud_storage,
                                                  upload_files_to_cloud_storage)
 from observatory_platform.utils.jinja2_utils import (make_jinja2_filename, make_sql_jinja2_filename, render_template)
+
+
+def valid_cron_expression(field, value, error):
+    if not croniter.is_valid(normalize_schedule_interval(value)):
+        error(field, "Must be a valid cron expression")
+
+
+def normalize_schedule_interval(schedule_interval: str):
+    """
+    Returns Normalized Schedule Interval. This is used internally by the Scheduler to
+    schedule DAGs.
+
+    1. Converts Cron Preset to a Cron Expression (e.g ``@monthly`` to ``0 0 1 * *``)
+    2. If Schedule Interval is "@once" return "None"
+    3. If not (1) or (2) returns schedule_interval
+    """
+    if isinstance(schedule_interval, six.string_types) and schedule_interval in cron_presets:
+        _schedule_interval = cron_presets.get(schedule_interval)
+    elif schedule_interval == '@once':
+        _schedule_interval = None
+    else:
+        _schedule_interval = schedule_interval
+    return _schedule_interval
 
 
 class TelescopeRelease:
