@@ -67,7 +67,13 @@ class TestMag(unittest.TestCase):
         self.release_folder = 'mag-2020-05-21'
         self.extracted_folder = 'extracted'
         self.transformed_folder = 'transformed'
+        self.release_folder = 'mag-2020-05-21'
+        self.extracted_folder = 'extracted'
+        self.transformed_folder = 'transformed'
         self.folders = ['advanced', 'mag', 'nlp', 'samples']
+        self.sub_folders = [('Authors.txt_aes_tmp_2020-10-11_02-01-24', 'Authors.txt'),
+                            ('PaperExtendedAttributes.txt_aes_tmp_2020-10-11_02-02-00', 'PaperExtendedAttributes.txt'),
+                            ('PaperUrls.txt_aes_tmp_2020-10-11_02-01-43', 'PaperUrls.txt')]
         self.advanced = ['EntityRelatedEntities.txt', 'FieldOfStudyChildren.txt', 'FieldOfStudyExtendedAttributes.txt',
                          'FieldsOfStudy.txt', 'PaperFieldsOfStudy.txt', 'PaperRecommendations.txt',
                          'RelatedFieldOfStudy.txt']
@@ -81,17 +87,23 @@ class TestMag(unittest.TestCase):
 
     def test_list_mag_release_files(self):
         """ Test that list_mag_release_files lists all files in the MAG releases folder.
-
         :return: None.
         """
 
         with CliRunner().isolated_filesystem():
             # Make MAG folders
             folders = []
-            for i, folder in enumerate(self.folders):
+            for _, folder in enumerate(self.folders):
                 path = os.path.join(self.release_folder, folder)
                 os.makedirs(path, exist_ok=True)
                 folders.append(path)
+
+            # Make mag sub folders
+            for sub_folder, sub_file in self.sub_folders:
+                sub_folder_path = os.path.join(self.release_folder, 'mag', sub_folder)
+                os.makedirs(sub_folder_path, exist_ok=True)
+                sub_file_path = os.path.join(sub_folder_path, sub_file)
+                open(sub_file_path, 'a').close()
 
             # advanced files
             expected_files = []
@@ -121,6 +133,25 @@ class TestMag(unittest.TestCase):
             files = list_mag_release_files(self.release_folder)
             actual_files = [str(f) for f in files]
             self.assertListEqual(expected_files, actual_files)
+
+        # Check that this function works with a folder of transformed files
+        with CliRunner().isolated_filesystem():
+            with CliRunner().isolated_filesystem():
+                # Make MAG files
+                file_names = self.advanced + self.mag + self.nlp
+                expected_files = []
+                os.makedirs(self.release_folder, exist_ok=True)
+                for file_name in file_names:
+                    path = os.path.join(self.release_folder, file_name)
+                    open(path, 'a').close()
+                    expected_files.append(path)
+
+                expected_files = sorted(expected_files)
+
+                # List MAG releases and check that output is as expected
+                files = list_mag_release_files(self.release_folder)
+                actual_files = [str(f) for f in files]
+                self.assertListEqual(expected_files, actual_files)
 
     def test_transform_mag_file(self):
         """ Tests that transform_mag_file transforms a single file correctly.

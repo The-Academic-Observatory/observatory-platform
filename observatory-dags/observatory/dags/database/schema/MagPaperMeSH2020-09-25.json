@@ -1,0 +1,27 @@
+[
+  {
+    "name": "PaperId",
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Papers.PaperId"
+  },
+  {
+    "name": "DescriptorUI",
+    "type": "STRING"
+  },
+  {
+    "name": "DescriptorName",
+    "type": "STRING"
+  },
+  {
+    "name": "QualifierUI",
+    "type": "STRING"
+  },
+  {
+    "name": "QualifierName",
+    "type": "STRING"
+  },
+  {
+    "name": "IsMajorTopic",
+    "type": "BOOLEAN"
+  }
+]

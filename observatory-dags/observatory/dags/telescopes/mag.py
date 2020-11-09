@@ -71,18 +71,21 @@ def pull_releases(ti: TaskInstance) -> List[MagRelease]:
 
 def list_mag_release_files(release_path: str) -> List[PosixPath]:
     """ List the MAG release file paths in a particular folder. Excludes the samples directory.
-
+    :param release_name: the name of the MAG release.
     :param release_path: the path to the MAG release.
     :return: a list of PosixPath files.
     """
 
-    exclude_path = os.path.join(release_path, 'samples')
+    release_folder = os.path.basename(os.path.abspath(release_path))
+    include_regex = fr'^.*/{release_folder}(/advanced|/mag|/nlp)?/\w+.txt(.[0-9]+)?$'
+
     types = ['*.txt', '*.txt.[0-9]']
     files = []
     for file_type in types:
         paths = list(Path(release_path).rglob(file_type))
         for path in paths:
-            if not str(path).startswith(exclude_path):
+            path_string = str(path.resolve())
+            if re.match(include_regex, path_string) is not None:
                 files.append(path)
     files = natsorted(files, key=lambda x: str(x))
     return files

@@ -354,7 +354,9 @@ def parse_fundref_registry_rdf(registry_file_path: str) -> Tuple[List, Dict]:
                 elif tag == 'prefLabel':
                     funder['pre_label'] = nested[0][0].text
                 elif tag == 'altLabel':
-                    funder['alt_label'].append(nested[0][0].text)
+                    alt_label = nested[0][0].text
+                    if alt_label is not None:
+                        funder['alt_label'].append(alt_label)
                 elif tag == 'narrower':
                     funder['narrower'].append(nested.attrib[tag_prefix + 'resource'])
                 elif tag == 'broader':
@@ -709,9 +711,10 @@ class FundrefTelescope:
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
+        dataset_id = FundrefTelescope.DATASET_ID
 
         # Create dataset
-        create_bigquery_dataset(project_id, FundrefTelescope.DAG_ID, data_location, FundrefTelescope.DESCRIPTION)
+        create_bigquery_dataset(project_id, dataset_id, data_location, FundrefTelescope.DESCRIPTION)
 
         # Load each release into BigQuery
         for release in releases_list:
@@ -728,7 +731,7 @@ class FundrefTelescope:
             # Load BigQuery table
             uri = f"gs://{bucket_name}/{release.get_blob_name(SubFolder.transformed)}"
             logging.info(f"URI: {uri}")
-            load_bigquery_table(uri, FundrefTelescope.DAG_ID, data_location, table_id, schema_file_path,
+            load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)
 
     @staticmethod

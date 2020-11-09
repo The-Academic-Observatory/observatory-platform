@@ -30,7 +30,7 @@ from typing import List, Union
 
 import pendulum
 from crc32c import Checksum as Crc32cChecksum
-from google.api_core.exceptions import Conflict
+from google.api_core.exceptions import Conflict, BadRequest
 from google.cloud import storage, bigquery
 from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob, QueryJob
 from google.cloud.exceptions import NotFound
@@ -236,19 +236,25 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
             require_partition_filter=require_partition_filter
         )
 
-    load_job: LoadJob = client.load_table_from_uri(
-        uri,
-        dataset.table(table),
-        location=location,
-        job_config=job_config
-    )
+    try:
+        load_job: LoadJob = client.load_table_from_uri(
+            uri,
+            dataset.table(table),
+            location=location,
+            job_config=job_config
+        )
+        result = load_job.result()
+        state = result.state == 'DONE'
 
-    if load_job.state == 'DONE' and load_job.error_result:
-        logging.error(load_job.errors)
+        if load_job.state == 'DONE' and load_job.error_result:
+            logging.error(load_job.errors)
 
-    result = load_job.result()
-    logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
-    return result.state == 'DONE'
+        logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
+    except BadRequest as e:
+        logging.error(f"{func_name}: load bigquery table failed: {e}")
+        state = False
+
+    return state
 
 
 def run_bigquery_query(query: str) -> List:
@@ -355,7 +361,8 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
         description=description,
         labels=labels,
         use_legacy_sql=False,
-        query_parameters=query_parameters
+        query_parameters=query_parameters,
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE
     )
 
     # Set partitioning settings
@@ -363,7 +370,7 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
         job_config.time_partitioning = bigquery.TimePartitioning(
             type_=partition_type,
             field=partition_field,
-            require_partition_filter=require_partition_filter
+            require_partition_filter=require_partition_filter,
         )
 
     if cluster:
