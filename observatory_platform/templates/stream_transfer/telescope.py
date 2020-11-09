@@ -19,6 +19,7 @@
 A short summary on the telescope.
 """
 
+from datetime import datetime
 from types import SimpleNamespace
 import jsonlines
 import logging
@@ -178,6 +179,8 @@ def transform(release: ExampleRelease):
 class ExampleTelescope(StreamTelescope):
     """ A container for holding the constants and static functions of this telescope. """
     telescope = SimpleNamespace(dag_id='stream_transfer',
+                                schedule_interval='@weekly',
+                                start_date=datetime(2012, 1, 1),
                                 queue='remote_queue',
                                 max_retries=3,
                                 description='The description',
