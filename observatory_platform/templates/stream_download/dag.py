@@ -20,15 +20,18 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 
+from observatory_platform.templates.stream_download import telescope
 from observatory_platform.templates.stream_download.telescope import ExampleTelescope
+from observatory_platform.utils.telescope_utils import on_failure_callback
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2012, 1, 1)
+    "start_date": datetime(2012, 1, 1),
+    'on_failure_callback': on_failure_callback
 }
 
 with DAG(dag_id=ExampleTelescope.telescope.dag_id, schedule_interval="@weekly", default_args=default_args,
-         catchup=False, max_active_runs=1) as dag:
+         catchup=False, max_active_runs=1, doc_md=telescope.__doc__) as dag:
     # Check that variables exist
     check = PythonOperator(
         task_id=ExampleTelescope.TASK_ID_CHECK_DEPENDENCIES,

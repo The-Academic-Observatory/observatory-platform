@@ -26,18 +26,23 @@ from collections import deque
 from dataclasses import dataclass
 from math import ceil
 from pathlib import Path
+import traceback
 from types import SimpleNamespace
 from typing import Any, List, Tuple, Type, Union
 
 import jsonlines
 import pendulum
+from airflow.hooks.base_hook import BaseHook
+from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 
 from observatory_platform.utils.airflow_utils import AirflowVariable as Variable
-from observatory_platform.utils.config_utils import (AirflowVar,
+from observatory_platform.utils.config_utils import (AirflowConn,
+                                                     AirflowVar,
+                                                     Environment,
                                                      SubFolder,
                                                      find_schema,
                                                      schema_path,
@@ -283,7 +288,8 @@ def bq_append_from_partition(start_date: pendulum.Pendulum, end_date: pendulum.P
     for dt in period:
         table_id = f"{project_id}.{dataset_id}.{partition_table_id}${dt.strftime('%Y%m%d')}"
         source_table_ids.append(table_id)
-    copy_bigquery_table(source_table_ids, main_table_id, data_location, bigquery.WriteDisposition.WRITE_APPEND)
+    destination_table_id = f"{project_id}.{dataset_id}.{main_table_id}"
+    copy_bigquery_table(source_table_ids, destination_table_id, data_location, bigquery.WriteDisposition.WRITE_APPEND)
 
 
 def bq_append_from_file(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
@@ -404,6 +410,43 @@ def change_keys(obj, convert):
     else:
         return obj
     return new
+
+
+def create_slack_webhook(comments: str = "", **kwargs) -> SlackWebhookHook:
+    """
+    Creates a slack webhook using the token in the slack airflow connection.
+    :param comments: Additional comments in slack message
+    :param kwargs: the context passed from the PythonOperator. See
+    https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
+    this  argument.
+    :return: slack webhook
+    """
+    ti: TaskInstance = kwargs['ti']
+    message = """
+    :red_circle: Task Alert. 
+    *Task*: {task}  
+    *Dag*: {dag} 
+    *Execution Time*: {exec_date}  
+    *Log Url*: {log_url} 
+    *Comments*: {comments}
+    """.format(task=ti.task_id, dag=ti.dag_id, ti=ti, exec_date=kwargs['execution_date'], log_url=ti.log_url,
+               comments=comments)
+    slack_conn = BaseHook.get_connection(AirflowConn.slack.get())
+    slack_hook = SlackWebhookHook(http_conn_id=slack_conn.conn_id, webhook_token=slack_conn.password, message=message)
+    return slack_hook
+
+
+def on_failure_callback(kwargs):
+    environment = Variable.get(AirflowVar.environment.get())
+    if environment == Environment.dev:
+        logging.info('Not sending slack notification in dev environment.')
+    else:
+        exception = kwargs.get('exception')
+        formatted_exception = ''.join(traceback.format_exception(etype=type(exception), value=exception,
+                                                                 tb=exception.__traceback__)).strip()
+        comments = f'Task failed, exception:\n{formatted_exception}'
+        slack_hook = create_slack_webhook(comments, **kwargs)
+        slack_hook.execute()
 
 
 def build_schedule(sched_start_date, sched_end_date):

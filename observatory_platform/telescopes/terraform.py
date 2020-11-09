@@ -20,7 +20,6 @@ from datetime import datetime
 from typing import Union
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -29,6 +28,7 @@ from airflow.models.taskinstance import TaskInstance
 from observatory_platform.utils.airflow_utils import AirflowVariable as Variable, change_task_log_level
 from observatory_platform.utils.config_utils import (check_variables, check_connections, AirflowVar, AirflowConn,
                                                      Environment)
+from observatory_platform.utils.telescope_utils import create_slack_webhook
 from observatory_platform.utils.terraform_utils import TerraformApi
 # used for telescope DAG ids
 from observatory_platform.telescopes.crossref_metadata import CrossrefMetadataTelescope
@@ -60,30 +60,6 @@ def get_workspace_id() -> str:
     workspace_id = terraform_api.workspace_id(organization, workspace)
 
     return workspace_id
-
-
-def create_slack_webhook(comments: str = "", **kwargs) -> SlackWebhookHook:
-    """
-    Creates a slack webhook using the token in the slack airflow connection.
-    :param comments: Additional comments in slack message
-    :param kwargs: the context passed from the PythonOperator. See
-    https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
-    this  argument.
-    :return: slack webhook
-    """
-    ti: TaskInstance = kwargs['ti']
-    message = """
-    :red_circle: Task Alert. 
-    *Task*: {task}  
-    *Dag*: {dag} 
-    *Execution Time*: {exec_date}  
-    *Log Url*: {log_url} 
-    *Comments*: {comments}
-    """.format(task=ti.task_id, dag=ti.dag_id, ti=ti, exec_date=kwargs['execution_date'], log_url=ti.log_url,
-               comments=comments)
-    slack_conn = BaseHook.get_connection(AirflowConn.slack.get())
-    slack_hook = SlackWebhookHook(http_conn_id=slack_conn.conn_id, webhook_token=slack_conn.password, message=message)
-    return slack_hook
 
 
 def get_last_execution_prev(dag: DAG, dag_id: str, prev_start_time_vm: Union[datetime, None]) -> Union[datetime, None]:
