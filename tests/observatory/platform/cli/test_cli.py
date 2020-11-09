@@ -275,7 +275,7 @@ class TestObservatoryTerraform(unittest.TestCase):
     organisation = os.getenv('TESTS_TERRAFORM_ORGANISATION')
     token = os.getenv('TESTS_TERRAFORM_TOKEN')
     terraform_api = TerraformApi(token)
-    version = '0.13.0-beta3'
+    version = TerraformApi.TERRAFORM_WORKSPACE_VERSION
     description = 'test'
 
     @patch("click.confirm")

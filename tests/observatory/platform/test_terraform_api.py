@@ -104,7 +104,7 @@ class TestTerraformApi(unittest.TestCase):
     workspace = random_id()
     token = os.getenv('TESTS_TERRAFORM_TOKEN')
     terraform_api = TerraformApi(token)
-    version = '0.13.0-beta3'
+    version = TerraformApi.TERRAFORM_WORKSPACE_VERSION
     description = 'test'
 
     def __init__(self, *args, **kwargs):

@@ -34,6 +34,18 @@ from observatory.platform.utils.config_utils import AirflowVars, module_file_pat
 from observatory.platform.utils.jinja2_utils import render_template
 
 
+def save_yaml(file_path: str, dict_: Dict):
+    """ Save a yaml file from a dictionary.
+
+    :param file_path: the path to the file to save.
+    :param dict_: the dictionary.
+    :return: None.
+    """
+
+    with open(file_path, 'w') as yaml_file:
+        yaml.dump(dict_, yaml_file, default_flow_style=False)
+
+
 def to_hcl(value: Dict) -> str:
     """ Convert a Python dictionary into HCL.
 
@@ -776,7 +788,8 @@ class TerraformConfig(ObservatoryConfig):
         return [TerraformVariable('environment', self.backend.environment.value),
                 TerraformVariable('airflow', self.airflow.to_hcl(), sensitive=sensitive, hcl=True),
                 TerraformVariable('google_cloud', self.google_cloud.to_hcl(), sensitive=sensitive, hcl=True),
-                TerraformVariable('cloud_sql_database', self.cloud_sql_database.to_hcl(), sensitive=sensitive, hcl=True),
+                TerraformVariable('cloud_sql_database', self.cloud_sql_database.to_hcl(), sensitive=sensitive,
+                                  hcl=True),
                 TerraformVariable('airflow_main_vm', self.airflow_main_vm.to_hcl(), hcl=True),
                 TerraformVariable('airflow_worker_vm', self.airflow_worker_vm.to_hcl(), hcl=True),
                 TerraformVariable('airflow_variables', list_to_hcl(self.airflow_variables), hcl=True,

@@ -93,7 +93,6 @@ class TerraformBuilder:
         copy_dir(self.package_path, destination_path, ignore)
 
         # Copy DAGs projects
-        print(self.config.dags_projects)
         for dags_project in self.config.dags_projects:
             destination_path = os.path.join(self.packages_build_path, dags_project.package_name)
             copy_dir(dags_project.path, destination_path, ignore)
