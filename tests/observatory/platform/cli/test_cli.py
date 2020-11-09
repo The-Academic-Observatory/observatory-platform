@@ -141,6 +141,9 @@ class MockPlatformCommand(Mock):
     def config(self):
         return self._config
 
+    def make_files(self):
+        pass
+
     @property
     def ui_url(self):
         return 'http://localhost:8080'

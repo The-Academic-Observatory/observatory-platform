@@ -145,6 +145,10 @@ Alternatively, generate a Fernet key yourself, with the following command:
 observatory generate fernet-key
 ```
 
+```
+terraform taint module.airflow_main_vm.google_compute_instance.vm_instanc
+```
+
 The config file will be read when running `observatory terraform create-workspace` and the variables are stored inside the Terraform Cloud workspace.
 
 It is possible to add the custom tag '!sensitive', adding this tag will make sure that the values of the underlying variables are not displayed in Terraform Cloud.

@@ -21,7 +21,7 @@ import click
 from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2
 from observatory.platform.observatory_config import TerraformConfig, TerraformVariable
 from observatory.platform.terraform_api import TerraformApi
-from observatory.platform.packer_builder import PackerBuilder
+from observatory.platform.terraform_builder import TerraformBuilder
 
 
 class TerraformCommand:
@@ -36,7 +36,7 @@ class TerraformCommand:
 
         self.config_path = config_path
         self.terraform_credentials_path = terraform_credentials_path
-        self.packer_builder = PackerBuilder(config_path)
+        self.terraform_builder = TerraformBuilder(config_path)
         self.verbose = verbose
 
         # Load config and
@@ -84,13 +84,12 @@ class TerraformCommand:
             print(indent(f"* \x1B[3m{old_var.key}\x1B[23m: {old_var.value} -> {new_var.value}", INDENT2))
 
     def build_terraform(self):
-        """
+        """ Build the Terraform files for the Observatory Platform.
 
         :return: None.
         """
 
-        self.packer_builder.platform_builder.make_files()
-        self.packer_builder.make_files()
+        self.terraform_builder.build_terraform()
 
     def build_image(self):
         """ Build a Google Compute image for the Terraform deployment with Packer.
@@ -98,7 +97,7 @@ class TerraformCommand:
         :return: None.
         """
 
-        self.packer_builder.build()
+        self.terraform_builder.build_image()
 
     def create_workspace(self):
         """ Create a Terraform workspace.

@@ -32,7 +32,7 @@ from observatory.platform.cli.cli import (REDIS_PORT, FLOWER_UI_PORT, ELASTIC_PO
 from observatory.platform.observatory_config import (ObservatoryConfig, Airflow, CloudStorageBucket, Terraform, Backend,
                                                      Environment, BackendType, GoogleCloud, AirflowVariable,
                                                      AirflowConnection, DagsProject)
-from observatory.platform.platform_builder import PlatformBuilder
+from observatory.platform.platform_builder import PlatformBuilder, DOCKER_COMPOSE_PROJECT_NAME
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.url_utils import wait_for_url
 
@@ -154,7 +154,7 @@ class TestPlatformBuilder(unittest.TestCase):
             build_file_names = ['docker-compose.observatory.yml', 'Dockerfile.observatory', 'elasticsearch.yml',
                                 'entrypoint-airflow.sh', 'entrypoint-root.sh', 'requirements.txt']
             for file_name in build_file_names:
-                path = os.path.join(self.build_path, file_name)
+                path = os.path.join(self.build_path, 'docker', file_name)
                 self.assertTrue(os.path.isfile(path))
                 self.assertTrue(os.stat(path).st_size > 0)
 
@@ -166,6 +166,7 @@ class TestPlatformBuilder(unittest.TestCase):
             self.set_dirs()
 
             expected_env = {
+                'COMPOSE_PROJECT_NAME': DOCKER_COMPOSE_PROJECT_NAME,
                 'HOST_USER_ID': str(HOST_UID),
                 'HOST_GROUP_ID': str(HOST_GID),
                 'HOST_LOGS_PATH': self.logs_path,
@@ -178,8 +179,7 @@ class TestPlatformBuilder(unittest.TestCase):
                 'HOST_AIRFLOW_UI_PORT': str(AIRFLOW_UI_PORT),
                 'HOST_ELASTIC_PORT': str(ELASTIC_PORT),
                 'HOST_KIBANA_PORT': str(KIBANA_PORT),
-                'AIRFLOW_VAR_ENVIRONMENT': 'develop',
-                'AIRFLOW_VAR_DAGS_MODULE_NAMES': '[]'
+                'AIRFLOW_VAR_ENVIRONMENT': 'develop'
             }
 
             # Save default config file
@@ -208,6 +208,7 @@ class TestPlatformBuilder(unittest.TestCase):
             self.set_dirs()
 
             expected_env = {
+                'COMPOSE_PROJECT_NAME': DOCKER_COMPOSE_PROJECT_NAME,
                 'HOST_USER_ID': str(HOST_UID),
                 'HOST_GROUP_ID': str(HOST_GID),
                 'HOST_LOGS_PATH': self.logs_path,
@@ -219,9 +220,7 @@ class TestPlatformBuilder(unittest.TestCase):
                 'HOST_FLOWER_UI_PORT': str(FLOWER_UI_PORT),
                 'HOST_AIRFLOW_UI_PORT': str(AIRFLOW_UI_PORT),
                 'HOST_ELASTIC_PORT': str(ELASTIC_PORT),
-                'HOST_KIBANA_PORT': str(KIBANA_PORT),
-                'AIRFLOW_VAR_ENVIRONMENT': 'develop',
-                'AIRFLOW_VAR_DAGS_MODULE_NAMES': '[]'
+                'HOST_KIBANA_PORT': str(KIBANA_PORT)
             }
 
             # Save config file
@@ -267,7 +266,6 @@ class TestPlatformBuilder(unittest.TestCase):
             expected_env['FERNET_KEY'] = cmd.config.airflow.fernet_key
             expected_env['HOST_GOOGLE_APPLICATION_CREDENTIALS'] = cmd.config.google_cloud.credentials
             expected_env['AIRFLOW_VAR_ENVIRONMENT'] = cmd.config.backend.environment.value
-            expected_env['AIRFLOW_VAR_DAGS_MODULE_NAMES'] = f'["{dags_project.dags_module}"]'
             expected_env['AIRFLOW_VAR_PROJECT_ID'] = google_cloud.project_id
             expected_env['AIRFLOW_VAR_DATA_LOCATION'] = google_cloud.data_location
             expected_env['AIRFLOW_VAR_TERRAFORM_ORGANIZATION'] = terraform.organization

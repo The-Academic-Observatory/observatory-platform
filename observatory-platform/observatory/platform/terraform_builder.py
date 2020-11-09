@@ -33,17 +33,12 @@ BUILD_PATH = observatory_home('build', 'terraform')
 
 def copy_dir(source_path: str, destination_path: str, ignore):
     distutils.dir_util.copy_tree(source_path, destination_path)
-    # if os.path.exists(destination_path):
-    #     shutil.rmtree(destination_path)
-    # shutil.copytree(source_path,
-    #                 destination_path,
-    #                 ignore=ignore)
 
 
-class PackerBuilder:
+class TerraformBuilder:
 
     def __init__(self, config_path: str, build_path: str = BUILD_PATH):
-        """ Create a PlatformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
+        """ Create a PackerBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
         :param config_path: The path to the config.yaml configuration file.
         """
@@ -120,20 +115,25 @@ class PackerBuilder:
         with open(output_path, 'w') as f:
             f.write(render)
 
-    def build(self) -> Tuple[str, str, int]:
-        """ Build the Observatory Platform.
+    def build_terraform(self):
+        """ Build the Observatory Platform Terraform files.
+
+        :return: None.
+        """
+
+        self.platform_builder.make_files()
+        self.make_files()
+
+    def build_image(self) -> Tuple[str, str, int]:
+        """ Build the Observatory Platform Google Compute image with Packer.
 
         :return: output and error stream results and proc return code.
         """
 
-        # Make files
-        self.platform_builder.make_files()
-        self.make_files()
+        # Make Terraform files
+        self.build_terraform()
 
         # Load template
-        # packer_template = os.path.join(self.terraform_path, 'observatory-image.json')
-        # packer = PackerExecutable(self.packer_exe_path)
-
         template_vars = {
             'credentials_file': self.config.google_cloud.credentials,
             'project_id': self.config.google_cloud.project_id,
@@ -151,37 +151,6 @@ class PackerBuilder:
                                        stderr=subprocess.PIPE,
                                        cwd=self.terraform_build_path)
 
-        # packer validate -var 'zone=us-west1-c' -var 'project_id=coki-jamie-dev' observatory-image.json
-
         # Wait for results
         output, error = stream_process(proc, self.debug)
-
         return output, error, proc.returncode
-        #
-        # (ret, out, err) = packer.validate(packer_template, var=template_vars)
-        # (ret, out, err) = packer.build(packer_template, var=template_vars)
-        # a = 1
-        # # packer.
-
-    #
-    # def __run_packer_cmd(self, args: List) -> Tuple[str, str, int]:
-    #     """ Run a set of Docker Compose arguments.
-    #
-    #     :param args: the list of arguments.
-    #     :return: output and error stream results and proc return code.
-    #     """
-    #
-    #     # Make the environment for running the Docker Compose process
-    #     env = self.make_environment()
-    #
-    #     # Build the containers first
-    #     proc: Popen = subprocess.Popen([],
-    #                                    stdout=subprocess.PIPE,
-    #                                    stderr=subprocess.PIPE,
-    #                                    env=env,
-    #                                    cwd=self.build_path)
-    #
-    #     # Wait for results
-    #     output, error = stream_process(proc, self.debug)
-    #
-    #     return output, error, proc.returncode

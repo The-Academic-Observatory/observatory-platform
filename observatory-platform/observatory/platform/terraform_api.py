@@ -115,6 +115,7 @@ class TerraformVariable:
 
 
 class TerraformApi:
+    TERRAFORM_WORKSPACE_VERSION = "0.13.5"
 
     def __init__(self, token: str, verbosity: int = 0):
         """ Create a TerraformApi instance.
@@ -149,7 +150,7 @@ class TerraformApi:
         return token
 
     def create_workspace(self, organisation: str, workspace: str, auto_apply: bool, description: str,
-                         version: str = "0.13.5") -> int:
+                         version: str = TERRAFORM_WORKSPACE_VERSION) -> int:
         """ Create a new workspace in Terraform Cloud.
 
         :param organisation: Name of terraform organisation

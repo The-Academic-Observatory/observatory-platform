@@ -33,13 +33,6 @@ fi
 # Enter observatory platform folder
 cd /opt/observatory-platform
 
-# TODO: remove this
-# Remove tests directory which other packages install to sometimes
-TESTS_DIRECTORY='/home/airflow/.local/lib/python3.7/site-packages/tests'
-if [ -d ${TESTS_DIRECTORY} ]; then
-  rm -r ${TESTS_DIRECTORY}
-fi
-
 # Set PBR version for installing packages
 export PBR_VERSION=0.0.1
 

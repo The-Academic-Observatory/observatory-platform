@@ -41,8 +41,6 @@ class GenerateCommand:
         click.echo(f"Generating {file_type}...")
         ObservatoryConfig.save_default(config_path)
         click.echo(f'{file_type} saved to: "{config_path}"')
-        click.echo("Please customise the parameters with '<--' in the config file. "
-                   "Parameters commented out with '#' are optional.")
 
     def generate_terraform_config(self, config_path: str):
         """ Command line user interface for generating a Terraform Config config-terraform.yaml.

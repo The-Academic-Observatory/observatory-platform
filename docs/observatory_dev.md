@@ -66,13 +66,21 @@ access to the download and transform buckets.
 
 The table below lists connections that are required for telescopes bundled with the observatory:
 
-| Connection Key | Example | Description |
-| -------- | -------- | -------- |
-| crossref     | `http://myname:mypassword@myhost.com`     | Stores the token for the crossref API as a password     |
-| mag_releases_table     | `http://myname:mypassword@myhost.com`     | Stores the azure-storage-account-name as a login and url-encoded-sas-token as password     |
-| mag_snapshots_container     | `http://myname:mypassword@myhost.com`     | Stores the azure-storage-account-name as a login and url-encoded-sas-token as password     |
-| terraform     | `mysql://:terraform-token@`     | Stores the terraform user token as a password (used to create/destroy VMs)     |
-| slack     | `https://:T00000000%2FB00000000%2FXXXXXXXXXXXXXXXX XXXXXXXX@https%3A%2F%2Fhooks.slack.com%2Fservices`     | Stores the URL for the Slack webhook as a host and the token as a password     |
+```eval_rst
++-------------------------+------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+| Connection Key          | Example                                                                                              | Description                                                                            |
++=========================+======================================================================================================+========================================================================================+
+| crossref                | http://myname:mypassword@myhost.com                                                                  | Stores the token for the crossref API as a password                                    |
++-------------------------+------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+| mag_releases_table      | http://myname:mypassword@myhost.com                                                                  | Stores the azure-storage-account-name as a login and url-encoded-sas-token as password |
++-------------------------+------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+| mag_snapshots_container | http://myname:mypassword@myhost.com                                                                  | Stores the azure-storage-account-name as a login and url-encoded-sas-token as password |
++-------------------------+------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+| terraform               | mysql://:terraform-token@                                                                            |   Stores the terraform user token as a password (used to create/destroy VMs)           |
++-------------------------+------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+| slack                   | https://:T00000000%2FB00000000%2FXXXXXXXXXXXXXXXXXXXXXXXX@https%3A%2F%2Fhooks.slack.com%2Fservices   | Stores the URL for the Slack webhook as a host and the token as a password             |
++-------------------------+------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+```
 
 ## Running the local development environment
 See below for instructions on how to start the Observatory Platform, view Observatory Platform UIs, stop the 
