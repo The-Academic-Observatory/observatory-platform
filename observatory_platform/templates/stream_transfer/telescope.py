@@ -15,6 +15,10 @@
 
 # Author: Aniek Roelofs
 
+"""
+A short summary on the telescope.
+"""
+
 from types import SimpleNamespace
 import jsonlines
 import logging

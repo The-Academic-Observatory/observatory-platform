@@ -15,6 +15,10 @@
 
 # Author: Aniek Roelofs
 
+"""
+A short summary on the telescope.
+"""
+
 import json
 import jsonlines
 import logging
