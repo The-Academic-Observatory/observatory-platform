@@ -83,9 +83,6 @@ class TerraformBuilder:
         return shutil.which("packer")
 
     def make_files(self):
-        print(self.config.is_valid)
-        print(self.config.errors)
-
         ignore = shutil.ignore_patterns('__pycache__', '*.eggs', '*.egg-info')
 
         # Copy Observatory Platform

@@ -149,22 +149,12 @@ resource "google_storage_bucket" "observatory_download_bucket" {
   }
   lifecycle_rule {
     condition {
-      age = "62"
+      age = "365"
       matches_storage_class = ["NEARLINE"]
     }
     action {
       type = "SetStorageClass"
       storage_class = "COLDLINE"
-    }
-  }
-  lifecycle_rule {
-    condition {
-      age = "153"
-      matches_storage_class = ["COLDLINE"]
-    }
-    action {
-      type = "SetStorageClass"
-      storage_class = "ARCHIVE"
     }
   }
 }
@@ -176,15 +166,10 @@ resource "google_storage_bucket_iam_member" "observatory_download_bucket_transfe
   member = "serviceAccount:${data.google_storage_transfer_project_service_account.default.email}"
 }
 
-resource "google_storage_bucket_iam_member" "observatory_download_bucket_transfer_service_account_object_creator" {
+# Must have object admin so that files can be overwritten
+resource "google_storage_bucket_iam_member" "observatory_download_bucket_transfer_service_account_object_admin" {
   bucket = google_storage_bucket.observatory_download_bucket.name
-  role = "roles/storage.objectCreator"
-  member = "serviceAccount:${data.google_storage_transfer_project_service_account.default.email}"
-}
-
-resource "google_storage_bucket_iam_member" "observatory_download_bucket_transfer_service_account_object_viewer" {
-  bucket = google_storage_bucket.observatory_download_bucket.name
-  role = "roles/storage.objectViewer"
+  role = "roles/storage.objectAdmin"
   member = "serviceAccount:${data.google_storage_transfer_project_service_account.default.email}"
 }
 
@@ -195,15 +180,10 @@ resource "google_storage_bucket_iam_member" "observatory_download_bucket_observa
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
-resource "google_storage_bucket_iam_member" "observatory_download_bucket_observatory_service_account_object_creator" {
+# Must have object admin so that files can be overwritten
+resource "google_storage_bucket_iam_member" "observatory_download_bucket_observatory_service_account_object_admin" {
   bucket = google_storage_bucket.observatory_download_bucket.name
-  role = "roles/storage.objectCreator"
-  member = "serviceAccount:${google_service_account.observatory_service_account.email}"
-}
-
-resource "google_storage_bucket_iam_member" "observatory_download_bucket_observatory_service_account_object_reader" {
-  bucket = google_storage_bucket.observatory_download_bucket.name
-  role = "roles/storage.objectViewer"
+  role = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
@@ -357,7 +337,7 @@ resource "google_sql_database_instance" "observatory_db_instance" {
   name = var.environment == "production" ? "observatory-db-instance" : "observatory-db-instance-${random_id.airflow_db_name_suffix.hex}"
   database_version = "POSTGRES_12"
   region = var.google_cloud.region
-  deletion_protection = false
+  deletion_protection = var.environment == "production"
 
   depends_on = [google_service_networking_connection.private_vpc_connection, google_project_service.services]
   settings {
