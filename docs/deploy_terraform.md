@@ -1,4 +1,4 @@
-# Deploy with Terraform
+# Observatory Terraform Environment
 This is a tutorial for deploying the Observatory Platform to Google Cloud with Terraform.
 
 ## Install dependencies
@@ -132,7 +132,7 @@ observatory generate config terraform
 ```
 
 The file is saved to `~/.observatory/config-terraform.yaml`. Customise the generated file, parameters with '<--' need 
-to be customised and parameters commented out with '#' are optional.
+to be customised and parameters commented out are optional.
 
 See below for an example generated file:
 ```yaml
@@ -144,42 +144,42 @@ backend:
 
 # Apache Airflow settings
 airflow:
-  fernet_key: 4yfYXnxjUZSsh1CefVigTuUGcH-AUnuKC9jJ2sUq-xA=
-  ui_user_email: my-email@example.com <--
-  ui_user_password: my-password <--
+  fernet_key: 4yfYXnxjUZSsh1CefVigTuUGcH-AUnuKC9jJ2sUq-xA= # the fernet key which is used to encrypt the secrets in the airflow database
+  ui_user_email: my-email@example.com <-- # the email for the Apache Airflow UI's airflow user
+  ui_user_password: my-password <-- # the password for the Apache Airflow UI's airflow user
 
 # Terraform settings
 terraform:
-  organization: my-terraform-org-name <--
-  workspace_prefix: my-terraform-workspace-prefix- <--
+  organization: my-terraform-org-name <-- # the terraform cloud organization
+  workspace_prefix: my-terraform-workspace-prefix- <-- # the terraform cloud prefix of the workspace name
 
 # Google Cloud settings
 google_cloud:
-  project_id: my-gcp-id <--
-  credentials: /path/to/google_application_credentials.json <--
-  region: us-west1 <--
-  zone: us-west1-a <--
-  data_location: us <--
+  project_id: my-gcp-id <-- # the Google Cloud project identifier
+  credentials: /path/to/google_application_credentials.json <-- # the path to the Google Cloud service account credentials
+  region: us-west1 <-- # the Google Cloud region where the resources will be deployed
+  zone: us-west1-a <-- # the Google Cloud zone where the resources will be deployed
+  data_location: us <-- # the location for storing data, including Google Cloud Storage buckets and Cloud SQL backups
 
 # Google Cloud CloudSQL database settings
 cloud_sql_database:
-  tier: db-custom-2-7680
-  backup_start_time: '23:00'
-  postgres_password: my-password <--
+  tier: db-custom-2-7680 # the machine tier to use for the Observatory Platform Cloud SQL database
+  backup_start_time: '23:00' # the time for Cloud SQL database backups to start in HH:MM format
+  postgres_password: my-password <-- # the password for the airflow postgres database user
 
 # Settings for the main VM that runs the Apache Airflow scheduler and webserver
 airflow_main_vm:
-  machine_type: n2-standard-2
-  disk_size: 50
-  disk_type: pd-ssd
-  create: true
+  machine_type: n2-standard-2 # the machine type for the virtual machine
+  disk_size: 50 # the disk size for the virtual machine in GB
+  disk_type: pd-ssd # the disk type for the virtual machine
+  create: true # determines whether virtual machine is created or destroyed
 
 # Settings for the weekly on-demand VM that runs large tasks
 airflow_worker_vm:
-  machine_type: n1-standard-8
-  disk_size: 3000
-  disk_type: pd-standard
-  create: false
+  machine_type: n1-standard-8 # the machine type for the virtual machine
+  disk_size: 3000 # the disk size for the virtual machine in GB
+  disk_type: pd-standard # the disk type for the virtual machine
+  create: false # determines whether virtual machine is created or destroyed
 
 # User defined Apache Airflow variables:
 # airflow_variables:
@@ -208,12 +208,13 @@ not be parsed correctly.
 The config file will be read when running `observatory terraform create-workspace` and
 `observatory terraform update-workspace` and the variables are stored inside the Terraform Cloud workspace.
 
-## Deploy
+## Building the Google Compute VM image with Packer
 First, build and deploy the Observatory Platform Google Compute VM image with Packer:
 ```bash
 observatory terraform build-image ~/.observatory/config-terraform.yaml
 ```
 
+## Setting up Terraform
 Enter the terraform directory:
 ```bash
 cd ~/.observatory/build/terraform/terraform
@@ -230,12 +231,87 @@ Create token and login on Terraform Cloud:
 terraform login
 ```
 
+This should automatically store the token in `/home/user/.terraform.d/credentials.tfrc.json`, this file is used during 
+the next commands to retrieve the token.
+
+It's also possible to explicitly set the path to the credentials file using the option '--terraform-credentials-file'.
+
+## Creating and updating Terraform workspaces
+See below for instructions on how to run observatory terraform create-workspace and update-workspace.
+
+### Create a workspace
 Create a new workspace (this will use the created token file): 
 See [Observatory Terraform Environment](./observatory_dev.html#observatory-terraform-environment) for more info on the 
 usage of `observatory terraform`.
 ```bash
-observatory terraform create-workspace ~/.observatory/config_terraform.yaml
+observatory terraform create-workspace ~/.observatory/config-terraform.yaml
 ```
+
+You should see the following output:
+```bash
+Observatory Terraform: all dependencies found                                   
+  Config:
+   - path: /home/user/.observatory/config-terraform.yaml
+   - file valid
+  Terraform credentials file:
+   - path: /home/user/.terraform.d/credentials.tfrc.json
+
+Terraform Cloud Workspace: 
+  Organization: jamie-test
+  - Name: observatory-develop (prefix: 'observatory-' + suffix: 'develop')
+  - Settings: 
+   - Auto apply: True
+  - Terraform Variables:
+   * environment: develop
+   * airflow: sensitive
+   * google_cloud: sensitive
+   * cloud_sql_database: sensitive
+   * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
+   * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}
+   * airflow_variables: {}
+   * airflow_connections: sensitive
+Would you like to create a new workspace with these settings? [y/N]: 
+Creating workspace...
+Successfully created workspace
+```
+
+### Update a workspace
+To update variables in an existing workspace in Terraform Cloud:
+```bash
+observatory terraform update-workspace ~/.observatory/config-terraform.yaml
+```
+
+Depending on which variables are updated, you should see output similar to this:
+```bash
+  Config:
+   - path: /home/user/.observatory/config-terraform.yaml
+   - file valid
+  Terraform credentials file:
+   - path: /home/user/.terraform.d/credentials.tfrc.json
+
+Terraform Cloud Workspace: 
+  Organization: jamie-test
+  - Name: observatory-develop (prefix: 'observatory-' + suffix: 'develop')
+  - Settings: 
+   - Auto apply: True
+  - Terraform Variables:
+  UPDATE
+   * airflow: sensitive -> sensitive
+   * google_cloud: sensitive -> sensitive
+   * cloud_sql_database: sensitive -> sensitive
+   * airflow_connections: sensitive -> sensitive
+  UNCHANGED
+   * environment: develop
+   * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
+   * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}
+   * airflow_variables: {}
+Would you like to update the workspace with these settings? [y/N]: y
+Updating workspace...
+Successfully updated workspace
+```
+
+## Deploy
+Once you have created your Terraform workspace, you can deploy the system with Terraform Cloud.
 
 Initialize Terraform using key/value pairs:
 ```bash
