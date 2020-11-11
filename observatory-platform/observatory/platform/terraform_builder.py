@@ -38,7 +38,7 @@ def copy_dir(source_path: str, destination_path: str, ignore):
 class TerraformBuilder:
 
     def __init__(self, config_path: str, build_path: str = BUILD_PATH):
-        """ Create a PackerBuilder instance, which is used to build, start and stop an Observatory Platform instance.
+        """ Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
         :param config_path: The path to the config.yaml configuration file.
         """
