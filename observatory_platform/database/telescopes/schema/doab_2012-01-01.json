@@ -26,7 +26,7 @@
         "description": "The set membership of the item for the purpose of selective harvesting."
       }
     ],
-    "mode": "REPEATED",
+    "mode": "REQUIRED",
     "name": "header",
     "type": "RECORD",
     "description": "Contains the unique identifier of the item and properties necessary for selective harvesting (OAI-PMH)."
@@ -94,7 +94,7 @@
         "description": "Creative commons license types."
       }
     ],
-    "mode": "REPEATED",
+    "mode": "NULLABLE",
     "name": "metadata",
     "type": "RECORD",
     "description": "A single manifestation of the metadata from an item (OAI-PMH)."
@@ -138,7 +138,7 @@
           "description": "Subject of the Book (LoC codes)."
         }
       ],
-      "mode": "REPEATED",
+      "mode": "NULLABLE",
       "name": "csv",
       "type": "RECORD",
       "description": "Additional info from the csv file."
