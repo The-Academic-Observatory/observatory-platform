@@ -65,16 +65,16 @@ check_dependencies >> download >> upload_downloaded >> transform_xml_to_json >> 
 ```
 
 
-## check_api_server
+### check_api_server
 
 See if http://scientific.thomsonreuters.com is contactable.
 
 
-## check_dependencies
+### check_dependencies
 
 Airflow configuration check.
 
-## download_data
+### download_data
 
 Downloads the data. Currently it will make API calls for each month of data. Extendible to have finer control.
 Throttling and retry limits will be more conservative than the WoS limits.  See WosTelescope and helper classes for
@@ -91,33 +91,33 @@ New session creation: 5 per 5-min period.
   * Max records retrievable in period: licence dependent. Unclear what Curtin’s limit is if any.
 
 
-## upload_downloaded
+### upload_downloaded
 
 Upload gzipped xml data.
 
-## transform_xml_to_json
+### transform_xml_to_json
 
 Transform xml to json.
 
-## transform_db_format
+### transform_db_format
 
 Transform json into schema compatible format, and convert to jsonlines.
 
-## upload_transformed
+### upload_transformed
 
 Upload jsonlines data.
 
-## bq_load
+### bq_load
 
 Load the entries into BigQuery.
 
-## cleanup
+### cleanup
 
 Do any necessary cleanup/deletion.
 
-# Database schema
+## Database schema
 
 Refer to docs/datasets/provider_wos for schema information.
 
-# External references
+## External references
  * [Web of Science API documentation](http://help.incites.clarivate.com/wosWebServicesExpanded/WebServicesExpandedOverviewGroup/Introduction.html)

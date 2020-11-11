@@ -31,7 +31,6 @@ For example:
 ```
 
 ## DAG definition
-
 The main dag will check that the API server is up.  If this is the case, each subdag will proceed to execute its ETL
 pipeline.
 
@@ -64,19 +63,19 @@ Sequential mode will more likely evenly distribute the tasks, while parallel mod
  * Number of results returned per call is capped at 25 (Elsevier limit).
  * Maximum number of results per query is 5000 (Elsevier limit).
 
-## upload_downloaded
+### upload_downloaded
 
 Gzips up downloaded files and uploads to the cloud.
 
-## transform_db_format
+### transform_db_format
 
 Transforms json data into BigQuery schema compatible fields, and converts this into jsonlines format.
 
-## bq_load
+### bq_load
 
 Loads the jsonlines entries into BigQuery.
 
-## cleanup
+### cleanup
 
 Deletes any temporary files.
 
@@ -84,7 +83,7 @@ Deletes any temporary files.
 
 Refer to docs/datasets/provider_wos for schema information.
 
-# External references
+## External references
 * [Developer API portal](https://dev.elsevier.com/scopus.html)
 * [SCOPUS API specification](https://dev.elsevier.com/documentation/ScopusSearchAPI.wadl)
 * [Search tips](https://dev.elsevier.com/sc_search_tips.html)
