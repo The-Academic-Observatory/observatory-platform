@@ -24,7 +24,7 @@ import os
 from pbr.util import cfg_to_args
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-
+from observatory_platform.utils.config_utils import observatory_package_path
 
 def get_url_domain_suffix(url: str) -> str:
     """ Extract a URL composed of the domain name and the suffix of the URL. For example, library.curtin.edu would
@@ -89,6 +89,7 @@ def retry_session(num_retries: int = 3, backoff_factor: float = 0.5,
     session.mount("https://", adapter)
     return session
 
+
 def get_ao_user_agent():
     """ Return a standardised user agent that can be used by custom web clients to indicate it came from the
         Academic Observatory.
@@ -96,14 +97,7 @@ def get_ao_user_agent():
     :return: User agent string.
     """
 
-    cwd = os.getcwd()
-
-    if 'AO_HOME' in os.environ:
-        ao_home = os.environ['AO_HOME']
-        os.chdir(ao_home)
-
-    pkg_info = cfg_to_args()
-    os.chdir(cwd)
+    pkg_info = cfg_to_args(os.path.join(observatory_package_path(), 'setup.cfg'))
 
     version = pkg_info['version']
     url = pkg_info['url']

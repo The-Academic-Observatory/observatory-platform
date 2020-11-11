@@ -100,16 +100,32 @@ class TelescopeRelease:
         self.file_name = f"{telescope.dag_id}_{self.date_str}"
         self.blob_dir = f'telescopes/{self.telescope.dag_id}'
 
-        self.download_path = self.get_path(SubFolder.downloaded, self.file_name, self.telescope.download_ext)
-        self.download_dir = self.subdir(SubFolder.downloaded)
         self.download_blob = os.path.join(self.blob_dir, f"{self.file_name}.{self.telescope.download_ext}")
-
-        self.extract_path = self.get_path(SubFolder.extracted, self.file_name, self.telescope.extract_ext)
-        self.extract_dir = self.subdir(SubFolder.extracted)
-
-        self.transform_path = self.get_path(SubFolder.transformed, self.file_name, self.telescope.transform_ext)
-        self.transform_dir = self.subdir(SubFolder.transformed)
         self.transform_blob = os.path.join(self.blob_dir, f"{self.file_name}.{self.telescope.transform_ext}")
+
+    @property
+    def download_path(self) -> str:
+        return self.get_path(SubFolder.downloaded, self.file_name, self.telescope.download_ext)
+
+    @property
+    def download_dir(self) -> str:
+        return self.subdir(SubFolder.downloaded)
+
+    @property
+    def extract_path(self) -> str:
+        return self.get_path(SubFolder.extracted, self.file_name, self.telescope.extract_ext)
+
+    @property
+    def extract_dir(self) -> str:
+        return self.subdir(SubFolder.extracted)
+
+    @property
+    def transform_path(self) -> str:
+        return self.get_path(SubFolder.transformed, self.file_name, self.telescope.transform_ext)
+
+    @property
+    def transform_dir(self) -> str:
+        return self.subdir(SubFolder.transformed)
 
     def subdir(self, sub_folder: SubFolder) -> str:
         """ Path to subdirectory of a specific release for either downloaded/extracted/transformed files.
