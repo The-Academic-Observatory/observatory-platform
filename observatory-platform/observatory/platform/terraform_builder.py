@@ -22,6 +22,7 @@ import subprocess
 from subprocess import Popen
 from typing import Tuple
 
+from observatory.platform.cli.click_utils import indent, INDENT1
 from observatory.platform.observatory_config import TerraformConfig, BackendType
 from observatory.platform.platform_builder import PlatformBuilder
 from observatory.platform.utils.config_utils import observatory_home, module_file_path
@@ -37,10 +38,12 @@ def copy_dir(source_path: str, destination_path: str, ignore):
 
 class TerraformBuilder:
 
-    def __init__(self, config_path: str, build_path: str = BUILD_PATH):
+    def __init__(self, config_path: str, build_path: str = BUILD_PATH, debug: bool = False):
         """ Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
-        :param config_path: The path to the config.yaml configuration file.
+        :param config_path: the path to the config.yaml configuration file.
+        :param build_path: the path to the build folder.
+        :param debug: whether to print debug statements.
         """
 
         self.backend_type = BackendType.terraform
@@ -51,7 +54,7 @@ class TerraformBuilder:
         self.packages_build_path = os.path.join(build_path, 'packages')
         self.terraform_build_path = os.path.join(build_path, 'terraform')
         self.platform_builder = PlatformBuilder(config_path, build_path=build_path, backend_type=self.backend_type)
-        self.debug = True
+        self.debug = debug
 
         # Load config
         self.config_exists = os.path.exists(config_path)
@@ -143,6 +146,12 @@ class TerraformBuilder:
 
         # Build the containers first
         args = ['packer', 'build'] + variables + ['-force', 'observatory-image.json']
+
+        if self.debug:
+            print('Executing subprocess:')
+            print(indent(f'Command: {subprocess.list2cmdline(args)}', INDENT1))
+            print(indent(f'Cwd: {self.terraform_build_path}', INDENT1))
+
         proc: Popen = subprocess.Popen(args,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE,
@@ -150,4 +159,5 @@ class TerraformBuilder:
 
         # Wait for results
         output, error = stream_process(proc, self.debug)
+
         return output, error, proc.returncode

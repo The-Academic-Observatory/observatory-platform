@@ -26,18 +26,18 @@ from observatory.platform.terraform_builder import TerraformBuilder
 
 class TerraformCommand:
 
-    def __init__(self, config_path: str, terraform_credentials_path: str, verbose: int = 0):
+    def __init__(self, config_path: str, terraform_credentials_path: str, debug: bool = False):
         """ Create a TerraformCommand, which can be used to create and update terraform workspaces.
 
         :param config_path: the path to the Terraform Config file.
         :param terraform_credentials_path: the path to the Terraform credentials file.
-        :param verbose: whether to run the terraform API in verbose mode.
+        :param debug: whether to print debugging information.
         """
 
         self.config_path = config_path
         self.terraform_credentials_path = terraform_credentials_path
-        self.terraform_builder = TerraformBuilder(config_path)
-        self.verbose = verbose
+        self.terraform_builder = TerraformBuilder(config_path, debug=debug)
+        self.debug = debug
 
         # Load config and
         self.terraform_credentials_exists = os.path.exists(terraform_credentials_path)
@@ -49,6 +49,16 @@ class TerraformCommand:
             self.config_is_valid = self.config.is_valid
 
     @property
+    def verbosity(self):
+        """ Convert debug switch into Terraform API verbosity.
+        :return:
+        """
+
+        if self.debug:
+            return 2
+        return 0
+
+    @property
     def is_environment_valid(self):
         """ Whether is the parameters passed to the TerraformCommand are valid.
 
@@ -56,7 +66,7 @@ class TerraformCommand:
         """
 
         return all([self.config_exists, self.terraform_credentials_exists, self.config_is_valid,
-                    self.config is not None])
+                    self.config is not None, self.terraform_builder.is_environment_valid])
 
     def print_variable(self, var: TerraformVariable):
         """ Print the output for the CLI for a single TerraformVariable instance.
@@ -107,7 +117,7 @@ class TerraformCommand:
 
         # Get terraform token
         token = TerraformApi.token_from_file(self.terraform_credentials_path)
-        terraform_api = TerraformApi(token, self.verbose)
+        terraform_api = TerraformApi(token, self.verbosity)
 
         # Get variables
         terraform_variables = self.config.terraform_variables()
@@ -143,7 +153,7 @@ class TerraformCommand:
 
         # Get terraform token
         token = TerraformApi.token_from_file(self.terraform_credentials_path)
-        terraform_api = TerraformApi(token, self.verbose)
+        terraform_api = TerraformApi(token, self.verbosity)
 
         # Get variables
         terraform_variables = self.config.terraform_variables()

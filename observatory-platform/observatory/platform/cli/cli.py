@@ -335,10 +335,11 @@ def config(command: str, config_path: str):
               default=default_terraform_credentials_path(),
               help='',
               show_default=True)
-@click.option('-v', '--verbose',
-              count=True,
-              help='Set the verbosity level of terraform API (max -vv).')
-def terraform(command, config_path, terraform_credentials_path, verbose):
+@click.option('--debug',
+              is_flag=True,
+              default=DEBUG,
+              help='Print debugging information.')
+def terraform(command, config_path, terraform_credentials_path, debug):
     """ Commands to manage the deployment of the Observatory Platform with Terraform Cloud.\n
 
     COMMAND: the type of config file to generate:\n
@@ -350,7 +351,7 @@ def terraform(command, config_path, terraform_credentials_path, verbose):
     # The minimum number of characters per line
     min_line_chars = 80
 
-    terraform_cmd = TerraformCommand(config_path, terraform_credentials_path, verbose=verbose)
+    terraform_cmd = TerraformCommand(config_path, terraform_credentials_path, debug=debug)
     generate_cmd = GenerateCommand()
 
     ######################
@@ -383,6 +384,12 @@ def terraform(command, config_path, terraform_credentials_path, verbose):
     else:
         print(indent("- file not found, create one by running 'terraform login'", INDENT2))
 
+    print(indent("Packer", INDENT1))
+    if terraform_cmd.terraform_builder.packer_exe_path is not None:
+        print(indent(f"- path: {terraform_cmd.terraform_builder.packer_exe_path}", INDENT2))
+    else:
+        print(indent("- not installed, please install https://www.packer.io/docs/install", INDENT2))
+
     if not terraform_cmd.is_environment_valid:
         exit(os.EX_CONFIG)
 
@@ -405,7 +412,8 @@ def terraform(command, config_path, terraform_credentials_path, verbose):
         # Display settings for workspace
         print('\nTerraform Cloud Workspace: ')
         print(indent(f'Organization: {organization}', INDENT1))
-        print(indent(f"- Name: {workspace} (prefix: '{TerraformConfig.WORKSPACE_PREFIX}' + suffix: '{environment}')", INDENT1))
+        print(indent(f"- Name: {workspace} (prefix: '{TerraformConfig.WORKSPACE_PREFIX}' + suffix: '{environment}')",
+                     INDENT1))
         print(indent(f'- Settings: ', INDENT1))
         print(indent(f'- Auto apply: True', INDENT2))
         print(indent(f'- Terraform Variables:', INDENT1))
