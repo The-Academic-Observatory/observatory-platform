@@ -15,6 +15,12 @@
 
 # Author: Aniek Roelofs
 
+"""
+The Directory of Open Access Books (DOAB) is a directory of open-access peer reviewed scholarly books.
+Its aim is to increase discoverability of books. Academic publishers provide metadata of their Open Access books to DOAB.
+It is available both through OAI-PMH harvesting and as a csv file.
+"""
+
 import csv
 import json
 import jsonlines
@@ -23,6 +29,7 @@ import os
 import pathlib
 import pendulum
 import xmltodict
+from datetime import datetime
 from pendulum.parsing.exceptions import ParserError
 from types import SimpleNamespace
 from typing import Tuple, Union
@@ -37,14 +44,27 @@ from observatory_platform.utils.url_utils import retry_session, get_ao_user_agen
 
 def create_release(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, telescope: SimpleNamespace,
                    first_release: bool = False) -> 'DoabRelease':
+    """ Create a release based on the start and end date.
+
+    :param start_date: Start date of this run
+    :param end_date: End date of this run
+    :param telescope: Contains telescope properties
+    :param first_release: Whether this is the first release to be obtained
+    :return: Release instance
+    """
     release = DoabRelease(start_date, end_date, telescope, first_release)
     return release
 
 
-def download_oai_pmh(release: 'DoabRelease'):
+def download_oai_pmh(release: 'DoabRelease') -> bool:
+    """ Download DOAB metadata using an OAI-PMH harvester.
+
+    :param release: Release instance
+    :return: True if download is successful else False
+    """
     logging.info('Downloading OAI-PMH')
-    url = release.telescope.oai_pmh_url.format(start_date=release.start_date.strftime("%Y-%m-%d"),
-                                       end_date=release.end_date.strftime("%Y-%m-%d"))
+    url = release.telescope.oai_pmh_url.format(start_date=release.start_date.strftime("%Y-%m-%d"), 
+                                               end_date=release.end_date.strftime("%Y-%m-%d"))
     # check if cursor files exist from a previous failed request
     if os.path.isfile(release.token_path):
         # retrieve token
@@ -73,10 +93,15 @@ def download_oai_pmh(release: 'DoabRelease'):
     return True if success and total_entries != '0' else False
 
 
-def download_csv(release: 'DoabRelease'):
+def download_csv(release: 'DoabRelease') -> bool:
+    """ Download DOAB metadata from a csv file.
+
+    :param release: Release instance
+    :return: True if download is successful
+    """
     logging.info('Downloading csv')
     headers = {
-        'User-Agent': 'test'
+        'User-Agent': f'{get_ao_user_agent()}'
     }
     response = retry_session().get(release.telescope.csv_url, headers=headers)
     if response.status_code == 200:
@@ -89,6 +114,11 @@ def download_csv(release: 'DoabRelease'):
 
 
 def download(release: 'DoabRelease') -> bool:
+    """ Download both using the OAI-PMH harvester and from a csv file.
+
+    :param release: Release instance
+    :return: True if both downloads are successful
+    """
     success_oai_pmh = download_oai_pmh(release)
     success_csv = download_csv(release)
 
@@ -97,6 +127,12 @@ def download(release: 'DoabRelease') -> bool:
 
 
 def transform(release: 'DoabRelease'):
+    """ For each row, combine the OAI-PMH and csv results into one json object.
+    The column names are structure are slightly changed to make it readable by BigQuery.
+
+    :param release: Release instance
+    :return: None
+    """
     # create dict of data in summary xml file
     oai_pmh_entries = []
     with open(release.oai_pmh_path, 'r') as f:
@@ -104,18 +140,17 @@ def transform(release: 'DoabRelease'):
             entries_page = json.loads(line)
             oai_pmh_entries.append(entries_page)
 
+    # create global dict with csv entries of specific columns
     global csv_entries
     with open(release.csv_path, 'r') as f:
-        # all columns
-        # csv_entries = {row['Full text']: {k: v for k, v in row.items()} for row in csv.DictReader(f,
-        #                                                                                           skipinitialspace=True)}
         csv_entries = {row['ISBN'].strip().split(' ')[0]: {'ISSN': row['ISSN'], 'Volume': row['Volume'], 'Pages': row[
             'Pages'], 'Series title': row['Series title'], 'Added on date': row['Added on date'], 'Subjects': row[
             'Subjects']} for row in csv.DictReader(f, skipinitialspace=True)}
+
     # change keys & delete some values
     entries = change_keys(oai_pmh_entries, convert)
 
-    # one dict per orcid record, append to file.
+    # write out the transformed data
     with open(release.transform_path, 'w') as json_out:
         with jsonlines.Writer(json_out) as writer:
             for entry_page in entries:
@@ -125,6 +160,7 @@ def transform(release: 'DoabRelease'):
 
 class DoabTelescope(StreamTelescope):
     telescope = SimpleNamespace(dag_id='doab', dataset_id='doab', main_table_id='doab',
+                                schedule_interval='@weekly', start_date=datetime(2012, 1, 1),
                                 partition_table_id='doab_partitions', description='the description',
                                 queue='default', max_retries=3, bq_merge_days=7,
                                 merge_partition_field='common_orcid_identifier.common_path',
@@ -163,22 +199,18 @@ class DoabRelease(StreamRelease):
 
 def extract_entries(url: str, entries_path: str, next_token: str = None, success: bool = True) -> \
         Tuple[bool, Union[str, None], Union[str, None]]:
-    """
-    Extract the events from the given url until no new cursor is returned or a RetryError occurs. The extracted events
-    are appended to a json file, with 1 list per request.
+    """ Extract the OAI-PMH results from the given url until no new token is returned or a RetryError occurs. The
+    extracted entries are appended to a json file, with 1 list per request.
     :param url: The doab OAI-PMH url
     :param entries_path: Path to the file in which events are stored
     :param next_token: The next resumptionToken, this is in the response of the api
     :param success: Whether all events were extracted successfully or an error occurred
     :return: success, next_cursor and number of total events
     """
-    # headers = {
-    #     'User-Agent': f'{get_ao_user_agent()}'
-    # }
-
     headers = {
-        'User-Agent': 'test'
+        'User-Agent': f'{get_ao_user_agent()}'
     }
+
     tmp_url = url.split('&')[0] + f'&resumptionToken={next_token}' if next_token else url
     try:
         response = retry_session().get(tmp_url, headers=headers)
@@ -216,8 +248,12 @@ def convert(k):
 
 
 def change_keys(obj, convert):
-    """
-    Recursively goes through the dictionary obj and replaces keys with the convert function.
+    """ Recursively goes through the dictionary obj, replaces keys with the convert function, adds info from the csv
+    file based on the ISBN and other small modifications.
+
+    :param obj: object, can be of any type
+    :param convert: convert function
+    :return: Updated dictionary
     """
     if isinstance(obj, (str, int, float)):
         return obj
@@ -226,12 +262,9 @@ def change_keys(obj, convert):
         for k, v in list(obj.items()):
             if k.startswith('@xmlns') or k.startswith('@xsi'):
                 pass
-            # remove nested layers
-            # elif k in ['header', 'metadata', 'oai_dc:dc']:
             elif k == 'metadata':
                 oai_dc = change_keys(v['oai_dc:dc'], convert)
                 new['metadata'] = oai_dc
-                # new = {**new, **oai_dc}
                 for identifier in oai_dc['identifier']:
                     if 'ISBN' in identifier:
                         isbn = oai_dc['identifier'][2].split(' ')[1]

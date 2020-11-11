@@ -14,25 +14,22 @@
 
 # Author: Aniek Roelofs
 
-"""
-
-"""
-
-from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 
+from observatory_platform.telescopes import doab
 from observatory_platform.telescopes.doab import DoabTelescope
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2012, 1, 1)
+    "start_date": DoabTelescope.telescope.start_date
 }
 
-with DAG(dag_id=DoabTelescope.telescope.dag_id, schedule_interval="@weekly", default_args=default_args, catchup=False,
-         max_active_runs=1) as dag:
+
+with DAG(dag_id=DoabTelescope.telescope.dag_id, schedule_interval=DoabTelescope.telescope.schedule_interval,
+         default_args=default_args,  catchup=False, max_active_runs=1, doc_md=doab.__doc__) as dag:
     check = PythonOperator(
         task_id=DoabTelescope.TASK_ID_CHECK_DEPENDENCIES,
         python_callable=DoabTelescope.check_dependencies,

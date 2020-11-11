@@ -48,6 +48,7 @@ class TestDoab(unittest.TestCase):
         logging.basicConfig()
 
     def test_create_release(self):
+        """ Test creating a release """
         with CliRunner().isolated_filesystem():
             # first release
             release = create_release(self.start_date, self.end_date, DoabTelescope.telescope, True)
@@ -60,6 +61,9 @@ class TestDoab(unittest.TestCase):
     @patch('observatory_platform.telescopes.doab.extract_entries')
     @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_download_oai_pmh(self, mock_variable_get, mock_extract_entries):
+        """
+        Test outputs of downloading oai-pmh data
+        """
         with CliRunner().isolated_filesystem():
             mock_variable_get.return_value = 'data'
             # first release
@@ -99,6 +103,7 @@ class TestDoab(unittest.TestCase):
     @patch('requests.Session.get')
     @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_download_csv(self, mock_variable_get, mock_requests_get):
+        """ Test outputs of downloading the csv data """
         download_csv_hash = '3ac02641cf41c7283e5aef8a851e0ae8'
         with CliRunner().isolated_filesystem():
             mock_variable_get.return_value = 'data'
@@ -114,6 +119,7 @@ class TestDoab(unittest.TestCase):
                 success = download_csv(release)
 
     def test_extract_entries(self):
+        """ Test extracting oai-pmh entries from a url using a cassette """
         tmp_url = 'https://www.doabooks.org/oai?verb=ListRecords&metadataPrefix=oai_dc&from=2020-09-01&until=2020-09-03'
         entries_response_path = os.path.join(test_fixtures_path(), 'vcr_cassettes', 'doab_entries.yaml')
         entries_response_hash = '6bdd8bfcd5f52824f39ff8a53fd40ee8'
@@ -139,6 +145,7 @@ class TestDoab(unittest.TestCase):
     @patch('observatory_platform.telescopes.doab.download_oai_pmh')
     @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_download(self, mock_variable_get, mock_download_oai_pmh, mock_download_csv):
+        """ Test output of downloading both oai-pmh and csv data """
         with CliRunner().isolated_filesystem():
             mock_variable_get.return_value = 'data'
             release = DoabRelease(self.start_date, self.end_date, DoabTelescope.telescope)
@@ -165,6 +172,7 @@ class TestDoab(unittest.TestCase):
 
     @patch('observatory_platform.utils.config_utils.AirflowVariable.get')
     def test_transform(self, mock_variable_get):
+        """ Test resulting file from transform function """
         transform_hash = '21e69fecd8d7781c54933217b020b207'
         with CliRunner().isolated_filesystem():
             mock_variable_get.return_value = 'data'
@@ -180,6 +188,7 @@ class TestDoab(unittest.TestCase):
             self.assertEqual(transform_hash, _hash_file(release.transform_path, algorithm='md5'))
 
     def test_convert(self):
+        """ Test string convert function """
         string = convert('dc:test-identifier url')
         self.assertEqual('test_identifier_url', string)
 
@@ -187,6 +196,7 @@ class TestDoab(unittest.TestCase):
         self.assertEqual('xsi', string)
 
     def test_change_keys(self):
+        """ Test changing keys of downloaded results """
         csv_entries = {'9783830941798': {'ISSN': '', 'Volume': '', 'Pages': '120', 'Series title': '',
                                          'Added on date': '2020-04-28 16:16:05', 'Subjects': 'LB5-3640; L7-991'}}
         observatory_platform.telescopes.doab.csv_entries = csv_entries
