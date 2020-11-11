@@ -110,7 +110,7 @@ Storage Transfer Admin
 ```
 
 ## Prepare Google Cloud services
-Enable the Compute Engine API (https://console.developers.google.com/apis/api/compute.googleapis.com/overview) for the 
+Enable the [Compute Engine API](https://console.developers.google.com/apis/api/compute.googleapis.com/overview) for the 
 google project. This is required for Packer to create the image. Other Google Cloud services are enabled by Terraform 
 itself.
 
