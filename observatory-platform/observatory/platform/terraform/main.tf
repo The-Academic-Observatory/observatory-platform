@@ -45,8 +45,6 @@ variable "TFC_WORKSPACE_SLUG" {
 locals {
   organization = split("/", var.TFC_WORKSPACE_SLUG)[0]
   workspace_name = split("/", var.TFC_WORKSPACE_SLUG)[1]
-  workspace_prefix =  "observatory-"
-  workspace_suffix = trimprefix(local.workspace_name, local.workspace_prefix)
 }
 
 ########################################################################################################################
@@ -428,8 +426,7 @@ locals {
     download_bucket = google_storage_bucket.observatory_download_bucket.name
     transform_bucket = google_storage_bucket.observatory_transform_bucket.name
     terraform_organization = local.organization
-    terraform_workspace_prefix = local.workspace_prefix
-    environment = local.workspace_suffix
+    environment = var.environment
   }, var.airflow_variables)
 
   metadata_variables = {
@@ -440,8 +437,7 @@ locals {
     download_bucket = google_storage_bucket.observatory_download_bucket.name
     transform_bucket = google_storage_bucket.observatory_transform_bucket.name
     terraform_organization =  local.organization
-    terraform_workspace_prefix = local.workspace_prefix
-    environment = local.workspace_suffix
+    environment = var.environment
     airflow_variables = local.airflow_variables
   }
 }
@@ -452,7 +448,7 @@ locals {
 
 # Compute Image shared by both VMs
 data "google_compute_image" "observatory_image" {
-  name = "observatory-image"
+  name = "observatory-image-${var.environment}"
   depends_on = [google_project_service.compute_engine]
 }
 

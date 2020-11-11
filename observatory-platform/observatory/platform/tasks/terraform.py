@@ -28,6 +28,7 @@ from airflow.models.taskinstance import TaskInstance
 from croniter import croniter
 
 from observatory.platform.observatory_config import Environment, VirtualMachine
+from observatory.platform.observatory_config import TerraformConfig
 from observatory.platform.terraform_api import TerraformApi
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, change_task_log_level
 from observatory.platform.utils.config_utils import (check_variables, check_connections, AirflowVars, AirflowConns)
@@ -45,9 +46,8 @@ def get_workspace_id() -> str:
     organization = Variable.get(AirflowVars.TERRAFORM_ORGANIZATION)
 
     # Get workspace
-    prefix = Variable.get(AirflowVars.TERRAFORM_PREFIX)
     environment = Variable.get(AirflowVars.ENVIRONMENT)
-    workspace = prefix + environment
+    workspace = TerraformConfig.WORKSPACE_PREFIX + environment
 
     # Get workspace ID
     workspace_id = terraform_api.workspace_id(organization, workspace)

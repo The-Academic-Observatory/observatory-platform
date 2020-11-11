@@ -246,8 +246,7 @@ class TestPlatformBuilder(unittest.TestCase):
                                        credentials='/path/to/creds.json',
                                        data_location='us',
                                        buckets=[bucket])
-            terraform = Terraform(organization='my-terraform-org-name',
-                                  workspace_prefix='my-terraform-workspace-prefix-')
+            terraform = Terraform(organization='my-terraform-org-name')
             config = ObservatoryConfig(backend=backend,
                                        airflow=airflow,
                                        google_cloud=google_cloud,
@@ -269,7 +268,6 @@ class TestPlatformBuilder(unittest.TestCase):
             expected_env['AIRFLOW_VAR_PROJECT_ID'] = google_cloud.project_id
             expected_env['AIRFLOW_VAR_DATA_LOCATION'] = google_cloud.data_location
             expected_env['AIRFLOW_VAR_TERRAFORM_ORGANIZATION'] = terraform.organization
-            expected_env['AIRFLOW_VAR_TERRAFORM_WORKSPACE_PREFIX'] = terraform.workspace_prefix
             expected_env['AIRFLOW_VAR_DOWNLOAD_BUCKET'] = bucket.name
 
             # TODO: it seems a little inconsistent to name these vars like this

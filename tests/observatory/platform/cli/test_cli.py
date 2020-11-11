@@ -324,8 +324,7 @@ class TestObservatoryTerraform(unittest.TestCase):
                     'ui_user_email': 'password'
                 },
                 'terraform': {
-                    'organization': self.organisation,
-                    'workspace_prefix': workspaces_prefix
+                    'organization': self.organisation
                 },
                 'google_cloud': {
                     'project_id': 'my-project',
@@ -356,8 +355,7 @@ class TestObservatoryTerraform(unittest.TestCase):
 
             # Create terraform api instance
             terraform_api = TerraformApi(self.token)
-            workspace_prefix = config.terraform.workspace_prefix
-            workspace = workspace_prefix + config.backend.environment.value
+            workspace = TerraformConfig.WORKSPACE_PREFIX + config.backend.environment.value
 
             # As a safety measure, delete workspace even though it shouldn't exist yet
             terraform_api.delete_workspace(self.organisation, workspace)
@@ -429,8 +427,7 @@ class TestObservatoryTerraform(unittest.TestCase):
                     'ui_user_email': 'password'
                 },
                 'terraform': {
-                    'organization': self.organisation,
-                    'workspace_prefix': workspaces_prefix
+                    'organization': self.organisation
                 },
                 'google_cloud': {
                     'project_id': 'my-project',

@@ -72,8 +72,7 @@ class TestTerraformBuilder(unittest.TestCase):
                 'ui_user_email': 'password'
             },
             'terraform': {
-                'organization': 'hello world',
-                'workspace_prefix': 'my-workspaces-'
+                'organization': 'hello world'
             },
             'google_cloud': {
                 'project_id': 'my-project',

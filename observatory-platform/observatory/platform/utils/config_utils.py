@@ -49,7 +49,6 @@ class AirflowVars:
     DOWNLOAD_BUCKET = "download_bucket"
     TRANSFORM_BUCKET = "transform_bucket"
     TERRAFORM_ORGANIZATION = "terraform_organization"
-    TERRAFORM_PREFIX = "terraform_workspace_prefix"
     DAGS_MODULE_NAMES = "dags_module_names"
 
 

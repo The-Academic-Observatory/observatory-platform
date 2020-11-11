@@ -30,7 +30,6 @@ airflow:
 # Terraform settings: customise to use the vm_create and vm_destroy DAGs:
 # terraform:
 #   organization: my-terraform-org-name
-#   workspace_prefix: my-terraform-workspace-prefix-
 
 # Google Cloud settings: customise to use Google Cloud services
 # google_cloud:

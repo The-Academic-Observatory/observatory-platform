@@ -133,7 +133,8 @@ class TerraformBuilder:
         template_vars = {
             'credentials_file': self.config.google_cloud.credentials,
             'project_id': self.config.google_cloud.project_id,
-            'zone': self.config.google_cloud.zone
+            'zone': self.config.google_cloud.zone,
+            'environment': self.config.backend.environment.value
         }
         variables = []
         for key, val in template_vars.items():

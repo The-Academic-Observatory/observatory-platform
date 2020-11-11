@@ -22,7 +22,7 @@ import click
 from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2, INDENT3
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
-from observatory.platform.cli.terraform_command import TerraformCommand
+from observatory.platform.cli.terraform_command import TerraformCommand, TerraformConfig
 from observatory.platform.platform_builder import (BUILD_PATH, DAGS_MODULE, DATA_PATH, LOGS_PATH,
                                                    POSTGRES_PATH, HOST_UID, HOST_GID, REDIS_PORT, FLOWER_UI_PORT,
                                                    AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
@@ -399,14 +399,13 @@ def terraform(command, config_path, terraform_credentials_path, verbose):
     else:
         # Get organization, environment and prefix
         organization = terraform_cmd.config.terraform.organization
-        prefix = terraform_cmd.config.terraform.workspace_prefix
         environment = terraform_cmd.config.backend.environment.value
         workspace = terraform_cmd.config.terraform_workspace_id
 
         # Display settings for workspace
         print('\nTerraform Cloud Workspace: ')
         print(indent(f'Organization: {organization}', INDENT1))
-        print(indent(f"- Name: {workspace} (prefix: '{prefix}' + suffix: '{environment}')", INDENT1))
+        print(indent(f"- Name: {workspace} (prefix: '{TerraformConfig.WORKSPACE_PREFIX}' + suffix: '{environment}')", INDENT1))
         print(indent(f'- Settings: ', INDENT1))
         print(indent(f'- Auto apply: True', INDENT2))
         print(indent(f'- Terraform Variables:', INDENT1))

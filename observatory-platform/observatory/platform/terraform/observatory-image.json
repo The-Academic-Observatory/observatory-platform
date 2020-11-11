@@ -2,7 +2,8 @@
   "variables": {
     "credentials_file": "{{env `credentials_file`}}",
     "project_id": "{{env `project_id`}}",
-    "zone": "{{env `zone`}}"
+    "zone": "{{env `zone`}}",
+    "environment": "{{env `environment`}}"
   },
   "builders": [
     {
@@ -13,7 +14,7 @@
       "source_image_family": "ubuntu-1804-lts",
       "machine_type": "n1-standard-1",
       "zone": "{{user `zone`}}",
-      "image_name": "observatory-image"
+      "image_name": "observatory-image-{{user `environment`}}"
     }
   ],
   "provisioners": [

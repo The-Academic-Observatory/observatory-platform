@@ -39,7 +39,6 @@ resource "google_compute_instance" "vm_instance" {
     download_bucket = var.metadata_variables["download_bucket"],
     transform_bucket = var.metadata_variables["transform_bucket"],
     terraform_organization =  var.metadata_variables["terraform_organization"],
-    terraform_workspace_prefix = var.metadata_variables["terraform_workspace_prefix"],
     environment = var.metadata_variables["environment"],
     airflow_variables = var.metadata_variables["airflow_variables"]}
   )

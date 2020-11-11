@@ -153,7 +153,6 @@ airflow:
 # Terraform settings
 terraform:
   organization: my-terraform-org-name <-- # the terraform cloud organization
-  workspace_prefix: my-terraform-workspace-prefix- <-- # the terraform cloud prefix of the workspace name
 
 # Google Cloud settings
 google_cloud:

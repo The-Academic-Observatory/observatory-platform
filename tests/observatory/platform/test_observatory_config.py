@@ -228,8 +228,7 @@ class TestTerraformConfig(unittest.TestCase):
                     'ui_user_email': 'password'
                 },
                 'terraform': {
-                    'organization': 'hello world',
-                    'workspace_prefix': 'my-workspaces-'
+                    'organization': 'hello world'
                 },
                 'google_cloud': {
                     'project_id': 'my-project',
@@ -280,8 +279,7 @@ class TestTerraformConfig(unittest.TestCase):
                     'ui_user_email': 'password'
                 },
                 'terraform': {
-                    'organization': 'hello world',
-                    'workspace_prefix': 'my-workspaces-'
+                    'organization': 'hello world'
                 },
                 'google_cloud': {
                     'project_id': 'my-project',
@@ -345,8 +343,7 @@ class TestTerraformConfig(unittest.TestCase):
                 'ui_user_email': 'password'
             },
             'terraform': {
-                'organization': 'hello world',
-                'workspace_prefix': 'my-workspaces-'
+                'organization': 'hello world'
             },
             'google_cloud': {
                 'project_id': 'my-project',
@@ -397,8 +394,7 @@ class TestTerraformConfig(unittest.TestCase):
                 'ui_user_email': 'password'
             },
             'terraform': {
-                'organization': 'hello world',
-                'workspace_prefix': 'my-workspaces-'
+                'organization': 'hello world'
             },
             'google_cloud': {
                 'project_id': 'my-project',
@@ -540,40 +536,30 @@ class TestSchema(unittest.TestCase):
             {},
             {
                 'terraform': {
-                    'organization': 'hello world',
-                    'workspace_prefix': 'my-workspaces-'
+                    'organization': 'hello world'
                 }
             }
         ]
         invalid_docs = [
             {
                 'terraform': {
-                    'organization': 0,
-                    'workspace_prefix': 1
+                    'organization': 0
                 }
             },
             {
                 'terraform': {
-                    'organization': dict(),
-                    'workspace_prefix': list()
+                    'organization': dict()
                 }
             },
             {
                 'terraform': {
-                    'organization': 'hello world'
-                }
-            },
-            {
-                'terraform': {
-                    'workspace_prefix': 'my-workspaces-'
+
                 }
             }
         ]
         expected_errors = [{'terraform': [
-            {'organization': ['must be of string type'], 'workspace_prefix': ['must be of string type']}]},
-            {'terraform': [{'organization': ['must be of string type'],
-                            'workspace_prefix': ['must be of string type']}]},
-            {'terraform': [{'workspace_prefix': ['required field']}]},
+            {'organization': ['must be of string type']}]},
+            {'terraform': [{'organization': ['must be of string type']}]},
             {'terraform': [{'organization': ['required field']}]}]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
@@ -779,8 +765,7 @@ class TestSchema(unittest.TestCase):
         valid_docs = [
             {
                 'terraform': {
-                    'organization': 'hello world',
-                    'workspace_prefix': 'my-workspaces-'
+                    'organization': 'hello world'
                 }
             }
         ]

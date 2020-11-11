@@ -362,23 +362,19 @@ class Terraform:
 
     Attributes:
         organization: the Terraform Organisation name.
-        workspace_prefix: the Terraform workspace prefix.
      """
 
     organization: str
-    workspace_prefix: str
 
     @staticmethod
     def from_dict(dict_: Dict) -> Terraform:
         """ Constructs a Terraform instance from a dictionary.
 
         :param dict_: the dictionary.
-        :return: the Terraform instance.
         """
 
         organization = dict_.get('organization')
-        workspace_prefix = dict_.get('workspace_prefix')
-        return Terraform(organization, workspace_prefix)
+        return Terraform(organization)
 
 
 @dataclass
@@ -589,9 +585,6 @@ class ObservatoryConfig:
         if self.terraform.organization is not None:
             variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
 
-        if self.terraform.workspace_prefix is not None:
-            variables.append(AirflowVariable(AirflowVars.TERRAFORM_PREFIX, self.terraform.workspace_prefix))
-
         # Create airflow variables from bucket names
         for bucket in self.google_cloud.buckets:
             variables.append(AirflowVariable(bucket.id, bucket.name))
@@ -702,6 +695,8 @@ class ObservatoryConfig:
 
 
 class TerraformConfig(ObservatoryConfig):
+    WORKSPACE_PREFIX = "observatory-"
+
     def __init__(self,
                  backend: Backend = None,
                  airflow: Airflow = None,
@@ -748,7 +743,7 @@ class TerraformConfig(ObservatoryConfig):
         :return: the terraform workspace id.
         """
 
-        return self.terraform.workspace_prefix + self.backend.environment.value
+        return TerraformConfig.WORKSPACE_PREFIX + self.backend.environment.value
 
     def make_airflow_variables(self) -> List[AirflowVariable]:
         """ Make all airflow variables for the Observatory Platform.
@@ -769,9 +764,6 @@ class TerraformConfig(ObservatoryConfig):
 
         if self.terraform.organization is not None:
             variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
-
-        if self.terraform.workspace_prefix is not None:
-            variables.append(AirflowVariable(AirflowVars.TERRAFORM_PREFIX, self.terraform.workspace_prefix))
 
         # Add user defined variables to list
         variables += self.airflow_variables
@@ -879,11 +871,6 @@ def make_schema(backend_type: BackendType) -> Dict:
         'type': 'dict',
         'schema': {
             'organization': {
-                'required': True,
-                'type': 'string',
-                'check_with': customise_pointer
-            },
-            'workspace_prefix': {
                 'required': True,
                 'type': 'string',
                 'check_with': customise_pointer
