@@ -192,7 +192,7 @@ You may use an existing Docker network by supplying the network name:
 observatory platform start --docker-network-name observatory-network
 ```
 
-# Getting help
+## Getting help
 To get help with the Observatory Platform commands:
 ```bash
 observatory --help

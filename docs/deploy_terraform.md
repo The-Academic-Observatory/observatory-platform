@@ -1,6 +1,8 @@
 # Observatory Terraform Environment
 This is a tutorial for deploying the Observatory Platform to Google Cloud with Terraform.
 
+You should have [installed the Observatory Platform](installation.html) before following this tutorial.
+
 ## Install dependencies
 The dependencies that are required include:
 * [Packer](https://www.packer.io/): for automating the creation of the Google Cloud VM images.
@@ -110,19 +112,19 @@ Storage Transfer Admin
 ```
 
 ## Prepare Google Cloud services
-Enable the [Compute Engine API](https://console.developers.google.com/apis/api/compute.googleapis.com/overview) for the 
+Enable the [Compute Engine API](https://console.developers.google.com/apis/api/compute.googleapis.com/overview) for the
 google project. This is required for Packer to create the image. Other Google Cloud services are enabled by Terraform 
 itself.
 
-## Clone and checkout files
-Clone the version of the Observatory Platform that you would like to deploy
-```bash
-git clone git@github.com:The-Academic-Observatory/observatory-platform.git
-```
-
+## Switch to the branch that you would like to deploy
 Enter the observatory-platform project folder:
 ```bash
 cd observatory-platform
+```
+
+Switch to the branch that you would like to deploy, for example:
+```
+git checkout develop
 ```
 
 ## Prepare configuration files
@@ -361,8 +363,8 @@ terraform apply
 
 ## Manually destroy the VMs
 ```
-terraform apply -target module.airflow_main_vm.google_compute_instance.vm_instance
-terraform apply -target module.airflow_worker_vm.google_compute_instance.vm_instance
+terraform destroy -target module.airflow_main_vm.google_compute_instance.vm_instance
+terraform destroy -target module.airflow_worker_vm.google_compute_instance.vm_instance
 ```
 
 ## Logging into the VMs
