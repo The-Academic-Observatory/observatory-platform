@@ -39,6 +39,7 @@ from yaml.loader import SafeLoader
 from yaml.nodes import ScalarNode
 
 import observatory_platform.database
+import observatory_platform.database.telescopes.sql
 import observatory_platform.database.telescopes.templates
 import observatory_platform.database.workflows.sql
 import terraform
@@ -82,6 +83,15 @@ def telescope_templates_path() -> str:
     :return: the path to jinja templates.
     """
     file_path = pathlib.Path(observatory_platform.database.telescopes.templates.__file__).resolve()
+    return str(pathlib.Path(*file_path.parts[:-1]).resolve())
+
+
+def telescope_sql_path() -> str:
+    """ Get the path to the SQL telescope templates.
+
+    :return: the path to the SQL templates.
+    """
+    file_path = pathlib.Path(observatory_platform.database.telescopes.sql.__file__).resolve()
     return str(pathlib.Path(*file_path.parts[:-1]).resolve())
 
 

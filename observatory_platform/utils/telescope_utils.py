@@ -50,6 +50,7 @@ from observatory_platform.utils.config_utils import (AirflowConn,
                                                      find_schema,
                                                      schema_path,
                                                      telescope_path,
+                                                     telescope_sql_path,
                                                      telescope_templates_path)
 from observatory_platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  copy_bigquery_table,
@@ -290,7 +291,7 @@ def bq_delete_old(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, da
     merge_condition_field = merge_partition_field
     updated_date_field = updated_date_field
 
-    template_path = os.path.join(telescope_templates_path(), make_sql_jinja2_filename('merge_delete_matched'))
+    template_path = os.path.join(telescope_sql_path(), make_sql_jinja2_filename('merge_delete_matched'))
     query = render_template(template_path, dataset=dataset_id, main_table=main_table,
                             partitioned_table=partitioned_table, merge_condition_field=merge_condition_field,
                             start_date=start_date, end_date=end_date, updated_date_field=updated_date_field)
