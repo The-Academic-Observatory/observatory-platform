@@ -179,6 +179,7 @@ class StreamTelescope:
         if not start_date:
             first_release = True
             start_date = pendulum.instance(kwargs['dag'].default_args['start_date']).start_of('day')
+        start_date = start_date - timedelta(days=1)
         end_date = pendulum.utcnow()
         logging.info(f'Start date: {start_date}, end date: {end_date}, first release: {first_release}')
 
@@ -308,12 +309,12 @@ class StreamTelescope:
             logging.info('Skipped, because first release')
             return
 
-        start_date = pendulum.instance(ti.previous_start_date_success + timedelta(days=1))
+        start_date = pendulum.instance(ti.previous_start_date_success)
         end_date = pendulum.instance(ti.start_date)
         if (end_date - start_date).days >= cls.telescope.bq_merge_days:
             bq_delete_old(start_date, end_date, cls.telescope.dataset_id,  cls.telescope.main_table_id,
                           cls.telescope.partition_table_id,  cls.telescope.merge_partition_field,
-                          cls.telescope.updatd_date_field)
+                          cls.telescope.updated_date_field)
         else:
             raise AirflowSkipException(f'Skipped, only delete old records every {cls.telescope.bq_merge_days} days. '
                                        f'Last append was {(end_date - start_date).days} days ago')
@@ -335,7 +336,7 @@ class StreamTelescope:
                                 cls.telescope.main_table_id, cls.telescope.schema_version, cls.telescope.description)
             return
 
-        start_date = pendulum.instance(ti.previous_start_date_success + timedelta(days=1))
+        start_date = pendulum.instance(ti.previous_start_date_success)
         end_date = pendulum.instance(ti.start_date)
         if (end_date - start_date).days >= cls.telescope.bq_merge_days:
             bq_append_from_partition(start_date, end_date, cls.telescope.dataset_id, cls.telescope.main_table_id,
