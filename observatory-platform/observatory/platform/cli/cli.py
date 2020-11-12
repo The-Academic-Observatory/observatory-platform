@@ -346,6 +346,7 @@ def terraform(command, config_path, terraform_credentials_path, debug):
       - create-workspace: create a Terraform Cloud workspace.\n
       - update-workspace: update a Terraform Cloud workspace.\n
       - build-image: build a Google Compute image for the Terraform deployment with Packer.\n
+      - build-terraform: build the Terraform files.\n
     """
 
     # The minimum number of characters per line
