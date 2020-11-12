@@ -97,7 +97,11 @@ def get_ao_user_agent():
     :return: User agent string.
     """
 
-    pkg_info = cfg_to_args(os.path.join(observatory_package_path(), 'setup.cfg'))
+    cwd = os.getcwd()
+
+    os.chdir(observatory_package_path())
+    pkg_info = cfg_to_args()
+    os.chdir(cwd)
 
     version = pkg_info['version']
     url = pkg_info['url']
