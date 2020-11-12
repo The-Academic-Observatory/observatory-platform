@@ -215,16 +215,35 @@ First, build and deploy the Observatory Platform Google Compute VM image with Pa
 observatory terraform build-image ~/.observatory/config-terraform.yaml
 ```
 
-## Setting up Terraform
-Enter the terraform directory:
-```bash
-cd ~/.observatory/build/terraform/terraform
-```
+Use this command if you have:
+* Created, removed or updated user defined Observatory DAGs projects via the field `dags_projects`, in the Observatory
+Terraform config file.
+* Updated any code in the Observatory Platform.
+* Update the `backend.environment` variable in the Observatory Terraform config file: you need to make sure that an
+image is built for the other environment.
 
+You will need to taint the VMs and update them so that they use the new image.
+
+You do not need to run this command if:
+* You have created, removed or updated user defined Apache Airflow connections or variables in the Observatory
+Terraform config file: in this case you will need to update the Terraform workspace.
+* You have changed any other settings in the Observatory Terraform config file (apart from `backend.environment`): 
+in this case you will need to update the Terraform workspace variables and run `terraform apply`.
+
+### Building the Terraform files
 To refresh the files that are built into the `~/.observatory/build/terraform` directory, without rebuilding the entire
 Google Compute VM image again, run the following command:
 ```bash
 observatory terraform build-terraform ~/.observatory/config-terraform.yaml
+```
+
+Use this command if you have:
+ * Updated the Terraform deployment scripts, but nothing else.
+
+## Setting up Terraform
+Enter the terraform directory:
+```bash
+cd ~/.observatory/build/terraform/terraform
 ```
 
 Create token and login on Terraform Cloud:
@@ -354,6 +373,7 @@ terraform destroy
 ```
 
 ## Rebuild the VMs with a new Google Cloud VM image
+If you have re-built the Google Cloud VM image, then you will need to manually taint the VMs and rebuild them:
 ```bash
 terraform taint module.airflow_main_vm.google_compute_instance.vm_instance
 terraform taint module.airflow_worker_vm.google_compute_instance.vm_instance
@@ -361,6 +381,7 @@ terraform apply
 ```
 
 ## Manually destroy the VMs
+Run the following commands to manually destroy the VMs:
 ```
 terraform destroy -target module.airflow_main_vm.google_compute_instance.vm_instance
 terraform destroy -target module.airflow_worker_vm.google_compute_instance.vm_instance
