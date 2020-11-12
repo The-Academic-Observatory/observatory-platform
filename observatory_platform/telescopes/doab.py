@@ -160,11 +160,11 @@ def transform(release: 'DoabRelease'):
 
 class DoabTelescope(StreamTelescope):
     telescope = SimpleNamespace(dag_id='doab', dataset_id='doab', main_table_id='doab',
-                                schedule_interval='@weekly', start_date=datetime(2012, 1, 1),
+                                schedule_interval='@weekly', start_date=datetime(2018, 5, 14),
                                 partition_table_id='doab_partitions', description='the description',
-                                queue='default', max_retries=3, bq_merge_days=7,
-                                merge_partition_field='common_orcid_identifier.common_path',
-                                updated_date_field='history_history.common_last_modified_date',
+                                queue='default', max_retries=3, bq_merge_days=0,
+                                merge_partition_field='header.identifier',
+                                updated_date_field='header.datestamp',
                                 download_ext='json', extract_ext='json', transform_ext='jsonl',
                                 airflow_vars=[AirflowVar.data_path.get(), AirflowVar.project_id.get(),
                                               AirflowVar.data_location.get(),
@@ -212,14 +212,18 @@ def extract_entries(url: str, entries_path: str, next_token: str = None, success
     }
 
     tmp_url = url.split('&')[0] + f'&resumptionToken={next_token}' if next_token else url
+    print(tmp_url)
     try:
         response = retry_session().get(tmp_url, headers=headers)
     except RetryError:
         return False, next_token, None
     if response.status_code == 200:
         response_dict = xmltodict.parse(response.content.decode('utf-8'))
-        total_entries = response_dict['OAI-PMH']['ListRecords']['resumptionToken']['@completeListSize']
-        entries = response_dict['OAI-PMH']['ListRecords']['record']
+        try:
+            total_entries = response_dict['OAI-PMH']['ListRecords']['resumptionToken']['@completeListSize']
+            entries = response_dict['OAI-PMH']['ListRecords']['record']
+        except KeyError:
+            return True, None, '0'
         try:
             next_token = response_dict['OAI-PMH']['ListRecords']['resumptionToken']['#text']
         except KeyError:
