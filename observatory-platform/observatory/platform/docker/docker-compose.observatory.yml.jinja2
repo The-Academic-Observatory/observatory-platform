@@ -59,6 +59,10 @@ x-environment: &environment
   AIRFLOW__WEBSERVER__RBAC: "True"
   AIRFLOW__CELERY__BROKER_URL: "redis://:@{{ redis_hostname }}:6379/0"
   AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:{{ postgres_password }}@{{ postgres_hostname }}:5432/airflow"
+  {%- if config.backend.type.value == 'terraform' %}
+  AIRFLOW__SECRETS__BACKEND: "airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend"
+  AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
+  {%- endif %}
 
   # Paths to google credentials and UI user settings
   GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
@@ -75,6 +79,10 @@ x-environment: &environment
   # Variables
   AIRFLOW_VAR_DATA_PATH: "/opt/observatory/data"
   AIRFLOW_VAR_DAGS_MODULE_NAMES: {{ dags_projects_to_str(config.dags_projects)  }}
+  {%- if config.backend.type.value == 'terraform' %}
+  AIRFLOW_VAR_DOWNLOAD_BUCKET: ${AIRFLOW_VAR_DOWNLOAD_BUCKET}
+  AIRFLOW_VAR_TRANSFORM_BUCKET: ${AIRFLOW_VAR_TRANSFORM_BUCKET}
+  {%- endif %}
   {%- for var in config.make_airflow_variables() %}
   {%- if config.backend.type.value == 'local' %}
   {{ var.env_var_name }}: {{ var.value }}
@@ -88,14 +96,14 @@ x-volumes: &volumes
   - "{{ host_dags_path }}:/opt/airflow/dags"
   - "{{ host_data_path }}:/opt/observatory/data"
   - "{{ host_package_path }}:/opt/observatory-platform"
-  {# Creates the volumes for local projects #}
+  # Volume mappings for DAGs projects:
   {%- for project in config.dags_projects %}
   {%- if project.type == 'local' %}
   {%- if config.backend.type.value == 'local' %}
   - "{{ project.path }}:/opt/{{ project.package_name }}"
-  {%- else -%}
+  {%- else %}
   - "/opt/{{ project.package_name }}:/opt/{{ project.package_name }}"
-  {%- endif -%}
+  {%- endif %}
   {%- endif %}
   {%- endfor %}
 

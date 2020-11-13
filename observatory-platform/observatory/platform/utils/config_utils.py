@@ -60,6 +60,7 @@ class AirflowConns:
     MAG_SNAPSHOTS_CONTAINER = "mag_snapshots_container"
     TERRAFORM = "terraform"
     SLACK = "slack"
+    ELASTIC = "elastic"
 
 
 def module_file_path(module_path: str, nav_back_steps: int = -1) -> str:

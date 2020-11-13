@@ -158,6 +158,8 @@ class TerraformBuilder:
                                        cwd=self.terraform_build_path)
 
         # Wait for results
-        output, error = stream_process(proc, self.debug)
+        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
+        # image building is
+        output, error = stream_process(proc, True)
 
         return output, error, proc.returncode

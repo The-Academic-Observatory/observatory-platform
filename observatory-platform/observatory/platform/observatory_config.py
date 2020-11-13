@@ -63,7 +63,7 @@ def from_hcl(string: str) -> Dict:
     :return: the dict.
     """
 
-    return json.loads(string, separators=(',', '='))
+    return json.loads(string.replace('"=', '":'))
 
 
 class BackendType(Enum):

@@ -187,8 +187,7 @@ class TerraformTasks:
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVars.PROJECT_ID, AirflowVars.TERRAFORM_ORGANIZATION,
-                                     AirflowVars.TERRAFORM_PREFIX)
+        vars_valid = check_variables(AirflowVars.PROJECT_ID, AirflowVars.TERRAFORM_ORGANIZATION)
         conns_valid = check_connections(AirflowConns.TERRAFORM)
 
         if not vars_valid or not conns_valid:
