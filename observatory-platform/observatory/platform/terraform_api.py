@@ -21,6 +21,7 @@ import logging
 import os
 from dataclasses import dataclass
 from enum import Enum
+from http import HTTPStatus
 from typing import Tuple, List
 
 import requests
@@ -173,10 +174,10 @@ class TerraformApi:
             f'{self.api_url}/organizations/{organisation}/workspaces',
             headers=self.headers, json=data)
 
-        if response.status_code == 201:
+        if response.status_code == HTTPStatus.CREATED:
             logging.info(f"Created workspace {workspace}")
             logging.debug(f"response: {response.text}")
-        elif response.status_code == 422:
+        elif response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY:
             logging.warning(f"Workspace with name {workspace} already exists")
             logging.debug(f"response: {response.text}")
         else:
@@ -207,7 +208,7 @@ class TerraformApi:
         response = requests.get(
             f'{self.api_url}/organizations/{organisation}/workspaces/{workspace}',
             headers=self.headers)
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK:
             logging.info(f"Retrieved workspace id for workspace '{workspace}'.")
             logging.debug(f"response: {response.text}")
         else:
@@ -231,7 +232,7 @@ class TerraformApi:
                                  headers=self.headers, json={'data': variable.to_dict()})
 
         key = variable.key
-        if response.status_code == 201:
+        if response.status_code == HTTPStatus.CREATED:
             logging.info(f"Added variable {key}")
         else:
             msg = f"Unsuccessful adding variable {key}, response: {response.text}, status_code: {response.status_code}"
@@ -259,7 +260,7 @@ class TerraformApi:
                 key = variable.key
             except KeyError:
                 key = None
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK:
             logging.info(f"Updated variable {key}")
         else:
             msg = f"Unsuccessful updating variable with id {variable.var_id} and key {key}, response: {response.text}, status_code: {response.status_code}"
@@ -277,7 +278,7 @@ class TerraformApi:
         """
         response = requests.delete(f'{self.api_url}/workspaces/{workspace_id}/vars/{var.var_id}', headers=self.headers)
 
-        if response.status_code == 204:
+        if response.status_code == HTTPStatus.NO_CONTENT:
             logging.info(f"Deleted variable with id {var.var_id}")
         else:
             msg = f"Unsuccessful deleting variable with id {var.var_id}, response: {response.text}, status_code: {response.status_code}"
@@ -294,7 +295,7 @@ class TerraformApi:
         """
         response = requests.get(f'{self.api_url}/workspaces/{workspace_id}/vars', headers=self.headers)
 
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK:
             logging.info(f"Retrieved workspace variables.")
             logging.debug(f"response: {response.text}")
         else:
@@ -338,7 +339,7 @@ class TerraformApi:
         :return: configuration version status
         """
         response = requests.get(f'{self.api_url}/configuration-versions/{configuration_id}', headers=self.headers)
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK:
             logging.info(f"Retrieved configuration version info.")
             logging.debug(f"response: {response.text}")
         else:
@@ -362,7 +363,7 @@ class TerraformApi:
         headers = {'Content-Type': 'application/octet-stream'}
         with open(configuration_path, 'rb') as configuration:
             response = requests.put(upload_url, headers=headers, data=configuration.read())
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK:
             logging.info(f"Uploaded configuration.")
             logging.debug(f"response: {response.text}")
         else:
@@ -391,7 +392,7 @@ class TerraformApi:
             data['data']['attributes']['target-addrs'] = [target_addrs]
 
         response = requests.post(f'{self.api_url}/runs', headers=self.headers, json=data)
-        if response.status_code == 201:
+        if response.status_code == HTTPStatus.CREATED:
             logging.info(f"Created run.")
             logging.debug(f"response: {response.text}")
         else:
@@ -409,7 +410,7 @@ class TerraformApi:
         """
 
         response = requests.get(f'{self.api_url}/runs/{run_id}', headers=self.headers)
-        if not response.status_code == 200:
+        if not response.status_code == HTTPStatus.OK:
             logging.error(f"Response status: {response.status_code}")
             logging.error(f"Unsuccessful retrieving run details, response: {response.text}")
             exit(os.EX_CONFIG)
