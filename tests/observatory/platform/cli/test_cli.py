@@ -117,10 +117,7 @@ class MockPlatformCommand(Mock):
         self.docker_compose_path = docker_compose_path
         self.config_exists = config_exists
         self.config = config
-        self.build_return_code = build_return_code
-        self.start_return_code = start_return_code
-        self.stop_return_code = stop_return_code
-        self.wait_for_airflow_ui = wait_for_airflow_ui
+
         self.config_path = config_path
         self.build_path = BUILD_PATH
         self.dags_path = DAGS_MODULE
@@ -137,6 +134,10 @@ class MockPlatformCommand(Mock):
         self.docker_network_name = DOCKER_NETWORK_NAME
         self.docker_compose_project_name = DOCKER_COMPOSE_PROJECT_NAME
         self.debug = DEBUG
+        self._build_return_code = build_return_code
+        self._start_return_code = start_return_code
+        self._stop_return_code = stop_return_code
+        self._wait_for_airflow_ui = wait_for_airflow_ui
 
     def make_files(self):
         pass

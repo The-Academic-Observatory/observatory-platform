@@ -27,8 +27,8 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from croniter import croniter
 
-from observatory.platform.observatory_config import Environment, VirtualMachine
 from observatory.platform.observatory_config import TerraformConfig
+from observatory.platform.observatory_config import VirtualMachine
 from observatory.platform.terraform_api import TerraformApi
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, change_task_log_level
 from observatory.platform.utils.config_utils import (check_variables, check_connections, AirflowVars, AirflowConns)
@@ -66,15 +66,20 @@ def create_slack_webhook(comments: str = "", **kwargs) -> SlackWebhookHook:
     """
 
     ti: TaskInstance = kwargs['ti']
+
+    # Get project id
+    project_id = Variable.get(AirflowVars.PROJECT_ID)
+
     message = """
-    :red_circle: Task Alert. 
-    *Task*: {task}  
-    *Dag*: {dag} 
-    *Execution Time*: {exec_date}  
-    *Log Url*: {log_url} 
+    :red_circle: Task Alert.
+    *Task*: {task}
+    *Dag*: {dag}
+    *Execution Time*: {exec_date}
+    *Log Url*: {log_url}
+    *Project id*: {project_id}
     *Comments*: {comments}
     """.format(task=ti.task_id, dag=ti.dag_id, ti=ti, exec_date=kwargs['execution_date'], log_url=ti.log_url,
-               comments=comments)
+               comments=comments, project_id=project_id)
     slack_conn = BaseHook.get_connection(AirflowConns.SLACK)
     slack_hook = SlackWebhookHook(http_conn_id=slack_conn.conn_id, webhook_token=slack_conn.password, message=message)
     return slack_hook
