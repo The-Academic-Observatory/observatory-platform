@@ -112,9 +112,19 @@ Activate the virtual environment:
 source venv/bin/activate
 ```
 
-Install the package:
+Install the `observatory-platform` package:
 ```bash
-pip3 install -e .
+pip3 install -e observatory-platform
+```
+
+Install the `observatory-dags` package (optional):
+```bash
+pip3 install -e observatory-dags
+```
+
+Install the `observatory-reports` package (optional):
+```bash
+pip3 install -e observatory-reports
 ```
 
 ## Observatory Platform development environment
@@ -122,7 +132,7 @@ pip3 install -e .
 ### Prepare configuration files
 Generate a config.yaml file:
 ```bash
-observatory generate config.yaml
+observatory generate config local
 ```
 
 You should see the following output:
@@ -132,31 +142,62 @@ config.yaml saved to: "/home/user/.observatory/config.yaml"
 Please customise the parameters with '<--' in the config file. Parameters with '#' are optional.
 ```
 
+The generated file should look like (with inline comments removed):
+```yaml
+# The backend type: local
+# The environment type: develop, staging or production
+backend:
+  type: local
+  environment: develop
+
+# Apache Airflow settings
+airflow:
+  fernet_key: wbK_uYJ-x0tnUcy_WMwee6QYzI-7Ywbf-isKCvR1sZs=
+
+# Terraform settings: customise to use the vm_create and vm_destroy DAGs:
+# terraform:
+#   organization: my-terraform-org-name
+
+# Google Cloud settings: customise to use Google Cloud services
+# google_cloud:
+#   project_id: my-gcp-id # the Google Cloud project identifier
+#   credentials: /path/to/google_application_credentials.json # the path to the Google Cloud service account credentials
+#   data_location: us # the Google Cloud region where the resources will be deployed
+#   buckets:
+#     download_bucket: my-download-bucket-name # the bucket where downloads are stored
+#     transform_bucket: my-transform-bucket-name # the bucket where transformed files are stored
+
+# User defined Apache Airflow variables:
+# airflow_variables:
+#   my_variable_name: my-variable-value
+
+# User defined Apache Airflow Connections:
+# airflow_connections:
+#   my_connection: http://my-username:my-password@
+
+# User defined Observatory DAGs projects:
+# dags_projects:
+#   - package_name: observatory-dags
+#     path: /home/user/observatory-platform/observatory-dags
+#     dags_module: observatory.dags.dags
+```
+
 See [Creating and managing projects](https://cloud.google.com/resource-manager/docs/creating-managing-projects) for more 
 details on creating a project and [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for 
 instructions on how to create a service account key.
 
-Parameters explained: 
-```yaml
-backend: The backend of the config file, either 'local' or 'terraform'.
-fernet_key: The fernet key which is used to encrypt the secrets in the airflow database 
-google_application_credentials: The path to the JSON key for a Google Cloud service account that has permissions
-airflow_connections:
-  crossref: Stores the token for the crossref API as a password
-  mag_releases_table: Stores the azure-storage-account-name as a login and url-encoded-sas-token as password
-  mag_snapshots_container: Stores the azure-storage-account-name as a login and url-encoded-sas-token as password
-  terraform: Stores the terraform user token as a password (used to create/destroy VMs)
-  slack: Stores the URL for the Slack webhook as a host and the token as a password
-airflow_variables:
-  environment: The environment type, has to either be 'dev', 'test' or 'prod'
-  project_id: The Google Cloud project project identifier
-  data_location: The location where BigQuery data will be stored (same as the bucket location)
-  download_bucket_name: The name of the Google Cloud Storage bucket where downloaded data will be stored
-To access the two buckets add the roles `roles/bigquery.admin` and `roles/storagetransfer.admin` to the service account connected to google_application_credentials above.
-  transform_bucket_name: The name of the Google Cloud Storage bucket where transformed data will be stored
-  terraform_organization: The name of the Terraform Cloud organization (used to create/destroy VMs)
-  terraform_prefix: The name of the Terraform Cloud workspace prefix (used to create/destroy VMs)
-```
+Make sure that service account has roles `roles/bigquery.admin` and `roles/storagetransfer.admin` as well as 
+access to the download and transform buckets.
+
+The table below lists connections that are required for telescopes bundled with the observatory:
+
+| Connection Key | Example | Description |
+| -------- | -------- | -------- |
+| crossref     | `http://myname:mypassword@myhost.com`     | Stores the token for the crossref API as a password     |
+| mag_releases_table     | `http://myname:mypassword@myhost.com`     | Stores the azure-storage-account-name as a login and url-encoded-sas-token as password     |
+| mag_snapshots_container     | `http://myname:mypassword@myhost.com`     | Stores the azure-storage-account-name as a login and url-encoded-sas-token as password     |
+| terraform     | `mysql://:terraform-token@`     | Stores the terraform user token as a password (used to create/destroy VMs)     |
+| slack     | `https://:T00000000%2FB00000000%2FXXXXXXXXXXXXXXXX XXXXXXXX@https%3A%2F%2Fhooks.slack.com%2Fservices`     | Stores the URL for the Slack webhook as a host and the token as a password     |
 
 ### Start the Observatory Platform
 To start the local Observatory Platform development environment:

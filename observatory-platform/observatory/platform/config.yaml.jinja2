@@ -1,0 +1,36 @@
+# The backend type: local
+# The environment type: develop, staging or production
+backend:
+  type: local
+  environment: develop
+
+# Apache Airflow settings
+airflow:
+  fernet_key: {{ fernet_key }}
+
+# Terraform settings: customise to use the vm_create and vm_destroy DAGs:
+# terraform:
+#   organization: my-terraform-org-name
+
+# Google Cloud settings: customise to use Google Cloud services
+# google_cloud:
+#   project_id: my-gcp-id
+#   credentials: /path/to/google_application_credentials.json
+#   data_location: us
+#   buckets:
+#     download_bucket: my-download-bucket-name
+#     transform_bucket: my-transform-bucket-name
+
+# User defined Apache Airflow variables:
+# airflow_variables:
+#   my_variable_name: my-variable-value
+
+# User defined Apache Airflow Connections:
+# airflow_connections:
+#   my_connection: http://my-username:my-password@
+
+# User defined Observatory DAGs projects:
+# dags_projects:
+#   - package_name: observatory-dags
+#     path: {{ observatory_dags_path }}
+#     dags_module: observatory.dags.dags

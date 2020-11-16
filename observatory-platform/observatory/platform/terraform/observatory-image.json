@@ -1,0 +1,40 @@
+{
+  "variables": {
+    "credentials_file": "{{env `credentials_file`}}",
+    "project_id": "{{env `project_id`}}",
+    "zone": "{{env `zone`}}",
+    "environment": "{{env `environment`}}"
+  },
+  "builders": [
+    {
+      "type": "googlecompute",
+      "account_file": "{{user `credentials_file`}}",
+      "project_id": "{{user `project_id`}}",
+      "ssh_username": "packer",
+      "source_image_family": "ubuntu-1804-lts",
+      "machine_type": "n1-standard-1",
+      "zone": "{{user `zone`}}",
+      "image_name": "observatory-image-{{user `environment`}}"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": "mkdir -p /tmp/opt/observatory/build"
+    },
+    {
+      "type": "file",
+      "source": "../packages",
+      "destination": "/tmp/opt"
+    },
+    {
+      "type": "file",
+      "source": "../docker",
+      "destination": "/tmp/opt/observatory/build"
+    },
+    {
+      "type": "shell",
+      "script": "build.sh"
+    }
+  ]
+}
