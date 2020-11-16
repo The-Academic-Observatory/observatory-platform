@@ -164,23 +164,24 @@ class TestObservatoryPlatform(unittest.TestCase):
     def test_platform_start_stop_success(self, mock_cmd):
         """ Test that the start and stop command are successful """
 
-        is_environment_valid = True
-        docker_exe_path = '/path/to/docker'
-        is_docker_running = True
-        docker_compose_path = '/path/to/docker-compose'
-        config_exists = True
-        config = MockConfig(is_valid=True)
-        build_return_code = 0
-        start_return_code = 0
-        stop_return_code = 0
-        wait_for_airflow_ui = True
-        mock_cmd.return_value = MockPlatformCommand(
-            is_environment_valid, docker_exe_path, is_docker_running,
-            docker_compose_path, config_exists, config, build_return_code,
-            start_return_code, stop_return_code, wait_for_airflow_ui)
-
         runner = CliRunner()
         with runner.isolated_filesystem():
+            is_environment_valid = True
+            docker_exe_path = '/path/to/docker'
+            is_docker_running = True
+            docker_compose_path = '/path/to/docker-compose'
+            config_exists = True
+            config = MockConfig(is_valid=True)
+            build_return_code = 0
+            start_return_code = 0
+            stop_return_code = 0
+            wait_for_airflow_ui = True
+            config_path = os.path.abspath('config.yaml')
+            mock_cmd.return_value = MockPlatformCommand(
+                is_environment_valid, docker_exe_path, is_docker_running,
+                docker_compose_path, config_exists, config, build_return_code,
+                start_return_code, stop_return_code, wait_for_airflow_ui, config_path)
+
             # Test that start command works
             result = runner.invoke(cli, ['platform', 'start'])
             self.assertEqual(result.exit_code, os.EX_OK)
