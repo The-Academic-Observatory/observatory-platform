@@ -28,6 +28,10 @@ from click.testing import CliRunner
 from observatory.platform.cli.cli import cli
 from observatory.platform.observatory_config import TerraformConfig
 from observatory.platform.observatory_config import ValidationError
+from observatory.platform.platform_builder import (BUILD_PATH, DAGS_MODULE, DATA_PATH, LOGS_PATH,
+                                                   POSTGRES_PATH, HOST_UID, HOST_GID, REDIS_PORT, FLOWER_UI_PORT,
+                                                   AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
+                                                   DOCKER_NETWORK_NAME, DOCKER_COMPOSE_PROJECT_NAME, DEBUG)
 from observatory.platform.terraform_api import TerraformApi
 from tests.observatory.test_utils import random_id
 
@@ -104,42 +108,35 @@ class MockPlatformCommand(Mock):
 
     def __init__(self, is_environment_valid: bool, docker_exe_path: str, is_docker_running: bool,
                  docker_compose_path: str, config_exists: bool, config: Any, build_return_code: int,
-                 start_return_code: int, stop_return_code: int, wait_for_airflow_ui: bool, **kwargs: Any):
+                 start_return_code: int, stop_return_code: int, wait_for_airflow_ui: bool, config_path: str,
+                 **kwargs: Any):
         super().__init__(**kwargs)
-        self._is_environment_valid = is_environment_valid
-        self._docker_exe_path = docker_exe_path
-        self._is_docker_running = is_docker_running
-        self._docker_compose_path = docker_compose_path
-        self._config_exists = config_exists
-        self._config = config
-        self._build_return_code = build_return_code
-        self._start_return_code = start_return_code
-        self._stop_return_code = stop_return_code
-        self._wait_for_airflow_ui = wait_for_airflow_ui
-
-    @property
-    def is_environment_valid(self):
-        return self._is_environment_valid
-
-    @property
-    def docker_exe_path(self):
-        return self._docker_exe_path
-
-    @property
-    def is_docker_running(self):
-        return self._is_docker_running
-
-    @property
-    def docker_compose_path(self):
-        return self._docker_compose_path
-
-    @property
-    def config_exists(self):
-        return self._config_exists
-
-    @property
-    def config(self):
-        return self._config
+        self.is_environment_valid = is_environment_valid
+        self.docker_exe_path = docker_exe_path
+        self.is_docker_running = is_docker_running
+        self.docker_compose_path = docker_compose_path
+        self.config_exists = config_exists
+        self.config = config
+        self.build_return_code = build_return_code
+        self.start_return_code = start_return_code
+        self.stop_return_code = stop_return_code
+        self.wait_for_airflow_ui = wait_for_airflow_ui
+        self.config_path = config_path
+        self.build_path = BUILD_PATH
+        self.dags_path = DAGS_MODULE
+        self.data_path = DATA_PATH
+        self.logs_path = LOGS_PATH
+        self.postgres_path = POSTGRES_PATH
+        self.host_uid = HOST_UID
+        self.host_gid = HOST_GID
+        self.redis_port = REDIS_PORT
+        self.flower_ui_port = FLOWER_UI_PORT
+        self.airflow_ui_port = AIRFLOW_UI_PORT
+        self.elastic_port = ELASTIC_PORT
+        self.kibana_port = KIBANA_PORT
+        self.docker_network_name = DOCKER_NETWORK_NAME
+        self.docker_compose_project_name = DOCKER_COMPOSE_PROJECT_NAME
+        self.debug = DEBUG
 
     def make_files(self):
         pass
@@ -215,7 +212,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid, docker_exe_path, is_docker_running,
                 docker_compose_path, config_exists, config, build_return_code,
-                start_return_code, stop_return_code, wait_for_airflow_ui)
+                start_return_code, stop_return_code, wait_for_airflow_ui, default_config_path)
 
             # Test that start command fails
             result = runner.invoke(cli, ['platform', 'start', '--config-path', default_config_path])
@@ -255,7 +252,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid, docker_exe_path, is_docker_running,
                 docker_compose_path, config_exists, config, build_return_code,
-                start_return_code, stop_return_code, wait_for_airflow_ui)
+                start_return_code, stop_return_code, wait_for_airflow_ui, default_config_path)
 
             # Test that start command fails
             result = runner.invoke(cli, ['platform', 'start', '--config-path', default_config_path])
