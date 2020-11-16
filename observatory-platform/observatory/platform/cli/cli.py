@@ -22,7 +22,7 @@ import click
 from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2, INDENT3
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
-from observatory.platform.cli.terraform_command import TerraformCommand, TerraformConfig
+from observatory.platform.cli.terraform_command import TerraformCommand
 from observatory.platform.platform_builder import (BUILD_PATH, DAGS_MODULE, DATA_PATH, LOGS_PATH,
                                                    POSTGRES_PATH, HOST_UID, HOST_GID, REDIS_PORT, FLOWER_UI_PORT,
                                                    AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
@@ -144,35 +144,51 @@ def platform(command: str, config_path: str, build_path: str, dags_path: str, da
     """
 
     # Make the platform command, which encapsulates functionality for running the observatory
-    cmd = PlatformCommand(config_path, build_path=build_path, dags_path=dags_path,
-                          data_path=data_path, logs_path=logs_path, postgres_path=postgres_path,
-                          host_uid=host_uid, host_gid=host_gid, redis_port=redis_port,
-                          flower_ui_port=flower_ui_port, airflow_ui_port=airflow_ui_port,
-                          elastic_port=elastic_port, kibana_port=kibana_port,
-                          docker_network_name=docker_network_name,
-                          docker_compose_project_name=docker_compose_project_name,
-                          debug=debug)
+    platform_cmd = PlatformCommand(config_path, build_path=build_path, dags_path=dags_path,
+                                   data_path=data_path, logs_path=logs_path, postgres_path=postgres_path,
+                                   host_uid=host_uid, host_gid=host_gid, redis_port=redis_port,
+                                   flower_ui_port=flower_ui_port, airflow_ui_port=airflow_ui_port,
+                                   elastic_port=elastic_port, kibana_port=kibana_port,
+                                   docker_network_name=docker_network_name,
+                                   docker_compose_project_name=docker_compose_project_name,
+                                   debug=debug)
     generate_cmd = GenerateCommand()
 
-    # The minimum number of characters per line
-    min_line_chars = 80
+    # Check dependencies
+    platform_check_dependencies(platform_cmd, generate_cmd)
 
-    ######################
-    # Check dependencies #
-    ######################
+    # Start the appropriate process
+    if command == 'start':
+        platform_stop(platform_cmd)
+    elif command == 'stop':
+        platform_stop(platform_cmd)
+
+    exit(os.EX_OK)
+
+
+def platform_check_dependencies(platform_cmd: PlatformCommand,
+                                generate_cmd: GenerateCommand,
+                                min_line_chars: int = 80):
+    """ Check Platform dependencies.
+
+    :param platform_cmd: the platform command instance.
+    :param generate_cmd: the generate command instance.
+    :param min_line_chars: the minimum number of lines when printing to the command line interface.
+    :return: None.
+    """
 
     print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end='\r')
 
-    if not cmd.is_environment_valid:
+    if not platform_cmd.is_environment_valid:
         print(f"{PLATFORM_NAME}: dependencies missing".ljust(min_line_chars))
     else:
         print(f"{PLATFORM_NAME}: all dependencies found".ljust(min_line_chars))
 
     print(indent("Docker:", INDENT1))
-    if cmd.docker_exe_path is not None:
-        print(indent(f"- path: {cmd.docker_exe_path}", INDENT2))
+    if platform_cmd.docker_exe_path is not None:
+        print(indent(f"- path: {platform_cmd.docker_exe_path}", INDENT2))
 
-        if cmd.is_docker_running:
+        if platform_cmd.is_docker_running:
             print(indent(f"- running", INDENT2))
         else:
             print(indent("- not running, please start", INDENT2))
@@ -181,82 +197,94 @@ def platform(command: str, config_path: str, build_path: str, dags_path: str, da
 
     print(indent("Host machine settings:", INDENT1))
     print(indent(f"- observatory home: {observatory_home()}", INDENT2))
-    print(indent(f"- data-path: {data_path}", INDENT2))
-    print(indent(f"- dags-path: {dags_path}", INDENT2))
-    print(indent(f"- logs-path: {logs_path}", INDENT2))
-    print(indent(f"- postgres-path: {postgres_path}", INDENT2))
-    print(indent(f"- host-uid: {host_uid}", INDENT2))
+    print(indent(f"- data-path: {platform_cmd.data_path}", INDENT2))
+    print(indent(f"- dags-path: {platform_cmd.dags_path}", INDENT2))
+    print(indent(f"- logs-path: {platform_cmd.logs_path}", INDENT2))
+    print(indent(f"- postgres-path: {platform_cmd.postgres_path}", INDENT2))
+    print(indent(f"- host-uid: {platform_cmd.host_uid}", INDENT2))
 
     print(indent("Docker Compose:", INDENT1))
-    if cmd.docker_compose_path is not None:
-        print(indent(f"- path: {cmd.docker_compose_path}", INDENT2))
+    if platform_cmd.docker_compose_path is not None:
+        print(indent(f"- path: {platform_cmd.docker_compose_path}", INDENT2))
     else:
         print(indent("- not installed, please install https://docs.docker.com/compose/install/", INDENT2))
 
     print(indent("config.yaml:", INDENT1))
-    if cmd.config_exists:
-        print(indent(f"- path: {config_path}", INDENT2))
+    if platform_cmd.config_exists:
+        print(indent(f"- path: {platform_cmd.config_path}", INDENT2))
 
-        if cmd.config.is_valid:
+        if platform_cmd.config.is_valid:
             print(indent("- file valid", INDENT2))
         else:
             print(indent("- file invalid", INDENT2))
-            for error in cmd.config.errors:
+            for error in platform_cmd.config.errors:
                 print(indent('- {}: {}'.format(error.key, error.value), INDENT3))
     else:
-        print(indent(f"- file not found, generating a default file on path: {config_path}", INDENT2))
-        generate_cmd.generate_local_config(config_path)
+        print(indent(f"- file not found, generating a default file on path: {platform_cmd.config_path}", INDENT2))
+        generate_cmd.generate_local_config(platform_cmd.config_path)
 
-    if not cmd.is_environment_valid:
+    if not platform_cmd.is_environment_valid:
         exit(os.EX_CONFIG)
 
-    ##################
-    # Run commands   #
-    ##################
 
-    # Start the appropriate process
-    if command == 'start':
-        print(f'{PLATFORM_NAME}: building...'.ljust(min_line_chars), end="\r")
-        output, error, return_code = cmd.build()
+def platform_start(platform_cmd: PlatformCommand,
+                   min_line_chars: int = 80):
+    """ Check Platform dependencies.
 
-        if return_code == 0:
-            print(f'{PLATFORM_NAME}: built'.ljust(min_line_chars))
+    :param platform_cmd: the platform command instance.
+    :param min_line_chars: the minimum number of lines when printing to the command line interface.
+    :return: None.
+    """
+
+    print(f'{PLATFORM_NAME}: building...'.ljust(min_line_chars), end="\r")
+    output, error, return_code = platform_cmd.build()
+
+    if return_code == 0:
+        print(f'{PLATFORM_NAME}: built'.ljust(min_line_chars))
+    else:
+        print(f'{PLATFORM_NAME}: build error'.ljust(min_line_chars))
+        exit(os.EX_CONFIG)
+
+    # Start the built containers
+    print(f'{PLATFORM_NAME}: starting...'.ljust(min_line_chars), end='\r')
+    output, error, return_code = platform_cmd.start()
+
+    if return_code == 0:
+        ui_started = platform_cmd.wait_for_airflow_ui(timeout=120)
+
+        if ui_started:
+            print(f'{PLATFORM_NAME}: started'.ljust(min_line_chars))
+            print(f'View the Apache Airflow UI at {platform_cmd.ui_url}')
         else:
-            print(f'{PLATFORM_NAME}: build error'.ljust(min_line_chars))
-            exit(os.EX_CONFIG)
+            print(f'{PLATFORM_NAME}: error starting'.ljust(min_line_chars))
+            print(f'Could not find the Airflow UI at {platform_cmd.ui_url}')
+    else:
+        print("Error starting the Observatory Platform")
+        exit(os.EX_CONFIG)
 
-        # Start the built containers
-        print(f'{PLATFORM_NAME}: starting...'.ljust(min_line_chars), end='\r')
-        output, error, return_code = cmd.start()
 
-        if return_code == 0:
-            ui_started = cmd.wait_for_airflow_ui(timeout=120)
+def platform_stop(platform_cmd: PlatformCommand,
+                  min_line_chars: int = 80):
+    """ Start the Observatory platform.
 
-            if ui_started:
-                print(f'{PLATFORM_NAME}: started'.ljust(min_line_chars))
-                print(f'View the Apache Airflow UI at {cmd.ui_url}')
-            else:
-                print(f'{PLATFORM_NAME}: error starting'.ljust(min_line_chars))
-                print(f'Could not find the Airflow UI at {cmd.ui_url}')
-        else:
-            print("Error starting the Observatory Platform")
-            exit(os.EX_CONFIG)
+    :param platform_cmd: the platform command instance.
+    :param min_line_chars: the minimum number of lines when printing to the command line interface.
+    :return: None.
+    """
 
-    elif command == 'stop':
-        print(f'{PLATFORM_NAME}: stopping...'.ljust(min_line_chars), end='\r')
-        cmd.make_files()
-        output, error, return_code = cmd.stop()
+    print(f'{PLATFORM_NAME}: stopping...'.ljust(min_line_chars), end='\r')
+    platform_cmd.make_files()
+    output, error, return_code = platform_cmd.stop()
 
-        if debug:
-            print(output)
+    if platform_cmd.debug:
+        print(output)
 
-        if return_code == 0:
-            print(f'{PLATFORM_NAME}: stopped'.ljust(min_line_chars))
-        else:
-            print(f'{PLATFORM_NAME}: error stopping'.ljust(min_line_chars))
-            print(error)
-            exit(os.EX_CONFIG)
-    exit(os.EX_OK)
+    if return_code == 0:
+        print(f'{PLATFORM_NAME}: stopped'.ljust(min_line_chars))
+    else:
+        print(f'{PLATFORM_NAME}: error stopping'.ljust(min_line_chars))
+        print(error)
+        exit(os.EX_CONFIG)
 
 
 @cli.group()
@@ -355,9 +383,36 @@ def terraform(command, config_path, terraform_credentials_path, debug):
     terraform_cmd = TerraformCommand(config_path, terraform_credentials_path, debug=debug)
     generate_cmd = GenerateCommand()
 
-    ######################
-    # Check dependencies #
-    ######################
+    # Check dependencies
+    terraform_check_dependencies(terraform_cmd, generate_cmd)
+
+    # Run commands
+    if command == 'build-terraform':
+        # Build image with packer
+        terraform_cmd.build_terraform()
+    elif command == 'build-image':
+        # Build image with packer
+        terraform_cmd.build_image()
+    else:
+        # Create a new workspace
+        if command == 'create-workspace':
+            terraform_cmd.create_workspace()
+
+        # Update an existing workspace
+        elif command == 'update-workspace':
+            terraform_cmd.update_workspace()
+
+
+def terraform_check_dependencies(terraform_cmd: TerraformCommand,
+                                 generate_cmd: GenerateCommand,
+                                 min_line_chars: int = 80):
+    """ Check Terraform dependencies.
+
+    :param terraform_cmd: the Terraform command instance.
+    :param generate_cmd: the generate command instance.
+    :param min_line_chars: the minimum number of lines when printing to the command line interface.
+    :return: None.
+    """
 
     print(f"{TERRAFORM_NAME}: checking dependencies...".ljust(min_line_chars), end='\r')
 
@@ -368,7 +423,7 @@ def terraform(command, config_path, terraform_credentials_path, debug):
 
     print(indent("Config:", INDENT1))
     if terraform_cmd.config_exists:
-        print(indent(f"- path: {config_path}", INDENT2))
+        print(indent(f"- path: {terraform_cmd.config_path}", INDENT2))
         if terraform_cmd.config.is_valid:
             print(indent("- file valid", INDENT2))
         else:
@@ -377,7 +432,7 @@ def terraform(command, config_path, terraform_credentials_path, debug):
                 print(indent(f'- {key}: {value}', INDENT3))
     else:
         print(indent("- file not found, generating a default file", INDENT2))
-        generate_cmd.generate_terraform_config(config_path)
+        generate_cmd.generate_terraform_config(terraform_cmd.config_path)
 
     print(indent("Terraform credentials file:", INDENT1))
     if terraform_cmd.terraform_credentials_exists:
@@ -393,39 +448,6 @@ def terraform(command, config_path, terraform_credentials_path, debug):
 
     if not terraform_cmd.is_environment_valid:
         exit(os.EX_CONFIG)
-
-    ####################
-    # Run commands     #
-    ####################
-
-    if command == 'build-terraform':
-        # Build image with packer
-        terraform_cmd.build_terraform()
-    elif command == 'build-image':
-        # Build image with packer
-        terraform_cmd.build_image()
-    else:
-        # Get organization, environment and prefix
-        organization = terraform_cmd.config.terraform.organization
-        environment = terraform_cmd.config.backend.environment.value
-        workspace = terraform_cmd.config.terraform_workspace_id
-
-        # Display settings for workspace
-        print('\nTerraform Cloud Workspace: ')
-        print(indent(f'Organization: {organization}', INDENT1))
-        print(indent(f"- Name: {workspace} (prefix: '{TerraformConfig.WORKSPACE_PREFIX}' + suffix: '{environment}')",
-                     INDENT1))
-        print(indent(f'- Settings: ', INDENT1))
-        print(indent(f'- Auto apply: True', INDENT2))
-        print(indent(f'- Terraform Variables:', INDENT1))
-
-        # Create a new workspace
-        if command == 'create-workspace':
-            terraform_cmd.create_workspace()
-
-        # Update an existing workspace
-        elif command == 'update-workspace':
-            terraform_cmd.update_workspace()
 
 
 if __name__ == "__main__":

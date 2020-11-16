@@ -109,11 +109,28 @@ class TerraformCommand:
             return TerraformApi.VERBOSITY_DEBUG
         return TerraformApi.VERBOSITY_WARNING
 
+    def print_summary(self):
+        # Get organization, environment and prefix
+        organization = self.config.terraform.organization
+        environment = self.config.backend.environment.value
+        workspace = self.config.terraform_workspace_id
+
+        # Display settings for workspace
+        print('\nTerraform Cloud Workspace: ')
+        print(indent(f'Organization: {organization}', INDENT1))
+        print(indent(f"- Name: {workspace} (prefix: '{TerraformConfig.WORKSPACE_PREFIX}' + suffix: '{environment}')",
+                     INDENT1))
+        print(indent(f'- Settings: ', INDENT1))
+        print(indent(f'- Auto apply: True', INDENT2))
+        print(indent(f'- Terraform Variables:', INDENT1))
+
     def create_workspace(self):
         """ Create a Terraform workspace.
 
         :return: None.
         """
+
+        self.print_summary()
 
         # Get terraform token
         token = TerraformApi.token_from_file(self.terraform_credentials_path)
@@ -150,6 +167,8 @@ class TerraformCommand:
 
         :return: None.
         """
+
+        self.print_summary()
 
         # Get terraform token
         token = TerraformApi.token_from_file(self.terraform_credentials_path)
