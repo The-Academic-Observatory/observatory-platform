@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: James Diprose
+
+# Set environment variables for Docker
+export HOST_USER_ID=$(id -u airflow)
+export HOST_GROUP_ID=$(id -g airflow)
+export POSTGRES_HOSTNAME="${postgres_hostname}"
+export POSTGRES_PASSWORD="sm://${project_id}/postgres_password"
+export FERNET_KEY="sm://${project_id}/fernet_key"
+export REDIS_HOSTNAME="${redis_hostname}"
+export HOST_FLOWER_UI_PORT=5555
+export HOST_REDIS_PORT=6379
+export HOST_AIRFLOW_UI_PORT=8080
+
+# Set environment variables and docker container names based on whether this is the main or worker vm
+{%- if is_airflow_main_vm %}
+export AIRFLOW_UI_USER_PASSWORD="sm://${project_id}/airflow_ui_user_password"
+export AIRFLOW_UI_USER_EMAIL="sm://${project_id}/airflow_ui_user_email"
+{% set docker_containers="redis flower webserver scheduler worker_local"%}
+{%- else %}
+{% set docker_containers="worker_remote"%}
+{%- endif %}
+
+# Export environment variables for all Airflow variables
+names=('${join("' '", keys(airflow_variables))}')
+values=('${join("' '", values(airflow_variables))}')
+for index in $${!names[*]};
+do export AIRFLOW_VAR_$${names[$index]^^}="$${values[$index]}";
+done
+
+# Hardcoded list of environment variables that need to be preserved
+PRESERVE_ENV="HOST_USER_ID,HOST_GROUP_ID,POSTGRES_HOSTNAME,POSTGRES_PASSWORD,FERNET_KEY,REDIS_HOSTNAME,\
+AIRFLOW_UI_USER_PASSWORD,AIRFLOW_UI_USER_EMAIL,HOST_FLOWER_UI_PORT,HOST_REDIS_PORT,HOST_AIRFLOW_UI_PORT"
+
+# Preserve all environment variables that begin with AIRFLOW_VAR or AIRFLOW_CONN
+PRESERVE_ENV=$(printenv | awk -v tmp="$PRESERVE_ENV" -F'=' '$0 ~ /AIRFLOW_VAR|AIRFLOW_CONN/ {printf "%s,", $1} END {print tmp}')
+
+# Save google application credentials to file
+sudo -u airflow bash -c "berglas access sm://${project_id}/google_application_credentials > /opt/observatory/google_application_credentials.json"
+
+# Navigate to docker directory which contains all Docker and Docker Compose files
+cd /opt/observatory/build/docker
+
+# Pull, build and start Docker containers
+{% set docker_compose_cmd="docker-compose -f docker-compose.observatory.yml"%}
+sudo -u airflow --preserve-env=$PRESERVE_ENV bash -c "{{ docker_compose_cmd }} pull {{ docker_containers }}"
+sudo -u airflow --preserve-env=$PRESERVE_ENV bash -c "{{ docker_compose_cmd }} build {{ docker_containers }}"
+sudo -u airflow -H --preserve-env=$PRESERVE_ENV bash -c "berglas exec -- {{ docker_compose_cmd }} up -d {{ docker_containers }}"

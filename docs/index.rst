@@ -6,7 +6,7 @@ understand how well universities operate as open knowledge institutions. The Obs
 Apache Airflow and includes DAGs (workflows) for processing: Crossref Metadata, Fundref, GRID, Microsoft Academic
 Graph (MAG) and Unpaywall.
 
-Contents
+Tutorials
 =======================
 .. toctree::
     :maxdepth: 1
@@ -19,7 +19,7 @@ Contents
 Telescopes
 =======================
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 2
 
     telescopes/index
 
@@ -27,7 +27,7 @@ Telescopes
 Datasets
 =======================
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 2
 
     datasets/index
 
@@ -35,7 +35,7 @@ Datasets
 Analytical Workflows
 =======================
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 2
 
     workflows/index
 
@@ -43,7 +43,7 @@ Analytical Workflows
 Reports
 =======================
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 2
 
     reports/index
 

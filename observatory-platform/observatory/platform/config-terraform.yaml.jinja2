@@ -1,0 +1,57 @@
+# The backend type: terraform
+# The environment type: develop, staging or production
+backend:
+  type: terraform
+  environment: develop
+
+# Apache Airflow settings
+airflow:
+  fernet_key: {{ fernet_key }}
+  ui_user_email: my-email@example.com <--
+  ui_user_password: my-password <--
+
+# Terraform settings
+terraform:
+  organization: my-terraform-org-name <--
+
+# Google Cloud settings
+google_cloud:
+  project_id: my-gcp-id <--
+  credentials: /path/to/google_application_credentials.json <--
+  region: us-west1 <--
+  zone: us-west1-a <--
+  data_location: us <--
+
+# Google Cloud CloudSQL database settings
+cloud_sql_database:
+  tier: db-custom-2-7680
+  backup_start_time: '23:00'
+  postgres_password: my-password <--
+
+# Settings for the main VM that runs the Apache Airflow scheduler and webserver
+airflow_main_vm:
+  machine_type: n2-standard-2
+  disk_size: 50
+  disk_type: pd-ssd
+  create: true
+
+# Settings for the weekly on-demand VM that runs large tasks
+airflow_worker_vm:
+  machine_type: n1-standard-8
+  disk_size: 3000
+  disk_type: pd-standard
+  create: false
+
+# User defined Apache Airflow variables:
+# airflow_variables:
+#   my_variable_name: my-variable-value
+
+# User defined Apache Airflow Connections:
+# airflow_connections:
+#   my_connection: http://my-username:my-password@
+
+# User defined Observatory DAGs projects:
+# dags_projects:
+#   - package_name: observatory-dags
+#     path: {{ observatory_dags_path }}
+#     dags_module: observatory.dags.dags

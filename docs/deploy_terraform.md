@@ -1,5 +1,7 @@
-# Deploy with Terraform
+# Observatory Terraform Environment
 This is a tutorial for deploying the Observatory Platform to Google Cloud with Terraform.
+
+You should have [installed the Observatory Platform](installation.html) before following this tutorial.
 
 ## Install dependencies
 The dependencies that are required include:
@@ -12,12 +14,16 @@ Cloud SDK including the gcloud command line tool.
 Install Packer:
 ```bash
 sudo curl -L "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_linux_amd64.zip" -o /usr/local/bin/packer
+# When asked to replace, answer 'y'
+unzip /usr/local/bin/packer -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/packer
 ```
 
 Install Terraform:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/0.13.0-beta3/terraform_0.13.0-beta3_linux_amd64.zip" -o /usr/local/bin/terraform
+sudo curl -L "https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_linux_amd64.zip" -o /usr/local/bin/terraform
+# When asked to replace, answer 'y'
+sudo unzip /usr/local/bin/terraform -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/terraform
 ```
 
@@ -32,27 +38,26 @@ sudo chmod +x /usr/local/bin/packer
 
 Install Terraform:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/0.12.28/terraform_0.12.28_darwin_amd64.zip" -o /usr/local/bin/terraform
+sudo curl -L "https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_darwin_amd64.zip" -o /usr/local/bin/terraform
 # When asked to replace, answer 'y'
 unzip /usr/local/bin/terraform -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/terraform
 ```
 
 ## Prepare Google Cloud project
-Each environment (dev, test, prod) requires its own project.
+Each environment (develop, staging, production) requires its own project.
 See [Creating and managing projects](https://cloud.google.com/resource-manager/docs/creating-managing-projects) for more 
-details on creating a project. The following instructions are for 1 project only, repeat these steps for each environment 
-you would like to use.
+details on creating a project. The following instructions are for one project only, repeat these steps for each 
+environment you would like to use.
 
 ## Prepare permissions for Google Cloud service account
 A Google Cloud service account will need to be created and it's service account key will need to be downloaded to 
 your workstation. See the article [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for
 more details.
 
-
 ### Development/test project
-For the development or test environment the following permissions will need to be assigned to the service account so that 
-Terraform and Packer are able to provision the appropriate services:
+For the development and staging environments, the following permissions will need to be assigned to the service account 
+so that Terraform and Packer are able to provision the appropriate services:
 ```bash
 BigQuery Admin
 Cloud SQL Admin
@@ -71,19 +76,20 @@ Storage Transfer Admin
 ```
 
 ### Production project
-For the production environment we created two custom roles with limited permissions to prevent storage buckets as well as 
-the sql database instance from accidentally being destroyed.  
-When running `terraform destroy` with these roles, terraform will produce an error, because the service account 
-doesn't have the required permissions to destroy those resources (buckets and sql database instance).  
-New roles can be created in the Google Cloud Console, under 'IAM & Roles' and then 'Roles'.
+For the production environment, two custom roles with limited permissions need to be created to prevent storage buckets 
+as well as the Cloud SQL database instance from accidentally being destroyed.  
+
+When running `terraform destroy` with these roles, Terraform will produce an error, because the service account 
+doesn't have the required permissions to destroy these resources (buckets and sql database instance). New roles can be 
+created in the Google Cloud Console, under 'IAM & Roles' and then 'Roles'.
 
 The two custom roles are:  
-*  Custom Cloud SQL editor
+* Custom Cloud SQL editor
 Filter the Roles table on 'Cloud SQL Editor', select the role and click on 'create role from selection'.  
 Click on 'ADD PERMISSIONS' and add `cloudsql.users.create` and `cloudsql.instances.create`.   
 This new role replaces the 'Cloud SQL Admin' role compared to the development environment above.  
 
-*  Custom Storage Admin  
+* Custom Storage Admin  
 Filter the Roles table on 'Storage Admin', select the role and click on 'create role from selection'.  
 At the 'assigned permissions' section filter for and remove `storage.buckets.delete` and `storage.objects.delete`.   
 This new role replaces the 'Storage Admin' role compared to the development environment above.  
@@ -106,97 +112,138 @@ Storage Transfer Admin
 ```
 
 ## Prepare Google Cloud services
-Enable the compute engine API (https://console.developers.google.com/apis/api/compute.googleapis.com/overview) for the google project.  
-This is required for Packer to create the image. Other Google Cloud services are enabled by Terraform itself.
+Enable the [Compute Engine API](https://console.developers.google.com/apis/api/compute.googleapis.com/overview) for the
+google project. This is required for Packer to create the image. Other Google Cloud services are enabled by Terraform 
+itself.
 
-## Clone and checkout files
-Clone the version of the Observatory Platform that you would like to deploy
-```bash
-git clone git@github.com:The-Academic-Observatory/observatory-platform.git
-```
-
+## Switch to the branch that you would like to deploy
 Enter the observatory-platform project folder:
 ```bash
 cd observatory-platform
 ```
 
-## Prepare configuration files
-Two configuration files need to be created, one for Packer and one for Terraform. They are both defined in 
-HashiCorp Configuration Language (HCL).
-
-For Packer, create a file called `dev.pkrvars.hcl` with the following fields, customising them for your project:
-```hcl
-project_id = "your-project-id"
-credentials_file = "/path/to/service/account/key.json"
-zone = "us-west1-c"
+Switch to the branch that you would like to deploy, for example:
+```
+git checkout develop
 ```
 
-For Terraform, create a file called `config_terraform.yaml` following the example below, customising it for your project.
-Parameters with '<--' need to be customised and parameters with '#' are optional.
-To automatically generate a default file use `observatory generate config_terraform.yaml`. 
+## Prepare configuration files
+The Observatory Terraform configuration file needs to be created, to generate a default file run the following command:
+```bash
+observatory generate config terraform
+```
 
-One of the required variables is a Fernet key, the generated default file includes a newly generated Fernet key that can be used right away.  
-Alternatively, generate a Fernet key yourself, with the following command:
+The file is saved to `~/.observatory/config-terraform.yaml`. Customise the generated file, parameters with '<--' need 
+to be customised and parameters commented out are optional.
+
+See below for an example generated file:
+```yaml
+# The backend type: terraform
+# The environment type: develop, staging or production
+backend:
+  type: terraform
+  environment: develop
+
+# Apache Airflow settings
+airflow:
+  fernet_key: 4yfYXnxjUZSsh1CefVigTuUGcH-AUnuKC9jJ2sUq-xA= # the fernet key which is used to encrypt the secrets in the airflow database
+  ui_user_email: my-email@example.com <-- # the email for the Apache Airflow UI's airflow user
+  ui_user_password: my-password <-- # the password for the Apache Airflow UI's airflow user
+
+# Terraform settings
+terraform:
+  organization: my-terraform-org-name <-- # the terraform cloud organization
+
+# Google Cloud settings
+google_cloud:
+  project_id: my-gcp-id <-- # the Google Cloud project identifier
+  credentials: /path/to/google_application_credentials.json <-- # the path to the Google Cloud service account credentials
+  region: us-west1 <-- # the Google Cloud region where the resources will be deployed
+  zone: us-west1-a <-- # the Google Cloud zone where the resources will be deployed
+  data_location: us <-- # the location for storing data, including Google Cloud Storage buckets and Cloud SQL backups
+
+# Google Cloud CloudSQL database settings
+cloud_sql_database:
+  tier: db-custom-2-7680 # the machine tier to use for the Observatory Platform Cloud SQL database
+  backup_start_time: '23:00' # the time for Cloud SQL database backups to start in HH:MM format
+  postgres_password: my-password <-- # the password for the airflow postgres database user
+
+# Settings for the main VM that runs the Apache Airflow scheduler and webserver
+airflow_main_vm:
+  machine_type: n2-standard-2 # the machine type for the virtual machine
+  disk_size: 50 # the disk size for the virtual machine in GB
+  disk_type: pd-ssd # the disk type for the virtual machine
+  create: true # determines whether virtual machine is created or destroyed
+
+# Settings for the weekly on-demand VM that runs large tasks
+airflow_worker_vm:
+  machine_type: n1-standard-8 # the machine type for the virtual machine
+  disk_size: 3000 # the disk size for the virtual machine in GB
+  disk_type: pd-standard # the disk type for the virtual machine
+  create: false # determines whether virtual machine is created or destroyed
+
+# User defined Apache Airflow variables:
+# airflow_variables:
+#   my_variable_name: my-variable-value
+
+# User defined Apache Airflow Connections:
+# airflow_connections:
+#   my_connection: http://my-username:my-password@
+
+# User defined Observatory DAGs projects:
+# dags_projects:
+#   - package_name: observatory-dags
+#     path: /home/user/observatory-platform/observatory-dags
+#     dags_module: observatory.dags.dags
+```
+
+One of the required variables is a Fernet key, the generated default file includes a newly generated Fernet key that 
+can be used right away. Alternatively, generate a Fernet key yourself, with the following command:
 ```bash
 observatory generate fernet-key
 ```
 
-The config file will be read when running `observatory terraform create-workspace` and the variables are stored inside the Terraform Cloud workspace.
+Note that the login and passwords in the 'airflow_connections' variables need to be URL encoded, otherwise they will 
+not be parsed correctly. 
 
-It is possible to add the custom tag '!sensitive', adding this tag will make sure that the values of the underlying variables are not displayed in Terraform Cloud.
+The config file will be read when running `observatory terraform create-workspace` and
+`observatory terraform update-workspace` and the variables are stored inside the Terraform Cloud workspace.
 
-Note that the login and passwords in the 'airflow_connections' variables (e.g. mag_releases_table_connection) need to be URL encoded
-in the config file, otherwise they will not be parsed correctly.   
-All values under 'airflow_secrets' will be URL encoded by Terraform before they are stored in the Google Cloud Secret Manager.   
-Example file:   
-```yaml
-backend:
-  terraform:
-    organization: your-organization <--
-    workspaces_prefix: observatory- <--
-project_id: your-project-id <--
-!sensitive google_application_credentials: /path/to/service/account/key.json <--
-environment: dev
-region: us-west1
-zone: us-west1-c
-data_location: us
-database:
-  tier: db-custom-4-15360
-  backup_start_time: '23:00'
-airflow_main:
-  machine_type: n2-standard-2
-  disk_size: 20
-  disk_type: pd-ssd
-airflow_worker:
-  machine_type: n1-standard-2
-  disk_size: 20
-  disk_type: pd-standard
-airflow_worker_create: false
-!sensitive airflow_secrets:
-  fernet_key: g1tVaGkjIjh88QTbkBoMuM_GH0KQVRn3wcNgZhG26eY=
-  postgres_password: random_password <--
-  redis_password: random_password <--
-  airflow_ui_user_password: random_password <--
-  airflow_ui_user_email: your.email@somehost.com <--
-!sensitive airflow_connections:
-  #mag_releases_table: mysql://myname:mypassword@myhost.com <--
-  #mag_snapshots_container: mysql://myname:mypassword@myhost.com <--
-  #crossref: mysql://myname:mypassword@myhost.com <--
-  terraform: mysql://:terraform-token@ <--
-  #slack: https://:T00000000%2FB00000000%2FXXXXXXXXXXXXXXXXXXXXXXXX@https%3A%2F%2Fhooks.slack.com%2Fservices <--
-#airflow_variables:
-  #example_name: example_value <--
-```
-
-## Deploy
-Build and deploy the VM image with Packer:
+## Building the Google Compute VM image with Packer
+First, build and deploy the Observatory Platform Google Compute VM image with Packer:
 ```bash
-packer build -var-file=dev.pkrvars.hcl -force terraform/ao-image.pkr.hcl
+observatory terraform build-image ~/.observatory/config-terraform.yaml
 ```
 
+Use this command if you have:
+* Created, removed or updated user defined Observatory DAGs projects via the field `dags_projects`, in the Observatory
+Terraform config file.
+* Updated any code in the Observatory Platform.
+* Update the `backend.environment` variable in the Observatory Terraform config file: you need to make sure that an
+image is built for the other environment.
+
+You will need to taint the VMs and update them so that they use the new image.
+
+You do not need to run this command if:
+* You have created, removed or updated user defined Apache Airflow connections or variables in the Observatory
+Terraform config file: in this case you will need to update the Terraform workspace.
+* You have changed any other settings in the Observatory Terraform config file (apart from `backend.environment`): 
+in this case you will need to update the Terraform workspace variables and run `terraform apply`.
+
+### Building the Terraform files
+To refresh the files that are built into the `~/.observatory/build/terraform` directory, without rebuilding the entire
+Google Compute VM image again, run the following command:
+```bash
+observatory terraform build-terraform ~/.observatory/config-terraform.yaml
+```
+
+Use this command if you have:
+ * Updated the Terraform deployment scripts, but nothing else.
+
+## Setting up Terraform
 Enter the terraform directory:
 ```bash
-cd terraform
+cd ~/.observatory/build/terraform/terraform
 ```
 
 Create token and login on Terraform Cloud:
@@ -204,24 +251,99 @@ Create token and login on Terraform Cloud:
 terraform login
 ```
 
-Create a new workspace (this will use the created token file):  
-See [Observatory Terraform Environment](./observatory_dev.html#observatory-terraform-environment) for more info on the usage of `observatory terraform`.
+This should automatically store the token in `/home/user/.terraform.d/credentials.tfrc.json`, this file is used during 
+the next commands to retrieve the token.
+
+It's also possible to explicitly set the path to the credentials file using the option '--terraform-credentials-file'.
+
+## Creating and updating Terraform workspaces
+See below for instructions on how to run observatory terraform create-workspace and update-workspace.
+
+### Create a workspace
+Create a new workspace (this will use the created token file): 
+See [Observatory Terraform Environment](./observatory_dev.html#observatory-terraform-environment) for more info on the 
+usage of `observatory terraform`.
 ```bash
-observatory terraform create-workspace /home/user/.observatory/config_terraform.yaml
+observatory terraform create-workspace ~/.observatory/config-terraform.yaml
 ```
 
-Initialize Terraform using key/value pairs:
+You should see the following output:
+```bash
+Observatory Terraform: all dependencies found                                   
+  Config:
+   - path: /home/user/.observatory/config-terraform.yaml
+   - file valid
+  Terraform credentials file:
+   - path: /home/user/.terraform.d/credentials.tfrc.json
 
+Terraform Cloud Workspace: 
+  Organization: jamie-test
+  - Name: observatory-develop (prefix: 'observatory-' + suffix: 'develop')
+  - Settings: 
+   - Auto apply: True
+  - Terraform Variables:
+   * environment: develop
+   * airflow: sensitive
+   * google_cloud: sensitive
+   * cloud_sql_database: sensitive
+   * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
+   * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}
+   * airflow_variables: {}
+   * airflow_connections: sensitive
+Would you like to create a new workspace with these settings? [y/N]: 
+Creating workspace...
+Successfully created workspace
+```
+
+### Update a workspace
+To update variables in an existing workspace in Terraform Cloud:
+```bash
+observatory terraform update-workspace ~/.observatory/config-terraform.yaml
+```
+
+Depending on which variables are updated, you should see output similar to this:
+```bash
+  Config:
+   - path: /home/user/.observatory/config-terraform.yaml
+   - file valid
+  Terraform credentials file:
+   - path: /home/user/.terraform.d/credentials.tfrc.json
+
+Terraform Cloud Workspace: 
+  Organization: jamie-test
+  - Name: observatory-develop (prefix: 'observatory-' + suffix: 'develop')
+  - Settings: 
+   - Auto apply: True
+  - Terraform Variables:
+  UPDATE
+   * airflow: sensitive -> sensitive
+   * google_cloud: sensitive -> sensitive
+   * cloud_sql_database: sensitive -> sensitive
+   * airflow_connections: sensitive -> sensitive
+  UNCHANGED
+   * environment: develop
+   * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
+   * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}
+   * airflow_variables: {}
+Would you like to update the workspace with these settings? [y/N]: y
+Updating workspace...
+Successfully updated workspace
+```
+
+## Deploy
+Once you have created your Terraform workspace, you can deploy the system with Terraform Cloud.
+
+Initialize Terraform using key/value pairs:
 ```bash
 terraform init -backend-config="hostname="app.terraform.io"" -backend-config="organization="coki""
 ```
 
-or using a backend file:
+Or using a backend file:
 ```bash
 terraform init -backend-config=backend.hcl
 ```
 
-with backend.hcl:
+With backend.hcl:
 ```hcl
 hostname = "app.terraform.io"
 organization = "coki"
@@ -240,7 +362,6 @@ To preview the plan that will be executed with apply (optional):
 terraform plan
 ```
 
-The workspace is likely set to 
 To deploy the system with Terraform:
 ```bash
 terraform apply
@@ -251,16 +372,20 @@ To destroy the system with Terraform:
 terraform destroy
 ```
 
-## Create Worker VM
+## Rebuild the VMs with a new Google Cloud VM image
+If you have re-built the Google Cloud VM image, then you will need to manually taint the VMs and rebuild them:
 ```bash
-terraform apply -target module.airflow_worker_vm.google_compute_instance.vm_instance -var-file=dev.tfvars terraform
+terraform taint module.airflow_main_vm.google_compute_instance.vm_instance
+terraform taint module.airflow_worker_vm.google_compute_instance.vm_instance
+terraform apply
 ```
 
-## Destroy
-```bash
-terraform destroy -target module.airflow_worker_vm.google_compute_instance.vm_instance -var-file=dev.tfvars terraform
+## Manually destroy the VMs
+Run the following commands to manually destroy the VMs:
 ```
-
+terraform destroy -target module.airflow_main_vm.google_compute_instance.vm_instance
+terraform destroy -target module.airflow_worker_vm.google_compute_instance.vm_instance
+```
 
 ## Logging into the VMs
 To ssh into airflow-main-vm:

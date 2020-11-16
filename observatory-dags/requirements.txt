@@ -1,0 +1,7 @@
+observatory-platform
+mag-archiver @ git+git://github.com/The-Academic-Observatory/mag-archiver@develop#egg=mag-archiver
+xmltodict==0.12.*
+backoff==1.10.*
+ratelimit==2.2.*
+wos==0.2.*
+vcrpy==4.0.*
