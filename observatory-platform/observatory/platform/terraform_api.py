@@ -116,8 +116,11 @@ class TerraformVariable:
 
 class TerraformApi:
     TERRAFORM_WORKSPACE_VERSION = "0.13.5"
+    VERBOSITY_WARNING = 0
+    VERBOSITY_INFO = 1
+    VERBOSITY_DEBUG = 2
 
-    def __init__(self, token: str, verbosity: int = 0):
+    def __init__(self, token: str, verbosity: int = VERBOSITY_WARNING):
         """ Create a TerraformApi instance.
 
         :param token: the Terraform API token.
@@ -125,11 +128,11 @@ class TerraformApi:
         """
 
         self.token = token
-        if verbosity == 0:
+        if verbosity == TerraformApi.VERBOSITY_WARNING:
             logging.getLogger().setLevel(logging.WARNING)
-        elif verbosity == 1:
+        elif verbosity == TerraformApi.VERBOSITY_INFO:
             logging.getLogger().setLevel(logging.INFO)
-        elif verbosity >= 2:
+        elif verbosity >= TerraformApi.VERBOSITY_DEBUG:
             logging.getLogger().setLevel(logging.DEBUG)
         self.api_url = 'https://app.terraform.io/api/v2'
         self.headers = {

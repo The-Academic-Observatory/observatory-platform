@@ -49,16 +49,6 @@ class TerraformCommand:
             self.config_is_valid = self.config.is_valid
 
     @property
-    def verbosity(self):
-        """ Convert debug switch into Terraform API verbosity.
-        :return:
-        """
-
-        if self.debug:
-            return 2
-        return 0
-
-    @property
     def is_environment_valid(self):
         """ Whether is the parameters passed to the TerraformCommand are valid.
 
@@ -108,6 +98,16 @@ class TerraformCommand:
         """
 
         self.terraform_builder.build_image()
+
+    @property
+    def verbosity(self):
+        """ Convert debug switch into Terraform API verbosity.
+        :return:
+        """
+
+        if self.debug:
+            return TerraformApi.VERBOSITY_DEBUG
+        return TerraformApi.VERBOSITY_WARNING
 
     def create_workspace(self):
         """ Create a Terraform workspace.
