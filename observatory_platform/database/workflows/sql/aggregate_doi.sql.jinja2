@@ -340,22 +340,16 @@ FROM(
          )) as journals,
 
          -- Events / Altmetrics
-         [
-          (SELECT as STRUCT "twitter" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'twitter'),
-          (SELECT as STRUCT "wikipedia" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'wikipedia'),
-          (SELECT as STRUCT "newsfeed" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'newsfeed'),
-          (SELECT as STRUCT "reddit-links" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'reddit-links'),
-          (SELECT as STRUCT "reddit" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'reddit'),
-          (SELECT as STRUCT "datacite" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'datacite'),
-          (SELECT as STRUCT "wordpressdotcom" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'wordpressdotcom'),
-          (SELECT as STRUCT "plaudit" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'plaudit'),
-          (SELECT as STRUCT "stackexchange" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'stackexchange'),
-          (SELECT as STRUCT "cambia-lens" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'cambia-lens'),
-          (SELECT as STRUCT "hypothesis" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'hypothesis'),
-          (SELECT as STRUCT "f1000" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'f1000'),
-          (SELECT as STRUCT "web" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'web'),
-          (SELECT as STRUCT "crossref" as source, SUM(count) as count, SUM( IF(is_oa, count, 0) ) as oa, SUM( IF(green, count, 0) ) as green, SUM( IF(gold, count, 0) ) as gold FROM UNNEST(events) WHERE source = 'crossref')
-         ] as events
+         ARRAY((
+          SELECT as STRUCT
+            source,
+            SUM(count) as count,
+            SUM( IF(is_oa, count, 0) ) as oa, 
+            SUM( IF(green, count, 0) ) as green, 
+            SUM( IF(gold, count, 0) ) as gold
+          FROM  UNNEST(events)
+          GROUP BY source
+         )) as events
 
          -- Diversity
          --NULL as diversity,
