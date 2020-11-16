@@ -451,7 +451,7 @@ class VirtualMachine:
         machine_type = dict_.get('machine_type')
         disk_size = dict_.get('disk_size')
         disk_type = dict_.get('disk_type')
-        create = dict_.get('create')
+        create = str(dict_.get('create')).lower() == "true"
         return VirtualMachine(machine_type, disk_size, disk_type, create)
 
 
