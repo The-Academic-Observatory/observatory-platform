@@ -159,7 +159,7 @@ def platform(command: str, config_path: str, build_path: str, dags_path: str, da
 
     # Start the appropriate process
     if command == 'start':
-        platform_stop(platform_cmd)
+        platform_start(platform_cmd)
     elif command == 'stop':
         platform_stop(platform_cmd)
 

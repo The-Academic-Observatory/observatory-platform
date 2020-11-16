@@ -72,7 +72,7 @@ x-environment: &environment
   {%- if config.backend.type.value == 'local' %}
   # Connections
   {%- for conn in config.airflow_connections %}
-  {{ conn.conn_name }}: {{ conn.value }}
+  {{ conn.conn_name }}: {{ '${' + conn.conn_name + '}' }}
   {%- endfor %}
   {%- endif %}
 
