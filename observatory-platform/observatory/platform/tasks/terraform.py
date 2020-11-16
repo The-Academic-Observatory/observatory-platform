@@ -164,9 +164,7 @@ class TerraformTasks:
 
     # Watch list of dag ids of which their states will be checked
     # TODO: enable these to be configured from the config file
-    DAG_IDS_WATCH_LIST = ['crossref_metadata', 'fundref', 'geonames',
-                          'grid', 'mag', 'open_citations',
-                          'unpaywall']
+    DAG_IDS_WATCH_LIST = ['crossref_metadata', 'mag', 'open_citations', 'unpaywall']
 
     # Name of variable in terraform configuration that will be updated
     TERRAFORM_CREATE_VM_KEY = 'airflow_worker_vm'
@@ -194,6 +192,13 @@ class TerraformTasks:
             raise AirflowException('Required variables or connections are missing')
 
     @staticmethod
+    def destroy_vm(vm: VirtualMachine, **kwargs):
+        dag_id = kwargs["dag_run"].dag_id
+
+        return not ((dag_id == TerraformTasks.DAG_ID_CREATE_VM and vm.create) or
+                (dag_id == TerraformTasks.DAG_ID_DESTROY_VM and not vm.create))
+
+    @staticmethod
     def get_variable_create(**kwargs) -> bool:
         """ Retrieves the current value of the terraform variable from the cloud workspace, if this already has the value
         that the DAG is planning to set it to, it will return False and remaining tasks are skipped.
@@ -218,14 +223,13 @@ class TerraformTasks:
 
         # create_vm dag run and terraform create variable is already true (meaning VM is already on) or
         # destroy_vm dag run and terraform destroy variable is already false (meaning VM is already off)
-        vm_is_on = vm.create
-        if (kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_CREATE_VM and vm_is_on) or \
-                (kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_DESTROY_VM and not vm_is_on):
-            logging.info(f'VM is already in this state: {"on" if vm_is_on else "off"}')
-            return False
+        destroy_vm = TerraformTasks.destroy_vm(vm, **kwargs)
+        if destroy_vm:
+            logging.info(f'VM is already state: {"on" if vm.create else "off"}')
+        else:
+            logging.info(f'Turning vm {"off" if vm.create else "on"}')
 
-        logging.info(f'Turning vm {"off" if vm_is_on else "on"}')
-        return True
+        return destroy_vm
 
     @staticmethod
     def update_terraform_variable(**kwargs):
@@ -238,11 +242,7 @@ class TerraformTasks:
         :return: None
         """
 
-        if kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_CREATE_VM:
-            create_value = 'true'
-        else:
-            create_value = 'false'
-
+        create_value = kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_CREATE_VM
         token = BaseHook.get_connection(AirflowConns.TERRAFORM).password
         terraform_api = TerraformApi(token)
 
@@ -334,6 +334,7 @@ class TerraformTasks:
                 logging.info('Not sending slack notification in develop environment.')
             else:
                 comments = f'Terraform run status: {run_status}'
+                logging.info(f'Sending slack notification: "{comments}"')
                 slack_hook = create_slack_webhook(comments, **kwargs)
                 slack_hook.execute()
 
