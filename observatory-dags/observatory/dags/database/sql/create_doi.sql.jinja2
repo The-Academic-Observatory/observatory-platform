@@ -17,17 +17,15 @@
 WITH dois_temp_table as (
 SELECT
   *,
-  ARRAY(SELECT DISTINCT grid FROM UNNEST( ARRAY_CONCAT( IF(microsoft_academic_graph.grids IS NOT NULL, microsoft_academic_graph.grids, []), IF( wos.grids IS NOT NULL, wos.grids, []), IF(scopus.grids IS NOT NULL, scopus.grids, []))) AS grid ) as grids
+  IF(microsoft_academic_graph.grids IS NOT NULL, microsoft_academic_graph.grids, []) as grids
 FROM
   (SELECT 
     UPPER(TRIM(ref.doi)) as doi,
-    STRUCT( title, abstract, issued.date_parts[offset(0)] as published_year, type, ISSN, ISBN, issn_type, publisher_location, publisher, container_title, references_count, alternative_id, subject, published_print, license, volume, funder, is_referenced_by_count, page, author ) as crossref,
+    STRUCT( title, abstract, issued.date_parts[offset(0)] as published_year, CASE WHEN ARRAY_LENGTH(issued.date_parts) > 1 THEN issued.date_parts[offset(1)] ELSE 13 END as published_month, CONCAT(issued.date_parts[offset(0)], "-", CASE WHEN ARRAY_LENGTH(issued.date_parts) > 1 THEN issued.date_parts[offset(1)] ELSE 13 END) as published_year_month, type, ISSN, ISBN, issn_type, publisher_location, publisher, container_title, references_count, alternative_id, subject, published_print, license, volume, funder, is_referenced_by_count, page, author ) as crossref,
     (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.unpaywall{{ release_date.strftime('%Y%m%d') }}` as oa WHERE oa.doi = UPPER(TRIM(ref.doi))) as unpaywall,
     ARRAY((SELECT as STRUCT _TABLE_SUFFIX as unpaywall_release, * from `{{ project_id }}.{{ dataset_id }}.unpaywall*` as oa WHERE oa.doi = UPPER(TRIM(ref.doi)))) as unpaywall_history,
     (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.mag{{ release_date.strftime('%Y%m%d') }}` as mag WHERE mag.doi = UPPER(TRIM(ref.doi))) as microsoft_academic_graph,
     (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.open_citations{{ release_date.strftime('%Y%m%d') }}` as oa WHERE oa.doi = UPPER(TRIM(ref.doi))) as open_citations,
-    (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.wos{{ release_date.strftime('%Y%m%d') }}`  as wos WHERE wos.doi = UPPER(TRIM(ref.doi))) as wos,
-    (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.scopus{{ release_date.strftime('%Y%m%d') }}` as scopus WHERE scopus.doi = UPPER(TRIM(ref.doi))) as scopus,
     (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.crossref_events{{ release_date.strftime('%Y%m%d') }}` as events WHERE events.doi = UPPER(TRIM(ref.doi))) as events
   FROM `{{ project_id }}.crossref.crossref_metadata{{ crossref_metadata_release_date.strftime('%Y%m%d') }}` as ref
   WHERE ARRAY_LENGTH(issued.date_parts) > 0)
@@ -36,29 +34,27 @@ FROM
 affiliations_temp_table as (
 SELECT
   extras.doi as doi,
-  extras.crossref.published_year,
+
   institutions,
-  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Country"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count, COUNTIF(in_scopus) as count_scopus, COUNTIF(in_wos) as count_wos, COUNTIF(in_mag) as count_mag, TRUE in UNNEST(ARRAY_AGG(in_scopus)) as in_scopus, TRUE in UNNEST(ARRAY_AGG(in_wos)) as in_wos, TRUE in UNNEST(ARRAY_AGG(in_mag)) as in_mag FROM UNNEST(countries) GROUP BY identifier) as countries,
-  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Subregion"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count, COUNTIF(in_scopus) as count_scopus, COUNTIF(in_wos) as count_wos, COUNTIF(in_mag) as count_ma, TRUE in UNNEST(ARRAY_AGG(in_scopus)) as in_scopus, TRUE in UNNEST(ARRAY_AGG(in_wos)) as in_wos, TRUE in UNNEST(ARRAY_AGG(in_mag)) as in_mag, FROM UNNEST(subregions) GROUP BY identifier) as subregions,
-  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Region"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count, COUNTIF(in_scopus) as count_scopus, COUNTIF(in_wos) as count_wos, COUNTIF(in_mag) as count_mag, TRUE in UNNEST(ARRAY_AGG(in_scopus)) as in_scopus, TRUE in UNNEST(ARRAY_AGG(in_wos)) as in_wos, TRUE in UNNEST(ARRAY_AGG(in_mag)) as in_mag, FROM UNNEST(regions) GROUP BY identifier) as regions,
-  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Grouping"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count, COUNTIF(in_scopus) as count_scopus, COUNTIF(in_wos) as count_wos, COUNTIF(in_mag) as count_mag, TRUE in UNNEST(ARRAY_AGG(in_scopus)) as in_scopus, TRUE in UNNEST(ARRAY_AGG(in_wos)) as in_wos, TRUE in UNNEST(ARRAY_AGG(in_mag)) as in_mag, FROM UNNEST(groupings) GROUP BY identifier) as groupings,
+  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Country"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count FROM UNNEST(countries) GROUP BY identifier) as countries,
+  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Subregion"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count  FROM UNNEST(subregions) GROUP BY identifier) as subregions,
+  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Region"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count FROM UNNEST(regions) GROUP BY identifier) as regions,
+  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Grouping"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count FROM UNNEST(groupings) GROUP BY identifier) as groupings,
 
   -- Funder 
-  ARRAY(SELECT as STRUCT funder.funder.doi as identifier, funder.funder.name as name, ["Funder"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(funder.fundref.country as STRING) as country, CAST(funder.fundref.country_code as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(funder.fundref.region as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, funder.fundref.funding_body_type as funding_body_type, funder.fundref.funding_body_sub_type as funding_body_subtype, scopus.doi is NOT NULL as in_scopus, wos.doi is NOT NULL as in_wos, microsoft_academic_graph.doi is NOT NULL as in_mag, FROM UNNEST(fundref.funders) as funder) as funders,
+  ARRAY(SELECT as STRUCT funder.funder.doi as identifier, funder.funder.name as name, ["Funder"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(funder.fundref.country as STRING) as country, CAST(funder.fundref.country_code as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(funder.fundref.region as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, funder.fundref.funding_body_type as funding_body_type, funder.fundref.funding_body_sub_type as funding_body_subtype FROM UNNEST(fundref.funders) as funder) as funders,
 
   -- Journal  
-  [ STRUCT( unpaywall.journal_name as identifier, unpaywall.journal_name as name, ["Journal"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, scopus.doi is NOT NULL as in_scopus, wos.doi is NOT NULL as in_wos, microsoft_academic_graph.doi is NOT NULL as in_mag )] as journals,
+  [ STRUCT( unpaywall.journal_name as identifier, unpaywall.journal_name as name, ["Journal"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates )] as journals,
   
   -- Publisher 
-  [ STRUCT( crossref.publisher as identifier,crossref.publisher as name, ["Publisher"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates,scopus.doi is NOT NULL as in_scopus, wos.doi is NOT NULL as in_wos, microsoft_academic_graph.doi is NOT NULL as in_mag) ] as publishers,
+  [ STRUCT( crossref.publisher as identifier,crossref.publisher as name, ["Publisher"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates)] as publishers,
   
 FROM
   dois_temp_table as extras
 LEFT JOIN(
 SELECT
-  doi,
-    MAX(crossref.published_year) as published_year,
-    #ARRAY_AGG(institution.id in (SELECT id from filtered_list)) as in_filtered,
+    doi,
     
     ARRAY_AGG(
       STRUCT(
@@ -71,11 +67,7 @@ SELECT
         institution.iso3166.regions.alpha2 as country_code_2,
         institution.iso3166.regions.region as region,
         institution.iso3166.regions.subregion as subregion,
-        CONCAT(CAST(institution.addresses[SAFE_OFFSET(0)].lat as STRING), ", ", CAST(institution.addresses[SAFE_OFFSET(0)].lng as STRING)) as coordinates,
-        institution.id in UNNEST(dois.wos.grids) as in_wos,
-        institution.id in UNNEST(dois.scopus.grids) as in_scopus,
-        institution.id in UNNEST(dois.microsoft_academic_graph.grids) as in_mag
-        #institution.id in (SELECT id from filtered_list) as in_filtered
+        CONCAT(CAST(institution.addresses[SAFE_OFFSET(0)].lat as STRING), ", ", CAST(institution.addresses[SAFE_OFFSET(0)].lng as STRING)) as coordinates
       )
     ) as institutions,
 
@@ -91,10 +83,6 @@ SELECT
         institution.iso3166.regions.region as region,
         institution.iso3166.regions.subregion as subregion,
         NULL as coordinates,
-        institution.id in UNNEST(dois.wos.grids) as in_wos,
-        institution.id in UNNEST(dois.scopus.grids) as in_scopus,
-        institution.id in UNNEST(dois.microsoft_academic_graph.grids) as in_mag,
-        #institution.id in (SELECT id from filtered_list) as in_filtered,
         institution.id as institutional_identifier
       )
     ) as countries,
@@ -111,10 +99,6 @@ SELECT
         institution.iso3166.regions.region as region,
         NULL as subregion,
         NULL as coordinates,
-        institution.id in UNNEST(dois.wos.grids) as in_wos,
-        institution.id in UNNEST(dois.scopus.grids) as in_scopus,
-        institution.id in UNNEST(dois.microsoft_academic_graph.grids) as in_mag,
-        #institution.id in (SELECT id from filtered_list) as in_filtered,
         institution.id as institutional_identifier
       )
     ) as subregions,
@@ -131,10 +115,6 @@ SELECT
         institution.iso3166.regions.region as region,
         NULL as subregion,
         NULL as coordinates,
-        institution.id in UNNEST(dois.wos.grids) as in_wos,
-        institution.id in UNNEST(dois.scopus.grids) as in_scopus,
-        institution.id in UNNEST(dois.microsoft_academic_graph.grids) as in_mag,
-        #institution.id in (SELECT id from filtered_list) as in_filtered,
         institution.id as institutional_identifier
       )
     ) as regions,
@@ -151,10 +131,6 @@ SELECT
         NULL as region,
         NULL as subregion,
         NULL as coordinates,
-        institution.id in UNNEST(dois.wos.grids) as in_wos,
-        institution.id in UNNEST(dois.scopus.grids) as in_scopus,
-        institution.id in UNNEST(dois.microsoft_academic_graph.grids) as in_mag,
-        #institution.id in (SELECT id from filtered_list) as in_filtered,
         institution.id as institutional_identifier
       )
     ) as groupings,
