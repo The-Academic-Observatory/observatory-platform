@@ -70,13 +70,14 @@ def select_table_suffixes(project_id: str, dataset_id: str, table_id: str, end_d
     return suffixes
 
 
-def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_field: str, table_id: str,
+def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_field: str, group_by_time_field: str, table_id: str,
                            data_location: str, task_id: str):
     """ Runs the aggregate table query.
 
     :param project_id: the Google Cloud project id.
     :param release_date: the release date of the release.
     :param aggregation_field: the field to aggregate on, e.g. institution, publisher etc.
+    :group_by_time_field: either published_year or published_year_month depending on the granularity required for the time dimension
     :param table_id: the table id.
     :param data_location: the location for the table.
     :param task_id: the Airflow task id (for printing messages).
@@ -88,7 +89,8 @@ def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_
     sql = render_template(template_path,
                           project_id=project_id,
                           release_date=release_date,
-                          aggregation_field=aggregation_field)
+                          aggregation_field=aggregation_field,
+                          group_by_time_field=group_by_time_field)
 
     processed_table_id = bigquery_partitioned_table_id(table_id, release_date)
     success = create_bigquery_table_from_query(sql=sql,
@@ -516,11 +518,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'countries'
+        group_by_time_field="published_year"
         table_id = 'country'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_COUNTRY)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY)
 
     @staticmethod
     def create_funder(**kwargs):
@@ -537,11 +540,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'funders'
+        group_by_time_field="published_year"
         table_id = 'funder'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_FUNDER)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_FUNDER)
 
     @staticmethod
     def create_group(**kwargs):
@@ -558,11 +562,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'groupings'
+        group_by_time_field="published_year"
         table_id = 'group'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_GROUP)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_GROUP)
 
     @staticmethod
     def create_institution(**kwargs):
@@ -579,11 +584,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'institutions'
+        group_by_time_field="published_year"
         table_id = 'institution'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_INSTITUTION)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_INSTITUTION)
 
     @staticmethod
     def create_journal(**kwargs):
@@ -600,11 +606,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'journals'
+        group_by_time_field="published_year"
         table_id = 'journal'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_JOURNAL)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_JOURNAL)
 
     @staticmethod
     def create_publisher(**kwargs):
@@ -621,11 +628,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'publishers'
+        group_by_time_field="published_year"
         table_id = 'publisher'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_PUBLISHER)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_PUBLISHER)
 
     @staticmethod
     def create_region(**kwargs):
@@ -642,11 +650,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'regions'
+        group_by_time_field="published_year"
         table_id = 'region'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_REGION)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_REGION)
 
     @staticmethod
     def create_subregion(**kwargs):
@@ -663,11 +672,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'subregions'
+        group_by_time_field="published_year"
         table_id = 'subregion'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_SUBREGION)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_SUBREGION)
 
     @staticmethod
     def copy_tables(**kwargs):
