@@ -373,11 +373,11 @@ FROM(
       MAX(aggregrate.subregion) as subregion,
       MAX(aggregrate.coordinates) as coordinates,
 
-      -- Computed Metrics: Combined, Scopus, WoS, Mag
+      -- Computed Metrics
       compute_metrics(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as metrics,
 
       -- Collaboration Analysis
-      ARRAY_CONCAT_AGG( ARRAY((SELECT as STRUCT *, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, in_wos, in_scopus, in_mag FROM UNNEST(affiliations.{{ aggregation_field }}) as collab WHERE collab.in_mag IS TRUE) )) as collaborations,
+      ARRAY_CONCAT_AGG( ARRAY((SELECT as STRUCT *, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, FROM UNNEST(affiliations.{{ aggregation_field }}) as collab) )) as collaborations,
 
       -- Output Types
       count_output_types(ARRAY_AGG(STRUCT(unpaywall.output_type, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as output_types,
@@ -394,16 +394,16 @@ FROM(
               ) as citations,
               unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold,
 
-              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE) as funding,
+              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder) as funding,
               -- Domestic, international, both, none or unknown funding
-              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE AND funder.country_code <> aggregrate.country_code_2) as international_funding,
-              (SELECT COUNT(funder) > 1 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE AND funder.country_code = aggregrate.country_code_2) as domestic_funding,
+              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.country_code <> aggregrate.country_code_2) as international_funding,
+              (SELECT COUNT(funder) > 1 from UNNEST(affiliations.funders) as funder WHERE funder.country_code = aggregrate.country_code_2) as domestic_funding,
               -- has Industry or Government or both funding
-              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE AND funder.funding_body_subtype = 'gov') as government_funding,
-              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE AND funder.funding_body_subtype = 'pri') as private_funding,
+              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.funding_body_subtype = 'gov') as government_funding,
+              (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder WHERE funder.funding_body_subtype = 'pri') as private_funding,
 
               -- Domestic collaboration only or international collaboration or single institution only
-              (SELECT COUNT(collab) > 0 FROM UNNEST(affiliations.countries) as collab WHERE collab.in_mag IS TRUE AND collab.country <> aggregrate.country) as international_collab
+              (SELECT COUNT(collab) > 0 FROM UNNEST(affiliations.countries) as collab WHERE collab.country <> aggregrate.country) as international_collab
 
            FROM UNNEST(dois.microsoft_academic_graph.fields.fields.level_0) as fields)) )) as level0
 
@@ -411,10 +411,10 @@ FROM(
       ) as disciplines,
 
       -- Events
-      ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT event.source, event.count, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, in_wos, in_scopus, in_mag from UNNEST(dois.events.events) as event))) as events,
+      ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT event.source, event.count, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold from UNNEST(dois.events.events) as event))) as events,
 
       -- Funders
-      ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT funder.identifier, funder.name, funder.country, funder.country_code, funder.funding_body_type, funder.funding_body_subtype, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold from UNNEST(affiliations.funders) as funder WHERE funder.in_mag IS TRUE))) as funders,
+      ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT funder.identifier, funder.name, funder.country, funder.country_code, funder.funding_body_type, funder.funding_body_subtype, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold from UNNEST(affiliations.funders) as funder))) as funders,
 
       -- Publishers
       ARRAY_AGG(STRUCT(crossref.publisher as publisher, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold)) as publishers,
@@ -426,7 +426,7 @@ FROM(
       ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT unpaywall.*from UNNEST(dois.unpaywall_history) as unpaywall))) as unpaywall_history
 
     FROM `{{ project_id }}.observatory.doi{{ release_date.strftime('%Y%m%d') }}` as dois, UNNEST(dois.affiliations.{{ aggregation_field }}) as aggregrate
-    WHERE aggregrate.in_mag IS TRUE AND aggregrate.identifier IS NOT NULL
+    WHERE aggregrate.identifier IS NOT NULL
     GROUP BY aggregrate.identifier, crossref.{{ group_by_time_field }}) as base
     GROUP BY base.id
 )
