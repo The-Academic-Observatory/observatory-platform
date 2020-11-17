@@ -17,7 +17,7 @@
 WITH dois_temp_table as (
 SELECT
   *,
-  IF(microsoft_academic_graph.grids IS NOT NULL, microsoft_academic_graph.grids, []) as grids
+  (SELECT ARRAY(SELECT DISTINCT grid FROM UNNEST( IF(microsoft_academic_graph.grids IS NOT NULL, microsoft_academic_graph.grids, [])) AS grid)) as grids
 FROM
   (SELECT 
     UPPER(TRIM(ref.doi)) as doi,
