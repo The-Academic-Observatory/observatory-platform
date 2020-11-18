@@ -245,8 +245,7 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
 
     # All pre-processing tasks run at once and when finished task_create_doi runs
     tasks_preprocessing = [task_extend_grid, task_aggregate_crossref_events, task_aggregate_mag,
-                           task_aggregate_unpaywall, task_extend_crossref_funders, task_aggregate_open_citations,
-                           task_aggregate_wos, task_aggregate_scopus]
+                           task_aggregate_unpaywall, task_extend_crossref_funders, task_aggregate_open_citations]
     sensors >> task_create_datasets >> tasks_preprocessing >> task_create_doi
 
     # After task_create_doi runs all of the post-processing tasks run
