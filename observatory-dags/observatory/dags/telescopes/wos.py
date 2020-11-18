@@ -1015,7 +1015,9 @@ class WosJsonParser:
         conf_list = get_as_list(data['static_data']['summary']['conferences'], 'conference')
         for conf in conf_list:
             conference = dict()
-            conference['id'] = int(get_entry_or_none(conf, '@conf_id'))
+            conference['id'] = get_entry_or_none(conf, '@conf_id')
+            if conference['id'] is not None:
+                conference['id'] = int(conference['id'])
             conference['name'] = None
 
             if 'conf_titles' in conf and 'conf_title' in conf['conf_titles']:
@@ -1038,6 +1040,9 @@ class WosJsonParser:
             return orgs
 
         addr_list = get_as_list(data['static_data']['fullrecord_metadata']['addresses'], 'address_name')
+        if addr_list is None:
+            return orgs
+
         for addr in addr_list:
             spec = addr['address_spec']
             org = dict()
