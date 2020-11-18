@@ -16,12 +16,11 @@
 
 SELECT
   id AS identifier,
-  MAX(total_publications) AS total_publications,
+  SUM(metrics.total) AS total_publications,
   MAX(name) AS group_name,
-  ARRAY_AGG(STRUCT(years.published_year,
-      years.metrics)) AS years
+  ARRAY_AGG(STRUCT(time_period,
+      metrics)) AS years
 FROM
-  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`,
-  UNNEST(YEARS) AS years
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`
 GROUP BY
   id
