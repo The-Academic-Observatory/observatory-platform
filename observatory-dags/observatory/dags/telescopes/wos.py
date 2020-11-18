@@ -139,9 +139,9 @@ class WosUtility:
 
         if 'REC' not in records:
             logging.warning(f'No record found for query. Please double check parameters, e.g., institution id.')
-            return None
+            return None, schema_ver
 
-        return records['REC'], schema_ver
+        return get_as_list(records, 'REC'), schema_ver
 
     @staticmethod
     def download_wos_period(client: WosClient, conn: str, period: pendulum.Period, wos_inst_id: List[str],
