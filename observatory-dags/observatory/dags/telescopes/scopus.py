@@ -524,7 +524,7 @@ class ScopusClient:
 
             url = ScopusClient.get_next_page_url(response_dict['search-results']['link'])
             if url is None:
-                raise AirflowException(f'A missing links list was encountered while fetching results for {query}')
+                return results, quota_remaining, quota_reset
 
             request = urllib.request.Request(url, headers=self._headers)
 
