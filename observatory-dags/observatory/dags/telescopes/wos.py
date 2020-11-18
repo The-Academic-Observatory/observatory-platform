@@ -157,7 +157,8 @@ class WosUtility:
 
         timestamp = pendulum.datetime.now().isoformat()
         inst_str = conn[WosTelescope.ID_STRING_OFFSET:]
-        save_file_prefix = os.path.join(download_path, period.start.isoformat(), inst_str, timestamp)
+        save_file_prefix = os.path.join(download_path, period.start.isoformat(), inst_str,
+                                        f'{period.start}-{period.end}_{timestamp}')
         query = WosUtility.build_query(wos_inst_id, period)
         result = WosUtility.make_query(client, query)
         logging.info(f'{conn} with session id {client._SID}: retrieving period {period.start} - {period.end}')
@@ -571,8 +572,9 @@ class WosTelescope:
         json_harvest = list()
         for file in json_file_list:
             file_name = os.path.basename(file)
+            start = file_name.find('_')+1
             end = file_name.rfind('-')
-            harvest_datetime = file_name[:end]
+            harvest_datetime = file_name[start:end]
             json_path.append(file)
             json_harvest.append(harvest_datetime)
         ti.xcom_push(WosTelescope.XCOM_JSON_PATH, json_path)
