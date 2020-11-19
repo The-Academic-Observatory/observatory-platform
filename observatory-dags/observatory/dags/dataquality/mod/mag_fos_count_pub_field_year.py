@@ -24,7 +24,7 @@ import datetime
 from jinja2 import Environment, PackageLoader
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from elasticsearch_dsl import Document
-from typing import List
+from typing import List, Tuple
 
 from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
 from observatory.dags.dataquality.analyser import MagAnalyserModule
@@ -85,7 +85,7 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
                     futures = list()
 
                     for year in range(FosCountsPubFieldYearModule.YEAR_START, year_end + 1):
-                        futures.append(executor.submit(self._construct_es_docs, release, ts, fos[0], year))
+                        futures.append(executor.submit(self._construct_es_docs, release, ts, fos, year))
 
                     for future in as_completed(futures):
                         docs.extend(future.result())
@@ -104,12 +104,12 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
         if index:
             delete_index(MagFosCountPubFieldYear)
 
-    def _construct_es_docs(self, release: datetime.date, ts: str, fos_id: int, year: int) -> List[Document]:
+    def _construct_es_docs(self, release: datetime.date, ts: str, fos: List[int, str], year: int) -> List[Document]:
         """ Construct MagDoiCountsDocTypeYear docs for each release.
 
         @param release: Release date.
         @param ts: Table suffix (timestamp).
-        @param fos_id: FieldOfStudyId.
+        @param fos: FieldOfStudyId, Normalised Name.
         @param year: Publication year we're interested in.
         @return List of constructed elastic search documents.
         """
@@ -119,7 +119,7 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
             return docs
 
         year = str(year)
-        counts = self._get_bq_counts(ts, fos_id, year)
+        counts = self._get_bq_counts(ts, fos[0], year)
 
         for i in range(len(counts)):
             paper_count = counts[FosCountsPubFieldYearModule.BQ_PAP_COUNT][i]
@@ -135,7 +135,7 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
 
             doc = MagFosCountPubFieldYear(release=release, year=year, pap_count=paper_count,
                                           cit_count=citation_count, ref_count=ref_count,
-                                          publisher=publisher)
+                                          publisher=publisher, field_id=fos[0], field_name=fos[1])
 
             docs.append(doc)
 

@@ -194,6 +194,8 @@ class MagFosCountPubFieldYear(NSDocument):
 
     release = Date(required=True, default_timezone='UTC')
     publisher = Keyword(required=True)
+    field_id = Long(required=True)
+    field_name = Keyword(required=True)
     year = Keyword(required=True)
     paper_count = Long(required=True)
     citation_count = Long(required=True)
