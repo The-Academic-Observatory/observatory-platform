@@ -104,7 +104,7 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
         if index:
             delete_index(MagFosCountPubFieldYear)
 
-    def _construct_es_docs(self, release: datetime.date, ts: str, fos: List[int, str], year: int) -> List[Document]:
+    def _construct_es_docs(self, release: datetime.date, ts: str, fos: Tuple[int, str], year: int) -> List[Document]:
         """ Construct MagDoiCountsDocTypeYear docs for each release.
 
         @param release: Release date.
