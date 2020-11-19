@@ -128,15 +128,15 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
             prev_fosid = previous_counts[MagTableKey.COL_FOS_ID].to_list()
             prev_fosname = previous_counts[MagTableKey.COL_NORM_NAME].to_list()
 
-            id_changed = bool(curr_fosid != prev_fosid)
-            normalized_changed = bool(curr_fosname != prev_fosname)
+            id_changed = int(curr_fosid != prev_fosid)
+            normalized_changed = int(curr_fosname != prev_fosname)
 
             ts = release.strftime('%Y%m%d')
             self._cache[f'{MagCacheKey.FOSL0}{ts}'] = list(zip(curr_fosid, curr_fosname))
 
             dppaper = None
             dpcitations = None
-            if (not id_changed) and (not normalized_changed):
+            if (id_changed == 0) and (normalized_changed == 0):
                 dppaper = proportion_delta(current_counts[MagTableKey.COL_PAP_COUNT],
                                            previous_counts[MagTableKey.COL_PAP_COUNT])
                 dpcitations = proportion_delta(current_counts[MagTableKey.COL_CIT_COUNT],
@@ -184,7 +184,7 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
 
     @staticmethod
     def _construct_es_metrics(release: datetime.date, current_counts: pd.DataFrame, previous_counts: pd.DataFrame,
-                              id_changed: bool, normalized_changed: bool) -> MagFosL0Metrics:
+                              id_changed: int, normalized_changed: int) -> MagFosL0Metrics:
         """ Constructs the MagFosL0Metrics documents.
         @param release: MAG release date we are generating a document for.
         @param current_counts: Counts for the current release.
@@ -198,7 +198,7 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
         metrics.field_ids_changed = id_changed
         metrics.normalized_names_changed = normalized_changed
 
-        if (not id_changed) and (not normalized_changed):
+        if (id_changed == 0) and (normalized_changed == 0):
             metrics.js_dist_paper = jensenshannon(current_counts[MagTableKey.COL_PAP_COUNT],
                                                   previous_counts[MagTableKey.COL_PAP_COUNT])
             metrics.js_dist_citation = jensenshannon(current_counts[MagTableKey.COL_CIT_COUNT],

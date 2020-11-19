@@ -132,8 +132,8 @@ class MagFosL0Metrics(NSDocument):
     """
 
     release = Date(required=True, default_timezone='UTC')
-    field_ids_changed = Boolean(required=True)
-    normalized_names_changed = Boolean(required=True)
+    field_ids_changed = Integer(required=True)
+    normalized_names_changed = Integer(required=True)
 
     js_dist_paper = Double()
     js_dist_citation = Double()
