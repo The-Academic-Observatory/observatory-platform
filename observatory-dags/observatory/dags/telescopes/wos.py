@@ -21,7 +21,7 @@ import os
 import urllib.request
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Type
+from typing import List, Type, Union, Any, Dict
 from urllib.error import URLError
 
 import backoff
@@ -109,7 +109,7 @@ class WosUtility:
         return query
 
     @staticmethod
-    def parse_query(records) -> (dict, str):
+    def parse_query(records: Any) -> (dict, str):
         """ Parse XML tree record into a dict.
 
         :param records: XML tree returned by the web query.
@@ -177,7 +177,7 @@ class WosUtility:
     @backoff.on_exception(backoff.constant, WebFault, max_tries=WosUtilConst.RETRIES,
                           interval=WosUtilConst.SESSION_CALL_PERIOD)
     def download_wos_batch(login: str, password: str, batch: list, conn: str, wos_inst_id: List[str],
-                           download_path: str):
+                           download_path: str) -> List[str]:
         """ Download one batch of WoS snapshots. Throttling limits are more conservative than WoS limits.
         Throttle limits may or may not be enforced. Probably depends on how executors spin up tasks.
 
@@ -199,7 +199,7 @@ class WosUtility:
 
     @staticmethod
     def download_wos_parallel(login: str, password: str, schedule: list, conn: str, wos_inst_id: List[str],
-                              download_path: str):
+                              download_path: str) -> List[str]:
         """ Download WoS snapshot with parallel sessions. Using threads.
 
         :param login: WoS login
@@ -233,7 +233,7 @@ class WosUtility:
 
     @staticmethod
     def download_wos_sequential(login: str, password: str, schedule: list, conn: str, wos_inst_id: List[str],
-                                download_path: str):
+                                download_path: str) -> List[str]:
         """ Download WoS snapshot sequentially.
 
         :param login: WoS login
@@ -248,7 +248,7 @@ class WosUtility:
         return WosUtility.download_wos_batch(login, password, schedule, conn, wos_inst_id, download_path)
 
     @staticmethod
-    def download_wos_snapshot(download_path: str, conn, wos_inst_id: List[str], end_date, mode: str):
+    def download_wos_snapshot(download_path: str, conn, wos_inst_id: List[str], end_date, mode: str) -> List[str]:
         """ Download snapshot from Web of Science for the given institution.
 
         :param download_path: the directory where the downloaded wos snapshot should be saved.
@@ -273,7 +273,7 @@ class WosUtility:
             return WosUtility.download_wos_parallel(login, password, schedule, str(conn), wos_inst_id, download_path)
 
     @staticmethod
-    def make_query(client: WosClient, query: OrderedDict):
+    def make_query(client: WosClient, query: OrderedDict) -> List[Any]:
         """Make the API calls to retrieve information from Web of Science.
 
         :param client: WosClient object.
@@ -296,7 +296,7 @@ class WosUtility:
     @staticmethod
     @sleep_and_retry
     @limits(calls=WosUtilConst.CALL_LIMIT, period=WosUtilConst.CALL_PERIOD)
-    def wos_search(client: WosClient, query: OrderedDict):
+    def wos_search(client: WosClient, query: OrderedDict) -> Any:
         """ Throttling wrapper for the API call. This is a global limit for this API when called from a program on the
         same machine. If you are throttled, it will throw a WebFault and the exception message will contain the phrase
         'Request denied by Throttle server'
@@ -728,7 +728,7 @@ class WosNameAttributes:
         self._contribs = WosNameAttributes._get_contribs(data)
 
     @staticmethod
-    def _get_contribs(data: dict):
+    def _get_contribs(data: dict) -> dict:
         """ Helper function to parse the contributors structure to aid extraction of fields.
 
         :param data: dictionary to query.
@@ -753,7 +753,7 @@ class WosNameAttributes:
 
         return contrib_dict
 
-    def get_orcid(self, full_name: str):
+    def get_orcid(self, full_name: str) -> str:
         """ Get the orcid id of a person. Note that full name must be the combination of first and last name.
             This is not necessarily the full_name field.
 
@@ -764,7 +764,7 @@ class WosNameAttributes:
             return None
         return self._contribs[full_name]['orcid']
 
-    def get_r_id(self, full_name: str):
+    def get_r_id(self, full_name: str) -> str:
         """ Get the r_id of a person. Note that full name must be the combination of first and last name.
             This is not necessarily the full_name field.
 
@@ -781,7 +781,7 @@ class WosJsonParser:
     """ Helper methods to process the the converted json from Web of Science. """
 
     @staticmethod
-    def get_identifiers(data: dict):
+    def get_identifiers(data: dict) -> Dict[str, Any]:
         """ Extract identifier information.
 
         :param data: dictionary of web response.
@@ -824,7 +824,7 @@ class WosJsonParser:
         return field
 
     @staticmethod
-    def get_pub_info(data: dict):
+    def get_pub_info(data: dict) -> Dict[str, Any]:
         """ Extract publication information fields.
 
         :param data: dictionary of web response.
@@ -867,7 +867,7 @@ class WosJsonParser:
         return field
 
     @staticmethod
-    def get_title(data: dict):
+    def get_title(data: dict) -> Union[None, str]:
         """ Extract title. May raise exception on error.
 
         :param data: dictionary of web response.
@@ -883,7 +883,7 @@ class WosJsonParser:
         raise AirflowException('Schema change detected in title field. Please review.')
 
     @staticmethod
-    def get_names(data: dict):
+    def get_names(data: dict) -> List[Dict[str, Any]]:
         """ Extract names fields.
 
         :param data: dictionary of web response.
@@ -922,7 +922,7 @@ class WosJsonParser:
         return field
 
     @staticmethod
-    def get_languages(data: dict):
+    def get_languages(data: dict) -> List[Dict[str, str]]:
         """ Extract language fields.
 
         :param data: dictionary of web response.
@@ -942,7 +942,7 @@ class WosJsonParser:
         return lang_list
 
     @staticmethod
-    def get_refcount(data: dict):
+    def get_refcount(data: dict) -> Union[int, None]:
         """ Extract reference count.
 
         :param data: dictionary of web response.
@@ -958,7 +958,7 @@ class WosJsonParser:
         return int(data['static_data']['fullrecord_metadata']['refs']['@count'])
 
     @staticmethod
-    def get_abstract(data: dict):
+    def get_abstract(data: dict) -> List[str]:
         """ Extract abstracts.
 
         :param data: dictionary of web response.
@@ -979,7 +979,7 @@ class WosJsonParser:
         return abstract_list
 
     @staticmethod
-    def get_keyword(data: dict):
+    def get_keyword(data: dict) -> List[str]:
         """ Extract keywords. Will also get the keywords from keyword plus if they are available.
 
         :param data: dictionary of web response.
@@ -999,7 +999,7 @@ class WosJsonParser:
         return keywords
 
     @staticmethod
-    def get_conference(data: dict):
+    def get_conference(data: dict) -> List[Dict[str, Any]]:
         """ Extract conference information.
 
         :param data: dictionary of web response.
