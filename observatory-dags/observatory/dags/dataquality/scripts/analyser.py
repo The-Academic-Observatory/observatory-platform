@@ -18,14 +18,16 @@
 
 
 from google.oauth2 import service_account
-from observatory_platform.dataquality.mag import MagAnalyser
+from observatory.dags.dataquality.mag import MagAnalyser
 
 from elasticsearch_dsl import connections
 import pandas_gbq
 
 # Enable logging for debug
 import logging
+
 logging.getLogger().setLevel(logging.INFO)
+
 
 def init_es_connection():
     """ Elastic search connection details. """
