@@ -11,3 +11,4 @@ cachetools==4.1.*
 pandas==1.1.*
 pandas-gbq==0.14.*
 google-auth==1.23.*
+scipy==1.5.*
