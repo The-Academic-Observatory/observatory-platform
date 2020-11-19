@@ -20,7 +20,7 @@ import unittest
 import pandas as pd
 import numpy as np
 
-from observatory_platform.dataquality.utils import proportion_delta
+from observatory.dags.dataquality.utils import proportion_delta
 
 
 class TestProportionDelta(unittest.TestCase):
