@@ -345,7 +345,7 @@ FROM(
 
     ARRAY_CONCAT_AGG(aggregrate.types) as types,
     MAX(aggregrate.name) as name,
-    ARRAY_CONCAT_AGG(aggregrate.home_repo) as home_repo, --MAX(grids.home_repo)
+    ARRAY_CONCAT_AGG(aggregrate.home_repo) as home_repo,
     MAX(aggregrate.country) as country,
     MAX(aggregrate.country_code) as country_code,
     MAX(aggregrate.country_code_2) as country_code_2,
@@ -386,8 +386,6 @@ FROM(
             (SELECT COUNT(collab) > 0 FROM UNNEST(affiliations.countries) as collab WHERE collab.country <> aggregrate.country) as international_collab
 
           FROM UNNEST(dois.microsoft_academic_graph.fields.fields.level_0) as fields)) )) as level0
-
-      --compute_disciplines( ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT fields.DisplayName, fields.Score, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold from UNNEST(dois.microsoft_academic_graph.fields.fields.level_1) as fields)) )) as level1
     ) as disciplines,
 
     -- Events
