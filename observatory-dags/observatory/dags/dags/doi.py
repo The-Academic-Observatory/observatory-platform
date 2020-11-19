@@ -156,20 +156,6 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         python_callable=DoiWorkflow.aggregate_open_citations
     )
 
-    # Aggregrate WoS
-    task_aggregate_wos = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_AGGREGATE_WOS,
-        provide_context=True,
-        python_callable=DoiWorkflow.aggregate_wos
-    )
-
-    # Aggregate Scopus
-    task_aggregate_scopus = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS,
-        provide_context=True,
-        python_callable=DoiWorkflow.aggregate_scopus
-    )
-
     # Create DOIs snapshot
     task_create_doi = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_DOI,
