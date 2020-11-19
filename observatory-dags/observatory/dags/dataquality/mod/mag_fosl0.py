@@ -26,11 +26,11 @@ from typing import List, Union
 from scipy.spatial.distance import jensenshannon
 from elasticsearch_dsl import Document
 
-from observatory_platform.dataquality.utils import proportion_delta
-from observatory_platform.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
-from observatory_platform.dataquality.analyser import MagAnalyserModule
+from observatory.dags.dataquality.utils import proportion_delta
+from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
+from observatory.dags.dataquality.analyser import MagAnalyserModule
 
-from observatory_platform.utils.es_utils import (
+from observatory.dags.dataquality.es_utils import (
     clear_index,
     bulk_index,
     delete_index,
@@ -38,7 +38,7 @@ from observatory_platform.utils.es_utils import (
     search_by_release
 )
 
-from observatory_platform.dataquality.es_mag import MagFosL0Counts, MagFosL0Metrics
+from observatory.dags.dataquality.es_mag import MagFosL0Counts, MagFosL0Metrics
 
 
 

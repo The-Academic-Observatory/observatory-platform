@@ -26,10 +26,10 @@ from typing import List, Tuple
 from scipy.spatial.distance import jensenshannon
 from elasticsearch_dsl.document import IndexMeta
 
-from observatory_platform.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
-from observatory_platform.dataquality.analyser import MagAnalyserModule
-from observatory_platform.dataquality.es_mag import MagFosL0ScoreFieldYearMetricR, MagFosL0ScoreFieldYearMetricY
-from observatory_platform.utils.es_utils import (
+from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
+from observatory.dags.dataquality.analyser import MagAnalyserModule
+from observatory.dags.dataquality.es_mag import MagFosL0ScoreFieldYearMetricR, MagFosL0ScoreFieldYearMetricY
+from observatory.dags.dataquality.es_utils import (
     init_doc,
     clear_index,
     bulk_index,

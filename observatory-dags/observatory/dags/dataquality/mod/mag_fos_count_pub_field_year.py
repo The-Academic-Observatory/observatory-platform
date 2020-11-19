@@ -26,10 +26,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from elasticsearch_dsl import Document
 from typing import List
 
-from observatory_platform.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
-from observatory_platform.dataquality.analyser import MagAnalyserModule
-from observatory_platform.dataquality.es_mag import MagFosCountPubFieldYear
-from observatory_platform.utils.es_utils import (
+from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
+from observatory.dags.dataquality.analyser import MagAnalyserModule
+from observatory.dags.dataquality.es_mag import MagFosCountPubFieldYear
+from observatory.dags.dataquality.es_utils import (
     init_doc,
     clear_index,
     bulk_index,

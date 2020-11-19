@@ -23,10 +23,10 @@ import pandas as pd
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from jinja2 import Environment, PackageLoader
-from observatory_platform.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
-from observatory_platform.dataquality.es_mag import MagFosLevelCountYear
-from observatory_platform.dataquality.analyser import MagAnalyserModule
-from observatory_platform.utils.es_utils import (
+from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
+from observatory.dags.dataquality.es_mag import MagFosLevelCountYear
+from observatory.dags.dataquality.analyser import MagAnalyserModule
+from observatory.dags.dataquality.es_utils import (
     init_doc,
     search_count_by_release,
     clear_index,

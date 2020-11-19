@@ -20,8 +20,8 @@
 class JinjaParams:
     """ Jinja parameters. """
 
-    PKG_NAME = 'observatory_platform'
-    TEMPLATE_PATHS = 'database/dataquality/sql'
+    PKG_NAME = 'observatory.dags.dataquality'
+    TEMPLATE_PATHS = 'sql'
 
 
 class MagCacheKey:

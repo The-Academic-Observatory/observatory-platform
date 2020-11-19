@@ -26,28 +26,28 @@ from datetime import timezone
 from jinja2 import Environment, PackageLoader
 from typing import Union, List, Tuple
 
-from observatory_platform.dataquality.config import (
+from observatory.dags.dataquality.config import (
     JinjaParams,
     MagCacheKey,
     MagTableKey
 )
 
-from observatory_platform.dataquality.analyser import (
+from observatory.dags.dataquality.analyser import (
     DataQualityAnalyser,
     MagAnalyserModule,
 )
 
-from observatory_platform.utils.autofetchcache import AutoFetchCache
+from observatory.dags.dataquality.autofetchcache import AutoFetchCache
 
-from observatory_platform.dataquality.mod.mag_fosl0 import FieldsOfStudyLevel0Module
-from observatory_platform.dataquality.mod.mag_papermetrics import PaperMetricsModule
-from observatory_platform.dataquality.mod.mag_paperyearscount import PaperYearsCountModule
-from observatory_platform.dataquality.mod.mag_paperfieldyearcount import PaperFieldYearCountModule
-from observatory_platform.dataquality.mod.mag_doicountdoctype import DoiCountDocTypeModule
-from observatory_platform.dataquality.mod.mag_doicountsdoctypeyear import DoiCountsDocTypeYearModule
-from observatory_platform.dataquality.mod.mag_foslevelcount import FosLevelCountModule
-from observatory_platform.dataquality.mod.mag_foslevelcountyear import FosLevelCountYearModule
-from observatory_platform.dataquality.mod.mag_fos_count_pub_field_year import FosCountsPubFieldYearModule
+from observatory.dags.dataquality.mod.mag_fosl0 import FieldsOfStudyLevel0Module
+from observatory.dags.dataquality.mod.mag_papermetrics import PaperMetricsModule
+from observatory.dags.dataquality.mod.mag_paperyearscount import PaperYearsCountModule
+from observatory.dags.dataquality.mod.mag_paperfieldyearcount import PaperFieldYearCountModule
+from observatory.dags.dataquality.mod.mag_doicountdoctype import DoiCountDocTypeModule
+from observatory.dags.dataquality.mod.mag_doicountsdoctypeyear import DoiCountsDocTypeYearModule
+from observatory.dags.dataquality.mod.mag_foslevelcount import FosLevelCountModule
+from observatory.dags.dataquality.mod.mag_foslevelcountyear import FosLevelCountYearModule
+from observatory.dags.dataquality.mod.mag_fos_count_pub_field_year import FosCountsPubFieldYearModule
 
 class MagAnalyser(DataQualityAnalyser):
     """
