@@ -17,7 +17,7 @@
 # Author: Tuan Chien
 
 import unittest
-from observatory_platform.utils.autofetchcache import AutoFetchCache
+from observatory.dags.dataquality.autofetchcache import AutoFetchCache
 
 class TestAutoFetchCache(unittest.TestCase):
     def __init__(self, *args, **kwargs):
