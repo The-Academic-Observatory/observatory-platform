@@ -36,10 +36,10 @@ SELECT
   extras.doi as doi,
 
   institutions,
-  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Country"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count FROM UNNEST(countries) GROUP BY identifier) as countries,
-  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Subregion"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count  FROM UNNEST(subregions) GROUP BY identifier) as subregions,
-  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Region"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count FROM UNNEST(regions) GROUP BY identifier) as regions,
-  ARRAY( SELECT as STRUCT grouping_entity.group_id as identifier, MAX(grouping_entity.group_name) as name, MAX(grouping_entity.country_code) as country_code, ARRAY_AGG(grid_group.institutional_identifier) as members FROM UNNEST(grid_groups) as grid_group, UNNEST(grid_group.groupings) as grouping_entity GROUP BY grouping_entity.group_id) as groupings,
+  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Country"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count, ARRAY_AGG(member_identifier IGNORE NULLS) as members FROM UNNEST(countries) GROUP BY identifier) as countries,
+  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Subregion"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count, ARRAY_AGG(member_identifier IGNORE NULLS) as members  FROM UNNEST(subregions) GROUP BY identifier) as subregions,
+  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Region"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count, ARRAY_AGG(member_identifier IGNORE NULLS) as members FROM UNNEST(regions) GROUP BY identifier) as regions,
+  ARRAY( SELECT as STRUCT grouping_entity.group_id as identifier, MAX(grouping_entity.group_name) as name, MAX(grouping_entity.country_code) as country_code, ARRAY_AGG(grid_group.institutional_identifier) as members FROM UNNEST(grid_groups) as grid_group, UNNEST(grid_group.member_identifier IGNORE NULLS) as members GROUP BY grouping_entity.group_id) as groupings,
 
   -- Funder 
   ARRAY(SELECT as STRUCT funder.funder.doi as identifier, funder.funder.name as name, ["Funder"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(funder.fundref.country as STRING) as country, CAST(funder.fundref.country_code as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(funder.fundref.region as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, funder.fundref.funding_body_type as funding_body_type, funder.fundref.funding_body_sub_type as funding_body_subtype FROM UNNEST(fundref.funders) as funder) as funders,
@@ -83,7 +83,7 @@ SELECT
         institution.iso3166.regions.region as region,
         institution.iso3166.regions.subregion as subregion,
         NULL as coordinates,
-        institution.id as institutional_identifier
+        institution.id as member_identifier
       )
     ) as countries,
     
@@ -99,7 +99,7 @@ SELECT
         institution.iso3166.regions.region as region,
         NULL as subregion,
         NULL as coordinates,
-        institution.id as institutional_identifier
+        institution.iso3166.regions.alpha3 as member_identifier
       )
     ) as subregions,
 
@@ -115,14 +115,14 @@ SELECT
         institution.iso3166.regions.region as region,
         NULL as subregion,
         NULL as coordinates,
-        institution.id as institutional_identifier
+        institution.iso3166.regions.subregion as member_identifier
       )
     ) as regions,
     
     ARRAY_AGG(
       STRUCT(
         grid_groups.groupings as groupings,
-        institution.id as institutional_identifier
+        institution.id as member_identifier
       )
     ) as grid_groups,
 
