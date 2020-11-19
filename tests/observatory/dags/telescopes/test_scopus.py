@@ -22,7 +22,6 @@ from unittest.mock import patch
 
 import pendulum
 from click.testing import CliRunner
-from pbr.util import cfg_to_args
 
 from observatory.dags.telescopes.scopus import (
     ScopusRelease,
@@ -41,14 +40,23 @@ from observatory.platform.utils.url_utils import get_ao_user_agent
 class TestScopusClient(unittest.TestCase):
     """ Test the ScopusClient class. """
 
+    class MockMetadata:
+        @classmethod
+        def get(self, attribute):
+            if attribute == 'Version':
+                return '1'
+            if attribute == 'Home-page':
+                return 'http://test.test'
+            if attribute == 'Author-email':
+                return 'test@test'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def test_scopus_client_user_agent(self):
         """ Test to make sure the user agent string is set correctly. """
-        obj = ScopusClient('')
-
-        # Need to set override isolated_filesystem for cfg_to_args
-        pwd = os.getcwd()
-        setupfile = os.path.join(module_file_path('observatory.platform', nav_back_steps=-3), 'setup.cfg')
-        with patch('observatory.platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
+        with patch('observatory.platform.utils.url_utils.metadata', return_value=TestScopusClient.MockMetadata):
+            obj = ScopusClient('')
             generated_ua = obj._headers['User-Agent']
             self.assertEqual(generated_ua, get_ao_user_agent())
 
@@ -100,6 +108,16 @@ class TestScopusUtilWorker(unittest.TestCase):
 
 class TestScopusUtility(unittest.TestCase):
     """ Test the SCOPUS utility class. """
+
+    class MockMetadata:
+        @classmethod
+        def get(self, attribute):
+            if attribute == 'Version':
+                return '1'
+            if attribute == 'Home-page':
+                return 'http://test.test'
+            if attribute == 'Author-email':
+                return 'test@test'
 
     def __init__(self, *args, **kwargs):
         super(TestScopusUtility, self).__init__(*args, **kwargs)
@@ -167,9 +185,7 @@ class TestScopusUtility(unittest.TestCase):
     def test_download_scopus_period(self, mock_make_query):
         """ Test downloading of a period. Mocks out actual api call. """
 
-        # Need to set override isolated_filesystem for cfg_to_args
-        setupfile = os.path.join(module_file_path('observatory.platform', nav_back_steps=-3), 'setup.cfg')
-        with patch('observatory.platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
+        with patch('observatory.platform.utils.url_utils.metadata', return_value=TestScopusUtility.MockMetadata):
             with CliRunner().isolated_filesystem():
                 period = pendulum.Period(pendulum.date(1990, 9, 1), pendulum.date(1990, 9, 30))
                 worker = ScopusUtilWorker(1, ScopusClient(self.api_key1), pendulum.now('UTC'), 20000)
@@ -252,9 +268,7 @@ class TestScopusUtility(unittest.TestCase):
                                 data_location='data_location', schema_ver='schema_ver')
         self.assertEqual(mock_telepath.call_count, 2)
 
-        # Need to set override isolated_filesystem for cfg_to_args
-        setupfile = os.path.join(module_file_path('observatory.platform', nav_back_steps=-3), 'setup.cfg')
-        with patch('observatory.platform.utils.url_utils.cfg_to_args', return_value=cfg_to_args(setupfile)):
+        with patch('observatory.platform.utils.url_utils.metadata', return_value=TestScopusUtility.MockMetadata):
             with CliRunner().isolated_filesystem():
                 api_keys = [{"key": self.api_key1}, {"key": self.api_key2}]
                 saved_files = ScopusUtility.download_snapshot(api_keys, release, 'sequential')

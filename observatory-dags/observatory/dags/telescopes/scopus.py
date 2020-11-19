@@ -23,7 +23,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from queue import Queue, Empty
 from threading import Event
-from typing import List, Tuple, Type
+from typing import List, Tuple, Type, Union, Dict, Any
 from urllib.error import HTTPError
 from urllib.parse import quote_plus
 
@@ -444,7 +444,7 @@ class ScopusClient:
     MAX_RESULTS = 5000  # Upper limit on number of results returned
     QUOTA_EXCEED_ERROR_PREFIX = 'QuotaExceeded. Resets at: '
 
-    def __init__(self, api_key, view='standard'):
+    def __init__(self, api_key: str, view: str='standard'):
         """ Constructor.
 
         :param api_key: API key.
@@ -460,7 +460,7 @@ class ScopusClient:
         self._view = view
 
     @staticmethod
-    def get_reset_date_from_error(msg):
+    def get_reset_date_from_error(msg: str) -> int:
         """ Get the reset date timestamp in seconds from the exception message.
 
         :param msg: exception message.
@@ -471,7 +471,7 @@ class ScopusClient:
         return int(msg[ts_offset:]) / 1000  # Elsevier docs says reports seconds, but headers report milliseconds.
 
     @staticmethod
-    def get_next_page_url(links):
+    def get_next_page_url(links: str) -> Union[None, str]:
         """ Get the URL for the next result page.
 
         :param links: The list of links returned from the last query.
@@ -485,7 +485,7 @@ class ScopusClient:
 
     @sleep_and_retry
     @limits(calls=ScopusClientThrottleLimits.CALL_LIMIT, period=ScopusClientThrottleLimits.CALL_PERIOD)
-    def retrieve(self, query):
+    def retrieve(self, query: str) -> Tuple[List[Dict[str, Any]], int, int]:
         """ Execute the query.
 
         :param query: Query string.
@@ -524,7 +524,7 @@ class ScopusClient:
 
             url = ScopusClient.get_next_page_url(response_dict['search-results']['link'])
             if url is None:
-                raise AirflowException(f'A missing links list was encountered while fetching results for {query}')
+                return results, quota_remaining, quota_reset
 
             request = urllib.request.Request(url, headers=self._headers)
 
@@ -863,7 +863,7 @@ class ScopusJsonParser:
     """ Helper methods to process the json from SCOPUS into desired structure. """
 
     @staticmethod
-    def get_affiliations(data):
+    def get_affiliations(data: Dict[str, Any]) -> Union[None,List[Dict[str, Any]]]:
         """ Get the affiliation field.
 
         :param data: json response from SCOPUS.
@@ -891,7 +891,7 @@ class ScopusJsonParser:
         return affiliations
 
     @staticmethod
-    def get_authors(data):
+    def get_authors(data: Dict[str, Any]) -> Union[None, List[Dict[str, Any]]]:
         """ Get the author field. Won't know if this parser is going to throw error unless we get access to api key
             with complete view access.
 
@@ -922,7 +922,7 @@ class ScopusJsonParser:
         return author_list
 
     @staticmethod
-    def get_identifier_list(data: dict, id_type: str):
+    def get_identifier_list(data: dict, id_type: str) -> Union[None, List[str]]:
         """ Get the list of document identifiers or null of it does not exist.  This string/list behaviour was observed
         for ISBNs so using it for other identifiers just in case.
 

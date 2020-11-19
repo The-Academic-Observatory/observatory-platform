@@ -25,7 +25,7 @@ from observatory.platform.utils.config_utils import module_file_path
 import requests
 import time
 import tldextract
-from pbr.util import cfg_to_args
+from importlib_metadata import metadata
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -131,26 +131,10 @@ def get_ao_user_agent():
     :return: User agent string.
     """
 
-    # Get current working directory so we can navigate back to it later
-    cwd = os.getcwd()
-
-    # On workstation, go to observatory-platform directory
-    platform_path = module_file_path('observatory.platform', nav_back_steps=-3)
-
-    # On Docker based environment go to AO_HOME/observatory-platform
-    if 'AO_HOME' in os.environ:
-        platform_path = os.path.join(os.environ['AO_HOME'], 'observatory-platform')
-
-    # Go to platform folder to get config info
-    os.chdir(platform_path)
-    pkg_info = cfg_to_args()
-
-    # Go back to current working directory
-    os.chdir(cwd)
-
-    version = pkg_info['version']
-    url = pkg_info['url']
-    mailto = pkg_info['author_email']
+    pkg_info = metadata('observatory-dags')
+    version = pkg_info.get('Version')
+    url = pkg_info.get('Home-page')
+    mailto = pkg_info.get('Author-email')
     ua = f'Observatory Platform v{version} (+{url}; mailto: {mailto})'
 
     return ua
