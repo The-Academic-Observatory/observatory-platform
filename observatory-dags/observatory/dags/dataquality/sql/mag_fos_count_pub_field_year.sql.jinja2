@@ -1,0 +1,14 @@
+WITH temp as ((
+SElECT Publisher, CitationCount, ReferenceCount
+FROM `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}` as paper
+INNER JOIN `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ ts }}` as pfos
+ON paper.PaperId = pfos.PaperId WHERE FieldOfStudyID = {{ fos_id }} and Year = {{ year }}
+))
+SELECT
+  Publisher, SUM(CASE WHEN Publisher IS NULL THEN 1 ELSE 1 END) as {{ pap_count }},
+  SUM(CASE WHEN Publisher IS NULL THEN CitationCount ELSE CitationCount END) {{ cit_count }},
+  SUM(CASE WHEN Publisher IS NULL THEN CitationCount ELSE ReferenceCount END) {{ ref_count }}
+FROM temp
+GROUP BY Publisher
+ORDER BY pcount DESC
+LIMIT {{ limit }}
