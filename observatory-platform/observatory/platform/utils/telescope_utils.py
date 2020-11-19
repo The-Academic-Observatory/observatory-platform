@@ -87,7 +87,7 @@ def get_as_list(base: dict, target):
     """
 
     if target not in base:
-        return None
+        return list()
 
     if not isinstance(base[target], list):
         return [base[target]]

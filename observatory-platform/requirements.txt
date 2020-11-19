@@ -23,3 +23,4 @@ importlib-metadata==1.7.*
 httpretty==1.0.*
 pbr==5.5.*
 redis==3.5.*
+importlib-metadata==1.7.*

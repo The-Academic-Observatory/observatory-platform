@@ -37,6 +37,19 @@ class TestUrlUtils(unittest.TestCase):
                      'https://www.curtin.edu.au/test#lwallace',
                      '//global.curtin.edu.au/template/css/layoutv3.css/?a=1']
 
+    class MockMetadata:
+        @classmethod
+        def get(self, attribute):
+            if attribute == 'Version':
+                return '1'
+            if attribute == 'Home-page':
+                return 'http://test.test'
+            if attribute == 'Author-email':
+                return 'test@test'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def test_get_url_domain_suffix(self):
         expected = 'curtin.edu.au'
 
@@ -127,7 +140,7 @@ class TestUrlUtils(unittest.TestCase):
         duration = (end - start).total_seconds()
 
         self.assertTrue(state)
-        self.assertAlmostEquals(0, duration, delta=0.5)
+        self.assertAlmostEqual(0, duration, delta=0.5)
 
     @patch('observatory.platform.utils.url_utils.urllib.request.urlopen')
     def test_wait_for_url_failed(self, mock_url_open):
@@ -141,12 +154,12 @@ class TestUrlUtils(unittest.TestCase):
         duration = (end - start).total_seconds()
 
         self.assertFalse(state)
-        self.assertAlmostEquals(expected_timeout, duration, delta=1)
+        self.assertAlmostEqual(expected_timeout, duration, delta=1)
 
-    @patch('observatory.platform.utils.url_utils.cfg_to_args', return_value={'version': 1, 'url': 2, 'author_email': 3})
+    @patch('observatory.platform.utils.url_utils.metadata', return_value=MockMetadata)
     def test_ao_user_agent(self, mock_cfg):
         """ Test user agent generation """
 
-        gt = f'Observatory Platform v1 (+2; mailto: 3)'
+        gt = f'Observatory Platform v1 (+http://test.test; mailto: test@test)'
         ua = get_ao_user_agent()
         self.assertEqual(ua, gt)
