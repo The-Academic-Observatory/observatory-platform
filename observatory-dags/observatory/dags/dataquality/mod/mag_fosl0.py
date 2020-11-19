@@ -128,15 +128,15 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
             prev_fosid = previous_counts[MagTableKey.COL_FOS_ID].to_list()
             prev_fosname = previous_counts[MagTableKey.COL_NORM_NAME].to_list()
 
-            id_unchanged = curr_fosid == prev_fosid
-            normalized_unchanged = curr_fosname == prev_fosname
+            id_changed = bool(curr_fosid != prev_fosid)
+            normalized_changed = bool(curr_fosname != prev_fosname)
 
             ts = release.strftime('%Y%m%d')
             self._cache[f'{MagCacheKey.FOSL0}{ts}'] = list(zip(curr_fosid, curr_fosname))
 
             dppaper = None
             dpcitations = None
-            if id_unchanged and normalized_unchanged:
+            if (not id_changed) and (not normalized_changed):
                 dppaper = proportion_delta(current_counts[MagTableKey.COL_PAP_COUNT],
                                            previous_counts[MagTableKey.COL_PAP_COUNT])
                 dpcitations = proportion_delta(current_counts[MagTableKey.COL_CIT_COUNT],
@@ -149,7 +149,7 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
 
             # Populate metrics
             metrics = FieldsOfStudyLevel0Module._construct_es_metrics(releases[i], current_counts, previous_counts,
-                                                                      id_unchanged, normalized_unchanged)
+                                                                      id_changed, normalized_changed)
             logging.info(f'Constructed 1 MagFosL0Metrics document.')
             docs.append(metrics)
 
@@ -184,21 +184,21 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
 
     @staticmethod
     def _construct_es_metrics(release: datetime.date, current_counts: pd.DataFrame, previous_counts: pd.DataFrame,
-                              id_unchanged: bool, normalized_unchanged: bool) -> MagFosL0Metrics:
+                              id_changed: bool, normalized_changed: bool) -> MagFosL0Metrics:
         """ Constructs the MagFosL0Metrics documents.
         @param release: MAG release date we are generating a document for.
         @param current_counts: Counts for the current release.
         @param current_counts: Counts for the previous release.
-        @param id_unchanged: boolean indicating whether the id has changed between releases.
-        @param normalized_unchanged: boolean indicating whether the normalized names have changed between releases.
+        @param id_changed: boolean indicating whether the id has changed between releases.
+        @param normalized_changed: boolean indicating whether the normalized names have changed between releases.
         @return: MagFosL0Metrics document.
         """
 
         metrics = MagFosL0Metrics(release=release)
-        metrics.field_ids_unchanged = id_unchanged
-        metrics.normalized_names_unchanged = normalized_unchanged
+        metrics.field_ids_changed = id_changed
+        metrics.normalized_names_changed = normalized_changed
 
-        if id_unchanged and normalized_unchanged:
+        if (not id_changed) and (not normalized_changed):
             metrics.js_dist_paper = jensenshannon(current_counts[MagTableKey.COL_PAP_COUNT],
                                                   previous_counts[MagTableKey.COL_PAP_COUNT])
             metrics.js_dist_citation = jensenshannon(current_counts[MagTableKey.COL_CIT_COUNT],

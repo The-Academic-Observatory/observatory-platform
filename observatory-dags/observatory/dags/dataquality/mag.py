@@ -163,7 +163,7 @@ class MagAnalyser(DataQualityAnalyser):
                 DoiCountsDocTypeYearModule(self._project_id, self._dataset_id, self._cache),
                 FosLevelCountModule(self._project_id, self._dataset_id, self._cache),
                 FosLevelCountYearModule(self._project_id, self._dataset_id, self._cache),
-                FosCountsPubFieldYearModule(self._project_id, self._dataset_id, self._cache),
+                # FosCountsPubFieldYearModule(self._project_id, self._dataset_id, self._cache),
             ]
 
             for module in default_modules:

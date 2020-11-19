@@ -135,16 +135,16 @@ class TestFieldsOfStudyLevel0Module(unittest.TestCase):
                           MagTableKey.COL_PAP_COUNT: [3],
                           MagTableKey.COL_CIT_COUNT: [2]}
         previous_counts = current_counts
-        metric = self.module._construct_es_metrics(release, current_counts, previous_counts, True, True)
+        metric = self.module._construct_es_metrics(release, current_counts, previous_counts, False, False)
         self.assertEqual(metric.release, release)
-        self.assertEqual(metric.field_ids_unchanged, True)
-        self.assertEqual(metric.normalized_names_unchanged, True)
+        self.assertEqual(metric.field_ids_changed, False)
+        self.assertEqual(metric.normalized_names_changed, False)
         self.assertEqual(metric.js_dist_paper, 0)
         self.assertEqual(metric.js_dist_citation, 0)
 
         metric = self.module._construct_es_metrics(release, current_counts, previous_counts, True, False)
-        self.assertEqual(metric.field_ids_unchanged, True)
-        self.assertEqual(metric.normalized_names_unchanged, False)
+        self.assertEqual(metric.field_ids_changed, True)
+        self.assertEqual(metric.normalized_names_changed, False)
         self.assertEqual(metric.js_dist_paper, None)
         self.assertEqual(metric.js_dist_citation, None)
 
@@ -201,8 +201,8 @@ class TestFieldsOfStudyLevel0Module(unittest.TestCase):
 
             metric = docs[1]
             self.assertEqual(metric.release, releases[0])
-            self.assertEqual(metric.field_ids_unchanged, False)
-            self.assertEqual(metric.normalized_names_unchanged, True)
+            self.assertEqual(metric.field_ids_changed, True)
+            self.assertEqual(metric.normalized_names_changed, False)
             self.assertEqual(metric.js_dist_paper, None)
             self.assertEqual(metric.js_dist_citation, None)
 
@@ -231,8 +231,8 @@ class TestFieldsOfStudyLevel0Module(unittest.TestCase):
 
             metric = docs[1]
             self.assertEqual(metric.release, releases[0])
-            self.assertEqual(metric.field_ids_unchanged, True)
-            self.assertEqual(metric.normalized_names_unchanged, True)
+            self.assertEqual(metric.field_ids_changed, False)
+            self.assertEqual(metric.normalized_names_changed, False)
             self.assertEqual(metric.js_dist_paper, 0)
             self.assertEqual(metric.js_dist_citation, 0)
 
@@ -272,8 +272,8 @@ class TestFieldsOfStudyLevel0Module(unittest.TestCase):
 
                 metric = mock_bulk.call_args_list[0][0][0][1]
                 self.assertEqual(metric.release, self.cache[MagCacheKey.RELEASES][0])
-                self.assertEqual(metric.field_ids_unchanged, True)
-                self.assertEqual(metric.normalized_names_unchanged, True)
+                self.assertEqual(metric.field_ids_changed, False)
+                self.assertEqual(metric.normalized_names_changed, False)
                 self.assertEqual(metric.js_dist_paper, 0)
                 self.assertEqual(metric.js_dist_citation, 0)
 
