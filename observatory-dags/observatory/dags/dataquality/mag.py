@@ -48,6 +48,8 @@ from observatory.dags.dataquality.mod.mag_doicountsdoctypeyear import DoiCountsD
 from observatory.dags.dataquality.mod.mag_foslevelcount import FosLevelCountModule
 from observatory.dags.dataquality.mod.mag_foslevelcountyear import FosLevelCountYearModule
 from observatory.dags.dataquality.mod.mag_fos_count_pub_field_year import FosCountsPubFieldYearModule
+from observatory.dags.dataquality.mod.mag_fosl0_score_field_year import FosL0ScoreFieldYearModule
+from observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics import FosL0ScoreFieldYearMetricsModule
 
 class MagAnalyser(DataQualityAnalyser):
     """
@@ -164,6 +166,8 @@ class MagAnalyser(DataQualityAnalyser):
                 FosLevelCountModule(self._project_id, self._dataset_id, self._cache),
                 FosLevelCountYearModule(self._project_id, self._dataset_id, self._cache),
                 FosCountsPubFieldYearModule(self._project_id, self._dataset_id, self._cache),
+                FosL0ScoreFieldYearModule(self._project_id, self._dataset_id, self._cache),
+                FosL0ScoreFieldYearMetricsModule(self._project_id, self._dataset_id, self._cache),
             ]
 
             for module in default_modules:

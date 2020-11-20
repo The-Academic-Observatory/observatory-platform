@@ -18,15 +18,13 @@
 
 
 import logging
-import pandas as pd
 import datetime
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Tuple
 from scipy.spatial.distance import jensenshannon
-from elasticsearch_dsl.document import IndexMeta
+from elasticsearch_dsl import Document
 
-from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
+from observatory.dags.dataquality.config import MagCacheKey
 from observatory.dags.dataquality.analyser import MagAnalyserModule
 from observatory.dags.dataquality.es_mag import MagFosL0ScoreFieldYearMetricR, MagFosL0ScoreFieldYearMetricY
 from observatory.dags.dataquality.es_utils import (
@@ -34,7 +32,7 @@ from observatory.dags.dataquality.es_utils import (
     clear_index,
     bulk_index,
     delete_index,
-    search
+    search_count_by_release
 )
 
 
@@ -65,7 +63,8 @@ class FosL0ScoreFieldYearMetricsModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        logging.info(f'Running {self.name()}')
+        name = self.name()
+        logging.info(f'Running {name}')
         releases = self._cache[MagCacheKey.RELEASES]
         year_end = datetime.datetime.now(datetime.timezone.utc).year
 
@@ -75,33 +74,14 @@ class FosL0ScoreFieldYearMetricsModule(MagAnalyserModule):
             ts = release.strftime('%Y%m%d')
             fos_ids = self._cache[f'{MagCacheKey.FOSL0}{ts}']
 
-            for f in range(len(fos_ids)):
-                fos = fos_ids[f]
-                logging.info(f'Computing release: {ts}, fos: {fos[1]}')
+            if search_count_by_release(MagFosL0ScoreFieldYearMetricY, release.isoformat()) > 0:
+                continue
 
+            logging.info(f'{name}: computing release {ts}')
+            for fos in fos_ids:
                 for year in range(FosL0ScoreFieldYearMetricsModule.YEAR_START, year_end + 1):
-                    cyear_crel = self._cache[f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos[0]}-{year}']
-                    pyear_crel = cyear_crel
-                    if year-1 >= FosL0ScoreFieldYearMetricsModule.YEAR_START:
-                        pyear_crel = self._cache[f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos[0]}-{year-1}']
-
-                    cyear_prel = cyear_crel
-                    if r > 0:
-                        pts = releases[r-1].strftime('%Y%m%d')
-                        cyear_prel = self._cache[f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{pts}-{fos[0]}-{year}']
-
-
-
-                    rel_diff = jensenshannon(cyear_crel, cyear_prel)
-                    year_diff = jensenshannon(cyear_crel, pyear_crel)
-
-                    ydoc = MagFosL0ScoreFieldYearMetricY(release=release, field_id=fos[0], field_name=fos[1],
-                                                         year=str(year), js_dist=year_diff)
-
-                    rdoc = MagFosL0ScoreFieldYearMetricY(release=release, field_id=fos[0], field_name=fos[1],
-                                                         year=str(year), js_dist=rel_diff)
-                    docs.append(ydoc)
-                    docs.append(rdoc)
+                    es_docs = self._construct_es_docs(releases, r, ts, fos, year)
+                    docs.extend(es_docs)
 
         if len(docs) > 0:
             bulk_index(docs)
@@ -119,23 +99,41 @@ class FosL0ScoreFieldYearMetricsModule(MagAnalyserModule):
             delete_index(MagFosL0ScoreFieldYearMetricY)
             delete_index(MagFosL0ScoreFieldYearMetricR)
 
-    def _get_histogram(self, es_doc: IndexMeta, release: datetime.date, ts: str, fos: List[int, str], year: int) -> List[int]:
-        """ Check cache for histogram information. If it doesn't exist, fetch it from elastic search.  If that doesn't
-        exist, throw an error.  Will avoid using auto fetching in cache for time being.
+    def _construct_es_docs(self, releases: datetime.date, rel_idx: int, ts: str, fos: Tuple[int, str], year: int) -> \
+    List[Document]:
+        """ Construct MagFosL0ScoreFieldYear docs for each release.
 
-        @param ts: Timestamp
-        @param fos: Field of study structure (id, name)
-        @param year: Year of interest.
-        @return: Histogram of saliency scores.
+        @param release: Release date.
+        @param ts: Table suffix (timestamp).
+        @param fos: FieldOfStudyId, Normalized Name.
+        @param year: Publication year we're interested in.
+        @return List of constructed elastic search documents.
         """
 
-        key = f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos[0]}-{year}'
-        if key in self._cache:
-            return self._cache[key]
+        docs = list()
 
-        hits = search(es_doc, sort_field='score_start', release=release.isoformat(), year=str(year), field_id=fos[0])
+        cyear_crel = self._cache[f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos[0]}-{year}']
+        pyear_crel = cyear_crel
+        if year - 1 >= FosL0ScoreFieldYearMetricsModule.YEAR_START:
+            pyear_crel = self._cache[f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos[0]}-{year - 1}']
 
-        if len(hits) == 0:
-            raise Exception(f'{key} has no cached data.')
+        cyear_prel = cyear_crel
+        if rel_idx > 0:
+            pts = releases[rel_idx - 1].strftime('%Y%m%d')
+            cyear_prel = self._cache[f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{pts}-{fos[0]}-{year}']
 
-        histogram = [x.count for x in hits]
+        eps = 1e-12
+        cyear_crel = [x + eps for x in cyear_crel]
+        cyear_prel = [x + eps for x in cyear_prel]
+        pyear_crel = [x + eps for x in pyear_crel]
+        rel_diff = jensenshannon(cyear_crel, cyear_prel)
+        year_diff = jensenshannon(cyear_crel, pyear_crel)
+        ydoc = MagFosL0ScoreFieldYearMetricY(release=releases[rel_idx], field_id=fos[0], field_name=fos[1],
+                                             year=str(year), js_dist=year_diff)
+
+        rdoc = MagFosL0ScoreFieldYearMetricR(release=releases[rel_idx], field_id=fos[0], field_name=fos[1],
+                                             year=str(year), js_dist=rel_diff)
+        docs.append(ydoc)
+        docs.append(rdoc)
+
+        return docs

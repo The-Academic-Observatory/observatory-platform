@@ -37,6 +37,7 @@ from observatory.dags.dataquality.mod.mag_foslevelcount import FosLevelCountModu
 from observatory.dags.dataquality.mod.mag_foslevelcountyear import FosLevelCountYearModule
 from observatory.dags.dataquality.mod.mag_fos_count_pub_field_year import FosCountsPubFieldYearModule
 from observatory.dags.dataquality.mod.mag_fosl0_score_field_year import FosL0ScoreFieldYearModule
+from observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics import FosL0ScoreFieldYearMetricsModule
 
 
 class TestMagAnalyser(unittest.TestCase):
@@ -705,3 +706,94 @@ class TestFosL0ScoreFieldYearModule(unittest.TestCase):
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][0].score_end, 0.01)
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][99].score_start, 0.99)
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][99].score_end, 1.0)
+
+
+class TestFosL0ScoreFieldYearMetricsModule(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cache = AutoFetchCache(2000)
+
+    @patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics.init_doc')
+    @patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year.init_doc')
+    def test_run_fresh(self, a, b):
+        # Setting up the data from the FosL0ScoreFieldYearModule
+        score_module = FosL0ScoreFieldYearModule('project_id', 'dataset_id', self.cache)
+        self.cache[MagCacheKey.RELEASES] = [datetime.date(1990, 1, 1), datetime.date(1991, 1, 1)]
+        self.cache[f'{MagCacheKey.FOSL0}{19900101}'] = [(0, 'test')]
+        self.cache[f'{MagCacheKey.FOSL0}{19910101}'] = [(0, 'test')]
+        num_buckets = int((FosL0ScoreFieldYearModule.BUCKET_END - FosL0ScoreFieldYearModule.BUCKET_START) \
+                          / FosL0ScoreFieldYearModule.BUCKET_STEP)
+        now_year = datetime.datetime.now(datetime.timezone.utc).year
+
+        with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year.search_count_by_release',
+                   return_value=0):
+            def side_effect(*args, **kwargs):
+                responses = [pd.DataFrame(
+                    {FosL0ScoreFieldYearModule.BQ_BUCKET: [i for i in range(1, num_buckets + 1)],
+                     FosL0ScoreFieldYearModule.BQ_COUNT: [0] * num_buckets,
+                     }),
+                    pd.DataFrame(
+                    {FosL0ScoreFieldYearModule.BQ_BUCKET: [i for i in range(1, num_buckets + 1)],
+                     FosL0ScoreFieldYearModule.BQ_COUNT: [0] * num_buckets,
+                     }),
+                    pd.DataFrame(
+                    {FosL0ScoreFieldYearModule.BQ_BUCKET: [i for i in range(1, num_buckets + 1)],
+                     FosL0ScoreFieldYearModule.BQ_COUNT: [0] * num_buckets,
+                     }),
+                    pd.DataFrame(
+                    {FosL0ScoreFieldYearModule.BQ_BUCKET: [i for i in range(1, num_buckets + 1)],
+                     FosL0ScoreFieldYearModule.BQ_COUNT: [0] * num_buckets,
+                     })]
+                response = responses[side_effect.counter]
+                side_effect.counter += 1
+
+                responses[0][FosL0ScoreFieldYearModule.BQ_COUNT][0] = 1
+                responses[1][FosL0ScoreFieldYearModule.BQ_COUNT][0] = 1
+                responses[2][FosL0ScoreFieldYearModule.BQ_COUNT][2] = 1
+                responses[2][FosL0ScoreFieldYearModule.BQ_COUNT][3] = 1
+                responses[3][FosL0ScoreFieldYearModule.BQ_COUNT][4] = 1
+
+                return response
+            side_effect.counter = 0
+
+            with patch(
+                    'observatory.dags.dataquality.mod.mag_fosl0_score_field_year.FosL0ScoreFieldYearModule.YEAR_START',
+                    now_year-1):
+                with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year.pd.read_gbq') as rbq:
+                    rbq.side_effect = side_effect
+                    with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year.bulk_index') as mock_bulk:
+                        score_module.run()
+
+        # Testing begins
+        module = FosL0ScoreFieldYearMetricsModule('project_id', 'dataset_id', self.cache)
+        with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics.search_count_by_release',
+                   return_value=0):
+            with patch(
+                'observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics.FosL0ScoreFieldYearMetricsModule.YEAR_START',
+                now_year-1):
+                with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics.bulk_index') as mock_bulk:
+                    module.run()
+                    self.assertEqual(len(mock_bulk.call_args_list[0][0][0]), 8)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].release, datetime.date(1990, 1, 1))
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].field_id, 0)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].field_name, 'test')
+
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].year, str(now_year-1))
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].js_dist, 0)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][1].year, str(now_year-1))
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][1].js_dist, 0)
+
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][2].year, str(now_year))
+                    self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][2].js_dist, 0)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][3].year, str(now_year))
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][3].js_dist, 0)
+
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][4].year, str(now_year-1))
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][4].js_dist, 0)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][5].year, str(now_year-1))
+                    self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][5].js_dist, 0.8325546111576977)
+
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][6].year, str(now_year))
+                    self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][6].js_dist, 0.8325546111576977)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][7].year, str(now_year))
+                    self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][7].js_dist, 0.8325546111576977)
