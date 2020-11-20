@@ -3,20 +3,6 @@ import pendulum
 from typing import Union
 from observatory_platform.utils.config_utils import SubFolder
 from observatory_platform.utils.config_utils import telescope_path
-from datetime import datetime
-
-
-class Telescope:
-    """ Defines an interface for telescopes. """
-    def __init__(self, dag_id, start_date: datetime, schedule_interval, extensions: dict):
-        self.dag_id = dag_id
-        self.start_date = start_date
-        self.schedule_interval = schedule_interval
-        self.extensions = extensions
-
-    # a standard method that is shared by all different types of telescopes
-    def upload_to_bucket(self, **kwargs):
-        print(self.dag_id)
 
 
 class TelescopeRelease:
@@ -27,6 +13,7 @@ class TelescopeRelease:
         self.start_date = start_date
         self.end_date = end_date
         self.release_date = end_date
+        self.extensions = extensions
         self.download_ext = extensions['download']
         self.extract_ext = extensions['extract']
         self.transform_ext = extensions['transform']
@@ -70,4 +57,3 @@ class TelescopeRelease:
         """
         path = os.path.join(self.subdir(sub_folder), f"{file_name}.{ext}")
         return path
-
