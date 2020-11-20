@@ -34,6 +34,7 @@ from observatory.dags.dataquality.analyser import MagAnalyserModule
 from observatory.dags.dataquality.config import MagTableKey, MagCacheKey
 from observatory.dags.dataquality.mod.mag_foslevelcount import FosLevelCountModule
 from observatory.dags.dataquality.mod.mag_foslevelcountyear import FosLevelCountYearModule
+from observatory.dags.dataquality.mod.mag_fos_count_pub_field_year import FosCountsPubFieldYearModule
 
 class TestMagAnalyser(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -630,8 +631,31 @@ class TestFosLevelCountYearModule(unittest.TestCase):
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][0].year, '5')
 
 
-class TestFosL0ScoreFieldYearModule(unittest.TestCase):
+class TestFosCountsPubFieldYearModule(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cache = AutoFetchCache(2)
+        self.cache = AutoFetchCache(20)
 
+    @patch('observatory.dags.dataquality.mod.mag_fos_count_pub_field_year.init_doc')
+    def test_run_fresh(self, _):
+        module = FosCountsPubFieldYearModule('project_id', 'dataset_id', self.cache)
+        self.cache[MagCacheKey.RELEASES] = [datetime.date(1990, 1, 1)]
+        self.cache[f'{MagCacheKey.FOS_LEVELS}{19900101}'] = [0]
+        self.cache[f'{MagCacheKey.FOSL0}{19900101}'] = [(0, 'test')]
+
+
+        with patch('observatory.dags.dataquality.mod.mag_fos_count_pub_field_year.search_count_by_release', return_value=0):
+            mock_response = pd.DataFrame(
+                {FosCountsPubFieldYearModule.BQ_PAP_COUNT: [5], FosCountsPubFieldYearModule.BQ_CIT_COUNT: [4],
+                 FosCountsPubFieldYearModule.BQ_REF_COUNT: [0], MagTableKey.COL_PUBLISHER: 'test'
+                 })
+            with patch('observatory.dags.dataquality.mod.mag_fos_count_pub_field_year.pd.read_gbq',
+            return_value=mock_response):
+                with patch('observatory.dags.dataquality.mod.mag_fos_count_pub_field_year.bulk_index') as mock_bulk:
+                    module.run()
+                    self.assertGreater(len(mock_bulk.call_args_list[0][0][0]), 220)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].release, datetime.date(1990, 1, 1))
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].paper_count, 5)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].ref_count, 0)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].citation_count, 4)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].publisher, 'test')
