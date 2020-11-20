@@ -234,6 +234,21 @@ CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING,
   )
 );
 
+CREATE TEMP FUNCTION group_disciplines(fields ARRAY<STRUCT<DisplayName STRING, Score FLOAT64, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>>>) as (
+  ARRAY(
+    (SELECT AS STRUCT
+      DisplayName as field,
+      COUNT(DisplayName) as count,
+      SUM(Score) as sum_of_scores,
+      STRUCT(
+          SUM(citations.mag) as mag,
+          SUM(citations.crossref) as crosssref,
+          SUM(citations.open_citations) as open_citations
+        ) as citations,
+    FROM UNNEST(fields)
+    GROUP BY DisplayName)
+  )
+);
 
 ----
 -- Main SQL Function
@@ -270,7 +285,9 @@ SELECT
           MAX(collaborator.region) as region,
           MAX(collaborator.subregion) as subregion,
           MAX(collaborator.coordinates) as coordinates,
-          COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold
+          COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold,
+          STRUCT(SUM(citations.mag) as mag, SUM(citations.open_citations) as open_citations, SUM(citations.crossref) as crossref) as citations,
+          group_disciplines(ARRAY_CONCAT_AGG(disciplines)) as disciplines
       FROM UNNEST(collaborations) as collaborator WHERE collaborator.identifier <> id GROUP BY collaborator.identifier ) as collaborations,
 
   -- Funders
@@ -357,7 +374,29 @@ FROM(
     compute_metrics(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as metrics,
 
     -- Collaboration Analysis
-    ARRAY_CONCAT_AGG( ARRAY((SELECT as STRUCT *, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, FROM UNNEST(affiliations.{{ aggregation_field }}) as collab) )) as collaborations,
+    ARRAY_CONCAT_AGG( 
+      ARRAY(
+        (SELECT as STRUCT 
+          collab.*, 
+          unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold,
+          STRUCT(
+              dois.microsoft_academic_graph.CitationCount as mag,
+              dois.crossref.references_count as crossref,
+              dois.open_citations.citations_total as open_citations
+            ) as citations,
+          ARRAY(
+            SELECT as STRUCT
+              DisplayName,
+              Score,
+              STRUCT(
+                dois.microsoft_academic_graph.CitationCount as mag,
+                dois.crossref.references_count as crossref,
+                dois.open_citations.citations_total as open_citations
+              ) as citations,
+            FROM UNNEST(dois.microsoft_academic_graph.fields.fields.level_0)) as disciplines
+        FROM UNNEST(affiliations.countries) as collab) 
+      )
+    ) as collaborations,
 
     -- Output Types
     count_output_types(ARRAY_AGG(STRUCT(unpaywall.output_type, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as output_types,
@@ -401,7 +440,7 @@ FROM(
     ARRAY_AGG(STRUCT(unpaywall.journal_name as journal, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold)) as journals,
 
     -- Unpaywall History
-    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT unpaywall.*from UNNEST(dois.unpaywall_history) as unpaywall))) as unpaywall_history
+    --ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT unpaywall.*from UNNEST(dois.unpaywall_history) as unpaywall))) as unpaywall_history
 
   FROM `{{ project_id }}.observatory.doi{{ release_date.strftime('%Y%m%d') }}` as dois, UNNEST(dois.affiliations.{{ aggregation_field }}) as aggregrate
   WHERE aggregrate.identifier IS NOT NULL
