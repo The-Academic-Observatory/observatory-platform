@@ -133,8 +133,8 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
             if publisher is None:
                 publisher = 'null'
 
-            doc = MagFosCountPubFieldYear(release=release, year=year, pap_count=paper_count,
-                                          cit_count=citation_count, ref_count=ref_count,
+            doc = MagFosCountPubFieldYear(release=release, year=year, paper_count=paper_count,
+                                          citation_count=citation_count, ref_count=ref_count,
                                           publisher=publisher, field_id=fos[0], field_name=fos[1])
 
             docs.append(doc)
