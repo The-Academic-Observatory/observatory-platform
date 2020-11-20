@@ -290,6 +290,15 @@ SELECT
           group_disciplines(ARRAY_CONCAT_AGG(disciplines)) as disciplines
       FROM UNNEST(collaborations) as collaborator WHERE collaborator.identifier <> id GROUP BY collaborator.identifier ) as collaborations,
 
+  -- Members
+  ARRAY((
+  SELECT as STRUCT
+    member,
+    COUNT(*) as count, COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold
+  FROM  UNNEST(members)
+  GROUP BY member
+  )) as members,
+
   -- Funders
   ARRAY((
   SELECT as STRUCT
@@ -397,6 +406,8 @@ FROM(
         FROM UNNEST(affiliations.{{ aggregation_field }}) as collab) 
       )
     ) as collaborations,
+
+    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT member, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold from UNNEST(aggregrate.members) as member))) as members,
 
     -- Output Types
     count_output_types(ARRAY_AGG(STRUCT(unpaywall.output_type, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as output_types,

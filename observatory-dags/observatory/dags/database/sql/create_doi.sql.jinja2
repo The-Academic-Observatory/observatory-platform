@@ -42,13 +42,13 @@ SELECT
   ARRAY( SELECT as STRUCT grouping_entity.group_id as identifier, MAX(grouping_entity.group_name) as name, ["Grouping"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, MAX(grouping_entity.country_code) as country_code, MAX(grouping_entity.country_code) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, ARRAY_AGG(DISTINCT grid_group.member_identifier IGNORE NULLS) as members FROM UNNEST(grid_groups) as grid_group, UNNEST(grid_group.groupings) as grouping_entity GROUP BY grouping_entity.group_id) as groupings,
 
   -- Funder 
-  ARRAY(SELECT as STRUCT funder.funder.doi as identifier, funder.funder.name as name, ["Funder"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(funder.fundref.country as STRING) as country, CAST(funder.fundref.country_code as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(funder.fundref.region as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, funder.fundref.funding_body_type as funding_body_type, funder.fundref.funding_body_sub_type as funding_body_subtype FROM UNNEST(fundref.funders) as funder) as funders,
+  ARRAY(SELECT as STRUCT funder.funder.doi as identifier, funder.funder.name as name, ["Funder"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(funder.fundref.country as STRING) as country, CAST(funder.fundref.country_code as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(funder.fundref.region as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, funder.fundref.funding_body_type as funding_body_type, funder.fundref.funding_body_sub_type as funding_body_subtype, CAST([] AS ARRAY<STRING>) as members FROM UNNEST(fundref.funders) as funder) as funders,
 
   -- Journal  
-  [ STRUCT( unpaywall.journal_name as identifier, unpaywall.journal_name as name, ["Journal"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates )] as journals,
+  [ STRUCT( unpaywall.journal_name as identifier, unpaywall.journal_name as name, ["Journal"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, CAST([] AS ARRAY<STRING>) as members )] as journals,
   
   -- Publisher 
-  [ STRUCT( crossref.publisher as identifier,crossref.publisher as name, ["Publisher"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates)] as publishers,
+  [ STRUCT( crossref.publisher as identifier,crossref.publisher as name, ["Publisher"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, CAST([] AS ARRAY<STRING>) as members)] as publishers,
   
 FROM
   dois_temp_table as extras
@@ -67,7 +67,8 @@ SELECT
         institution.iso3166.regions.alpha2 as country_code_2,
         institution.iso3166.regions.region as region,
         institution.iso3166.regions.subregion as subregion,
-        CONCAT(CAST(institution.addresses[SAFE_OFFSET(0)].lat as STRING), ", ", CAST(institution.addresses[SAFE_OFFSET(0)].lng as STRING)) as coordinates
+        CONCAT(CAST(institution.addresses[SAFE_OFFSET(0)].lat as STRING), ", ", CAST(institution.addresses[SAFE_OFFSET(0)].lng as STRING)) as coordinates,
+        CAST([] AS ARRAY<STRING>) as members
       )
     ) as institutions,
 
