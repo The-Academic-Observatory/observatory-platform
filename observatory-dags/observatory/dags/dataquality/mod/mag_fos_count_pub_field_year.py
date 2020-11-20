@@ -71,7 +71,8 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        logging.info(f'Running {self.name()}')
+        name = self.name()
+        logging.info(f'Running {name}')
         releases = self._cache[MagCacheKey.RELEASES]
         year_end = datetime.datetime.now(datetime.timezone.utc).year
 
@@ -81,6 +82,7 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
                 ts = release.strftime('%Y%m%d')
                 fos_ids = self._cache[f'{MagCacheKey.FOSL0}{ts}']
 
+                logging.info(f'{name}: processing {ts}')
                 for fos in fos_ids:
                     futures = list()
 
