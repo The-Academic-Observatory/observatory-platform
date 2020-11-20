@@ -394,7 +394,7 @@ FROM(
                 dois.open_citations.citations_total as open_citations
               ) as citations,
             FROM UNNEST(dois.microsoft_academic_graph.fields.fields.level_0)) as disciplines
-        FROM UNNEST(affiliations.countries) as collab) 
+        FROM UNNEST(affiliations.{{ aggregation_field }}) as collab) 
       )
     ) as collaborations,
 
