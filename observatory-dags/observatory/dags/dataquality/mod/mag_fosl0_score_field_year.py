@@ -43,7 +43,7 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
         Generates MagFosL0ScoreFieldYear elastic search documents.
     """
 
-    START_YEAR = 1800
+    YEAR_START = 1800
     BUCKET_START = 0.0
     BUCKET_END = 1.0
     BUCKET_STEP = 0.01
@@ -107,12 +107,12 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
         if index:
             delete_index(MagFosL0ScoreFieldYear)
 
-    def _construct_es_docs(self, release: datetime.date, ts: str, fos: List[int, str], year: int) -> List[Document]:
+    def _construct_es_docs(self, release: datetime.date, ts: str, fos: Tuple[int, str], year: int) -> List[Document]:
         """ Construct MagFosL0ScoreFieldYear docs for each release.
 
         @param release: Release date.
         @param ts: Table suffix (timestamp).
-        @param fos_id: FieldOfStudyId.
+        @param fos: FieldOfStudyId, Normalized Name.
         @param year: Publication year we're interested in.
         @return List of constructed elastic search documents.
         """
@@ -123,16 +123,18 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
 
         year = str(year)
         counts = self._get_bq_counts(ts, fos[0], year)
-        histogram = [0] * int((FosL0ScoreFieldYearModule.BUCKET_END - FosL0ScoreFieldYearModule.BUCKET_START)
-                               / FosL0ScoreFieldYearModule.BUCKET_STEP)
+        num_buckets = int((FosL0ScoreFieldYearModule.BUCKET_END - FosL0ScoreFieldYearModule.BUCKET_START) \
+                          / FosL0ScoreFieldYearModule.BUCKET_STEP)
+        histogram = [0] * num_buckets
 
         for i in range(len(counts)):
             bucket = counts[FosL0ScoreFieldYearModule.BQ_BUCKET][i] - 1
-            count = counts[FosL0ScoreFieldYearModule.BQ_COUNT]
+            count = counts[FosL0ScoreFieldYearModule.BQ_COUNT][i]
             histogram[bucket] = count
 
         for i in range(len(histogram)):
-            doc = MagFosL0ScoreFieldYear(release=release, field_id=fos[0], field_name=fos[1], year=year, count=histogram[i],
+            doc = MagFosL0ScoreFieldYear(release=release, field_id=fos[0], field_name=fos[1], year=year,
+                                         count=histogram[i],
                                          score_start=i * FosL0ScoreFieldYearModule.BUCKET_STEP,
                                          score_end=(i + 1) * FosL0ScoreFieldYearModule.BUCKET_STEP)
             docs.append(doc)
@@ -141,20 +143,19 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
 
         return docs
 
+    def _get_bq_counts(self, ts: str, fos_id: int, year: int) -> pd.DataFrame:
+        """ Get counts from BigQuery
 
-def _get_bq_counts(self, ts: str, fos_id: int, year: int) -> pd.DataFrame:
-    """ Get counts from BigQuery
+        @param ts: Table suffix (timestamp).
+        @param fos_id: FieldOfStudyId.
+        @param year: Publication year we're interested in.
+        @return DataFrame of counts.
+        """
 
-    @param ts: Table suffix (timestamp).
-    @param fos_id: FieldOfStudyId.
-    @param year: Publication year we're interested in.
-    @return DataFrame of counts.
-    """
-
-    sql = self._tpl_histogram.render(project_id=self._project_id, dataset_id=self._dataset_id,
-                                     ts=ts, fos_id=fos_id, year=year, count=FosL0ScoreFieldYearModule.BQ_COUNT,
-                                     bstart=FosL0ScoreFieldYearModule.BUCKET_START + FosL0ScoreFieldYearModule.BUCKET_STEP,
-                                     bend=FosL0ScoreFieldYearModule.BUCKET_END,
-                                     bstep=FosL0ScoreFieldYearModule.BUCKET_STEP)
-    df = pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)
-    return df
+        sql = self._tpl_histogram.render(project_id=self._project_id, dataset_id=self._dataset_id,
+                                         ts=ts, fos_id=fos_id, year=year, count=FosL0ScoreFieldYearModule.BQ_COUNT,
+                                         bstart=FosL0ScoreFieldYearModule.BUCKET_START + FosL0ScoreFieldYearModule.BUCKET_STEP,
+                                         bend=FosL0ScoreFieldYearModule.BUCKET_END,
+                                         bstep=FosL0ScoreFieldYearModule.BUCKET_STEP)
+        df = pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)
+        return df
