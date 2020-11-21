@@ -26,7 +26,7 @@ class AutoFetchCache(LRUCache):
     exist.
     '''
 
-    LIMIT = 10000
+    LIMIT = 10000000
 
     def __init__(self, maxsize: int = LIMIT):
         """ Add auto fetching functionality to LRUCache.
