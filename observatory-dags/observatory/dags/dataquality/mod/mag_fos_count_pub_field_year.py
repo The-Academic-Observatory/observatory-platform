@@ -76,7 +76,6 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
         releases = self._cache[MagCacheKey.RELEASES]
         year_end = datetime.datetime.now(datetime.timezone.utc).year
 
-        docs = list()
         with ThreadPoolExecutor(max_workers=MagParams.BQ_SESSION_LIMIT) as executor:
             for release in releases:
                 ts = release.strftime('%Y%m%d')
@@ -84,6 +83,7 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
 
                 logging.info(f'{name}: processing {ts}')
                 for fos in fos_ids:
+                    docs = list()
                     futures = list()
 
                     for year in range(FosCountsPubFieldYearModule.YEAR_START, year_end + 1):
