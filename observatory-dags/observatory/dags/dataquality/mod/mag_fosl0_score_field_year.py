@@ -77,13 +77,13 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
         releases = self._cache[MagCacheKey.RELEASES]
         year_end = datetime.datetime.now(datetime.timezone.utc).year
 
-        docs = list()
         with ThreadPoolExecutor(max_workers=MagParams.BQ_SESSION_LIMIT) as executor:
             for release in releases:
                 ts = release.strftime('%Y%m%d')
                 fos_ids = self._cache[f'{MagCacheKey.FOSL0}{ts}']
 
                 for fos in fos_ids:
+                    docs = list()
                     futures = list()
                     logging.info(f'Computing release: {ts}, fos: {fos[1]}')
 
