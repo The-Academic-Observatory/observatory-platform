@@ -82,6 +82,9 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
                 ts = release.strftime('%Y%m%d')
                 fos_ids = self._cache[f'{MagCacheKey.FOSL0}{ts}']
 
+                if search_count_by_release(MagFosL0ScoreFieldYear, release.isoformat()) > 0:
+                    continue
+
                 for fos in fos_ids:
                     docs = list()
                     futures = list()
@@ -118,9 +121,6 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
         """
 
         docs = list()
-        if search_count_by_release(MagFosL0ScoreFieldYear, release.isoformat()) > 0:
-            return docs
-
         year = str(year)
         counts = self._get_bq_counts(ts, fos[0], year)
         num_buckets = int((FosL0ScoreFieldYearModule.BUCKET_END - FosL0ScoreFieldYearModule.BUCKET_START) \
