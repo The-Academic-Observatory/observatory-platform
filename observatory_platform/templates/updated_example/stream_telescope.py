@@ -3,6 +3,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowSkipException, AirflowException
 from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils.helpers import chain
 import pendulum
 from observatory_platform.templates.updated_example.telescope import TelescopeRelease
 import logging
@@ -12,33 +13,36 @@ from typing import Callable
 from functools import partial
 from observatory_platform.utils.config_utils import check_variables, check_connections
 from observatory_platform.utils.telescope_utils import bq_load_partition, \
-    upload_downloaded, upload_transformed, bq_delete_old, bq_append_from_partition, bq_append_from_file, cleanup
+    upload_downloaded, upload_transformed, bq_delete_old, bq_append_from_partition, bq_append_from_file, cleanup, \
+    normalize_schedule_interval
+from inspect import signature
+from croniter import croniter
 
 
 class AbstractStreamTelescope(ABC):
-    # def __init__(self, dag_id, queue: str, schedule_interval: str, start_date: datetime, max_retries: int,
-    #              description: str, dataset_id: str, schema_version: str, airflow_vars: list, airflow_conns: list,
-    #              download_ext: str, extract_ext: str, transform_ext: str, main_table_id: str, partition_table_id: str,
-    #              merge_partition_field: str, updated_date_field: str, bq_merge_days: int):
-    #     if not croniter.is_valid(normalize_schedule_interval(schedule_interval)):
-    #         raise AirflowException(f"Not a valid cron expression: {schedule_interval}")
-    #     self.dag_id = dag_id
-    #     self.queue = queue
-    #     self.schedule_interval = schedule_interval
-    #     self.start_date = start_date
-    #     self.max_retries = max_retries
-    #     self.description = description
-    #     self.dataset_id = dataset_id
-    #     self.schema_version = schema_version
-    #     self.airflow_vars = airflow_vars
-    #     self.airflow_conns = airflow_conns
-    #     self.extensions = {'download': download_ext, 'extract': extract_ext, 'transform': transform_ext}
-    #
-    #     self.main_table_id = main_table_id
-    #     self.partition_table_id = partition_table_id
-    #     self.merge_partition_field = merge_partition_field
-    #     self.updated_date_field = updated_date_field
-    #     self.bq_merge_days = bq_merge_days
+    def __init__(self, dag_id, queue: str, schedule_interval: str, start_date: datetime, max_retries: int,
+                 description: str, dataset_id: str, schema_version: str, airflow_vars: list, airflow_conns: list,
+                 download_ext: str, extract_ext: str, transform_ext: str, main_table_id: str, partition_table_id: str,
+                 merge_partition_field: str, updated_date_field: str, bq_merge_days: int):
+        if not croniter.is_valid(normalize_schedule_interval(schedule_interval)):
+            raise AirflowException(f"Not a valid cron expression: {schedule_interval}")
+        self.dag_id = dag_id
+        self.queue = queue
+        self.schedule_interval = schedule_interval
+        self.start_date = start_date
+        self.max_retries = max_retries
+        self.description = description
+        self.dataset_id = dataset_id
+        self.schema_version = schema_version
+        self.airflow_vars = airflow_vars
+        self.airflow_conns = airflow_conns
+        self.extensions = {'download': download_ext, 'extract': extract_ext, 'transform': transform_ext}
+
+        self.main_table_id = main_table_id
+        self.partition_table_id = partition_table_id
+        self.merge_partition_field = merge_partition_field
+        self.updated_date_field = updated_date_field
+        self.bq_merge_days = bq_merge_days
 
     @abstractmethod
     def check_extra_dependencies(self, kwargs):
@@ -78,27 +82,27 @@ class StreamTelescope(AbstractStreamTelescope):
                  download_ext: str, extract_ext: str, transform_ext: str, main_table_id: str, partition_table_id: str,
                  merge_partition_field: str, updated_date_field: str, bq_merge_days: int):
 
-        self.dag_id = dag_id
-        self.queue = queue
-        self.schedule_interval = schedule_interval
-        self.start_date = start_date
-        self.max_retries = max_retries
-        self.description = description
-        self.dataset_id = dataset_id
-        self.schema_version = schema_version
-        self.airflow_vars = airflow_vars
-        self.airflow_conns = airflow_conns
-        self.extensions = {'download': download_ext, 'extract': extract_ext, 'transform': transform_ext}
+        # self.dag_id = dag_id
+        # self.queue = queue
+        # self.schedule_interval = schedule_interval
+        # self.start_date = start_date
+        # self.max_retries = max_retries
+        # self.description = description
+        # self.dataset_id = dataset_id
+        # self.schema_version = schema_version
+        # self.airflow_vars = airflow_vars
+        # self.airflow_conns = airflow_conns
+        # self.extensions = {'download': download_ext, 'extract': extract_ext, 'transform': transform_ext}
+        #
+        # self.main_table_id = main_table_id
+        # self.partition_table_id = partition_table_id
+        # self.merge_partition_field = merge_partition_field
+        # self.updated_date_field = updated_date_field
+        # self.bq_merge_days = bq_merge_days
 
-        self.main_table_id = main_table_id
-        self.partition_table_id = partition_table_id
-        self.merge_partition_field = merge_partition_field
-        self.updated_date_field = updated_date_field
-        self.bq_merge_days = bq_merge_days
-
-        # super().__init__(dag_id, queue, schedule_interval, start_date, max_retries, description, dataset_id,
-        #                  schema_version, airflow_vars, airflow_conns, download_ext, extract_ext, transform_ext,
-        #                  main_table_id, partition_table_id, merge_partition_field, updated_date_field, bq_merge_days)
+        super().__init__(dag_id, queue, schedule_interval, start_date, max_retries, description, dataset_id,
+                         schema_version, airflow_vars, airflow_conns, download_ext, extract_ext, transform_ext,
+                         main_table_id, partition_table_id, merge_partition_field, updated_date_field, bq_merge_days)
 
     def task_callable(self, func: Callable, **kwargs):
         """ Invoke a task callable. Creates a Release instance and calls the given task method.
@@ -115,8 +119,12 @@ class StreamTelescope(AbstractStreamTelescope):
                                                            task_ids=self.get_release_info.__name__,
                                                            include_prior_dates=True)
         release = self.make_release(start_date, end_date, first_release)
+        sig = signature(func)
         # Call task function
-        result = func(release)
+        if len(sig.parameters) == 2:
+            result = func(release, **kwargs)
+        else:
+            result = func(release)
         return result
 
     def make_dag(self) -> DAG:
@@ -147,12 +155,13 @@ class StreamTelescope(AbstractStreamTelescope):
                                           python_callable=partial(self.task_callable, func))
                 tasks.append(task)
 
-            # Link tasks
-            for i, current_task in enumerate(tasks):
-                # Link each task to the next task
-                if i < (len(tasks) - 1):
-                    next_task = tasks[i + 1]
-                    current_task >> next_task
+            chain(*tasks)
+            # # Link tasks
+            # for i, current_task in enumerate(tasks):
+            #     # Link each task to the next task
+            #     if i < (len(tasks) - 1):
+            #         next_task = tasks[i + 1]
+            #         current_task >> next_task
         return dag
 
     def check_dependencies(self, **kwargs):
@@ -213,7 +222,6 @@ class StreamTelescope(AbstractStreamTelescope):
 
     def bq_delete_old(self, release: TelescopeRelease, **kwargs):
         ti: TaskInstance = kwargs['ti']
-
         if release.first_release:
             # don't use AirflowSkipException, to ensure that task is in 'success' state
             logging.info('Skipped, because first release')
