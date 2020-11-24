@@ -40,9 +40,23 @@
         "description": "Title of the book."
       },
       {
+        "fields": [
+          {
+            "mode": "REQUIRED",
+            "name": "type",
+            "type": "STRING",
+            "description": "The unique identifier type"
+          },
+          {
+            "mode": "REQUIRED",
+            "name": "value",
+            "type": "STRING",
+            "description": "The unique identifier type"
+          }
+        ],
         "mode": "REPEATED",
         "name": "identifier",
-        "type": "STRING",
+        "type": "RECORD",
         "description": "Identifiers"
       },
       {
