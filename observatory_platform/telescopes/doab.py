@@ -159,7 +159,7 @@ def transform(release: 'DoabRelease'):
 
 
 class DoabTelescope(StreamTelescope):
-    telescope = SimpleNamespace(dag_id='doab', dataset_id='doab', main_table_id='doab',
+    telescope = SimpleNamespace(dag_id='doab', dataset_id='doab2', main_table_id='doab',
                                 schedule_interval='@weekly', start_date=datetime(2018, 5, 14),
                                 partition_table_id='doab_partitions', description='the description',
                                 queue='default', max_retries=3, bq_merge_days=0,
@@ -266,19 +266,34 @@ def change_keys(obj, convert):
         for k, v in list(obj.items()):
             if k.startswith('@xmlns') or k.startswith('@xsi'):
                 pass
+            elif k == 'dc:identifier':
+                v_list = []
+                for identifier in v:
+                    id_type = identifier.split(':')[0]
+                    if id_type == 'ISBN' or id_type == 'DOI':
+                        id_value = identifier.split(':')[1].strip().strip(';')
+                    else:
+                        id_value = identifier
+                    id_dict = {'type': id_type, 'value': id_value}
+                    v_list.append(id_dict)
+                v = v_list
+                new[convert(k)] = change_keys(v, convert)
             elif k == 'metadata':
                 oai_dc = change_keys(v['oai_dc:dc'], convert)
                 new['metadata'] = oai_dc
-                for identifier in oai_dc['identifier']:
-                    if 'ISBN' in identifier:
-                        isbn = oai_dc['identifier'][2].split(' ')[1]
-                        try:
-                            csv_dict = csv_entries[isbn]
-                            csv_dict = change_keys(csv_dict, convert)
-                            new['csv'] = csv_dict
-                            break
-                        except KeyError:
-                            pass
+                isbn = next((identifier for identifier in oai_dc['identifier'] if identifier['type'] == "ISBN"), None)
+                if isbn:
+                    try:
+                        csv_dict = csv_entries[isbn['value']]
+                        csv_dict = change_keys(csv_dict, convert)
+                        new['csv'] = csv_dict
+                        break
+                    except KeyError:
+                        pass
+                else:
+                    logging.info(f"Could not find matching isbn for {oai_dc['identifier']}")
+                    pass
+
             # check valid datetime string
             elif k == 'Added on date':
                 try:
