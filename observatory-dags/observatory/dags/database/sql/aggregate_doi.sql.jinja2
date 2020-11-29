@@ -199,6 +199,18 @@ CREATE TEMP FUNCTION compute_access_types(items ARRAY<STRUCT<doi STRING, citatio
   FROM UNNEST(items))
 );
 
+CREATE TEMP FUNCTION compute_percentiles(counts ARRAY<INT64>) AS (
+  (SELECT as STRUCT
+    ROUND(PERCENTILE_CONT(count, 0.0) OVER(), 2) as min,
+    ROUND(PERCENTILE_CONT(count, 0.25) OVER(), 2) as per_25th,
+    ROUND(PERCENTILE_CONT(count, 0.50) OVER(), 2) as median,
+    ROUND(PERCENTILE_CONT(count, 0.90) OVER(), 2) as per_90th,
+    ROUND(PERCENTILE_CONT(count, 0.95) OVER(), 2) as per_95th,
+    ROUND(PERCENTILE_CONT(count, 0.99) OVER(), 2) as per_99th,
+    ROUND(PERCENTILE_CONT(count, 1.0) OVER(), 2) as max
+  FROM UNNEST(counts) as count LIMIT 1)
+);
+
 CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING, Score FLOAT64, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, is_oa BOOL, green BOOL, gold BOOL, funding BOOL, international_funding BOOL, domestic_funding BOOL, government_funding BOOL, private_funding BOOL, international_colab BOOL>>) as (
   ARRAY(
     (SELECT AS STRUCT
@@ -206,9 +218,18 @@ CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING,
         COUNT(DisplayName) as count,
         SUM(Score) as sum_of_scores,
         STRUCT(
-          SUM(citations.mag) as mag,
-          SUM(citations.crossref) as crosssref,
-          SUM(citations.open_citations) as open_citations
+          STRUCT(
+            SUM(citations.mag) as total,
+            compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+          ) as mag,
+          STRUCT(
+            SUM(citations.open_citations) as total,
+            compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+          ) as open_citations, 
+          STRUCT(
+            SUM(citations.crossref) as total,
+            compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+          ) as crossref
         ) as citations,
         COUNTIF(is_oa = True) as oa,
         COUNTIF(green = True) as green,
@@ -288,7 +309,20 @@ SELECT
           MAX(collaborator.subregion) as subregion,
           MAX(collaborator.coordinates) as coordinates,
           COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold,
-          STRUCT(SUM(citations.mag) as mag, SUM(citations.open_citations) as open_citations, SUM(citations.crossref) as crossref) as citations,
+          STRUCT(
+            STRUCT(
+              SUM(citations.mag) as total,
+              compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+            ) as mag,
+            STRUCT(
+              SUM(citations.open_citations) as total,
+              compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+            ) as open_citations, 
+            STRUCT(
+              SUM(citations.crossref) as total,
+              compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+            ) as crossref
+          ) as citations,
           group_disciplines(ARRAY_CONCAT_AGG(disciplines)) as disciplines
       FROM UNNEST(collaborations) as collaborator WHERE collaborator.identifier <> id GROUP BY collaborator.identifier ) as collaborations,
 
