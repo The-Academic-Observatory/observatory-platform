@@ -92,8 +92,20 @@ CREATE TEMP FUNCTION process_unpaywall_release(unpaywall_history ANY TYPE) as (
       ))
 );
 
+CREATE TEMP FUNCTION compute_percentiles(counts ARRAY<INT64>) AS (
+  (SELECT as STRUCT
+    ROUND(PERCENTILE_CONT(count, 0.0) OVER(), 2) as min,
+    ROUND(PERCENTILE_CONT(count, 0.25) OVER(), 2) as per_25th,
+    ROUND(PERCENTILE_CONT(count, 0.50) OVER(), 2) as median,
+    ROUND(PERCENTILE_CONT(count, 0.90) OVER(), 2) as per_90th,
+    ROUND(PERCENTILE_CONT(count, 0.95) OVER(), 2) as per_95th,
+    ROUND(PERCENTILE_CONT(count, 0.99) OVER(), 2) as per_99th,
+    ROUND(PERCENTILE_CONT(count, 1.0) OVER(), 2) as max
+  FROM UNNEST(counts) as count LIMIT 1)
+);
+
 -- Compute Citation Analysis
-CREATE TEMP FUNCTION compute_conditional_citations(items ARRAY<STRUCT<citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, is_x BOOL>>, positive_label STRING, negative_label STRING) as (
+CREATE TEMP FUNCTION compute_conditional_citations(items ARRAY<STRUCT<citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, is_x BOOL>>, access_type STRING, positive_label STRING, negative_label STRING) as (
   ARRAY((
     SELECT as STRUCT
       CASE
@@ -101,14 +113,24 @@ CREATE TEMP FUNCTION compute_conditional_citations(items ARRAY<STRUCT<citations 
         WHEN NOT is_x THEN negative_label
         END
       as label,
+      access_type,
       is_x as status,
       COUNT(*) as articles,
       COUNTIF(citations.mag > 0 OR citations.crossref > 0 OR citations.open_citations > 0) as articles_with_citations,
       COUNTIF( (citations.mag IS NULL OR citations.mag = 0) AND (citations.crossref IS NULL OR citations.crossref = 0) AND (citations.open_citations IS NULL OR citations.open_citations = 0) ) as articles_without_citations,
       STRUCT(
-        SUM(citations.mag) as mag,
-        SUM(citations.crossref) as crosssref,
-        SUM(citations.open_citations) as open_citations
+        STRUCT(
+          SUM(citations.mag) as total,
+          compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+        ) as mag,
+        STRUCT(
+          SUM(citations.open_citations) as total,
+          compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+        ) as open_citations, 
+        STRUCT(
+          SUM(citations.crossref) as total,
+          compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+        ) as crossref
       ) as citations,
 
     FROM UNNEST(items)
@@ -147,45 +169,38 @@ CREATE TEMP FUNCTION compute_access_types(items ARRAY<STRUCT<doi STRING, citatio
   (SELECT AS STRUCT
     STRUCT(
       COUNTIF(is_oa = True) as count,
-      SAFE_DIVIDE( (COUNTIF(is_oa is True)) * 100 , COUNT(doi)) as percent,
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, is_oa as is_x)), "Open Access", "Not Open Access") as citations
+      SAFE_DIVIDE( (COUNTIF(is_oa is True)) * 100 , COUNT(doi)) as percent
     ) as oa,
 
     STRUCT(
       COUNTIF(green = True) as count,
-      SAFE_DIVIDE( (COUNTIF(green is True)) * 100 , COUNT(doi)) as percent,
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, green as is_x)), "Green", "Not Green") as citations
+      SAFE_DIVIDE( (COUNTIF(green is True)) * 100 , COUNT(doi)) as percent
     ) as green,
 
     STRUCT(
       COUNTIF(gold = True) as count,
-      SAFE_DIVIDE( (COUNTIF(gold is True)) * 100 , COUNT(doi)) as percent,
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, gold as is_x)), "Gold", "Not Gold") as citations
+      SAFE_DIVIDE( (COUNTIF(gold is True)) * 100 , COUNT(doi)) as percent
     ) as gold,
 
     STRUCT(
       COUNTIF(gold_just_doaj = True) as count,
-      SAFE_DIVIDE( (COUNTIF(gold_just_doaj is True)) * 100 , COUNT(doi)) as percent,
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, gold_just_doaj as is_x)), "Gold just DOAJ", "Not Gold just DOAJ") as citations
+      SAFE_DIVIDE( (COUNTIF(gold_just_doaj is True)) * 100 , COUNT(doi)) as percent
     ) as gold_doaj,
 
     STRUCT(
       COUNTIF(hybrid) as count,
-      SAFE_DIVIDE( (COUNTIF(hybrid is True)) * 100 , COUNT(doi)) as percent,
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, hybrid as is_x)), "Hybrid", "Not Hybrid") as citations
+      SAFE_DIVIDE( (COUNTIF(hybrid is True)) * 100 , COUNT(doi)) as percent
     ) as hybrid,
 
     STRUCT(
       COUNTIF(bronze) as count,
-      SAFE_DIVIDE( (COUNTIF(bronze is True)) * 100 , COUNT(doi)) as percent,
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, bronze as is_x)), "Bronze", "Not Bronze") as citations
+      SAFE_DIVIDE( (COUNTIF(bronze is True)) * 100 , COUNT(doi)) as percent
     ) as bronze,
 
     STRUCT(
       COUNTIF(green_only) as count,
-      SAFE_DIVIDE( (COUNTIF(green_only is True)) * 100 , COUNT(doi)) as percent,
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, green_only as is_x)), "Green Only", "Not Green Only") as citations
-    ) as green_only
+      SAFE_DIVIDE( (COUNTIF(green_only is True)) * 100 , COUNT(doi)) as percent
+    ) as green_only,
 
     --STRUCT(
       --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as count,
@@ -195,21 +210,21 @@ CREATE TEMP FUNCTION compute_access_types(items ARRAY<STRUCT<doi STRING, citatio
     --STRUCT(
       --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as count,
       --SAFE_DIVIDE((COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100, COUNTIF(unpaywall.green is True)) as percent_of_just_green_in_home_repo,
-    --) as green_in_just_home_repo
+    --) as green_in_just_home_repo,
+
+    ARRAY_CONCAT(
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, is_oa as is_x)), "oa", "Open Access", "Not Open Access"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, green as is_x)), "green", "Green", "Not Green"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, gold as is_x)), "gold", "Gold", "Not Gold"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, gold_just_doaj as is_x)), "gold_just_doaj", "Gold just DOAJ", "Not Gold just DOAJ"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, hybrid as is_x)), "hybrid", "Hybrid", "Not Hybrid"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, bronze as is_x)), "bronze", "Bronze", "Not Bronze"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, green_only as is_x)), "green_only", "Green Only", "Not Green Only")
+    ) as breakdown
+
   FROM UNNEST(items))
 );
 
-CREATE TEMP FUNCTION compute_percentiles(counts ARRAY<INT64>) AS (
-  (SELECT as STRUCT
-    ROUND(PERCENTILE_CONT(count, 0.0) OVER(), 2) as min,
-    ROUND(PERCENTILE_CONT(count, 0.25) OVER(), 2) as per_25th,
-    ROUND(PERCENTILE_CONT(count, 0.50) OVER(), 2) as median,
-    ROUND(PERCENTILE_CONT(count, 0.90) OVER(), 2) as per_90th,
-    ROUND(PERCENTILE_CONT(count, 0.95) OVER(), 2) as per_95th,
-    ROUND(PERCENTILE_CONT(count, 0.99) OVER(), 2) as per_99th,
-    ROUND(PERCENTILE_CONT(count, 1.0) OVER(), 2) as max
-  FROM UNNEST(counts) as count LIMIT 1)
-);
 
 CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING, Score FLOAT64, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, is_oa BOOL, green BOOL, gold BOOL, funding BOOL, international_funding BOOL, domestic_funding BOOL, government_funding BOOL, private_funding BOOL, international_colab BOOL>>) as (
   ARRAY(
