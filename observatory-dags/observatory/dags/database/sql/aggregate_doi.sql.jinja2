@@ -434,10 +434,10 @@ FROM(
     COUNT(dois.doi) as total_outputs,
 
     -- Access Types
-    compute_metrics(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as access_types,
+    compute_access_types(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as access_types,
     
     -- Citations
-    compute_metrics(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations))) as citations,
+    compute_citations(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations))) as citations,
 
     -- Collaboration Analysis
     ARRAY_CONCAT_AGG( 
