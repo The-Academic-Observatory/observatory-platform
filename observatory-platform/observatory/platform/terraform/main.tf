@@ -218,10 +218,9 @@ resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observ
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
-# Must have object admin so that files can be overwritten
 resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_object_admin" {
   bucket = google_storage_bucket.observatory_transform_bucket.name
-  role = "roles/storage.objectAdmin"
+  role = "roles/storage.objectCreator"
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
@@ -271,10 +270,9 @@ resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observat
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
-# Must have object admin so that files can be overwritten
 resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observatory_service_account_object_admin" {
   bucket = google_storage_bucket.observatory_airflow_bucket.name
-  role = "roles/storage.objectAdmin"
+  role = "roles/storage.objectCreator"
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
