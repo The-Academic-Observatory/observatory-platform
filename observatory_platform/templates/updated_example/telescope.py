@@ -14,27 +14,55 @@ class TelescopeRelease:
         self.end_date = end_date
         self.release_date = end_date
         self.extensions = extensions
+        self.first_release = first_release
         self.download_ext = extensions['download']
         self.extract_ext = extensions['extract']
         self.transform_ext = extensions['transform']
-        self.first_release = first_release
 
-        self.date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
+    @property
+    def date_str(self) -> str:
+        return self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
+        # super().__init__(dag_id, start_date, end_date, extensions, first_release)
 
-        # paths
-        self.file_name = f"{self.dag_id}_{self.date_str}"
-        self.blob_dir = f'telescopes/{self.dag_id}'
+    @property
+    def file_name(self) -> str:
+        return f"{self.dag_id}_{self.date_str}"
 
-        self.download_blob = os.path.join(self.blob_dir, f"{self.file_name}.{self.download_ext}")
-        self.download_path = self.get_path(SubFolder.downloaded, self.file_name, self.download_ext)
-        self.download_dir = self.subdir(SubFolder.downloaded)
+    @property
+    def blob_dir(self) -> str:
+        return f'telescopes/{self.dag_id}'
 
-        self.extract_path = self.get_path(SubFolder.extracted, self.file_name, self.extract_ext)
-        self.extract_dir = self.subdir(SubFolder.extracted)
+    @property
+    def download_blob(self) -> str:
+        return os.path.join(self.blob_dir, f"{self.file_name}.{self.download_ext}")
 
-        self.transform_blob = os.path.join(self.blob_dir, f"{self.file_name}.{self.transform_ext}")
-        self.transform_path = self.get_path(SubFolder.transformed, self.file_name, self.transform_ext)
-        self.transform_dir = self.subdir(SubFolder.transformed)
+    @property
+    def download_path(self) -> str:
+        return self.get_path(SubFolder.downloaded, self.file_name, self.download_ext)
+
+    @property
+    def download_dir(self) -> str:
+        return self.subdir(SubFolder.downloaded)
+
+    @property
+    def extract_path(self) -> str:
+        return self.get_path(SubFolder.extracted, self.file_name, self.extract_ext)
+
+    @property
+    def extract_dir(self) -> str:
+        return self.subdir(SubFolder.extracted)
+
+    @property
+    def transform_blob(self) -> str:
+        return os.path.join(self.blob_dir, f"{self.file_name}.{self.transform_ext}")
+
+    @property
+    def transform_path(self) -> str:
+        return self.get_path(SubFolder.transformed, self.file_name, self.transform_ext)
+
+    @property
+    def transform_dir(self) -> str:
+        return self.subdir(SubFolder.transformed)
 
     def subdir(self, sub_folder: SubFolder) -> str:
         """ Path to subdirectory of a specific release for either downloaded/extracted/transformed files.

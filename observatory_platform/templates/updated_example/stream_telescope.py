@@ -5,25 +5,86 @@ from airflow.operators.python_operator import PythonOperator, ShortCircuitOperat
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.helpers import chain
 import pendulum
-from observatory_platform.templates.updated_example.telescope import TelescopeRelease
 import logging
 from datetime import timedelta
 import datetime
 from typing import Callable
 from functools import partial
 from observatory_platform.utils.config_utils import check_variables, check_connections
-from observatory_platform.utils.telescope_utils import bq_load_partition, \
-    upload_downloaded, upload_transformed, bq_delete_old, bq_append_from_partition, bq_append_from_file, cleanup, \
-    normalize_schedule_interval
-from inspect import signature
+from observatory_platform.utils.telescope_utils import bq_load_partition, upload_transformed, bq_delete_old, \
+    bq_append_from_partition, bq_append_from_file, cleanup, normalize_schedule_interval
 from croniter import croniter
+from observatory_platform.templates.updated_example.telescope import TelescopeRelease
 
 
 class AbstractStreamTelescope(ABC):
+    @abstractmethod
+    def make_release(self, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
+                     first_release: bool) -> TelescopeRelease:
+        pass
+
+    @abstractmethod
+    def download_pull(self, release: TelescopeRelease, **kwargs) -> bool:
+        pass
+
+    @abstractmethod
+    def download_push(self, release: TelescopeRelease, **kwargs):
+        pass
+
+    @abstractmethod
+    def extract(self, release: TelescopeRelease, **kwargs):
+        pass
+
+    @abstractmethod
+    def transform(self, release: TelescopeRelease, **kwargs):
+        pass
+
+    @abstractmethod
+    def task_callable(self, func: Callable, **kwargs):
+        pass
+
+    @abstractmethod
+    def make_dag(self) -> DAG:
+        pass
+
+    @abstractmethod
+    def check_dependencies(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def get_release_info(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def upload_transformed(self, release: TelescopeRelease, **kwargs):
+        pass
+
+    @abstractmethod
+    def bq_load_partition(self, release: TelescopeRelease, **kwargs):
+        pass
+
+    @abstractmethod
+    def bq_delete_old(self, release: TelescopeRelease, **kwargs):
+        pass
+
+    @abstractmethod
+    def bq_append_new(self, release: TelescopeRelease, **kwargs):
+        pass
+
+    @abstractmethod
+    def cleanup(self, release: TelescopeRelease, **kwargs):
+        pass
+
+
+class StreamTelescope(AbstractStreamTelescope):
+    RELEASE_INFO = 'releases'
+
     def __init__(self, dag_id, queue: str, schedule_interval: str, start_date: datetime, max_retries: int,
-                 description: str, dataset_id: str, schema_version: str, airflow_vars: list, airflow_conns: list,
+                 description: str, download_pull_first: bool, dataset_id: str, schema_version: str, airflow_vars: list,
+                 airflow_conns: list,
                  download_ext: str, extract_ext: str, transform_ext: str, main_table_id: str, partition_table_id: str,
                  merge_partition_field: str, updated_date_field: str, bq_merge_days: int):
+
         if not croniter.is_valid(normalize_schedule_interval(schedule_interval)):
             raise AirflowException(f"Not a valid cron expression: {schedule_interval}")
         self.dag_id = dag_id
@@ -32,6 +93,7 @@ class AbstractStreamTelescope(ABC):
         self.start_date = start_date
         self.max_retries = max_retries
         self.description = description
+        self.download_pull_first = download_pull_first
         self.dataset_id = dataset_id
         self.schema_version = schema_version
         self.airflow_vars = airflow_vars
@@ -43,66 +105,6 @@ class AbstractStreamTelescope(ABC):
         self.merge_partition_field = merge_partition_field
         self.updated_date_field = updated_date_field
         self.bq_merge_days = bq_merge_days
-
-    @abstractmethod
-    def check_extra_dependencies(self, kwargs):
-        raise NotImplementedError
-
-    @abstractmethod
-    def make_release(self, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
-                     first_release: bool) -> TelescopeRelease:
-        raise NotImplementedError
-
-    @abstractmethod
-    def download(self, release: TelescopeRelease) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def transfer(self, release: TelescopeRelease) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def download_transferred(self, release: TelescopeRelease):
-        raise NotImplementedError
-
-    @abstractmethod
-    def extract(self, release: TelescopeRelease):
-        raise NotImplementedError
-
-    @abstractmethod
-    def transform(self, release: TelescopeRelease):
-        raise NotImplementedError
-
-
-class StreamTelescope(AbstractStreamTelescope):
-    RELEASE_INFO = 'releases'
-
-    def __init__(self, dag_id, queue: str, schedule_interval: str, start_date: datetime, max_retries: int,
-                 description: str, dataset_id: str, schema_version: str, airflow_vars: list, airflow_conns: list,
-                 download_ext: str, extract_ext: str, transform_ext: str, main_table_id: str, partition_table_id: str,
-                 merge_partition_field: str, updated_date_field: str, bq_merge_days: int):
-
-        # self.dag_id = dag_id
-        # self.queue = queue
-        # self.schedule_interval = schedule_interval
-        # self.start_date = start_date
-        # self.max_retries = max_retries
-        # self.description = description
-        # self.dataset_id = dataset_id
-        # self.schema_version = schema_version
-        # self.airflow_vars = airflow_vars
-        # self.airflow_conns = airflow_conns
-        # self.extensions = {'download': download_ext, 'extract': extract_ext, 'transform': transform_ext}
-        #
-        # self.main_table_id = main_table_id
-        # self.partition_table_id = partition_table_id
-        # self.merge_partition_field = merge_partition_field
-        # self.updated_date_field = updated_date_field
-        # self.bq_merge_days = bq_merge_days
-
-        super().__init__(dag_id, queue, schedule_interval, start_date, max_retries, description, dataset_id,
-                         schema_version, airflow_vars, airflow_conns, download_ext, extract_ext, transform_ext,
-                         main_table_id, partition_table_id, merge_partition_field, updated_date_field, bq_merge_days)
 
     def task_callable(self, func: Callable, **kwargs):
         """ Invoke a task callable. Creates a Release instance and calls the given task method.
@@ -119,12 +121,7 @@ class StreamTelescope(AbstractStreamTelescope):
                                                            task_ids=self.get_release_info.__name__,
                                                            include_prior_dates=True)
         release = self.make_release(start_date, end_date, first_release)
-        sig = signature(func)
-        # Call task function
-        if len(sig.parameters) == 2:
-            result = func(release, **kwargs)
-        else:
-            result = func(release)
+        result = func(release, **kwargs)
         return result
 
     def make_dag(self) -> DAG:
@@ -134,9 +131,13 @@ class StreamTelescope(AbstractStreamTelescope):
             # 'on_failure_callback': on_failure_callback
         }
 
-        task_funcs = [self.check_dependencies, self.get_release_info, self.download, self.upload_downloaded,
-                      self.transfer, self.download_transferred, self.extract,  self.transform, self.upload_transformed,
+        task_funcs = [self.check_dependencies, self.get_release_info, self.download_push, self.download_pull,
+                      self.extract,  self.transform, self.upload_transformed,
                       self.bq_load_partition, self.bq_delete_old, self.bq_append_new, self.cleanup]
+        if self.download_pull_first:
+            pull, push = task_funcs.index(self.download_pull), task_funcs.index(self.download_push)
+            task_funcs[pull], task_funcs[push] = task_funcs[push], task_funcs[pull]
+
         with DAG(dag_id=self.dag_id, schedule_interval=self.schedule_interval, default_args=default_args, catchup=False,
                  max_active_runs=1, doc_md=self.__doc__) as dag:
             tasks = []
@@ -145,7 +146,7 @@ class StreamTelescope(AbstractStreamTelescope):
                     task = PythonOperator(task_id=func.__name__,
                                           provide_context=True,
                                           python_callable=func)
-                elif func == self.download or func == self.transfer:
+                elif func == self.download_pull:
                     task = ShortCircuitOperator(task_id=func.__name__,
                                                 provide_context=True,
                                                 python_callable=partial(self.task_callable, func))
@@ -156,12 +157,6 @@ class StreamTelescope(AbstractStreamTelescope):
                 tasks.append(task)
 
             chain(*tasks)
-            # # Link tasks
-            # for i, current_task in enumerate(tasks):
-            #     # Link each task to the next task
-            #     if i < (len(tasks) - 1):
-            #         next_task = tasks[i + 1]
-            #         current_task >> next_task
         return dag
 
     def check_dependencies(self, **kwargs):
@@ -181,8 +176,6 @@ class StreamTelescope(AbstractStreamTelescope):
         if not vars_valid or not conns_valid:
             raise AirflowException('Required variables or connections are missing')
 
-        self.check_extra_dependencies(kwargs)
-
     def get_release_info(self, **kwargs):
         """ Create a release instance and update the xcom value with the last start date.
 
@@ -201,19 +194,13 @@ class StreamTelescope(AbstractStreamTelescope):
         start_date = start_date - timedelta(days=1)
         end_date = pendulum.utcnow()
         logging.info(f'Start date: {start_date}, end date: {end_date}, first release: {first_release}')
-        # release = self.make(start_date, end_date, first_release)
 
         ti.xcom_push(self.RELEASE_INFO, (start_date, end_date, first_release))
 
-    @staticmethod
-    def upload_downloaded(release: TelescopeRelease):
-        upload_downloaded(release.download_dir, release.blob_dir)
-
-    @staticmethod
-    def upload_transformed(release: TelescopeRelease):
+    def upload_transformed(self, release: TelescopeRelease, **kwargs):
         upload_transformed(release.transform_path, release.transform_blob)
 
-    def bq_load_partition(self, release: TelescopeRelease):
+    def bq_load_partition(self, release: TelescopeRelease, **kwargs):
         if release.first_release:
             raise AirflowSkipException('Skipped, because first release')
 
@@ -255,6 +242,5 @@ class StreamTelescope(AbstractStreamTelescope):
                                        f'{self.bq_merge_days} days. Last append was'
                                        f' {(end_date - start_date).days} days ago')
 
-    @staticmethod
-    def cleanup(release: TelescopeRelease):
+    def cleanup(self, release: TelescopeRelease, **kwargs):
         cleanup(release.download_dir, release.extract_dir, release.transform_dir)
