@@ -122,13 +122,11 @@ resource "random_id" "buckets_protector" {
   keepers = {
     download_bucket = google_storage_bucket.observatory_download_bucket.id
     transform_bucket = google_storage_bucket.observatory_transform_bucket.id
-    airflow_bucket = google_storage_bucket.observatory_airflow_bucket.id
   }
   lifecycle {
     prevent_destroy = true
   }
 }
-
 
 # Bucket for storing downloaded files
 resource "google_storage_bucket" "observatory_download_bucket" {
@@ -220,19 +218,25 @@ resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observ
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
-resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_object_creator" {
+# Must have object admin so that files can be overwritten
+resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_object_admin" {
   bucket = google_storage_bucket.observatory_transform_bucket.name
-  role = "roles/storage.objectCreator"
-  member = "serviceAccount:${google_service_account.observatory_service_account.email}"
-}
-
-resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_object_viewer" {
-  bucket = google_storage_bucket.observatory_transform_bucket.name
-  role = "roles/storage.objectViewer"
+  role = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
 # Bucket for airflow related files, e.g. airflow logs
+resource "random_id" "airflow_bucket_protector" {
+  count = var.environment == "production" ? 1 : 0
+  byte_length = 8
+  keepers = {
+    airflow_bucket = google_storage_bucket.observatory_airflow_bucket.id
+  }
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "google_storage_bucket" "observatory_airflow_bucket" {
   name = "${var.google_cloud.project_id}-airflow"
   force_destroy = true
@@ -260,13 +264,6 @@ resource "google_storage_bucket" "observatory_airflow_bucket" {
   }
 }
 
-# Must have object admin so that files can be overwritten
-resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_transfer_service_account_object_admin" {
-  bucket = google_storage_bucket.observatory_airflow_bucket.name
-  role = "roles/storage.objectAdmin"
-  member = "serviceAccount:${data.google_storage_transfer_project_service_account.default.email}"
-}
-
 # Permissions so that Observatory Platform service account can read and write
 resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observatory_service_account_legacy_bucket_reader" {
   bucket = google_storage_bucket.observatory_airflow_bucket.name
@@ -275,8 +272,8 @@ resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observat
 }
 
 # Must have object admin so that files can be overwritten
-resource "google_storage_bucket_iam_member" "observatory_download_bucket_observatory_service_account_object_admin" {
-  bucket = google_storage_bucket.observatory_download_bucket.name
+resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observatory_service_account_object_admin" {
+  bucket = google_storage_bucket.observatory_airflow_bucket.name
   role = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
@@ -419,7 +416,7 @@ resource "google_sql_user" "users" {
 # User defined Apache Airflow variables stored as Google Cloud Secrets
 ########################################################################################################################
 
-module "airflow_variables"{
+module "airflow_variables" {
   for_each = var.airflow_variables
   source = "./secret"
   secret_id = "airflow-variables-${each.key}"
@@ -432,7 +429,7 @@ module "airflow_variables"{
 # User defined Apache Airflow connections stored as Google Cloud Secrets
 ########################################################################################################################
 
-module "airflow_connections"{
+module "airflow_connections" {
   for_each = var.airflow_connections
   source = "./secret"
   secret_id = "airflow-connections-${each.key}"
@@ -441,6 +438,18 @@ module "airflow_connections"{
   depends_on = [google_project_service.services]
 }
 
+########################################################################################################################
+# Generated Apache Airflow connections stored as Google Cloud Secrets
+########################################################################################################################
+
+# Observatory Airflow Google Cloud connection: https://airflow.apache.org/docs/1.10.3/howto/connection/gcp.html
+module "google_cloud_observatory_connection" {
+  source = "./secret"
+  secret_id = "airflow-connections-google_cloud_observatory"
+  secret_data = "google-cloud-platform://?extra__google_cloud_platform__key_path=%2Frun%2Fsecrets%2Fgoogle_application_credentials.json&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra__google_cloud_platform__project=${var.google_cloud.project_id}"
+  service_account_email = google_service_account.observatory_service_account.email
+  depends_on = [google_project_service.services]
+}
 
 ########################################################################################################################
 # Google Cloud Secrets required for the VMs
