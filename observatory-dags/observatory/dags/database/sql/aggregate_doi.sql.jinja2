@@ -115,9 +115,9 @@ CREATE TEMP FUNCTION compute_conditional_citations(items ARRAY<STRUCT<citations 
       as label,
       access_type,
       is_x as status,
-      COUNT(*) as articles,
-      COUNTIF(citations.mag > 0 OR citations.crossref > 0 OR citations.open_citations > 0) as articles_with_citations,
-      COUNTIF( (citations.mag IS NULL OR citations.mag = 0) AND (citations.crossref IS NULL OR citations.crossref = 0) AND (citations.open_citations IS NULL OR citations.open_citations = 0) ) as articles_without_citations,
+      COUNT(*) as total_outputs,
+      COUNTIF(citations.mag > 0 OR citations.crossref > 0 OR citations.open_citations > 0) as outputs_with_citations,
+      COUNTIF( (citations.mag IS NULL OR citations.mag = 0) AND (citations.crossref IS NULL OR citations.crossref = 0) AND (citations.open_citations IS NULL OR citations.open_citations = 0) ) as outputs_without_citations,
       STRUCT(
         STRUCT(
           SUM(citations.mag) as total,
@@ -143,24 +143,24 @@ CREATE TEMP FUNCTION compute_citations(items ARRAY<STRUCT<doi STRING, citations 
     -- Citation counts
     STRUCT(
       SUM(citations.mag) as total_citations,
-      SAFE_DIVIDE( SUM(citations.mag) , COUNT(doi)) as citations_per_article,
-      COUNTIF(citations.mag > 0) as articles_with_citations,
-      COUNTIF(citations.mag is null) as articles_without_citations,
-      SAFE_DIVIDE(SUM(citations.mag), COUNTIF(citations.mag > 0)) as citations_per_citated_article
+      SAFE_DIVIDE( SUM(citations.mag) , COUNT(doi)) as citations_per_output,
+      COUNTIF(citations.mag > 0) as outputs_with_citations,
+      COUNTIF(citations.mag is null) as outputs_without_citations,
+      SAFE_DIVIDE(SUM(citations.mag), COUNTIF(citations.mag > 0)) as citations_per_citated_output
     ) as mag,
     STRUCT(
       SUM(citations.crossref) as total_citations,
-      SAFE_DIVIDE( SUM(citations.crossref) , COUNT(doi)) as citations_per_article,
-      COUNTIF(citations.crossref > 0) as articles_with_citations,
-      COUNTIF(citations.crossref is null) as articles_without_citations,
-      SAFE_DIVIDE(SUM(citations.crossref), COUNTIF(citations.crossref > 0)) as citations_per_citated_article
+      SAFE_DIVIDE( SUM(citations.crossref) , COUNT(doi)) as citations_per_output,
+      COUNTIF(citations.crossref > 0) as outputs_with_citations,
+      COUNTIF(citations.crossref is null) as outputs_without_citations,
+      SAFE_DIVIDE(SUM(citations.crossref), COUNTIF(citations.crossref > 0)) as citations_per_citated_output
     ) as crossref,
     STRUCT(
       SUM(citations.open_citations) as total_citations,
-      SAFE_DIVIDE( SUM(citations.open_citations) , COUNT(doi)) as citations_per_article,
-      COUNTIF(citations.open_citations > 0) as articles_with_citations,
-      COUNTIF(citations.open_citations is null) as articles_without_citations,
-      SAFE_DIVIDE(SUM(citations.open_citations), COUNTIF(citations.open_citations > 0)) as citations_per_citated_article
+      SAFE_DIVIDE( SUM(citations.open_citations) , COUNT(doi)) as citations_per_output,
+      COUNTIF(citations.open_citations > 0) as output_with_citations,
+      COUNTIF(citations.open_citations is null) as outputs_without_citations,
+      SAFE_DIVIDE(SUM(citations.open_citations), COUNTIF(citations.open_citations > 0)) as citations_per_citated_output
     ) as open_citations
   FROM UNNEST(items))
 );
@@ -301,15 +301,15 @@ SELECT
   -- Metrics
   total_outputs,
 
+  -- Output Types
+  output_types,
+
   -- Citations
   citations
 
   -- Access Types
   access_types
   
-  -- Output Types
-  output_types,
-
   -- Disciplines
   disciplines,
 
