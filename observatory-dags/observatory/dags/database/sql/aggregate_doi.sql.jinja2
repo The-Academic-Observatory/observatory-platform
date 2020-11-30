@@ -143,24 +143,24 @@ CREATE TEMP FUNCTION compute_citations(items ARRAY<STRUCT<doi STRING, citations 
     -- Citation counts
     STRUCT(
       SUM(citations.mag) as total_citations,
-      SAFE_DIVIDE( SUM(citations.mag) , COUNT(doi)) as citations_per_output,
+      ROUND(SAFE_DIVIDE( SUM(citations.mag) , COUNT(doi)), 2) as citations_per_output,
       COUNTIF(citations.mag > 0) as outputs_with_citations,
       COUNTIF(citations.mag is null) as outputs_without_citations,
-      SAFE_DIVIDE(SUM(citations.mag), COUNTIF(citations.mag > 0)) as citations_per_cited_output
+      ROUND(SAFE_DIVIDE(SUM(citations.mag), COUNTIF(citations.mag > 0)), 2) as citations_per_cited_output
     ) as mag,
     STRUCT(
       SUM(citations.crossref) as total_citations,
-      SAFE_DIVIDE( SUM(citations.crossref) , COUNT(doi)) as citations_per_output,
+      ROUND(SAFE_DIVIDE( SUM(citations.crossref) , COUNT(doi)), 2) as citations_per_output,
       COUNTIF(citations.crossref > 0) as outputs_with_citations,
       COUNTIF(citations.crossref is null) as outputs_without_citations,
-      SAFE_DIVIDE(SUM(citations.crossref), COUNTIF(citations.crossref > 0)) as citations_per_cited_output
+      ROUND(SAFE_DIVIDE(SUM(citations.crossref), COUNTIF(citations.crossref > 0)), 2) as citations_per_cited_output
     ) as crossref,
     STRUCT(
       SUM(citations.open_citations) as total_citations,
-      SAFE_DIVIDE( SUM(citations.open_citations) , COUNT(doi)) as citations_per_output,
+      ROUND(SAFE_DIVIDE( SUM(citations.open_citations) , COUNT(doi)), 2) as citations_per_output,
       COUNTIF(citations.open_citations > 0) as output_with_citations,
       COUNTIF(citations.open_citations is null) as outputs_without_citations,
-      SAFE_DIVIDE(SUM(citations.open_citations), COUNTIF(citations.open_citations > 0)) as citations_per_cited_output
+      ROUND(SAFE_DIVIDE(SUM(citations.open_citations), COUNTIF(citations.open_citations > 0)), 2) as citations_per_cited_output
     ) as open_citations
   FROM UNNEST(items))
 );
@@ -169,47 +169,47 @@ CREATE TEMP FUNCTION compute_access_types(items ARRAY<STRUCT<doi STRING, citatio
   (SELECT AS STRUCT
     STRUCT(
       COUNTIF(is_oa = True) as total_outputs,
-      SAFE_DIVIDE( (COUNTIF(is_oa is True)) * 100 , COUNT(doi)) as percent
+      ROUND(SAFE_DIVIDE( (COUNTIF(is_oa is True)) * 100 , COUNT(doi)), 2) as percent
     ) as oa,
 
     STRUCT(
       COUNTIF(green = True) as total_outputs,
-      SAFE_DIVIDE( (COUNTIF(green is True)) * 100 , COUNT(doi)) as percent
+      ROUND(SAFE_DIVIDE( (COUNTIF(green is True)) * 100 , COUNT(doi)), 2) as percent
     ) as green,
 
     STRUCT(
       COUNTIF(gold = True) as total_outputs,
-      SAFE_DIVIDE( (COUNTIF(gold is True)) * 100 , COUNT(doi)) as percent
+      ROUND(SAFE_DIVIDE( (COUNTIF(gold is True)) * 100 , COUNT(doi)), 2) as percent
     ) as gold,
 
     STRUCT(
       COUNTIF(gold_just_doaj = True) as total_outputs,
-      SAFE_DIVIDE( (COUNTIF(gold_just_doaj is True)) * 100 , COUNT(doi)) as percent
+      ROUND(SAFE_DIVIDE( (COUNTIF(gold_just_doaj is True)) * 100 , COUNT(doi)), 2) as percent
     ) as gold_doaj,
 
     STRUCT(
       COUNTIF(hybrid) as total_outputs,
-      SAFE_DIVIDE( (COUNTIF(hybrid is True)) * 100 , COUNT(doi)) as percent
+      ROUND(SAFE_DIVIDE( (COUNTIF(hybrid is True)) * 100 , COUNT(doi)), 2) as percent
     ) as hybrid,
 
     STRUCT(
       COUNTIF(bronze) as total_outputs,
-      SAFE_DIVIDE( (COUNTIF(bronze is True)) * 100 , COUNT(doi)) as percent
+      ROUND(SAFE_DIVIDE( (COUNTIF(bronze is True)) * 100 , COUNT(doi)), 2) as percent
     ) as bronze,
 
     STRUCT(
       COUNTIF(green_only) as total_outputs,
-      SAFE_DIVIDE( (COUNTIF(green_only is True)) * 100 , COUNT(doi)) as percent
+      ROUND(SAFE_DIVIDE( (COUNTIF(green_only is True)) * 100 , COUNT(doi)), 2) as percent
     ) as green_only,
 
     --STRUCT(
       --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as total_outputs,
-      --(COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100 / COUNT(doi) as percent,
+      --ROUND((COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100 / COUNT(doi), 2) as percent,
     --) as green_in_home_repo,
 
     --STRUCT(
       --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as total_outputs,
-      --SAFE_DIVIDE((COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100, COUNTIF(unpaywall.green is True)) as percent_of_just_green_in_home_repo,
+      --ROUND(SAFE_DIVIDE((COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100, COUNTIF(unpaywall.green is True)), 2) as percent_of_just_green_in_home_repo,
     --) as green_in_just_home_repo,
 
     ARRAY_CONCAT(
