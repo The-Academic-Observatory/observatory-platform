@@ -17,14 +17,14 @@
 CREATE TEMP FUNCTION count_single_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type STRING) AS (
   (SELECT as STRUCT
     output_type,
-    COUNTIF(item.type = measured_type ) as total,
-    COUNTIF(item.type = measured_type AND item.oa ) as oa,
-    COUNTIF(item.type = measured_type AND item.green ) as green,
-    COUNTIF(item.type = measured_type AND item.gold ) as gold,
-    COUNTIF(item.type = measured_type AND item.gold_just_doaj ) as gold_just_doaj,
-    COUNTIF(item.type = measured_type AND item.hybrid ) as hybrid,
-    COUNTIF(item.type = measured_type AND item.bronze ) as bronze,
-    COUNTIF(item.type = measured_type AND item.green_only ) as green_only,
+    COUNTIF(item.type = measured_type ) as total_outputs,
+    COUNTIF(item.type = measured_type AND item.oa ) as num_oa_outputs,
+    COUNTIF(item.type = measured_type AND item.green ) as green_outputs,
+    COUNTIF(item.type = measured_type AND item.gold ) as gold_outputs,
+    COUNTIF(item.type = measured_type AND item.gold_just_doaj ) as gold_just_doaj_outputs,
+    COUNTIF(item.type = measured_type AND item.hybrid ) as hybrid_outputs,
+    COUNTIF(item.type = measured_type AND item.bronze ) as bronze_outputs,
+    COUNTIF(item.type = measured_type AND item.green_only ) as green_only_outputs,
 
   FROM UNNEST(items) as item)
 );
@@ -32,14 +32,14 @@ CREATE TEMP FUNCTION count_single_output_type(output_type STRING, items ARRAY<ST
 CREATE TEMP FUNCTION count_array_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type ARRAY<STRING>) AS (
   (SELECT as STRUCT
     output_type,
-    COUNTIF(item.type in UNNEST(measured_type) ) as total,
-    COUNTIF(item.type in UNNEST(measured_type) AND item.oa ) as oa,
-    COUNTIF(item.type in UNNEST(measured_type) AND item.green ) as green,
-    COUNTIF(item.type in UNNEST(measured_type) AND item.gold ) as gold,
-    COUNTIF(item.type in UNNEST(measured_type) AND item.gold_just_doaj ) as gold_just_doaj,
-    COUNTIF(item.type in UNNEST(measured_type) AND item.hybrid ) as hybrid,
-    COUNTIF(item.type in UNNEST(measured_type) AND item.bronze ) as bronze,
-    COUNTIF(item.type in UNNEST(measured_type) AND item.green_only ) as green_only,
+    COUNTIF(item.type in UNNEST(measured_type) ) as total_outputs,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.oa ) as num_oa_outputs,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.green ) as num_green_outputs,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.gold ) as num_gold_outputs,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.gold_just_doaj ) as num_gold_just_doaj_outputs,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.hybrid ) as num_hybrid_outputs,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.bronze ) as num_bronze_outputs,
+    COUNTIF(item.type in UNNEST(measured_type) AND item.green_only ) as num_green_only_outputs,
 
   FROM UNNEST(items) as item)
 );
@@ -47,14 +47,14 @@ CREATE TEMP FUNCTION count_array_output_type(output_type STRING, items ARRAY<STR
 CREATE TEMP FUNCTION count_not_in_array_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type ARRAY<STRING>) AS (
   (SELECT as STRUCT
     output_type,
-    COUNTIF(item.type not in UNNEST(measured_type) ) as total,
-    COUNTIF(item.type not in UNNEST(measured_type) AND item.oa ) as oa,
-    COUNTIF(item.type not in UNNEST(measured_type) AND item.green ) as green,
-    COUNTIF(item.type not in UNNEST(measured_type) AND item.gold ) as gold,
-    COUNTIF(item.type not in UNNEST(measured_type) AND item.gold_just_doaj ) as gold_just_doaj,
-    COUNTIF(item.type not in UNNEST(measured_type) AND item.hybrid ) as hybrid,
-    COUNTIF(item.type not in UNNEST(measured_type) AND item.bronze ) as bronze,
-    COUNTIF(item.type not in UNNEST(measured_type) AND item.green_only ) as green_only,
+    COUNTIF(item.type not in UNNEST(measured_type) ) as total_outputs,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.oa ) as num_oa_outputs,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.green ) as num_green_outputs,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.gold ) as num_gold_outputs,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.gold_just_doaj ) as num_gold_just_doaj_outputs,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.hybrid ) as num_hybrid_outputs,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.bronze ) as num_bronze_outputs,
+    COUNTIF(item.type not in UNNEST(measured_type) AND item.green_only ) as num_green_only_outputs,
   FROM UNNEST(items) as item)
 );
 
@@ -77,14 +77,14 @@ CREATE TEMP FUNCTION process_unpaywall_release(unpaywall_history ANY TYPE) as (
       ARRAY((
         SELECT as STRUCT
           unpaywall_release,
-          COUNT(*) as total,
-          COUNTIF(is_oa) as oa,
-          COUNTIF(green) as green,
-          COUNTIF(gold) as gold,
-          COUNTIF(gold_just_doaj) as gold_just_doaj,
-          COUNTIF(hybrid) as hybrid,
-          COUNTIF(bronze) as bronze,
-          COUNTIF(green_only) as green_only,
+          COUNT(*) as total_outputs,
+          COUNTIF(is_oa) as num_oa_outputs,
+          COUNTIF(green) as num_green_outputs,
+          COUNTIF(gold) as num_gold_outputs,
+          COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs,
+          COUNTIF(hybrid) as num_hybrid_outputs,
+          COUNTIF(bronze) as num_bronze_outputs,
+          COUNTIF(green_only) as num_green_only_outputs,
 
           count_output_types(ARRAY_AGG(STRUCT(output_type, is_oa, green, gold, gold_just_doaj, hybrid, bronze, green_only))) as output_types,
         FROM UNNEST(unpaywall_history) as unpaywall
@@ -120,15 +120,15 @@ CREATE TEMP FUNCTION compute_conditional_citations(items ARRAY<STRUCT<citations 
       COUNTIF( (citations.mag IS NULL OR citations.mag = 0) AND (citations.crossref IS NULL OR citations.crossref = 0) AND (citations.open_citations IS NULL OR citations.open_citations = 0) ) as outputs_without_citations,
       STRUCT(
         STRUCT(
-          SUM(citations.mag) as total,
+          SUM(citations.mag) as total_citations,
           compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
         ) as mag,
         STRUCT(
-          SUM(citations.open_citations) as total,
+          SUM(citations.open_citations) as total_citations,
           compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
         ) as open_citations, 
         STRUCT(
-          SUM(citations.crossref) as total,
+          SUM(citations.crossref) as total_citations,
           compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
         ) as crossref
       ) as citations,
@@ -168,47 +168,47 @@ CREATE TEMP FUNCTION compute_citations(items ARRAY<STRUCT<doi STRING, citations 
 CREATE TEMP FUNCTION compute_access_types(items ARRAY<STRUCT<doi STRING, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, is_oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>) as (
   (SELECT AS STRUCT
     STRUCT(
-      COUNTIF(is_oa = True) as count,
+      COUNTIF(is_oa = True) as total_outputs,
       SAFE_DIVIDE( (COUNTIF(is_oa is True)) * 100 , COUNT(doi)) as percent
     ) as oa,
 
     STRUCT(
-      COUNTIF(green = True) as count,
+      COUNTIF(green = True) as total_outputs,
       SAFE_DIVIDE( (COUNTIF(green is True)) * 100 , COUNT(doi)) as percent
     ) as green,
 
     STRUCT(
-      COUNTIF(gold = True) as count,
+      COUNTIF(gold = True) as total_outputs,
       SAFE_DIVIDE( (COUNTIF(gold is True)) * 100 , COUNT(doi)) as percent
     ) as gold,
 
     STRUCT(
-      COUNTIF(gold_just_doaj = True) as count,
+      COUNTIF(gold_just_doaj = True) as total_outputs,
       SAFE_DIVIDE( (COUNTIF(gold_just_doaj is True)) * 100 , COUNT(doi)) as percent
     ) as gold_doaj,
 
     STRUCT(
-      COUNTIF(hybrid) as count,
+      COUNTIF(hybrid) as total_outputs,
       SAFE_DIVIDE( (COUNTIF(hybrid is True)) * 100 , COUNT(doi)) as percent
     ) as hybrid,
 
     STRUCT(
-      COUNTIF(bronze) as count,
+      COUNTIF(bronze) as total_outputs,
       SAFE_DIVIDE( (COUNTIF(bronze is True)) * 100 , COUNT(doi)) as percent
     ) as bronze,
 
     STRUCT(
-      COUNTIF(green_only) as count,
+      COUNTIF(green_only) as total_outputs,
       SAFE_DIVIDE( (COUNTIF(green_only is True)) * 100 , COUNT(doi)) as percent
     ) as green_only,
 
     --STRUCT(
-      --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as count,
+      --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as total_outputs,
       --(COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100 / COUNT(doi) as percent,
     --) as green_in_home_repo,
 
     --STRUCT(
-      --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as count,
+      --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as total_outputs,
       --SAFE_DIVIDE((COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100, COUNTIF(unpaywall.green is True)) as percent_of_just_green_in_home_repo,
     --) as green_in_just_home_repo,
 
@@ -230,27 +230,27 @@ CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING,
   ARRAY(
     (SELECT AS STRUCT
         DisplayName as field,
-        COUNT(DisplayName) as count,
+        COUNT(DisplayName) as total_outputs,
         SUM(Score) as sum_of_scores,
         STRUCT(
           STRUCT(
-            SUM(citations.mag) as total,
+            SUM(citations.mag) as total_citations,
             compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
           ) as mag,
           STRUCT(
-            SUM(citations.open_citations) as total,
+            SUM(citations.open_citations) as total_citations,
             compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
           ) as open_citations, 
           STRUCT(
-            SUM(citations.crossref) as total,
+            SUM(citations.crossref) as total_citations,
             compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
           ) as crossref
         ) as citations,
-        COUNTIF(is_oa = True) as oa,
-        COUNTIF(green = True) as green,
-        COUNTIF(gold = True) as gold,
+        COUNTIF(is_oa = True) as num_oa_outputs,
+        COUNTIF(green = True) as num_green_outputs,
+        COUNTIF(gold = True) as num_gold_outputs,
         STRUCT(
-          COUNTIF(funding) as count,
+          COUNTIF(funding) as total_funded_outputs,
           COUNTIF(international_funding) as international,
           COUNTIF(domestic_funding) as domestic,
           COUNTIF(international_funding AND domestic_funding) as international_and_domestic,
@@ -269,7 +269,7 @@ CREATE TEMP FUNCTION group_disciplines(fields ARRAY<STRUCT<DisplayName STRING, S
   ARRAY(
     (SELECT AS STRUCT
       DisplayName as field,
-      COUNT(DisplayName) as count,
+      COUNT(DisplayName) as total_outputs,
       SUM(Score) as sum_of_scores,
       STRUCT(
           SUM(citations.mag) as mag,
@@ -298,7 +298,7 @@ SELECT
   -- Time Period
   time_period,
 
-  -- Metrics
+  -- Total Outputs
   total_outputs,
 
   -- Output Types
@@ -316,25 +316,25 @@ SELECT
   -- Collaborators
   ARRAY(SELECT AS STRUCT
           collaborator.identifier as id,
-          COUNT(collaborator.identifier) as count,
+          COUNT(collaborator.identifier) as total_outputs,
           MAX(collaborator.name) as name,
           MAX(collaborator.country) as country,
           MAX(collaborator.country_code) as country_code,
           MAX(collaborator.region) as region,
           MAX(collaborator.subregion) as subregion,
           MAX(collaborator.coordinates) as coordinates,
-          COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold,
+          COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs,
           STRUCT(
             STRUCT(
-              SUM(citations.mag) as total,
+              SUM(citations.mag) as total_citations,
               compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
             ) as mag,
             STRUCT(
-              SUM(citations.open_citations) as total,
+              SUM(citations.open_citations) as total_citations,
               compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
             ) as open_citations, 
             STRUCT(
-              SUM(citations.crossref) as total,
+              SUM(citations.crossref) as total_citations,
               compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
             ) as crossref
           ) as citations,
@@ -345,7 +345,7 @@ SELECT
   ARRAY((
   SELECT as STRUCT
     member,
-    COUNT(*) as count, COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold
+    COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
   FROM  UNNEST(members)
   GROUP BY member
   )) as members,
@@ -359,7 +359,7 @@ SELECT
     MAX(funder.country_code) as country_code,
     MAX(funder.funding_body_type) as funding_body_type,
     MAX(funder.funding_body_subtype) as funding_body_subtype,
-    COUNT(*) as count, COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold
+    COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
   FROM UNNEST(funders) as funder
   GROUP BY funder.identifier
   ORDER BY count DESC
@@ -368,7 +368,7 @@ SELECT
 
   -- Domestic vs International funders
   (SELECT as STRUCT
-    COUNT(*) as count,
+    COUNT(*) as total_outputs,
     COUNTIF(LOWER(funder.country_code) = LOWER(country_code_2)) as domentic,
     COUNTIF(LOWER(funder.country_code) != LOWER(country_code_2)) as international,
   FROM UNNEST(funders) as funder
@@ -380,7 +380,7 @@ SELECT
   ARRAY((
   SELECT as STRUCT
     publisher,
-    COUNT(*) as count, COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold
+    COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
   FROM UNNEST(publishers)
   GROUP BY publisher
   ORDER BY count DESC
@@ -391,7 +391,7 @@ SELECT
   ARRAY((
   SELECT as STRUCT
     journal,
-    COUNT(*) as count, COUNTIF(is_oa) as oa, COUNTIF(green) as green, COUNTIF(gold) as gold
+    COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
   FROM UNNEST(journals)
   GROUP BY journal
   ORDER BY count DESC
@@ -402,10 +402,10 @@ SELECT
   ARRAY((
   SELECT as STRUCT
     source,
-    SUM(count) as count,
-    SUM( IF(is_oa, count, 0) ) as oa, 
-    SUM( IF(green, count, 0) ) as green, 
-    SUM( IF(gold, count, 0) ) as gold
+    SUM(count) as total_outputs,
+    SUM( IF(is_oa, count, 0) ) as num_oa_outputs, 
+    SUM( IF(green, count, 0) ) as num_green_outputs, 
+    SUM( IF(gold, count, 0) ) as num_gold_outputs
   FROM  UNNEST(events)
   GROUP BY source
   )) as events
