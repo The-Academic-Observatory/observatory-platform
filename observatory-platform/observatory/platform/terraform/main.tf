@@ -218,11 +218,18 @@ resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observ
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
-resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_object_admin" {
+resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_object_creator" {
   bucket = google_storage_bucket.observatory_transform_bucket.name
   role = "roles/storage.objectCreator"
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
+
+resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_object_viewer" {
+  bucket = google_storage_bucket.observatory_transform_bucket.name
+  role = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.observatory_service_account.email}"
+}
+
 
 # Bucket for airflow related files, e.g. airflow logs
 resource "random_id" "airflow_bucket_protector" {
@@ -270,9 +277,15 @@ resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observat
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
-resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observatory_service_account_object_admin" {
+resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observatory_service_account_object_creator" {
   bucket = google_storage_bucket.observatory_airflow_bucket.name
   role = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.observatory_service_account.email}"
+}
+
+resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observatory_service_account_object_viewer" {
+  bucket = google_storage_bucket.observatory_airflow_bucket.name
+  role = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
