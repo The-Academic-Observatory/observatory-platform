@@ -54,11 +54,9 @@ jobs:
           packages_dir: observatory-dags/dist/
 
       - name: Publish observatory-reports
-          if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-          uses: pypa/gh-action-pypi-publish@master
-          with:
-            user: __token__
-            password: ${{ secrets.pypi_password }}
-            packages_dir: observatory-reports/dist/
-
-
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.pypi_password }}
+          packages_dir: observatory-reports/dist/
