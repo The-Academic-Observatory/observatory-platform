@@ -27,12 +27,15 @@ jobs:
       - name: Build packages
         run: |
           cd observatory-platform
+          cp ../README.md .
           python3 setup.py sdist
 
           cd ../observatory-dags
+          cp ../README.md .
           python3 setup.py sdist
 
           cd ../observatory-reports
+          cp ../README.md .
           python3 setup.py sdist
 
           cd ../
