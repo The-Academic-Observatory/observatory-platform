@@ -362,7 +362,7 @@ SELECT
     COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
   FROM UNNEST(funders) as funder
   GROUP BY funder.identifier
-  ORDER BY count DESC
+  ORDER BY total_outputs DESC
   LIMIT 1500
   )) as funders,
 
@@ -383,7 +383,7 @@ SELECT
     COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
   FROM UNNEST(publishers)
   GROUP BY publisher
-  ORDER BY count DESC
+  ORDER BY total_outputs DESC
   LIMIT 1500
   )) as publishers,
 
@@ -394,7 +394,7 @@ SELECT
     COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
   FROM UNNEST(journals)
   GROUP BY journal
-  ORDER BY count DESC
+  ORDER BY total_outputs DESC
   LIMIT 3000
   )) as journals,
 
