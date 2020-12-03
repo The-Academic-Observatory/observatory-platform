@@ -1,4 +1,4 @@
-![Observatory Platform](./logo.jpg?raw=true)
+![Observatory Platform](https://raw.githubusercontent.com/The-Academic-Observatory/observatory-platform/develop/logo.jpg)
 
 The Observatory Platform is an environment for fetching, processing and analysing data to understand how well 
 universities operate as Open Knowledge Institutions. 
