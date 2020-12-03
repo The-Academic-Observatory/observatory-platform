@@ -19,12 +19,12 @@ CREATE TEMP FUNCTION count_single_output_type(output_type STRING, items ARRAY<ST
     output_type,
     COUNTIF(item.type = measured_type ) as total_outputs,
     COUNTIF(item.type = measured_type AND item.oa ) as num_oa_outputs,
-    COUNTIF(item.type = measured_type AND item.green ) as green_outputs,
-    COUNTIF(item.type = measured_type AND item.gold ) as gold_outputs,
-    COUNTIF(item.type = measured_type AND item.gold_just_doaj ) as gold_just_doaj_outputs,
-    COUNTIF(item.type = measured_type AND item.hybrid ) as hybrid_outputs,
-    COUNTIF(item.type = measured_type AND item.bronze ) as bronze_outputs,
-    COUNTIF(item.type = measured_type AND item.green_only ) as green_only_outputs,
+    COUNTIF(item.type = measured_type AND item.green ) as num_green_outputs,
+    COUNTIF(item.type = measured_type AND item.gold ) as num_gold_outputs,
+    COUNTIF(item.type = measured_type AND item.gold_just_doaj ) as num_gold_just_doaj_outputs,
+    COUNTIF(item.type = measured_type AND item.hybrid ) as num_hybrid_outputs,
+    COUNTIF(item.type = measured_type AND item.bronze ) as num_bronze_outputs,
+    COUNTIF(item.type = measured_type AND item.green_only ) as num_green_only_outputs,
 
   FROM UNNEST(items) as item)
 );
@@ -251,15 +251,15 @@ CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING,
         COUNTIF(gold = True) as num_gold_outputs,
         STRUCT(
           COUNTIF(funding) as total_funded_outputs,
-          COUNTIF(international_funding) as international,
-          COUNTIF(domestic_funding) as domestic,
-          COUNTIF(international_funding AND domestic_funding) as international_and_domestic,
-          COUNTIF(government_funding) as government,
-          COUNTIF(private_funding) as private,
-          COUNTIF(government_funding AND private_funding) as government_and_private
+          COUNTIF(international_funding) as num_international_outputs,
+          COUNTIF(domestic_funding) as num_domestic_outputs,
+          COUNTIF(international_funding AND domestic_funding) as num_international_and_domestic_outputs,
+          COUNTIF(government_funding) as num_government_outputs,
+          COUNTIF(private_funding) as num_private_outputs,
+          COUNTIF(government_funding AND private_funding) as num_government_and_private_outputs
         ) as funding,
-        COUNTIF(international_colab) as international_collaboration,
-        COUNTIF(international_colab AND international_funding) as international_collaboration_with_funding
+        COUNTIF(international_colab) as num_international_collaboration_outputs,
+        COUNTIF(international_colab AND num_international_funding) as international_collaboration_with_funding_outputs
     FROM UNNEST(fields)
     GROUP BY DisplayName)
   )
