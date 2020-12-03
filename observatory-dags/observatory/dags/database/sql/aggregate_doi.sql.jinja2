@@ -404,7 +404,21 @@ SELECT
     COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
     COUNTIF(hybrid) as num_hybrid_outputs, 
     COUNTIF(bronze) as num_bronze_outputs, 
-    COUNTIF(green_only) as num_green_only_outputs
+    COUNTIF(green_only) as num_green_only_outputs,
+    STRUCT(
+      STRUCT(
+        SUM(citations.mag) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+      ) as mag,
+      STRUCT(
+        SUM(citations.open_citations) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+      ) as open_citations, 
+      STRUCT(
+        SUM(citations.crossref) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+      ) as crossref
+    ) as citations
   FROM  UNNEST(members)
   GROUP BY member
   )) as members,
@@ -425,7 +439,21 @@ SELECT
     COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
     COUNTIF(hybrid) as num_hybrid_outputs, 
     COUNTIF(bronze) as num_bronze_outputs, 
-    COUNTIF(green_only) as num_green_only_outputs
+    COUNTIF(green_only) as num_green_only_outputs,
+    STRUCT(
+      STRUCT(
+        SUM(citations.mag) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+      ) as mag,
+      STRUCT(
+        SUM(citations.open_citations) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+      ) as open_citations, 
+      STRUCT(
+        SUM(citations.crossref) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+      ) as crossref
+    ) as citations
   FROM UNNEST(funders) as funder
   GROUP BY funder.identifier
   ORDER BY total_outputs DESC
@@ -453,7 +481,21 @@ SELECT
     COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
     COUNTIF(hybrid) as num_hybrid_outputs, 
     COUNTIF(bronze) as num_bronze_outputs, 
-    COUNTIF(green_only) as num_green_only_outputs
+    COUNTIF(green_only) as num_green_only_outputs,
+    STRUCT(
+      STRUCT(
+        SUM(citations.mag) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+      ) as mag,
+      STRUCT(
+        SUM(citations.open_citations) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+      ) as open_citations, 
+      STRUCT(
+        SUM(citations.crossref) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+      ) as crossref
+    ) as citations
   FROM UNNEST(publishers)
   GROUP BY publisher
   ORDER BY total_outputs DESC
@@ -471,7 +513,21 @@ SELECT
     COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
     COUNTIF(hybrid) as num_hybrid_outputs, 
     COUNTIF(bronze) as num_bronze_outputs, 
-    COUNTIF(green_only) as num_green_only_outputs
+    COUNTIF(green_only) as num_green_only_outputs,
+    STRUCT(
+      STRUCT(
+        SUM(citations.mag) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+      ) as mag,
+      STRUCT(
+        SUM(citations.open_citations) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+      ) as open_citations, 
+      STRUCT(
+        SUM(citations.crossref) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+      ) as crossref
+    ) as citations
   FROM UNNEST(journals)
   GROUP BY journal
   ORDER BY total_outputs DESC
