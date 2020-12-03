@@ -110,7 +110,7 @@ class DoiWorkflow:
     TASK_ID_CREATE_DATASETS = 'create_datasets'
     TASK_ID_EXTEND_GRID = 'extend_grid'
     TASK_ID_AGGREGATE_CROSSREF_EVENTS = 'aggregate_crossref_events'
-    TASK_ID_AGGREGATE_ORCID = 'aggregate_orcid_to_doi'
+    TASK_ID_AGGREGATE_ORCID = 'aggregate_orcid'
     TASK_ID_AGGREGATE_MAG = 'aggregate_mag'
     TASK_ID_AGGREGATE_UNPAYWALL = 'aggregate_unpaywall'
     TASK_ID_EXTEND_CROSSREF_FUNDERS = 'extend_crossref_funders'
@@ -243,7 +243,7 @@ class DoiWorkflow:
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS)
 
     @staticmethod
-    def aggregate_orcid_to_doi(**kwargs):
+    def aggregate_orcid(**kwargs):
         """ Aggregate the current state of ORCID into a single table with authors linked to the DOI's of their work.
 
         :param kwargs: the context passed from the PythonOperator. See
