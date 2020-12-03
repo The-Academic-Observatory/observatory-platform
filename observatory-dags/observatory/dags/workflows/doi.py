@@ -110,6 +110,7 @@ class DoiWorkflow:
     TASK_ID_CREATE_DATASETS = 'create_datasets'
     TASK_ID_EXTEND_GRID = 'extend_grid'
     TASK_ID_AGGREGATE_CROSSREF_EVENTS = 'aggregate_crossref_events'
+    TASK_ID_AGGREGATE_ORCID = 'aggregate_orcid_to_doi'
     TASK_ID_AGGREGATE_MAG = 'aggregate_mag'
     TASK_ID_AGGREGATE_UNPAYWALL = 'aggregate_unpaywall'
     TASK_ID_EXTEND_CROSSREF_FUNDERS = 'extend_crossref_funders'
@@ -239,6 +240,35 @@ class DoiWorkflow:
                                                    location=data_location)
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS)
+
+    @staticmethod
+    def aggregate_orcid_to_doi(**kwargs):
+        """ Aggregate the current state of ORCID into a single table with authors linked to the DOI's of their work.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Get variables
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
+        data_location = Variable.get(AirflowVars.DATA_LOCATION)
+        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+
+        # Create processed table
+        template_path = os.path.join(workflow_sql_templates_path(),
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_ORCID))
+        sql = render_template(template_path, project_id=project_id)
+
+        processed_table_id = bigquery_partitioned_table_id('orcid', release_date)
+        success = create_bigquery_table_from_query(sql=sql,
+                                                   project_id=project_id,
+                                                   dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
+                                                   table_id=processed_table_id,
+                                                   location=data_location)
+
+        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_ORCID)
 
     @staticmethod
     def aggregate_mag(**kwargs):
