@@ -1,5 +1,5 @@
 observatory-platform
-mag-archiver==2020.12.*
+mag-archiver==2020.12.1.dev1
 xmltodict==0.12.*
 backoff==1.10.*
 ratelimit==2.2.*
