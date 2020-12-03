@@ -14,7 +14,19 @@
 # Author: Richard Hosking #}
 
 # Processing Output Types
-CREATE TEMP FUNCTION count_single_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type STRING) AS (
+CREATE TEMP FUNCTION compute_percentiles(counts ARRAY<INT64>) AS (
+  (SELECT as STRUCT
+    ROUND(PERCENTILE_CONT(count, 0.0) OVER(), 2) as min,
+    ROUND(PERCENTILE_CONT(count, 0.25) OVER(), 2) as per_25th,
+    ROUND(PERCENTILE_CONT(count, 0.50) OVER(), 2) as median,
+    ROUND(PERCENTILE_CONT(count, 0.90) OVER(), 2) as per_90th,
+    ROUND(PERCENTILE_CONT(count, 0.95) OVER(), 2) as per_95th,
+    ROUND(PERCENTILE_CONT(count, 0.99) OVER(), 2) as per_99th,
+    ROUND(PERCENTILE_CONT(count, 1.0) OVER(), 2) as max
+  FROM UNNEST(counts) as count LIMIT 1)
+);
+
+CREATE TEMP FUNCTION count_single_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type STRING) AS (
   (SELECT as STRUCT
     output_type,
     COUNTIF(item.type = measured_type ) as total_outputs,
@@ -25,11 +37,25 @@ CREATE TEMP FUNCTION count_single_output_type(output_type STRING, items ARRAY<ST
     COUNTIF(item.type = measured_type AND item.hybrid ) as num_hybrid_outputs,
     COUNTIF(item.type = measured_type AND item.bronze ) as num_bronze_outputs,
     COUNTIF(item.type = measured_type AND item.green_only ) as num_green_only_outputs,
+    STRUCT(
+      STRUCT(
+        SUM(citations.mag) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+      ) as mag,
+      STRUCT(
+        SUM(citations.open_citations) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+      ) as open_citations, 
+      STRUCT(
+        SUM(citations.crossref) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+      ) as crossref
+    ) as citations
 
   FROM UNNEST(items) as item)
 );
 
-CREATE TEMP FUNCTION count_array_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type ARRAY<STRING>) AS (
+CREATE TEMP FUNCTION count_array_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type ARRAY<STRING>) AS (
   (SELECT as STRUCT
     output_type,
     COUNTIF(item.type in UNNEST(measured_type) ) as total_outputs,
@@ -40,11 +66,25 @@ CREATE TEMP FUNCTION count_array_output_type(output_type STRING, items ARRAY<STR
     COUNTIF(item.type in UNNEST(measured_type) AND item.hybrid ) as num_hybrid_outputs,
     COUNTIF(item.type in UNNEST(measured_type) AND item.bronze ) as num_bronze_outputs,
     COUNTIF(item.type in UNNEST(measured_type) AND item.green_only ) as num_green_only_outputs,
+    STRUCT(
+      STRUCT(
+        SUM(citations.mag) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+      ) as mag,
+      STRUCT(
+        SUM(citations.open_citations) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+      ) as open_citations, 
+      STRUCT(
+        SUM(citations.crossref) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+      ) as crossref
+    ) as citations
 
   FROM UNNEST(items) as item)
 );
 
-CREATE TEMP FUNCTION count_not_in_array_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type ARRAY<STRING>) AS (
+CREATE TEMP FUNCTION count_not_in_array_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type ARRAY<STRING>) AS (
   (SELECT as STRUCT
     output_type,
     COUNTIF(item.type not in UNNEST(measured_type) ) as total_outputs,
@@ -55,11 +95,25 @@ CREATE TEMP FUNCTION count_not_in_array_output_type(output_type STRING, items AR
     COUNTIF(item.type not in UNNEST(measured_type) AND item.hybrid ) as num_hybrid_outputs,
     COUNTIF(item.type not in UNNEST(measured_type) AND item.bronze ) as num_bronze_outputs,
     COUNTIF(item.type not in UNNEST(measured_type) AND item.green_only ) as num_green_only_outputs,
+    STRUCT(
+      STRUCT(
+        SUM(citations.mag) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+      ) as mag,
+      STRUCT(
+        SUM(citations.open_citations) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+      ) as open_citations, 
+      STRUCT(
+        SUM(citations.crossref) as total_citations,
+        compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+      ) as crossref
+    ) as citations
   FROM UNNEST(items) as item)
 );
 
 -- Count Output Types
-CREATE TEMP FUNCTION count_output_types(items ARRAY<STRUCT<type STRING, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>) as (
+CREATE TEMP FUNCTION count_output_types(items ARRAY<STRUCT<type STRING, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>) as (
     [
       count_single_output_type("journal_articles", items, 'journal-article'),
       count_array_output_type("book_sections", items, ['book-section', 'book-part', 'book-chapter']),
@@ -90,18 +144,6 @@ CREATE TEMP FUNCTION process_unpaywall_release(unpaywall_history ANY TYPE) as (
         FROM UNNEST(unpaywall_history) as unpaywall
         GROUP BY unpaywall.unpaywall_release
       ))
-);
-
-CREATE TEMP FUNCTION compute_percentiles(counts ARRAY<INT64>) AS (
-  (SELECT as STRUCT
-    ROUND(PERCENTILE_CONT(count, 0.0) OVER(), 2) as min,
-    ROUND(PERCENTILE_CONT(count, 0.25) OVER(), 2) as per_25th,
-    ROUND(PERCENTILE_CONT(count, 0.50) OVER(), 2) as median,
-    ROUND(PERCENTILE_CONT(count, 0.90) OVER(), 2) as per_90th,
-    ROUND(PERCENTILE_CONT(count, 0.95) OVER(), 2) as per_95th,
-    ROUND(PERCENTILE_CONT(count, 0.99) OVER(), 2) as per_99th,
-    ROUND(PERCENTILE_CONT(count, 1.0) OVER(), 2) as max
-  FROM UNNEST(counts) as count LIMIT 1)
 );
 
 -- Compute Citation Analysis
@@ -507,10 +549,10 @@ FROM(
     ) as collaborations,
 
     -- Members
-    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT member, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(aggregrate.members) as member))) as members,
+    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT member, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(aggregrate.members) as member))) as members,
 
     -- Output Types
-    count_output_types(ARRAY_AGG(STRUCT(unpaywall.output_type, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as output_types,
+    count_output_types(ARRAY_AGG(STRUCT(unpaywall.output_type, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as output_types,
 
     -- Discipline
     STRUCT(
@@ -539,16 +581,16 @@ FROM(
     ) as disciplines,
 
     -- Events
-    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT event.source, event.count, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(dois.events.events) as event))) as events,
+    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT event.source, event.count, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(dois.events.events) as event))) as events,
 
     -- Funders
-    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT funder.identifier, funder.name, funder.country, funder.country_code, funder.funding_body_type, funder.funding_body_subtype, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(affiliations.funders) as funder))) as funders,
+    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT funder.identifier, funder.name, funder.country, funder.country_code, funder.funding_body_type, funder.funding_body_subtype, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(affiliations.funders) as funder))) as funders,
 
     -- Publishers
-    ARRAY_AGG(STRUCT(crossref.publisher as publisher, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as publishers,
+    ARRAY_AGG(STRUCT(crossref.publisher as publisher, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as publishers,
 
     -- Journals
-    ARRAY_AGG(STRUCT(unpaywall.journal_name as journal, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as journals,
+    ARRAY_AGG(STRUCT(unpaywall.journal_name as journal, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as journals,
 
     -- Unpaywall History
     --ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT unpaywall.*from UNNEST(dois.unpaywall_history) as unpaywall))) as unpaywall_history
