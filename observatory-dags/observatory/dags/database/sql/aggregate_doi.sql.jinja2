@@ -213,13 +213,13 @@ CREATE TEMP FUNCTION compute_access_types(items ARRAY<STRUCT<doi STRING, citatio
     --) as green_in_just_home_repo,
 
     ARRAY_CONCAT(
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, is_oa as is_x)), "oa", "Open Access", "Not Open Access"),
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, green as is_x)), "green", "Green", "Not Green"),
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, gold as is_x)), "gold", "Gold", "Not Gold"),
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, gold_just_doaj as is_x)), "gold_just_doaj", "Gold just DOAJ", "Not Gold just DOAJ"),
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, hybrid as is_x)), "hybrid", "Hybrid", "Not Hybrid"),
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, bronze as is_x)), "bronze", "Bronze", "Not Bronze"),
-      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, green_only as is_x)), "green_only", "Green Only", "Not Green Only")
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, IFNULL(is_oa, false) as is_x)), "oa", "Open Access", "Not Open Access"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, IFNULL(green, false) as is_x)), "green", "Green", "Not Green"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, IFNULL(gold, false) as is_x)), "gold", "Gold", "Not Gold"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, IFNULL(gold_just_doaj, false) as is_x)), "gold_just_doaj", "Gold just DOAJ", "Not Gold just DOAJ"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, IFNULL(hybrid, false) as is_x)), "hybrid", "Hybrid", "Not Hybrid"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, IFNULL(bronze, false) as is_x)), "bronze", "Bronze", "Not Bronze"),
+      compute_conditional_citations(ARRAY_AGG(STRUCT(citations, IFNULL(green_only, false) as is_x)), "green_only", "Green Only", "Not Green Only")
     ) as breakdown
 
   FROM UNNEST(items))
