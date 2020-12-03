@@ -44,6 +44,9 @@ SELECT
   -- Funder 
   ARRAY(SELECT as STRUCT funder.funder.name as identifier, funder.funder.name as name, funder.funder.doi as doi, ["Funder"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(funder.fundref.country as STRING) as country, CAST(funder.fundref.country_code as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(funder.fundref.region as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, funder.fundref.funding_body_type as funding_body_type, funder.fundref.funding_body_sub_type as funding_body_subtype, CAST([] AS ARRAY<STRING>) as members FROM UNNEST(fundref.funders) as funder) as funders,
 
+  -- Authors
+  ARRAY(SELECT as STRUCT author.uri as identifier, CONCAT(author.given_names, " ", author.family_name) as name, author.given_names as given_names, author.family_name as family_name,["Author"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, CAST([] AS ARRAY<STRING>) as members FROM UNNEST(orcid.orcid) as author) as authors,
+
   -- Journal  
   [ STRUCT( unpaywall.journal_name as identifier, unpaywall.journal_name as name, ["Journal"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, CAST([] AS ARRAY<STRING>) as members )] as journals,
   
@@ -132,6 +135,7 @@ SELECT
   LEFT JOIN (SELECT grid, ARRAY_AGG(STRUCT(group_id, group_name, country_code)) as groupings FROM `{{ project_id }}.coki.groupings` CROSS JOIN UNNEST(grids) as grid GROUP BY grid) as grid_groups on institution.id = grid_groups.grid
   GROUP BY doi) as base on extras.doi = base.doi
   LEFT JOIN `{{ project_id }}.{{ dataset_id }}.crossref_funders_extended{{ release_date.strftime('%Y%m%d') }}` as fundref on fundref.doi = extras.doi
+  LEFT JOIN `{{ project_id }}.{{ dataset_id }}.orcid{{ release_date.strftime('%Y%m%d') }}` as orcid on orcid.doi = extras.doi
 )
 
 SELECT
