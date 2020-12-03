@@ -195,6 +195,12 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         python_callable=DoiWorkflow.create_institution
     )
 
+    task_create_author = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_AUTHOR,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_author
+    )
+
     task_create_journal = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_JOURNAL,
         provide_context=True,
@@ -244,5 +250,6 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
 
     # After task_create_doi runs all of the post-processing tasks run
     tasks_postprocessing = [task_create_country, task_create_funder, task_create_group, task_create_institution,
-                            task_create_journal, task_create_publisher, task_create_region, task_create_subregion]
+                            task_create_author,  task_create_journal, task_create_publisher, task_create_region, 
+                            task_create_subregion]
     task_create_doi >> tasks_postprocessing >> task_copy_tables >> task_create_views

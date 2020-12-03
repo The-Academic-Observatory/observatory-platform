@@ -122,6 +122,7 @@ class DoiWorkflow:
     TASK_ID_CREATE_FUNDER = 'create_funder'
     TASK_ID_CREATE_GROUP = 'create_group'
     TASK_ID_CREATE_INSTITUTION = 'create_institution'
+    TASK_ID_CREATE_AUTHOR = 'create_author'
     TASK_ID_CREATE_JOURNAL = 'create_journal'
     TASK_ID_CREATE_PUBLISHER = 'create_publisher'
     TASK_ID_CREATE_REGION = 'create_region'
@@ -620,6 +621,28 @@ class DoiWorkflow:
         # Aggregate
         create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
                                 table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_INSTITUTION)
+    
+    @staticmethod
+    def create_author(**kwargs):
+        """ Create author snapshot.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Get variables
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
+        data_location = Variable.get(AirflowVars.DATA_LOCATION)
+        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+        aggregation_field = 'authors'
+        group_by_time_field="published_year"
+        table_id = 'author'
+
+        # Aggregate
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_AUTHOR)
 
     @staticmethod
     def create_journal(**kwargs):
