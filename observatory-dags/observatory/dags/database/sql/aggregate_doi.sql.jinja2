@@ -246,9 +246,13 @@ CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING,
             compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
           ) as crossref
         ) as citations,
-        COUNTIF(is_oa = True) as num_oa_outputs,
-        COUNTIF(green = True) as num_green_outputs,
-        COUNTIF(gold = True) as num_gold_outputs,
+        COUNTIF(is_oa) as num_oa_outputs, 
+        COUNTIF(green) as num_green_outputs, 
+        COUNTIF(gold) as num_gold_outputs, 
+        COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
+        COUNTIF(hybrid) as num_hybrid_outputs, 
+        COUNTIF(bronze) as num_bronze_outputs, 
+        COUNTIF(green_only) as num_green_only_outputs
         STRUCT(
           COUNTIF(funding) as total_funded_outputs,
           COUNTIF(international_funding) as num_international_outputs,
@@ -323,7 +327,13 @@ SELECT
           MAX(collaborator.region) as region,
           MAX(collaborator.subregion) as subregion,
           MAX(collaborator.coordinates) as coordinates,
-          COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs,
+          COUNTIF(is_oa) as num_oa_outputs, 
+          COUNTIF(green) as num_green_outputs, 
+          COUNTIF(gold) as num_gold_outputs, 
+          COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
+          COUNTIF(hybrid) as num_hybrid_outputs, 
+          COUNTIF(bronze) as num_bronze_outputs, 
+          COUNTIF(green_only) as num_green_only_outputs,
           STRUCT(
             STRUCT(
               SUM(citations.mag) as total_citations,
@@ -345,7 +355,14 @@ SELECT
   ARRAY((
   SELECT as STRUCT
     member,
-    COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
+    COUNT(*) as total_outputs, 
+    COUNTIF(is_oa) as num_oa_outputs, 
+    COUNTIF(green) as num_green_outputs, 
+    COUNTIF(gold) as num_gold_outputs, 
+    COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
+    COUNTIF(hybrid) as num_hybrid_outputs, 
+    COUNTIF(bronze) as num_bronze_outputs, 
+    COUNTIF(green_only) as num_green_only_outputs
   FROM  UNNEST(members)
   GROUP BY member
   )) as members,
@@ -359,7 +376,14 @@ SELECT
     MAX(funder.country_code) as country_code,
     MAX(funder.funding_body_type) as funding_body_type,
     MAX(funder.funding_body_subtype) as funding_body_subtype,
-    COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
+    COUNT(*) as total_outputs, 
+    COUNTIF(is_oa) as num_oa_outputs, 
+    COUNTIF(green) as num_green_outputs, 
+    COUNTIF(gold) as num_gold_outputs, 
+    COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
+    COUNTIF(hybrid) as num_hybrid_outputs, 
+    COUNTIF(bronze) as num_bronze_outputs, 
+    COUNTIF(green_only) as num_green_only_outputs
   FROM UNNEST(funders) as funder
   GROUP BY funder.identifier
   ORDER BY total_outputs DESC
@@ -380,7 +404,14 @@ SELECT
   ARRAY((
   SELECT as STRUCT
     publisher,
-    COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
+    COUNT(*) as total_outputs, 
+    COUNTIF(is_oa) as num_oa_outputs, 
+    COUNTIF(green) as num_green_outputs, 
+    COUNTIF(gold) as num_gold_outputs, 
+    COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
+    COUNTIF(hybrid) as num_hybrid_outputs, 
+    COUNTIF(bronze) as num_bronze_outputs, 
+    COUNTIF(green_only) as num_green_only_outputs
   FROM UNNEST(publishers)
   GROUP BY publisher
   ORDER BY total_outputs DESC
@@ -391,7 +422,14 @@ SELECT
   ARRAY((
   SELECT as STRUCT
     journal,
-    COUNT(*) as total_outputs, COUNTIF(is_oa) as num_oa_outputs, COUNTIF(green) as num_green_outputs, COUNTIF(gold) as num_gold_outputs
+    COUNT(*) as total_outputs, 
+    COUNTIF(is_oa) as num_oa_outputs, 
+    COUNTIF(green) as num_green_outputs, 
+    COUNTIF(gold) as num_gold_outputs, 
+    COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
+    COUNTIF(hybrid) as num_hybrid_outputs, 
+    COUNTIF(bronze) as num_bronze_outputs, 
+    COUNTIF(green_only) as num_green_only_outputs
   FROM UNNEST(journals)
   GROUP BY journal
   ORDER BY total_outputs DESC
@@ -405,7 +443,11 @@ SELECT
     SUM(count) as total_outputs,
     SUM( IF(is_oa, count, 0) ) as num_oa_outputs, 
     SUM( IF(green, count, 0) ) as num_green_outputs, 
-    SUM( IF(gold, count, 0) ) as num_gold_outputs
+    SUM( IF(gold, count, 0) ) as num_gold_outputs,
+    SUM( IF(gold_just_doaj, count, 0) ) as num_gold_just_doaj_outputs,
+    SUM( IF(hybrid, count, 0) ) as num_hybrid_outputs,
+    SUM( IF(bronze, count, 0) ) as num_bronze_outputs,
+    SUM( IF(green_only, count, 0) ) as num_green_only_outputs
   FROM  UNNEST(events)
   GROUP BY source
   )) as events
@@ -444,7 +486,7 @@ FROM(
       ARRAY(
         (SELECT as STRUCT 
           collab.*, 
-          unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold,
+          unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only,
           STRUCT(
               dois.microsoft_academic_graph.CitationCount as mag,
               dois.crossref.references_count as crossref,
@@ -464,7 +506,8 @@ FROM(
       )
     ) as collaborations,
 
-    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT member, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold from UNNEST(aggregrate.members) as member))) as members,
+    -- Members
+    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT member, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(aggregrate.members) as member))) as members,
 
     -- Output Types
     count_output_types(ARRAY_AGG(STRUCT(unpaywall.output_type, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as output_types,
@@ -479,7 +522,7 @@ FROM(
               dois.crossref.references_count as crossref,
               dois.open_citations.citations_total as open_citations
             ) as citations,
-            unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold,
+            unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only,
 
             (SELECT COUNT(funder) > 0 from UNNEST(affiliations.funders) as funder) as funding,
             -- Domestic, international, both, none or unknown funding
@@ -496,16 +539,16 @@ FROM(
     ) as disciplines,
 
     -- Events
-    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT event.source, event.count, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold from UNNEST(dois.events.events) as event))) as events,
+    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT event.source, event.count, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(dois.events.events) as event))) as events,
 
     -- Funders
-    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT funder.identifier, funder.name, funder.country, funder.country_code, funder.funding_body_type, funder.funding_body_subtype, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold from UNNEST(affiliations.funders) as funder))) as funders,
+    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT funder.identifier, funder.name, funder.country, funder.country_code, funder.funding_body_type, funder.funding_body_subtype, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(affiliations.funders) as funder))) as funders,
 
     -- Publishers
-    ARRAY_AGG(STRUCT(crossref.publisher as publisher, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold)) as publishers,
+    ARRAY_AGG(STRUCT(crossref.publisher as publisher, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as publishers,
 
     -- Journals
-    ARRAY_AGG(STRUCT(unpaywall.journal_name as journal, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold)) as journals,
+    ARRAY_AGG(STRUCT(unpaywall.journal_name as journal, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as journals,
 
     -- Unpaywall History
     --ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT unpaywall.*from UNNEST(dois.unpaywall_history) as unpaywall))) as unpaywall_history
