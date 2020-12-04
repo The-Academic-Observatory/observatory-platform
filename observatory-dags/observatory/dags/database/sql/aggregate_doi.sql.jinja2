@@ -499,7 +499,7 @@ SELECT
   FROM UNNEST(publishers)
   GROUP BY publisher
   ORDER BY total_outputs DESC
-  LIMIT 1500
+  LIMIT 1000
   )) as publishers,
 
   -- Journals
@@ -531,7 +531,7 @@ SELECT
   FROM UNNEST(journals)
   GROUP BY journal
   ORDER BY total_outputs DESC
-  LIMIT 3000
+  LIMIT 2000
   )) as journals,
 
   -- Events / Altmetrics
