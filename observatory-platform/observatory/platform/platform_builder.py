@@ -226,6 +226,7 @@ class PlatformBuilder:
         """
 
         # Copy observatory requirements.txt
+        # TODO: Check if installed in editable / develop mode
         input_file = os.path.join(self.package_path, 'requirements.txt')
         output_file = os.path.join(self.docker_build_path, 'requirements.txt')
         shutil.copy(input_file, output_file)

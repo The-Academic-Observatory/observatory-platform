@@ -33,16 +33,31 @@ RUN groupmod -g ${HOST_GROUP_ID} airflow
 # Install Python dependencies for Observatory Platform as airflow user
 USER airflow
 
+{% if observatory.type.value == 'editable' -%}
+# Install observatory-platform dependencies. The package itself will be installed at runtime after the directory
+# is mounted.
+
 # Set working directory to observatory-platform
 ARG WORKING_DIR=${OBSERVATORY_HOME}/observatory-platform
 WORKDIR ${WORKING_DIR}
 
-# Install observatory platform
+# Install observatory platform dependencies
 COPY ./requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt --user
 
-# Install dependencies for DAGs projects for local projects and intall entire projects for git and PyPI based projects
+{% else %}
+
+# Install observatory-platform from PyPI
+RUN pip3 install {{ observatory.versioned_package_name }} --user
+
+{% endif %}
+
+# Install DAGs projects and their dependencies.
 {% for project in config.dags_projects %}
+{% if project.type.value == 'editable' -%}
+# Install {{ project.package_name }} dependencies. The package itself will be installed at runtime after the directory
+# is mounted.
+
 # Set working directory for {{ project.package_name }}
 ARG WORKING_DIR=/opt/{{ project.package_name }}
 WORKDIR ${WORKING_DIR}
@@ -52,21 +67,16 @@ USER root
 RUN chown -R airflow:airflow ${WORKING_DIR}
 USER airflow
 
-{% if project.type == 'local' -%}
 # Copy requirements file for {{ project.package_name }} and install
 COPY ./requirements.{{ project.package_name }}.txt requirements.txt
 # Remove first line as this is observatory-platform
 RUN sed -i '1d' requirements.txt
 RUN pip3 install -r requirements.txt --user
 
-{% elif project.type == 'git' %}
-# Clone {{ project.package_name }} and install
-RUN git clone {{ project.package_name }} .
-RUN pip3 install -e . --user
-
 {% else %}
-# Install {{ project.package_name }} from Github
-RUN pip3 install {{ project.package_name }} --user
+
+# Install {{ project.package_name }} from PyPI
+RUN pip3 install {{ project.versioned_package_name }} --user
 
 {% endif %}
 {% endfor %}

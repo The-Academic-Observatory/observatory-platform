@@ -27,9 +27,11 @@ if [ $1="webserver" ]; then
   airflow create_user -r Admin -u airflow -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
 fi
 
-###############################
-# Install observatory-platform
-###############################
+#####################################################
+# Install observatory-platform when in editable mode
+#####################################################
+
+{% if observatory.type.value == 'editable' -%}
 # Enter observatory platform folder
 cd /opt/observatory-platform
 
@@ -39,11 +41,14 @@ export PBR_VERSION=0.0.1
 # Install the Observatory Platform Python package
 pip3 install -e . --user
 
-#########################
-# Install dags projects
-#########################
+{% endif %}
+
+##################################################
+# Install dags projects that are in editable mode
+##################################################
+
 {% for project in config.dags_projects %}
-{% if project.type == 'local' -%}
+{% if project.type.value == 'editable' -%}
 cd /opt/{{ project.package_name }}
 pip3 install -e . --user
 {% endif %}

@@ -98,10 +98,12 @@ x-volumes: &volumes
   - "{{ host_logs_path }}:/opt/airflow/logs"
   - "{{ host_dags_path }}:/opt/airflow/dags"
   - "{{ host_data_path }}:/opt/observatory/data"
+  {%- if observatory.type.value == 'editable' %}
   - "{{ host_package_path }}:/opt/observatory-platform"
+  {%- else %}
   # Volume mappings for DAGs projects:
   {%- for project in config.dags_projects %}
-  {%- if project.type == 'local' %}
+  {%- if project.type.value == 'editable' %}
   {%- if config.backend.type.value == 'local' %}
   - "{{ project.path }}:/opt/{{ project.package_name }}"
   {%- else %}
