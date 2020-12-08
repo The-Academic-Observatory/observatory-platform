@@ -16,13 +16,10 @@
 # Processing Output Types
 CREATE TEMP FUNCTION compute_percentiles(counts ARRAY<INT64>) AS (
   (SELECT as STRUCT
-    ROUND(PERCENTILE_CONT(count, 0.0) OVER(), 2) as min,
     ROUND(PERCENTILE_CONT(count, 0.25) OVER(), 2) as per_25th,
     ROUND(PERCENTILE_CONT(count, 0.50) OVER(), 2) as median,
     ROUND(PERCENTILE_CONT(count, 0.90) OVER(), 2) as per_90th,
-    ROUND(PERCENTILE_CONT(count, 0.95) OVER(), 2) as per_95th,
-    ROUND(PERCENTILE_CONT(count, 0.99) OVER(), 2) as per_99th,
-    ROUND(PERCENTILE_CONT(count, 1.0) OVER(), 2) as max
+    ROUND(PERCENTILE_CONT(count, 0.95) OVER(), 2) as per_95th
   FROM UNNEST(counts) as count LIMIT 1)
 );
 
@@ -38,20 +35,10 @@ CREATE TEMP FUNCTION count_single_output_type(output_type STRING, items ARRAY<ST
     COUNTIF(item.type = measured_type AND item.bronze ) as num_bronze_outputs,
     COUNTIF(item.type = measured_type AND item.green_only ) as num_green_only_outputs,
     STRUCT(
-      STRUCT(
-        SUM(citations.mag) as total_citations,
-        compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
-      ) as mag,
-      STRUCT(
-        SUM(citations.open_citations) as total_citations,
-        compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
-      ) as open_citations, 
-      STRUCT(
-        SUM(citations.crossref) as total_citations,
-        compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
-      ) as crossref
+      SUM(citations.mag) as total_mag_citations,
+      SUM(citations.open_citations) as total_open_citations_citations,
+      SUM(citations.crossref) as total_crossref_citations
     ) as citations
-
   FROM UNNEST(items) as item)
 );
 
@@ -67,18 +54,9 @@ CREATE TEMP FUNCTION count_array_output_type(output_type STRING, items ARRAY<STR
     COUNTIF(item.type in UNNEST(measured_type) AND item.bronze ) as num_bronze_outputs,
     COUNTIF(item.type in UNNEST(measured_type) AND item.green_only ) as num_green_only_outputs,
     STRUCT(
-      STRUCT(
-        SUM(citations.mag) as total_citations,
-        compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
-      ) as mag,
-      STRUCT(
-        SUM(citations.open_citations) as total_citations,
-        compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
-      ) as open_citations, 
-      STRUCT(
-        SUM(citations.crossref) as total_citations,
-        compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
-      ) as crossref
+      SUM(citations.mag) as total_mag_citations,
+      SUM(citations.open_citations) as total_open_citations_citations,
+      SUM(citations.crossref) as total_crossref_citations
     ) as citations
 
   FROM UNNEST(items) as item)
@@ -96,18 +74,9 @@ CREATE TEMP FUNCTION count_not_in_array_output_type(output_type STRING, items AR
     COUNTIF(item.type not in UNNEST(measured_type) AND item.bronze ) as num_bronze_outputs,
     COUNTIF(item.type not in UNNEST(measured_type) AND item.green_only ) as num_green_only_outputs,
     STRUCT(
-      STRUCT(
-        SUM(citations.mag) as total_citations,
-        compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
-      ) as mag,
-      STRUCT(
-        SUM(citations.open_citations) as total_citations,
-        compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
-      ) as open_citations, 
-      STRUCT(
-        SUM(citations.crossref) as total_citations,
-        compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
-      ) as crossref
+      SUM(citations.mag) as total_mag_citations,
+      SUM(citations.open_citations) as total_open_citations_citations,
+      SUM(citations.crossref) as total_crossref_citations
     ) as citations
   FROM UNNEST(items) as item)
 );
