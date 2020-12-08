@@ -101,48 +101,46 @@ class DoiCountsDocTypeYearModule(MagAnalyserModule):
         """
 
         ts = release.strftime('%Y%m%d')
-        doc_types = self._cache[f'{MagCacheKey.DOC_TYPE}{ts}']
 
         docs = list()
         if search_count_by_release(MagDoiCountsDocTypeYear, release.isoformat()) > 0:
             return docs
 
-        for doc_type in doc_types:
-            counts = self._get_bq_counts(ts, doc_type)
+        counts = self._get_bq_counts(ts)
 
-            for i in range(len(counts)):
-                year = counts[MagTableKey.COL_YEAR][i]
+        for i in range(len(counts)):
+            doc_type = counts[MagTableKey.COL_DOC_TYPE][i]
+            if pd.isnull(doc_type):
+                doc_type = 'null'
 
-                if pd.isnull(year):
-                    year = 'null'
-                else:
-                    year = int(year)
+            year = counts[MagTableKey.COL_YEAR][i]
+            if pd.isnull(year):
+                year = 'null'
 
-                count = counts[DoiCountsDocTypeYearModule.BQ_DOC_COUNT][i]
-                no_doi = counts[DoiCountsDocTypeYearModule.BQ_NULL_COUNT][i]
+            count = counts[DoiCountsDocTypeYearModule.BQ_DOC_COUNT][i]
+            no_doi = counts[DoiCountsDocTypeYearModule.BQ_NULL_COUNT][i]
 
-                pno_doi = 0
-                if count != 0:
-                    pno_doi = no_doi / count
+            pno_doi = 0
+            if count != 0:
+                pno_doi = no_doi / count
 
-                doc = MagDoiCountsDocTypeYear(release=release, doc_type=doc_type, year=str(year),
-                                              count=count, no_doi=no_doi, pno_doi=pno_doi)
-                docs.append(doc)
+            doc = MagDoiCountsDocTypeYear(release=release, doc_type=doc_type, year=str(year),
+                                          count=count, no_doi=no_doi, pno_doi=pno_doi)
+
+            docs.append(doc)
 
         return docs
 
-    def _get_bq_counts(self, ts: str, doc_type: str) -> pd.DataFrame:
+    def _get_bq_counts(self, ts: str) -> pd.DataFrame:
         """ Get counts from BigQuery
 
         @param ts: Table suffix (timestamp).
-        @param doc_type: DocType of interest.
         @return DataFrame of counts.
         """
 
-        sql = self._tpl_count.render(project_id=self._project_id, dataset_id=self._dataset_id,
-                                     ts=ts, doc_type=doc_type, doc_count=DoiCountsDocTypeYearModule.BQ_DOC_COUNT,
+        sql = self._tpl_count.render(project_id=self._project_id, dataset_id=self._dataset_id, ts=ts,
+                                     doc_count=DoiCountsDocTypeYearModule.BQ_DOC_COUNT,
                                      null_count=DoiCountsDocTypeYearModule.BQ_NULL_COUNT
                                      )
         df = pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)
         return df
-

@@ -14,20 +14,14 @@
 
 # Author: Tuan Chien #}
 
-WITH temp as ((
-  SELECT
-    Doi,
-    Year
-  FROM
-    `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}`
-  WHERE
-    DocType = '{{ doc_type }}'
-))
-
 SELECT
+  DocType,
   Year,
-  SUM(1) as {{ doc_count }},
-  COUNTIF(Doi is NULL) as {{ null_count }},
-FROM temp
-GROUP BY Year
-ORDER BY Year
+  COUNT(Doi) as {{ doc_count }},
+  COUNTIF(Doi is NULL) as {{ null_count }}
+FROM
+  `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}`
+GROUP BY
+  DocType, Year
+ORDER BY
+  DocType, Year
