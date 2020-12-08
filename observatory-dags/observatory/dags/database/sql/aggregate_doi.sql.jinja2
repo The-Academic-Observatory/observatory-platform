@@ -574,10 +574,10 @@ FROM(
     COUNT(dois.doi) as total_outputs,
 
     -- Access Types
-    compute_access_types(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as access_types,
+    compute_access_types(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as access_types,
     
     -- Citations
-    compute_citations(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations))) as citations,
+    compute_citations(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations))) as citations,
 
     -- Collaboration Analysis
     ARRAY_CONCAT_AGG( 
@@ -586,7 +586,7 @@ FROM(
           collab.*, 
           unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only,
           STRUCT(
-              dois.microsoft_academic_graph.CitationCount as mag,
+              dois.mag.CitationCount as mag,
               dois.crossref.references_count as crossref,
               dois.open_citations.citations_total as open_citations
             ) as citations,
@@ -595,20 +595,20 @@ FROM(
               DisplayName,
               Score,
               STRUCT(
-                dois.microsoft_academic_graph.CitationCount as mag,
+                dois.mag.CitationCount as mag,
                 dois.crossref.references_count as crossref,
                 dois.open_citations.citations_total as open_citations
               ) as citations,
-            FROM UNNEST(dois.microsoft_academic_graph.fields.fields.level_0)) as disciplines
+            FROM UNNEST(dois.mag.fields.fields.level_0)) as disciplines
         FROM UNNEST(affiliations.{{ aggregation_field }}) as collab) 
       )
     ) as collaborations,
 
     -- Members
-    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT member, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(aggregrate.members) as member))) as members,
+    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT member, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(aggregrate.members) as member))) as members,
 
     -- Output Types
-    count_output_types(ARRAY_AGG(STRUCT(unpaywall.output_type, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as output_types,
+    count_output_types(ARRAY_AGG(STRUCT(unpaywall.output_type, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa, unpaywall.green, unpaywall.gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only))) as output_types,
 
     -- Discipline
     STRUCT(
@@ -616,7 +616,7 @@ FROM(
         (SELECT AS STRUCT
             fields.DisplayName, fields.Score,
             STRUCT(
-              dois.microsoft_academic_graph.CitationCount as mag,
+              dois.mag.CitationCount as mag,
               dois.crossref.references_count as crossref,
               dois.open_citations.citations_total as open_citations
             ) as citations,
@@ -633,20 +633,20 @@ FROM(
             -- Domestic collaboration only or international collaboration or single institution only
             (SELECT COUNT(collab) > 0 FROM UNNEST(affiliations.countries) as collab WHERE collab.country <> aggregrate.country) as international_collab
 
-          FROM UNNEST(dois.microsoft_academic_graph.fields.fields.level_0) as fields)) )) as level0
+          FROM UNNEST(dois.mag.fields.fields.level_0) as fields)) )) as level0
     ) as disciplines,
 
     -- Events
-    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT event.source, event.count, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(dois.events.events) as event))) as events,
+    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT event.source, event.count, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(dois.events.events) as event))) as events,
 
     -- Funders
-    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT funder.identifier, funder.name, funder.country, funder.country_code, funder.funding_body_type, funder.funding_body_subtype, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(affiliations.funders) as funder))) as funders,
+    ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT funder.identifier, funder.name, funder.country, funder.country_code, funder.funding_body_type, funder.funding_body_subtype, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(affiliations.funders) as funder))) as funders,
 
     -- Publishers
-    ARRAY_AGG(STRUCT(crossref.publisher as publisher, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as publishers,
+    ARRAY_AGG(STRUCT(crossref.publisher as publisher, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as publishers,
 
     -- Journals
-    ARRAY_AGG(STRUCT(unpaywall.journal_name as journal, STRUCT(dois.microsoft_academic_graph.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as journals,
+    ARRAY_AGG(STRUCT(unpaywall.journal_name as journal, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as journals,
 
     -- Unpaywall History
     --ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT unpaywall.*from UNNEST(dois.unpaywall_history) as unpaywall))) as unpaywall_history
