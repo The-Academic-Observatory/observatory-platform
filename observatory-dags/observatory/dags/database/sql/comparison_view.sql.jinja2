@@ -16,10 +16,10 @@
 
 SELECT
   id AS identifier,
-  SUM(metrics.total) AS total_publications,
+  SUM(total_outputs) AS total_publications,
   MAX(name) AS group_name,
   ARRAY_AGG(STRUCT(time_period,
-      metrics)) AS years
+      total_outputs)) AS years
 FROM
   `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`
 GROUP BY
