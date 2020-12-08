@@ -44,10 +44,11 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
     """
 
     BQ_LIMIT = 1000
+    BQ_COUNTS = 'counts'
     BQ_PAP_COUNT = 'pcount'
     BQ_CIT_COUNT = 'ccount'
     BQ_REF_COUNT = 'rcount'
-    YEAR_START = 1800
+    YEAR_START = 2000
 
     def __init__(self, project_id: str, dataset_id: str, cache):
         """ Initialise the module.
@@ -74,29 +75,16 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
         name = self.name()
         logging.info(f'Running {name}')
         releases = self._cache[MagCacheKey.RELEASES]
-        year_end = datetime.datetime.now(datetime.timezone.utc).year
 
-        with ThreadPoolExecutor(max_workers=MagParams.BQ_SESSION_LIMIT) as executor:
-            for release in releases:
-                ts = release.strftime('%Y%m%d')
-                fos_ids = self._cache[f'{MagCacheKey.FOSL0}{ts}']
+        # Maybe increase fd limit later and run in parallel.
+        for release in releases:
+            if search_count_by_release(MagFosCountPubFieldYear, release.isoformat()) > 0:
+                continue
 
-                if search_count_by_release(MagFosCountPubFieldYear, release.isoformat()) > 0:
-                    continue
+            docs = self._construct_es_docs(release)
 
-                logging.info(f'{name}: processing {ts}')
-                for fos in fos_ids:
-                    docs = list()
-                    futures = list()
-
-                    for year in range(FosCountsPubFieldYearModule.YEAR_START, year_end + 1):
-                        futures.append(executor.submit(self._construct_es_docs, release, ts, fos, year))
-
-                    for future in as_completed(futures):
-                        docs.extend(future.result())
-
-                    if len(docs) > 0:
-                        bulk_index(docs)
+            if len(docs) > 0:
+                bulk_index(docs)
 
     def erase(self, index: bool = False, **kwargs):
         """
@@ -109,51 +97,61 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
         if index:
             delete_index(MagFosCountPubFieldYear)
 
-    def _construct_es_docs(self, release: datetime.date, ts: str, fos: Tuple[int, str], year: int) -> List[Document]:
+    def _construct_es_docs(self, release: datetime.date) -> List[Document]:
         """ Construct MagDoiCountsDocTypeYear docs for each release.
 
         @param release: Release date.
-        @param ts: Table suffix (timestamp).
-        @param fos: FieldOfStudyId, Normalised Name.
-        @param year: Publication year we're interested in.
         @return List of constructed elastic search documents.
         """
 
+        ts = release.strftime('%Y%m%d')
+        fosl0 = self._cache[f'{MagCacheKey.FOSL0}{ts}']
+        fos_ids = tuple(fos[0] for fos in fosl0)
+        fos_lookup = { fos[0]: fos[1] for fos in fosl0}
+
         docs = list()
-        year = str(year)
-        counts = self._get_bq_counts(ts, fos[0], year)
+        counts = self._get_bq_counts(ts, fos_ids, FosCountsPubFieldYearModule.YEAR_START)
 
         for i in range(len(counts)):
-            paper_count = counts[FosCountsPubFieldYearModule.BQ_PAP_COUNT][i]
-            if paper_count == 0:
-                return docs
+            year = counts[MagTableKey.COL_YEAR][i]
+            if pd.isnull(year):
+                year = 'null'
+            else:
+                year = str(year)
 
-            publisher = counts[MagTableKey.COL_PUBLISHER][i]
-            citation_count = counts[FosCountsPubFieldYearModule.BQ_CIT_COUNT][i]
-            ref_count = counts[FosCountsPubFieldYearModule.BQ_REF_COUNT][i]
+            fos_id = counts[MagTableKey.COL_FOS_ID][i]
+            fos_name = fos_lookup[fos_id]
 
-            if publisher is None:
-                publisher = 'null'
+            pub_counts = counts[FosCountsPubFieldYearModule.BQ_COUNTS][i]
+            for j in range(len(pub_counts)):
+                publisher = pub_counts[MagTableKey.COL_PUBLISHER]
+                pap_count = pub_counts[FosCountsPubFieldYearModule.BQ_PAP_COUNT]
+                cit_count = pub_counts[FosCountsPubFieldYearModule.BQ_CIT_COUNT]
+                ref_count = pub_counts[FosCountsPubFieldYearModule.BQ_REF_COUNT]
 
-            doc = MagFosCountPubFieldYear(release=release, year=year, paper_count=paper_count,
-                                          citation_count=citation_count, ref_count=ref_count,
-                                          publisher=publisher, field_id=fos[0], field_name=fos[1])
+                if publisher is None:
+                    publisher = 'null'
 
-            docs.append(doc)
+                doc = MagFosCountPubFieldYear(release=release, year=year, paper_count=pap_count,
+                                              citation_count=cit_count, ref_count=ref_count,
+                                              publisher=publisher, field_id=fos_id, field_name=fos_name)
+
+                docs.append(doc)
 
         return docs
 
-    def _get_bq_counts(self, ts: str, fos_id: int, year: int) -> pd.DataFrame:
+    def _get_bq_counts(self, ts: str, fos_ids: Tuple[int], year: int) -> pd.DataFrame:
         """ Get counts from BigQuery
 
         @param ts: Table suffix (timestamp).
-        @param fos_id: FieldOfStudyId.
+        @param fos_ids: FieldOfStudyIds.
         @param year: Publication year we're interested in.
         @return DataFrame of counts.
         """
 
         sql = self._tpl_count.render(project_id=self._project_id, dataset_id=self._dataset_id,
-                                     ts=ts, year=year, fos_id=fos_id, limit=FosCountsPubFieldYearModule.BQ_LIMIT,
+                                     ts=ts, year=year, fos_id=fos_ids, limit=FosCountsPubFieldYearModule.BQ_LIMIT,
+                                     counts=FosCountsPubFieldYearModule.BQ_COUNTS,
                                      pap_count=FosCountsPubFieldYearModule.BQ_PAP_COUNT,
                                      cit_count=FosCountsPubFieldYearModule.BQ_CIT_COUNT,
                                      ref_count=FosCountsPubFieldYearModule.BQ_REF_COUNT
