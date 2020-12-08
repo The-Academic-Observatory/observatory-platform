@@ -14,19 +14,35 @@
 
 # Author: Tuan Chien #}
 
-WITH scores AS ((
-  SELECT paper.PaperId, Score
-  FROM `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}` as paper
-  INNER JOIN `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ ts }}` as pfos
-  ON paper.PaperId = pfos.PaperId
-  WHERE FieldOfStudyId = {{ fos_id }}
-  {% if year %}
-    and Year = {{ year }}
-  {% endif %}
-))
 SELECT
+  FieldOfStudyId,
+  Year,
   RANGE_BUCKET(Score, GENERATE_ARRAY({{ bstart }}, {{ bend }}, {{ bstep }})) AS bucket,
   COUNT(*) AS {{ count }}
-FROM scores
-GROUP BY 1
-ORDER BY bucket
+FROM (
+  SELECT
+    FieldOfStudyId,
+    Year,
+    Score
+  FROM
+    `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}` as paper
+  LEFT JOIN
+    `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ ts }}` as pfos
+  ON
+    paper.PaperId = pfos.PaperId
+  WHERE
+    FieldOfStudyId IN {{ fos_ids }} AND
+    Year >= {{ year }}
+  GROUP BY
+    FieldOfStudyId,
+    Year,
+    Score
+)
+GROUP BY
+  FieldOfStudyId,
+  Year,
+  bucket
+ORDER BY
+  FieldOfStudyId,
+  Year,
+  bucket
