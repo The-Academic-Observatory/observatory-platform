@@ -14,21 +14,25 @@
 
 # Author: Tuan Chien #}
 
-WITH foslevel as ((
-  SElECT PaperId, pfos.FieldOfStudyId, Level
-  FROM `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ ts }}` as pfos
-  INNER JOIN `{{ project_id }}.{{ dataset_id }}.FieldsOfStudy{{ ts }}` as fos
-  ON pfos.FieldOfStudyId = fos.FieldOfStudyId where Level = {{ level }}
-)),
-foslevelyear as ((
-  SELECT Year FROM `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}` pap
-  INNER JOIN foslevel
-  ON pap.PaperId = foslevel.PaperId
-))
 SELECT
+  Level,
   Year,
   COUNT(Year) as {{ count }}
-FROM foslevelyear
-WHERE Year IS NOT NULL
-GROUP BY Year
-ORDER BY Year
+FROM
+  `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}` pap
+LEFT JOIN
+  `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ ts }}` as pfos
+ON
+  pap.PaperId = pfos.PaperId
+LEFT JOIN
+  `{{ project_id }}.{{ dataset_id }}.FieldsOfStudy{{ ts }}` as fos
+ON
+  pfos.FieldOfStudyId = fos.FieldOfStudyId
+WHERE
+  Year >= {{ year }}
+GROUP BY
+  Level,
+  Year
+ORDER BY
+  Level,
+  Year

@@ -39,6 +39,7 @@ class FosLevelCountYearModule(MagAnalyserModule):
     """ MagAnalyser module to compute the number of fields of study labels assigned to papers per level, per year. """
 
     BQ_COUNT = 'count'
+    YEAR_START = 2000
 
     def __init__(self, project_id: str, dataset_id: str, cache):
         """ Initialise the module.
@@ -58,7 +59,6 @@ class FosLevelCountYearModule(MagAnalyserModule):
 
         init_doc(MagFosLevelCountYear)
 
-
     def run(self, **kwargs):
         """ Run the module.
         @param kwargs: Unused.
@@ -67,18 +67,11 @@ class FosLevelCountYearModule(MagAnalyserModule):
         logging.info(f'Running {self.name()}')
         releases = self._cache[MagCacheKey.RELEASES]
 
-        docs = list()
-        with ThreadPoolExecutor(max_workers=MagParams.BQ_SESSION_LIMIT) as executor:
-            futures = list()
-            for release in releases:
-                futures.append(executor.submit(self._construct_es_docs, release))
+        for release in releases:
+            docs = self._construct_es_docs(release)
 
-            for future in as_completed(futures):
-                docs.extend(future.result())
-
-        if len(docs) > 0:
-            bulk_index(docs)
-
+            if len(docs) > 0:
+                bulk_index(docs)
 
     def erase(self, index: bool = False, **kwargs):
         """
@@ -107,27 +100,28 @@ class FosLevelCountYearModule(MagAnalyserModule):
         if search_count_by_release(MagFosLevelCountYear, release.isoformat()) > 0:
             return docs
 
-        levels = self._cache[f'{MagCacheKey.FOS_LEVELS}{ts}']
+        counts = self._get_bq_counts(ts)
+        for i in range(len(counts)):
+            year = counts[MagTableKey.COL_YEAR][i]
+            if pd.isnull(year):
+                year = 'null'
+            else:
+                year = str(year)
 
-        for level in levels:
-            counts = self._get_bq_counts(ts, level)
-            for i in range(len(counts)):
-                year = counts[MagTableKey.COL_YEAR][i]
-                count = counts[FosLevelCountYearModule.BQ_COUNT][i]
-                level = level
-                doc = MagFosLevelCountYear(release=release, year=str(year), count=count, level=level)
-                docs.append(doc)
+            count = counts[FosLevelCountYearModule.BQ_COUNT][i]
+            level = counts[MagTableKey.COL_LEVEL][i]
+            doc = MagFosLevelCountYear(release=release, year=str(year), count=count, level=level)
+            docs.append(doc)
 
         return docs
 
-    def _get_bq_counts(self, ts: str, level: int) -> pd.DataFrame:
+    def _get_bq_counts(self, ts: str) -> pd.DataFrame:
         """ Get the level counts per year for a given release.
         @param ts: Table suffix as a timestamp.
-        @param level: Field of study level to get counts for.
         @return Level counts per year.
         """
 
-        table_id = f'{MagTableKey.TID_PAPERS}{ts}'
         sql = self._tpl_foslevelcountyear.render(
-            project_id=self._project_id, dataset_id=self._dataset_id, ts=ts, level=level, count=FosLevelCountYearModule.BQ_COUNT)
+            project_id=self._project_id, dataset_id=self._dataset_id, ts=ts, year=FosLevelCountYearModule.YEAR_START,
+            count=FosLevelCountYearModule.BQ_COUNT)
         return pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)
