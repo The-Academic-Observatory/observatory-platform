@@ -21,6 +21,7 @@ import logging
 import datetime
 import pandas as pd
 
+from typing import List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from jinja2 import Environment, PackageLoader
 from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
@@ -85,7 +86,7 @@ class FosLevelCountYearModule(MagAnalyserModule):
         if index:
             delete_index(MagFosLevelCountYear)
 
-    def _construct_es_docs(self, release: datetime.date) -> MagFosLevelCountYear:
+    def _construct_es_docs(self, release: datetime.date) -> List[MagFosLevelCountYear]:
         """
         Construct the elastic search documents for a given release.
         @param release: Release timestamp.
