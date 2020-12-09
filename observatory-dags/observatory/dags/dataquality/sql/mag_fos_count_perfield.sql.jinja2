@@ -15,10 +15,24 @@
 # Author: Tuan Chien #}
 
 
-WITH temp as ((
-SElECT Year
-FROM `{{ project_id }}.{{ dataset_id }}.Papers{{ release }}` as paper
-INNER JOIN `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ release }}` as pfos
-ON paper.PaperId = pfos.PaperId WHERE FieldOfStudyID = {{ fos_id }}
-))
-SELECT Year, COUNT(Year) as count FROM temp WHERE Year IS NOT NULL GROUP BY Year ORDER BY Year
+SELECT
+  FieldOfStudyID,
+  Year,
+  COUNT(Year) as {{ count }}
+FROM
+  `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}` as paper
+LEFT JOIN
+  `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ ts }}` as pfos
+ON
+  paper.PaperId = pfos.PaperId
+WHERE
+  FieldOfStudyID IN {{ fos_id }}
+  {% if year %}
+    AND Year >= {{ year }}
+  {% endif %}
+GROUP BY
+  FieldOfStudyID,
+  Year
+ORDER BY
+  FieldOfStudyID,
+  Year
