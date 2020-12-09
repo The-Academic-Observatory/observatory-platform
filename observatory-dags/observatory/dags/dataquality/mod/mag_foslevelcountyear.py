@@ -108,8 +108,11 @@ class FosLevelCountYearModule(MagAnalyserModule):
             else:
                 year = str(year)
 
-            count = counts[FosLevelCountYearModule.BQ_COUNT][i]
             level = counts[MagTableKey.COL_LEVEL][i]
+            if pd.isnull(level):
+                level = -1  # Don't want to break Kibana interface yet.  Make str later.
+
+            count = counts[FosLevelCountYearModule.BQ_COUNT][i]
             doc = MagFosLevelCountYear(release=release, year=str(year), count=count, level=level)
             docs.append(doc)
 
