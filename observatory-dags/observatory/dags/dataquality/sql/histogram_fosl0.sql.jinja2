@@ -17,7 +17,7 @@
 SELECT
   FieldOfStudyId,
   Year,
-  RANGE_BUCKET(Score, GENERATE_ARRAY({{ bstart }}, {{ bend }}, {{ bstep }})) AS bucket,
+  RANGE_BUCKET(Score, GENERATE_ARRAY({{ bstart }}, {{ bend }}, {{ bstep }})) AS {{ bucket }},
   COUNT(*) AS {{ count }}
 FROM (
   SELECT
@@ -41,8 +41,8 @@ FROM (
 GROUP BY
   FieldOfStudyId,
   Year,
-  bucket
+  {{ bucket }}
 ORDER BY
   FieldOfStudyId,
   Year,
-  bucket
+  {{ bucket }}
