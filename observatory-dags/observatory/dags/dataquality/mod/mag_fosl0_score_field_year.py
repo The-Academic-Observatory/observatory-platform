@@ -22,11 +22,10 @@ import pandas as pd
 import datetime
 
 from jinja2 import Environment, PackageLoader
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from elasticsearch_dsl import Document
 from typing import List, Tuple
 
-from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
+from observatory.dags.dataquality.autofetchcache import AutoFetchCache
+from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagTableKey
 from observatory.dags.dataquality.analyser import MagAnalyserModule
 from observatory.dags.dataquality.es_mag import MagFosL0ScoreFieldYear
 from observatory.dags.dataquality.es_utils import (
@@ -43,25 +42,26 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
         Generates MagFosL0ScoreFieldYear elastic search documents.
     """
 
-    YEAR_START = 2000
-    BUCKET_START = 0.01
-    BUCKET_END = 1.0
-    BUCKET_STEP = 0.01
+    YEAR_START = 2000  # The year to start calculating records for.
+    BUCKET_START = 0.01  # Starting endpoint for histogram intervals, e.g., first interval is [0, 0.01], then it's 0.01
+    BUCKET_END = 1.0  # Last endpoint for histogram intervals, e.g., last interval is [0.99, 1.0], then it's 1.0
+    BUCKET_STEP = 0.01  # Width of each interval
 
-    BQ_COUNT = 'count'
-    BQ_BUCKET = 'bucket'
+    BQ_COUNT = 'count'  # Name of the count column in the SQL query.
+    BQ_BUCKET = 'bucket'  # Name of the bucket column in the SQL query.
 
-    def __init__(self, project_id: str, dataset_id: str, cache):
+    def __init__(self, project_id: str, dataset_id: str, cache: AutoFetchCache):
         """ Initialise the module.
         @param project_id: Project ID in BigQuery.
         @param dataset_id: Dataset ID in BigQuery.
         @param cache: Analyser cache to use.
         """
 
-        logging.info(f'Initialising {self.name()}')
+        logging.info(f'{self.name()}: initialising.')
         self._project_id = project_id
         self._dataset_id = dataset_id
         self._cache = cache
+
         init_doc(MagFosL0ScoreFieldYear)
 
         self._tpl_env = Environment(
@@ -73,14 +73,17 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        logging.info(f'Running {self.name()}')
+        logging.info(f'{self.name()}: executing.')
         releases = self._cache[MagCacheKey.RELEASES]
 
         for release in releases:
+            # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
             if search_count_by_release(MagFosL0ScoreFieldYear, release.isoformat()) > 0:
                 continue
 
             docs = self._construct_es_docs(release)
+
+            logging.info(f'{self.name()}: indexing {len(docs)} docs of type MagFosL0ScoreFieldYear.')
             if len(docs) > 0:
                 bulk_index(docs)
 
@@ -96,30 +99,33 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
             delete_index(MagFosL0ScoreFieldYear)
 
     def _new_histogram(self):
-        """ @return: A histogram of 0s
-        """
+        """ @return: A zero initialised histogram. """
 
         num_buckets = int((FosL0ScoreFieldYearModule.BUCKET_END - FosL0ScoreFieldYearModule.BUCKET_START) \
-                          / FosL0ScoreFieldYearModule.BUCKET_STEP)
+                          / FosL0ScoreFieldYearModule.BUCKET_STEP) + 1
         histogram = [0] * num_buckets
 
         return histogram
 
     def _get_histograms_dict(self, counts: pd.DataFrame) -> dict:
         """ Initialise a histogram dictionary with the values from bigquery.
-            histogram[fos_id][year][bucket_index]
-
             @param counts: Query response of histograms.
             @return: Histogram dictionary.
         """
 
         histograms = {}
 
+        # Reconstruct the histograms one interval at a time.
         for i in range(len(counts)):
             fos_id = counts[MagTableKey.COL_FOS_ID][i]
             year = counts[MagTableKey.COL_YEAR][i]
             bucket = counts[FosL0ScoreFieldYearModule.BQ_BUCKET][i]
             count = counts[FosL0ScoreFieldYearModule.BQ_COUNT][i]
+
+            if pd.isnull(year):
+                year = 'null'
+            else:
+                year = str(year)
 
             if fos_id not in histograms:
                 histograms[fos_id] = {}
@@ -131,8 +137,7 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
 
         return histograms
 
-
-    def _construct_es_docs(self, release: datetime.date) -> List[Document]:
+    def _construct_es_docs(self, release: datetime.date) -> List[MagFosL0ScoreFieldYear]:
         """ Construct MagFosL0ScoreFieldYear docs for each release.
 
         @param release: Release date.
@@ -140,24 +145,33 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
         """
 
         ts = release.strftime('%Y%m%d')
+
         fosl0 = self._cache[f'{MagCacheKey.FOSL0}{ts}']
         fos_ids = (fos[0] for fos in fosl0)
-        fos_lookup = { fos[0]: fos[1] for fos in fosl0 }
+        fos_lookup = {fos[0]: fos[1] for fos in fosl0}
 
-        docs = list()
         counts = self._get_bq_counts(ts, fos_ids)
         histograms = self._get_histograms_dict(counts)
 
+        docs = list()
+
+        # Create a document for each histogram slice.
         for fos_id in histograms:
             for year in histograms[fos_id]:
-                for bucket in histograms[fos_id][year]:
-                    doc = MagFosL0ScoreFieldYear(release=release, year=year, count=histograms[fos_id][year][bucket],
-                                                 field_id=fos_id, field_name=fos_lookup[fos_id],
-                                                 score_start=bucket * FosL0ScoreFieldYearModule.BUCKET_STEP,
-                                                 score_end=(bucket + 1) * FosL0ScoreFieldYearModule.BUCKET_STEP)
+                num_buckets = len(histograms[fos_id][year])
+                histogram = [0] * num_buckets
 
+                for i in range(num_buckets):
+                    count = histograms[fos_id][year][i]
+                    histogram[i] = count
+                    doc = MagFosL0ScoreFieldYear(release=release, year=year, count=count,
+                                                 field_id=fos_id, field_name=fos_lookup[fos_id],
+                                                 score_start=i * FosL0ScoreFieldYearModule.BUCKET_STEP,
+                                                 score_end=(i + 1) * FosL0ScoreFieldYearModule.BUCKET_STEP)
                     docs.append(doc)
-                self._cache[f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos_id}-{year}'] = histograms[fos_id][year][bucket]
+
+                key = f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos_id}-{year}'
+                self._cache[f'{key}'] = histogram
 
         return docs
 
@@ -172,8 +186,11 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
         sql = self._tpl_histogram.render(project_id=self._project_id, dataset_id=self._dataset_id, ts=ts,
                                          fos_ids=fos_ids, year=FosL0ScoreFieldYearModule.YEAR_START,
                                          count=FosL0ScoreFieldYearModule.BQ_COUNT,
+                                         bucket=FosL0ScoreFieldYearModule.BQ_BUCKET,
                                          bstart=FosL0ScoreFieldYearModule.BUCKET_START + FosL0ScoreFieldYearModule.BUCKET_STEP,
                                          bend=FosL0ScoreFieldYearModule.BUCKET_END,
                                          bstep=FosL0ScoreFieldYearModule.BUCKET_STEP)
+
         df = pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)
+
         return df
