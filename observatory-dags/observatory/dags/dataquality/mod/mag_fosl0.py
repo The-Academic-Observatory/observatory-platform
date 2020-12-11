@@ -24,10 +24,10 @@ import pandas as pd
 from jinja2 import Environment, PackageLoader
 from typing import List, Union
 from scipy.spatial.distance import jensenshannon
-from elasticsearch_dsl import Document
 
+from observatory.dags.dataquality.autofetchcache import AutoFetchCache
 from observatory.dags.dataquality.utils import proportion_delta
-from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
+from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagTableKey
 from observatory.dags.dataquality.analyser import MagAnalyserModule
 
 from observatory.dags.dataquality.es_utils import (
@@ -41,20 +41,21 @@ from observatory.dags.dataquality.es_utils import (
 from observatory.dags.dataquality.es_mag import MagFosL0Counts, MagFosL0Metrics
 
 
-
 class FieldsOfStudyLevel0Module(MagAnalyserModule):
-    """ MagAnalyser module to compute a profile on the MAG Level 0 FieldsOfStudy information. """
+    """ MagAnalyser module to compute various metrics for the MAG Level 0 FieldsOfStudy labels.
+        For example: paper and citation counts, and the differences between releases, as well as their proportionality.
+    """
 
-    ES_FOS_ID = 'field_id'
+    ES_FOS_ID = 'field_id'  # Attribute name for field id in the elastic search document.
 
-    def __init__(self, project_id: str, dataset_id: str, cache):
+    def __init__(self, project_id: str, dataset_id: str, cache: AutoFetchCache):
         """ Initialise the module.
         @param project_id: Project ID in BigQuery.
         @param dataset_id: Dataset ID in BigQuery.
         @param cache: Analyser cache to use.
         """
 
-        logging.info(f'Initialising {self.name()}')
+        logging.info(f'{self.name()}: initialising.')
         self._project_id = project_id
         self._dataset_id = dataset_id
         self._cache = cache
@@ -71,22 +72,22 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
         @param kwargs: Not used.
         """
 
-        logging.info(f'Running {self.name()}')
+        logging.info(f'{self.name()}: executing.')
         releases = self._cache[MagCacheKey.RELEASES]
         num_releases = len(releases)
 
+        # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
         if num_releases == self._num_es_metrics and num_releases == self._num_es_counts:
             return
 
         if self._num_es_counts == 0 or self._num_es_metrics == 0:
-            logging.info('No data found in elastic search. Calculating for all releases.')
+            logging.info(f'{self.name()}: no data found in elastic search. Calculating for all releases.')
             previous_counts = self._get_bq_counts(releases[0])
         else:
-            logging.info('Retrieving elastic search records.')
             previous_counts = FieldsOfStudyLevel0Module._get_es_counts(releases[self._num_es_metrics - 1].isoformat())
 
             if previous_counts is None:
-                logging.warning('Inconsistent records found in elastic search. Recalculating all releases.')
+                logging.warning(f'{self.name()}: inconsistent records found in elastic search. Recalculating for all releases.')
                 self._num_es_counts = 0
                 self.erase()
                 previous_counts = self._get_bq_counts(releases[0])
@@ -95,7 +96,9 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
         docs = self._construct_es_docs(releases, previous_counts)
 
         # Save documents in ElasticSearch
-        bulk_index(docs)
+        logging.info(f'{self.name()}: indexing {len(docs)} docs of type MagFosL0Counts, and MagFosL0Metrics.')
+        if len(docs) > 0:
+            bulk_index(docs)
 
     def erase(self, index: bool = False, **kwargs):
         """
@@ -111,7 +114,8 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
             delete_index(MagFosL0Metrics)
             delete_index(MagFosL0Counts)
 
-    def _construct_es_docs(self, releases: List[datetime.date], previous_counts: pd.DataFrame) -> List[Document]:
+    def _construct_es_docs(self, releases: List[datetime.date], previous_counts: pd.DataFrame) -> \
+            List[Union[MagFosL0Counts, MagFosL0Metrics]]:
         """
         Calculate metrics and construct elastic search documents.
         @param releases: List of MAG release dates.
@@ -136,21 +140,21 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
 
             dppaper = None
             dpcitations = None
+
+            # Check if any of the field of study ids or normalised names have changed between current and previous releases.
             if (id_changed == 0) and (normalized_changed == 0):
                 dppaper = proportion_delta(current_counts[MagTableKey.COL_PAP_COUNT],
                                            previous_counts[MagTableKey.COL_PAP_COUNT])
                 dpcitations = proportion_delta(current_counts[MagTableKey.COL_CIT_COUNT],
                                                previous_counts[MagTableKey.COL_CIT_COUNT])
 
-            # Populate counts
+            # Create the counts doc
             counts = FieldsOfStudyLevel0Module._construct_es_counts(releases[i], current_counts, dppaper, dpcitations)
-            logging.info(f'Constructed {len(counts)} MagFosL0Counts documents.')
             docs.extend(counts)
 
-            # Populate metrics
+            # Create the metrics doc
             metrics = FieldsOfStudyLevel0Module._construct_es_metrics(releases[i], current_counts, previous_counts,
                                                                       id_changed, normalized_changed)
-            logging.info(f'Constructed 1 MagFosL0Metrics document.')
             docs.append(metrics)
 
             # Loop maintenance
@@ -232,7 +236,6 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
 
         hits = search_by_release(MagFosL0Counts, release, 'field_id')
 
-        # Something went wrong with ES records. Delete existing and recompute them.
         if len(hits) == 0:
             return None
 
