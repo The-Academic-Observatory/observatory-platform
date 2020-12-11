@@ -23,9 +23,9 @@ import datetime
 
 from jinja2 import Environment, PackageLoader
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from elasticsearch_dsl import Document
 from typing import List
 
+from observatory.dags.dataquality.autofetchcache import AutoFetchCache
 from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
 from observatory.dags.dataquality.analyser import MagAnalyserModule
 from observatory.dags.dataquality.es_mag import MagFosLevelCount
@@ -43,21 +43,22 @@ class FosLevelCountModule(MagAnalyserModule):
     at each level.
     """
 
-    BQ_LEVEL_COUNT = 'lcount'
-    BQ_PAP_COUNT = 'pcount'
-    BQ_CIT_COUNT = 'ccount'
+    BQ_LEVEL_COUNT = 'lcount'  # SQL column for the level counts.
+    BQ_PAP_COUNT = 'pcount'  # SQL column for the paper counts.
+    BQ_CIT_COUNT = 'ccount'  # SQL column for the citation counts.
 
-    def __init__(self, project_id: str, dataset_id: str, cache):
+    def __init__(self, project_id: str, dataset_id: str, cache: AutoFetchCache):
         """ Initialise the module.
         @param project_id: Project ID in BigQuery.
         @param dataset_id: Dataset ID in BigQuery.
         @param cache: Analyser cache to use.
         """
 
-        logging.info(f'Initialising {self.name()}')
+        logging.info(f'{self.name()}: initialising.')
         self._project_id = project_id
         self._dataset_id = dataset_id
         self._cache = cache
+
         init_doc(MagFosLevelCount)
 
         self._tpl_env = Environment(
@@ -69,10 +70,11 @@ class FosLevelCountModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        logging.info(f'Running {self.name()}')
+        logging.info(f'{self.name()}: executing.')
         releases = self._cache[MagCacheKey.RELEASES]
 
         docs = list()
+        # Fetch the releases in parallel.
         with ThreadPoolExecutor(max_workers=MagParams.BQ_SESSION_LIMIT) as executor:
             futures = list()
 
@@ -82,6 +84,7 @@ class FosLevelCountModule(MagAnalyserModule):
             for future in as_completed(futures):
                 docs.extend(future.result())
 
+        logging.info(f'{self.name()}: indexing {len(docs)} docs of type MagFosLevelCount.')
         if len(docs) > 0:
             bulk_index(docs)
 
@@ -97,7 +100,7 @@ class FosLevelCountModule(MagAnalyserModule):
         if index:
             delete_index(MagFosLevelCount)
 
-    def _construct_es_docs(self, release: datetime.date) -> List[Document]:
+    def _construct_es_docs(self, release: datetime.date) -> List[MagFosLevelCount]:
         """ Construct MagFosLevelCount documents from each release.
 
         @param release: Release date.
@@ -107,10 +110,12 @@ class FosLevelCountModule(MagAnalyserModule):
         docs = list()
         ts = release.strftime('%Y%m%d')
 
+        # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
         if search_count_by_release(MagFosLevelCount, release.isoformat()) > 0:
             return docs
 
         counts = self._get_bq_counts(ts)
+
         self._cache[f'{MagCacheKey.FOS_LEVELS}{ts}'] = counts[MagTableKey.COL_LEVEL].to_list()
 
         for i in range(len(counts)):
@@ -119,6 +124,7 @@ class FosLevelCountModule(MagAnalyserModule):
                                    num_papers=counts[FosLevelCountModule.BQ_PAP_COUNT][i],
                                    num_citations=counts[FosLevelCountModule.BQ_CIT_COUNT][i])
             docs.append(doc)
+
         return docs
 
     def _get_bq_counts(self, ts: str) -> pd.DataFrame:
@@ -135,5 +141,7 @@ class FosLevelCountModule(MagAnalyserModule):
         sql = self._tpl_select.render(project_id=self._project_id, dataset_id=self._dataset_id,
                                       table_id=f'{MagTableKey.TID_FOS}{ts}', columns=columns,
                                       group_by=MagTableKey.COL_LEVEL)
+
         df = pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)
+
         return df
