@@ -15,12 +15,11 @@
 # Author: Tuan Chien #}
 
 SELECT
-
-COUNT(*) as total,
+  COUNT(*) as {{ count }},
 
 {% for column in null_count %}
-    COUNTIF({{ column }} IS NULL) as {{ column }},
+  COUNTIF({{ column }} IS NULL) as {{ column }},
 {% endfor %}
 
 FROM
-    `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`
