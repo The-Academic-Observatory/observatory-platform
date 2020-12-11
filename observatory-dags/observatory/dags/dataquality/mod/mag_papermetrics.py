@@ -21,6 +21,7 @@ import logging
 import datetime
 import pandas as pd
 
+from observatory.dags.dataquality.autofetchcache import AutoFetchCache
 from jinja2 import Environment, PackageLoader
 from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagTableKey
 from observatory.dags.dataquality.es_mag import MagPapersMetrics
@@ -34,19 +35,25 @@ from observatory.dags.dataquality.es_utils import (
 )
 
 class PaperMetricsModule(MagAnalyserModule):
-    """ MagAnalyser module to compute some basic metrics for the Papers dataset in MAG. """
+    """
+    MagAnalyser module to compute some basic metrics for the Papers dataset in MAG.
+    Example metrics: total number of papers, null counts for year, doi, doctype, familyid and their proportionality.
+    """
 
-    def __init__(self, project_id: str, dataset_id: str, cache):
+    BQ_COUNT = 'count'  # SQL column for the counts.
+
+    def __init__(self, project_id: str, dataset_id: str, cache: AutoFetchCache):
         """ Initialise the module.
         @param project_id: Project ID in BigQuery.
         @param dataset_id: Dataset ID in BigQuery.
         @param cache: Analyser cache to use.
         """
 
-        logging.info(f'Initialising {self.name()}')
+        logging.info(f'{self.name()}: initialising.')
         self._project_id = project_id
         self._dataset_id = dataset_id
         self._cache = cache
+
         self._es_count = get_or_init_doc_count(MagPapersMetrics)
 
         self._tpl_env = Environment(
@@ -58,35 +65,24 @@ class PaperMetricsModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        logging.info(f'Running {self.name()}')
-        eps = 1e-9
+        logging.info(f'{self.name()}: executing.')
         releases = self._cache[MagCacheKey.RELEASES]
         num_releases = len(releases)
 
+        # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
         if self._es_count == num_releases:
             return
 
         docs = list()
-        for i in range(self._es_count, num_releases):
-            if search_count_by_release(MagPapersMetrics, releases[i]) > 0:
+        for release in releases:
+            # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
+            if search_count_by_release(MagPapersMetrics, release) > 0:
                 continue
-            null_metrics = self._get_paper_null_counts(releases[i])
-            es_paper_metrics = MagPapersMetrics(release=releases[i].isoformat())
-            es_paper_metrics.total = null_metrics[MagTableKey.COL_TOTAL][0] + eps
 
-            es_paper_metrics.null_year = null_metrics[MagTableKey.COL_YEAR][0] + eps
-            es_paper_metrics.null_doi = null_metrics[MagTableKey.COL_DOI][0] + eps
-            es_paper_metrics.null_doctype = null_metrics[MagTableKey.COL_DOC_TYPE][0] + eps
-            es_paper_metrics.null_familyid = null_metrics[MagTableKey.COL_FAMILY_ID][0] + eps
+            doc = self._construct_es_docs(release)
+            docs.append(doc)
 
-            es_paper_metrics.pnull_year = es_paper_metrics.null_year / es_paper_metrics.total
-            es_paper_metrics.pnull_doi = es_paper_metrics.null_doi / es_paper_metrics.total
-            es_paper_metrics.pnull_doctype = es_paper_metrics.null_doctype / es_paper_metrics.total
-            es_paper_metrics.pnull_familyid = es_paper_metrics.null_familyid / es_paper_metrics.total
-            docs.append(es_paper_metrics)
-
-        logging.info(f'Constructed {len(docs)} MagPapersMetrics documents.')
-
+        logging.info(f'{self.name()}: indexing {len(docs)} docs of type MagPapersMetrics.')
         if len(docs) > 0:
             bulk_index(docs)
 
@@ -102,6 +98,32 @@ class PaperMetricsModule(MagAnalyserModule):
         if index:
             delete_index(MagPapersMetrics)
 
+    def _construct_es_docs(self, release: datetime.datetime) -> MagPapersMetrics:
+        """ Construct the elastic search documents.
+        @param release: Release timestamp.
+        @return: List of constructed documents.
+        """
+
+        eps = 1e-9
+
+        # Generate the elastic search document.
+        null_metrics = self._get_paper_null_counts(release)
+        es_paper_metrics = MagPapersMetrics(release=release.isoformat())
+        es_paper_metrics.total = null_metrics[PaperMetricsModule.BQ_COUNT][0] + eps
+
+        es_paper_metrics.null_year = null_metrics[MagTableKey.COL_YEAR][0] + eps
+        es_paper_metrics.null_doi = null_metrics[MagTableKey.COL_DOI][0] + eps
+        es_paper_metrics.null_doctype = null_metrics[MagTableKey.COL_DOC_TYPE][0] + eps
+        es_paper_metrics.null_familyid = null_metrics[MagTableKey.COL_FAMILY_ID][0] + eps
+
+        es_paper_metrics.pnull_year = es_paper_metrics.null_year / es_paper_metrics.total
+        es_paper_metrics.pnull_doi = es_paper_metrics.null_doi / es_paper_metrics.total
+        es_paper_metrics.pnull_doctype = es_paper_metrics.null_doctype / es_paper_metrics.total
+        es_paper_metrics.pnull_familyid = es_paper_metrics.null_familyid / es_paper_metrics.total
+
+        return es_paper_metrics
+
+
     def _get_paper_null_counts(self, release: datetime.date) -> pd.DataFrame:
         """ Get the null counts of some Papers fields for a given release.
         @param release: Release date.
@@ -113,6 +135,7 @@ class PaperMetricsModule(MagAnalyserModule):
         sql = self._tpl_null_count.render(
             project_id=self._project_id, dataset_id=self._dataset_id, table_id=table_id,
             null_count=[MagTableKey.COL_DOI, MagTableKey.COL_DOC_TYPE, MagTableKey.COL_YEAR,
-                        MagTableKey.COL_FAMILY_ID]
+                        MagTableKey.COL_FAMILY_ID],
+            count=PaperMetricsModule.BQ_COUNT
         )
         return pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)
