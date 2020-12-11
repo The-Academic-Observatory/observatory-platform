@@ -22,9 +22,10 @@ import datetime
 import pandas as pd
 
 from typing import List
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from jinja2 import Environment, PackageLoader
-from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
+
+from observatory.dags.dataquality.autofetchcache import AutoFetchCache
+from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagTableKey
 from observatory.dags.dataquality.es_mag import MagFosLevelCountYear
 from observatory.dags.dataquality.analyser import MagAnalyserModule
 from observatory.dags.dataquality.es_utils import (
@@ -39,17 +40,17 @@ from observatory.dags.dataquality.es_utils import (
 class FosLevelCountYearModule(MagAnalyserModule):
     """ MagAnalyser module to compute the number of fields of study labels assigned to papers per level, per year. """
 
-    BQ_COUNT = 'count'
-    YEAR_START = 2000
+    BQ_COUNT = 'count'  # SQL column for the count.
+    YEAR_START = 2000  # Year to start fetching information from.
 
-    def __init__(self, project_id: str, dataset_id: str, cache):
+    def __init__(self, project_id: str, dataset_id: str, cache: AutoFetchCache):
         """ Initialise the module.
         @param project_id: Project ID in BigQuery.
         @param dataset_id: Dataset ID in BigQuery.
         @param cache: Analyser cache to use.
         """
 
-        logging.info(f'Initialising {self.name()}')
+        logging.info(f'{self.name()}: initialising.')
         self._project_id = project_id
         self._dataset_id = dataset_id
         self._cache = cache
@@ -65,12 +66,13 @@ class FosLevelCountYearModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        logging.info(f'Running {self.name()}')
+        logging.info(f'{self.name()}: executing.')
         releases = self._cache[MagCacheKey.RELEASES]
 
         for release in releases:
             docs = self._construct_es_docs(release)
 
+            logging.info(f'{self.name()}: indexing {len(docs)} docs of type MagFosLevelCountYear.')
             if len(docs) > 0:
                 bulk_index(docs)
 
@@ -94,14 +96,17 @@ class FosLevelCountYearModule(MagAnalyserModule):
         """
 
         ts = release.strftime('%Y%m%d')
-        logging.info(f'MagFosLevelCountYear processing release {ts}')
+        logging.info(f'{self.name()}: processing release {ts}')
 
         docs = list()
 
+        # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
         if search_count_by_release(MagFosLevelCountYear, release.isoformat()) > 0:
             return docs
 
         counts = self._get_bq_counts(ts)
+
+        # Construct elastic search documents.
         for i in range(len(counts)):
             year = counts[MagTableKey.COL_YEAR][i]
             if pd.isnull(year):
@@ -111,7 +116,7 @@ class FosLevelCountYearModule(MagAnalyserModule):
 
             level = counts[MagTableKey.COL_LEVEL][i]
             if pd.isnull(level):
-                level = -1  # Don't want to break Kibana interface yet.  Make str later.
+                level = -1  # Don't want to break Kibana interface for now.  Consider changing to null str later.
 
             count = counts[FosLevelCountYearModule.BQ_COUNT][i]
             doc = MagFosLevelCountYear(release=release, year=str(year), count=count, level=level)
@@ -128,4 +133,5 @@ class FosLevelCountYearModule(MagAnalyserModule):
         sql = self._tpl_foslevelcountyear.render(
             project_id=self._project_id, dataset_id=self._dataset_id, ts=ts, year=FosLevelCountYearModule.YEAR_START,
             count=FosLevelCountYearModule.BQ_COUNT)
+
         return pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)
