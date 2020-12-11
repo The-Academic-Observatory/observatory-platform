@@ -20,10 +20,10 @@
 import logging
 import datetime
 
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from scipy.spatial.distance import jensenshannon
-from elasticsearch_dsl import Document
 
+from observatory.dags.dataquality.autofetchcache import AutoFetchCache
 from observatory.dags.dataquality.config import MagCacheKey
 from observatory.dags.dataquality.analyser import MagAnalyserModule
 from observatory.dags.dataquality.es_mag import MagFosL0ScoreFieldYearMetricR, MagFosL0ScoreFieldYearMetricY
@@ -42,19 +42,20 @@ class FosL0ScoreFieldYearMetricsModule(MagAnalyserModule):
         Currently FosL0ScoreFieldYearModule is a dependency that needs to run first to populate the cache.
     """
 
-    YEAR_START = 1800
+    YEAR_START = 2000  # Year to start fetching information from.
 
-    def __init__(self, project_id: str, dataset_id: str, cache):
+    def __init__(self, project_id: str, dataset_id: str, cache: AutoFetchCache):
         """ Initialise the module.
         @param project_id: Project ID in BigQuery.
         @param dataset_id: Dataset ID in BigQuery.
         @param cache: Analyser cache to use.
         """
 
-        logging.info(f'Initialising {self.name()}')
+        logging.info(f'{self.name()}: initialising.')
         self._project_id = project_id
         self._dataset_id = dataset_id
         self._cache = cache
+
         init_doc(MagFosL0ScoreFieldYearMetricY)
         init_doc(MagFosL0ScoreFieldYearMetricR)
 
@@ -63,8 +64,7 @@ class FosL0ScoreFieldYearMetricsModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        name = self.name()
-        logging.info(f'Running {name}')
+        logging.info(f'{self.name()}: executing.')
         releases = self._cache[MagCacheKey.RELEASES]
         year_end = datetime.datetime.now(datetime.timezone.utc).year
 
@@ -74,15 +74,18 @@ class FosL0ScoreFieldYearMetricsModule(MagAnalyserModule):
             ts = release.strftime('%Y%m%d')
             fos_ids = self._cache[f'{MagCacheKey.FOSL0}{ts}']
 
+            # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
             if search_count_by_release(MagFosL0ScoreFieldYearMetricY, release.isoformat()) > 0:
                 continue
 
-            logging.info(f'{name}: computing release {ts}')
+            # Construct elastic search documents for each level 0 field of study id.
             for fos in fos_ids:
                 for year in range(FosL0ScoreFieldYearMetricsModule.YEAR_START, year_end + 1):
-                    es_docs = self._construct_es_docs(releases, r, ts, fos, year)
+                    es_docs = self._construct_es_docs(releases, r, fos, year)
                     docs.extend(es_docs)
 
+
+        logging.info(f'{self.name()}: indexing {len(docs)} docs of type MagFosL0ScoreFieldYearMetricY, MagFosL0ScoreFieldYearMetricR.')
         if len(docs) > 0:
             bulk_index(docs)
 
@@ -95,44 +98,55 @@ class FosL0ScoreFieldYearMetricsModule(MagAnalyserModule):
 
         clear_index(MagFosL0ScoreFieldYearMetricY)
         clear_index(MagFosL0ScoreFieldYearMetricR)
+
         if index:
             delete_index(MagFosL0ScoreFieldYearMetricY)
             delete_index(MagFosL0ScoreFieldYearMetricR)
 
-    def _construct_es_docs(self, releases: datetime.date, rel_idx: int, ts: str, fos: Tuple[int, str], year: int) -> \
-    List[Document]:
-        """ Construct MagFosL0ScoreFieldYear docs for each release.
-
-        @param release: Release date.
-        @param ts: Table suffix (timestamp).
-        @param fos: FieldOfStudyId, Normalized Name.
+    def _construct_es_docs(self, releases: datetime.date, rel_idx: int, fos: Tuple[int, str], year: int) -> \
+            List[Union[MagFosL0ScoreFieldYearMetricY, MagFosL0ScoreFieldYearMetricR]]:
+        """ Construct MagFosL0ScoreFieldYearMetricY and MagFosL0ScoreFieldYearMetricR docs for each release.
+        @param releases: List of release dates.
+        @param rel_idx: Release index for the release we're currently dealing with.
+        @param fos: (FieldOfStudyId, Normalized Name).
         @param year: Publication year we're interested in.
-        @return List of constructed elastic search documents.
+        @return List of MagFosL0ScoreFieldYearMetricY and MagFosL0ScoreFieldYearMetricR documents.
         """
+
+        eps = 1e-12
+        ts = releases[rel_idx].strftime('%Y%m%d')
 
         docs = list()
 
         cyear_crel = self._cache[f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos[0]}-{year}']
+
+        # Get the previous year, current release
         pyear_crel = cyear_crel
         if year - 1 >= FosL0ScoreFieldYearMetricsModule.YEAR_START:
             pyear_crel = self._cache[f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos[0]}-{year - 1}']
 
+        # Get the current year, previous release
         cyear_prel = cyear_crel
         if rel_idx > 0:
             pts = releases[rel_idx - 1].strftime('%Y%m%d')
             cyear_prel = self._cache[f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{pts}-{fos[0]}-{year}']
 
-        eps = 1e-12
+        # Adding for numerical stability
         cyear_crel = [x + eps for x in cyear_crel]
         cyear_prel = [x + eps for x in cyear_prel]
         pyear_crel = [x + eps for x in pyear_crel]
+
+        # Compute the JS distance
         rel_diff = jensenshannon(cyear_crel, cyear_prel)
         year_diff = jensenshannon(cyear_crel, pyear_crel)
+
+        # Create documents
         ydoc = MagFosL0ScoreFieldYearMetricY(release=releases[rel_idx], field_id=fos[0], field_name=fos[1],
                                              year=str(year), js_dist=year_diff)
 
         rdoc = MagFosL0ScoreFieldYearMetricR(release=releases[rel_idx], field_id=fos[0], field_name=fos[1],
                                              year=str(year), js_dist=rel_diff)
+
         docs.append(ydoc)
         docs.append(rdoc)
 
