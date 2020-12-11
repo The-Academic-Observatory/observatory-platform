@@ -35,6 +35,7 @@ class MagCacheKey:
     # concatenate with date string of release then '-' then fieldid then '-' then year
     FOSL0_FIELD_YEAR_SCORES = 'fosl0fys_'
 
+
 class MagTableKey:
     """ BQ table and column names. """
 
@@ -47,7 +48,6 @@ class MagTableKey:
     COL_FOS_ID = 'FieldOfStudyId'
     COL_DOI = 'Doi'
     COL_YEAR = 'Year'
-    COL_TOTAL = 'total'
     COL_FAMILY_ID = 'FamilyId'
     COL_DOC_TYPE = 'DocType'
     COL_LEVEL = 'Level'
