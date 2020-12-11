@@ -20,11 +20,11 @@ import logging
 import datetime
 import pandas as pd
 
+from observatory.dags.dataquality.autofetchcache import AutoFetchCache
 from observatory.dags.dataquality.analyser import MagAnalyserModule
 from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagTableKey
 from jinja2 import Environment, PackageLoader
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Iterator, Tuple, List
+from typing import Tuple, List
 
 from observatory.dags.dataquality.es_utils import (
     init_doc,
@@ -34,32 +34,35 @@ from observatory.dags.dataquality.es_utils import (
     delete_index,
 )
 
-from observatory.dags.dataquality.utils import proportion_delta
 from observatory.dags.dataquality.es_mag import MagPapersFieldYearCount
 
 
 class PaperFieldYearCountModule(MagAnalyserModule):
     """
-    MagAnalyser module to compute the paper counts per field per year.
+    MagAnalyser module to compute the paper counts per field per year. This includes differences between years, and
+    their proportionality.
     """
 
-    YEAR_START = 2000
-    BQ_COUNT = 'count'
+    YEAR_START = 2000  # Year to start fetching information from.
+    BQ_COUNT = 'count'  # SQL column for the counts.
 
-    def __init__(self, project_id: str, dataset_id: str, cache):
+    def __init__(self, project_id: str, dataset_id: str, cache: AutoFetchCache):
         """ Initialise the module.
         @param project_id: Project ID in BigQuery.
         @param dataset_id: Dataset ID in BigQuery.
         @param cache: Analyser cache to use.
         """
 
-        logging.info(f'Initialising {self.name()}')
+        logging.info(f'{self.name()}: initialising.')
+
         self._project_id = project_id
         self._dataset_id = dataset_id
         self._cache = cache
+
         self._tpl_env = Environment(
             loader=PackageLoader(JinjaParams.PKG_NAME, JinjaParams.TEMPLATE_PATHS))
         self._tpl_count_per_field = self._tpl_env.get_template('mag_fos_count_perfield.sql.jinja2')
+
         init_doc(MagPapersFieldYearCount)
 
     def run(self, **kwargs):
@@ -67,15 +70,17 @@ class PaperFieldYearCountModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        logging.info(f'Running {self.name()}')
+        logging.info(f'{self.name()}: executing.')
         releases = self._cache[MagCacheKey.RELEASES]
 
         for release in releases:
+            # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
             if search_count_by_release(MagPapersFieldYearCount, release.isoformat()) > 0:
                 continue
 
             docs = self._construct_es_docs(release)
 
+            logging.info(f'{self.name()}: indexing {len(docs)} docs of type MagPapersFieldYearCount.')
             if len(docs) > 0:
                 bulk_index(docs)
 
@@ -92,9 +97,7 @@ class PaperFieldYearCountModule(MagAnalyserModule):
             delete_index(MagPapersFieldYearCount)
 
     def _get_counts_dict(self, counts: pd.DataFrame) -> dict:
-        """
-        Initialise the counts dictionary with values from the bigquery response.
-
+        """ Initialise the counts dictionary with values from the bigquery response.
         @param counts: The query response.
         @return: Dictionary of counts.
         """
@@ -137,10 +140,12 @@ class PaperFieldYearCountModule(MagAnalyserModule):
 
         docs = list()
 
+        # Construct elastic search documents for each level 0 field of study and year from YEAR_START.
         for fos in counts_dict:
             for year in counts_dict[fos]:
                 count = counts_dict[fos][year]
 
+                # If the year is null or previous year does not exist, return no change.
                 if year == 'null' or str(int(year) - 1) not in counts_dict[fos]:
                     delta_pcount = 0
                     delta_count = 0
@@ -149,6 +154,7 @@ class PaperFieldYearCountModule(MagAnalyserModule):
                     prev_count = counts_dict[fos][prev_year]
                     delta_count = count - prev_count
 
+                    # Handle zero count edge case when calculating proportions. Return 0.
                     if prev_count == 0:
                         delta_pcount = 0
                     else:
@@ -170,5 +176,7 @@ class PaperFieldYearCountModule(MagAnalyserModule):
         sql = self._tpl_count_per_field.render(project_id=self._project_id, dataset_id=self._dataset_id, ts=ts,
                                                fos_id=fos_id, year=PaperFieldYearCountModule.YEAR_START,
                                                count=PaperFieldYearCountModule.BQ_COUNT)
+
         df = pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)
+
         return df
