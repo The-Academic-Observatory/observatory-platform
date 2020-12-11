@@ -14,21 +14,26 @@
 
 # Author: Tuan Chien #}
 
-WITH temp as ((
+WITH temp as (
   SELECT
     papers.PaperId,
     Doi,
     FieldOfStudyId
   FROM
     `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}` as papers
-  INNER JOIN  `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ ts }}` as paperfos
-  ON papers.PaperId = paperfos.PaperId
-  WHERE FieldOfStudyId = {{ fos_id }}
-))
+  INNER JOIN
+    `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ ts }}` as paperfos
+  ON
+    papers.PaperId = paperfos.PaperId
+  WHERE
+    FieldOfStudyId = {{ fos_id }}
+)
 
 SELECT
   FieldOfStudyId,
   COUNT(*) as total,
   COUNTIF(Doi is NULL) as null_count
-FROM temp
-GROUP BY FieldOfStudyId
+FROM
+  temp
+GROUP BY
+  FieldOfStudyId

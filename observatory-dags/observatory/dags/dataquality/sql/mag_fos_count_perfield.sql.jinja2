@@ -16,7 +16,7 @@
 
 
 SELECT
-  FieldOfStudyID,
+  FieldOfStudyId,
   Year,
   COUNT(Year) as {{ count }}
 FROM
@@ -26,13 +26,13 @@ LEFT JOIN
 ON
   paper.PaperId = pfos.PaperId
 WHERE
-  FieldOfStudyID IN {{ fos_id }}
+  FieldOfStudyId IN {{ fos_id }}
   {% if year %}
     AND Year >= {{ year }}
   {% endif %}
 GROUP BY
-  FieldOfStudyID,
+  FieldOfStudyId,
   Year
 ORDER BY
-  FieldOfStudyID,
+  FieldOfStudyId,
   Year

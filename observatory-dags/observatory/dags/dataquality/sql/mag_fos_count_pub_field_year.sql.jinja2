@@ -23,20 +23,32 @@ WITH tmp as (SELECT
   SUM(CASE WHEN Publisher IS NULL THEN CitationCount ELSE CitationCount END) {{ cit_count }},
   SUM(CASE WHEN Publisher IS NULL THEN ReferenceCount ELSE ReferenceCount END) {{ ref_count }}
 
-FROM `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}` as paper
-LEFT JOIN `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ ts }}` as pfos
+FROM
+  `{{ project_id }}.{{ dataset_id }}.Papers{{ ts }}` as paper
+LEFT JOIN
+  `{{ project_id }}.{{ dataset_id }}.PaperFieldsOfStudy{{ ts }}` as pfos
 ON
   paper.PaperId = pfos.PaperId
-WHERE FieldOfStudyId IN {{ fos_ids }} and Year >= {{ year }}
+WHERE
+  FieldOfStudyId IN {{ fos_ids }}
+  AND Year >= {{ year }}
 GROUP BY
-FieldOfStudyId, Year, Publisher
+  FieldOfStudyId,
+  Year,
+  Publisher
 )
+
 
 SELECT
   FieldOfStudyId,
   Year,
   ARRAY_AGG(STRUCT(Publisher, {{ pap_count }}, {{ cit_count }}, {{ ref_count }}) ORDER BY {{ pap_count }} DESC LIMIT {{ limit }}) as {{ counts }}
 
-FROM tmp
-GROUP BY FieldOfStudyId, Year
-ORDER BY FieldOfStudyId, Year ASC
+FROM
+  tmp
+GROUP BY
+  FieldOfStudyId,
+  Year
+ORDER BY
+  FieldOfStudyId,
+  Year ASC

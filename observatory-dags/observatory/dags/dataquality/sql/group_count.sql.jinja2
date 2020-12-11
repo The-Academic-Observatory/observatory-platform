@@ -15,13 +15,17 @@
 # Author: Tuan Chien #}
 
 SELECT
-  {{column}}, COUNT({{column}}) as count
+  {{column}},
+  COUNT({{column}}) as count
 FROM
   `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`
 
 {% if where %}
-WHERE {{ where }}
+WHERE
+  {{ where }}
 {% endif %}
 
-GROUP BY {{ column }}
-ORDER BY {{ column }}
+GROUP BY
+  {{ column }}
+ORDER BY
+  {{ column }}
