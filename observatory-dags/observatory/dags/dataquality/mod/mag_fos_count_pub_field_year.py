@@ -43,12 +43,12 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
         Limit to 1000 publishers per field per year.
     """
 
-    BQ_LIMIT = 1000
-    BQ_COUNTS = 'counts'
-    BQ_PAP_COUNT = 'pcount'
-    BQ_CIT_COUNT = 'ccount'
-    BQ_REF_COUNT = 'rcount'
-    YEAR_START = 2000
+    BQ_LIMIT = 1000  # Limit on number of publishers we want to fetch.
+    BQ_COUNTS = 'counts'  # SQL column for the counts.
+    BQ_PAP_COUNT = 'pcount'  # SQL column for paper count.
+    BQ_CIT_COUNT = 'ccount'  # SQL column for the citation count.
+    BQ_REF_COUNT = 'rcount'  # SQL column for the reference count.
+    YEAR_START = 2000  # Year to start fetching information from.
 
     def __init__(self, project_id: str, dataset_id: str, cache):
         """ Initialise the module.
@@ -83,6 +83,7 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
 
             docs = self._construct_es_docs(release)
 
+            logging.info(f'{self.name()}: indexing {len(docs)} docs of type MagFosCountPubFieldYear.')
             if len(docs) > 0:
                 bulk_index(docs)
 
@@ -124,10 +125,10 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
 
             pub_counts = counts[FosCountsPubFieldYearModule.BQ_COUNTS][i]
             for j in range(len(pub_counts)):
-                publisher = pub_counts[MagTableKey.COL_PUBLISHER]
-                pap_count = pub_counts[FosCountsPubFieldYearModule.BQ_PAP_COUNT]
-                cit_count = pub_counts[FosCountsPubFieldYearModule.BQ_CIT_COUNT]
-                ref_count = pub_counts[FosCountsPubFieldYearModule.BQ_REF_COUNT]
+                publisher = pub_counts[j][MagTableKey.COL_PUBLISHER]
+                pap_count = pub_counts[j][FosCountsPubFieldYearModule.BQ_PAP_COUNT]
+                cit_count = pub_counts[j][FosCountsPubFieldYearModule.BQ_CIT_COUNT]
+                ref_count = pub_counts[j][FosCountsPubFieldYearModule.BQ_REF_COUNT]
 
                 if publisher is None:
                     publisher = 'null'
