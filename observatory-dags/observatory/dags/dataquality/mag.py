@@ -51,6 +51,7 @@ from observatory.dags.dataquality.mod.mag_fos_count_pub_field_year import FosCou
 from observatory.dags.dataquality.mod.mag_fosl0_score_field_year import FosL0ScoreFieldYearModule
 from observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics import FosL0ScoreFieldYearMetricsModule
 
+
 class MagAnalyser(DataQualityAnalyser):
     """
     Perform data quality analysis on a Microsoft Academic Graph release, and save the results to ElasticSearch and
