@@ -43,8 +43,8 @@ class DoiCountDocTypeModule(MagAnalyserModule):
     MagAnalyser module to compute Doi counts by DocType.
     """
 
-    BQ_DOC_COUNT = 'doc_count'
-    BQ_NULL_COUNT = 'null_count'
+    BQ_DOC_COUNT = 'doc_count'  # SQL column for the doc counts.
+    BQ_NULL_COUNT = 'null_count'  # SQL column for the null counts.
 
     def __init__(self, project_id: str, dataset_id: str, cache):
         """ Initialise the module.
@@ -80,6 +80,7 @@ class DoiCountDocTypeModule(MagAnalyserModule):
             for future in as_completed(futures):
                 docs.extend(future.result())
 
+        logging.info(f'{self.name()}: indexing {len(docs)} docs of type MagDoiCountsDocType.')
         if len(docs) > 0:
             bulk_index(docs)
 
