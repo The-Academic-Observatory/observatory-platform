@@ -17,6 +17,7 @@
 
 from abc import ABC, abstractmethod
 
+
 class DataQualityAnalyser(ABC):
     """ Data Quality Analyser Interface """
 
