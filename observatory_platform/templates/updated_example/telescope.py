@@ -1,68 +1,322 @@
 import os
-import pendulum
-from typing import Union
+from typing import Union, List
 from observatory_platform.utils.config_utils import SubFolder
 from observatory_platform.utils.config_utils import telescope_path
+from abc import ABC, abstractmethod
+from airflow import DAG
+from airflow.exceptions import AirflowException
+from airflow.operators.subdag_operator import SubDagOperator
+from airflow.operators.python_operator import PythonOperator
+from airflow.utils.helpers import chain
+import pendulum
+import logging
+import datetime
+from typing import Callable, Type, List, Any
+from functools import partial
+from observatory_platform.utils.config_utils import check_variables, check_connections
+from typing_extensions import Protocol
+from collections import defaultdict
+import functools
 
 
-class TelescopeRelease:
+class UserFunction(Protocol):
+    def __call__(self, release: 'AbstractTelescopeRelease', **kwargs: Any) -> Any: ...
+
+
+def on_failure_callback(kwargs):
+    logging.info("ON FAILURE CALLBACK")
+
+
+class AbstractTelescope(ABC):
+    @abstractmethod
+    def add_before_subdag_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+        pass
+
+    @abstractmethod
+    def add_release_info_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+        pass
+
+    @abstractmethod
+    def add_extract_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+        pass
+
+    @abstractmethod
+    def add_transform_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+        pass
+
+    @abstractmethod
+    def add_load_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+        pass
+
+    @abstractmethod
+    def task_callable(self, func: UserFunction, **kwargs):
+        pass
+
+    @abstractmethod
+    def make_dag(self, dag: DAG) -> DAG:
+        pass
+
+    @abstractmethod
+    def make_subdag_instance(self, subdag_id: str) -> DAG:
+        pass
+
+    def make_dags(self) -> DAG:
+        pass
+
+    @abstractmethod
+    def check_dependencies(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def cleanup(self, release: Union['TelescopeRelease', List['TelescopeRelease']], **kwargs):
+        pass
+
+
+class Telescope(AbstractTelescope):
+    RELEASE_INFO = 'releases'
+
+    def __init__(self, release_cls: Type['TelescopeRelease'], start_date: datetime, dag_id: str,
+                 subdag_ids: list, schedule_interval: str,
+                 catchup: bool, queue: str, max_retries: int, description: str, airflow_vars: list,
+                 airflow_conns: list):
+        self.release_cls = release_cls
+        self.start_date = start_date
+        self.dag_id = dag_id
+        self.subdag_ids = subdag_ids
+        self.schedule_interval = schedule_interval
+        self.catchup = catchup
+        self.queue = queue
+        self.max_retries = max_retries
+        self.description = description
+        self.airflow_vars = airflow_vars
+        self.airflow_conns = airflow_conns
+
+        self.before_subdag_tasks = defaultdict(list)
+        self.release_info_tasks = defaultdict(list)
+        self.extract_tasks = defaultdict(list)
+        self.transform_tasks = defaultdict(list)
+        self.load_tasks = defaultdict(list)
+
+        self.default_args = {
+            "owner": "airflow",
+            "start_date": self.start_date,
+            'on_failure_callback': on_failure_callback
+        }
+        self.dag = DAG(dag_id=self.dag_id, schedule_interval=self.schedule_interval, default_args=self.default_args,
+                       catchup=self.catchup, max_active_runs=1, doc_md=self.__doc__)
+
+    def add_tasks(self, funcs, dag_ids, append, tasks_dictionary):
+        funcs = funcs if isinstance(funcs, list) else [funcs]
+        dag_ids = dag_ids if dag_ids else [self.dag_id]
+        for dag_id in dag_ids:
+            if append:
+                tasks_dictionary[dag_id] = tasks_dictionary[dag_id] + funcs
+            else:
+                tasks_dictionary[dag_id] = funcs + tasks_dictionary[dag_id]
+
+    def add_before_subdag_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+        dag_ids = [self.dag_id]
+        self.add_tasks(funcs, dag_ids, append, self.before_subdag_tasks)
+
+    def add_release_info_chain(self, funcs: Union[Callable, List[Callable]], dag_ids: Union[None, list] = None,
+                               append=True):
+        self.add_tasks(funcs, dag_ids, append, self.release_info_tasks)
+
+    def add_extract_chain(self, funcs: Union[Callable, List[Callable]], dag_ids: Union[None, list] = None, append=True):
+        self.add_tasks(funcs, dag_ids, append, self.extract_tasks)
+
+    def add_transform_chain(self, funcs: Union[Callable, List[Callable]], dag_ids: Union[None, list] = None,
+                            append=True):
+        self.add_tasks(funcs, dag_ids, append, self.transform_tasks)
+
+    def add_load_chain(self, funcs: Union[Callable, List[Callable]], dag_ids: Union[None, list] = None, append=True):
+        self.add_tasks(funcs, dag_ids, append, self.load_tasks)
+
+    def check_dependencies(self, **kwargs):
+        """ Checks the 'telescope' attributes, airflow variables & connections and possibly additional custom checks.
+
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
+        # check that vars and connections are available
+        vars_valid = True
+        conns_valid = True
+        if self.airflow_vars:
+            vars_valid = check_variables(*self.airflow_vars)
+        if self.airflow_conns:
+            conns_valid = check_connections(*self.airflow_conns)
+
+        if not vars_valid or not conns_valid:
+            raise AirflowException('Required variables or connections are missing')
+
+    def make_subdag_instance(self, subdag_id: str) -> DAG:
+        subdag = DAG(dag_id=f"{self.dag_id}.{subdag_id}", schedule_interval=self.schedule_interval,
+                     default_args=self.default_args)
+        return subdag
+
+    def make_dags(self) -> DAG:
+        tasks = []
+        with self.dag:
+            for func in self.before_subdag_tasks[self.dag_id]:
+                if isinstance(func, functools.partial):
+                    task = func()
+                else:
+                    task = PythonOperator(task_id=func.__name__, provide_context=True, python_callable=func,
+                                          queue=self.queue)
+                tasks.append(task)
+
+            if self.subdag_ids:
+                subdag_tasks = []
+                for subdag_id in self.subdag_ids:
+                    subdag = self.make_subdag_instance(subdag_id)
+                    task = SubDagOperator(task_id=subdag_id,
+                                          subdag=self.make_dag(subdag))
+                    subdag_tasks.append(task)
+                tasks.append(subdag_tasks)
+            chain(*tasks)
+        self.make_dag(self.dag)
+        return self.dag
+
+    def make_dag(self, dag: DAG) -> DAG:
+        check_dependencies_tasks = [self.check_dependencies]
+        cleanup_tasks = [self.cleanup]
+        if dag.dag_id == self.dag_id and self.subdag_ids:
+            dag_id = self.dag_id
+            check_dependencies_tasks = []
+            cleanup_tasks = []
+        elif dag.dag_id == self.dag_id:
+            dag_id = self.dag_id
+        else:
+            dag_id = dag.dag_id[len(f"{self.dag_id}."):]
+
+        tasks = []
+        with dag:
+            # split tasks based on whether they require 'release' instance as param in python callable
+            for func in check_dependencies_tasks + self.release_info_tasks[dag_id]:
+                if isinstance(func, functools.partial):
+                    task = func()
+                else:
+                    task = PythonOperator(task_id=func.__name__, provide_context=True, python_callable=func,
+                                          queue=self.queue, default_args=self.default_args)
+                tasks.append(task)
+
+            for func in self.extract_tasks[dag_id] + self.transform_tasks[dag_id] + self.load_tasks[dag_id] + cleanup_tasks:
+                if isinstance(func, functools.partial):
+                    task = func()
+                else:
+                    trigger_rule = 'all_success'
+                    if func == self.cleanup:
+                        trigger_rule = 'none_failed'
+                    task = PythonOperator(task_id=func.__name__, provide_context=True,
+                                          python_callable=partial(self.task_callable, func), queue=self.queue,
+                                          trigger_rule=trigger_rule, default_args=self.default_args)
+                tasks.append(task)
+            chain(*tasks)
+        return dag
+
+
+class AbstractTelescopeRelease(ABC):
+    @staticmethod
+    @abstractmethod
+    def make_release(telescope, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
+                     first_release: bool) -> 'AbstractTelescopeRelease':
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def make_releases(telescope, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool) -> \
+            List['AbstractTelescopeRelease']:
+        pass
+
+    @property
+    @abstractmethod
+    def date_str(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def blob_dir(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def extract_dir(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def extract_paths(self) -> list:
+        pass
+
+    @property
+    @abstractmethod
+    def transform_paths(self) -> list:
+        pass
+
+    @property
+    @abstractmethod
+    def transform_dir(self) -> str:
+        pass
+
+    @abstractmethod
+    def subdir(self, sub_folder: SubFolder) -> str:
+        pass
+
+    @abstractmethod
+    def create_path(self, sub_folder: SubFolder, file_name: str, ext: str) -> str:
+        pass
+
+    @abstractmethod
+    def get_blob_name(self, path: str) -> str:
+        pass
+
+    @abstractmethod
+    def is_file_required(self, path: str, required_files: list) -> bool:
+        pass
+
+
+class TelescopeRelease(AbstractTelescopeRelease):
     """ Used to store info on a given release"""
+
     def __init__(self, dag_id: str, start_date: Union[pendulum.Pendulum, None], end_date: pendulum.Pendulum,
-                 extensions: dict, first_release: bool = False):
+                 first_release: bool = False):
         self.dag_id = dag_id
         self.start_date = start_date
         self.end_date = end_date
         self.release_date = end_date
-        self.extensions = extensions
         self.first_release = first_release
-        self.download_ext = extensions['download']
-        self.extract_ext = extensions['extract']
-        self.transform_ext = extensions['transform']
 
     @property
     def date_str(self) -> str:
         return self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
-        # super().__init__(dag_id, start_date, end_date, extensions, first_release)
-
-    @property
-    def file_name(self) -> str:
-        return f"{self.dag_id}_{self.date_str}"
 
     @property
     def blob_dir(self) -> str:
         return f'telescopes/{self.dag_id}'
 
     @property
-    def download_blob(self) -> str:
-        return os.path.join(self.blob_dir, f"{self.file_name}.{self.download_ext}")
-
-    @property
-    def download_path(self) -> str:
-        return self.get_path(SubFolder.downloaded, self.file_name, self.download_ext)
-
-    @property
-    def download_dir(self) -> str:
-        return self.subdir(SubFolder.downloaded)
-
-    @property
-    def extract_path(self) -> str:
-        return self.get_path(SubFolder.extracted, self.file_name, self.extract_ext)
-
-    @property
     def extract_dir(self) -> str:
         return self.subdir(SubFolder.extracted)
 
     @property
-    def transform_blob(self) -> str:
-        return os.path.join(self.blob_dir, f"{self.file_name}.{self.transform_ext}")
-
-    @property
-    def transform_path(self) -> str:
-        return self.get_path(SubFolder.transformed, self.file_name, self.transform_ext)
-
-    @property
     def transform_dir(self) -> str:
         return self.subdir(SubFolder.transformed)
+
+    @property
+    def extract_paths(self) -> list:
+        extract_paths = []
+        for root, dirs, files in os.walk(self.extract_dir):
+            for file in files:
+                extract_paths.append(os.path.join(root, file))
+        return extract_paths
+
+    @property
+    def transform_paths(self) -> list:
+        transform_paths = []
+        for root, dirs, files in os.walk(self.transform_dir):
+            for file in files:
+                transform_paths.append(os.path.join(root, file))
+        return transform_paths
 
     def subdir(self, sub_folder: SubFolder) -> str:
         """ Path to subdirectory of a specific release for either downloaded/extracted/transformed files.
@@ -75,7 +329,7 @@ class TelescopeRelease:
             os.makedirs(subdir, exist_ok=True)
         return subdir
 
-    def get_path(self, sub_folder: SubFolder, file_name: str, ext: str) -> str:
+    def create_path(self, sub_folder: Union[SubFolder, str], file_name: str, ext: str) -> str:
         """
         Gets path to file based on subfolder, file name and extension.
         :param sub_folder: Name of the subfolder
@@ -83,5 +337,14 @@ class TelescopeRelease:
         :param ext: The extension of the file
         :return: The file path.
         """
-        path = os.path.join(self.subdir(sub_folder), f"{file_name}.{ext}")
+        path = os.path.join(self.subdir(sub_folder), f"{file_name}_{self.date_str}.{ext}")
         return path
+
+    def get_blob_name(self, path: str) -> str:
+        file_name, ext = os.path.splitext(os.path.basename(path))
+        blob_name = os.path.join(self.blob_dir, f"{file_name}_{self.date_str}.{ext}")
+        return blob_name
+
+    def is_file_required(self, path: str, required_files: list) -> bool:
+        file_name, ext = os.path.splitext(os.path.basename(path))
+        return True if file_name in required_files else False

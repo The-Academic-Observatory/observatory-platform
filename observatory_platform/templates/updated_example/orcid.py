@@ -1,49 +1,77 @@
-from observatory_platform.templates.updated_example.stream_telescope import StreamTelescope
-from observatory_platform.templates.updated_example.telescope import TelescopeRelease
+from observatory_platform.templates.updated_example.stream_telescope import StreamTelescope, StreamRelease
 import pendulum
-from typing import Union
+from typing import Union, List
 from observatory_platform.utils.config_utils import SubFolder
 from datetime import datetime
-from observatory_platform.utils.telescope_utils import upload_downloaded
+from datetime import timedelta
+import logging
+from airflow.models.taskinstance import TaskInstance
 
-
-class OrcidRelease(TelescopeRelease):
+class OrcidRelease(StreamRelease):
     def __init__(self, dag_id: str, start_date: Union[pendulum.Pendulum, None], end_date: pendulum.Pendulum,
-                 extensions: dict, first_release: bool = False):
-        super().__init__(dag_id, start_date, end_date, extensions, first_release)
-        self.lambda_path = self.get_path(SubFolder.downloaded, "lambda_path", "txt")
+                 first_release: bool = False):
+        super().__init__(dag_id, start_date, end_date, first_release)
+        self.lambda_path = self.create_path(SubFolder.downloaded, "lambda_path", "txt")
 
-
-class OrcidTelescope(StreamTelescope):
-    def check_dependencies(self, **kwargs):
-        super().check_dependencies(**kwargs)
-
-    def make_release(self, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool) -> \
-            OrcidRelease:
-        release = OrcidRelease(self.dag_id, start_date, end_date, self.extensions, first_release)
+    @staticmethod
+    def make_release(telescope, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
+                     first_release: bool) -> 'OrcidRelease':
+        release = OrcidRelease(telescope.dag_id, start_date, end_date, first_release)
         return release
 
-    def download_pull(self, release: OrcidRelease, **kwargs) -> bool:
-        print(release)
-        print('download release', release.lambda_path, release.download_path)
-        return True
 
-    def download_push(self, release: OrcidRelease, **kwargs):
-        upload_downloaded(release.download_dir, release.blob_dir)
+def transfer_release(release: OrcidRelease, **kwargs):
+    print(release)
+    print('download release', release.lambda_path, release.blob_dir)
 
-    def extract(self, release: TelescopeRelease, **kwargs):
-        pass
 
-    def transform(self, release: TelescopeRelease, **kwargs):
-        pass
+def download_from_bucket(release: OrcidRelease, **kwargs):
+    pass
 
+
+def extract(release: OrcidRelease, **kwargs):
+    pass
+
+
+def transform(release: OrcidRelease, **kwargs):
+    pass
+
+
+def test_callable(something_else: str, **kwargs):
+    pass
+
+
+def before_subdag(**kwargs):
+    pass
 
 # airflow DAG
-orcid = OrcidTelescope(dag_id='orcid_test', queue='default', schedule_interval='@weekly',
-                       start_date=datetime(2020, 11, 1), max_retries=3, description='', download_pull_first=True,
-                       dataset_id='dataset_id', schema_version='', airflow_vars=[], airflow_conns=[],
-                       download_ext='json', extract_ext='json', transform_ext='jsonl', main_table_id='main_table_id',
-                       partition_table_id='partition_table_id', merge_partition_field='merge_field',
-                       updated_date_field='update_field', bq_merge_days=1)
+orcid_subdags = StreamTelescope(release_cls=OrcidRelease, dag_id='orcid_subdags', subdag_ids=['subdag1', 'subdag2',
+                                                                                              'subdag3'],
+                                queue='default', schedule_interval='@weekly',
+                                catchup=False, start_date=datetime(2020, 11, 1), max_retries=3, description='',
+                                dataset_id='dataset_id', schema_version='', airflow_vars=[],
+                                airflow_conns=[], transform_filenames=['orcid_table1', 'orcid_table2'],
+                                merge_partition_fields=['merge_field1', 'merge_field2'], updated_date_fields=[
+        'update_field1', 'update_field2'],
+                                bq_merge_days=1)
 
-globals()[orcid.dag_id] = orcid.make_dag()
+orcid_subdags.add_before_subdag_chain(before_subdag)
+orcid_subdags.add_extract_chain([test_callable, transfer_release, download_from_bucket, extract], ['subdag1'])
+orcid_subdags.add_transform_chain(transform, orcid_subdags.subdag_ids, append=False)
+
+globals()[orcid_subdags.dag_id] = orcid_subdags.make_dags()
+
+orcid = StreamTelescope(release_cls=OrcidRelease, dag_id='orcid_singledag', subdag_ids=[],
+                                queue='default', schedule_interval='@weekly',
+                                catchup=False, start_date=datetime(2020, 11, 1), max_retries=3, description='',
+                                dataset_id='dataset_id', schema_version='', airflow_vars=[],
+                                airflow_conns=[], transform_filenames=['orcid_table1'],
+                                merge_partition_fields=['merge_field1'], updated_date_fields=['update_field1'],
+                                bq_merge_days=1)
+
+orcid.add_extract_chain([test_callable, transfer_release, download_from_bucket, extract])
+orcid.add_transform_chain(transform, append=False)
+
+globals()[orcid.dag_id] = orcid.make_dags()
+
+
