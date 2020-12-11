@@ -398,7 +398,7 @@ class TestPaperMetricsModule(unittest.TestCase):
         mock_response = pd.DataFrame(
             {MagTableKey.COL_DOI: [1, 2, 3], MagTableKey.COL_DOC_TYPE: [1, 1, 1],
              MagTableKey.COL_YEAR: [1, 1, 0], MagTableKey.COL_FAMILY_ID: [4, 5, 6],
-             MagTableKey.COL_TOTAL: 100})
+             PaperMetricsModule.BQ_COUNT: 100})
         with patch('observatory.dags.dataquality.mod.mag_papermetrics.pd.read_gbq',
                    return_value=mock_response) as _:
             counts = module._get_paper_null_counts(datetime.date(2019, 1, 1))
@@ -416,7 +416,7 @@ class TestPaperMetricsModule(unittest.TestCase):
             mock_response = pd.DataFrame(
                 {MagTableKey.COL_DOI: [1], MagTableKey.COL_DOC_TYPE: [1],
                  MagTableKey.COL_YEAR: [1], MagTableKey.COL_FAMILY_ID: [4],
-                 MagTableKey.COL_TOTAL: 10})
+                 PaperMetricsModule.BQ_COUNT: 10})
             with patch('observatory.dags.dataquality.mod.mag_papermetrics.pd.read_gbq',
                        return_value=mock_response) as _:
                 with patch('observatory.dags.dataquality.mod.mag_papermetrics.bulk_index',
@@ -434,7 +434,7 @@ class TestPaperMetricsModule(unittest.TestCase):
             mock_response = pd.DataFrame(
                 {MagTableKey.COL_DOI: [1], MagTableKey.COL_DOC_TYPE: [1],
                  MagTableKey.COL_YEAR: [1], MagTableKey.COL_FAMILY_ID: [4],
-                 MagTableKey.COL_TOTAL: 10})
+                 PaperMetricsModule.BQ_COUNT: 10})
             with patch('observatory.dags.dataquality.mod.mag_papermetrics.pd.read_gbq',
                        return_value=mock_response) as _:
                 with patch('observatory.dags.dataquality.mod.mag_papermetrics.bulk_index',
@@ -452,15 +452,15 @@ class TestPaperMetricsModule(unittest.TestCase):
             mock_response = pd.DataFrame(
                 {MagTableKey.COL_DOI: [1], MagTableKey.COL_DOC_TYPE: [1],
                  MagTableKey.COL_YEAR: [1], MagTableKey.COL_FAMILY_ID: [4],
-                 MagTableKey.COL_TOTAL: [10]})
+                 PaperMetricsModule.BQ_COUNT: [10]})
             with patch('observatory.dags.dataquality.mod.mag_papermetrics.pd.read_gbq',
                        return_value=mock_response) as _:
                 with patch('observatory.dags.dataquality.mod.mag_papermetrics.bulk_index',
                            return_value=mock_response) as mock_bulk:
                     module.run()
                     self.assertEqual(mock_bulk.call_count, 1)
-                    self.assertEqual(len(mock_bulk.call_args_list[0][0][0]), 2)
-                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].release, '1991-01-01')
+                    self.assertEqual(len(mock_bulk.call_args_list[0][0][0]), 3)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].release, '1990-01-01')
                     self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][0].total, 10)
                     self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][0].null_year, 1)
                     self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][0].null_doi, 1)
@@ -478,27 +478,13 @@ class TestPaperFieldYearCountModule(unittest.TestCase):
         self.cache = AutoFetchCache(2)
 
     @patch('observatory.dags.dataquality.mod.mag_paperfieldyearcount.init_doc')
-    def test_get_year_counts(self, _):
-        mock_response = pd.DataFrame({'Year': [1, 2, 3], 'count': [2, 2, 0]})
-        module = PaperFieldYearCountModule('project_id', 'dataset_id', self.cache)
-        with patch('observatory.dags.dataquality.mod.mag_paperfieldyearcount.pd.read_gbq',
-                   return_value=mock_response):
-            year_count = module._get_year_counts(1, 'name', 'testdate')
-            counts = list(year_count[2])
-            self.assertEqual(len(year_count), 3)
-            self.assertEqual(year_count[0], 1)
-            self.assertEqual(year_count[1], 'name')
-            self.assertEqual(counts[0][0], 1)
-            self.assertEqual(counts[1][0], 2)
-
-    @patch('observatory.dags.dataquality.mod.mag_paperfieldyearcount.init_doc')
     def test_run(self, _):
         module = PaperFieldYearCountModule('project_id', 'dataset_id', self.cache)
         module._cache[MagCacheKey.RELEASES] = [datetime.date(1990, 1, 1)]
         module._cache[f'{MagCacheKey.FOSL0}19900101'] = [(1, 'testname')]
         with patch('observatory.dags.dataquality.mod.mag_paperfieldyearcount.search_count_by_release',
                    return_value=0):
-            mock_response = pd.DataFrame({'Year': [1, 2, 3], 'count': [2, 2, 0]})
+            mock_response = pd.DataFrame({'FieldOfStudyId': [1, 1, 1], 'Year': [1, 2, 3], 'count': [2, 2, 0]})
             with patch('observatory.dags.dataquality.mod.mag_paperfieldyearcount.pd.read_gbq',
                        return_value=mock_response):
                 with patch('observatory.dags.dataquality.mod.mag_paperfieldyearcount.bulk_index') as mock_bulk:
@@ -510,10 +496,10 @@ class TestPaperFieldYearCountModule(unittest.TestCase):
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][0].field_id, 1)
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][0].year, '1')
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][0].count, 2)
-                    self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][0].delta_pcount, 2000000000, 5)
+                    self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][0].delta_pcount, 0, 5)
                     self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][1].delta_pcount, 0)
                     self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][2].delta_pcount, -1)
-                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].delta_count, 2)
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].delta_count, 0)
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][1].delta_count, 0)
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][2].delta_count, -2)
 
@@ -560,7 +546,8 @@ class TestDoiCountsDocTypeYearModule(unittest.TestCase):
                    return_value=0):
             mock_response = pd.DataFrame(
                 {'Year': 1990, DoiCountsDocTypeYearModule.BQ_DOC_COUNT: [4],
-                 DoiCountsDocTypeYearModule.BQ_NULL_COUNT: [3]})
+                 DoiCountsDocTypeYearModule.BQ_NULL_COUNT: [3],
+                 'DocType': ['TestType']})
 
             with patch('observatory.dags.dataquality.mod.mag_doicountsdoctypeyear.pd.read_gbq',
                        return_value=mock_response):
@@ -649,8 +636,15 @@ class TestFosCountsPubFieldYearModule(unittest.TestCase):
         with patch('observatory.dags.dataquality.mod.mag_fos_count_pub_field_year.search_count_by_release',
                    return_value=0):
             mock_response = pd.DataFrame(
-                {FosCountsPubFieldYearModule.BQ_PAP_COUNT: [5], FosCountsPubFieldYearModule.BQ_CIT_COUNT: [4],
-                 FosCountsPubFieldYearModule.BQ_REF_COUNT: [0], MagTableKey.COL_PUBLISHER: 'test'
+                {
+                 MagTableKey.COL_YEAR: [1990],
+                 MagTableKey.COL_FOS_ID: [0],
+                 FosCountsPubFieldYearModule.BQ_COUNTS: [[{
+                     MagTableKey.COL_PUBLISHER: 'test',
+                     FosCountsPubFieldYearModule.BQ_PAP_COUNT: 5,
+                     FosCountsPubFieldYearModule.BQ_REF_COUNT: 0,
+                     FosCountsPubFieldYearModule.BQ_CIT_COUNT: 4,
+                 }]]
                  })
             with patch('observatory.dags.dataquality.mod.mag_fos_count_pub_field_year.pd.read_gbq',
                        return_value=mock_response):
@@ -679,16 +673,17 @@ class TestFosL0ScoreFieldYearModule(unittest.TestCase):
         self.cache[MagCacheKey.RELEASES] = [datetime.date(1990, 1, 1)]
         self.cache[f'{MagCacheKey.FOSL0}{19900101}'] = [(0, 'test')]
         num_buckets = int((FosL0ScoreFieldYearModule.BUCKET_END - FosL0ScoreFieldYearModule.BUCKET_START) \
-                          / FosL0ScoreFieldYearModule.BUCKET_STEP)
+                          / FosL0ScoreFieldYearModule.BUCKET_STEP) + 1
 
         with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year.search_count_by_release',
                    return_value=0):
+            now_year = datetime.datetime.now(datetime.timezone.utc).year
             mock_response = pd.DataFrame(
-                {FosL0ScoreFieldYearModule.BQ_BUCKET: [i for i in range(1, num_buckets + 1)],
-                 FosL0ScoreFieldYearModule.BQ_COUNT: [10] * num_buckets,
+                {FosL0ScoreFieldYearModule.BQ_BUCKET: [i for i in range(0, num_buckets)],
+                 FosL0ScoreFieldYearModule.BQ_COUNT: [10] * num_buckets, 'FieldOfStudyId': [0] * num_buckets,
+                 'Year': [now_year] * num_buckets
                  })
 
-            now_year = datetime.datetime.now(datetime.timezone.utc).year
             with patch(
                     'observatory.dags.dataquality.mod.mag_fosl0_score_field_year.FosL0ScoreFieldYearModule.YEAR_START',
                     now_year):
@@ -696,13 +691,13 @@ class TestFosL0ScoreFieldYearModule(unittest.TestCase):
                            return_value=mock_response):
                     with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year.bulk_index') as mock_bulk:
                         module.run()
-                        self.assertEqual(len(mock_bulk.call_args_list[0][0][0]), 100)
+                        self.assertEqual(len(mock_bulk.call_args_list[0][0][0]), num_buckets)
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][0].release, datetime.date(1990, 1, 1))
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][0].field_id, 0)
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][0].field_name, 'test')
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][0].year, str(now_year))
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][0].count, 10)
-                        self.assertEqual(mock_bulk.call_args_list[0][0][0][0].score_start, 0.0)
+                        self.assertEqual(mock_bulk.call_args_list[0][0][0][0].score_start, 0.00)
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][0].score_end, 0.01)
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][99].score_start, 0.99)
                         self.assertEqual(mock_bulk.call_args_list[0][0][0][99].score_end, 1.0)
@@ -722,65 +717,57 @@ class TestFosL0ScoreFieldYearMetricsModule(unittest.TestCase):
         self.cache[f'{MagCacheKey.FOSL0}{19900101}'] = [(0, 'test')]
         self.cache[f'{MagCacheKey.FOSL0}{19910101}'] = [(0, 'test')]
         num_buckets = int((FosL0ScoreFieldYearModule.BUCKET_END - FosL0ScoreFieldYearModule.BUCKET_START) \
-                          / FosL0ScoreFieldYearModule.BUCKET_STEP)
+                          / FosL0ScoreFieldYearModule.BUCKET_STEP) + 1
         now_year = datetime.datetime.now(datetime.timezone.utc).year
 
-        with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year.search_count_by_release',
-                   return_value=0):
-            def side_effect(*args, **kwargs):
-                responses = [pd.DataFrame(
-                    {FosL0ScoreFieldYearModule.BQ_BUCKET: [i for i in range(1, num_buckets + 1)],
-                     FosL0ScoreFieldYearModule.BQ_COUNT: [0] * num_buckets,
-                     }),
-                    pd.DataFrame(
-                    {FosL0ScoreFieldYearModule.BQ_BUCKET: [i for i in range(1, num_buckets + 1)],
-                     FosL0ScoreFieldYearModule.BQ_COUNT: [0] * num_buckets,
-                     }),
-                    pd.DataFrame(
-                    {FosL0ScoreFieldYearModule.BQ_BUCKET: [i for i in range(1, num_buckets + 1)],
-                     FosL0ScoreFieldYearModule.BQ_COUNT: [0] * num_buckets,
-                     }),
-                    pd.DataFrame(
-                    {FosL0ScoreFieldYearModule.BQ_BUCKET: [i for i in range(1, num_buckets + 1)],
-                     FosL0ScoreFieldYearModule.BQ_COUNT: [0] * num_buckets,
-                     })]
-                response = responses[side_effect.counter]
-                side_effect.counter += 1
+        # Setup the cache
+        ts = '19900101'
+        fos_id = 0
 
-                responses[0][FosL0ScoreFieldYearModule.BQ_COUNT][0] = 1
-                responses[1][FosL0ScoreFieldYearModule.BQ_COUNT][0] = 1
-                responses[2][FosL0ScoreFieldYearModule.BQ_COUNT][2] = 1
-                responses[2][FosL0ScoreFieldYearModule.BQ_COUNT][3] = 1
-                responses[3][FosL0ScoreFieldYearModule.BQ_COUNT][4] = 1
+        year = now_year - 1
+        key = f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos_id}-{year}'
+        histogram = [0]*num_buckets
+        histogram[0] = 1
+        self.cache[key] = histogram
 
-                return response
-            side_effect.counter = 0
+        year = now_year
+        key = f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos_id}-{year}'
+        histogram = [0]*num_buckets
+        histogram[0] = 1
+        self.cache[key] = histogram
 
-            with patch(
-                    'observatory.dags.dataquality.mod.mag_fosl0_score_field_year.FosL0ScoreFieldYearModule.YEAR_START',
-                    now_year-1):
-                with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year.pd.read_gbq') as rbq:
-                    rbq.side_effect = side_effect
-                    with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year.bulk_index') as mock_bulk:
-                        score_module.run()
+        ts = '19910101'
+        year = now_year - 1
+        key = f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos_id}-{year}'
+        histogram = [0]*num_buckets
+        histogram[2] = 1
+        histogram[3] = 1
+        self.cache[key] = histogram
+
+        year = now_year
+        key = f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos_id}-{year}'
+        histogram = [0]*num_buckets
+        histogram[4] = 1
+        self.cache[key] = histogram
 
         # Testing begins
         module = FosL0ScoreFieldYearMetricsModule('project_id', 'dataset_id', self.cache)
         with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics.search_count_by_release',
                    return_value=0):
             with patch(
-                'observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics.FosL0ScoreFieldYearMetricsModule.YEAR_START',
-                now_year-1):
-                with patch('observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics.bulk_index') as mock_bulk:
+                    'observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics.FosL0ScoreFieldYearMetricsModule.YEAR_START',
+                    now_year - 1):
+                with patch(
+                        'observatory.dags.dataquality.mod.mag_fosl0_score_field_year_metrics.bulk_index') as mock_bulk:
                     module.run()
                     self.assertEqual(len(mock_bulk.call_args_list[0][0][0]), 8)
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][0].release, datetime.date(1990, 1, 1))
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][0].field_id, 0)
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][0].field_name, 'test')
 
-                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].year, str(now_year-1))
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][0].year, str(now_year - 1))
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][0].js_dist, 0)
-                    self.assertEqual(mock_bulk.call_args_list[0][0][0][1].year, str(now_year-1))
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][1].year, str(now_year - 1))
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][1].js_dist, 0)
 
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][2].year, str(now_year))
@@ -788,9 +775,9 @@ class TestFosL0ScoreFieldYearMetricsModule(unittest.TestCase):
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][3].year, str(now_year))
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][3].js_dist, 0)
 
-                    self.assertEqual(mock_bulk.call_args_list[0][0][0][4].year, str(now_year-1))
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][4].year, str(now_year - 1))
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][4].js_dist, 0)
-                    self.assertEqual(mock_bulk.call_args_list[0][0][0][5].year, str(now_year-1))
+                    self.assertEqual(mock_bulk.call_args_list[0][0][0][5].year, str(now_year - 1))
                     self.assertAlmostEqual(mock_bulk.call_args_list[0][0][0][5].js_dist, 0.8325546111576977)
 
                     self.assertEqual(mock_bulk.call_args_list[0][0][0][6].year, str(now_year))
