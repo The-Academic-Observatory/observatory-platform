@@ -23,9 +23,9 @@ import datetime
 
 from jinja2 import Environment, PackageLoader
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from elasticsearch_dsl import Document
 from typing import List
 
+from observatory.dags.dataquality.autofetchcache import AutoFetchCache
 from observatory.dags.dataquality.config import JinjaParams, MagCacheKey, MagParams, MagTableKey
 from observatory.dags.dataquality.analyser import MagAnalyserModule
 from observatory.dags.dataquality.es_mag import MagDoiCountsDocTypeYear
@@ -39,22 +39,23 @@ from observatory.dags.dataquality.es_utils import (
 
 
 class DoiCountsDocTypeYearModule(MagAnalyserModule):
-    """ Compute the doi counts per doctype per year."""
+    """ Compute the doi counts (and nulls) per doctype per year."""
 
-    BQ_DOC_COUNT = 'count'
-    BQ_NULL_COUNT = 'null_count'
+    BQ_DOC_COUNT = 'count'  # SQL column for the doi counts
+    BQ_NULL_COUNT = 'null_count'  # SQL column for the doi null counts
 
-    def __init__(self, project_id: str, dataset_id: str, cache):
+    def __init__(self, project_id: str, dataset_id: str, cache: AutoFetchCache):
         """ Initialise the module.
         @param project_id: Project ID in BigQuery.
         @param dataset_id: Dataset ID in BigQuery.
         @param cache: Analyser cache to use.
         """
 
-        logging.info(f'Initialising {self.name()}')
+        logging.info(f'{self.name()}: initialising.')
         self._project_id = project_id
         self._dataset_id = dataset_id
         self._cache = cache
+
         init_doc(MagDoiCountsDocTypeYear)
 
         self._tpl_env = Environment(
@@ -66,10 +67,12 @@ class DoiCountsDocTypeYearModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        logging.info(f'Running {self.name()}')
+        logging.info(f'{self.name()}: executing.')
         releases = self._cache[MagCacheKey.RELEASES]
 
         docs = list()
+
+        # Fetch releases in parallel.
         with ThreadPoolExecutor(max_workers=MagParams.BQ_SESSION_LIMIT) as executor:
             futures = list()
             for release in releases:
@@ -78,6 +81,7 @@ class DoiCountsDocTypeYearModule(MagAnalyserModule):
             for future in as_completed(futures):
                 docs.extend(future.result())
 
+        logging.info(f'{self.name()}: indexing {len(docs)} docs of type MagDoiCountsDocTypeYear.')
         if len(docs) > 0:
             bulk_index(docs)
 
@@ -93,7 +97,7 @@ class DoiCountsDocTypeYearModule(MagAnalyserModule):
         if index:
             delete_index(MagDoiCountsDocTypeYear)
 
-    def _construct_es_docs(self, release: datetime.date) -> List[Document]:
+    def _construct_es_docs(self, release: datetime.date) -> List[MagDoiCountsDocTypeYear]:
         """ Construct MagDoiCountsDocTypeYear docs for each release.
 
         @param release: Table suffix (timestamp).
@@ -103,6 +107,8 @@ class DoiCountsDocTypeYearModule(MagAnalyserModule):
         ts = release.strftime('%Y%m%d')
 
         docs = list()
+
+        # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
         if search_count_by_release(MagDoiCountsDocTypeYear, release.isoformat()) > 0:
             return docs
 
@@ -142,5 +148,7 @@ class DoiCountsDocTypeYearModule(MagAnalyserModule):
                                      doc_count=DoiCountsDocTypeYearModule.BQ_DOC_COUNT,
                                      null_count=DoiCountsDocTypeYearModule.BQ_NULL_COUNT
                                      )
+
         df = pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)
+
         return df
