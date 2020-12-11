@@ -25,6 +25,7 @@ from urllib3.exceptions import ReadTimeoutError
 from typing import Union, List
 import logging
 
+
 def init_doc(es_doc: IndexMeta):
     """ Initialise the mappings in elastic search if the document doesn't exist. Will not reinitialise if a mapping
     already exists.
@@ -119,7 +120,6 @@ def bulk_index(docs: List[Document]):
         bulk(connections.get_connection(), (doc.to_dict(include_meta=True) for doc in docs), refresh=True)
     except ReadTimeoutError:
         logging.error(f'Timed out trying to bulk index {n} documents.')
-
 
 # def update_by_query():
 #     ubq = UpdateByQuery(index=MagReleaseEs.Index.name).query("match", release="2020-09-11") \

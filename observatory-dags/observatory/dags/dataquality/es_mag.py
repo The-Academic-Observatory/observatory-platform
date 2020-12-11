@@ -34,12 +34,14 @@ from elasticsearch_dsl import (
     Integer,
 )
 
+
 class MagDocIndexSettings:
     """ Generic settings the documents can use. """
     settings = {
         'number_of_shards': 2,
         'number_of_replicas': 0
     }
+
 
 class NSDocument(Document):
     """ Abstract Document. Prevent serialization. Cut down on boiler plate in the class definitions. """
@@ -175,6 +177,7 @@ class MagDoiCountsDocType(NSDocument):
         name = 'dataquality-mag-doi-counts'
         settings = MagDocIndexSettings.settings
 
+
 class MagDoiCountsDocTypeYear(NSDocument):
     """ Aggregate doi counts by year. """
     release = Date(required=True, default_timezone='UTC')
@@ -236,6 +239,7 @@ class MagFosL0ScoreFieldYearMetricY(NSDocument):
         name = 'dataquality-mag-fos-l0-score-field-year-metric-year'
         settings = MagDocIndexSettings.settings
 
+
 class MagFosL0ScoreFieldYearMetricR(NSDocument):
     """ The Jensen Shannon distance between histograms of two consecutive releases for the FieldsOfStudy labels,
     per field, per year."""
@@ -249,7 +253,6 @@ class MagFosL0ScoreFieldYearMetricR(NSDocument):
     class Index:
         name = 'dataquality-mag-fos-l0-score-field-year-metric-release'
         settings = MagDocIndexSettings.settings
-
 
 # class MagDoiCountsFosL0(NSDocument):
 #     """ Aggregate doi counts by level 0 fields of study. """
