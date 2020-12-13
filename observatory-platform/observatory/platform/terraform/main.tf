@@ -104,17 +104,10 @@ resource "google_project_iam_member" "observatory_service_account_storage_iam" {
   member  = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
-//module "google_application_credentials_secret" {
-//  source = "./secret"
-//  secret_id = "google_application_credentials"
-//  secret_data = google_service_account_key.observatory_service_account_key.private_key
-//  service_account_email = data.google_compute_default_service_account.default.email
-//  depends_on = [google_project_service.services]
-//}
-
 ########################################################################################################################
 # Storage Buckets
 ########################################################################################################################
+
 # Random id to prevent destroy of resources in keepers
 resource "random_id" "buckets_protector" {
   count = var.environment == "production" ? 1 : 0
@@ -156,7 +149,7 @@ resource "google_storage_bucket" "observatory_download_bucket" {
   }
 }
 
-# Permissions so that transfer service account can read / write files to bucket
+# Permissions so that the Transfer Service Account can read / write files to bucket
 resource "google_storage_bucket_iam_member" "observatory_download_bucket_transfer_service_account_legacy_bucket_reader" {
   bucket = google_storage_bucket.observatory_download_bucket.name
   role = "roles/storage.legacyBucketReader"
@@ -177,12 +170,18 @@ resource "google_storage_bucket_iam_member" "observatory_download_bucket_observa
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
-# Must have object admin so that files can be overwritten
-resource "google_storage_bucket_iam_member" "observatory_download_bucket_observatory_service_account_object_admin" {
+resource "google_storage_bucket_iam_member" "observatory_download_bucket_observatory_service_account_object_creator" {
   bucket = google_storage_bucket.observatory_download_bucket.name
-  role = "roles/storage.objectAdmin"
+  role = "roles/storage.objectCreator"
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
+
+resource "google_storage_bucket_iam_member" "observatory_download_bucket_observatory_service_account_object_viewer" {
+  bucket = google_storage_bucket.observatory_download_bucket.name
+  role = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.observatory_service_account.email}"
+}
+
 
 # Bucket for storing transformed files
 resource "google_storage_bucket" "observatory_transform_bucket" {
@@ -211,25 +210,20 @@ resource "google_storage_bucket" "observatory_transform_bucket" {
   }
 }
 
-# Permissions so that Observatory Platform service account can read and write
+# Permissions so that Observatory Platform service account can read, create and delete
 resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_legacy_bucket_reader" {
   bucket = google_storage_bucket.observatory_transform_bucket.name
   role = "roles/storage.legacyBucketReader"
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
 
-resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_object_creator" {
+# Must have object admin so that files can be overwritten, e.g. if a file was transformed incorrectly and has to be
+# uploaded again
+resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_object_admin" {
   bucket = google_storage_bucket.observatory_transform_bucket.name
-  role = "roles/storage.objectCreator"
+  role = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.observatory_service_account.email}"
 }
-
-resource "google_storage_bucket_iam_member" "observatory_transform_bucket_observatory_service_account_object_viewer" {
-  bucket = google_storage_bucket.observatory_transform_bucket.name
-  role = "roles/storage.objectViewer"
-  member = "serviceAccount:${google_service_account.observatory_service_account.email}"
-}
-
 
 # Bucket for airflow related files, e.g. airflow logs
 resource "random_id" "airflow_bucket_protector" {
