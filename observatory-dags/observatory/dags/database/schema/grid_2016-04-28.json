@@ -20,13 +20,13 @@
         "type": "STRING"
       }, 
       {
-        "description": "The relationship type, see our for more details on the types and the meaning of these",
+        "description": "The relationship type, see our policies https://grid.ac/pages/policies for more details on the types and the meaning of these",
         "mode": "NULLABLE", 
         "name": "type", 
         "type": "STRING"
       }
     ],
-    "description": "Any relationships the institute has to others. See our policies for more details",
+    "description": "Any relationships the institute has to others. See our policies https://grid.ac/pages/policies for more details",
     "mode": "REPEATED", 
     "name": "relationships", 
     "type": "RECORD"
@@ -234,7 +234,7 @@
         "type": "RECORD"
       }
     ],
-    "description": "Other IDs known to refer to the institute. See our policies for more details",
+    "description": "Other IDs known to refer to the institute. See our policies https://grid.ac/pages/policies for more details",
     "mode": "NULLABLE", 
     "name": "external_ids", 
     "type": "RECORD"
@@ -306,7 +306,7 @@
     "type": "STRING"
   }, 
   {
-    "description": "A list of types describing the institute. For an explanation of valid values see our policies",
+    "description": "A list of types describing the institute. For an explanation of valid values see our policies https://grid.ac/pages/policies",
     "mode": "REPEATED", 
     "name": "types", 
     "type": "STRING"
