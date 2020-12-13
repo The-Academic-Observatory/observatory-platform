@@ -50,6 +50,7 @@ class AirflowVars:
     TRANSFORM_BUCKET = "transform_bucket"
     TERRAFORM_ORGANIZATION = "terraform_organization"
     DAGS_MODULE_NAMES = "dags_module_names"
+    KIBANA_SPACES = "kibana_spaces"
 
 
 class AirflowConns:
@@ -61,6 +62,7 @@ class AirflowConns:
     TERRAFORM = "terraform"
     SLACK = "slack"
     ELASTIC = "elastic"
+    KIBANA = "kibana"
 
 
 def module_file_path(module_path: str, nav_back_steps: int = -1) -> str:
