@@ -14,6 +14,15 @@
 
 # Author: Richard Hosking, James Diprose #}
 
+WITH affiliations_processed as (
+  SELECT
+    affiliation.AffiliationId,
+    affiliation.DisplayName,
+    IF(override.grid_id is not null, override.grid_id, affiliation.GridId) as GridId
+  FROM `{{ project_id }}.mag.Affiliations{{ release_date.strftime('%Y%m%d') }}` as affiliation
+  LEFT JOIN `{{ project_id }}.coki.mag_affiliation_override` as override on override.AffiliationId = affiliation.AffiliationId 
+)
+
 SELECT 
   papers.*,
   REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REGEXP_REPLACE(JSON_EXTRACT(IndexedAbstract, '$.InvertedIndex'), "[0-9]+", ""), ":", ""), ",", " "), '"', ""), "{", ""), "}", ""), "[", ""), "]", "") as abstract,
@@ -56,7 +65,7 @@ LEFT JOIN (SELECT
               ARRAY_AGG(STRUCT(paperAuthorAffiliations.AuthorSequenceNumber, paperAuthorAffiliations.AuthorID, paperAuthorAffiliations.OriginalAuthor, paperAuthorAffiliations.AffiliationId, paperAuthorAffiliations.OriginalAffiliation, affiliation.GridId, affiliation.DisplayName) IGNORE NULLS ORDER BY paperAuthorAffiliations.AuthorSequenceNumber ASC) as authors
             FROM `{{ project_id }}.mag.Papers{{ release_date.strftime('%Y%m%d') }}` as papers
             LEFT JOIN `{{ project_id }}.mag.PaperAuthorAffiliations{{ release_date.strftime('%Y%m%d') }}` as paperAuthorAffiliations on paperAuthorAffiliations.PaperId = papers.PaperId
-            LEFT JOIN `{{ project_id }}.mag.Affiliations{{ release_date.strftime('%Y%m%d') }}` as affiliation on affiliation.AffiliationId = paperAuthorAffiliations.AffiliationId
+            LEFT JOIN affiliations_processed as affiliation on affiliation.AffiliationId = paperAuthorAffiliations.AffiliationId
             GROUP BY papers.PaperId) as authors ON authors.PaperId = papers.PaperId
 
 -- Extended Attributes

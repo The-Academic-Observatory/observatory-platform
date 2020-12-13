@@ -128,6 +128,13 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         python_callable=DoiWorkflow.aggregate_crossref_events
     )
 
+    # Aggregrate Crossref Events
+    task_aggregate_orcid = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_AGGREGATE_ORCID,
+        provide_context=True,
+        python_callable=DoiWorkflow.aggregate_orcid
+    )
+
     # Aggregrate Microsoft Academic Graph
     task_aggregate_mag = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_AGGREGATE_MAG,
@@ -154,20 +161,6 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         task_id=DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS,
         provide_context=True,
         python_callable=DoiWorkflow.aggregate_open_citations
-    )
-
-    # Aggregrate WoS
-    task_aggregate_wos = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_AGGREGATE_WOS,
-        provide_context=True,
-        python_callable=DoiWorkflow.aggregate_wos
-    )
-
-    # Aggregate Scopus
-    task_aggregate_scopus = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS,
-        provide_context=True,
-        python_callable=DoiWorkflow.aggregate_scopus
     )
 
     # Create DOIs snapshot
@@ -200,6 +193,12 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         task_id=DoiWorkflow.TASK_ID_CREATE_INSTITUTION,
         provide_context=True,
         python_callable=DoiWorkflow.create_institution
+    )
+
+    task_create_author = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_AUTHOR,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_author
     )
 
     task_create_journal = PythonOperator(
@@ -244,12 +243,13 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
                unpaywall_sensor]
 
     # All pre-processing tasks run at once and when finished task_create_doi runs
-    tasks_preprocessing = [task_extend_grid, task_aggregate_crossref_events, task_aggregate_mag,
-                           task_aggregate_unpaywall, task_extend_crossref_funders, task_aggregate_open_citations,
-                           task_aggregate_wos, task_aggregate_scopus]
+    tasks_preprocessing = [task_extend_grid, task_aggregate_crossref_events, task_aggregate_orcid,
+                           task_aggregate_mag, task_aggregate_unpaywall, task_extend_crossref_funders, 
+                           task_aggregate_open_citations]
     sensors >> task_create_datasets >> tasks_preprocessing >> task_create_doi
 
     # After task_create_doi runs all of the post-processing tasks run
     tasks_postprocessing = [task_create_country, task_create_funder, task_create_group, task_create_institution,
-                            task_create_journal, task_create_publisher, task_create_region, task_create_subregion]
+                            task_create_author,  task_create_journal, task_create_publisher, task_create_region, 
+                            task_create_subregion]
     task_create_doi >> tasks_postprocessing >> task_copy_tables >> task_create_views
