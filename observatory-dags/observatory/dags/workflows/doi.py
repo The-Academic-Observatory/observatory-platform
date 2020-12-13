@@ -70,13 +70,14 @@ def select_table_suffixes(project_id: str, dataset_id: str, table_id: str, end_d
     return suffixes
 
 
-def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_field: str, table_id: str,
+def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_field: str, group_by_time_field: str, table_id: str,
                            data_location: str, task_id: str):
     """ Runs the aggregate table query.
 
     :param project_id: the Google Cloud project id.
     :param release_date: the release date of the release.
     :param aggregation_field: the field to aggregate on, e.g. institution, publisher etc.
+    :group_by_time_field: either published_year or published_year_month depending on the granularity required for the time dimension
     :param table_id: the table id.
     :param data_location: the location for the table.
     :param task_id: the Airflow task id (for printing messages).
@@ -88,7 +89,8 @@ def create_aggregate_table(project_id: str, release_date: Pendulum, aggregation_
     sql = render_template(template_path,
                           project_id=project_id,
                           release_date=release_date,
-                          aggregation_field=aggregation_field)
+                          aggregation_field=aggregation_field,
+                          group_by_time_field=group_by_time_field)
 
     processed_table_id = bigquery_partitioned_table_id(table_id, release_date)
     success = create_bigquery_table_from_query(sql=sql,
@@ -108,6 +110,7 @@ class DoiWorkflow:
     TASK_ID_CREATE_DATASETS = 'create_datasets'
     TASK_ID_EXTEND_GRID = 'extend_grid'
     TASK_ID_AGGREGATE_CROSSREF_EVENTS = 'aggregate_crossref_events'
+    TASK_ID_AGGREGATE_ORCID = 'aggregate_orcid'
     TASK_ID_AGGREGATE_MAG = 'aggregate_mag'
     TASK_ID_AGGREGATE_UNPAYWALL = 'aggregate_unpaywall'
     TASK_ID_EXTEND_CROSSREF_FUNDERS = 'extend_crossref_funders'
@@ -119,6 +122,7 @@ class DoiWorkflow:
     TASK_ID_CREATE_FUNDER = 'create_funder'
     TASK_ID_CREATE_GROUP = 'create_group'
     TASK_ID_CREATE_INSTITUTION = 'create_institution'
+    TASK_ID_CREATE_AUTHOR = 'create_author'
     TASK_ID_CREATE_JOURNAL = 'create_journal'
     TASK_ID_CREATE_PUBLISHER = 'create_publisher'
     TASK_ID_CREATE_REGION = 'create_region'
@@ -237,6 +241,35 @@ class DoiWorkflow:
                                                    location=data_location)
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS)
+
+    @staticmethod
+    def aggregate_orcid(**kwargs):
+        """ Aggregate the current state of ORCID into a single table with authors linked to the DOI's of their work.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Get variables
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
+        data_location = Variable.get(AirflowVars.DATA_LOCATION)
+        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+
+        # Create processed table
+        template_path = os.path.join(workflow_sql_templates_path(),
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_ORCID))
+        sql = render_template(template_path, project_id=project_id)
+
+        processed_table_id = bigquery_partitioned_table_id('orcid', release_date)
+        success = create_bigquery_table_from_query(sql=sql,
+                                                   project_id=project_id,
+                                                   dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
+                                                   table_id=processed_table_id,
+                                                   location=data_location)
+
+        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_ORCID)
 
     @staticmethod
     def aggregate_mag(**kwargs):
@@ -516,11 +549,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'countries'
+        group_by_time_field="published_year"
         table_id = 'country'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_COUNTRY)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY)
 
     @staticmethod
     def create_funder(**kwargs):
@@ -537,11 +571,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'funders'
+        group_by_time_field="published_year"
         table_id = 'funder'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_FUNDER)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_FUNDER)
 
     @staticmethod
     def create_group(**kwargs):
@@ -558,11 +593,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'groupings'
+        group_by_time_field="published_year"
         table_id = 'group'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_GROUP)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_GROUP)
 
     @staticmethod
     def create_institution(**kwargs):
@@ -579,11 +615,34 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'institutions'
+        group_by_time_field="published_year"
         table_id = 'institution'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_INSTITUTION)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_INSTITUTION)
+    
+    @staticmethod
+    def create_author(**kwargs):
+        """ Create author snapshot.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Get variables
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
+        data_location = Variable.get(AirflowVars.DATA_LOCATION)
+        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+        aggregation_field = 'authors'
+        group_by_time_field="published_year"
+        table_id = 'author'
+
+        # Aggregate
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_AUTHOR)
 
     @staticmethod
     def create_journal(**kwargs):
@@ -600,11 +659,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'journals'
+        group_by_time_field="published_year"
         table_id = 'journal'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_JOURNAL)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_JOURNAL)
 
     @staticmethod
     def create_publisher(**kwargs):
@@ -621,11 +681,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'publishers'
+        group_by_time_field="published_year"
         table_id = 'publisher'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_PUBLISHER)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_PUBLISHER)
 
     @staticmethod
     def create_region(**kwargs):
@@ -642,11 +703,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'regions'
+        group_by_time_field="published_year"
         table_id = 'region'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_REGION)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_REGION)
 
     @staticmethod
     def create_subregion(**kwargs):
@@ -663,11 +725,12 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
         aggregation_field = 'subregions'
+        group_by_time_field="published_year"
         table_id = 'subregion'
 
         # Aggregate
-        create_aggregate_table(project_id, release_date, aggregation_field, table_id, data_location,
-                               DoiWorkflow.TASK_ID_CREATE_SUBREGION)
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field, group_by_time_field=group_by_time_field, 
+                                table_id=table_id, data_location=data_location, task_id=DoiWorkflow.TASK_ID_CREATE_SUBREGION)
 
     @staticmethod
     def copy_tables(**kwargs):
