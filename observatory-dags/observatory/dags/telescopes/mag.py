@@ -523,6 +523,10 @@ def db_load_mag_release(project_id: str, bucket_name: str, data_location: str, r
             'quote': '',
             'allow_quoted_newlines': True
         },
+        'PaperExtendedAttributes': {
+            'quote': '',
+            'allow_quoted_newlines': False
+        },
         'Papers': {
             'quote': '',
             'allow_quoted_newlines': True
