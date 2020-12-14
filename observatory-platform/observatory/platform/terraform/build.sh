@@ -25,6 +25,13 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo curl -L "https://storage.googleapis.com/berglas/0.5.0/linux_amd64/berglas" -o /usr/local/bin/berglas
 sudo chmod +x /usr/local/bin/berglas
 
+# Install Google Compute Monitoring agent
+curl -sSO https://dl.google.com/cloudagents/add-monitoring-agent-repo.sh
+sudo bash add-monitoring-agent-repo.sh
+sudo apt-get update
+sudo apt-get install -y 'stackdriver-agent=6.*'
+sudo service stackdriver-agent start
+
 # Make directories
 sudo mkdir -p /opt/airflow/logs
 sudo mkdir /opt/airflow/dags
