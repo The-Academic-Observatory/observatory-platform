@@ -53,7 +53,7 @@ class DoiCountDocTypeModule(MagAnalyserModule):
         @param cache: Analyser cache to use.
         """
 
-        logging.info(f'Initialising {self.name()}')
+        logging.info(f'{self.name()}: initialising.')
         self._project_id = project_id
         self._dataset_id = dataset_id
         self._cache = cache
@@ -68,7 +68,7 @@ class DoiCountDocTypeModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        logging.info(f'Running {self.name()}')
+        logging.info(f'{self.name()}: executing.')
         releases = self._cache[MagCacheKey.RELEASES]
 
         docs = list()
@@ -109,6 +109,7 @@ class DoiCountDocTypeModule(MagAnalyserModule):
         docs = list()
 
         if search_count_by_release(MagDoiCountsDocType, release.isoformat()) > 0:
+            logging.info(f'{self.name()}: release {ts} already in elastic search. Skipping.')
             return docs
 
         counts = self._get_bq_counts(ts)
@@ -128,6 +129,7 @@ class DoiCountDocTypeModule(MagAnalyserModule):
                                       pno_doi=pno_doi)
             docs.append(doc)
 
+        logging.info(f'{self.name()}: release {ts} constructed {len(docs)} documents.')
         return docs
 
     def _get_bq_counts(self, ts: str) -> pd.DataFrame:

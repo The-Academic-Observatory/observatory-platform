@@ -57,7 +57,7 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
         @param cache: Analyser cache to use.
         """
 
-        logging.info(f'Initialising {self.name()}')
+        logging.info(f'{self.name()}: initialising.')
         self._project_id = project_id
         self._dataset_id = dataset_id
         self._cache = cache
@@ -72,13 +72,14 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
         @param kwargs: Unused.
         """
 
-        name = self.name()
-        logging.info(f'Running {name}')
+        logging.info(f'{self.name()}: executing.')
         releases = self._cache[MagCacheKey.RELEASES]
 
         # Maybe increase fd limit later and run in parallel.
         for release in releases:
             if search_count_by_release(MagFosCountPubFieldYear, release.isoformat()) > 0:
+                ts = release.strftime('%Y%m%d')
+                logging.info(f'{self.name()}: release {ts} already in elastic search. Skipping.')
                 continue
 
             docs = self._construct_es_docs(release)
@@ -139,6 +140,7 @@ class FosCountsPubFieldYearModule(MagAnalyserModule):
 
                 docs.append(doc)
 
+        logging.info(f'{self.name()}: release {ts} constructed {len(docs)} documents.')
         return docs
 
     def _get_bq_counts(self, ts: str, fos_ids: Tuple[int], year: int) -> pd.DataFrame:

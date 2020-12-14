@@ -76,6 +76,7 @@ class FosL0ScoreFieldYearMetricsModule(MagAnalyserModule):
 
             # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
             if search_count_by_release(MagFosL0ScoreFieldYearMetricY, release.isoformat()) > 0:
+                logging.info(f'{self.name()}: release {ts} already in elastic search. Skipping.')
                 continue
 
             # Construct elastic search documents for each level 0 field of study id.
@@ -150,4 +151,5 @@ class FosL0ScoreFieldYearMetricsModule(MagAnalyserModule):
         docs.append(ydoc)
         docs.append(rdoc)
 
+        logging.info(f'{self.name()}: release {ts} constructed {len(docs)} documents.')
         return docs

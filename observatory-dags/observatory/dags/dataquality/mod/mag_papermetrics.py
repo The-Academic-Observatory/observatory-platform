@@ -77,6 +77,8 @@ class PaperMetricsModule(MagAnalyserModule):
         for release in releases:
             # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
             if search_count_by_release(MagPapersMetrics, release) > 0:
+                ts = release.strftime('%Y%m%d')
+                logging.info(f'{self.name()}: release {ts} already in elastic search. Skipping.')
                 continue
 
             doc = self._construct_es_docs(release)

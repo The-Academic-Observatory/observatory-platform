@@ -76,6 +76,8 @@ class PaperFieldYearCountModule(MagAnalyserModule):
         for release in releases:
             # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
             if search_count_by_release(MagPapersFieldYearCount, release.isoformat()) > 0:
+                ts = release.strftime('%Y%m%d')
+                logging.info(f'{self.name()}: release {ts} already in elastic search. Skipping.')
                 continue
 
             docs = self._construct_es_docs(release)
@@ -164,6 +166,7 @@ class PaperFieldYearCountModule(MagAnalyserModule):
                                               count=count, delta_pcount=delta_pcount, delta_count=delta_count)
                 docs.append(doc)
 
+        logging.info(f'{self.name()}: release {ts} constructed {len(docs)} documents.')
         return docs
 
     def _get_bq_counts(self, ts: str, fos_id: Tuple[int]) -> pd.DataFrame:
@@ -174,7 +177,7 @@ class PaperFieldYearCountModule(MagAnalyserModule):
         """
 
         sql = self._tpl_count_per_field.render(project_id=self._project_id, dataset_id=self._dataset_id, ts=ts,
-                                               fos_id=fos_id, year=PaperFieldYearCountModule.YEAR_START,
+                                               fos_id=tuple(fos_id), year=PaperFieldYearCountModule.YEAR_START,
                                                count=PaperFieldYearCountModule.BQ_COUNT)
 
         df = pd.read_gbq(sql, project_id=self._project_id, progress_bar_type=None)

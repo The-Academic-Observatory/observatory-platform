@@ -112,6 +112,7 @@ class FosLevelCountModule(MagAnalyserModule):
 
         # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
         if search_count_by_release(MagFosLevelCount, release.isoformat()) > 0:
+            logging.info(f'{self.name()}: release {ts} already in elastic search. Skipping.')
             return docs
 
         counts = self._get_bq_counts(ts)
@@ -125,6 +126,7 @@ class FosLevelCountModule(MagAnalyserModule):
                                    num_citations=counts[FosLevelCountModule.BQ_CIT_COUNT][i])
             docs.append(doc)
 
+        logging.info(f'{self.name()}: release {ts} constructed {len(docs)} documents.')
         return docs
 
     def _get_bq_counts(self, ts: str) -> pd.DataFrame:

@@ -78,6 +78,7 @@ class FieldsOfStudyLevel0Module(MagAnalyserModule):
 
         # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
         if num_releases == self._num_es_metrics and num_releases == self._num_es_counts:
+            logging.info(f'{self.name()}: releases are already in elastic search. Skipping.')
             return
 
         if self._num_es_counts == 0 or self._num_es_metrics == 0:

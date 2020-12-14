@@ -79,6 +79,8 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
         for release in releases:
             # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
             if search_count_by_release(MagFosL0ScoreFieldYear, release.isoformat()) > 0:
+                ts = release.strftime('%Y%m%d')
+                logging.info(f'{self.name()}: release {ts} already in elastic search. Skipping.')
                 continue
 
             docs = self._construct_es_docs(release)
@@ -173,6 +175,7 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
                 key = f'{MagCacheKey.FOSL0_FIELD_YEAR_SCORES}{ts}-{fos_id}-{year}'
                 self._cache[f'{key}'] = histogram
 
+        logging.info(f'{self.name()}: release {ts} constructed {len(docs)} documents.')
         return docs
 
     def _get_bq_counts(self, ts: str, fos_ids: Tuple[int]) -> pd.DataFrame:

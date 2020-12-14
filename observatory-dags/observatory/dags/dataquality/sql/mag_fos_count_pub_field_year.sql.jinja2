@@ -30,7 +30,7 @@ LEFT JOIN
 ON
   paper.PaperId = pfos.PaperId
 WHERE
-  FieldOfStudyId IN {{ fos_ids }}
+  FieldOfStudyId IN {{ fos_id }}
   AND Year >= {{ year }}
 GROUP BY
   FieldOfStudyId,

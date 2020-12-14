@@ -47,6 +47,12 @@ Reports
 
     reports/index
 
+Data profiling / quality
+=========================
+.. toctree::
+    :maxdepth: 2
+
+    dataquality/index
 
 API Reference
 =======================

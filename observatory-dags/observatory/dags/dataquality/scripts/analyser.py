@@ -31,12 +31,11 @@ logging.getLogger().setLevel(logging.INFO)
 
 def init_es_connection():
     """ Elastic search connection details. """
-
     user = ''
     password = ''
     hostname = ''
     port = ''
-    connections.create_connection(hosts=[f'https://{user}:{password}@{hostname}:{port}'], timeout=300)
+    connections.create_connection(hosts=[f'https://{user}:{password}@{hostname}:{port}'], timeout=30000)
 
 
 if __name__ == '__main__':
@@ -45,9 +44,10 @@ if __name__ == '__main__':
     dataset_id = ''
 
     # Google credentials
-    credentials = service_account.Credentials.from_service_account_file('/path/to/key.json')
+    credentials = service_account.Credentials.from_service_account_file(
+        '')
     pandas_gbq.context.credentials = credentials
-    pandas_gbq.context.project = 'project-id'  # Project to make queries from. Could be same as project_id
+    pandas_gbq.context.project = ''  # Project to make queries from. Could be same as project_id
 
     mag = MagAnalyser(project_id, dataset_id)
     mag.run()

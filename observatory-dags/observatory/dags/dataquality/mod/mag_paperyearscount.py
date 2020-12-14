@@ -75,6 +75,8 @@ class PaperYearsCountModule(MagAnalyserModule):
         for i in range(num_releases):
             # If records exist in elastic search, skip.  This is not robust to partial records (past interrupted loads).
             if search_count_by_release(MagPapersYearCount, releases[i]) > 0:
+                ts = releases[i].strftime('%Y%m%d')
+                logging.info(f'{self.name()}: release {ts} already in elastic search. Skipping.')
                 continue
             year, counts = self._get_paper_year_count(releases[i])
 
