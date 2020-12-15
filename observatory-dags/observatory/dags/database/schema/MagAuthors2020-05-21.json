@@ -1,38 +1,47 @@
 [
   {
     "name": "AuthorId", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "PRIMARY KEY: Unique Identifier for an Author"
   }, 
   {
     "name": "Rank", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "The static rank roughly reflects the log probability of an entity being 'important' - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#what-is-the-rank-value-on-entities"
   }, 
   {
     "name": "NormalizedName", 
-    "type": "STRING"
+    "type": "STRING",
+    "description": "Normlaised name of the Author"
   }, 
   {
     "name": "DisplayName", 
-    "type": "STRING"
+    "type": "STRING",
+    "description": "The Displayed name of the Author"
   }, 
   {
     "name": "LastKnownAffiliationId", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "The last known affiliation this author has with an Organisation: REFERENCES Affiliations.AffiliationId"
   }, 
   {
     "name": "PaperCount", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "The number of Papers that have been identified to have authors from this Author"
   },
   {
     "name": "PaperFamilyCount",
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "Same as PaperCount with the following provisions - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#papercount-vs-paperfamilycount"
   },
   {
     "name": "CitationCount", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "The sum of citations for Papers that have been linked to this Author"
   }, 
   {
     "name": "CreatedDate", 
-    "type": "DATETIME"
+    "type": "DATETIME",
+    "description": "The date in which this record was first created"
   }
 ]
