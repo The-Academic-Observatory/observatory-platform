@@ -1,14 +1,17 @@
 [
   {
     "name": "PaperId", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Papers.PaperId"
   }, 
   {
     "name": "PaperReferenceId", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Papers.PaperId"
   }, 
   {
     "name": "CitationContext", 
-    "type": "STRING"
+    "type": "STRING",
+    "description": "The text from where the citation was made"
   }
 ]
