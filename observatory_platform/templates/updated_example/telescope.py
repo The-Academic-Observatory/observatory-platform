@@ -53,10 +53,6 @@ class AbstractTelescope(ABC):
         pass
 
     @abstractmethod
-    def make_dag(self, dag: DAG) -> DAG:
-        pass
-
-    @abstractmethod
     def make_subdag_instance(self, subdag_id: str) -> DAG:
         pass
 
@@ -170,14 +166,14 @@ class Telescope(AbstractTelescope):
                 for subdag_id in self.subdag_ids:
                     subdag = self.make_subdag_instance(subdag_id)
                     task = SubDagOperator(task_id=subdag_id,
-                                          subdag=self.make_dag(subdag))
+                                          subdag=self._make_dag(subdag))
                     subdag_tasks.append(task)
                 tasks.append(subdag_tasks)
             chain(*tasks)
-        self.make_dag(self.dag)
+        self._make_dag(self.dag)
         return self.dag
 
-    def make_dag(self, dag: DAG) -> DAG:
+    def _make_dag(self, dag: DAG) -> DAG:
         check_dependencies_tasks = [self.check_dependencies]
         cleanup_tasks = [self.cleanup]
         if dag.dag_id == self.dag_id and self.subdag_ids:
@@ -219,13 +215,7 @@ class AbstractTelescopeRelease(ABC):
     @staticmethod
     @abstractmethod
     def make_release(telescope, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
-                     first_release: bool) -> 'AbstractTelescopeRelease':
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def make_releases(telescope, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool) -> \
-            List['AbstractTelescopeRelease']:
+                     first_release: bool) -> Union['AbstractTelescopeRelease', List['AbstractTelescopeRelease']]:
         pass
 
     @property
@@ -278,17 +268,8 @@ class AbstractTelescopeRelease(ABC):
 class TelescopeRelease(AbstractTelescopeRelease):
     """ Used to store info on a given release"""
 
-    def __init__(self, dag_id: str, start_date: Union[pendulum.Pendulum, None], end_date: pendulum.Pendulum,
-                 first_release: bool = False):
+    def __init__(self, dag_id: str):
         self.dag_id = dag_id
-        self.start_date = start_date
-        self.end_date = end_date
-        self.release_date = end_date
-        self.first_release = first_release
-
-    @property
-    def date_str(self) -> str:
-        return self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
 
     @property
     def blob_dir(self) -> str:

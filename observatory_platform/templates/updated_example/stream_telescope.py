@@ -15,7 +15,7 @@ from functools import partial
 from observatory_platform.utils.config_utils import check_variables, check_connections, AirflowVar
 from observatory_platform.utils.telescope_utils import bq_load_partition, upload_transformed, bq_delete_old, \
     bq_append_from_partition, bq_append_from_file, cleanup, normalize_schedule_interval, SubFolder, \
-    upload_files_from_dir_to_bucket, upload_files_to_cloud_storage
+    upload_files_to_cloud_storage
 from croniter import croniter
 from observatory_platform.templates.updated_example.telescope import TelescopeRelease, Telescope, AbstractTelescopeRelease
 import os
@@ -28,15 +28,21 @@ class UserFunction(Protocol):
 
 
 class StreamRelease(TelescopeRelease):
-    """ Implement 'make_releases', so developer only has to implement 'make_release' """
-    @staticmethod
-    def make_releases(telescope, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool) -> \
-            List['StreamRelease']:
-        pass
+    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
+                 first_release: bool = False):
+        super().__init__(dag_id)
+        self.dag_id = dag_id
+        self.start_date = start_date
+        self.end_date = end_date
+        self.first_release = first_release
+
+    @property
+    def date_str(self) -> str:
+        return self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
 
 
 class StreamTelescope(Telescope):
-    def __init__(self, release_cls: Type['TelescopeRelease'], dag_id: str, subdag_ids: list, queue: str,
+    def __init__(self, release_cls: Type['StreamRelease'], dag_id: str, subdag_ids: list, queue: str,
                  schedule_interval: str, catchup: bool,
                  start_date: datetime, max_retries: int, description: str, dataset_id: str,
                  schema_version: str, airflow_vars: list, airflow_conns: list, transform_filenames: list,
@@ -119,7 +125,7 @@ class StreamTelescope(Telescope):
 
         ti.xcom_push(self.RELEASE_INFO, (start_date, end_date, first_release))
 
-    def upload_transformed_task(self, release: TelescopeRelease, **kwargs):
+    def upload_transformed_task(self, release: StreamRelease, **kwargs):
         bucket_name = Variable.get(AirflowVar.transform_bucket_name.get())
         upload_blobs = []
         upload_paths = []
@@ -129,7 +135,7 @@ class StreamTelescope(Telescope):
                 upload_paths.append(transform_path)
         upload_files_to_cloud_storage(bucket_name, upload_blobs, upload_paths)
 
-    def bq_load_partition_task(self, release: TelescopeRelease, **kwargs):
+    def bq_load_partition_task(self, release: StreamRelease, **kwargs):
         if release.first_release:
             raise AirflowSkipException('Skipped, because first release')
 
@@ -140,7 +146,7 @@ class StreamTelescope(Telescope):
                 bq_load_partition(release.end_date, transform_blob, self.dataset_id, main_table_id,
                                   partition_table_id, self.schema_version)
 
-    def bq_delete_old_task(self, release: TelescopeRelease, **kwargs):
+    def bq_delete_old_task(self, release: StreamRelease, **kwargs):
         ti: TaskInstance = kwargs['ti']
         if release.first_release:
             # don't use AirflowSkipException, to ensure that task is in 'success' state
@@ -163,7 +169,7 @@ class StreamTelescope(Telescope):
             raise AirflowSkipException(f'Skipped, only delete old records every {self.bq_merge_days} days. '
                                        f'Last append was {(end_date - start_date).days} days ago')
 
-    def bq_append_new_task(self, release: TelescopeRelease, **kwargs):
+    def bq_append_new_task(self, release: StreamRelease, **kwargs):
         ti: TaskInstance = kwargs['ti']
 
         if release.first_release:
@@ -189,5 +195,5 @@ class StreamTelescope(Telescope):
                                        f'{self.bq_merge_days} days. Last append was'
                                        f' {(end_date - start_date).days} days ago')
 
-    def cleanup(self, release: TelescopeRelease, **kwargs):
+    def cleanup(self, release: StreamRelease, **kwargs):
         cleanup(release.extract_dir, release.transform_dir)

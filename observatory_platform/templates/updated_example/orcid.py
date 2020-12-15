@@ -7,6 +7,7 @@ from datetime import timedelta
 import logging
 from airflow.models.taskinstance import TaskInstance
 
+
 class OrcidRelease(StreamRelease):
     def __init__(self, dag_id: str, start_date: Union[pendulum.Pendulum, None], end_date: pendulum.Pendulum,
                  first_release: bool = False):
@@ -43,6 +44,7 @@ def test_callable(something_else: str, **kwargs):
 
 def before_subdag(**kwargs):
     pass
+
 
 # airflow DAG
 orcid_subdags = StreamTelescope(release_cls=OrcidRelease, dag_id='orcid_subdags', subdag_ids=['subdag1', 'subdag2',
