@@ -1,54 +1,67 @@
 [
   {
     "name": "AffiliationId", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "Unique Identifier for an Organisation"
   }, 
   {
     "name": "Rank", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "The static rank roughly reflects the log probability of an entity being 'important' - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#what-is-the-rank-value-on-entities"
   }, 
   {
     "name": "NormalizedName", 
-    "type": "STRING"
+    "type": "STRING",
+    "description": "Normlaised name of the Organisation"
   }, 
   {
     "name": "DisplayName", 
-    "type": "STRING"
+    "type": "STRING",
+    "description": "The Displayed name of the Organisation"
   }, 
   {
     "name": "GridId", 
-    "type": "STRING"
+    "type": "STRING",
+    "description": "The Grid ID of the Organisation"
   }, 
   {
     "name": "OfficialPage", 
-    "type": "STRING"
+    "type": "STRING",
+    "description": "The URL of the Organisations Offical Website"
   }, 
   {
     "name": "WikiPage", 
-    "type": "STRING"
+    "type": "STRING",
+    "description": "The URL of the Wikipedia entry of the Organisation"
   }, 
   {
     "name": "PaperCount", 
-    "type": "INTEGER"
-  }, 
-  {
-    "name": "CitationCount", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "The number of Papers that have been identified to have authors from this Organisation"
   },
   {
     "name": "PaperFamilyCount",
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "Same as PaperCount with the following provisions - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#papercount-vs-paperfamilycount"
+  }, 
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER",
+    "description": "The sum of citations for Papers that have been linked to this Organisation"
   },
   {
     "name": "Latitude", 
-    "type": "FLOAT"
+    "type": "FLOAT",
+    "description": "The Latitute of the Organisation"
   }, 
   {
     "name": "Longitude", 
-    "type": "FLOAT"
+    "type": "FLOAT",
+    "description": "The Longitude of the Organisation"
   }, 
   {
     "name": "CreatedDate", 
-    "type": "DATETIME"
+    "type": "DATETIME",
+    "description": "The date in which this record was first created"
   }
 ]
