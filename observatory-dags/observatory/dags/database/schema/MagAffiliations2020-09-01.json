@@ -2,7 +2,7 @@
   {
     "name": "AffiliationId", 
     "type": "INTEGER",
-    "description": "Unique Identifier for an Organisation"
+    "description": "PRIMARY KEY: Unique Identifier for an Organisation"
   }, 
   {
     "name": "Rank", 
