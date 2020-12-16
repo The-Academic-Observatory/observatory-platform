@@ -57,7 +57,7 @@
   {
     "name": "Latitude", 
     "type": "FLOAT",
-    "description": "The Latitute of the Organisation"
+    "description": "The Latitude of the Organisation"
   }, 
   {
     "name": "Longitude", 
