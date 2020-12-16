@@ -77,7 +77,7 @@
   {
     "name": "Latitude", 
     "type": "FLOAT",
-    "description": "The Latitute of the Conference Instance"
+    "description": "The Latitude of the Conference Instance"
   }, 
   {
     "name": "Longitude", 
