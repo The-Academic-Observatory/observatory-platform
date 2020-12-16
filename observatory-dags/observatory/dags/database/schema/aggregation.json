@@ -1,0 +1,2140 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "id",
+    "type": "STRING",
+    "description": ""
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "types",
+    "type": "STRING",
+    "description": ""
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "name",
+    "type": "STRING",
+    "description": ""
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "country",
+    "type": "STRING",
+    "description": ""
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "country_code",
+    "type": "STRING",
+    "description": ""
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "region",
+    "type": "STRING",
+    "description": ""
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "subregion",
+    "type": "STRING",
+    "description": ""
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "coordinates",
+    "type": "STRING",
+    "description": ""
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "time_period",
+    "type": "INTEGER",
+    "description": ""
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "total_outputs",
+    "type": "INTEGER",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "output_type",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "total_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_oa_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_just_doaj_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_hybrid_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_bronze_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_only_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_mag_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "total_open_citations_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "total_crossref_citations",
+            "type": "INTEGER",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "citations",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "output_types",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "citations_per_output",
+            "type": "FLOAT",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "outputs_with_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "outputs_without_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "citations_per_cited_output",
+            "type": "FLOAT",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "mag",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "citations_per_output",
+            "type": "FLOAT",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "outputs_with_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "outputs_without_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "citations_per_cited_output",
+            "type": "FLOAT",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "crossref",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "citations_per_output",
+            "type": "FLOAT",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "output_with_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "outputs_without_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "citations_per_cited_output",
+            "type": "FLOAT",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "open_citations",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "citations",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "percent",
+            "type": "FLOAT",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "oa",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "percent",
+            "type": "FLOAT",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "green",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "percent",
+            "type": "FLOAT",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "gold",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "percent",
+            "type": "FLOAT",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "gold_doaj",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "percent",
+            "type": "FLOAT",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "hybrid",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "percent",
+            "type": "FLOAT",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "bronze",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "total_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "percent",
+            "type": "FLOAT",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "green_only",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "label",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "access_type",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "status",
+            "type": "BOOLEAN",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "total_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "outputs_with_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "outputs_without_citations",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "total_citations",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_25th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "median",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_90th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_95th",
+                        "type": "FLOAT",
+                        "description": ""
+                      }
+                    ],
+                    "mode": "NULLABLE",
+                    "name": "percentiles",
+                    "type": "RECORD",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "mag",
+                "type": "RECORD",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "total_citations",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_25th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "median",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_90th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_95th",
+                        "type": "FLOAT",
+                        "description": ""
+                      }
+                    ],
+                    "mode": "NULLABLE",
+                    "name": "percentiles",
+                    "type": "RECORD",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "open_citations",
+                "type": "RECORD",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "total_citations",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_25th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "median",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_90th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_95th",
+                        "type": "FLOAT",
+                        "description": ""
+                      }
+                    ],
+                    "mode": "NULLABLE",
+                    "name": "percentiles",
+                    "type": "RECORD",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "crossref",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "citations",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "breakdown",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "access_types",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "field",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "total_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "sum_of_scores",
+            "type": "FLOAT",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "total_citations",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_25th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "median",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_90th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_95th",
+                        "type": "FLOAT",
+                        "description": ""
+                      }
+                    ],
+                    "mode": "NULLABLE",
+                    "name": "percentiles",
+                    "type": "RECORD",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "mag",
+                "type": "RECORD",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "total_citations",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_25th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "median",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_90th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_95th",
+                        "type": "FLOAT",
+                        "description": ""
+                      }
+                    ],
+                    "mode": "NULLABLE",
+                    "name": "percentiles",
+                    "type": "RECORD",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "open_citations",
+                "type": "RECORD",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "total_citations",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_25th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "median",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_90th",
+                        "type": "FLOAT",
+                        "description": ""
+                      },
+                      {
+                        "mode": "NULLABLE",
+                        "name": "per_95th",
+                        "type": "FLOAT",
+                        "description": ""
+                      }
+                    ],
+                    "mode": "NULLABLE",
+                    "name": "percentiles",
+                    "type": "RECORD",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "crossref",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "citations",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "num_oa_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "num_green_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "num_gold_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "num_gold_just_doaj_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "num_hybrid_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "num_bronze_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "num_green_only_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_funded_outputs",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "num_international_outputs",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "num_domestic_outputs",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "num_international_and_domestic_outputs",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "num_government_outputs",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "num_private_outputs",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "num_government_and_private_outputs",
+                "type": "INTEGER",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "funding",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "num_international_collaboration_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "international_collaboration_with_funding_outputs",
+            "type": "INTEGER",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "level0",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "disciplines",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "id",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "total_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "country",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "country_code",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "region",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "subregion",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "coordinates",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_oa_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_just_doaj_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_hybrid_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_bronze_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_only_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "mag",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "open_citations",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "crossref",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "citations",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "field",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "total_outputs",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "sum_of_scores",
+            "type": "FLOAT",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "mag",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "crosssref",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "open_citations",
+                "type": "INTEGER",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "citations",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "disciplines",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "collaborations",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "member",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "total_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_oa_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_just_doaj_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_hybrid_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_bronze_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_only_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "mag",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "open_citations",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "crossref",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "citations",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "members",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "identifier",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "country",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "country_code",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "funding_body_type",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "funding_body_subtype",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "total_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_oa_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_just_doaj_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_hybrid_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_bronze_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_only_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "mag",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "open_citations",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "crossref",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "citations",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "funders",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "total_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "domentic",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "international",
+        "type": "INTEGER",
+        "description": ""
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "funding_source",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "publisher",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "total_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_oa_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_just_doaj_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_hybrid_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_bronze_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_only_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "mag",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "open_citations",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "crossref",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "citations",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "publishers",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "journal",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "total_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_oa_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_just_doaj_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_hybrid_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_bronze_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_only_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "mag",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "open_citations",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "total_citations",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_25th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "median",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_90th",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "per_95th",
+                    "type": "FLOAT",
+                    "description": ""
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "percentiles",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "crossref",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "citations",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "journals",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "source",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "total_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_oa_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_gold_just_doaj_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_hybrid_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_bronze_outputs",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "num_green_only_outputs",
+        "type": "INTEGER",
+        "description": ""
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "events",
+    "type": "RECORD",
+    "description": ""
+  }
+]
