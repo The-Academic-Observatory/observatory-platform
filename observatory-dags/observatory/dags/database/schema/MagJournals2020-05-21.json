@@ -12,7 +12,7 @@
   {
     "name": "NormalizedName", 
     "type": "STRING",
-    "description": "Normlaised name of the Journal"
+    "description": "Normalised name of the Journal"
   }, 
   {
     "name": "DisplayName", 
