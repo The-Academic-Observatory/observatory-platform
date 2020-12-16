@@ -29,23 +29,43 @@ def on_failure_callback(kwargs):
 
 class AbstractTelescope(ABC):
     @abstractmethod
-    def add_before_subdag_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+    def add_before_subdag_task(self, func: Callable):
         pass
 
     @abstractmethod
-    def add_release_info_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+    def add_before_subdag_chain(self, funcs: List[Callable]):
         pass
 
     @abstractmethod
-    def add_extract_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+    def add_release_info_task(self, func: Callable):
         pass
 
     @abstractmethod
-    def add_transform_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+    def add_release_info_chain(self, funcs: List[Callable]):
         pass
 
     @abstractmethod
-    def add_load_chain(self, funcs: Union[Callable, List[Callable]], append=True):
+    def add_extract_task(self, func: Callable):
+        pass
+
+    @abstractmethod
+    def add_extract_chain(self, funcs: List[Callable]):
+        pass
+
+    @abstractmethod
+    def add_transform_task(self, func: Callable):
+        pass
+
+    @abstractmethod
+    def add_transform_chain(self, funcs: List[Callable]):
+        pass
+
+    @abstractmethod
+    def add_load_task(self, func: Callable):
+        pass
+
+    @abstractmethod
+    def add_load_chain(self, funcs: List[Callable]):
         pass
 
     @abstractmethod
@@ -56,7 +76,7 @@ class AbstractTelescope(ABC):
     def make_subdag_instance(self, subdag_id: str) -> DAG:
         pass
 
-    def make_dags(self) -> DAG:
+    def make_dag(self) -> DAG:
         pass
 
     @abstractmethod
@@ -101,32 +121,43 @@ class Telescope(AbstractTelescope):
         self.dag = DAG(dag_id=self.dag_id, schedule_interval=self.schedule_interval, default_args=self.default_args,
                        catchup=self.catchup, max_active_runs=1, doc_md=self.__doc__)
 
-    def add_tasks(self, funcs, dag_ids, append, tasks_dictionary):
+    def _add_tasks_to_dict(self, funcs: Union[Callable, List[Callable]], tasks_dictionary):
+        dag_ids = self.subdag_ids
+        if tasks_dictionary == self.before_subdag_tasks:
+            dag_ids = self.dag_id
         funcs = funcs if isinstance(funcs, list) else [funcs]
-        dag_ids = dag_ids if dag_ids else [self.dag_id]
         for dag_id in dag_ids:
-            if append:
-                tasks_dictionary[dag_id] = tasks_dictionary[dag_id] + funcs
-            else:
-                tasks_dictionary[dag_id] = funcs + tasks_dictionary[dag_id]
+            tasks_dictionary[dag_id] = tasks_dictionary[dag_id] + funcs
 
-    def add_before_subdag_chain(self, funcs: Union[Callable, List[Callable]], append=True):
-        dag_ids = [self.dag_id]
-        self.add_tasks(funcs, dag_ids, append, self.before_subdag_tasks)
+    def add_before_subdag_task(self, func: Callable):
+        self._add_tasks_to_dict(func, self.before_subdag_tasks)
 
-    def add_release_info_chain(self, funcs: Union[Callable, List[Callable]], dag_ids: Union[None, list] = None,
-                               append=True):
-        self.add_tasks(funcs, dag_ids, append, self.release_info_tasks)
+    def add_before_subdag_chain(self, funcs: List[Callable]):
+        self._add_tasks_to_dict(funcs, self.before_subdag_tasks)
 
-    def add_extract_chain(self, funcs: Union[Callable, List[Callable]], dag_ids: Union[None, list] = None, append=True):
-        self.add_tasks(funcs, dag_ids, append, self.extract_tasks)
+    def add_release_info_task(self, func: Callable):
+        self._add_tasks_to_dict(func, self.release_info_tasks)
 
-    def add_transform_chain(self, funcs: Union[Callable, List[Callable]], dag_ids: Union[None, list] = None,
-                            append=True):
-        self.add_tasks(funcs, dag_ids, append, self.transform_tasks)
+    def add_release_info_chain(self, funcs: List[Callable]):
+        self._add_tasks_to_dict(funcs, self.release_info_tasks)
 
-    def add_load_chain(self, funcs: Union[Callable, List[Callable]], dag_ids: Union[None, list] = None, append=True):
-        self.add_tasks(funcs, dag_ids, append, self.load_tasks)
+    def add_extract_task(self, func: Callable):
+        self._add_tasks_to_dict(func, self.extract_tasks)
+
+    def add_extract_chain(self, funcs: List[Callable]):
+        self._add_tasks_to_dict(funcs, self.extract_tasks)
+
+    def add_transform_task(self, func: Callable):
+        self._add_tasks_to_dict(func, self.transform_tasks)
+
+    def add_transform_chain(self, funcs: List[Callable]):
+        self._add_tasks_to_dict(funcs, self.transform_tasks)
+
+    def add_load_task(self, func: Callable):
+        self._add_tasks_to_dict(func, self.load_tasks)
+
+    def add_load_chain(self, funcs: List[Callable]):
+        self._add_tasks_to_dict(funcs, self.load_tasks)
 
     def check_dependencies(self, **kwargs):
         """ Checks the 'telescope' attributes, airflow variables & connections and possibly additional custom checks.
@@ -150,7 +181,7 @@ class Telescope(AbstractTelescope):
                      default_args=self.default_args)
         return subdag
 
-    def make_dags(self) -> DAG:
+    def make_dag(self) -> DAG:
         tasks = []
         with self.dag:
             for func in self.before_subdag_tasks[self.dag_id]:
@@ -166,14 +197,14 @@ class Telescope(AbstractTelescope):
                 for subdag_id in self.subdag_ids:
                     subdag = self.make_subdag_instance(subdag_id)
                     task = SubDagOperator(task_id=subdag_id,
-                                          subdag=self._make_dag(subdag))
+                                          subdag=self._attach_tasks_to_dag(subdag))
                     subdag_tasks.append(task)
                 tasks.append(subdag_tasks)
             chain(*tasks)
-        self._make_dag(self.dag)
+        self._attach_tasks_to_dag(self.dag)
         return self.dag
 
-    def _make_dag(self, dag: DAG) -> DAG:
+    def _attach_tasks_to_dag(self, dag: DAG) -> DAG:
         check_dependencies_tasks = [self.check_dependencies]
         cleanup_tasks = [self.cleanup]
         if dag.dag_id == self.dag_id and self.subdag_ids:
@@ -212,11 +243,10 @@ class Telescope(AbstractTelescope):
 
 
 class AbstractTelescopeRelease(ABC):
-    @staticmethod
-    @abstractmethod
-    def make_release(telescope, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
-                     first_release: bool) -> Union['AbstractTelescopeRelease', List['AbstractTelescopeRelease']]:
-        pass
+    # @staticmethod
+    # @abstractmethod
+    # def make_release(telescope) -> Union['AbstractTelescopeRelease', List['AbstractTelescopeRelease']]:
+    #     pass
 
     @property
     @abstractmethod

@@ -16,7 +16,6 @@ from observatory_platform.utils.config_utils import check_variables, check_conne
 from observatory_platform.utils.telescope_utils import bq_load_partition, upload_transformed, bq_delete_old, \
     bq_append_from_partition, bq_append_from_file, cleanup, normalize_schedule_interval, SubFolder, \
     upload_files_to_cloud_storage
-from croniter import croniter
 from observatory_platform.templates.updated_example.telescope import TelescopeRelease, Telescope, AbstractTelescopeRelease
 import os
 from typing_extensions import Protocol
@@ -31,7 +30,6 @@ class StreamRelease(TelescopeRelease):
     def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
                  first_release: bool = False):
         super().__init__(dag_id)
-        self.dag_id = dag_id
         self.start_date = start_date
         self.end_date = end_date
         self.first_release = first_release
@@ -39,6 +37,12 @@ class StreamRelease(TelescopeRelease):
     @property
     def date_str(self) -> str:
         return self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
+
+    @staticmethod
+    @abstractmethod
+    def make_release(telescope, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool) -> \
+            'StreamRelease':
+        pass
 
 
 class StreamTelescope(Telescope):
@@ -63,11 +67,6 @@ class StreamTelescope(Telescope):
             #TODO raise some kind of error
             pass
         self.bq_merge_days = bq_merge_days
-
-        self.add_release_info_chain(self.get_release_info, self.subdag_ids)
-        self.add_transform_chain(self.upload_transformed_task, self.subdag_ids)
-        self.add_load_chain(self.make_operators([self.bq_load_partition_task, self.bq_delete_old_task,
-                                                self.bq_append_new_task]), self.subdag_ids)
 
     @staticmethod
     def create_table_ids_from_blob(transform_blob) -> Tuple[str, str]:
