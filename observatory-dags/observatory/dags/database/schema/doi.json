@@ -1,0 +1,2052 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "doi",
+    "type": "STRING",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "REPEATED",
+        "name": "title",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "abstract",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "published_year",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "published_month",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "published_year_month",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "type",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "REPEATED",
+        "name": "ISSN",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "REPEATED",
+        "name": "ISBN",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "issn_type",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "publisher_location",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "publisher",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "REPEATED",
+        "name": "container_title",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "references_count",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "REPEATED",
+        "name": "alternative_id",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "REPEATED",
+        "name": "subject",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "REPEATED",
+            "name": "date_parts",
+            "type": "INTEGER",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "published_print",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "content_version",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "delay_in_days",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "timestamp",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "date_time",
+                "type": "STRING",
+                "description": ""
+              },
+              {
+                "mode": "REPEATED",
+                "name": "date_parts",
+                "type": "INTEGER",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "start",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "URL",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "license",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "volume",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "DOI",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "doi_asserted_by",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "award",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "funder",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_referenced_by_count",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "page",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "name",
+                "type": "STRING",
+                "description": ""
+              }
+            ],
+            "mode": "REPEATED",
+            "name": "affiliation",
+            "type": "RECORD",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "family",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "given",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "suffix",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "ORCID",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "authenticated_orcid",
+            "type": "BOOLEAN",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "author",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "crossref",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "doi",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "year",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "output_type",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "publisher",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "journal_name",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_oa",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_in_doaj",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "has_license",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_cclicensed",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "has_specified_license",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "gold_just_doaj",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "gold",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "hybrid",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "green",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "green_only",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "green_only_ingnoring_bronze",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "bronze",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "REPEATED",
+        "name": "repository_locations",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_landing_page",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_pdf",
+        "type": "STRING",
+        "description": ""
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "unpaywall",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "unpaywall_release",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "doi",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "year",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "output_type",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "publisher",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "journal_name",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_oa",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_in_doaj",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "has_license",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_cclicensed",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "has_specified_license",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "gold_just_doaj",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "gold",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "hybrid",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "green",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "green_only",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "green_only_ingnoring_bronze",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "bronze",
+        "type": "BOOLEAN",
+        "description": ""
+      },
+      {
+        "mode": "REPEATED",
+        "name": "repository_locations",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_landing_page",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_pdf",
+        "type": "STRING",
+        "description": ""
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "unpaywall_history",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "PaperId",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Rank",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Doi",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "DocType",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "PaperTitle",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "OriginalTitle",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "BookTitle",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Year",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Date",
+        "type": "DATETIME",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "OnlineDate",
+        "type": "DATETIME",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Publisher",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "JournalId",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ConferenceSeriesId",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ConferenceInstanceId",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Volume",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Issue",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "FirstPage",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LastPage",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ReferenceCount",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "CitationCount",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "EstimatedCitation",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "OriginalVenue",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "FamilyId",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "FamilyRank",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "CreatedDate",
+        "type": "DATETIME",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "abstract",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "PaperId",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "DisplayName",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "FieldOfStudyId",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Rank",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "MainType",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Score",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeType",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeValue",
+                    "type": "STRING",
+                    "description": ""
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "level_0",
+                "type": "RECORD",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "DisplayName",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "FieldOfStudyId",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Rank",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "MainType",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Score",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeType",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeValue",
+                    "type": "STRING",
+                    "description": ""
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "level_1",
+                "type": "RECORD",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "DisplayName",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "FieldOfStudyId",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Rank",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "MainType",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Score",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeType",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeValue",
+                    "type": "STRING",
+                    "description": ""
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "level_2",
+                "type": "RECORD",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "DisplayName",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "FieldOfStudyId",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Rank",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "MainType",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Score",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeType",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeValue",
+                    "type": "STRING",
+                    "description": ""
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "level_3",
+                "type": "RECORD",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "DisplayName",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "FieldOfStudyId",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Rank",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "MainType",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Score",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeType",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeValue",
+                    "type": "STRING",
+                    "description": ""
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "level_4",
+                "type": "RECORD",
+                "description": ""
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "DisplayName",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "FieldOfStudyId",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Rank",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "MainType",
+                    "type": "STRING",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Score",
+                    "type": "FLOAT",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeType",
+                    "type": "INTEGER",
+                    "description": ""
+                  },
+                  {
+                    "mode": "NULLABLE",
+                    "name": "AttributeValue",
+                    "type": "STRING",
+                    "description": ""
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "level_5",
+                "type": "RECORD",
+                "description": ""
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "fields",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "fields",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "PaperId",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "AuthorSequenceNumber",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "AuthorID",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "OriginalAuthor",
+                "type": "STRING",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "AffiliationId",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "OriginalAffiliation",
+                "type": "STRING",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "GridId",
+                "type": "STRING",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "DisplayName",
+                "type": "STRING",
+                "description": ""
+              }
+            ],
+            "mode": "REPEATED",
+            "name": "authors",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "authors",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "PaperId",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "AttributeType",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "AttributeValue",
+                "type": "STRING",
+                "description": ""
+              }
+            ],
+            "mode": "REPEATED",
+            "name": "attributes",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "extended",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "PaperId",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "ResourceType",
+                "type": "INTEGER",
+                "description": ""
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "ResourceUrl",
+                "type": "STRING",
+                "description": ""
+              }
+            ],
+            "mode": "REPEATED",
+            "name": "resources",
+            "type": "RECORD",
+            "description": ""
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "resources",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "mode": "REPEATED",
+        "name": "grids",
+        "type": "STRING",
+        "description": ""
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "mag",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "doi",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "citations_total",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "citations_before_publication",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "citations_one_year",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "citations_two_years",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "citations_five_years",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "journal_sc_total",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "journal_sc_before_publication",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "journal_sc_one_year",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "journal_sc_two_years",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "journal_sc_five_years",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "author_sc_total",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "author_sc_before_publication",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "author_sc_one_year",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "author_sc_two_years",
+        "type": "INTEGER",
+        "description": ""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "author_sc_five_years",
+        "type": "INTEGER",
+        "description": ""
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "open_citations",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "doi",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "source",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "count",
+            "type": "INTEGER",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "events",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "events",
+    "type": "RECORD",
+    "description": ""
+  },
+  {
+    "mode": "REPEATED",
+    "name": "grids",
+    "type": "STRING",
+    "description": ""
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "doi",
+        "type": "STRING",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "identifier",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "types",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "home_repo",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code_2",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "region",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "subregion",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "coordinates",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "members",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "institutions",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "identifier",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "types",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "home_repo",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code_2",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "region",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "subregion",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "coordinates",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "count",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "members",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "countries",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "identifier",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "types",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "home_repo",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code_2",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "region",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "subregion",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "coordinates",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "count",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "members",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "subregions",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "identifier",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "types",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "home_repo",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code_2",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "region",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "subregion",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "coordinates",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "count",
+            "type": "INTEGER",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "members",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "regions",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "identifier",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "types",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "home_repo",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code_2",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "region",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "subregion",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "coordinates",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "members",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "groupings",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "identifier",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "doi",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "types",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "home_repo",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code_2",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "region",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "subregion",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "coordinates",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "funding_body_type",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "funding_body_subtype",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "members",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "funders",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "identifier",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "given_names",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "family_name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "types",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "home_repo",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code_2",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "region",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "subregion",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "coordinates",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "members",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "authors",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "identifier",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "types",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "home_repo",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code_2",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "region",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "subregion",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "coordinates",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "members",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "journals",
+        "type": "RECORD",
+        "description": ""
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "identifier",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "types",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "home_repo",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "country_code_2",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "region",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "subregion",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "coordinates",
+            "type": "STRING",
+            "description": ""
+          },
+          {
+            "mode": "REPEATED",
+            "name": "members",
+            "type": "STRING",
+            "description": ""
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "publishers",
+        "type": "RECORD",
+        "description": ""
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "affiliations",
+    "type": "RECORD",
+    "description": ""
+  }
+]
