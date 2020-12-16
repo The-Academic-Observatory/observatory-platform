@@ -12,7 +12,7 @@
   {
     "name": "NormalizedName", 
     "type": "STRING",
-    "description": "Normlaised name of the Author"
+    "description": "Normalised name of the Author"
   }, 
   {
     "name": "DisplayName", 
