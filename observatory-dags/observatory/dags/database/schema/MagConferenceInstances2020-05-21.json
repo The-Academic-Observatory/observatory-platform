@@ -42,7 +42,7 @@
   {
     "name": "AbstractRegistrationDate", 
     "type": "DATETIME",
-    "description": "The Astract registration date for this Conference Instance"
+    "description": "The Abstract registration date for this Conference Instance"
   }, 
   {
     "name": "SubmissionDeadlineDate", 
