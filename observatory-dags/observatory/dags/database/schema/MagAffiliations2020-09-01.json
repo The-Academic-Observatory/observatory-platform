@@ -12,7 +12,7 @@
   {
     "name": "NormalizedName", 
     "type": "STRING",
-    "description": "Normlaised name of the Organisation"
+    "description": "Normalised name of the Organisation"
   }, 
   {
     "name": "DisplayName", 
