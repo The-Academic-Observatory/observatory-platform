@@ -7,7 +7,7 @@
   {
     "name": "NormalizedName", 
     "type": "STRING",
-    "description": "Normlaised name of the Conference"
+    "description": "Normalised name of the Conference"
   }, 
   {
     "name": "DisplayName", 
