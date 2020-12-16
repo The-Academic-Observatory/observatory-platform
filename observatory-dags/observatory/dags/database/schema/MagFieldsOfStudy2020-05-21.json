@@ -12,7 +12,7 @@
   {
     "name": "NormalizedName", 
     "type": "STRING",
-    "description": "Normlaised name of the Field of Study"
+    "description": "Normalised name of the Field of Study"
   }, 
   {
     "name": "DisplayName", 
