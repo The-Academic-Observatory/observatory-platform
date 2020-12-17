@@ -43,7 +43,7 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
     """
 
     YEAR_START = 2000  # The year to start calculating records for.
-    BUCKET_START = 0.01  # Starting endpoint for histogram intervals, e.g., first interval is [0, 0.01], then it's 0.01
+    BUCKET_START = 0.00  # Starting endpoint for histogram intervals, e.g., first interval is [0, 0.01], then it's 0.01
     BUCKET_END = 1.0  # Last endpoint for histogram intervals, e.g., last interval is [0.99, 1.0], then it's 1.0
     BUCKET_STEP = 0.01  # Width of each interval
 
@@ -187,7 +187,7 @@ class FosL0ScoreFieldYearModule(MagAnalyserModule):
         """
 
         sql = self._tpl_histogram.render(project_id=self._project_id, dataset_id=self._dataset_id, ts=ts,
-                                         fos_ids=fos_ids, year=FosL0ScoreFieldYearModule.YEAR_START,
+                                         fos_ids=tuple(fos_ids), year=FosL0ScoreFieldYearModule.YEAR_START,
                                          count=FosL0ScoreFieldYearModule.BQ_COUNT,
                                          bucket=FosL0ScoreFieldYearModule.BQ_BUCKET,
                                          bstart=FosL0ScoreFieldYearModule.BUCKET_START + FosL0ScoreFieldYearModule.BUCKET_STEP,
