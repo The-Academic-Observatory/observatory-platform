@@ -8,12 +8,12 @@ from airflow.exceptions import AirflowException
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.helpers import chain
-import pendulum
 import logging
 import datetime
 from typing import Callable, Type, List, Any
 from functools import partial
 from observatory_platform.utils.config_utils import check_variables, check_connections
+from observatory_platform.utils.telescope_utils import on_failure_callback
 from typing_extensions import Protocol
 from collections import defaultdict
 import functools
@@ -23,25 +23,21 @@ class UserFunction(Protocol):
     def __call__(self, release: 'AbstractTelescopeRelease', **kwargs: Any) -> Any: ...
 
 
-def on_failure_callback(kwargs):
-    logging.info("ON FAILURE CALLBACK")
-
-
 class AbstractTelescope(ABC):
     @abstractmethod
-    def add_before_subdag_task(self, func: Callable):
+    def add_setup_task(self, func: Callable):
         pass
 
     @abstractmethod
-    def add_before_subdag_chain(self, funcs: List[Callable]):
+    def add_setup_chain(self, funcs: List[Callable]):
         pass
 
     @abstractmethod
-    def add_release_info_task(self, func: Callable):
+    def add_download_task(self, func: Callable):
         pass
 
     @abstractmethod
-    def add_release_info_chain(self, funcs: List[Callable]):
+    def add_download_chain(self, funcs: List[Callable]):
         pass
 
     @abstractmethod
@@ -107,11 +103,12 @@ class Telescope(AbstractTelescope):
         self.airflow_vars = airflow_vars
         self.airflow_conns = airflow_conns
 
-        self.before_subdag_tasks = defaultdict(list)
-        self.release_info_tasks = defaultdict(list)
+        self.setup_tasks = defaultdict(list)
+        self.download_tasks = defaultdict(list)
         self.extract_tasks = defaultdict(list)
         self.transform_tasks = defaultdict(list)
         self.load_tasks = defaultdict(list)
+        self.cleanup_tasks = defaultdict(list)
 
         self.default_args = {
             "owner": "airflow",
@@ -122,24 +119,22 @@ class Telescope(AbstractTelescope):
                        catchup=self.catchup, max_active_runs=1, doc_md=self.__doc__)
 
     def _add_tasks_to_dict(self, funcs: Union[Callable, List[Callable]], tasks_dictionary):
-        dag_ids = self.subdag_ids
-        if tasks_dictionary == self.before_subdag_tasks:
-            dag_ids = self.dag_id
+        dag_ids = self.subdag_ids if self.subdag_ids else [self.dag_id]
         funcs = funcs if isinstance(funcs, list) else [funcs]
         for dag_id in dag_ids:
             tasks_dictionary[dag_id] = tasks_dictionary[dag_id] + funcs
 
-    def add_before_subdag_task(self, func: Callable):
-        self._add_tasks_to_dict(func, self.before_subdag_tasks)
+    def add_setup_task(self, func: Callable):
+        self._add_tasks_to_dict(func, self.setup_tasks)
 
-    def add_before_subdag_chain(self, funcs: List[Callable]):
-        self._add_tasks_to_dict(funcs, self.before_subdag_tasks)
+    def add_setup_chain(self, funcs: List[Callable]):
+        self._add_tasks_to_dict(funcs, self.setup_tasks)
 
-    def add_release_info_task(self, func: Callable):
-        self._add_tasks_to_dict(func, self.release_info_tasks)
+    def add_download_task(self, func: Callable):
+        self._add_tasks_to_dict(func, self.download_tasks)
 
-    def add_release_info_chain(self, funcs: List[Callable]):
-        self._add_tasks_to_dict(funcs, self.release_info_tasks)
+    def add_download_chain(self, funcs: List[Callable]):
+        self._add_tasks_to_dict(funcs, self.download_tasks)
 
     def add_extract_task(self, func: Callable):
         self._add_tasks_to_dict(func, self.extract_tasks)
@@ -158,6 +153,12 @@ class Telescope(AbstractTelescope):
 
     def add_load_chain(self, funcs: List[Callable]):
         self._add_tasks_to_dict(funcs, self.load_tasks)
+
+    def add_cleanup_task(self, func: Callable):
+        self._add_tasks_to_dict(func, self.cleanup_tasks)
+
+    def add_cleanup_chain(self, funcs: List[Callable]):
+        self._add_tasks_to_dict(funcs, self.cleanup_tasks)
 
     def check_dependencies(self, **kwargs):
         """ Checks the 'telescope' attributes, airflow variables & connections and possibly additional custom checks.
@@ -184,14 +185,6 @@ class Telescope(AbstractTelescope):
     def make_dag(self) -> DAG:
         tasks = []
         with self.dag:
-            for func in self.before_subdag_tasks[self.dag_id]:
-                if isinstance(func, functools.partial):
-                    task = func()
-                else:
-                    task = PythonOperator(task_id=func.__name__, provide_context=True, python_callable=func,
-                                          queue=self.queue)
-                tasks.append(task)
-
             if self.subdag_ids:
                 subdag_tasks = []
                 for subdag_id in self.subdag_ids:
@@ -205,13 +198,7 @@ class Telescope(AbstractTelescope):
         return self.dag
 
     def _attach_tasks_to_dag(self, dag: DAG) -> DAG:
-        check_dependencies_tasks = [self.check_dependencies]
-        cleanup_tasks = [self.cleanup]
-        if dag.dag_id == self.dag_id and self.subdag_ids:
-            dag_id = self.dag_id
-            check_dependencies_tasks = []
-            cleanup_tasks = []
-        elif dag.dag_id == self.dag_id:
+        if dag.dag_id == self.dag_id:
             dag_id = self.dag_id
         else:
             dag_id = dag.dag_id[len(f"{self.dag_id}."):]
@@ -219,7 +206,7 @@ class Telescope(AbstractTelescope):
         tasks = []
         with dag:
             # split tasks based on whether they require 'release' instance as param in python callable
-            for func in check_dependencies_tasks + self.release_info_tasks[dag_id]:
+            for func in self.setup_tasks[dag_id]:
                 if isinstance(func, functools.partial):
                     task = func()
                 else:
@@ -227,7 +214,8 @@ class Telescope(AbstractTelescope):
                                           queue=self.queue, default_args=self.default_args)
                 tasks.append(task)
 
-            for func in self.extract_tasks[dag_id] + self.transform_tasks[dag_id] + self.load_tasks[dag_id] + cleanup_tasks:
+            for func in self.extract_tasks[dag_id] + self.transform_tasks[dag_id] + self.load_tasks[dag_id] + \
+                        self.cleanup_tasks[dag_id]:
                 if isinstance(func, functools.partial):
                     task = func()
                 else:
@@ -243,39 +231,14 @@ class Telescope(AbstractTelescope):
 
 
 class AbstractTelescopeRelease(ABC):
-    # @staticmethod
-    # @abstractmethod
-    # def make_release(telescope) -> Union['AbstractTelescopeRelease', List['AbstractTelescopeRelease']]:
-    #     pass
-
     @property
     @abstractmethod
     def date_str(self) -> str:
         pass
 
-    @property
+    @staticmethod
     @abstractmethod
-    def blob_dir(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def extract_dir(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def extract_paths(self) -> list:
-        pass
-
-    @property
-    @abstractmethod
-    def transform_paths(self) -> list:
-        pass
-
-    @property
-    @abstractmethod
-    def transform_dir(self) -> str:
+    def make_release(**kwargs) -> 'AbstractTelescopeRelease':
         pass
 
     @abstractmethod
@@ -306,12 +269,24 @@ class TelescopeRelease(AbstractTelescopeRelease):
         return f'telescopes/{self.dag_id}'
 
     @property
+    def download_dir(self) -> str:
+        return self.subdir(SubFolder.downloaded)
+
+    @property
     def extract_dir(self) -> str:
         return self.subdir(SubFolder.extracted)
 
     @property
     def transform_dir(self) -> str:
         return self.subdir(SubFolder.transformed)
+
+    @property
+    def download_paths(self) -> list:
+        download_paths = []
+        for root, dirs, files in os.walk(self.download_dir):
+            for file in files:
+                download_paths.append(os.path.join(root, file))
+        return download_paths
 
     @property
     def extract_paths(self) -> list:

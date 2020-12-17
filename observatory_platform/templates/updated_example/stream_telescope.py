@@ -1,21 +1,16 @@
-from abc import ABC, abstractmethod
-from airflow import DAG
 from airflow.models.variable import Variable
-from airflow.exceptions import AirflowSkipException, AirflowException
-from airflow.models.baseoperator import BaseOperator
-from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
+from airflow.exceptions import AirflowSkipException
+from airflow.operators.python_operator import PythonOperator
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.helpers import chain
 import pendulum
 import logging
 from datetime import timedelta
 import datetime
 from typing import Callable, Type, Any, List, Tuple
 from functools import partial
-from observatory_platform.utils.config_utils import check_variables, check_connections, AirflowVar
-from observatory_platform.utils.telescope_utils import bq_load_partition, upload_transformed, bq_delete_old, \
-    bq_append_from_partition, bq_append_from_file, cleanup, normalize_schedule_interval, SubFolder, \
-    upload_files_to_cloud_storage
+from observatory_platform.utils.config_utils import AirflowVar
+from observatory_platform.utils.telescope_utils import bq_load_partition, bq_delete_old, \
+    bq_append_from_partition, bq_append_from_file, cleanup, upload_files_to_cloud_storage
 from observatory_platform.templates.updated_example.telescope import TelescopeRelease, Telescope, AbstractTelescopeRelease
 import os
 from typing_extensions import Protocol
@@ -37,12 +32,6 @@ class StreamRelease(TelescopeRelease):
     @property
     def date_str(self) -> str:
         return self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
-
-    @staticmethod
-    @abstractmethod
-    def make_release(telescope, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool) -> \
-            'StreamRelease':
-        pass
 
 
 class StreamTelescope(Telescope):
@@ -93,13 +82,7 @@ class StreamTelescope(Telescope):
         to this argument.
         :return: None.
         """
-
-        # Make Release instance
-        ti: TaskInstance = kwargs['ti']
-        start_date, end_date, first_release = ti.xcom_pull(key=self.RELEASE_INFO,
-                                                           # task_ids=self.get_release_info.__name__,
-                                                           include_prior_dates=True)
-        release = self.release_cls.make_release(self, start_date, end_date, first_release)
+        release = self.release_cls.make_release(**kwargs)
         result = func(release, **kwargs)
         return result
 
@@ -195,4 +178,4 @@ class StreamTelescope(Telescope):
                                        f' {(end_date - start_date).days} days ago')
 
     def cleanup(self, release: StreamRelease, **kwargs):
-        cleanup(release.extract_dir, release.transform_dir)
+        cleanup(release.download_dir, release.extract_dir, release.transform_dir)
