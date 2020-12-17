@@ -60,6 +60,9 @@ x-environment: &environment
   AIRFLOW__CELERY__BROKER_URL: "redis://:@{{ redis_hostname }}:6379/0"
   AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:{{ postgres_password }}@{{ postgres_hostname }}:5432/airflow"
   {%- if config.backend.type.value == 'terraform' %}
+  AIRFLOW__CORE__REMOTE_LOGGING: "True"
+  AIRFLOW__CORE__REMOTE_BASE_LOG_FOLDER: "gs://${AIRFLOW_VAR_AIRFLOW_BUCKET}/logs"
+  AIRFLOW__CORE__REMOTE_LOG_CONN_ID: "google_cloud_observatory"
   AIRFLOW__SECRETS__BACKEND: "airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend"
   AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
   {%- endif %}
