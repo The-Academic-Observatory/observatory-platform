@@ -1,22 +1,27 @@
 [
   {
     "name": "PaperId", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Papers.PaperId"
   }, 
   {
     "name": "ResourceType", 
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "Bit flags. 1 = Project, 2 = Data, 4 = Code"
   }, 
   {
     "name": "ResourceUrl", 
-    "type": "STRING"
+    "type": "STRING",
+    "description": "URL of the resource"
   },
   {
     "name": "SourceUrl",
-    "type": "STRING"
+    "type": "STRING",
+    "description": "The Source URL"
   },
   {
     "name": "RelationshipType",
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "description": "Bit flags. 1 = Own, 2 = Cite"
   }
 ]

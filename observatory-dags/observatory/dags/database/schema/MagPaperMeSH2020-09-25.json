@@ -6,22 +6,27 @@
   },
   {
     "name": "DescriptorUI",
-    "type": "STRING"
+    "type": "STRING",
+    "description": "Descriptor Unique Identifier. Seven-character alpha-numeric string - https://www.nlm.nih.gov/mesh/mbinfo.html"
   },
   {
     "name": "DescriptorName",
-    "type": "STRING"
+    "type": "STRING",
+    "description": "A term that uniquely refers to its <DescriptorRecord>"
   },
   {
     "name": "QualifierUI",
-    "type": "STRING"
+    "type": "STRING",
+    "description": "Qualifier Unique Identifier. Seven-character alpha-numeric string uniquely identifying a <QualifierRecord>"
   },
   {
     "name": "QualifierName",
-    "type": "STRING"
+    "type": "STRING",
+    "description": "Term that uniquely names its <QualifierRecord> "
   },
   {
     "name": "IsMajorTopic",
-    "type": "BOOLEAN"
+    "type": "BOOLEAN",
+    "description": ""
   }
 ]
