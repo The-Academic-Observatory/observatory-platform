@@ -483,13 +483,13 @@ def on_failure_callback(kwargs):
     environment = Variable.get(AirflowVar.environment.get())
     if environment == Environment.dev:
         logging.info('Not sending slack notification in dev environment.')
-    # else:
-    #     exception = kwargs.get('exception')
-    #     formatted_exception = ''.join(traceback.format_exception(etype=type(exception), value=exception,
-    #                                                              tb=exception.__traceback__)).strip()
-    #     comments = f'Task failed, exception:\n{formatted_exception}'
-    #     slack_hook = create_slack_webhook(comments, **kwargs)
-    #     slack_hook.execute()
+    else:
+        exception = kwargs.get('exception')
+        formatted_exception = ''.join(traceback.format_exception(etype=type(exception), value=exception,
+                                                                 tb=exception.__traceback__)).strip()
+        comments = f'Task failed, exception:\n{formatted_exception}'
+        slack_hook = create_slack_webhook(comments, **kwargs)
+        slack_hook.execute()
 
 
 def build_schedule(sched_start_date, sched_end_date):
