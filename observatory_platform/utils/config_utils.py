@@ -34,7 +34,7 @@ from airflow.models import Connection
 from cerberus import Validator
 from cryptography.fernet import Fernet
 from natsort import natsorted
-from pendulum import Pendulum
+from pendulum import DateTime
 from yaml.loader import SafeLoader
 from yaml.nodes import ScalarNode
 
@@ -150,7 +150,7 @@ def schema_path(database: str) -> str:
     return str(pathlib.Path(*file_path.parts[:-1], database, 'schema').resolve())
 
 
-def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str = '', ver: str = '') -> Union[str, None]:
+def find_schema(path: str, table_name: str, release_date: DateTime, prefix: str = '', ver: str = '') -> Union[str, None]:
     """ Finds a schema file on a given path, with a particular table name, release date and optional prefix.
     If no version string is sepcified, the most recent schema with a date less than or equal to the release date of the
     dataset is returned. If a version string is specified, the most current (date) schema in that series is returned.

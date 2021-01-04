@@ -5,10 +5,10 @@
 # Only run if webserver is command as there should only be one webserver
 if [ $1="webserver" ]; then
   # Initialise / upgrade the Airflow database
-  airflow upgradedb
+  airflow db upgrade
 
   # Create the Admin user. This command will just print "airflow already exist in the db" if the user already exists
-  airflow create_user -r Admin -u airflow -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
+  airflow users create -r Admin -u airflow -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
 fi
 
 # Enter observatory platform folder

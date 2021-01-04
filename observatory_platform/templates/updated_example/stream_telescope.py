@@ -22,7 +22,7 @@ class UserFunction(Protocol):
 
 
 class StreamRelease(TelescopeRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
+    def __init__(self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime,
                  first_release: bool = False):
         super().__init__(dag_id)
         self.start_date = start_date
@@ -102,7 +102,7 @@ class StreamTelescope(Telescope):
         else:
             start_date = release_info[1]
         start_date = start_date - timedelta(days=1)
-        end_date = pendulum.utcnow()
+        end_date = pendulum.now('UTC')
         logging.info(f'Start date: {start_date}, end date: {end_date}, first release: {first_release}')
 
         ti.xcom_push(self.RELEASE_INFO, (start_date, end_date, first_release))

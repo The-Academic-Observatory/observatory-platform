@@ -18,19 +18,20 @@ import json
 import logging
 from typing import Any, List, Optional, Union
 
-import airflow.secrets
+from airflow.configuration import ensure_secrets_loaded
 from airflow.models import Variable
 from google.api_core.exceptions import PermissionDenied
 
 
-def get_variable(key: str) -> Optional[str]:
+def get_variable_from_secrets(key: str) -> Optional[str]:
     """
     Get Airflow Variable by iterating over all Secret Backends.
 
     :param key: Variable Key
     :return: Variable Value
     """
-    for secrets_backend in airflow.secrets.ensure_secrets_loaded():
+    for secrets_backend in ensure_secrets_loaded():
+        var_val = secrets_backend.get_variable(key=key)
         # Added try/except statement.
         try:
             var_val = secrets_backend.get_variable(key=key)
@@ -39,7 +40,6 @@ def get_variable(key: str) -> Optional[str]:
             var_val = None
         if var_val is not None:
             return var_val
-
     return None
 
 
@@ -47,14 +47,20 @@ class AirflowVariable(Variable):
     __NO_DEFAULT_SENTINEL = object()
 
     @classmethod
-    def get(cls, key: str, default_var: Any = __NO_DEFAULT_SENTINEL, deserialize_json: bool = False, session=None):
-        var_val = get_variable(key=key)
+    def get(cls, key: str, default_var: Any = __NO_DEFAULT_SENTINEL, deserialize_json: bool = False) -> Any:
+        """
+        Gets a value for an Airflow Variable Key
 
+        :param key: Variable Key
+        :param default_var: Default value of the Variable if the Variable doesn't exists
+        :param deserialize_json: Deserialize the value to a Python dict
+        """
+        var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
             else:
-                raise KeyError('Variable {} does not exist'.format(key))
+                raise KeyError(f'Variable {key} does not exist')
         else:
             if deserialize_json:
                 return json.loads(var_val)

@@ -27,7 +27,7 @@ services:
       - observatory-network
 
   flower:
-    image: apache/airflow:1.10.11-python3.7
+    image: apache/airflow:2.0.0-python3.7
     environment: *environment
     restart: always
     networks:
@@ -36,7 +36,7 @@ services:
       - redis
     ports:
       - 5555:5555
-    command: flower
+    command: celery flower
 
   webserver:
     build: *build
@@ -81,7 +81,7 @@ services:
       - scheduler
     secrets:
       - google_application_credentials.json
-    command: worker -q default
+    command: celery worker -q default
 
   worker_remote:
     build: *build
@@ -91,7 +91,7 @@ services:
     <<: *networks
     secrets:
       - google_application_credentials.json
-    command: worker -q remote_queue
+    command: celery worker -q remote_queue
 
   postgres:
     image: postgres:12.2

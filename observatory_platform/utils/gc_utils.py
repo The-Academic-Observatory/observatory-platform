@@ -35,7 +35,7 @@ from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob, QueryJob
 from google.cloud.exceptions import NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
-from pendulum import Pendulum
+from pendulum import DateTime
 from requests.exceptions import ChunkedEncodingError
 
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
@@ -119,7 +119,7 @@ def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str) -> 
     return table_exists
 
 
-def bigquery_partitioned_table_id(table_name, datetime: Pendulum) -> str:
+def bigquery_partitioned_table_id(table_name, datetime: DateTime) -> str:
     """ Create a partitioned table identifier for a BigQuery table.
 
     :param table_name: the name of the table.
@@ -680,7 +680,7 @@ def google_cloud_storage_transfer_job(job: dict, func_name: str, gc_project_id: 
 
 def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azure_sas_token: str, azure_container: str,
                                            include_prefixes: List[str], gc_project_id: str, gc_bucket: str,
-                                           description: str, start_date: Pendulum = pendulum.utcnow()) -> bool:
+                                           description: str, start_date: DateTime = pendulum.now('UTC')) -> bool:
     """ Transfer files from an Azure blob container to a Google Cloud Storage bucket.
     :param azure_storage_account_name: the name of the Azure Storage account that holds the Azure blob container.
     :param azure_sas_token: the shared access signature (SAS) for the Azure blob container.
@@ -738,8 +738,8 @@ def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azur
 def aws_to_google_cloud_storage_transfer(aws_access_key_id: str, aws_secret_key: str, aws_bucket: str,
                                          include_prefixes: List[str], gc_project_id: str, gc_bucket: str,
                                          description: str, last_modified_since: datetime = None,
-                                         last_modified_before: datetime = None,  start_date: Pendulum =
-                                         pendulum.utcnow()) -> Tuple[bool, int]:
+                                         last_modified_before: datetime = None,  start_date: DateTime =
+                                         pendulum.now('UTC')) -> Tuple[bool, int]:
     """ Transfer files from an Azure blob container to a Google Cloud Storage bucket.
     :param aws_access_key_id: the id of the key for the aws S3 bucket.
     :param aws_secret_key: the secret key for the aws S3 bucket.

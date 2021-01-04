@@ -34,7 +34,7 @@ import jsonlines
 import pendulum
 import six
 from airflow.hooks.base_hook import BaseHook
-from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
+from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.dates import cron_presets
@@ -87,7 +87,7 @@ def normalize_schedule_interval(schedule_interval: str):
 
 class TelescopeRelease:
     """ Used to store info on a given release"""
-    def __init__(self, start_date: Union[pendulum.Pendulum, None], end_date: pendulum.Pendulum,
+    def __init__(self, start_date: Union[pendulum.DateTime, None], end_date: pendulum.DateTime,
                  telescope: SimpleNamespace, first_release: bool = False):
         self.start_date = start_date
         self.end_date = end_date
@@ -206,7 +206,7 @@ def upload_transformed(transform_path: str, transform_blob: str) -> bool:
     return success
 
 
-def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, table_id: str,
+def bq_load_shard(release_date: pendulum.DateTime, transform_blob: str, dataset_id: str, table_id: str,
                   schema_version: str):
     """ Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
 
@@ -235,7 +235,7 @@ def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_
     load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path, SourceFormat.NEWLINE_DELIMITED_JSON)
 
 
-def bq_load_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
+def bq_load_partition(end_date: pendulum.DateTime, transform_blob: str, dataset_id: str, main_table_id: str,
                       partition_table_id: str, schema_version: str):
     """ Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
     given it will automatically partition by ingestion datetime.
@@ -266,7 +266,7 @@ def bq_load_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_
                         SourceFormat.NEWLINE_DELIMITED_JSON, partition=True, require_partition_filter=False)
 
 
-def bq_delete_old(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, dataset_id: str, main_table_id: str,
+def bq_delete_old(start_date: pendulum.DateTime, end_date: pendulum.DateTime, dataset_id: str, main_table_id: str,
                   partition_table_id: str, merge_partition_field: str, updated_date_field: str):
     """ Will run a BigQuery query that deletes rows from the main table that are matched with rows from
     specific partitions of the partition table.
@@ -298,7 +298,7 @@ def bq_delete_old(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, da
     run_bigquery_query(query)
 
 
-def bq_append_from_partition(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, dataset_id: str,
+def bq_append_from_partition(start_date: pendulum.DateTime, end_date: pendulum.DateTime, dataset_id: str,
                              main_table_id: str, partition_table_id: str, schema_version: str, description: str):
     """ Appends rows to the main table by coping specific partitions from the partition table to the main table.
 
@@ -335,7 +335,7 @@ def bq_append_from_partition(start_date: pendulum.Pendulum, end_date: pendulum.P
     copy_bigquery_table(source_table_ids, destination_table_id, data_location, bigquery.WriteDisposition.WRITE_APPEND)
 
 
-def bq_append_from_file(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
+def bq_append_from_file(end_date: pendulum.DateTime, transform_blob: str, dataset_id: str, main_table_id: str,
                         schema_version: str, description: str):
     """ Appends rows to the main table by loading data from a specific file (blob) in the transform bucket.
 
@@ -483,13 +483,13 @@ def on_failure_callback(kwargs):
     environment = Variable.get(AirflowVar.environment.get())
     if environment == Environment.dev:
         logging.info('Not sending slack notification in dev environment.')
-    else:
-        exception = kwargs.get('exception')
-        formatted_exception = ''.join(traceback.format_exception(etype=type(exception), value=exception,
-                                                                 tb=exception.__traceback__)).strip()
-        comments = f'Task failed, exception:\n{formatted_exception}'
-        slack_hook = create_slack_webhook(comments, **kwargs)
-        slack_hook.execute()
+    # else:
+    #     exception = kwargs.get('exception')
+    #     formatted_exception = ''.join(traceback.format_exception(etype=type(exception), value=exception,
+    #                                                              tb=exception.__traceback__)).strip()
+    #     comments = f'Task failed, exception:\n{formatted_exception}'
+    #     slack_hook = create_slack_webhook(comments, **kwargs)
+    #     slack_hook.execute()
 
 
 def build_schedule(sched_start_date, sched_end_date):
@@ -653,7 +653,7 @@ def validate_date(date_string):
     try:
         pendulum.parse(date_string)
     except Exception as e:
-        print(f'Pendulum parsing encountered exception: {e}')
+        print(f'DateTime parsing encountered exception: {e}')
         return False
     return True
 
