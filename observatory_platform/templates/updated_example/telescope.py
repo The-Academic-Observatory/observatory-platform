@@ -6,9 +6,8 @@ from abc import ABC, abstractmethod
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.subdag_operator import SubDagOperator
-from airflow.operators.python_operator import PythonOperator
-from airflow.utils.helpers import chain
-import logging
+from airflow.operators.python import PythonOperator
+from airflow.models.baseoperator import chain
 import datetime
 from typing import Callable, Type, List, Any
 from functools import partial
@@ -210,7 +209,7 @@ class Telescope(AbstractTelescope):
                 if isinstance(func, functools.partial):
                     task = func()
                 else:
-                    task = PythonOperator(task_id=func.__name__, provide_context=True, python_callable=func,
+                    task = PythonOperator(task_id=func.__name__, python_callable=func,
                                           queue=self.queue, default_args=self.default_args)
                 tasks.append(task)
 
@@ -222,7 +221,7 @@ class Telescope(AbstractTelescope):
                     trigger_rule = 'all_success'
                     if func == self.cleanup:
                         trigger_rule = 'none_failed'
-                    task = PythonOperator(task_id=func.__name__, provide_context=True,
+                    task = PythonOperator(task_id=func.__name__,
                                           python_callable=partial(self.task_callable, func), queue=self.queue,
                                           trigger_rule=trigger_rule, default_args=self.default_args)
                 tasks.append(task)

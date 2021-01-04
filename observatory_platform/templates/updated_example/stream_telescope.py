@@ -66,7 +66,7 @@ class StreamTelescope(Telescope):
     def make_operators(self, funcs: List[Callable]) -> List[Callable]:
         operators = []
         for func in funcs:
-            operator = partial(PythonOperator, task_id=func.__name__, provide_context=True,
+            operator = partial(PythonOperator, task_id=func.__name__,
                                python_callable=partial(self.task_callable, func),
                                queue=self.queue,
                                trigger_rule='none_failed'
