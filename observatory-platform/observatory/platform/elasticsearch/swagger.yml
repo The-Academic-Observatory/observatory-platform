@@ -1,0 +1,140 @@
+openapi: 3.0.0
+info:
+  title: Sample API
+  description: Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.
+  version: 0.1.9
+# servers:
+#   - url: http://api.example.com/v1
+#     description: Optional server description, e.g. Main (production) server
+#   - url: http://staging-api.example.com
+#     description: Optional server description, e.g. Internal staging server for testing
+
+# basePath: /api
+
+# Paths supported by the server application
+paths:
+  /query:
+    get:
+      operationId: query.search
+      tags:
+        - People
+      summary: Perform an elasticsearch search query
+      description: Perform an elasticsearch search query
+      parameters:
+        - in: query
+          name: agg
+          schema:
+            type: string
+            enum:
+              - author
+              - country
+              - funder
+              - group
+              - institution
+              - publisher
+            example: 'institution'
+          description: The aggregation level
+          required: true
+        - name: subset
+          in: query
+          schema:
+            type: string
+            enum:
+              - citations
+              - collaborations
+              - disciplines
+              - events
+              - funders
+              - journals
+              - oa-metrics
+              - output-types
+              - publishers
+            example: 'citations'
+          description: The required subset
+          required: true
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+#            pattern: "YYYY-MM-DD"
+            example: "2017-01-15"
+            minLength: 0
+            maxLength: 10
+          description: Start date
+          required: false
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+#            pattern: "YYYY-MM-DD"
+            example: "2018-01-15"
+            minLength: 0
+            maxLength: 10
+          description: End date
+          required: false
+        - name: id
+          in: query
+          style: form
+          schema:
+            type: array
+            items:
+              type: string
+        - name: country
+          in: query
+          style: form
+          schema:
+            type: array
+            items:
+              type: string
+        - name: country_code
+          in: query
+          style: form
+          schema:
+            type: array
+            items:
+              type: string
+        - name: journal
+          in: query
+          style: form
+          schema:
+            type: array
+            items:
+              type: string
+        - name: name
+          in: query
+          style: form
+          schema:
+            type: array
+            items:
+              type: string
+        - name: region
+          in: query
+          style: form
+          schema:
+            type: array
+            items:
+              type: string
+        - name: subregion
+          in: query
+          style: form
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        200:
+          description: Successfully read people list operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  properties:
+                    fname:
+                      type: string
+                    lname:
+                      type: string
+                    timestamp:
+                      type: string
