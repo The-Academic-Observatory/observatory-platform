@@ -14,14 +14,26 @@ possible filtering fields:
 - name
 - region
 - subregion
+collaborator_region
+collaborator_subregion
+collaborator_name
+collaborator_id
+collaborator_country_code
+collaborator_country
+funder_country_code
+funder_name
+funder_sub_type
+funder_type
+label
+status
 """
 from flask import make_response, abort, request
 from datetime import datetime
 from elasticsearch import Elasticsearch
 import os
-import pprint
-import pandas as pd
-from pandas import DataFrame
+# import pprint
+# import pandas as pd
+# from pandas import DataFrame
 from typing import Tuple
 import time
 
