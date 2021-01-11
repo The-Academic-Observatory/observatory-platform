@@ -1,13 +1,13 @@
 info:
-  title: Sample API
-  description: 'Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.'
+  title: Elasticsearch API
+  description: 'Query data from elasticsearch indexes'
   version: 0.1.9
 paths:
   /query:
     get:
       operationId: query.search
       tags:
-        - People
+        - Query
       summary: Perform an elasticsearch search query
       description: Perform an elasticsearch search query
       parameters:
@@ -54,51 +54,60 @@ paths:
           minLength: 0
           maxLength: 10
           type: string
-        - name: id
+
+        {% for param in query_parameters %}
+        - name: {{ param }}
           in: query
           type: array
           items:
             type: string
           collectionFormat: multi
-        - name: country
-          in: query
-          type: array
-          items:
-            type: string
-          collectionFormat: multi
-        - name: country_code
-          in: query
-          type: array
-          items:
-            type: string
-          collectionFormat: multi
-        - name: journal
-          in: query
-          type: array
-          items:
-            type: string
-          collectionFormat: multi
-        - name: name
-          in: query
-          type: array
-          items:
-            type: string
-          collectionFormat: multi
-        - name: region
-          in: query
-          type: array
-          items:
-            type: string
-          collectionFormat: multi
-        - name: subregion
-          in: query
-          type: array
-          items:
-            type: string
-          collectionFormat: multi
+        {% endfor %}
+#        - name: id
+#          in: query
+#          type: array
+#          items:
+#            type: string
+#          collectionFormat: multi
+#        - name: name
+#          in: query
+#          type: array
+#          items:
+#            type: string
+#          collectionFormat: multi
+#        - name: country
+#          in: query
+#          type: array
+#          items:
+#            type: string
+#          collectionFormat: multi
+#        - name: country_code
+#          in: query
+#          type: array
+#          items:
+#            type: string
+#          collectionFormat: multi
+#        - name: journal
+#          in: query
+#          type: array
+#          items:
+#            type: string
+#          collectionFormat: multi
+#        - name: region
+#          in: query
+#          type: array
+#          items:
+#            type: string
+#          collectionFormat: multi
+#        - name: subregion
+#          in: query
+#          type: array
+#          items:
+#            type: string
+#          collectionFormat: multi
       responses:
         '200':
-          description: Successfully read people list operation
+          description: Successfully return query results (items need to be updated)
           schema:
             type: array
             items:

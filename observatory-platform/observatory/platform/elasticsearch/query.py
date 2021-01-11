@@ -117,9 +117,14 @@ def search():
     from_date = request.args.get('from')
     to_date = request.args.get('to')
 
-    filter_field_ids = ['id', 'country', 'country_code', 'journal', 'name', 'region', 'subregion']
+    query_filter_parameters = ['id', 'name', 'published_year', 'coordinates', 'country', 'country_code', 'region',
+                               'subregion', 'access_type', 'label', 'status', 'collaborator_coordinates',
+                               'collaborator_country', 'collaborator_country_code', 'collaborator_id',
+                               'collaborator_name', 'collaborator_region', 'collaborator_subregion', 'field', 'source',
+                               'funder_country_code', 'funder_name', 'funder_sub_type', 'funder_type', 'journal',
+                               'output_type', 'publisher']
     filter_fields = {}
-    for field in filter_field_ids:
+    for field in query_filter_parameters:
         value = request.args.get(field)
         if value:
             value = value.split(',')
@@ -130,6 +135,8 @@ def search():
             validate_date(date_text)
 
     # TODO determine which combinations/indices we can use
+    if agg == 'author' or agg == 'funder':
+        agg += '_test'
     index = f"{subset}-{agg}-20201205"
 
     # aggregations = {"sum": ["num_not_oa_outputs", "num_oa_outputs", "total_outputs"]}
