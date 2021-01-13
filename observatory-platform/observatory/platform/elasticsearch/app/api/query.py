@@ -1,38 +1,21 @@
 """
 example queries:
 http://0.0.0.0:5000/query?agg=institution&subset=journals&from=2018-01-15&to=2019-01-01&journal=Molecular
-%20Pharmaceutics 447 records, ~2 seconds
-http://0.0.0.0:5000/query?agg=country&subset=oa-metrics 11435 records, ~6 sec
-http://0.0.0.0:5000/query?agg=institution&subset=journals&id=grid.4691.a,grid.469280.1 28479 records, ~9 sec
-http://0.0.0.0:5000/query?agg=country&subset=collaborations 268162 records, ~80 sec
-
-possible filtering fields:
-- id
-- country
-- country_code
-- journal
-- name
-- region
-- subregion
-collaborator_region
-collaborator_subregion
-collaborator_name
-collaborator_id
-collaborator_country_code
-collaborator_country
-funder_country_code
-funder_name
-funder_sub_type
-funder_type
-label
-status
+%20Pharmaceutics&api_key=158f9f48b674b0fdd18e5b465d7ae37e 447 records, ~2 seconds
+http://0.0.0.0:5000/query?agg=country&subset=oa-metrics&api_key=158f9f48b674b0fdd18e5b465d7ae37e 11435 records, ~6 sec
+http://0.0.0.0:5000/query?agg=institution&subset=journals&id=grid.4691.a,
+grid.469280.1&api_key=158f9f48b674b0fdd18e5b465d7ae37e 28479 records, ~9 sec
+http://0.0.0.0:5000/query?agg=country&subset=collaborations&api_key=158f9f48b674b0fdd18e5b465d7ae37e 268162 records,
+~80 sec
 """
-from flask import make_response, abort, request
-from datetime import datetime
-from elasticsearch import Elasticsearch
 import os
-from typing import Tuple
 import time
+from datetime import datetime
+from typing import Tuple
+
+from elasticsearch import Elasticsearch
+from flask import current_app
+from flask import request
 
 
 def create_es_connection():
@@ -51,12 +34,18 @@ def create_search_body(from_year: str, to_year: str, filter_fields: dict) -> dic
     for field in filter_fields:
         if filter_fields[field]:
             filter_list.append({
-                                   "terms": {
-                                       f"{field}.keyword": filter_fields[field]
-                                   }
-                               })
+                "terms": {
+                    f"{field}.keyword": filter_fields[field]
+                }
+            })
     if from_year or to_year:
-        range_dict = {"range": {"published_year": {"format": "yyyy-MM-dd"}}}
+        range_dict = {
+            "range": {
+                "published_year": {
+                    "format": "yyyy-MM-dd"
+                }
+            }
+        }
         if from_year:
             range_dict["range"]["published_year"]["gte"] = from_year
         if to_year:
@@ -67,19 +56,10 @@ def create_search_body(from_year: str, to_year: str, filter_fields: dict) -> dic
             "filter": filter_list
         }
     }
-    # agg_body = {}
-    # for agg_type in aggregations.keys():
-    #     fields = aggregations[agg_type]
-    #     for field in fields:
-    #         agg_body[agg_type + "_" + field] = {
-    #             agg_type: {
-    #                 "field": field
-    #             }
-    #         }
+
     search_body = {
         "size": 10000,
         "query": query_body,
-        # "aggs": agg_body
     }
     return search_body
 
@@ -102,22 +82,25 @@ def process_response(res: dict) -> Tuple[str, list]:
     return scroll_id, hits
 
 
+def create_schema():
+    return {
+        'schema': 'to_be_created'
+    }
+
+
 def search():
     start = time.time()
-    results = []
+    all_results = []
 
     agg = request.args.get('agg')
     subset = request.args.get('subset')
     from_date = request.args.get('from')
     to_date = request.args.get('to')
+    limit = request.args.get('limit')
 
-    query_filter_parameters = ['id', 'name', 'published_year', 'coordinates', 'country', 'country_code', 'region',
-                               'subregion', 'access_type', 'label', 'status', 'collaborator_coordinates',
-                               'collaborator_country', 'collaborator_country_code', 'collaborator_id',
-                               'collaborator_name', 'collaborator_region', 'collaborator_subregion', 'field', 'source',
-                               'funder_country_code', 'funder_name', 'funder_sub_type', 'funder_type', 'journal',
-                               'output_type', 'publisher']
     filter_fields = {}
+    with current_app.app_context():
+        query_filter_parameters = current_app.query_filter_parameters
     for field in query_filter_parameters:
         value = request.args.get(field)
         if value:
@@ -133,24 +116,35 @@ def search():
         agg += '_test'
     index = f"{subset}-{agg}-20201205"
 
-    # aggregations = {"sum": ["num_not_oa_outputs", "num_oa_outputs", "total_outputs"]}
+    limit = int(limit) if limit else None
+
     search_body = create_search_body(from_date, to_date, filter_fields)
 
     es = create_es_connection()
     res = es.search(index=index, body=search_body, scroll='3m')
     scroll_id, hits = process_response(res)
-    print(res['hits']['total'])
-    results += hits
+
+    number_total_results = res['hits']['total']['value']
+    all_results += hits
 
     while hits:
+        if limit:
+            if len(all_results) > limit:
+                break
         res = es.scroll(scroll_id=scroll_id, scroll='1s')
         scroll_id, hits = process_response(res)
-        results += hits
+        all_results += hits
 
-    # Turn into pandas dataframe like this
-    # df = pd.DataFrame(results)
-    print('done')
     end = time.time()
-    print(end-start)
+    print(end - start)
+    all_results = all_results[:limit] if limit else all_results
+    schema = create_schema()
+    results = {
+        'returned_results': len(all_results),
+        'total_results': number_total_results,
+        'schema': schema,
+        'results': all_results
+    }
+    # results = OrderedDict(
+    #     [('returned_hits', len(all_hits)), ('total_hits', total_hits), ('schema', schema), ('hits', all_hits)])
     return results
-

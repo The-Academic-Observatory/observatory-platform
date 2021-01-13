@@ -1,7 +1,22 @@
+swagger: '2.0'
 info:
   title: Elasticsearch API
   description: 'Query data from elasticsearch indexes'
   version: 0.1.9
+securityDefinitions:
+  APIKeyHeader:
+    type: apiKey
+    in: header
+    name: X-API-Key
+    x-apikeyInfoFunc: server.basic_auth
+  APIKeyQueryParam:
+    type: apiKey
+    in: query
+    name: api_key
+    x-apikeyInfoFunc: server.basic_auth
+security:
+  - APIKeyHeader: []
+  - APIKeyQueryParam: []
 paths:
   /query:
     get:
@@ -54,6 +69,11 @@ paths:
           minLength: 0
           maxLength: 10
           type: string
+        - name: limit
+          in: query
+          description: Limit number of results
+          required: false
+          type: integer
         {% for param in query_parameters %}
         - name: {{ param }}
           in: query
@@ -62,61 +82,31 @@ paths:
             type: string
           collectionFormat: multi
         {% endfor %}
-#        - name: id
-#          in: query
-#          type: array
-#          items:
-#            type: string
-#          collectionFormat: multi
-#        - name: name
-#          in: query
-#          type: array
-#          items:
-#            type: string
-#          collectionFormat: multi
-#        - name: country
-#          in: query
-#          type: array
-#          items:
-#            type: string
-#          collectionFormat: multi
-#        - name: country_code
-#          in: query
-#          type: array
-#          items:
-#            type: string
-#          collectionFormat: multi
-#        - name: journal
-#          in: query
-#          type: array
-#          items:
-#            type: string
-#          collectionFormat: multi
-#        - name: region
-#          in: query
-#          type: array
-#          items:
-#            type: string
-#          collectionFormat: multi
-#        - name: subregion
-#          in: query
-#          type: array
-#          items:
-#            type: string
-#          collectionFormat: multi
       responses:
         '200':
           description: Successfully return query results (items need to be updated)
           schema:
-            type: array
-            items:
-              properties:
-                fname:
-                  type: string
-                lname:
-                  type: string
-                timestamp:
-                  type: string
+            type: object
+            properties:
+              returned_hits:
+                type: integer
+                description: The number of returned hits (can be less than total_hits if a limit is set)
+              total_hits:
+                type: integer
+                description: The number of total hits
+              schema:
+                type: object
+                description: The schema for an individual hit
+              hits:
+                type: array
+                description: A list of hits
+        401:
+          $ref: '#/responses/UnauthorizedError'
       produces:
         - application/json
-swagger: '2.0'
+responses:
+  UnauthorizedError:
+    description: API key is missing or invalid
+    headers:
+      WWW_Authenticate:
+        type: string
