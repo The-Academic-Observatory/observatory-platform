@@ -27,7 +27,9 @@ app "waypoint-elasticsearch-app" {
       port = 8080
 
       static_environment = {
-        "NAME": "World"
+        "ES_USERNAME": "sm://workflows-dev/es_username"
+        "ES_PASSWORD": "sm://workflows-dev/es_password"
+        "ES_ADDRESS": "sm://workflows-dev/es_url"
       }
 
       capacity {
@@ -36,6 +38,8 @@ app "waypoint-elasticsearch-app" {
         max_requests_per_container = 10
         request_timeout            = 300
       }
+
+//      service_account_name = "elasticsearch-api@workflows-dev.iam.gserviceaccount.com"
 
       auto_scaling {
         max = 2

@@ -5,7 +5,7 @@ info:
 paths:
   /query:
     get:
-      operationId: query.search
+      operationId: api.query.search
       tags:
         - Query
       summary: Perform an elasticsearch search query
@@ -54,7 +54,6 @@ paths:
           minLength: 0
           maxLength: 10
           type: string
-
         {% for param in query_parameters %}
         - name: {{ param }}
           in: query
