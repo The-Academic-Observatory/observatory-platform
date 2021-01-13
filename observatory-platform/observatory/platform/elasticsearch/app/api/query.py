@@ -31,22 +31,16 @@ from flask import make_response, abort, request
 from datetime import datetime
 from elasticsearch import Elasticsearch
 import os
-# import pprint
-# import pandas as pd
-# from pandas import DataFrame
 from typing import Tuple
 import time
 
 
 def create_es_connection():
-    script_directory = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(script_directory, 'elasticsearch_auth.txt')) as auth_file:
-        lines = auth_file.read().splitlines()
-        address = lines[0]
-        username = lines[1]
-        password = lines[2]
+    es_username = os.environ.get('ES_USERNAME')
+    es_password = os.environ.get('ES_PASSWORD')
+    es_address = os.environ.get('ES_ADDRESS')
 
-    es = Elasticsearch(address, http_auth=(username, password))
+    es = Elasticsearch(es_address, http_auth=(es_username, es_password))
     if not es.ping():
         raise ConnectionError("Could not connect to elasticsearch server")
     return es
