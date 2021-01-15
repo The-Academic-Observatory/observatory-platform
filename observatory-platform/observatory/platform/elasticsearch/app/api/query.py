@@ -285,7 +285,7 @@ def search():
     es_address = os.environ.get('ES_ADDRESS')
     es = create_es_connection(es_address, es_username, es_password)
     if scroll_id:
-        res = es.scroll(scroll_id=scroll_id, scroll='1m', rest_total_hits_as_int=True)
+        res = es.scroll(scroll_id=scroll_id, scroll='1m')
     else:
         res = es.search(index=index, body=search_body, scroll='1m')
     scroll_id, results_data = process_response(res)
