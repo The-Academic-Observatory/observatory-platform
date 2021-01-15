@@ -33,7 +33,7 @@ app "waypoint-elasticsearch-app" {
       }
 
       capacity {
-        memory                     = 256
+        memory                     = 1000
         cpu_count                  = 1
         max_requests_per_container = 10
         request_timeout            = 300
