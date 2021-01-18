@@ -3,12 +3,14 @@ Main module of the server file
 """
 
 import connexion
+from connexion.resolver import RestyResolver
 from flask import render_template
-from flask import current_app
 import os
+from flask import current_app
 
 
 def basic_auth(api_key, required_scopes=None):
+    app_dir = os.path.dirname(os.path.realpath(__file__))
     with open(os.path.join(app_dir, 'api', 'elasticsearch_auth.txt')) as auth_file:
         for line in auth_file:
             username, token = line.strip().split(' ')
@@ -18,9 +20,10 @@ def basic_auth(api_key, required_scopes=None):
 
 
 def create_app():
+    app_dir = os.path.dirname(os.path.realpath(__file__))
     # create the application instance
-    app = connexion.App(__name__, specification_dir=app_dir)
-    app.app.config['JSON_SORT_KEYS'] = False
+    conn_app = connexion.App(__name__, specification_dir=app_dir)
+    conn_app.app.config['JSON_SORT_KEYS'] = False
 
     query_filter_parameters = ['id', 'name', 'published_year', 'coordinates', 'country', 'country_code', 'region',
                                'subregion', 'access_type', 'label', 'status', 'collaborator_coordinates',
@@ -29,16 +32,15 @@ def create_app():
                                'funder_country_code', 'funder_name', 'funder_sub_type', 'funder_type', 'journal',
                                'output_type', 'publisher']
 
-    app.add_api(os.path.join(app_dir, 'openapi2.yml'), arguments={
+    conn_app.add_api(os.path.join(app_dir, 'openapi2.yml'), resolver=RestyResolver('api'), arguments={
         'query_parameters': query_filter_parameters
     })
 
-    with app.app.app_context():
+    with conn_app.app.app_context():
         current_app.query_filter_parameters = query_filter_parameters
-    return app
+    return conn_app
 
 
-app_dir = os.path.dirname(os.path.realpath(__file__))
 app = create_app()
 
 
