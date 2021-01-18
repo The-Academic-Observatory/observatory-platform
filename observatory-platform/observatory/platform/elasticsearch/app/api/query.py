@@ -16,14 +16,15 @@ from typing import Tuple, Union
 from elasticsearch import Elasticsearch
 from flask import current_app
 from flask import request
-import requests
-import json
 
 
-def create_es_connection(address: str, username: str, password: str):
+def create_es_connection(address: str, username: str, password: str) -> Union[Elasticsearch, None]:
+    for value in [address, username, password]:
+        if value is None or value == '':
+            return None
     es = Elasticsearch(address, http_auth=(username, password))
     if not es.ping():
-        raise ConnectionError("Could not connect to elasticsearch server")
+        raise ConnectionError("Could not connect to elasticsearch server. Url, username or password might be invalid.")
     return es
 
 
@@ -95,7 +96,7 @@ def process_response_after_search(res: dict) -> Tuple[str, int, str, list]:
     return pit_id, search_after_no, search_after_text, hits
 
 
-def create_search_body(from_year: str, to_year: str, filter_fields: dict, size: int) -> dict:
+def create_search_body(from_year: Union[str, None], to_year: Union[str, None], filter_fields: dict, size: int) -> dict:
     filter_list = []
     for field in filter_fields:
         if filter_fields[field]:
@@ -131,7 +132,7 @@ def create_search_body(from_year: str, to_year: str, filter_fields: dict, size: 
     return search_body
 
 
-def validate_dates(from_date: int, to_date: int) -> Tuple[str, str]:
+def validate_dates(from_date: str, to_date: str) -> Tuple[str, str]:
     dates = []
     for date_text in [from_date, to_date]:
         if date_text:
@@ -236,7 +237,7 @@ def create_schema():
 #
 #     return results
 
-def parse_args() -> Union[Tuple[str, int], Tuple[str, str, str, dict, int, str]]:
+def parse_args() -> Tuple[str, str, str, dict, int, str]:
     agg = request.args.get('agg')
     subset = request.args.get('subset')
     from_date = request.args.get('from')
@@ -260,7 +261,7 @@ def parse_args() -> Union[Tuple[str, int], Tuple[str, str, str, dict, int, str]]
     if agg == 'author' or agg == 'funder':
         agg += '_test'
     if agg == 'publisher' and subset == 'collaborations':
-        return "Invalid combination of aggregation (publisher) and subset (collaborations)", 400
+        return '', '', '', {}, 0, ''
     index = f"{subset}-{agg}-20201205"
 
     max_size = 10000
@@ -277,13 +278,16 @@ def search():
     start = time.time()
 
     index, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-
+    if index == '':
+        return "Invalid combination of aggregation (publisher) and subset (collaborations)", 400
     search_body = create_search_body(from_date, to_date, filter_fields, size)
 
     es_username = os.environ.get('ES_USERNAME')
     es_password = os.environ.get('ES_PASSWORD')
     es_address = os.environ.get('ES_ADDRESS')
     es = create_es_connection(es_address, es_username, es_password)
+    if es is None:
+        return "Elasticsearch environment variable for address, username and/or password is empty", 400
     if scroll_id:
         res = es.scroll(scroll_id=scroll_id, scroll='1m')
     else:
