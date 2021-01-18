@@ -20,7 +20,7 @@ security:
 paths:
   /query:
     get:
-      operationId: api.query.search
+#      operationId: api.query.search
       tags:
         - Query
       summary: Perform an elasticsearch search query
