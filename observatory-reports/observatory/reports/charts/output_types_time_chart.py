@@ -64,7 +64,7 @@ class OutputTypesTimeChart(GenericTimeChart):
         """
 
         if not palette:
-            palette = defaults.outputs_palette
+            palette = [defaults.outputs_palette[k] for k in defaults.output_types]
         super().plot(palette=palette,
                      ax=ax, **kwargs)
         plt.ylabel('Number of Outputs')

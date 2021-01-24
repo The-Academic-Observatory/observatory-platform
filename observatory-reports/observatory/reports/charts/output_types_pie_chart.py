@@ -50,7 +50,7 @@ class OutputTypesPieChart(AbstractObservatoryChart):
             categories=defaults.output_types,
             ordered=True)
         figdata = figdata.set_index('type_category')
-        self.figdata = figdata
+        self.figdata = figdata.sort_index()
         return self.figdata
 
     def plot(self, ax=None, **kwargs):

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Cameron Neylon & Richard Hosing 
+# Author: Cameron Neylon & Richard Hosking
 
 from observatory.reports import chart_utils
 from .abstract_table import AbstractObservatoryTable
@@ -104,12 +104,13 @@ SELECT
   table.id as id,
   years.published_year as published_year,
   years.metrics.total as total,
-  collabs.id as collab_id,
-  collabs.count as count,
-  collabs.name as name,
-  collabs.country as country,
-  collabs.region as region,
-  collabs.coordinates as coordinates
+  collabs.id as collaborator_id,
+  collabs.count as collaborator_total_outputs,
+  collabs.name as collaborator_name,
+  collabs.country as collaborator_country,
+  collabs.country_code as collaborator_country_code,
+  collabs.region as collaborator_region,
+  collabs.coordinates as collaborator_coordinates
 FROM `{bq_table}` as table,
   UNNEST(years) as years,
   UNNEST(years.collaborations) as collabs

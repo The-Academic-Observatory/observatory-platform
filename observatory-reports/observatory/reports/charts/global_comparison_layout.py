@@ -24,7 +24,10 @@ class GlobalComparisonLayout(AbstractObservatoryChart):
     def __init__(self,
                  df: pd.DataFrame,
                  identifier: str,
-                 focus_year: int):
+                 focus_year: int,
+                 x:str = 'Total Green OA (%)',
+                 y:str = 'Total Gold OA (%)',
+                 size_column:str = 'total'):
         """Initialisation function
         """
 
@@ -32,22 +35,24 @@ class GlobalComparisonLayout(AbstractObservatoryChart):
         self.identifier = identifier
         self.focus_year = focus_year
         self.globalscatter = ScatterPlot(df,
-                                         x='Total Green OA (%)',
-                                         y='Total Gold OA (%)',
+                                         x=x,
+                                         y=y,
                                          filter_name='published_year',
                                          filter_value=focus_year,
                                          hue_column='region',
+                                         size_column=size_column,
                                          focus_id=self.identifier)
 
-        self.region_name = self.df[
-            self.df.id == self.identifier].region.unique()[0]
-        self.region_data = self.df[self.df.region == self.region_name]
-        self.regionscatter = ScatterPlot(self.region_data,
-                                         x='Total Green OA (%)',
-                                         y='Total Gold OA (%)',
+        self.subregion_name = self.df[
+            self.df.id == self.identifier].subregion.unique()[0]
+        self.subregion_data = self.df[self.df.subregion == self.subregion_name]
+        self.regionscatter = ScatterPlot(self.subregion_data,
+                                         x=x,
+                                         y=y,
                                          filter_name='published_year',
                                          filter_value=focus_year,
                                          hue_column='country',
+                                         size_column=size_column,
                                          focus_id=self.identifier)
 
     def process_data(self):
@@ -66,10 +71,10 @@ class GlobalComparisonLayout(AbstractObservatoryChart):
                                       figsize=(8, 3))
         self.globalscatter.plot(ax=axes[0], xlim=(0, 100), ylim=(0, 100))
 
-        numcountries = len(self.region_data[self.region_data.published_year == self.focus_year].country.unique())
+        numcountries = len(self.subregion_data[self.subregion_data.published_year == self.focus_year].country.unique())
         colorpalette = sns.color_palette(
             palette='bright', n_colors=numcountries)
-        self.regionscatter.plot(ax=axes[1],
+        self.regionscatter.plot(ax=axes[1], xlim=(0, 100), ylim=(0, 100),
                                 colorpalette=colorpalette)
         plt.subplots_adjust(wspace=1)
         return self.fig
