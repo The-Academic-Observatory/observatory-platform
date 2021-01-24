@@ -60,6 +60,6 @@ class OpenAccessDetailsLayout(AbstractObservatoryChart):
                                       figsize=(8, 3))
         self.oapctimechart.plot(ax=axes[0])
         self.barcomparisonchart.plot(ax=axes[1])
-        axes[0].set_ylabel('Open Access (% of All Outputs')
+        axes[0].set_ylabel('Open Access (% of All Outputs)')
         plt.subplots_adjust(wspace=1)
         return self.fig

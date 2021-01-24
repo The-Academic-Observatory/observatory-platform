@@ -169,6 +169,7 @@ def generate_comparison_group(df: pd.DataFrame,
                               include_topoa: bool = True,
                               number: int = 5,
                               filter_column: str = 'country',
+                              total_column: str = 'total',
                               average=pd.Series.median) -> list:
     """Convenience function for generating a comparison group
     :param df: DataFrame for analysis
@@ -203,9 +204,10 @@ def generate_comparison_group(df: pd.DataFrame,
     extras = []
     if include_biggest:
         biggest = get_biggest(df, identifier, focus_year,
-                              total_column='total', filter_column=filter_column)
-        comparators.pop(len(comparators) - 1)
-        extras.append(biggest)
+                              total_column=total_column, filter_column=filter_column)
+        if biggest != identifier:
+            comparators.pop(len(comparators) - 1)
+            extras.append(biggest)
 
     if include_topoa:
         try:
@@ -214,8 +216,10 @@ def generate_comparison_group(df: pd.DataFrame,
         except KeyError:  # changing over to 'percent_oa' as preferred name
             topoa = get_biggest(df, identifier, focus_year,
                                 total_column='percent_oa', filter_column=filter_column)
-        comparators.pop(len(comparators) - 1)
-        extras.append(topoa)
+
+        if topoa != identifier:
+            comparators.pop(len(comparators) - 1)
+            extras.append(topoa)
     return comparators + extras
 
 
@@ -313,6 +317,7 @@ def is_ranked(df: pd.DataFrame,
     if rank_kwargs.get('pct', False):
         text = f"""{num2words(int(rank * 100), **num2words_kwargs)} percentile"""
     else:
+        rank = int(rank)
         text = num2words(rank, **num2words_kwargs)
     if verbose:
         return f'{text} in {same} for {focus_year}'
@@ -326,7 +331,9 @@ def generate_highlights(df: pd.DataFrame,
                         number: int = 5,
                         filter_column='country',
                         measures=['percent_total_oa', 'percent_gold', 'percent_green',
-                                  'citations_per_output', 'oa_citation_advantage', 'total']):
+                                  'citations_per_output', 'oa_citation_advantage', 'total'],
+                        global_rank_cutoff: int=201,
+                        local_rank_cutoff: int=25):
     nice_text = {
         'percent_total_oa': 'overall percentage of open access',
         'percent_oa': 'overall percentage of open access',
@@ -334,25 +341,27 @@ def generate_highlights(df: pd.DataFrame,
         'percent_green': 'proportion of outputs available through a repository',
         'citations_per_output': 'average citations per output',
         'oa_citation_advantage': 'increase in citations for open access outputs',
-        'total': 'overall output count'
+        'total': 'overall output count',
+        'total_outputs': 'overall output count'
     }
     highlights = []
     for measure in measures:
         rank = is_ranked(df, identifier, focus_year, measure, None, do_num2words=False)
         if not rank:
             continue
-        if rank < 201:
+        if rank < global_rank_cutoff:
             highlights.append({'type': 'Ranked',
                                'measure': measure,
                                'scope': 'in the world',
                                'value': num2words(rank, to='ordinal')})
 
         rank = is_ranked(df, identifier, focus_year, measure, filter_column, do_num2words=False)
-        if rank < 26 and (filter_column is not None):
+        localname = df[df.id==identifier][filter_column].values[0]
+        if rank < local_rank_cutoff and (filter_column is not None):
             highlights.append({'type': 'Ranked',
                                'measure': measure,
-                               'scope': f'in the {filter_column}',
-                               'value': num2words(rank, to='ordinal')})
+                               'scope': f'in {localname}',
+                               'value': num2words(int(rank), to='ordinal')})
 
         position = general_text_comparison(df, identifier, focus_year, measure, None)
         if position in ['somewhat larger than', 'substantially larger than']:
@@ -366,13 +375,12 @@ def generate_highlights(df: pd.DataFrame,
                 filter_column is not None):
             highlights.append({'type': 'Has',
                                'measure': measure,
-                               'scope': f'the average for the {filter_column}',
+                               'scope': f'the average for {localname}',
                                'value': position})
 
     highlight_strings = []
     for highlight in highlights:
         string = f"""{highlight['type']} {highlight['value']} {highlight['scope']} 
 on {nice_text[highlight['measure']]}"""
-        string = string.capitalize()
         highlight_strings.append(string)
     return highlight_strings

@@ -39,13 +39,15 @@ comptext_higherlower = [
 # --- Name Standardisation ---
 
 # Standard Name Changes
-country_clean = {"country": {
+
+countries = {
     "United Kingdom of Great Britain and Northern Ireland":
         "United Kingdom",
     "Iran (Islamic Republic of)": "Iran",
     "Korea, Republic of": "South Korea",
     "Taiwan, Province of China": "Taiwan"
-}}
+}
+country_clean = {k: countries for k in ['country', 'name', 'collaborator_name']}
 
 # Standardisation of the names of output types
 outputs_clean = {'type': {
@@ -182,5 +184,5 @@ outputs_palette = dict([(output_type, husl[i])
 outputs_palette.update({'Total Outputs': 'black'})
 
 # Disciplines Palettes
-colors = sns.color_palette('Set3') * 2
+colors = sns.color_palette('Paired') + sns.color_palette('Set2')
 mag_level0_palette = {field: colors[i] for i, field in enumerate(disciplines_mag_level0)}

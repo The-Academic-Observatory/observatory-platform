@@ -89,7 +89,7 @@ class FunderGraph(AbstractObservatoryChart):
         sns.barplot(y='funder',
                     x='value',
                     data=self.figdata[self.figdata.variables == 'percent_oa'],
-                    color='blue', ax=axes[1])
+                    color='#F26E3B', ax=axes[1])
         axes[1].set(ylabel=None, xlabel='% Open Access')
         self.fig.set_dpi(300)
         return self.fig

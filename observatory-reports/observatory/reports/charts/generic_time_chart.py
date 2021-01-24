@@ -15,6 +15,8 @@
 # Author: Cameron Neylon
 
 import matplotlib.pyplot as plt
+from matplotlib import ticker
+import matplotlib.dates as mdates
 import pandas as pd
 import seaborn as sns
 
@@ -71,6 +73,9 @@ class GenericTimeChart(AbstractObservatoryChart):
             self.fig, ax = plt.subplots(figsize=(5, 5))
         else:
             self.fig = ax.get_figure()
+
+        #self.figdata['Year of Publication'].astype(str)
+        #pd.to_datetime(self.figdata['Year of Publication'], format='%Y')
         sns.lineplot(x='Year of Publication',
                      y='value',
                      data=self.figdata,
@@ -82,6 +87,10 @@ class GenericTimeChart(AbstractObservatoryChart):
         ax.legend(bbox_to_anchor=(1, 0.8))
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+        diff = self.year_range[1] - self.year_range[0]
+        if diff > 11: step = 5
+        else: step = 2
+        ax.xaxis.set_major_locator(ticker.FixedLocator(range(*self.year_range, step)))
         if lines:
             ax.axhline(**lines)
         return self.fig

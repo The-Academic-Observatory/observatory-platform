@@ -113,8 +113,8 @@ class ScatterPlot(AbstractObservatoryChart):
         sorter_index = dict(zip(sorter, range(len(sorter))))
         figdata.loc[:, 'order'] = figdata.region.map(sorter_index)
         figdata = figdata.sort_values('order', ascending=True)
-        self.df = figdata
-        return self.df
+        self.figdata = figdata
+        return self.figdata
 
     def plot(self,
              ax: matplotlib.axis = None,
@@ -153,7 +153,7 @@ class ScatterPlot(AbstractObservatoryChart):
         if not colorpalette:
             colorpalette = region_palette
 
-        figdata = self.df
+        figdata = self.figdata
         if additional_filter:
             col, value = additional_filter
             figdata = figdata[figdata[col] == value]
