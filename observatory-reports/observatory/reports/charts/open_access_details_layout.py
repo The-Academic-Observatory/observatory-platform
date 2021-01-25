@@ -16,7 +16,7 @@
 
 from observatory.reports.charts.bar_comparison_chart import *
 from observatory.reports.charts.oapc_time_chart import *
-
+from plotly.subplots import make_subplots
 
 class OpenAccessDetailsLayout(AbstractObservatoryChart):
     """A Layout containing the OA levels over time and a comparison bar chart
@@ -63,3 +63,8 @@ class OpenAccessDetailsLayout(AbstractObservatoryChart):
         axes[0].set_ylabel('Open Access (% of All Outputs)')
         plt.subplots_adjust(wspace=1)
         return self.fig
+
+    def plotly(self, **kwargs):
+
+        fig = make_subplots(row=1, cols=2)
+
