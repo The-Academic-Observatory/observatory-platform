@@ -1,6 +1,6 @@
 import seaborn as sns
 
-project_id = None
+project_id = 'academic-observatory'
 scope = ''
 funder_scope = ''
 institutions_scope = """and

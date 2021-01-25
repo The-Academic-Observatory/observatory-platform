@@ -17,10 +17,19 @@
 import requests
 import datetime
 import pandas as pd
+import yaml
+import inspect
 from typing import Tuple, Optional
+from pathlib import Path
 
 from observatory.reports import chart_utils
+# from observatory.platform import elasticsearch
 from .secrets import api_key
+
+# api_definition_path = Path(inspect(elasticsearch.app.openapi2.yml))
+# with open(api_definition_path) as f:
+#     api_definition = yaml.load(f)
+#     print(api_definition)
 
 
 class ESTable:
