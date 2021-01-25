@@ -1,0 +1,32 @@
+[
+  {
+    "description": "Book id.",
+    "mode": "REQUIRED",
+    "name": "book_id",
+    "type": "STRING"
+  },
+  {
+    "description": "Title of the book.",
+    "mode": "REQUIRED",
+    "name": "book_title",
+    "type": "STRING"
+  },
+  {
+    "description": "Begin date.",
+    "mode": "REQUIRED",
+    "name": "begin_date",
+    "type": "DATE"
+  },
+  {
+    "description": "End date.",
+    "mode": "REQUIRED",
+    "name": "end_date",
+    "type": "DATE"
+  },
+  {
+    "description": "Number of downloads",
+    "mode": "REQUIRED",
+    "name": "total_downloads",
+    "type": "INTEGER"
+  }
+]
