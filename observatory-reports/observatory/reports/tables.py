@@ -30,26 +30,26 @@ SELECT
   table.country_code as country_code,
   table.region as region,
   table.subregion as subregion,
-  years.published_year as published_year,
-  years.metrics.total as total,
-  years.metrics.oa as oa,
-  years.metrics.green as green,
-  years.metrics.gold as gold,
-  years.metrics.hybrid as hybrid,
-  years.metrics.green_only as green_only,
-  years.metrics.gold_just_doaj as gold_just_doaj,
-  years.metrics.percent_OA as percent_oa,
-  years.metrics.percent_green as percent_green,
-  years.metrics.percent_gold as percent_gold,
-  years.metrics.percent_gold_doaj as percent_gold_just_doaj,
-  years.metrics.percent_green_only as percent_green_only,
-  years.metrics.percent_hybrid as percent_hybrid,
-  years.metrics.percent_bronze as percent_bronze
-FROM `{bq_table}` as table,
-    UNNEST(years) as years
+  time_period as published_year,
+  table.total_outputs as total_outputs,
+  access_types.oa.total_outputs as oa,
+  access_types.green.total_outputs as green,
+  access_types.gold.total_outputs as gold,
+  access_types.hybrid.total_outputs as hybrid,
+  access_types.green_only.total_outputs as green_only,
+  access_types.gold_doaj.total_outputs as gold_doaj,
+  access_types.bronze.total_outputs as bronze,
+  access_types.oa.percent as percent_oa,
+  access_types.green.percent as percent_green,
+  access_types.gold.percent as percent_gold,
+  access_types.gold_doaj.percent as percent_gold_just_doaj,
+  access_types.green_only.percent as percent_green_only,
+  access_types.hybrid.percent as percent_hybrid,
+  access_types.bronze.percent as percent_bronze
+FROM `{bq_table}` as table
 WHERE
-    years.published_year > {year_range[0]} and
-    years.published_year < {year_range[1]} 
+    time_period > {year_range[0]} and
+    time_period < {year_range[1]} 
     {scope}
 """
 
@@ -66,21 +66,23 @@ SELECT
   table.country_code as country_code,
   table.region as region,
   table.subregion as subregion,
-  years.published_year as published_year,
-  years.metrics.total as total,   
+  table.time_period as published_year,
+  table.total_outputs as total_outputs,   
   type.output_type as type,
-  type.total as count,
-  type.oa as oa,
-  type.green as green,
-  type.gold as gold,
-  type.hybrid as hybrid   
+  type.total_outputs as count,
+  type.num_oa_outputs as oa,
+  type.num_green_outputs as green,
+  type.num_gold_outputs as gold,
+  type.num_hybrid_outputs as hybrid,
+  type.num_gold_just_doaj_outputs as gold_doaj,
+  type.num_bronze_outputs as bronze,
+  type.num_green_only_outputs as green_only   
 FROM `{bq_table}` as table,
-  UNNEST(years) as years,
-  UNNEST(years.output_types) as type
+  UNNEST(output_types) as type
 WHERE
-    years.published_year > {year_range[0]} and
-    years.published_year < {year_range[1]} and
-    type.total > 3 
+    time_period > {year_range[0]} and
+    time_period < {year_range[1]} and
+    type.total_outputs > 3 
     {scope}
 """
 
@@ -90,7 +92,7 @@ WHERE
 
         chart_utils.calculate_percentages(self.df,
                                           ['oa', 'green', 'gold'],
-                                          'total')
+                                          'total_outputs')
         chart_utils.clean_output_type_names(self.df)
         super().clean_data()
 
@@ -102,22 +104,31 @@ class GenericCollaborationsTable(AbstractObservatoryTable):
     sql_template = """
 SELECT
   table.id as id,
-  years.published_year as published_year,
-  years.metrics.total as total,
+  table.name as name,
+  table.country as country,
+  table.country_code as country_code,
+  table.time_period as published_year,
+  table.total_outputs as total_outputs,
   collabs.id as collaborator_id,
-  collabs.count as collaborator_total_outputs,
+  collabs.total_outputs as count,
   collabs.name as collaborator_name,
   collabs.country as collaborator_country,
   collabs.country_code as collaborator_country_code,
   collabs.region as collaborator_region,
-  collabs.coordinates as collaborator_coordinates
+  collabs.coordinates as collaborator_coordinates,
+  collabs.num_oa_outputs as oa,
+  collabs.num_gold_outputs as gold,
+  collabs.num_hybrid_outputs as hybrid,
+  collabs.num_bronze_outputs as bronze,
+  collabs.num_green_outputs as green,
+  collabs.num_green_only_outputs as green_only,
+  collabs.num_gold_just_doaj_outputs as gold_doaj
 FROM `{bq_table}` as table,
-  UNNEST(years) as years,
-  UNNEST(years.collaborations) as collabs
+  UNNEST(collaborations) as collabs
 WHERE
-    years.published_year > {year_range[0]} and
-    years.published_year < {year_range[1]} and
-    collabs.count > 5 
+    time_period > {year_range[0]} and
+    time_period < {year_range[1]} and
+    collabs.total_outputs > 5 
     {scope}
 """
 
@@ -134,20 +145,21 @@ SELECT
   table.country_code as country_code,
   table.region as region,
   table.subregion as subregion,
-  years.published_year as published_year,
-  years.metrics.total as total,
+  time_period as published_year,
+  table.total_outputs as total_outputs,
   publishers.publisher as publisher,
-  publishers.count as count,
-  publishers.oa as oa,
-  publishers.gold as gold,
-  publishers.green as green
+  publishers.total_outputs as count,
+  publishers.num_oa_outputs as oa,
+  publishers.num_gold_outputs as gold,
+  publishers.num_hybrid_outputs as hybrid,
+  publishers.num_bronze_outputs as bronze,
+  publishers.num_green_outputs as green
 FROM `{bq_table}` as table,
-  UNNEST(years) as years,
-  UNNEST(years.publishers) as publishers
+  UNNEST(publishers) as publishers
 WHERE
-    years.published_year > {year_range[0]} and
-    years.published_year < {year_range[1]} and
-    publishers.count > 4 
+    time_period > {year_range[0]} and
+    time_period < {year_range[1]} and
+    publishers.total_outputs > 5 
     {scope}
 """
 
@@ -184,9 +196,9 @@ FROM `{bq_table}` as table,
   UNNEST(years) as years,
   UNNEST(years.journals) as journals
 WHERE
-    years.published_year > {year_range[0]} and
-    years.published_year < {year_range[1]} and
-    journals.count > 1 
+    time_period > {year_range[0]} and
+    time_period < {year_range[1]} and
+    journals.total_outputs > 1 
     {scope}
 """
 
@@ -212,21 +224,26 @@ SELECT
   table.country_code as country_code,
   table.region as region,
   table.subregion as subregion,
-  years.published_year as published_year,
-  years.metrics.total as total,
+  table.time_period as published_year,
+  table.total_outputs as total_outputs,
   funders.name as funder,
+  funders.country as funder_country,
+  funders.country_code as funder_country_code,
   funders.funding_body_type as funder_type,
-  funders.count as count,
-  funders.oa as oa,
-  funders.gold as gold,
-  funders.green as green
+  funders.total_outputs as count,
+  funders.num_oa_outputs as oa,
+  funders.num_gold_outputs as gold,
+  funders.num_hybrid_outputs as hybrid,
+  funders.num_bronze_outputs as bronze,
+  funders.num_green_outputs as green,
+  funders.num_green_only_outputs as green_only,
+  funders.num_gold_just_doaj_outputs as gold_doaj
 FROM `{bq_table}` as table,
-  UNNEST(years) as years,
-  UNNEST(years.funders) as funders
+  UNNEST(funders) as funders
 WHERE
-    years.published_year > {year_range[0]} and
-    years.published_year < {year_range[1]} and
-    funders.count > 2 
+    time_period > {year_range[0]} and
+    time_period < {year_range[1]} and
+    funders.total_outputs > 10 
     {scope}
 """
 
