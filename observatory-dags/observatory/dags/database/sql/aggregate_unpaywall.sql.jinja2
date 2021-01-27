@@ -1,4 +1,4 @@
-{# Copyright 2020 Curtin University
+{# Copyright 2020-21 Curtin University and Contributors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,31 +12,136 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Richard Hosking, James Diprose #}
+# Author: Richard Hosking, James Diprose, Contributors #}
 
-SELECT 
+SELECT
   UPPER(TRIM(doi)) as doi,
   year,
   genre as output_type,
   publisher,
   journal_name,
+
+/*
+Is Open Access:
+
+We use the is_oa tag from Unpaywall directly to populate general OA status. This includes bronze.
+*/
   is_oa,
   journal_is_in_doaj as is_in_doaj,
-  IF(is_oa,IF(best_oa_location.license IS NOT NULL, TRUE, FALSE), FALSE)                                                                      as has_license,
-  IF(is_oa, IF(best_oa_location.license IS NOT NULL, IF( STARTS_WITH(best_oa_location.license, "cc"), TRUE, FALSE), FALSE), FALSE)            as is_cclicensed,
-  best_oa_location.license                                                                                                                    as has_specified_license,  
-  IF(journal_is_in_doaj, TRUE, FALSE)                                                                                                         as gold_just_doaj,
-  IF(journal_is_in_doaj OR (best_oa_location.host_type = "publisher" AND best_oa_location.license is not null AND not journal_is_in_doaj), 
-  TRUE, FALSE)                                                                                                                                as gold,
-  IF(not journal_is_in_doaj AND best_oa_location.host_type = "publisher" AND best_oa_location.license is not null, TRUE, FALSE)               as hybrid,
-  IF((SELECT COUNT(1) FROM UNNEST(oa_locations) AS location WHERE location.host_type IN ('repository')) > 0, TRUE, FALSE)                     as green,
-  (SELECT COUNT(1) FROM UNNEST(oa_locations) AS location WHERE location.host_type IN ('repository')) > 0 AND
-  (SELECT COUNT(1) FROM UNNEST(oa_locations) AS location WHERE location.host_type IN ('publisher')) = 0                                       as green_only,
-  (SELECT COUNT(1) FROM UNNEST(oa_locations) AS location WHERE location.host_type IN ('repository')) > 0 AND NOT
-  (NOT journal_is_in_doaj AND (best_oa_location.host_type = "publisher" AND best_oa_location.license is not null))                            as green_only_ingnoring_bronze,
-  IF(is_oa, if(best_oa_location.host_type = "publisher" AND best_oa_location.license is null AND not journal_is_in_doaj, TRUE, FALSE), FALSE) as bronze,
-  ARRAY((SELECT url FROM UNNEST(oa_locations) WHERE host_type = "repository"))                                                                as repository_locations,
+
+/*
+Gold Open Access:
+
+gold OA is defined as either the journal being in DOAJ or the best_oa_location being a publisher and their
+being a license detected. This works because Unpaywall will set the publisher as the best oa location if
+it identifies an accessible publisher copy.
+*/
+  CASE
+    WHEN journal_is_in_doaj OR (best_oa_location.host_type = "publisher" AND best_oa_location.license is not null AND not journal_is_in_doaj) THEN TRUE
+    ELSE FALSE
+  END
+    as gold,
+
+/*
+Gold Open Access in DOAJ Journal:
+
+gold_just_doaj is determined directly from the Unpaywall statement that the journal is in DOAJ. No further
+checking is done on this.
+*/
+  CASE
+    WHEN journal_is_in_doaj THEN TRUE
+    ELSE FALSE
+  END
+    as gold_just_doaj,
+
+/*
+Hybrid Open Access:
+
+hybrid is defined as being available at a publisher with a discovered license, where the journal of publication
+is not in DOAJ. This means that some publisher hybrid is not detected because Unpaywall does not detect a
+license. The use of DOAJ as defining a "fully oa journal" is also narrow and future developments will
+expand this.
+*/
+  CASE
+    WHEN (best_oa_location.host_type = "publisher" AND best_oa_location.license is not null AND not journal_is_in_doaj) THEN TRUE
+    ELSE FALSE
+  END
+    as hybrid,
+
+/*
+Bronze Open Access:
+
+bronze is defined as being available at the publisher website but without a license being detected by Unpaywall.
+This is intended to capture cases where content is unilaterally made readable by the publisher (eg via a moving
+paywall) as in these cases a more open license is not generally applied. However, this is a heuristic and
+there are significant issues distinguishing between different modes by which publishers make content readable.
+*/
+  CASE
+    WHEN (best_oa_location.host_type = "publisher" AND best_oa_location.license is null AND not journal_is_in_doaj) THEN TRUE
+    ELSE FALSE
+  END
+    as bronze,
+
+/*
+Green Open Access:
+
+green is defined as any case where Unpaywall identifies a copy of an output in a repository. This includes
+preprint repositories (eg arxiv) both submitted, accepted and VoR versions of outputs. In a small number of cases
+preprint repositories register content as being journal articles (SSRN is the most common case). Green as
+defined here also explicitly includes those outputs that are also available via the publisher. For the set
+of content which is only freely available via a repository see `green_only`.
+*/
+  CASE
+    WHEN (SELECT COUNT(1) FROM UNNEST(oa_locations) AS location WHERE location.host_type IN ('repository')) > 0 THEN TRUE
+    ELSE FALSE
+  END
+    as green,
+
+/*
+Green Open Access where the outputs is not available Gold (DOAJ or Hybrid) or Bronze:
+
+green_only is the subset of outputs available from repositories that are not also available free to read from
+the publisher. This category is mainly used for the generation of stacked bar charts that include gold_doaj,
+green, hybrid and bronze. This corresponds to general usage of the term "green" in some other literature.
+*/
+  CASE
+    WHEN (SELECT COUNT(1) FROM UNNEST(oa_locations) AS location WHERE location.host_type IN ('repository')) > 0 AND
+      NOT (journal_is_in_doaj OR best_oa_location.host_type = "publisher") THEN TRUE
+    ELSE FALSE
+  END
+    as green_only,
+
+/*
+Green Open Access where the output is not available Gold (DOAJ or Hybrid) but may be Bronze:
+
+green_only_ignoring_bronze provides the set of articles that are green and not gold. That is it includes articles
+that are green and bronze, but not gold. This category is largely intended to allow for the production of stacked
+bar charts where bronze is not desired as one of the categories being graphed.
+*/
+  CASE
+    WHEN (SELECT COUNT(1) FROM UNNEST(oa_locations) AS location WHERE location.host_type IN ('repository')) > 0 AND
+      NOT (journal_is_in_doaj OR (best_oa_location.host_type = "publisher" AND best_oa_location.license is not null)) THEN TRUE
+    ELSE FALSE
+  END
+    as green_only_ignoring_bronze,
+
+  CASE
+    WHEN (best_oa_location.license IS NOT NULL) THEN TRUE
+    ELSE FALSE
+  END
+    as has_license,
+
+  CASE
+    WHEN ((best_oa_location.license IS NOT NULL) AND (STARTS_WITH(best_oa_location.license, "cc"))) THEN TRUE
+    ELSE FALSE
+  END
+    as is_cclicensed,
+
+  ARRAY((SELECT url FROM UNNEST(oa_locations) WHERE host_type = "repository")) as repository_locations,
   best_oa_location.url_for_landing_page,
   best_oa_location.url_for_pdf
+
+FROM `academic-observatory.our_research.unpaywall20201009`
+
 FROM 
   `{{ project_id }}.our_research.unpaywall{{ release_date.strftime('%Y%m%d') }}`
