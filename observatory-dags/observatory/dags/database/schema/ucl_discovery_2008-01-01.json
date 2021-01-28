@@ -12,6 +12,126 @@
     "type": "STRING"
   },
   {
+    "description": "Family name of the creators",
+    "mode": "REPEATED",
+    "name": "creators_name_family",
+    "type": "STRING"
+  },
+  {
+    "description": "Given name of the creators",
+    "mode": "REPEATED",
+    "name": "creators_name_given",
+    "type": "STRING"
+  },
+    {
+    "description": "",
+    "mode": "NULLABLE",
+    "name": "ispublished",
+    "type": "STRING"
+  },
+  {
+    "description": "Subjects",
+    "mode": "REPEATED",
+    "name": "subjects",
+    "type": "STRING"
+  },
+  {
+    "description": "Divisions",
+    "mode": "REPEATED",
+    "name": "divisions",
+    "type": "STRING"
+  },
+  {
+    "description": "Keywords",
+    "mode": "REPEATED",
+    "name": "keywords",
+    "type": "STRING"
+  },
+  {
+    "description": "Abstract",
+    "mode": "NULLABLE",
+    "name": "abstract",
+    "type": "STRING"
+  },
+  {
+    "description": "Date",
+    "mode": "NULLABLE",
+    "name": "date",
+    "type": "STRING"
+  },
+  {
+    "description": "Publisher",
+    "mode": "NULLABLE",
+    "name": "publisher",
+    "type": "STRING"
+  },
+  {
+    "description": "Official URL",
+    "mode": "NULLABLE",
+    "name": "official_url",
+    "type": "STRING"
+  },
+  {
+    "description": "OA status",
+    "mode": "NULLABLE",
+    "name": "oa_status",
+    "type": "STRING"
+  },
+  {
+    "description": "Language",
+    "mode": "NULLABLE",
+    "name": "language",
+    "type": "STRING"
+  },
+  {
+    "description": "DOI",
+    "mode": "NULLABLE",
+    "name": "doi",
+    "type": "STRING"
+  },
+  {
+    "description": "ISBN",
+    "mode": "NULLABLE",
+    "name": "isbn",
+    "type": "STRING"
+  },
+  {
+    "description": "Language elements",
+    "mode": "NULLABLE",
+    "name": "language_elements",
+    "type": "STRING"
+  },
+  {
+    "description": "Series",
+    "mode": "NULLABLE",
+    "name": "series",
+    "type": "STRING"
+  },
+    {
+    "description": "Page range",
+    "mode": "NULLABLE",
+    "name": "pagerange",
+    "type": "STRING"
+  },
+  {
+    "description": "Pages",
+    "mode": "NULLABLE",
+    "name": "pages",
+    "type": "INTEGER"
+  },
+  {
+    "description": "Family name of the editors",
+    "mode": "REPEATED",
+    "name": "editors_name_family",
+    "type": "STRING"
+  },
+  {
+    "description": "Given name of the editors",
+    "mode": "REPEATED",
+    "name": "editors_name_given",
+    "type": "STRING"
+  },
+  {
     "description": "Begin date.",
     "mode": "REQUIRED",
     "name": "begin_date",
