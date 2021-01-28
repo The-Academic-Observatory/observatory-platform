@@ -53,6 +53,28 @@ from croniter import croniter
 import six
 from datetime import datetime
 from observatory.dags.config import workflow_sql_templates_path
+import csv
+
+
+def get_downloads_per_country(countries_url: str) -> Tuple[list, int]:
+    print(countries_url)
+    response = retry_session(num_retries=5).get(countries_url)
+    response_content = response.content.decode('utf-8')
+    if response_content == '\n':
+        return [], 0
+    response_csv = csv.DictReader(response_content.splitlines())
+    results = []
+    total_downloads = 0
+    for row in response_csv:
+        download_count = int(row['count'].strip('="'))
+        country_code = row['value']
+        country_name = row['description'].split('</span>')[0].split('>')[-1]
+        results.append({'country_code': country_code,
+                        'country_name': country_name,
+                        'download_count': download_count})
+        total_downloads += download_count
+
+    return results, total_downloads
 
 
 def download_release(release: 'UclDiscoveryRelease') -> bool:
@@ -64,40 +86,41 @@ def download_release(release: 'UclDiscoveryRelease') -> bool:
     :param release: The crossref events release
     :return: Boolean whether to continue DAG. Continue DAG is True if the events file is not empty.
     """
-    response = retry_session(num_retries=5).get(release.url)
+    begin_date = release.start_date.strftime("%Y-%m-%d")
+    end_date = release.end_date.strftime("%Y-%m-%d")
+
+    print(release.list_ids_url)
+    response = retry_session(num_retries=5).get(release.list_ids_url)
     if response.status_code == 200:
+        response_content = response.content.decode('utf-8')
+        response_csv = csv.DictReader(response_content.splitlines())
         if os.path.exists(release.download_path):
             os.remove(release.download_path)
+        result = {}
         with open(release.download_path, 'a') as json_out:
-            response.encoding = 'utf-8'
-            results = response.text.splitlines()
-            if len(results) > 1:
-                results = response.text.splitlines()[1:]
-                logging.info(f'Extracting download_count of {len(results)} books.')
-            else:
-                logging.info(f'No downloads available for books in current time period.')
-                return False
-            begin_date = release.start_date.strftime("%Y-%m-%d")
-            end_date = release.end_date.strftime("%Y-%m-%d")
-            for book_entry in results:
-                items = book_entry.split(',')
-                total_downloads = items[0].strip('="')
-                book_id = items[1].strip('="')
-                # try:
-                #     book_id = items[1].strip('="')
-                # except IndexError:
-                #     print('eror')
-                book_title = items[2].split('</a>')[0].split('>')[-1]
+            current_id = ''
+            for row in response_csv:
+                book_id = row['eprintid']
+                print(book_id)
+                if current_id == book_id:
+                    current_id = book_id
+                    continue
+                downloads_per_country, total_downloads = get_downloads_per_country(release.countries_url+book_id)
+                if total_downloads == 0:
+                    current_id = book_id
+                    continue
                 result = {
                     'book_id': book_id,
-                    'book_title': book_title,
+                    'book_title': row['title'],
                     'begin_date': begin_date,
                     'end_date': end_date,
                     'total_downloads': total_downloads,
+                    'downloads_per_country': downloads_per_country
                 }
                 json.dump(result, json_out)
                 json_out.write('\n')
-        return True
+                current_id = book_id
+        return True if result else False
     else:
         return False
 
@@ -116,8 +139,11 @@ class UclDiscoveryRelease:
         self.end_date = end_date
         self.first_release = first_release
 
-        self.url = UclDiscoveryTelescope.STATISTICS_URL.format(start_date=start_date.strftime("%Y%m%d"),
-                                                               end_date=end_date.strftime("%Y%m%d"))
+        # self.url = UclDiscoveryTelescope.STATISTICS_URL.format(start_date=start_date.strftime("%Y%m%d"),
+        #                                                        end_date=end_date.strftime("%Y%m%d"))
+        self.list_ids_url = UclDiscoveryTelescope.LIST_IDS_URL.format(end_date=end_date.strftime("%Y"))
+        self.countries_url = UclDiscoveryTelescope.COUNTRIES_URL.format(start_date=start_date.strftime("%Y%m%d"),
+                                                                        end_date=end_date.strftime("%Y%m%d"))
 
     @property
     def download_path(self) -> str:
@@ -210,9 +236,19 @@ class UclDiscoveryTelescope:
     MAX_PROCESSES = 21
     MAX_RETRIES = 3
 
-    STATISTICS_URL = 'https://discovery.ucl.ac.uk/cgi/stats/get?from={start_date}&to={end_date}&set_name=type&' \
-                     'set_value=book&irs2report=main&datatype=downloads&top=eprint&view=Table' \
-                     '&title_phrase=top_downloads&limit=all&export=CSV'
+    # STATISTICS_URL = 'https://discovery.ucl.ac.uk/cgi/stats/get?from={start_date}&to={end_date}&set_name=type&' \
+    #                  'set_value=book&irs2report=main&datatype=downloads&top=eprint&view=Table' \
+    #                  '&title_phrase=top_downloads&limit=all&export=CSV'
+    LIST_IDS_URL = 'https://discovery.ucl.ac.uk/cgi/search/archive/advanced/export_discovery_CSV.csv?' \
+                   'screen=Search&dataset=archive&_action_export=1&output=CSV' \
+                   '&exp=0|1|-date/creators_name/title|archive|-|date:date:ALL:EQ:-{end_date}|primo:primo:ANY:EQ:open' \
+                   '|type:type:ANY:EQ:book|-|eprint_status:eprint_status:ANY:EQ:archive' \
+                   '|metadata_visibility:metadata_visibility:ANY:EQ:show'
+    # DOWNLOADS_URL = 'https://discovery.ucl.ac.uk/cgi/stats/get?from={start_date}&to={end_date}&set_name=eprint' \
+    #                 '&set_value={book_id}&irs2report=eprint&datatype=downloads&view=Table&limit=all&top=eprint&export=CSV'
+    COUNTRIES_URL = 'https://discovery.ucl.ac.uk/cgi/stats/get?from={start_date}&to={end_date}&irs2report=eprint' \
+                  '&datatype=countries&top=countries&view=Table&limit=all&set_name=eprint&export=CSV&set_value='
+
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
     TASK_ID_CHECK_RELEASE = "check_release"
