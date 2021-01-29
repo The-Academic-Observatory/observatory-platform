@@ -241,7 +241,8 @@ class TestPlatformBuilder(unittest.TestCase):
                                        dags_module='observatory.dags.dags')
             backend = Backend(type=BackendType.local,
                               environment=Environment.develop)
-            airflow = Airflow(fernet_key='DOJLLgvRnhy51gxLbxznn4w7MxD5kZ53bOZEoPr8wCg=')
+            airflow = Airflow(fernet_key='DOJLLgvRnhy51gxLbxznn4w7MxD5kZ53bOZEoPr8wCg=',
+                              secret_key='f95d60dc61b3a2b703ece8904b93947af88c2f609df8855514af097ea254')
             google_cloud = GoogleCloud(project_id='my-project-id',
                                        credentials='/path/to/creds.json',
                                        data_location='us',
@@ -263,6 +264,7 @@ class TestPlatformBuilder(unittest.TestCase):
             # Set FERNET_KEY, HOST_GOOGLE_APPLICATION_CREDENTIALS, AIRFLOW_VAR_DAGS_MODULE_NAMES
             # and airflow variables and connections
             expected_env['FERNET_KEY'] = cmd.config.airflow.fernet_key
+            expected_env['SECRET_KEY'] = cmd.config.airflow.secret_key
             expected_env['HOST_GOOGLE_APPLICATION_CREDENTIALS'] = cmd.config.google_cloud.credentials
             expected_env['AIRFLOW_VAR_ENVIRONMENT'] = cmd.config.backend.environment.value
             expected_env['AIRFLOW_VAR_PROJECT_ID'] = google_cloud.project_id
