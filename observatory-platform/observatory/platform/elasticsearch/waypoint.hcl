@@ -8,7 +8,7 @@ app "waypoint-elasticsearch-app" {
 
   build {
     use "docker" {
-      dockerfile = "DockerfileWaypoint"
+      dockerfile = "Dockerfile"
     }
 
     registry {
