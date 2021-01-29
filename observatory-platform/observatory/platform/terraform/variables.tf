@@ -14,6 +14,7 @@ ui_user_email: the email address for the Apache Airflow UI admin user.
 EOF
   type = object({
     fernet_key = string
+    secret_key = string
     ui_user_email = string
     ui_user_password = string
   })

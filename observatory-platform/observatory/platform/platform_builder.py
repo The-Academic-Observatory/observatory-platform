@@ -267,6 +267,7 @@ class PlatformBuilder:
         if self.config.google_cloud.credentials is not None:
             env['HOST_GOOGLE_APPLICATION_CREDENTIALS'] = self.config.google_cloud.credentials
         env['FERNET_KEY'] = self.config.airflow.fernet_key
+        env['SECRET_KEY'] = self.config.airflow.secret_key
 
         # Create Airflow variables
         airflow_variables = self.config.make_airflow_variables()

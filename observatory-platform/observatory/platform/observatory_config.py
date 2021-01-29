@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import binascii
 import json
 import os
 from dataclasses import dataclass, field
@@ -32,6 +33,16 @@ from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowVariable
 from observatory.platform.utils.config_utils import AirflowVars, module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
+
+
+def generate_secret_key(length: int = 30) -> str:
+    """ Generate a secret key for Flask.
+
+    :param length: the length of the key to generate.
+    :return: the random key.
+    """
+
+    return str(binascii.b2a_hex(os.urandom(length)))
 
 
 def save_yaml(file_path: str, dict_: Dict):
@@ -112,17 +123,20 @@ class Airflow:
 
     Attributes:
         fernet_key: the Fernet key.
+        secret_key: the secret key used to run the flask app.
         ui_user_password: the password for the Apache Airflow UI admin user.
         ui_user_email: the email address for the Apache Airflow UI admin user.
      """
 
     fernet_key: str
+    secret_key: str
     ui_user_password: str = None
     ui_user_email: str = None
 
     def to_hcl(self):
         return to_hcl({
             'fernet_key': self.fernet_key,
+            'secret_key': self.secret_key,
             'ui_user_password': self.ui_user_password,
             'ui_user_email': self.ui_user_email
         })
@@ -136,9 +150,10 @@ class Airflow:
         """
 
         fernet_key = dict_.get('fernet_key')
+        secret_key = dict_.get('secret_key')
         ui_user_password = dict_.get('ui_user_password')
         ui_user_email = dict_.get('ui_user_email')
-        return Airflow(fernet_key,
+        return Airflow(fernet_key, secret_key,
                        ui_user_password=ui_user_password,
                        ui_user_email=ui_user_email)
 
@@ -630,13 +645,17 @@ class ObservatoryConfig:
         # Render template
         template_path = os.path.join(module_file_path('observatory.platform'), template_file_name)
         fernet_key = generate_fernet_key()
+        secret_key = generate_secret_key()
 
         try:
             observatory_dags_path = module_file_path('observatory.dags', nav_back_steps=-3)
         except ModuleNotFoundError:
             observatory_dags_path = '/path/to/observatory-platform/observatory-dags'
 
-        render = render_template(template_path, fernet_key=fernet_key, observatory_dags_path=observatory_dags_path)
+        render = render_template(template_path,
+                                 fernet_key=fernet_key,
+                                 secret_key=secret_key,
+                                 observatory_dags_path=observatory_dags_path)
 
         # Save file
         with open(config_path, 'w') as f:
@@ -932,6 +951,10 @@ def make_schema(backend_type: BackendType) -> Dict:
         'type': 'dict',
         'schema': {
             'fernet_key': {
+                'required': True,
+                'type': 'string'
+            },
+            'secret_key': {
                 'required': True,
                 'type': 'string'
             },
