@@ -77,6 +77,43 @@ def get_downloads_per_country(countries_url: str) -> Tuple[list, int]:
     return results, total_downloads
 
 
+def create_result_dict(previous_id, book_title, creators_name_family, creators_name_given, ispublished, subjects,
+                       divisions, keywords, abstract, date, publisher, official_url, oa_status, language, doi, isbn,
+                       language_elements, series, pagerange, pages, editors_name_family, editors_name_given, begin_date,
+                       end_date, total_downloads, downloads_per_country):
+    result = {
+        'book_id': previous_id,
+        'book_title': book_title,
+        'creators_name_family': creators_name_family,
+        'creators_name_given': creators_name_given,
+        'ispublished': ispublished,
+        'subjects': subjects,
+        'divisions': divisions,
+        'keywords': keywords,
+        'abstract': abstract,
+        'date': date,
+        'publisher': publisher,
+        'official_url': official_url,
+        'oa_status': oa_status,
+        'language': language,
+        'doi': doi,
+        'isbn': isbn,
+        'language_elements': language_elements,
+        'series': series,
+        'pagerange': pagerange,
+        'pages': pages,
+        'editors_name_family': editors_name_family,
+        'editors_name_given': editors_name_given,
+        'begin_date': begin_date,
+        'end_date': end_date,
+        'total_downloads': total_downloads,
+        'downloads_per_country': downloads_per_country,
+    }
+    for k, v in result.items():
+        result[k] = v if v != '' else None
+    return result
+
+
 def download_release(release: 'UclDiscoveryRelease') -> bool:
     """
     Download one release of crossref events, this is from the start date of the previous successful DAG until the
@@ -96,31 +133,82 @@ def download_release(release: 'UclDiscoveryRelease') -> bool:
         response_csv = csv.DictReader(response_content.splitlines())
         if os.path.exists(release.download_path):
             os.remove(release.download_path)
-        result = {}
         with open(release.download_path, 'a') as json_out:
-            current_id = ''
+            previous_id = None
+
+            creators_name_family = []
+            creators_name_given = []
+            subjects = []
+            divisions = []
+            lyricists_name_family = []
+            lyricists_name_given = []
+            editors_name_family = []
+            editors_name_given = []
             for row in response_csv:
                 book_id = row['eprintid']
-                print(book_id)
-                if current_id == book_id:
-                    current_id = book_id
-                    continue
-                downloads_per_country, total_downloads = get_downloads_per_country(release.countries_url+book_id)
-                if total_downloads == 0:
-                    current_id = book_id
-                    continue
-                result = {
-                    'book_id': book_id,
-                    'book_title': row['title'],
-                    'begin_date': begin_date,
-                    'end_date': end_date,
-                    'total_downloads': total_downloads,
-                    'downloads_per_country': downloads_per_country
-                }
-                json.dump(result, json_out)
-                json_out.write('\n')
-                current_id = book_id
-        return True if result else False
+                if previous_id != book_id:
+                    if previous_id:
+                        result = create_result_dict(previous_id, book_title, creators_name_family, creators_name_given,
+                                            ispublished,
+                                           subjects, divisions, keywords, abstract, date, publisher, official_url,
+                                           oa_status, language, doi, isbn, language_elements, series, pagerange, pages,
+                                           editors_name_family, editors_name_given, begin_date, end_date, total_downloads,
+                                           downloads_per_country)
+                        json.dump(result, json_out)
+                        json_out.write('\n')
+
+                        creators_name_family = []
+                        creators_name_given = []
+                        subjects = []
+                        divisions = []
+                        lyricists_name_family = []
+                        lyricists_name_given = []
+                        editors_name_family = []
+                        editors_name_given = []
+
+                    book_title = row['title']
+                    ispublished = row['ispublished']
+                    keywords = row['keywords'].split(', ')
+                    abstract = row['abstract']
+                    date = row['date']
+                    publisher = row['publisher']
+                    official_url = row['official_url']
+                    oa_status = row['oa_status']
+                    language = row['language']
+                    doi = row['doi']
+                    isbn = row['isbn_13']
+                    language_elements = row['language_elements']
+                    series = row['series']
+                    pagerange = row['pagerange']
+                    pages = row['pages']
+
+                    downloads_per_country, total_downloads = get_downloads_per_country(release.countries_url + book_id)
+
+                if row['creators_name.family'] != '' or row['creators_name.given'] != '':
+                    creators_name_family.append(row['creators_name.family'])
+                    creators_name_given.append(row['creators_name.given'])
+                if row['subjects'] != '':
+                    subjects.append(row['subjects'])
+                if row['divisions'] != '':
+                    divisions.append(row['divisions'])
+                if row['lyricists_name.family'] != '' or row['lyricists_name.given'] != '':
+                    lyricists_name_family.append(row['lyricists_name.family'])
+                    lyricists_name_given.append(row['lyricists_name.given'])
+                if row['editors_name.family'] != '' or row['editors_name.given'] != '':
+                    editors_name_family.append(row['editors_name.family'])
+                    editors_name_given.append(row['editors_name.given'])
+                previous_id = book_id
+
+            result = create_result_dict(previous_id, book_title, creators_name_family, creators_name_given,
+                                            ispublished,
+                                           subjects, divisions, keywords, abstract, date, publisher, official_url,
+                                           oa_status, language, doi, isbn, language_elements, series, pagerange, pages,
+                                           editors_name_family, editors_name_given, begin_date, end_date, total_downloads,
+                                           downloads_per_country)
+            json.dump(result, json_out)
+            json_out.write('\n')
+        return True if previous_id else False
+
     else:
         return False
 
