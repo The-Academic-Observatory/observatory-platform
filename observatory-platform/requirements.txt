@@ -20,5 +20,8 @@ oauth2client==1.5.2
 httpretty==1.0.*
 pbr==5.5.*
 redis==3.5.*
-requests==2.20.0
 importlib-metadata==2.0
+requests==2.20.0
+pyjwt==1.7.1
+idna==2.7
+marshmallow==2.21.0
