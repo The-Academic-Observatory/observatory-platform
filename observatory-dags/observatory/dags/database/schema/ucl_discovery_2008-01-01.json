@@ -1,8 +1,8 @@
 [
   {
-    "description": "Book id.",
+    "description": "Eprint id.",
     "mode": "REQUIRED",
-    "name": "book_id",
+    "name": "eprintid",
     "type": "STRING"
   },
   {
@@ -24,7 +24,7 @@
     "type": "STRING"
   },
     {
-    "description": "",
+    "description": "Info on whether the book is published",
     "mode": "NULLABLE",
     "name": "ispublished",
     "type": "STRING"

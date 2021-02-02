@@ -82,7 +82,7 @@ def create_result_dict(previous_id, book_title, creators_name_family, creators_n
                        language_elements, series, pagerange, pages, editors_name_family, editors_name_given, begin_date,
                        end_date, total_downloads, downloads_per_country):
     result = {
-        'book_id': previous_id,
+        'eprintid': previous_id,
         'book_title': book_title,
         'creators_name_family': creators_name_family,
         'creators_name_given': creators_name_given,
@@ -145,8 +145,8 @@ def download_release(release: 'UclDiscoveryRelease') -> bool:
             editors_name_family = []
             editors_name_given = []
             for row in response_csv:
-                book_id = row['eprintid']
-                if previous_id != book_id:
+                eprintid = row['eprintid']
+                if previous_id != eprintid:
                     if previous_id:
                         result = create_result_dict(previous_id, book_title, creators_name_family, creators_name_given,
                                             ispublished,
@@ -182,7 +182,7 @@ def download_release(release: 'UclDiscoveryRelease') -> bool:
                     pagerange = row['pagerange']
                     pages = row['pages']
 
-                    downloads_per_country, total_downloads = get_downloads_per_country(release.countries_url + book_id)
+                    downloads_per_country, total_downloads = get_downloads_per_country(release.countries_url + eprintid)
 
                 if row['creators_name.family'] != '' or row['creators_name.given'] != '':
                     creators_name_family.append(row['creators_name.family'])
@@ -197,7 +197,7 @@ def download_release(release: 'UclDiscoveryRelease') -> bool:
                 if row['editors_name.family'] != '' or row['editors_name.given'] != '':
                     editors_name_family.append(row['editors_name.family'])
                     editors_name_given.append(row['editors_name.given'])
-                previous_id = book_id
+                previous_id = eprintid
 
             result = create_result_dict(previous_id, book_title, creators_name_family, creators_name_given,
                                             ispublished,
@@ -499,7 +499,7 @@ class UclDiscoveryTelescope:
         release_date = pendulum.instance(release.end_date)
         main_table = UclDiscoveryTelescope.DAG_ID
         sharded_table = bigquery_partitioned_table_id(UclDiscoveryTelescope.DAG_ID, release_date)
-        merge_condition_field = 'book_id'
+        merge_condition_field = 'eprintid'
         updated_date_field = 'end_date'
 
         template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename('merge_delete_matched'))
