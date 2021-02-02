@@ -36,7 +36,7 @@ from observatory.platform.utils.jinja2_utils import render_template
 
 
 def generate_secret_key(length: int = 30) -> str:
-    """ Generate a secret key for Flask.
+    """ Generate a secret key for the Flask Airflow Webserver.
 
     :param length: the length of the key to generate.
     :return: the random key.
