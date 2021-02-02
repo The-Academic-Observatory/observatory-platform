@@ -9,6 +9,7 @@ variable "airflow" {
 The Apache Airflow settings for the Observatory Platform.
 
 fernet_key: the Fernet key.
+secret_key: the secret key used for the Flask Airflow Webserver.
 ui_user_password: the password for the Apache Airflow UI admin user.
 ui_user_email: the email address for the Apache Airflow UI admin user.
 EOF
