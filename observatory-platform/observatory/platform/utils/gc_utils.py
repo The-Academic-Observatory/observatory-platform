@@ -29,7 +29,7 @@ from subprocess import Popen
 from typing import List, Union
 
 import pendulum
-from crc32c import Checksum as Crc32cChecksum
+from google_crc32c import Checksum as Crc32cChecksum
 from google.api_core.exceptions import Conflict, BadRequest
 from google.cloud import storage, bigquery
 from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob, QueryJob

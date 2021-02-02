@@ -465,6 +465,7 @@ locals {
     airflow_ui_user_email=var.airflow.ui_user_email,
     airflow_ui_user_password=var.airflow.ui_user_password,
     fernet_key=var.airflow.fernet_key,
+    secret_key=var.airflow.secret_key,
     google_application_credentials=var.google_cloud.credentials,
     postgres_password=var.cloud_sql_database.postgres_password
   }

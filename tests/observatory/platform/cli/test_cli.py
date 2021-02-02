@@ -319,6 +319,7 @@ class TestObservatoryTerraform(unittest.TestCase):
                 },
                 'airflow': {
                     'fernet_key': 'random-fernet-key',
+                    'secret_key': 'random-secret-key',
                     'ui_user_password': 'password',
                     'ui_user_email': 'password'
                 },
