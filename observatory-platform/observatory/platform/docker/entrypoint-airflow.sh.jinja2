@@ -24,7 +24,7 @@ if [ $1="webserver" ]; then
   airflow upgradedb
 
   # Create the Admin user. This command will just print "airflow already exist in the db" if the user already exists
-  airflow create_user -r Admin -u airflow -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
+  airflow users create -r Admin -u ${AIRFLOW_UI_USER_EMAIL} -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
 fi
 
 ###############################

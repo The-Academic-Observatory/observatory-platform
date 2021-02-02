@@ -81,7 +81,8 @@ class TestObservatoryConfig(unittest.TestCase):
                 'environment': 'develop'
             },
             'airflow': {
-                'fernet_key': 'random-fernet-key'
+                'fernet_key': 'random-fernet-key',
+                'secret_key': 'random-secret-key'
             }
         }
 
@@ -114,7 +115,8 @@ class TestObservatoryConfig(unittest.TestCase):
                     }
                 },
                 'airflow': {
-                    'fernet_key': 'random-fernet-key'
+                    'fernet_key': 'random-fernet-key',
+                    'secret_key': 'random-secret-key'
                 },
                 'airflow_variables': {
                     'my-variable-name': 'my-variable-value'
@@ -177,7 +179,8 @@ class TestObservatoryConfig(unittest.TestCase):
                 }
             },
             'airflow': {
-                'fernet_key': 1
+                'fernet_key': 1,
+                'secret_key': 1
             },
             'airflow_variables': {
                 'my-variable-name': 1
@@ -224,6 +227,7 @@ class TestTerraformConfig(unittest.TestCase):
                 },
                 'airflow': {
                     'fernet_key': 'random-fernet-key',
+                    'secret_key': 'random-secret-key',
                     'ui_user_password': 'password',
                     'ui_user_email': 'password'
                 },
@@ -275,6 +279,7 @@ class TestTerraformConfig(unittest.TestCase):
                 },
                 'airflow': {
                     'fernet_key': 'random-fernet-key',
+                    'secret_key': 'random-secret-key',
                     'ui_user_password': 'password',
                     'ui_user_email': 'password'
                 },
@@ -339,6 +344,7 @@ class TestTerraformConfig(unittest.TestCase):
             },
             'airflow': {
                 'fernet_key': 'random-fernet-key',
+                'secret_key': 'random-secret-key',
                 'ui_user_password': 'password',
                 'ui_user_email': 'password'
             },
@@ -390,6 +396,7 @@ class TestTerraformConfig(unittest.TestCase):
             },
             'airflow': {
                 'fernet_key': 'random-fernet-key',
+                'secret_key': 'random-secret-key',
                 'ui_user_password': 'password',
                 'ui_user_email': 'password'
             },
@@ -621,12 +628,14 @@ class TestSchema(unittest.TestCase):
         valid_docs = [
             {
                 'airflow': {
-                    'fernet_key': 'random-fernet-key'
+                    'fernet_key': 'random-fernet-key',
+                    'secret_key': 'random-secret-key'
                 }
             },
             {
                 'airflow': {
                     'fernet_key': 'password',
+                    'secret_key': 'password',
                     'ui_user_password': 'password',
                     'ui_user_email': 'password'
                 }
@@ -643,7 +652,7 @@ class TestSchema(unittest.TestCase):
         ]
 
         expected_errors = [{'airflow': ['required field']},
-                           {'airflow': [{'fernet_key': ['required field']}]}]
+                           {'airflow': [{'fernet_key': ['required field'], 'secret_key': ['required field']}]}]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
     def test_local_schema_airflow_variables(self):
@@ -815,6 +824,7 @@ class TestSchema(unittest.TestCase):
             {
                 'airflow': {
                     'fernet_key': 'password',
+                    'secret_key': 'password',
                     'ui_user_password': 'password',
                     'ui_user_email': 'password'
                 }
@@ -828,8 +838,8 @@ class TestSchema(unittest.TestCase):
         ]
 
         expected_errors = [{'airflow': ['required field']},
-                           {'airflow': [{'fernet_key': ['required field'], 'ui_user_email': ['required field'],
-                                         'ui_user_password': ['required field']}]}]
+                           {'airflow': [{'fernet_key': ['required field'], 'secret_key': ['required field'],
+                                         'ui_user_email': ['required field'], 'ui_user_password': ['required field']}]}]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
     def test_terraform_schema_database(self):
