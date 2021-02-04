@@ -1,0 +1,129 @@
+swagger: '2.0'
+info:
+  title: Observatory API endpoints
+  description: Observatory API on Cloud Endpoints with a Cloud Run backend
+  version: 1.0.0
+host: ${host}
+schemes:
+  - https
+produces:
+  - application/json
+securityDefinitions:
+  # This section configures basic authentication with an API key.
+  api_key:
+    type: "apiKey"
+    name: "key"
+    in: "query"
+security:
+  - api_key: []
+paths:
+  /query:
+    get:
+      operationId: api.query.search
+      tags:
+        - Query
+      summary: Perform an elasticsearch search query
+      description: Perform an elasticsearch search query
+      parameters:
+        - in: query
+          name: agg
+          description: The aggregation level
+          required: true
+          enum:
+            - author
+            - country
+            - funder
+            - group
+            - institution
+            - publisher
+          type: string
+        - name: subset
+          in: query
+          description: The required subset
+          required: true
+          enum:
+            - citations
+            - collaborations
+            - disciplines
+            - events
+            - funders
+            - journals
+            - oa-metrics
+            - output-types
+            - publishers
+          type: string
+        - name: from
+          in: query
+          description: Start date (included)
+          required: false
+          type: integer
+        - name: to
+          in: query
+          description: End date (not included)
+          required: false
+          type: integer
+        - name: limit
+          in: query
+          description: Limit number of results (max 10000)
+          required: false
+          type: integer
+          maximum: 10000
+        - name: scroll_id
+          in: query
+          description: The scroll id
+          required: false
+          type: string
+        - name: pit_id
+          in: query
+          description: The PIT id
+          required: false
+          type: string
+        - name: search_after_no
+          in: query
+          description: The search after key
+          required: false
+          type: integer
+        - name: search_after_text
+          in: query
+          description: The search after key
+          required: false
+          type: string
+        %{ for param in query_parameters }
+        - name: ${param}
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        %{ endfor }
+      responses:
+        '200':
+          description: Successfully return query results (items need to be updated)
+          schema:
+            type: object
+            properties:
+              scroll_id:
+                type: string
+                description: The scroll id that can be used to get the next batch of results (only active for 1min)
+              returned_hits:
+                type: integer
+                description: The number of returned hits (can be less than total_hits if a limit is set)
+              total_hits:
+                type: integer
+                description: The number of total hits
+              schema:
+                type: object
+                description: The schema for an individual hit
+              results:
+                type: array
+                description: A list of the actual results (one dictionary per hit)
+        401:
+          $ref: '#/responses/UnauthorizedError'
+      produces:
+        - application/json
+responses:
+  UnauthorizedError:
+    description: API key is missing or invalid
+    headers:
+      WWW_Authenticate:
+        type: string

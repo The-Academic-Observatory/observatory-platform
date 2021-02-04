@@ -1,5 +1,5 @@
 import unittest
-from observatory.platform.elasticsearch.app.api.query import (create_es_connection,
+from observatory.platform.api.app.api.query import (create_es_connection,
                                                               create_search_body,
                                                               validate_dates,
                                                               process_response,
@@ -7,7 +7,7 @@ from observatory.platform.elasticsearch.app.api.query import (create_es_connecti
                                                               parse_args,
                                                               search)
 
-from observatory.platform.elasticsearch.app.server import app
+from observatory.platform.api.app.server import app
 
 
 class TestQuery(unittest.TestCase):

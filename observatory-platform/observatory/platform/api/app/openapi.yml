@@ -3,20 +3,20 @@ info:
   title: Elasticsearch API
   description: 'Query data from elasticsearch indexes'
   version: 0.1.9
-securityDefinitions:
-  APIKeyHeader:
-    type: apiKey
-    in: header
-    name: X-API-Key
-    x-apikeyInfoFunc: server.basic_auth
-  APIKeyQueryParam:
-    type: apiKey
-    in: query
-    name: api_key
-    x-apikeyInfoFunc: server.basic_auth
-security:
-  - APIKeyHeader: []
-  - APIKeyQueryParam: []
+#securityDefinitions:
+#  APIKeyHeader:
+#    type: apiKey
+#    in: header
+#    name: X-API-Key
+#    x-apikeyInfoFunc: server.basic_auth
+#  APIKeyQueryParam:
+#    type: apiKey
+#    in: query
+#    name: api_key
+#    x-apikeyInfoFunc: server.basic_auth
+#security:
+#  - APIKeyHeader: []
+#  - APIKeyQueryParam: []
 paths:
   /query:
     get:

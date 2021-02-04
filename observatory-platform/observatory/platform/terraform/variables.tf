@@ -98,3 +98,18 @@ variable "airflow_connections" {
   description = "User defined Apache Airflow connections"
   type = map(string)
 }
+
+variable "elasticsearch_logins" {
+    description = <<EOF
+Elasticsearch login information
+
+username: The elasticsearch username
+password: The elasticsearch password
+address: The address of the elasticsearch server
+EOF
+  type = object({
+    username = string
+    password = string
+    address = string
+  })
+}
