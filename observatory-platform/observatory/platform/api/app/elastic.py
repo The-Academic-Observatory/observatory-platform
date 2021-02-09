@@ -187,7 +187,7 @@ def create_schema():
 #         agg += '_test'
 #     if agg == 'publisher' and subset == 'collaborations':
 #         return "Invalid combination of aggregation (publisher) and subset (collaborations)", 400
-#     index = f"{subset}-{agg}-20201205"
+#     index = f"{subset}-{agg}"
 #
 #     if search_after_no and search_after_text:
 #         search_after = [search_after_no, search_after_text]
