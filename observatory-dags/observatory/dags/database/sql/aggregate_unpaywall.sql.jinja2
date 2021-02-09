@@ -28,10 +28,11 @@ The current categories of Open Access described in this file are:
 * is_oa: derived directly from Unpaywall
 * hybrid: accessible at the publisher with a recognised license
 * bronze: accessible at the publisher with no recognised license
-* gold_just_doaj: accessible at the publisher site from a journal in DOAJ
+* gold_just_doaj: an article in a journal that is in DOAJ
+* gold: an article that is in a DOAJ journal OR is accessible at the publisher site with a recognised license (hybrid)
 * green: accessible at any site recognised as a repository (including preprints)
-* green_only: accessible at a repository and not (gold or hybrid or bronze)
-* green_only_ignoring_bronze: accessible at a repository and not (gold or hybrid)
+* green_only: accessible at a repository and not (in a DOAJ journal OR hybrid OR bronze)
+* green_only_ignoring_bronze: accessible at a repository and not (in a DOAJ journal or hybrid)
 
 ### DEVELOPER NOTES and DOCUMENTATION GUIDANCE
 
@@ -66,8 +67,8 @@ We use the is_oa tag from Unpaywall directly to populate general OA status. This
 {#
 ### Gold Open Access:
 
-gold OA is defined as either the journal being in DOAJ or the best_oa_location being a publisher and their
-being a license detected. This works because Unpaywall will set the publisher as the best oa location if
+gold OA is defined as either the journal being in DOAJ or the best_oa_location being a publisher and a
+license being detected. This works because Unpaywall will set the publisher as the best oa location if
 it identifies an accessible publisher copy.
 #}
   CASE
@@ -80,7 +81,8 @@ it identifies an accessible publisher copy.
 ### Gold Open Access in DOAJ Journal:
 
 gold_just_doaj is determined directly from the Unpaywall statement that the journal is in DOAJ. No further
-checking is done on this.
+checking is done on this, so articles that Unpaywall does not capture as being accessible that are in DOAJ
+journals will be characterised as gold_just_doaj.
 #}
   CASE
     WHEN journal_is_in_doaj THEN TRUE
@@ -94,7 +96,7 @@ checking is done on this.
 hybrid is defined as being available at a publisher with a discovered license, where the journal of publication
 is not in DOAJ. This means that some publisher hybrid is not detected because Unpaywall does not detect a
 license. The use of DOAJ as defining a "fully oa journal" is also narrow and future developments will
-expand this.
+expand this considering, among other parameters, the Unpaywall tag 'journal-is-oa'.
 #}
   CASE
     WHEN (best_oa_location.host_type = "publisher" AND best_oa_location.license is not null AND not journal_is_in_doaj) THEN TRUE
@@ -135,8 +137,9 @@ of content which is only freely available via a repository see `green_only`.
 ### Green Open Access where the outputs is not available Gold (DOAJ or Hybrid) or Bronze:
 
 green_only is the subset of outputs available from repositories that are not also available free to read from
-the publisher. This category is mainly used for the generation of stacked bar charts that include gold_doaj,
-green, hybrid and bronze. This corresponds to general usage of the term "green" in some other literature.
+the publisher. This category enables analyses of gold, bronze and green as mutually exclusive categories, e.g.
+in the generation of stacked bar charts that include gold_doaj, green, hybrid and bronze. This corresponds to
+general usage of the term "green" in some other literature.
 #}
   CASE
     WHEN (SELECT COUNT(1) FROM UNNEST(oa_locations) AS location WHERE location.host_type IN ('repository')) > 0 AND
@@ -149,8 +152,8 @@ green, hybrid and bronze. This corresponds to general usage of the term "green" 
 ### Green Open Access where the output is not available Gold (DOAJ or Hybrid) but may be Bronze:
 
 green_only_ignoring_bronze provides the set of articles that are green and not gold. That is it includes articles
-that are green and bronze, but not gold. This category is largely intended to allow for the production of stacked
-bar charts where bronze is not desired as one of the categories being graphed.
+that are green and bronze, but not gold. This category enables analyses of gold and green as mutually
+exclusive categories, e.g. in the generation of stacked bar charts that include gold_doaj, green and hybrid.
 #}
   CASE
     WHEN (SELECT COUNT(1) FROM UNNEST(oa_locations) AS location WHERE location.host_type IN ('repository')) > 0 AND
@@ -159,18 +162,27 @@ bar charts where bronze is not desired as one of the categories being graphed.
   END
     as green_only_ignoring_bronze,
 
+{#
+### Convenience category for analysing articles that have a license for the best OA location
+#}
   CASE
     WHEN (best_oa_location.license IS NOT NULL) THEN TRUE
     ELSE FALSE
   END
     as has_license,
 
+{#
+### Convenience category for analysing articles that have a Creative Commons license for the best OA location
+#}
   CASE
     WHEN ((best_oa_location.license IS NOT NULL) AND (STARTS_WITH(best_oa_location.license, "cc"))) THEN TRUE
     ELSE FALSE
   END
     as is_cclicensed,
 
+{#
+### Provides a list of repository URLs for future analysis by repository type
+#}
   ARRAY((SELECT url FROM UNNEST(oa_locations) WHERE host_type = "repository")) as repository_locations,
   best_oa_location.url_for_landing_page,
   best_oa_location.url_for_pdf
