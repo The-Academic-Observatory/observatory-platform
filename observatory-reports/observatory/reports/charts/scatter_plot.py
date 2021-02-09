@@ -20,10 +20,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from IPython.display import HTML
 from matplotlib import animation
+import plotly.express as px
+from typing import Union, List, Tuple
+import seaborn as sns
 
 from observatory.reports.abstract_chart import AbstractObservatoryChart
 from observatory.reports.chart_utils import _collect_kwargs_for
-from observatory.reports.defaults import *
+from observatory.reports import defaults
 
 
 class ScatterPlot(AbstractObservatoryChart):
@@ -45,9 +48,9 @@ class ScatterPlot(AbstractObservatoryChart):
                  x: str,
                  y: str,
                  filter_name: str,
-                 filter_value: str,
+                 filter_value: Union[str, int, float, List[int], Tuple[int, int]],
                  hue_column: str = 'region',
-                 size_column: str = 'total',
+                 size_column: str = 'total_outputs',
                  focus_id: str = None,
                  focus_marker: str = 'x',
                  focus_marker_color: str = 'black',
@@ -97,24 +100,74 @@ class ScatterPlot(AbstractObservatoryChart):
         self.focus_id = focus_id
         self.focus_marker = focus_marker
         self.focus_marker_color = focus_marker_color
+        self.processed = False
         self.kwargs = kwargs
 
     def process_data(self) -> pd.DataFrame:
         """Data processing function
 
-        Currently is hard-coded to sort based on region and
+        Filter the data. If hue_column is set to region then sort based on region and
         set an order that works reasonably well for the OA plots.
         """
 
         figdata = self.df
         figdata = figdata[figdata[self.filter_name].isin(self.filter_value)]
-        sorter = ['Asia', 'Europe', 'North America',
-                  'Latin America', 'Africa', 'Oceania']
-        sorter_index = dict(zip(sorter, range(len(sorter))))
-        figdata.loc[:, 'order'] = figdata.region.map(sorter_index)
-        figdata = figdata.sort_values('order', ascending=True)
+        if self.hue_column == 'region':
+            sorter = ['Asia', 'Europe', 'North America',
+                      'Latin America', 'Africa', 'Oceania']
+            sorter_index = dict(zip(sorter, range(len(sorter))))
+            figdata.loc[:, 'order'] = figdata.region.map(sorter_index)
+            figdata = figdata.sort_values('order', ascending=True)
         self.figdata = figdata
+        self.processed = True
         return self.figdata
+
+    def plotly(self,
+               colorpalette: Union[list, dict] = None,
+               **kwargs):
+        if not self.processed:
+            self.process_data()
+
+        # Organise the palette options
+        if type(colorpalette) == list:
+            color_discrete_sequence = colorpalette
+            color_discrete_map = None
+        elif type(colorpalette) == dict:
+            color_discrete_sequence = None
+            color_discrete_map = colorpalette
+        elif not colorpalette:
+            color_discrete_sequence = None
+            color_discrete_map = defaults.region_palette
+
+        # Detect whether a year range is set or single year to set up an animation
+        animation_frame = None
+        animation_group = None
+        if self.filter_name in ['Year', 'Year of Publication', 'published_year', 'time_period']:
+            self.figdata.sort_values(self.filter_name, ascending=True, inplace=True)
+            if len(self.filter_value) > 1:
+                animation_frame = self.filter_name
+                animation_group = 'id'
+
+        if self.focus_id:
+            name = self.figdata.loc[(self.figdata.id == self.focus_id), 'name'].values[0]
+            self.figdata.loc[(self.figdata.id == self.focus_id), self.hue_column] = name
+            if color_discrete_map:
+                color_discrete_map.update({name:'black'})
+        scatter_kwargs = _collect_kwargs_for(px.scatter, kwargs)
+        fig = px.scatter(self.figdata,
+                         x=self.x,
+                         y=self.y,
+                         size=self.size_column,
+                         color=self.hue_column,
+                         color_discrete_sequence=color_discrete_sequence,
+                         color_discrete_map=color_discrete_map,
+                         animation_frame=animation_frame,
+                         animation_group=animation_group,
+                         hover_name='name',
+                         **scatter_kwargs)
+
+        # fig.update_layout(**kwargs)
+        return fig
 
     def plot(self,
              ax: matplotlib.axis = None,
@@ -151,7 +204,7 @@ class ScatterPlot(AbstractObservatoryChart):
             self.fig = ax.get_figure()
 
         if not colorpalette:
-            colorpalette = region_palette
+            colorpalette = defaults.region_palette
 
         figdata = self.figdata
         if additional_filter:
