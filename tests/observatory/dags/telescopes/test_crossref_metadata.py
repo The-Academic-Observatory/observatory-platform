@@ -25,15 +25,13 @@ import pendulum
 import vcr
 from click.testing import CliRunner
 from natsort import natsorted
+from observatory.dags.telescopes.crossref_metadata import (CrossrefMetadataRelease,
+                                                           CrossrefMetadataTelescope,
+                                                           extract_release,
+                                                           transform_release)
+from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.template_utils import SubFolder, telescope_path
 
-from observatory.dags.telescopes.crossref_metadata import (
-    CrossrefMetadataRelease,
-    CrossrefMetadataTelescope,
-    extract_release,
-    transform_release
-)
-from observatory.platform.utils.config_utils import telescope_path, SubFolder
-from observatory.platform.utils.data_utils import _hash_file
 from tests.observatory.test_utils import test_fixtures_path
 
 

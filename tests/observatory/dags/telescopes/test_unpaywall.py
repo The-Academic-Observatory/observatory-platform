@@ -24,16 +24,14 @@ from unittest.mock import patch
 import pendulum
 import vcr
 from click.testing import CliRunner
+from observatory.dags.telescopes.unpaywall import (UnpaywallRelease,
+                                                   UnpaywallTelescope,
+                                                   extract_release,
+                                                   list_releases,
+                                                   transform_release)
+from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.template_utils import SubFolder, telescope_path
 
-from observatory.dags.telescopes.unpaywall import (
-    UnpaywallRelease,
-    UnpaywallTelescope,
-    extract_release,
-    list_releases,
-    transform_release
-)
-from observatory.platform.utils.config_utils import telescope_path, SubFolder
-from observatory.platform.utils.data_utils import _hash_file
 from tests.observatory.test_utils import test_fixtures_path
 
 
@@ -57,7 +55,8 @@ class TestUnpaywall(unittest.TestCase):
         # Unpaywall test release
         self.unpaywall_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'unpaywall.jsonl.gz')
         self.unpaywall_test_file = 'unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
-        self.unpaywall_test_url = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
+        self.unpaywall_test_url = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com' \
+                                  '/unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
         self.unpaywall_test_date = pendulum.datetime(year=3000, month=1, day=27)
         self.unpaywall_test_download_file_name = 'unpaywall_3000_01_27.jsonl.gz'
         self.unpaywall_test_decompress_file_name = 'unpaywall_3000_01_27.jsonl'

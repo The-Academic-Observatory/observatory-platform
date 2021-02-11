@@ -21,9 +21,10 @@ import logging
 import os
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from queue import Queue, Empty
+from queue import Empty, Queue
 from threading import Event
-from typing import List, Tuple, Type, Union, Dict, Any
+from time import sleep
+from typing import Any, Dict, List, Tuple, Type, Union
 from urllib.error import HTTPError
 from urllib.parse import quote_plus
 
@@ -32,38 +33,32 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat, WriteDisposition
-from ratelimit import limits, sleep_and_retry
-from time import sleep
-
 from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
-from observatory.platform.utils.config_utils import (AirflowVars, SubFolder, find_schema, telescope_path,
-                                                     check_variables)
-from observatory.platform.utils.gc_utils import (
-    bigquery_partitioned_table_id,
-    create_bigquery_dataset,
-    load_bigquery_table,
-    upload_telescope_file_list,
-)
-from observatory.platform.utils.telescope_utils import (
-    build_schedule,
-    delete_msg_files,
-    get_entry_or_none,
-    get_as_list,
-    json_to_db,
-    validate_date,
-    write_to_file,
-    zip_files,
-)
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
+from observatory.platform.utils.config_utils import (find_schema)
+from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 create_bigquery_dataset,
+                                                 load_bigquery_table, )
+from observatory.platform.utils.telescope_utils import (build_schedule,
+                                                        delete_msg_files,
+                                                        get_as_list,
+                                                        get_entry_or_none,
+                                                        json_to_db,
+                                                        upload_telescope_file_list,
+                                                        validate_date,
+                                                        write_to_file,
+                                                        zip_files)
+from observatory.platform.utils.template_utils import SubFolder, telescope_path
 from observatory.platform.utils.url_utils import get_ao_user_agent
+from ratelimit import limits, sleep_and_retry
 
 
 class ScopusRelease:
     """ Used to store info on a given SCOPUS release. """
 
-    def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.date,
-                 start_date: pendulum.date, end_date: pendulum.date, project_id: str,
-                 download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str):
+    def __init__(self, inst_id: str, scopus_inst_id: List[str], release_date: pendulum.date, start_date: pendulum.date,
+                 end_date: pendulum.date, project_id: str, download_bucket_name: str, transform_bucket_name: str,
+                 data_location: str, schema_ver: str):
         """ Constructor.
 
         :param inst_id: institution id from the airflow connection (minus the scopus_)
@@ -141,9 +136,8 @@ class ScopusTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
-                                     AirflowVars.TRANSFORM_BUCKET)
+        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                                     AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -207,8 +201,8 @@ class ScopusTelescope:
                                 data_location=data_location, schema_ver=ScopusTelescope.SCHEMA_VER)
 
         logging.info(
-            f'ScopusRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: ' +
-            f'{release.transform_bucket_name}, data_location: {release.data_location}')
+            f'ScopusRelease contains:\ndownload_bucket_name: {release.download_bucket_name}, transform_bucket_name: '
+            + f'{release.transform_bucket_name}, data_location: {release.data_location}')
 
         ti: TaskInstance = kwargs['ti']
         ti.xcom_push(ScopusTelescope.XCOM_RELEASES, release)
@@ -444,7 +438,7 @@ class ScopusClient:
     MAX_RESULTS = 5000  # Upper limit on number of results returned
     QUOTA_EXCEED_ERROR_PREFIX = 'QuotaExceeded. Resets at: '
 
-    def __init__(self, api_key: str, view: str='standard'):
+    def __init__(self, api_key: str, view: str = 'standard'):
         """ Constructor.
 
         :param api_key: API key.
@@ -656,8 +650,7 @@ class ScopusUtility:
         renews_ts = ScopusClient.get_reset_date_from_error(error_msg)
         worker.quota_reset_date = pendulum.from_timestamp(renews_ts)
 
-        logging.warning(
-            f'{conn} worker {worker.client_id}: quoted exceeded. New reset date: {worker.quota_reset_date}')
+        logging.warning(f'{conn} worker {worker.client_id}: quoted exceeded. New reset date: {worker.quota_reset_date}')
 
         if now > curr_reset_date:
             return worker.quota_reset_date
@@ -790,9 +783,8 @@ class ScopusUtility:
             thread_exit = Event()
 
             for worker in workers:
-                futures.append(
-                    executor.submit(ScopusUtility.download_worker, worker, thread_exit, taskq, conn, inst_id,
-                                    download_path))
+                futures.append(executor.submit(ScopusUtility.download_worker, worker, thread_exit, taskq, conn, inst_id,
+                                               download_path))
 
             taskq.join()  # Wait until all tasks done
             logging.info(f'{conn}: all tasks fetched. Signalling threads to exit.')
@@ -863,7 +855,7 @@ class ScopusJsonParser:
     """ Helper methods to process the json from SCOPUS into desired structure. """
 
     @staticmethod
-    def get_affiliations(data: Dict[str, Any]) -> Union[None,List[Dict[str, Any]]]:
+    def get_affiliations(data: Dict[str, Any]) -> Union[None, List[Dict[str, Any]]]:
         """ Get the affiliation field.
 
         :param data: json response from SCOPUS.

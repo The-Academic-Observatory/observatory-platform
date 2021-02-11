@@ -28,17 +28,16 @@ import requests
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from pendulum import Pendulum
-
 from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
-from observatory.platform.utils.config_utils import (AirflowVars, SubFolder, find_schema, telescope_path,
-                                                     check_variables, test_data_path)
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
+from observatory.platform.utils.config_utils import (find_schema)
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  create_bigquery_dataset,
                                                  load_bigquery_table,
                                                  upload_file_to_cloud_storage)
+from observatory.platform.utils.template_utils import SubFolder, telescope_path, test_data_path
+from pendulum import Pendulum
 
 
 def pull_release(ti: TaskInstance):
@@ -188,9 +187,8 @@ class GeonamesTelescope:
         for a list of the keyword arguments that are passed to this argument.
         """
 
-        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
-                                     AirflowVars.TRANSFORM_BUCKET)
+        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                                     AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 

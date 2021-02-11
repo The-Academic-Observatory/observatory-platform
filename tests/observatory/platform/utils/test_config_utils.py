@@ -21,17 +21,13 @@ from unittest.mock import patch
 
 import pendulum
 from click.testing import CliRunner
+from observatory.platform.utils.config_utils import (find_schema,
+                                                     module_file_path,
+                                                     observatory_home,
+                                                     terraform_credentials_path)
+from observatory.platform.utils.template_utils import SubFolder, telescope_path, test_data_path
 
 import tests.observatory.platform.utils as platform_utils_tests
-from observatory.platform.utils.config_utils import (
-    SubFolder,
-    find_schema,
-    observatory_home,
-    telescope_path,
-    module_file_path,
-    terraform_credentials_path,
-    test_data_path
-)
 from tests.observatory.test_utils import test_fixtures_path
 
 

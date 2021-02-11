@@ -12,25 +12,84 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Tuan Chien
+# Author: Tuan Chien, Aniek Roelofs
 
+""" Utility functions that support specific telescope(s) """
 
 import calendar
 import gzip
 import json
 import logging
 import os
+import re
 import shutil
+import sys
 from collections import deque
 from dataclasses import dataclass
+from math import ceil
 from pathlib import Path
-from typing import List, Tuple, Any, Type
+from typing import Any, List, Tuple, Type
 
 import jsonlines
 import pendulum
-import sys
 from airflow.models.taskinstance import TaskInstance
-from math import ceil
+from observatory.dags.config import workflow_sql_templates_path
+from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
+from observatory.platform.utils.jinja2_utils import (make_jinja2_filename, render_template)
+
+
+def args_list(args) -> list:
+    return args
+
+
+def write_boto_config(s3_host: str, aws_access_key_id: str, aws_secret_access_key: str, boto_config_path: str):
+    """ Write a boto3 configuration file, created by using a template and given info.
+    :param s3_host: Host of the s3 bucket.
+    :param aws_access_key_id: Access key id to bucket.
+    :param aws_secret_access_key: Secret access key to bucket.
+    :param boto_config_path: Path to write the boto config file to.
+    :return: None.
+    """
+    logging.info(f'Writing boto config file to {boto_config_path}')
+
+    template_path = os.path.join(workflow_sql_templates_path(), make_jinja2_filename('boto'))
+    rendered = render_template(template_path, s3_host=s3_host, aws_access_key_id=aws_access_key_id,
+                               aws_secret_access_key=aws_secret_access_key)
+    with open(boto_config_path, 'w') as f:
+        f.write(rendered)
+
+
+def convert(k: str) -> str:
+    """ Convert a key name.
+    BigQuery specification for field names: Fields must contain only letters, numbers, and underscores, start with a
+    letter or underscore, and be at most 128 characters long.
+    :param k: Key.
+    :return: Converted key.
+    """
+    # Trim special characters at start:
+    k = re.sub('^[^A-Za-z0-9]+', "", k)
+    # Replace other special characters (except '_') in remaining string:
+    k = re.sub('\W+', '_', k)
+    return k
+
+
+def change_keys(obj, convert):
+    """ Recursively goes through the dictionary obj and replaces keys with the convert function.
+    :param obj: Dictionary object.
+    :param convert: Convert function.
+    :return: Updated dictionary object.
+    """
+    if isinstance(obj, (str, int, float)):
+        return obj
+    if isinstance(obj, dict):
+        new = obj.__class__()
+        for k, v in list(obj.items()):
+            new[convert(k)] = change_keys(v, convert)
+    elif isinstance(obj, (list, set, tuple)):
+        new = obj.__class__(change_keys(v, convert) for v in obj)
+    else:
+        return obj
+    return new
 
 
 def build_schedule(sched_start_date, sched_end_date):
@@ -365,3 +424,22 @@ class ScheduleOptimiser:
 
         schedule = ScheduleOptimiser.extract_schedule(historic_counts, moves)
         return schedule, min_calls[-1]
+
+
+def upload_telescope_file_list(bucket_name: str, inst_id: str, telescope_path: str, file_list: List[str]) -> List[str]:
+    """ Upload list of files to cloud storage.
+
+    :param bucket_name: Name of storage bucket.
+    :param inst_id: institution id from airflow connection id.
+    :param telescope_path: Path to upload telescope data.
+    :param file_list: List of files to upload.
+    :return: List of location paths in the cloud.
+    """
+
+    blob_list = list()
+    for file in file_list:
+        file_name = os.path.basename(file)
+        blob_name = f'{telescope_path}/{inst_id}/{file_name}'
+        blob_list.append(blob_name)
+        upload_file_to_cloud_storage(bucket_name, blob_name, file_path=file)
+    return blob_list

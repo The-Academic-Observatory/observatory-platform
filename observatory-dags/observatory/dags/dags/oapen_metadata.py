@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: Aniek Roelofs
 
-from observatory.dags.telescopes.grid import GridTelescope
-grid = GridTelescope()
+from observatory.dags.telescopes.oapen_metadata import OapenMetadataTelescope
+oapen_metadata = OapenMetadataTelescope()
 # airflow
-globals()[GridTelescope.DAG_ID] = grid.make_dag()
+globals()[OapenMetadataTelescope.DAG_ID] = oapen_metadata.make_dag()

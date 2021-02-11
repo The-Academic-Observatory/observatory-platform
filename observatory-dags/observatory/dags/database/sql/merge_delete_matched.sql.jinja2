@@ -1,4 +1,5 @@
-# Copyright 2020 Curtin University
+
+{# Copyright 2020 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Author: Aniek Roelofs#}
 
-# Author: James Diprose
-
-from observatory.dags.telescopes.grid import GridTelescope
-grid = GridTelescope()
-# airflow
-globals()[GridTelescope.DAG_ID] = grid.make_dag()
+MERGE
+  {{ dataset }}.{{ main_table }} M
+USING
+  (SELECT {{ merge_condition_field }} AS id, {{ updated_date_field }} AS date FROM {{ dataset }}.{{ partitioned_table }} WHERE _PARTITIONDATE >= '{{ start_date }}' AND _PARTITIONDATE < '{{ end_date }}') P
+ON
+  M.{{ merge_condition_field }} = P.id
+WHEN MATCHED AND M.{{ updated_date_field }} <= P.date OR M.{{ updated_date_field }} is null THEN
+  DELETE

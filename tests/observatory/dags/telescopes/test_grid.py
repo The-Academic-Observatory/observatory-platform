@@ -18,15 +18,16 @@ import glob
 import logging
 import os
 import unittest
-from typing import List, Dict
+from typing import Dict, List
 
 import vcr
 from click.testing import CliRunner
-
-from observatory.dags.telescopes.grid import (list_grid_releases, download_grid_release, extract_grid_release,
+from observatory.dags.telescopes.grid import (download_grid_release,
+                                              extract_grid_release,
+                                              list_grid_releases,
                                               transform_grid_release)
-from observatory.platform.utils.data_utils import _hash_file
-from observatory.platform.utils.gc_utils import gzip_file_crc
+from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
+
 from tests.observatory.test_utils import test_fixtures_path
 
 

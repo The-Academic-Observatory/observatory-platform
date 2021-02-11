@@ -23,17 +23,14 @@ from unittest.mock import patch
 import pendulum
 import vcr
 from click.testing import CliRunner
-
-from observatory.dags.telescopes.geonames import (
-    GeonamesRelease,
-    GeonamesTelescope,
-    transform_release,
-    first_sunday_of_month
-)
+from observatory.dags.telescopes.geonames import GeonamesRelease, \
+    GeonamesTelescope, \
+    first_sunday_of_month, \
+    transform_release
 from observatory.dags.telescopes.geonames import fetch_release_date
-from observatory.platform.utils.config_utils import telescope_path, SubFolder
-from observatory.platform.utils.data_utils import _hash_file
-from observatory.platform.utils.gc_utils import gzip_file_crc
+from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
+from observatory.platform.utils.template_utils import SubFolder, telescope_path
+
 from tests.observatory.test_utils import test_fixtures_path
 
 
@@ -178,8 +175,7 @@ class TestGeonames(unittest.TestCase):
 
         with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
-            self.assertEqual(release.get_blob_name(SubFolder.downloaded),
-                             'telescopes/geonames/geonames_3000_01_01.zip')
+            self.assertEqual(release.get_blob_name(SubFolder.downloaded), 'telescopes/geonames/geonames_3000_01_01.zip')
             self.assertEqual(release.get_blob_name(SubFolder.transformed),
                              'telescopes/geonames/geonames_3000_01_01.csv.gz')
 
