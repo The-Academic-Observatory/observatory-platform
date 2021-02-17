@@ -60,6 +60,7 @@ For the development and staging environments, the following permissions will nee
 so that Terraform and Packer are able to provision the appropriate services:
 ```bash
 BigQuery Admin
+Cloud Run Admin (API)
 Cloud SQL Admin
 Compute Admin
 Compute Image User
@@ -69,6 +70,7 @@ Delete Service Accounts
 Project IAM Admin
 Service Account Key Admin
 Service Account User
+Service Management Administrator (API)
 Secret Manager Admin
 Service Usage Admin
 Storage Admin
@@ -98,6 +100,7 @@ This new role replaces the 'Storage Admin' role compared to the development envi
 Custom Cloud SQL Editor
 Custom Storage Admin
 BigQuery Admin
+Cloud Run Admin (API)
 Compute Admin
 Compute Image User
 Compute Network Admin
@@ -106,6 +109,7 @@ Delete Service Accounts
 Project IAM Admin
 Service Account Key Admin
 Service Account User
+Service Management Administrator (API)
 Secret Manager Admin
 Service Usage Admin
 Storage Transfer Admin
@@ -182,6 +186,11 @@ airflow_worker_vm:
   disk_type: pd-standard # the disk type for the virtual machine
   create: false # determines whether virtual machine is created or destroyed
 
+# Elasticsearch
+elasticsearch:
+  host: https://address.region.gcp.cloud.es.io:port <--
+  api_key: API_KEY <--
+
 # User defined Apache Airflow variables:
 # airflow_variables:
 #   my_variable_name: my-variable-value
@@ -197,17 +206,68 @@ airflow_worker_vm:
 #     dags_module: observatory.dags.dags
 ```
 
+The config file will be read when running `observatory terraform create-workspace` and
+`observatory terraform update-workspace` and the variables are stored inside the Terraform Cloud workspace.
+
+### Fernet key
 One of the required variables is a Fernet key, the generated default file includes a newly generated Fernet key that 
 can be used right away. Alternatively, generate a Fernet key yourself, with the following command:
 ```bash
 observatory generate fernet-key
 ```
 
+### Encoding airflow connections 
 Note that the login and passwords in the 'airflow_connections' variables need to be URL encoded, otherwise they will 
 not be parsed correctly. 
 
-The config file will be read when running `observatory terraform create-workspace` and
-`observatory terraform update-workspace` and the variables are stored inside the Terraform Cloud workspace.
+### Elasticsearch
+Note that the host is the hostname for elasticsearch is different than the hostname for kibana.  
+To generate an API key, execute in the Kibana Dev console:
+```yaml
+POST /_security/api_key
+{
+  "name": "my-dev-api-key",
+  "role_descriptors": { 
+    "role-read-access-all": {
+      "cluster": ["all"],
+      "index": [
+        {
+          "names": ["*"],
+          "privileges": ["read", "view_index_metadata", "monitor"]
+        }
+      ]
+    }
+  }
+}
+```  
+
+This returns:
+```yaml
+{
+  "id" : "random_id",
+  "name" : "my-dev-api-key",
+  "api_key" : "random_api_key"
+}
+```
+
+Concat id:api_key and base64 encode (this final value is what you use in the configuration file):
+```bash
+printf 'random_id:random_api_key' | base64
+```
+
+## Building the Cloud Run image with gclouds
+The docker image for the API needs to be uploaded to the cloud container registry. This is used in the Cloud Run setup.
+To build and submit the docker image:
+
+Enter the directory with the Dockerfile 
+```bash
+cd  /home/user/workspace/observatory-platform/observatory-platform/observatory/platform/api
+```
+
+Build and submit the file to the cloud container registry:
+```bash
+gcloud builds submit --tag gcr.io/<project_id>/observatory-api
+```
 
 ## Building the Google Compute VM image with Packer
 First, build and deploy the Observatory Platform Google Compute VM image with Packer:
@@ -229,6 +289,7 @@ You do not need to run this command if:
 Terraform config file: in this case you will need to update the Terraform workspace.
 * You have changed any other settings in the Observatory Terraform config file (apart from `backend.environment`): 
 in this case you will need to update the Terraform workspace variables and run `terraform apply`.
+
 
 ### Building the Terraform files
 To refresh the files that are built into the `~/.observatory/build/terraform` directory, without rebuilding the entire
@@ -286,6 +347,7 @@ Terraform Cloud Workspace:
    * airflow: sensitive
    * google_cloud: sensitive
    * cloud_sql_database: sensitive
+   * elasticsearch: sensitive
    * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
    * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}
    * airflow_variables: {}
@@ -320,6 +382,7 @@ Terraform Cloud Workspace:
    * google_cloud: sensitive -> sensitive
    * cloud_sql_database: sensitive -> sensitive
    * airflow_connections: sensitive -> sensitive
+   * elasticsearch: sensitive -> sensitive
   UNCHANGED
    * environment: develop
    * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}

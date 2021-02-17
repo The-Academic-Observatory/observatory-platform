@@ -30,3 +30,13 @@ output "project_number" {
 output "default_transfer_service_account" {
   value = data.google_storage_transfer_project_service_account.default.email
 }
+
+output "observatory_api_endpoints_url" {
+  value = module.observatory_api.endpoints-url
+  description = "API endpoint URL"
+}
+
+output "observatory_api_backend_url" {
+  value = module.observatory_api.backend-url
+  description = "API backend URL"
+}

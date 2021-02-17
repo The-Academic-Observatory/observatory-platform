@@ -9,16 +9,6 @@ import os
 from flask import current_app
 
 
-# def basic_auth(api_key, required_scopes=None):
-#     app_dir = os.path.dirname(os.path.realpath(__file__))
-#     with open(os.path.join(app_dir, 'api', 'elasticsearch_auth.txt')) as auth_file:
-#         for line in auth_file:
-#             username, token = line.strip().split(' ')
-#             if api_key == token:
-#                 return {'sub': username}
-#     return None
-
-
 def create_app():
     app_dir = os.path.dirname(os.path.realpath(__file__))
     # create the application instance
@@ -33,7 +23,7 @@ def create_app():
                                'funder_country_code', 'funder_name', 'funder_sub_type', 'funder_type', 'journal',
                                'output_type', 'publisher']
 
-    conn_app.add_api(os.path.join(app_dir, 'openapi.yml'), resolver=RestyResolver('api'), arguments={
+    conn_app.add_api(os.path.join(app_dir, 'openapi.yml'), arguments={
         'query_parameters': query_filter_parameters
     })
 
