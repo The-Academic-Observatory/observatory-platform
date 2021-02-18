@@ -141,7 +141,7 @@ class TestConfigUtils(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_telescope_path(self, mock_variable_get):
         runner = CliRunner()
         with runner.isolated_filesystem():
@@ -171,7 +171,7 @@ class TestConfigUtils(unittest.TestCase):
             self.assertEqual(expected, path_transformed)
             self.assertTrue(os.path.exists(path_transformed))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_test_data_path(self, mock_variable_get):
         # Mock test data path variable
         expected_path = '/tmp/test_data'

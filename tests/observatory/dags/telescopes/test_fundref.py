@@ -77,7 +77,7 @@ class TestFundref(unittest.TestCase):
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_list_releases(self, mock_variable_get):
         """ Test that list releases returns a dictionary with releases.
 
@@ -97,7 +97,7 @@ class TestFundref(unittest.TestCase):
                     self.assertIsInstance(release, FundrefRelease)
                 self.assertEqual(39, len(releases))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_download_release(self, mock_variable_get):
         # Mock data variable
         data_path = 'data'
@@ -113,7 +113,7 @@ class TestFundref(unittest.TestCase):
                 path = download_release(release)
                 self.assertEqual(expected_crc, gzip_file_crc(path))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_download(self, mock_variable_get):
         """ Test that path of downloaded file is correct for given url.
 
@@ -131,7 +131,7 @@ class TestFundref(unittest.TestCase):
             path = telescope_path(SubFolder.downloaded, FundrefTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.fundref_test_download_file_name), file_path_download)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_extract(self, mock_variable_get):
         """ Test that path of decompressed/extracted file is correct for given url.
 
@@ -149,7 +149,7 @@ class TestFundref(unittest.TestCase):
             path = telescope_path(SubFolder.extracted, FundrefTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.fundref_test_decompress_file_name), file_path_extract)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_transform(self, mock_variable_get):
         """ Test that path of transformed file is correct for given url.
 
@@ -167,7 +167,7 @@ class TestFundref(unittest.TestCase):
             path = telescope_path(SubFolder.transformed, FundrefTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.fundref_test_transform_file_name), file_path_transform)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_download_release_date(self, mock_variable_get):
         """ Test that the test url contains the correct date.
 
@@ -182,7 +182,7 @@ class TestFundref(unittest.TestCase):
             release = FundrefRelease(self.fundref_test_url, self.fundref_test_date)
             self.assertEqual(self.fundref_test_date, release.date)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_extract_release(self, mock_variable_get):
         """ Test that the release is decompressed as expected.
 
@@ -205,7 +205,7 @@ class TestFundref(unittest.TestCase):
             self.assertEqual(self.fundref_test_decompress_file_name, decompress_file_name)
             self.assertEqual(self.fundref_test_decompress_hash, _hash_file(decompress_file_path, algorithm='md5'))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_transform_release(self, mock_variable_get):
         """ Test that the release is transformed as expected.
 
@@ -230,7 +230,7 @@ class TestFundref(unittest.TestCase):
             self.assertEqual(self.fundref_test_transform_file_name, transform_file_name)
             self.assertEqual(self.fundref_test_transform_hash, gzip_file_crc(transform_file_path))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_parse_fundref_registry_rdf(self, mock_variable_get):
         """ Test that correct funders list and dictionary are returned when parsing funders registry.
 
@@ -344,7 +344,7 @@ class TestFundref(unittest.TestCase):
                 self.assertTrue(key.startswith('http://dx.doi.org/10.13039/'))
                 self.assertIsInstance(funders_by_key[key], Dict)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_recursive_funders(self, mock_variable_get):
         """ Test that correct children/parents list and depth are returned.
 
@@ -377,7 +377,7 @@ class TestFundref(unittest.TestCase):
             for parent in parents:
                 self.assertIn('parent', parent)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_add_funders_relationships(self, mock_variable_get):
         """ Test that children are added to each funder dictionary.
 

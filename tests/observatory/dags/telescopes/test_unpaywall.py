@@ -71,7 +71,7 @@ class TestUnpaywall(unittest.TestCase):
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_list_releases(self, mock_variable_get):
         """ Test that list releases returns a list of string with urls.
 
@@ -98,7 +98,7 @@ class TestUnpaywall(unittest.TestCase):
         release_date = UnpaywallRelease.parse_release_date(self.unpaywall_test_file)
         self.assertEqual(self.unpaywall_test_date, release_date)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_download(self, mock_variable_get):
         """ Test that path of downloaded file is correct for given url.
 
@@ -115,7 +115,7 @@ class TestUnpaywall(unittest.TestCase):
             path = telescope_path(SubFolder.downloaded, UnpaywallTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.unpaywall_test_download_file_name), release.filepath_download)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_extract(self, mock_variable_get):
         """ Test that path of decompressed/extracted file is correct for given url.
 
@@ -132,7 +132,7 @@ class TestUnpaywall(unittest.TestCase):
             path = telescope_path(SubFolder.extracted, UnpaywallTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.unpaywall_test_decompress_file_name), release.filepath_extract)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_transform(self, mock_variable_get):
         """ Test that path of transformed file is correct for given url.
 
@@ -149,7 +149,7 @@ class TestUnpaywall(unittest.TestCase):
             path = telescope_path(SubFolder.transformed, UnpaywallTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.unpaywall_test_transform_file_name), release.filepath_transform)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_extract_release(self, mock_variable_get):
         """ Test that the release is decompressed as expected.
 
@@ -172,7 +172,7 @@ class TestUnpaywall(unittest.TestCase):
             self.assertEqual(self.unpaywall_test_decompress_file_name, decompress_file_name)
             self.assertEqual(self.unpaywall_test_decompress_hash, _hash_file(decompress_file_path, algorithm='md5'))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_transform_release(self, mock_variable_get):
         """ Test that the release is transformed as expected.
 

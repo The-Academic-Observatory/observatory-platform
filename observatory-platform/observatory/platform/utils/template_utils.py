@@ -123,7 +123,7 @@ def table_ids_from_path(transform_path: str) -> Tuple[str, str]:
     logging.info(f'Creating table ids from path: {transform_path}')
 
     main_table_id = os.path.splitext(pathlib.Path(transform_path).stem)[0]
-    partition_table_id = main_table_id + '_partitions'
+    partition_table_id = f'{main_table_id}_partitions'
 
     logging.info(f'Table id: {main_table_id}, partition table id: {partition_table_id}')
     return main_table_id, partition_table_id
@@ -205,7 +205,7 @@ def bq_load_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
     :param main_table_id: Main table id.
-    :param partition_table_id: Partition table id.
+    :param partition_table_id: Partition table id (should include date as data in table is overwritten).
     :param prefix: The prefix for the schema.
     :param schema_version: Schema version.
     :param description: The description for the dataset
@@ -217,8 +217,8 @@ def bq_load_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_
     uri = f"gs://{bucket_name}/{transform_blob}"
 
     success = load_bigquery_table(uri, dataset_id, data_location, partition_table_id, schema_file_path,
-                                  SourceFormat.NEWLINE_DELIMITED_JSON, partition=True, require_partition_filter=False,
-                                  description=description)
+                                  SourceFormat.NEWLINE_DELIMITED_JSON, partition=True,
+                                  require_partition_filter=False, description=description)
     if not success:
         raise AirflowException()
 

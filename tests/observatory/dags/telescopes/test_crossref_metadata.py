@@ -69,7 +69,7 @@ class TestCrossrefMetadata(unittest.TestCase):
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_list_releases(self, mock_variable_get):
         """ Test that list releases returns a list of string with urls.
 
@@ -90,7 +90,7 @@ class TestCrossrefMetadata(unittest.TestCase):
                 release = CrossrefMetadataRelease(self.year, self.month)
                 self.assertFalse(release.exists())
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_download_path(self, mock_variable_get):
         """ Test that path of downloaded file is correct for given url.
 
@@ -107,7 +107,7 @@ class TestCrossrefMetadata(unittest.TestCase):
             path = telescope_path(SubFolder.downloaded, CrossrefMetadataTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.download_file_name), release.download_path)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_extract_path(self, mock_variable_get):
         """ Test that path of decompressed/extracted file is correct for given url.
 
@@ -124,7 +124,7 @@ class TestCrossrefMetadata(unittest.TestCase):
             path = telescope_path(SubFolder.extracted, CrossrefMetadataTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.extract_folder), release.extract_path)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_transform_path(self, mock_variable_get):
         """ Test that path of transformed file is correct for given url.
 
@@ -142,7 +142,7 @@ class TestCrossrefMetadata(unittest.TestCase):
                                 self.transform_folder)
             self.assertEqual(path, release.transform_path)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_extract_release(self, mock_variable_get):
         """ Test that the release is decompressed as expected.
 
@@ -169,7 +169,7 @@ class TestCrossrefMetadata(unittest.TestCase):
             for md5sum, file_path in zip(self.extract_hashes, file_paths):
                 self.assertEqual(md5sum, _hash_file(file_path, algorithm='md5'))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_transform_release(self, mock_variable_get):
         """ Test that the release is transformed as expected.
 

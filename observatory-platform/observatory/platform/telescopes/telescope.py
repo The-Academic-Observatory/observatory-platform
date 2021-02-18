@@ -36,10 +36,24 @@ from typing_extensions import Protocol
 
 class ReleaseFunction(Protocol):
     def __call__(self, release: 'AbstractRelease', **kwargs: Any) -> Any: ...
+    """ 
+    :param release: A single instance of an AbstractRelease
+    :param kwargs: the context passed from the PythonOperator. See 
+    https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to 
+    this argument.
+    :return: Any.
+    """
 
 
 class ListReleaseFunction(Protocol):
     def __call__(self, releases: List['AbstractRelease'], **kwargs: Any) -> Any: ...
+    """ 
+    :param releases: A list of AbstractRelease instances
+    :param kwargs: the context passed from the PythonOperator. See 
+    https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to 
+    this argument.
+    :return: Any.
+    """
 
 
 TelescopeFunction = Union[ReleaseFunction, ListReleaseFunction]
@@ -81,7 +95,6 @@ class AbstractTelescope(ABC):
         releases: List[Release], **kwargs)'
         - kwargs is the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
-        -
         - Run by a PythonOperator.
         :param func: the function that will be called by the PythonOperator task.
         :return: None.
@@ -98,21 +111,21 @@ class AbstractTelescope(ABC):
         pass
 
     @abstractmethod
-    def task_callable(self, func: TelescopeFunction, **kwargs):
+    def task_callable(self, func: TelescopeFunction, **kwargs) -> Any:
         """ Invoke a task callable. Creates a Release instance or Release instances and calls the given task method.
 
         :param func: the task method.
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
         to this argument.
-        :return: None.
+        :return: Any.
         """
         pass
 
     @abstractmethod
     def make_release(self, **kwargs) -> Union['AbstractRelease', List['AbstractRelease']]:
-        """ Make a release instance. This is passed as an argument to the function (TelescopeFunction) that is called in
-        'task_callable'.
+        """ Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
+        called in 'task_callable'.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
@@ -173,24 +186,59 @@ class Telescope(AbstractTelescope):
                        catchup=self.catchup, max_active_runs=1, doc_md=self.__doc__)
 
     def add_setup_task(self, func: Callable):
+        """ Add a setup task, which is used to run tasks before 'Release' objects are created, e.g. checking
+        dependencies, fetching available releases etc.
+
+        A setup task has the following properties:
+        - Has the signature 'def func(self, **kwargs) -> bool', where
+        kwargs is the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        - Run by a ShortCircuitOperator, meaning that a setup task can stop a DAG prematurely, e.g. if there is
+        nothing to process.
+        - func Needs to return a boolean
+        :param func: the function that will be called by the ShortCircuitOperator task.
+        :return: None.
+        """
         self.setup_task_funcs.append(func)
 
     def add_setup_task_chain(self, funcs: List[Callable]):
+        """ Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
+        dependencies, fetching available releases etc. (See add_setup_task for more info.)
+
+        :param funcs: The list of functions that will be called by the ShortCircuitOperator task.
+        :return: None.
+        """
         self.setup_task_funcs += funcs
 
     def add_task(self, func: Callable):
+        """ Add a task, which is used to process releases. A task has the following properties:
+
+        - Has one of the following signatures 'def func(self, release: Release, **kwargs)' or 'def func(self,
+        releases: List[Release], **kwargs)'
+        - kwargs is the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        - Run by a PythonOperator.
+        :param func: the function that will be called by the PythonOperator task.
+        :return: None.
+        """
         self.task_funcs.append(func)
 
     def add_task_chain(self, funcs: List[Callable]):
+        """ Add a list of tasks, which are used to process releases. (See add_task for more info.)
+
+        :param funcs: The list of functions that will be called by the PythonOperator task.
+        :return: None.
+        """
         self.task_funcs += funcs
 
-    def task_callable(self, func: TelescopeFunction, **kwargs):
-        """ Invoke a task callable. Creates a Release instance and calls the given task method.
+    def task_callable(self, func: TelescopeFunction, **kwargs) -> Any:
+        """ Invoke a task callable. Creates a Release instance and calls the given task method. The result can be
+        pulled as an xcom in Airflow.
         :param func: the task method.
         :param kwargs: the context passed from the PythonOperator.
         See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
         to this argument.
-        :return: None.
+        :return: Any.
         """
 
         release = self.make_release(**kwargs)
@@ -201,7 +249,6 @@ class Telescope(AbstractTelescope):
         """ Make an Airflow DAG for a telescope.
         :return: the DAG object.
         """
-
         tasks = []
         with self.dag:
             # Process setup tasks first, which are always ShortCircuitOperators
@@ -325,6 +372,13 @@ class Release(AbstractRelease):
 
     def __init__(self, dag_id: str, release_id: str, download_files_regex: str = None, extract_files_regex: str = None,
                  transform_files_regex: str = None):
+        """ Construct a Release instance
+        :param dag_id: the id of the DAG.
+        :param release_id: the id of the release.
+        :param download_files_regex: regex pattern that is used to find files in download folder
+        :param extract_files_regex: regex pattern that is used to find files in extract folder
+        :param transform_files_regex: regex pattern that is used to find files in transform folder
+        """
         self.dag_id = dag_id
         self.release_id = release_id
         self.download_files_regex = download_files_regex
@@ -333,26 +387,44 @@ class Release(AbstractRelease):
 
     @property
     def download_folder(self) -> str:
+        """ The download folder path for the release, e.g. /path/to/telescopes/download/{dag_id}/{release_id}/
+        :return: the download folder path.
+        """
         return telescope_path(SubFolder.downloaded.value, self.dag_id, self.release_id)
 
     @property
     def extract_folder(self) -> str:
+        """ The extract folder path for the release, e.g. /path/to/telescopes/extract/{dag_id}/{release_id}/
+        :return: the extract folder path.
+        """
         return telescope_path(SubFolder.extracted.value, self.dag_id, self.release_id)
 
     @property
     def transform_folder(self) -> str:
+        """ The transform folder path for the release, e.g. /path/to/telescopes/transform/{dag_id}/{release_id}/
+        :return: the transform folder path.
+        """
         return telescope_path(SubFolder.transformed.value, self.dag_id, self.release_id)
 
     @property
     def download_files(self) -> List[str]:
+        """ List all files downloaded as a part of this release.
+        :return: list of downloaded files.
+        """
         return list_files(self.download_folder, self.download_files_regex)
 
     @property
     def extract_files(self) -> List[str]:
+        """ List all files extracted as a part of this release.
+        :return: list of extracted files.
+        """
         return list_files(self.extract_folder, self.extract_files_regex)
 
     @property
     def transform_files(self) -> List[str]:
+        """ List all files transformed as a part of this release.
+        :return: list of transformed files.
+        """
         return list_files(self.transform_folder, self.transform_files_regex)
 
     @property
@@ -373,7 +445,6 @@ class Release(AbstractRelease):
         """ Delete all files and folders associated with this release.
         :return: None.
         """
-
         for path in [self.download_folder, self.extract_folder, self.transform_folder]:
             try:
                 shutil.rmtree(path)

@@ -1,3 +1,18 @@
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: James Diprose
 from __future__ import annotations
 
 import datetime
@@ -25,13 +40,12 @@ from pendulum import Pendulum
 
 
 class GridRelease(SnapshotRelease):
-    def __init__(self, article_ids: List[str], release_date: Pendulum):
+    def __init__(self, dag_id: str, article_ids: List[str], release_date: Pendulum):
         """ Construct a GridRelease.
         :param article_ids: the titles of the Figshare articles.
         :param release_date: the release date.
         """
-
-        self.dag_id = GridTelescope.DAG_ID
+        self.dag_id = dag_id
         self.article_ids = article_ids
         self.release_date = release_date
         self.project_id = Variable.get(AirflowVars.PROJECT_ID)
@@ -184,27 +198,38 @@ def list_grid_records(start_date: Pendulum, end_date: Pendulum, grid_dataset_url
 
 class GridTelescope(SnapshotTelescope):
     """ The Global Research Identifier Database (GRID): https://grid.ac/ """
-    DAG_ID = 'grid'
     GRID_FILE_URL = "https://api.figshare.com/v2/articles/{article_id}/files"
     GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"
 
-    def __init__(self):
-        self.dag_id = GridTelescope.DAG_ID
-        self.start_date = datetime(2015, 9, 1)
-        self.schedule_interval = '@weekly'
-        self.dataset_id = 'digital_science'
-        self.catchup = True
-        self.airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+    def __init__(self, dag_id: str = 'grid', start_date: datetime = datetime(2015, 9, 1),
+                 schedule_interval: str = '@weekly', dataset_id: str = 'digital_science', catchup: bool = True,
+                 airflow_vars=None):
+        """ Construct a GridTelescope instance.
+        :param dag_id: the id of the DAG.
+        :param start_date: the start date of the DAG.
+        :param schedule_interval: the schedule interval of the DAG.
+        :param catchup: whether to catchup the DAG or not.
+        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
+        """
+        if airflow_vars is None:
+            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id, catchup=catchup, airflow_vars=airflow_vars)
 
-        super().__init__(GridTelescope.DAG_ID, self.start_date, self.schedule_interval, self.dataset_id,
-                         catchup=self.catchup, airflow_vars=self.airflow_vars)
         self.add_setup_task_chain([self.check_dependencies, self.list_releases])
         self.add_task_chain(
             [self.download, self.upload_downloaded, self.extract, self.transform, self.upload_transformed, self.bq_load,
              self.cleanup])
 
     def make_release(self, **kwargs) -> List[GridRelease]:
+        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        called in 'task_callable'.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are
+        passed to this argument.
+        :return: A list of grid release instances
+        """
         ti: TaskInstance = kwargs['ti']
         records = ti.xcom_pull(key=GridTelescope.RELEASE_INFO, task_ids=self.list_releases.__name__,
                                include_prior_dates=False)
@@ -213,7 +238,7 @@ class GridTelescope(SnapshotTelescope):
             article_ids = record['article_ids']
             release_date = record['release_date']
 
-            releases.append(GridRelease(article_ids, release_date))
+            releases.append(GridRelease(self.dag_id, article_ids, release_date))
         return releases
 
     def list_releases(self, **kwargs):

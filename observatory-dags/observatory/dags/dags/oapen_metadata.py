@@ -14,7 +14,9 @@
 
 # Author: Aniek Roelofs
 
+# The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
+# https://airflow.apache.org/docs/stable/faq.html
 from observatory.dags.telescopes.oapen_metadata import OapenMetadataTelescope
+
 oapen_metadata = OapenMetadataTelescope()
-# airflow
-globals()[OapenMetadataTelescope.DAG_ID] = oapen_metadata.make_dag()
+globals()[oapen_metadata.dag_id] = oapen_metadata.make_dag()
