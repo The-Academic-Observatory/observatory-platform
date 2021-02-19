@@ -16,25 +16,19 @@
 # Author: Aniek Roelofs
 
 import csv
-import gzip
 import logging
-import io
 import os
 from datetime import datetime
 from typing import Tuple
 
-import jsonlines
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from observatory.platform.telescopes.stream_telescope import (StreamRelease, StreamTelescope)
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.telescope_utils import convert
+from observatory.platform.utils.telescope_utils import convert, list_to_jsonl_gz
 from observatory.platform.utils.template_utils import upload_files_from_list
 from observatory.platform.utils.url_utils import get_ao_user_agent, retry_session
-
-# TODO
-# isbn have '-' sometimes, so not an integer, leave in?
 
 
 class OapenMetadataRelease(StreamRelease):
@@ -75,7 +69,11 @@ class OapenMetadataRelease(StreamRelease):
             raise AirflowException(f'Download csv unsuccessful, {response.text}')
 
     def transform(self):
-        """ Transform the oapen metadata csv file by storing in a jsonl format and restructuring lists/dicts
+        """ Transform the oapen metadata csv file by storing in a jsonl format and restructuring lists/dicts.
+        Values of field names with '.' are formatted into nested dictionaries.
+        Values of field names in list_fields are split on - , ; and ||.
+        Values of the field 'dc.subject.classification' are parsed to create a custom field 'classification_code'.
+        See our readthedocs for an example row before and after transformation
         :return: None
         """
         with open(self.csv_path, 'r') as f:
@@ -98,14 +96,7 @@ class OapenMetadataRelease(StreamRelease):
 
         # Transform release into JSON Lines format saving in memory buffer
         # Save in memory buffer to gzipped file
-        with io.BytesIO() as bytes_io:
-            with gzip.GzipFile(fileobj=bytes_io, mode='w') as gzip_file:
-                with jsonlines.Writer(gzip_file) as writer:
-                    for entry in entries:
-                        writer.write_all([entry])
-
-            with open(self.transform_path, 'wb') as jsonl_gzip_file:
-                jsonl_gzip_file.write(bytes_io.getvalue())
+        list_to_jsonl_gz(self.transform_path, entries)
 
 
 class OapenMetadataTelescope(StreamTelescope):
@@ -186,7 +177,7 @@ def transform_value_to_list(k: str, v: str) -> Tuple[list, list]:
     if k == 'dc.subject.other':
         v = v.replace(';', '||')
         v = v.replace(',', '||')
-    v = list(set([x.strip() for x in v.split('||')]))
+    v = list(dict.fromkeys([x.strip() for x in v.split('||')]))
     if k == 'dc.date.issued':
         v = [pendulum.parse(date).to_date_string() for date in v]
     if k == 'dc.subject.classification':
@@ -196,7 +187,7 @@ def transform_value_to_list(k: str, v: str) -> Tuple[list, list]:
                 classification_code.append(code)
             else:
                 classification_code.append(c)
-        classification_code = list(set(classification_code))
+        classification_code = list(dict.fromkeys(classification_code))
     return v, classification_code
 
 

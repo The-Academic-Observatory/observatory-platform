@@ -27,7 +27,6 @@ from shutil import copyfile
 from typing import List
 from zipfile import BadZipFile, ZipFile
 
-import jsonlines
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
@@ -35,6 +34,7 @@ from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, 
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
 from observatory.platform.utils.url_utils import retry_session
 from pendulum import Pendulum
 
@@ -142,13 +142,7 @@ class GridRelease(SnapshotRelease):
 
             # Transform GRID release into JSON Lines format saving in memory buffer
             # Save in memory buffer to gzipped file
-            with io.BytesIO() as bytes_io:
-                with gzip.GzipFile(fileobj=bytes_io, mode='w') as gzip_file:
-                    with jsonlines.Writer(gzip_file) as writer:
-                        writer.write_all(institutes)
-
-                with open(self.transform_path, 'wb') as jsonl_gzip_file:
-                    jsonl_gzip_file.write(bytes_io.getvalue())
+            list_to_jsonl_gz(self.transform_path, institutes)
 
         return version
 

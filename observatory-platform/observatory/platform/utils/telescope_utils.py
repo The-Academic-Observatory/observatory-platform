@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Tuan Chien, Aniek Roelofs
+# Author: Tuan Chien, Aniek Roelofs, James Diprose
 
 """ Utility functions that support specific telescope(s) """
 
 import calendar
 import gzip
+import io
 import json
 import logging
 import os
@@ -36,6 +37,21 @@ from airflow.models.taskinstance import TaskInstance
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
 from observatory.platform.utils.jinja2_utils import (make_jinja2_filename, render_template)
+
+
+def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
+    """ Takes a list of dictionaries and writes this to a gzipped jsonl file.
+    :param file_path: Path to the .jsonl.gz file
+    :param list_of_dicts: A list containing dictionaries that can be written out with jsonlines
+    :return: None.
+    """
+    with io.BytesIO() as bytes_io:
+        with gzip.GzipFile(fileobj=bytes_io, mode='w') as gzip_file:
+            with jsonlines.Writer(gzip_file) as writer:
+                writer.write_all(list_of_dicts)
+
+        with open(file_path, 'wb') as jsonl_gzip_file:
+            jsonl_gzip_file.write(bytes_io.getvalue())
 
 
 def args_list(args) -> list:
