@@ -105,7 +105,7 @@ class OapenMetadataTelescope(StreamTelescope):
 
     def __init__(self, dag_id: str = 'oapen_metadata', start_date: datetime = datetime(2018, 5, 14),
                  schedule_interval: str = '@weekly', dataset_id: str = 'oapen', merge_partition_field: str = 'id',
-                 updated_date_field: str = 'dc.date.available', bq_merge_days: int = 0, schema_prefix: str =
+                 updated_date_field: str = 'dc.date.available', bq_merge_days: int = 7, schema_prefix: str =
                  'oapen_', airflow_vars=None):
         """ Construct a OapenMetadataTelescope instance.
         :param dag_id: the id of the DAG.
