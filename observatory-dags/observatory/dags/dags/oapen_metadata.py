@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: Aniek Roelofs
 
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.telescopes.grid import GridTelescope
+from observatory.dags.telescopes.oapen_metadata import OapenMetadataTelescope
 
-grid = GridTelescope()
-globals()[grid.dag_id] = grid.make_dag()
+oapen_metadata = OapenMetadataTelescope()
+globals()[oapen_metadata.dag_id] = oapen_metadata.make_dag()

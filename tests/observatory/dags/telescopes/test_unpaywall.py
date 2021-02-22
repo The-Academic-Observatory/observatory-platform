@@ -24,16 +24,14 @@ from unittest.mock import patch
 import pendulum
 import vcr
 from click.testing import CliRunner
+from observatory.dags.telescopes.unpaywall import (UnpaywallRelease,
+                                                   UnpaywallTelescope,
+                                                   extract_release,
+                                                   list_releases,
+                                                   transform_release)
+from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.template_utils import SubFolder, telescope_path
 
-from observatory.dags.telescopes.unpaywall import (
-    UnpaywallRelease,
-    UnpaywallTelescope,
-    extract_release,
-    list_releases,
-    transform_release
-)
-from observatory.platform.utils.config_utils import telescope_path, SubFolder
-from observatory.platform.utils.data_utils import _hash_file
 from tests.observatory.test_utils import test_fixtures_path
 
 
@@ -57,7 +55,8 @@ class TestUnpaywall(unittest.TestCase):
         # Unpaywall test release
         self.unpaywall_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'unpaywall.jsonl.gz')
         self.unpaywall_test_file = 'unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
-        self.unpaywall_test_url = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
+        self.unpaywall_test_url = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com' \
+                                  '/unpaywall_snapshot_3000-01-27T153236.jsonl.gz'
         self.unpaywall_test_date = pendulum.datetime(year=3000, month=1, day=27)
         self.unpaywall_test_download_file_name = 'unpaywall_3000_01_27.jsonl.gz'
         self.unpaywall_test_decompress_file_name = 'unpaywall_3000_01_27.jsonl'
@@ -72,7 +71,7 @@ class TestUnpaywall(unittest.TestCase):
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_list_releases(self, mock_variable_get):
         """ Test that list releases returns a list of string with urls.
 
@@ -99,7 +98,7 @@ class TestUnpaywall(unittest.TestCase):
         release_date = UnpaywallRelease.parse_release_date(self.unpaywall_test_file)
         self.assertEqual(self.unpaywall_test_date, release_date)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_download(self, mock_variable_get):
         """ Test that path of downloaded file is correct for given url.
 
@@ -116,7 +115,7 @@ class TestUnpaywall(unittest.TestCase):
             path = telescope_path(SubFolder.downloaded, UnpaywallTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.unpaywall_test_download_file_name), release.filepath_download)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_extract(self, mock_variable_get):
         """ Test that path of decompressed/extracted file is correct for given url.
 
@@ -133,7 +132,7 @@ class TestUnpaywall(unittest.TestCase):
             path = telescope_path(SubFolder.extracted, UnpaywallTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.unpaywall_test_decompress_file_name), release.filepath_extract)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_transform(self, mock_variable_get):
         """ Test that path of transformed file is correct for given url.
 
@@ -150,7 +149,7 @@ class TestUnpaywall(unittest.TestCase):
             path = telescope_path(SubFolder.transformed, UnpaywallTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.unpaywall_test_transform_file_name), release.filepath_transform)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_extract_release(self, mock_variable_get):
         """ Test that the release is decompressed as expected.
 
@@ -173,7 +172,7 @@ class TestUnpaywall(unittest.TestCase):
             self.assertEqual(self.unpaywall_test_decompress_file_name, decompress_file_name)
             self.assertEqual(self.unpaywall_test_decompress_hash, _hash_file(decompress_file_path, algorithm='md5'))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_transform_release(self, mock_variable_get):
         """ Test that the release is transformed as expected.
 

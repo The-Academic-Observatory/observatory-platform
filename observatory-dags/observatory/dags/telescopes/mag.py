@@ -35,27 +35,24 @@ from google.cloud.bigquery import SourceFormat
 from google.cloud.storage import Blob
 from mag_archiver.mag import MagArchiverClient, MagDateType, MagRelease, MagState
 from natsort import natsorted
-from pendulum import Pendulum
-
 from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
-from observatory.platform.utils.config_utils import (AirflowConns,
-                                                     AirflowVars,
-                                                     SubFolder,
-                                                     check_connections,
-                                                     check_variables,
-                                                     telescope_path,
-                                                     test_data_path)
+from observatory.platform.utils.airflow_utils import AirflowConns, \
+    AirflowVariable as Variable, \
+    AirflowVars, \
+    check_connections, \
+    check_variables
 from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
                                                  bigquery_partitioned_table_id,
+                                                 bigquery_table_exists,
                                                  create_bigquery_dataset,
                                                  download_blobs_from_cloud_storage,
                                                  load_bigquery_table,
                                                  table_name_from_blob,
-                                                 upload_files_to_cloud_storage,
-                                                 bigquery_table_exists)
+                                                 upload_files_to_cloud_storage)
 from observatory.platform.utils.proc_utils import wait_for_process
+from observatory.platform.utils.template_utils import SubFolder, telescope_path, test_data_path
+from pendulum import Pendulum
 
 
 def pull_releases(ti: TaskInstance) -> List[MagRelease]:
@@ -195,9 +192,8 @@ class MagTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
-                                     AirflowVars.TRANSFORM_BUCKET)
+        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                                     AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET)
         conns_valid = check_connections(AirflowConns.MAG_RELEASES_TABLE, AirflowConns.MAG_SNAPSHOTS_CONTAINER)
 
         if not vars_valid or not conns_valid:

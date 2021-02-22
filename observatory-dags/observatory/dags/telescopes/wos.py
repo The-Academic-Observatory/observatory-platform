@@ -21,7 +21,8 @@ import os
 import urllib.request
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Type, Union, Any, Dict
+from math import ceil
+from typing import Any, Dict, List, Type, Union
 from urllib.error import URLError
 
 import backoff
@@ -31,37 +32,27 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat, WriteDisposition
-from math import ceil
+from observatory.dags.config import schema_path
+from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
+from observatory.platform.utils.config_utils import (find_schema, )
+from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 create_bigquery_dataset,
+                                                 load_bigquery_table, )
+from observatory.platform.utils.telescope_utils import (build_schedule,
+                                                        delete_msg_files,
+                                                        get_as_list,
+                                                        get_as_list_or_none,
+                                                        get_entry_or_none,
+                                                        json_to_db,
+                                                        upload_telescope_file_list,
+                                                        validate_date,
+                                                        write_to_file,
+                                                        write_xml_to_json,
+                                                        zip_files)
+from observatory.platform.utils.template_utils import SubFolder, telescope_path
 from ratelimit import limits, sleep_and_retry
 from suds import WebFault
 from wos import WosClient
-
-from observatory.dags.config import schema_path
-from observatory.platform.utils.config_utils import (
-    AirflowVars,
-    SubFolder,
-    check_variables,
-    find_schema,
-    telescope_path,
-)
-from observatory.platform.utils.gc_utils import (
-    bigquery_partitioned_table_id,
-    create_bigquery_dataset,
-    load_bigquery_table,
-    upload_telescope_file_list,
-)
-from observatory.platform.utils.telescope_utils import (
-    build_schedule,
-    delete_msg_files,
-    get_as_list,
-    get_as_list_or_none,
-    get_entry_or_none,
-    json_to_db,
-    validate_date,
-    write_xml_to_json,
-    write_to_file,
-    zip_files,
-)
 
 
 class WosUtilConst:
@@ -127,9 +118,8 @@ class WosUtility:
         prefix_len = len(WosTelescope.SCHEMA_ID_PREFIX)
         prefix_loc = schema_string.find(WosTelescope.SCHEMA_ID_PREFIX)
         if prefix_loc == -1:
-            logging.warning(
-                f'WOS schema has changed.\nExpecting prefix: {WosTelescope.SCHEMA_ID_PREFIX}\n'
-                f'Received: {schema_string}')
+            logging.warning(f'WOS schema has changed.\nExpecting prefix: {WosTelescope.SCHEMA_ID_PREFIX}\n'
+                            f'Received: {schema_string}')
             return None
 
         ver_start = prefix_len
@@ -326,8 +316,8 @@ class WosRelease:
     """
 
     def __init__(self, inst_id: str, wos_inst_id: List[str], release_date: pendulum.Pendulum,
-                 dag_start: pendulum.Pendulum, project_id: str,
-                 download_bucket_name: str, transform_bucket_name: str, data_location: str, schema_ver: str):
+                 dag_start: pendulum.Pendulum, project_id: str, download_bucket_name: str, transform_bucket_name: str,
+                 data_location: str, schema_ver: str):
         self.inst_id = inst_id
         self.wos_inst_id = wos_inst_id
         self.release_date = release_date
@@ -391,9 +381,8 @@ class WosTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
-                                     AirflowVars.TRANSFORM_BUCKET)
+        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                                     AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -572,7 +561,7 @@ class WosTelescope:
         json_harvest = list()
         for file in json_file_list:
             file_name = os.path.basename(file)
-            start = file_name.find('_')+1
+            start = file_name.find('_') + 1
             end = file_name.rfind('-')
             harvest_datetime = file_name[start:end]
             json_path.append(file)
@@ -599,12 +588,10 @@ class WosTelescope:
         release: WosRelease = WosTelescope.pull_release(ti)
 
         # Pull messages
-        json_files = ti.xcom_pull(key=WosTelescope.XCOM_JSON_PATH,
-                                  task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
+        json_files = ti.xcom_pull(key=WosTelescope.XCOM_JSON_PATH, task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
                                   include_prior_dates=False)
 
-        harvest_times = ti.xcom_pull(key=WosTelescope.XCOM_JSON_HARVEST,
-                                     task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
+        harvest_times = ti.xcom_pull(key=WosTelescope.XCOM_JSON_HARVEST, task_ids=WosTelescope.TASK_ID_TRANSFORM_XML,
                                      include_prior_dates=False)
 
         json_harvest_pair = list(zip(json_files, harvest_times))
@@ -637,8 +624,7 @@ class WosTelescope:
         release: WosRelease = WosTelescope.pull_release(ti)
 
         # Pull messages
-        jsonl_paths = ti.xcom_pull(key=WosTelescope.XCOM_JSONL_PATH,
-                                   task_ids=WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
+        jsonl_paths = ti.xcom_pull(key=WosTelescope.XCOM_JSONL_PATH, task_ids=WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
                                    include_prior_dates=False)
 
         # Upload each snapshot
@@ -665,8 +651,7 @@ class WosTelescope:
         release: WosRelease = WosTelescope.pull_release(ti)
 
         jsonl_zip_blobs = ti.xcom_pull(key=WosTelescope.XCOM_JSONL_BLOB_PATH,
-                                       task_ids=WosTelescope.TASK_ID_UPLOAD_TRANSFORMED,
-                                       include_prior_dates=False)
+                                       task_ids=WosTelescope.TASK_ID_UPLOAD_TRANSFORMED, include_prior_dates=False)
 
         # Create dataset
         create_bigquery_dataset(release.project_id, WosTelescope.DATASET_ID, release.data_location,
@@ -679,8 +664,8 @@ class WosTelescope:
         analysis_schema_path = schema_path()
 
         for file in jsonl_zip_blobs:
-            schema_file_path = find_schema(analysis_schema_path, WosTelescope.TABLE_NAME,
-                                           release.release_date, '', release.schema_ver)
+            schema_file_path = find_schema(analysis_schema_path, WosTelescope.TABLE_NAME, release.release_date, '',
+                                           release.schema_ver)
             if schema_file_path is None:
                 logging.error(
                     f'No schema found with search parameters: analysis_schema_path={WosTelescope.SCHEMA_PATH}, '
@@ -693,8 +678,7 @@ class WosTelescope:
             logging.info(f"URI: {uri}")
 
             load_bigquery_table(uri, WosTelescope.DATASET_ID, release.data_location, table_id, schema_file_path,
-                                SourceFormat.NEWLINE_DELIMITED_JSON,
-                                write_disposition=WriteDisposition.WRITE_APPEND)
+                                SourceFormat.NEWLINE_DELIMITED_JSON, write_disposition=WriteDisposition.WRITE_APPEND)
 
     @staticmethod
     def cleanup(**kwargs):
@@ -938,7 +922,10 @@ class WosJsonParser:
 
         languages = get_as_list(data['static_data']['fullrecord_metadata']['languages'], 'language')
         for entry in languages:
-            lang_list.append({"type": entry['@type'], "name": entry['#text']})
+            lang_list.append({
+                                 "type": entry['@type'],
+                                 "name": entry['#text']
+                             })
         return lang_list
 
     @staticmethod

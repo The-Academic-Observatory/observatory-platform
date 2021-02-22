@@ -12,28 +12,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
-import glob
 import logging
 import os
 import unittest
-from typing import List, Dict
+from datetime import datetime
+from unittest.mock import patch
 
+import pendulum
 import vcr
 from click.testing import CliRunner
+from observatory.dags.telescopes.grid import (GridRelease, GridTelescope, list_grid_records, )
+from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
 
-from observatory.dags.telescopes.grid import (list_grid_releases, download_grid_release, extract_grid_release,
-                                              transform_grid_release)
-from observatory.platform.utils.data_utils import _hash_file
-from observatory.platform.utils.gc_utils import gzip_file_crc
 from tests.observatory.test_utils import test_fixtures_path
 
 
+class MockTaskInstance:
+    def __init__(self, records):
+        """ Construct a MockTaskInstance. This mocks the airflow TaskInstance and is passed as a keyword arg to the
+        make_release function.
+        :param records: List of record info, returned as value during xcom_pull
+        """
+        self.records = records
+
+    def xcom_pull(self, key: str, task_ids: str, include_prior_dates: bool):
+        """ Mock xcom_pull method of airflow TaskInstance.
+        :param key: -
+        :param task_ids: -
+        :param include_prior_dates: -
+        :return: Records list
+        """
+        return self.records
+
+
+def side_effect(arg):
+    values = {
+        'project_id': 'project',
+        'download_bucket_name': 'download-bucket',
+        'transform_bucket_name': 'transform-bucket',
+        'data_path': 'data',
+        'data_location': 'US'
+    }
+    return values[arg]
+
+
+@patch('observatory.platform.utils.template_utils.AirflowVariable.get')
 class TestGrid(unittest.TestCase):
     """ Tests for the functions used by the GRID telescope """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs, ):
         """ Constructor which sets up variables used by tests.
 
         :param args: arguments.
@@ -41,108 +70,138 @@ class TestGrid(unittest.TestCase):
         """
 
         super(TestGrid, self).__init__(*args, **kwargs)
+        # Telescope instance
+        self.grid = GridTelescope()
 
         # Paths
         self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
-        self.list_grid_releases_path = os.path.join(self.vcr_cassettes_path, 'list_grid_releases.yaml')
-        self.list_grid_releases_hash = 'f08806feb7215f78e9fe9292e6319144'
-        self.work_dir = ''
+        self.list_grid_records_path = os.path.join(self.vcr_cassettes_path, 'list_grid_releases.yaml')
 
-        # GRID Release  2015-09-22
-        self.grid_2015_09_22_article_id = 1553267
-        self.grid_2015_09_22_title = 'GRID release 2015-09-22 in JSON'
-        self.grid_2015_09_22_path = os.path.join(self.vcr_cassettes_path, 'grid_2015-09-22.yaml')
-        self.grid_2015_09_22_hash = 'f8afd953b530bd1a8b6bb0e74ea1991b'
+        # Contains GRID releases 2015-09-22 and 2015-10-09 (format for both is .csv and .json files)
+        with patch('observatory.platform.utils.template_utils.AirflowVariable.get') as mock_variable_get:
+            mock_variable_get.side_effect = side_effect
+            self.grid_run_2015_10_18 = {
+                'start_date': datetime(2015, 10, 11),
+                'end_date': datetime(2015, 10, 18),
+                'records': [{
+                                'article_ids': [1570968, 1570967],
+                                'release_date': pendulum.parse('2015-10-09T00:00:00+00:00')
+                            }, {
+                                'article_ids': [1553266, 1553267],
+                                'release_date': pendulum.parse('2015-09-22T00:00:00+00:00')
+                            }],
+                # there are 2 releases in this run, but use only 1 for testing
+                'release': GridRelease(self.grid.dag_id, ['1553266', '1553267'],
+                                       pendulum.parse('2015-09-22T00:00:00+00:00')),
+                'download_path': os.path.join(self.vcr_cassettes_path, 'grid_2015-09-22.yaml'),
+                'download_hash': 'c6fd33fd31b6699a2f19622f0283f4f1',
+                'extract_hash': 'c6fd33fd31b6699a2f19622f0283f4f1',
+                'transform_crc': 'eb66ae78'
+            }
 
-        # GRID Release 2020-03-15
-        self.grid_2020_03_15_article_id = 12022722
-        self.grid_2020_03_15_title = 'GRID release 2020-03-15'
-        self.grid_2020_03_15_path = os.path.join(self.vcr_cassettes_path, 'grid_2020-03-15.yaml')
-        self.grid_2020_03_15_hash = 'c80d8e456597e196c87881371dd80eda'
-        self.grid_2020_03_15_download_expected_hash = '3d300affce1666ac50b8d945c6ca4c5a'
-        self.grid_2020_03_15_transform_version = 'release_2020_03_15'
-        self.grid_2020_03_15_transform_file_name = 'grid_2020_03_15.jsonl.gz'
-        self.grid_2020_03_15_transform_crc = '77bc8585'
+            # Contains GRID release 2020-03-15 (format is a .zip file, which is more common)
+            self.grid_run_2020_03_27 = {
+                'start_date': datetime(2020, 3, 20),
+                'end_date': datetime(2020, 3, 27),
+                'records': [{
+                                'article_ids': [12022722],
+                                'release_date': pendulum.parse('2020-03-15T00:00:00+00:00')
+                            }],
+                'release': GridRelease(self.grid.dag_id, ['12022722'], pendulum.parse('2020-03-15T00:00:00+00:00')),
+                'download_path': os.path.join(self.vcr_cassettes_path, 'grid_2020-03-15.yaml'),
+                'download_hash': '3d300affce1666ac50b8d945c6ca4c5a',
+                'extract_hash': '5aff68e9bf72e846a867e91c1fa206a0',
+                'transform_crc': '77bc8585'
+            }
+
+        self.grid_runs = [self.grid_run_2015_10_18, self.grid_run_2020_03_27]
 
         # Turn logging to warning because vcr prints too much at info level
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
-    def test_list_grid_releases(self):
-        """ Check that list grid releases returns a list of dictionaries with keys that we use.
+    def test_list_grid_records(self, mock_variable_get):
+        """ Check that list grid records returns a list of dictionaries with records in the correct format.
 
+        :param mock_variable_get: Mock result of airflow's Variable.get() function
         :return: None.
         """
+        with vcr.use_cassette(self.list_grid_records_path):
+            start_date = self.grid_run_2015_10_18['start_date']
+            end_date = self.grid_run_2015_10_18['end_date']
+            records = list_grid_records(start_date, end_date, GridTelescope.GRID_DATASET_URL)
+            self.assertEqual(self.grid_run_2015_10_18['records'], records)
 
-        with vcr.use_cassette(self.list_grid_releases_path):
-            releases = list_grid_releases()
-            self.assertIsInstance(releases, List)
+    def test_make_release(self, mock_variable_get):
+        """ Check that make_release returns a list of GridRelease instances.
+
+        :param mock_variable_get: Mock result of airflow's Variable.get() function
+        :return: None.
+        """
+        mock_variable_get.side_effect = side_effect
+
+        for run in self.grid_runs:
+            records = run['records']
+
+            releases = self.grid.make_release(ti=MockTaskInstance(records))
+            self.assertIsInstance(releases, list)
             for release in releases:
-                self.assertIsInstance(release, Dict)
-                self.assertIn('id', release)
-                self.assertIn('title', release)
+                self.assertIsInstance(release, GridRelease)
 
-    def test_download_grid_release(self):
-        """ Download a specific GRID release and check that it has expected md5 sum.
+    def test_download_release(self, mock_variable_get):
+        """ Download two specific GRID releases and check they have the expected md5 sum.
 
+        :param mock_variable_get: Mock result of airflow's Variable.get() function
+        :return:
+        """
+        mock_variable_get.side_effect = side_effect
+
+        with CliRunner().isolated_filesystem():
+            for run in self.grid_runs:
+                release = run['release']
+                with vcr.use_cassette(run['download_path']):
+                    downloads = release.download()
+                    # Check that returned downloads has correct length
+                    self.assertEqual(1, len(downloads))
+
+                    # Check that file has expected hash
+                    file_path = downloads[0]
+                    self.assertTrue(os.path.exists(file_path))
+                    self.assertEqual(run['download_hash'], _hash_file(file_path, algorithm='md5'))
+
+    def test_extract_release(self, mock_variable_get):
+        """ Test that the GRID releases are extracted as expected, both for an unzipped json file and a zip file.
+
+        :param mock_variable_get: Mock result of airflow's Variable.get() function
         :return: None.
         """
+        mock_variable_get.side_effect = side_effect
 
         with CliRunner().isolated_filesystem():
-            with vcr.use_cassette(self.grid_2020_03_15_path):
-                files = download_grid_release(self.work_dir, self.grid_2020_03_15_article_id,
-                                              self.grid_2020_03_15_title)
-                # Check that returned downloads has correct length
-                self.assertEqual(1, len(files))
+            for run in self.grid_runs:
+                release = run['release']
+                with vcr.use_cassette(run['download_path']):
+                    release.download()
+                    release.extract()
 
-                # Check that file has expected hash
-                file_path = files[0]
-                self.assertTrue(os.path.exists(file_path))
-                self.assertEqual(self.grid_2020_03_15_download_expected_hash, _hash_file(file_path, algorithm='md5'))
+                    self.assertEqual(1, len(release.extract_files))
+                    self.assertEqual(run['extract_hash'], _hash_file(release.extract_files[0], algorithm='md5'))
 
-    def test_extract_grid_release(self):
-        """ Test with a GRID release that is an unzipped JSON file (some of the earlier releases).
+    def test_transform_release(self, mock_variable_get):
+        """ Test that the GRID releases are transformed as expected.
 
+        :param mock_variable_get: Mock result of airflow's Variable.get() function
         :return: None.
         """
+        mock_variable_get.side_effect = side_effect
 
         with CliRunner().isolated_filesystem():
-            with vcr.use_cassette(self.grid_2015_09_22_path):
-                files = download_grid_release(self.work_dir, self.grid_2015_09_22_article_id,
-                                              self.grid_2015_09_22_title)
-                release_extracted_path = extract_grid_release(files[0], self.work_dir)
-                self.assertTrue(os.path.exists(release_extracted_path))
-                file_paths = glob.glob(os.path.join(release_extracted_path, '*.json'))
-                self.assertTrue(len(file_paths))
-                self.assertTrue(os.path.isfile(file_paths[0]))
+            for run in self.grid_runs:
+                release = run['release']
+                with vcr.use_cassette(run['download_path']):
+                    release.download()
+                    release.extract()
+                    release.transform()
 
-        # Test with GRID release that is a .zip file (more common)
-        with CliRunner().isolated_filesystem():
-            with vcr.use_cassette(self.grid_2020_03_15_path):
-                files = download_grid_release(self.work_dir, self.grid_2020_03_15_article_id,
-                                              self.grid_2020_03_15_title)
-                release_extracted_path = extract_grid_release(files[0], self.work_dir)
-                self.assertTrue(os.path.exists(release_extracted_path))
-                self.assertTrue(os.path.isfile(os.path.join(release_extracted_path, 'grid.json')))
-
-    def test_transform_grid_release(self):
-        """ Test that the GRID release is transformed as expected.
-
-        :return: None.
-        """
-
-        with CliRunner().isolated_filesystem():
-            with vcr.use_cassette(self.grid_2020_03_15_path):
-                # Get data
-                files = download_grid_release(self.work_dir, self.grid_2020_03_15_article_id,
-                                              self.grid_2020_03_15_title)
-                release_extracted_path = extract_grid_release(files[0], self.work_dir)
-
-                # Transform and check data
-                release_json_file = os.path.join(release_extracted_path, 'grid.json')
-                version, file_name, file_path = transform_grid_release(release_json_file, self.work_dir)
-                self.assertEqual(self.grid_2020_03_15_transform_version, version)
-                self.assertEqual(self.grid_2020_03_15_transform_file_name, file_name)
-                self.assertTrue(os.path.exists(file_path))
-                gzip_crc = gzip_file_crc(file_path)
-                self.assertEqual(self.grid_2020_03_15_transform_crc, gzip_crc)
+                    self.assertEqual(1, len(release.transform_files))
+                    self.assertEqual(run['transform_crc'], gzip_file_crc(release.transform_files[0]))

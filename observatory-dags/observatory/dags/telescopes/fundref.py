@@ -34,19 +34,18 @@ import requests
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from pendulum import Pendulum
-
 from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
-from observatory.platform.utils.config_utils import (AirflowVars, SubFolder, find_schema, telescope_path,
-                                                     check_variables, test_data_path)
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
+from observatory.platform.utils.config_utils import (find_schema)
 from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,
                                                  load_bigquery_table,
                                                  upload_file_to_cloud_storage)
 from observatory.platform.utils.proc_utils import wait_for_process
+from observatory.platform.utils.template_utils import SubFolder, blob_name, telescope_path, test_data_path
 from observatory.platform.utils.url_utils import retry_session
+from pendulum import Pendulum
 
 
 def list_releases(start_date: Pendulum, end_date: Pendulum) -> List[FundrefRelease]:
@@ -536,9 +535,8 @@ class FundrefTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
-                                     AirflowVars.TRANSFORM_BUCKET)
+        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                                     AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -588,7 +586,8 @@ class FundrefTelescope:
 
     @staticmethod
     def download(**kwargs):
-        """ Download release to file. If develop environment, copy debug file from this repository to the right location.
+        """ Download release to file. If develop environment, copy debug file from this repository to the right
+        location.
         Else download from url.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -630,7 +629,7 @@ class FundrefTelescope:
 
         # Upload each release
         for release in releases_list:
-            upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.downloaded),
+            upload_file_to_cloud_storage(bucket_name, blob_name(release.filepath_download),
                                          file_path=release.filepath_download)
 
     @staticmethod
@@ -690,7 +689,7 @@ class FundrefTelescope:
 
         # Upload each release
         for release in releases_list:
-            upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.transformed),
+            upload_file_to_cloud_storage(bucket_name, blob_name(release.filepath_transform),
                                          file_path=release.filepath_transform)
 
     @staticmethod
@@ -729,7 +728,7 @@ class FundrefTelescope:
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table
-            uri = f"gs://{bucket_name}/{release.get_blob_name(SubFolder.transformed)}"
+            uri = f"gs://{bucket_name}/{blob_name(release.filepath_transform)}"
             logging.info(f"URI: {uri}")
             load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
                                 SourceFormat.NEWLINE_DELIMITED_JSON)

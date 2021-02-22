@@ -14,55 +14,20 @@
 
 # Author: James Diprose, Aniek Roelofs
 
+"""
+Utility functions for creating the config files that are used with the local development and/or terraform environment.
+"""
 
 import glob
 import importlib
 import logging
 import os
 import pathlib
-from enum import Enum
 from typing import Union
 
-import airflow
 import pendulum
-from airflow.hooks.base_hook import BaseHook
-from airflow.models import Connection
-from airflow.utils.db import create_session
 from natsort import natsorted
 from pendulum import Pendulum
-
-from observatory.platform.utils.airflow_utils import AirflowVariable
-
-# The path where data is saved on the system
-data_path = None
-test_data_path_val_ = None
-
-
-class AirflowVars:
-    """ Common Airflow Variable names used with the Observatory Platform """
-
-    TEST_DATA_PATH = "test_data_path"
-    DATA_PATH = "data_path"
-    ENVIRONMENT = "environment"
-    PROJECT_ID = "project_id"
-    DATA_LOCATION = "data_location"
-    DOWNLOAD_BUCKET = "download_bucket"
-    TRANSFORM_BUCKET = "transform_bucket"
-    TERRAFORM_ORGANIZATION = "terraform_organization"
-    DAGS_MODULE_NAMES = "dags_module_names"
-    KIBANA_SPACES = "kibana_spaces"
-
-
-class AirflowConns:
-    """ Common Airflow Connection names used with the Observatory Platform """
-
-    CROSSREF = "crossref"
-    MAG_RELEASES_TABLE = "mag_releases_table"
-    MAG_SNAPSHOTS_CONTAINER = "mag_snapshots_container"
-    TERRAFORM = "terraform"
-    SLACK = "slack"
-    ELASTIC = "elastic"
-    KIBANA = "kibana"
 
 
 def module_file_path(module_path: str, nav_back_steps: int = -1) -> str:
@@ -104,8 +69,8 @@ def terraform_credentials_path() -> str:
     return os.path.join(pathlib.Path.home(), '.terraform.d/credentials.tfrc.json')
 
 
-def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str = '', ver: str = '') \
-        -> Union[str, None]:
+def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str = '', ver: str = None) -> Union[
+    str, None]:
     """ Finds a schema file on a given path, with a particular table name, release date and optional prefix.
 
     If no version string is sepcified, the most recent schema with a date less than or equal to the release date of the
@@ -138,8 +103,12 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
     :return: the path to the schema or None if no schema was found.
     """
 
+    logging.info(f'Looking for schema with search parameters: analysis_schema_path={path}, '
+                  f'prefix={prefix}, table_name={table_name}, release_date={release_date}, '
+                  f'version={ver}')
+
     # Make search path for schemas
-    if ver != '':
+    if ver:
         search_path = os.path.join(path, f'{prefix}{table_name}_{ver}_*.json')
     else:
         search_path = os.path.join(path, f'{prefix}{table_name}*.json')
@@ -150,10 +119,11 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
 
     # No schemas were found
     if len(schema_paths) == 0:
+        logging.error('No schema found.')
         return None
 
     # Deal with versioned schema first since it's simpler. Return most recent for versioned schema.
-    if ver != '':
+    if ver:
         return schema_paths[-1]
 
     # Get schemas with dates <= release date
@@ -174,95 +144,5 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
         return selected_paths[-1]
 
     # No schemas were found
+    logging.error('No schema found.')
     return None
-
-
-def check_variables(*variables):
-    """ Checks whether all given airflow variables exist.
-
-    :param variables: name of airflow variable
-    :return: True if all variables are valid
-    """
-    is_valid = True
-    for name in variables:
-        try:
-            AirflowVariable.get(name)
-        except KeyError:
-            logging.error(f"Airflow variable '{name}' not set.")
-            is_valid = False
-    return is_valid
-
-
-def check_connections(*connections):
-    """ Checks whether all given airflow connections exist.
-
-    :param connections: name of airflow connection
-    :return: True if all connections are valid
-    """
-    is_valid = True
-    for name in connections:
-        try:
-            BaseHook.get_connection(name)
-        except KeyError:
-            logging.error(f"Airflow connection '{name}' not set.")
-            is_valid = False
-    return is_valid
-
-
-def list_connections(source):
-    """ Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
-
-    :param source: Data source (conforming to name convention) as a string, e.g., 'wos'.
-    :return: A list of connection id strings with the prefix <source>_, e.g., ['wos_curtin', 'wos_auckland'].
-    """
-    with create_session() as session:
-        query = session.query(Connection)
-        query = query.filter(Connection.conn_id.like(f'{source}_%'))
-        return query.all()
-
-
-class SubFolder(Enum):
-    """ The type of subfolder to create for telescope data """
-
-    downloaded = 'download'
-    extracted = 'extract'
-    transformed = 'transform'
-
-
-def telescope_path(sub_folder: SubFolder, name: str) -> str:
-    """ Return a path for saving telescope data. Create it if it doesn't exist.
-
-    :param sub_folder: the name of the sub folder for the telescope
-    :param name: the name of the telescope.
-    :return: the path.
-    """
-
-    # To avoid hitting the airflow database and the secret backend unnecessarily, data path is stored as a global
-    # variable and only requested once.
-    global data_path
-    if data_path is None:
-        logging.info('telescope_path: requesting data_path variable')
-        data_path = airflow.models.Variable.get(AirflowVars.DATA_PATH)
-
-    # Create telescope path
-    path = os.path.join(data_path, 'telescopes', sub_folder.value, name)
-    if not os.path.exists(path):
-        os.makedirs(path, exist_ok=True)
-
-    return path
-
-
-def test_data_path() -> str:
-    """ Return the path for the test data.
-
-    :return: the path.
-    """
-
-    # To avoid hitting the airflow database and the secret backend unnecessarily, data path is stored as a global
-    # variable and only requested once.
-    global test_data_path_val_
-    if test_data_path_val_ is None:
-        logging.info('test_data_path: requesting test_data_path variable')
-        test_data_path_val_ = airflow.models.Variable.get(AirflowVars.TEST_DATA_PATH)
-
-    return test_data_path_val_

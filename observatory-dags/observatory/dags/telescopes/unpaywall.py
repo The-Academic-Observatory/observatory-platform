@@ -28,13 +28,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from pendulum import Pendulum
-
 from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
-from observatory.platform.utils.config_utils import AirflowVars, SubFolder, find_schema, telescope_path
-from observatory.platform.utils.config_utils import check_variables
-from observatory.platform.utils.config_utils import test_data_path
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
+from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  bigquery_table_exists,
@@ -42,7 +38,9 @@ from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  load_bigquery_table,
                                                  upload_file_to_cloud_storage)
 from observatory.platform.utils.proc_utils import wait_for_process
+from observatory.platform.utils.template_utils import SubFolder, telescope_path, test_data_path
 from observatory.platform.utils.url_utils import retry_session
+from pendulum import Pendulum
 
 
 def pull_releases(ti: TaskInstance) -> List:
@@ -252,9 +250,8 @@ class UnpaywallTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
-                                     AirflowVars.TRANSFORM_BUCKET)
+        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                                     AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 

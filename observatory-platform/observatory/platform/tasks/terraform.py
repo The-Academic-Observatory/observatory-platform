@@ -18,7 +18,6 @@ import logging
 from datetime import datetime
 from typing import Union
 
-from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models.dag import DAG
@@ -26,12 +25,16 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from croniter import croniter
-
 from observatory.platform.observatory_config import TerraformConfig
 from observatory.platform.observatory_config import VirtualMachine
 from observatory.platform.terraform_api import TerraformApi
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, change_task_log_level
-from observatory.platform.utils.config_utils import (check_variables, check_connections, AirflowVars, AirflowConns)
+from observatory.platform.utils.airflow_utils import AirflowConns, \
+    AirflowVariable, \
+    AirflowVars, \
+    change_task_log_level, \
+    check_connections, \
+    check_variables, \
+    create_slack_webhook
 
 
 def get_workspace_id() -> str:
@@ -43,46 +46,16 @@ def get_workspace_id() -> str:
     terraform_api = TerraformApi(token)
 
     # Get organization
-    organization = Variable.get(AirflowVars.TERRAFORM_ORGANIZATION)
+    organization = AirflowVariable.get(AirflowVars.TERRAFORM_ORGANIZATION)
 
     # Get workspace
-    environment = Variable.get(AirflowVars.ENVIRONMENT)
+    environment = AirflowVariable.get(AirflowVars.ENVIRONMENT)
     workspace = TerraformConfig.WORKSPACE_PREFIX + environment
 
     # Get workspace ID
     workspace_id = terraform_api.workspace_id(organization, workspace)
 
     return workspace_id
-
-
-def create_slack_webhook(comments: str = "", **kwargs) -> SlackWebhookHook:
-    """ Creates a slack webhook using the token in the slack airflow connection.
-
-    :param comments: Additional comments in slack message
-    :param kwargs: the context passed from the PythonOperator. See
-    https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
-    this  argument.
-    :return: slack webhook
-    """
-
-    ti: TaskInstance = kwargs['ti']
-
-    # Get project id
-    project_id = Variable.get(AirflowVars.PROJECT_ID)
-
-    message = """
-    :red_circle: Task Alert.
-    *Task*: {task}
-    *Dag*: {dag}
-    *Execution Time*: {exec_date}
-    *Log Url*: {log_url}
-    *Project id*: {project_id}
-    *Comments*: {comments}
-    """.format(task=ti.task_id, dag=ti.dag_id, ti=ti, exec_date=kwargs['execution_date'], log_url=ti.log_url,
-               comments=comments, project_id=project_id)
-    slack_conn = BaseHook.get_connection(AirflowConns.SLACK)
-    slack_hook = SlackWebhookHook(http_conn_id=slack_conn.conn_id, webhook_token=slack_conn.password, message=message)
-    return slack_hook
 
 
 def get_last_execution_prev(dag: DAG, dag_id: str, prev_start_time_vm: Union[datetime, None]) -> Union[datetime, None]:
@@ -198,7 +171,8 @@ class TerraformTasks:
 
     @staticmethod
     def get_variable_create(**kwargs) -> bool:
-        """ Retrieves the current value of the terraform variable from the cloud workspace, if this already has the value
+        """ Retrieves the current value of the terraform variable from the cloud workspace, if this already has the
+        value
         that the DAG is planning to set it to, it will return False and remaining tasks are skipped.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -225,8 +199,8 @@ class TerraformTasks:
         print(f"DAG RUN: {kwargs['dag_run'].dag_id}")
         print(f"VM state: {vm_is_on}")
 
-        if (kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_CREATE_VM and vm_is_on) or \
-                (kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_DESTROY_VM and not vm_is_on):
+        if (kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_CREATE_VM and vm_is_on) or (
+                kwargs["dag_run"].dag_id == TerraformTasks.DAG_ID_DESTROY_VM and not vm_is_on):
             logging.info(f'VM is already in this state: {"on" if vm_is_on else "off"}')
             return False
 
@@ -319,6 +293,7 @@ class TerraformTasks:
 
         ti: TaskInstance = kwargs['ti']
         run_id = ti.xcom_pull(key=TerraformTasks.XCOM_TERRAFORM_RUN_ID, task_ids=TerraformTasks.TASK_ID_RUN)
+        project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
 
         token = BaseHook.get_connection(AirflowConns.TERRAFORM).password
         terraform_api = TerraformApi(token)
@@ -332,7 +307,7 @@ class TerraformTasks:
         logging.info(f'Run status: {run_status}')
         comments = f'Terraform run status: {run_status}'
         logging.info(f'Sending slack notification: "{comments}"')
-        slack_hook = create_slack_webhook(comments, **kwargs)
+        slack_hook = create_slack_webhook(comments, project_id, **kwargs)
         slack_hook.execute()
 
     @staticmethod
@@ -350,13 +325,11 @@ class TerraformTasks:
 
         ti: TaskInstance = kwargs['ti']
         prev_start_time_vm = ti.xcom_pull(key=TerraformTasks.XCOM_PREV_START_TIME_VM,
-                                          task_ids=TerraformTasks.TASK_ID_RUN,
-                                          dag_id=TerraformTasks.DAG_ID_CREATE_VM, include_prior_dates=True)
-        start_time_vm = ti.xcom_pull(key=TerraformTasks.XCOM_START_TIME_VM,
-                                     task_ids=TerraformTasks.TASK_ID_RUN,
+                                          task_ids=TerraformTasks.TASK_ID_RUN, dag_id=TerraformTasks.DAG_ID_CREATE_VM,
+                                          include_prior_dates=True)
+        start_time_vm = ti.xcom_pull(key=TerraformTasks.XCOM_START_TIME_VM, task_ids=TerraformTasks.TASK_ID_RUN,
                                      dag_id=TerraformTasks.DAG_ID_CREATE_VM, include_prior_dates=True)
-        destroy_time_vm = ti.xcom_pull(key=TerraformTasks.XCOM_DESTROY_TIME_VM,
-                                       task_ids=TerraformTasks.TASK_ID_RUN,
+        destroy_time_vm = ti.xcom_pull(key=TerraformTasks.XCOM_DESTROY_TIME_VM, task_ids=TerraformTasks.TASK_ID_RUN,
                                        dag_id=TerraformTasks.DAG_ID_DESTROY_VM, include_prior_dates=True)
         logging.info(f'prev_start_time_vm: {prev_start_time_vm}, start_time_vm: {start_time_vm}, '
                      f'destroy_time_vm: {destroy_time_vm}\n')
@@ -428,8 +401,7 @@ class TerraformTasks:
         last_warning_time = ti.xcom_pull(key=TerraformTasks.XCOM_WARNING_TIME,
                                          task_ids=TerraformTasks.TASK_ID_VM_RUNTIME,
                                          dag_id=TerraformTasks.DAG_ID_DESTROY_VM, include_prior_dates=True)
-        start_time_vm = ti.xcom_pull(key=TerraformTasks.XCOM_START_TIME_VM,
-                                     task_ids=TerraformTasks.TASK_ID_RUN,
+        start_time_vm = ti.xcom_pull(key=TerraformTasks.XCOM_START_TIME_VM, task_ids=TerraformTasks.TASK_ID_RUN,
                                      dag_id=TerraformTasks.DAG_ID_CREATE_VM, include_prior_dates=True)
 
         if start_time_vm:
@@ -448,9 +420,11 @@ class TerraformTasks:
             if hours_on > TerraformTasks.VM_RUNTIME_H_WARNING:
                 #  check if no warning was sent before or last time was longer ago than warning frequency
                 if not hours_since_warning or hours_since_warning > TerraformTasks.WARNING_FREQUENCY_H:
-                    comments = f'Worker VM has been on since {start_time_vm}. No. hours passed since then: {hours_on}.' \
+                    comments = f'Worker VM has been on since {start_time_vm}. No. hours passed since then: ' \
+                               f'{hours_on}.' \
                                f' Warning limit: {TerraformTasks.VM_RUNTIME_H_WARNING}H'
-                    slack_hook = create_slack_webhook(comments, **kwargs)
+                    project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
+                    slack_hook = create_slack_webhook(comments, project_id, **kwargs)
 
                     # http_hook outputs the secret token, suppressing logging 'info' by setting level to 'warning'
                     old_levels = change_task_log_level(logging.WARNING)

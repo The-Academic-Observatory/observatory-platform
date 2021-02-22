@@ -12,79 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
-import codecs
+""" General google cloud utility functions (independent of telescope usage) """
+
 import json
 import logging
 import multiprocessing
 import os
 import re
-import subprocess
 import time
-from concurrent.futures import as_completed, ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
-from subprocess import Popen
 from typing import List, Union
 
 import pendulum
-from google_crc32c import Checksum as Crc32cChecksum
-from google.api_core.exceptions import Conflict, BadRequest
-from google.cloud import storage, bigquery
-from google.cloud.bigquery import SourceFormat, LoadJobConfig, LoadJob, QueryJob
+from google.api_core.exceptions import BadRequest, Conflict, Forbidden
+from google.cloud import bigquery, storage
+from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat
 from google.cloud.exceptions import NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
+from observatory.platform.utils.file_utils import crc32c_base64_hash
 from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
 
-from observatory.platform.utils.proc_utils import wait_for_process
-
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
 DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
-
-
-def gzip_file_crc(file_path: str) -> str:
-    """ Get the crc of a gzip file.
-
-    :param file_path: the path to the file.
-    :return: the crc.
-    """
-
-    proc: Popen = subprocess.Popen(['gzip', '-vl', file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    output, error = wait_for_process(proc)
-    return output.splitlines()[1].split(' ')[1].strip()
-
-
-def hex_to_base64_str(hex_str: bytes) -> str:
-    """ Covert a hexadecimal string into a base64 encoded string. Removes trailing newline character.
-
-    :param hex_str: the hexadecimal encoded string.
-    :return: the base64 encoded string.
-    """
-
-    string = codecs.decode(hex_str, 'hex')
-    base64 = codecs.encode(string, 'base64')
-    return base64.decode('utf8').rstrip('\n')
-
-
-def crc32c_base64_hash(file_path: str, chunk_size: int = 8 * 1024) -> str:
-    """ Create a base64 crc32c checksum of a file.
-
-    :param file_path: the path to the file.
-    :param chunk_size: the size of each chunk to check.
-    :return: the checksum.
-    """
-
-    hash_alg = Crc32cChecksum()
-
-    with open(file_path, 'rb') as f:
-        chunk = f.read(chunk_size)
-        while chunk:
-            hash_alg.update(chunk)
-            chunk = f.read(chunk_size)
-    return hex_to_base64_str(hash_alg.hexdigest())
 
 
 def table_name_from_blob(blob_name: str, file_extension: str):
@@ -176,12 +131,12 @@ def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, des
         logging.warning(f"{func_name}: dataset already exists dataset_ref={dataset_ref}, exception={e}")
 
 
-def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, schema_file_path: str,
-                        source_format: str, csv_field_delimiter: str = ',', csv_quote_character: str = '"',
+def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, schema_file_path: str, source_format: str,
+                        csv_field_delimiter: str = ',', csv_quote_character: str = '"',
                         csv_allow_quoted_newlines: bool = False, csv_skip_leading_rows: int = 0,
                         partition: bool = False, partition_field: Union[None, str] = None,
                         partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True,
-                        write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE) -> bool:
+                        write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE, description: str = '') -> bool:
     """ Load a BigQuery table from an object on Google Cloud Storage.
 
     :param uri: the uri of the object to load from Google Cloud Storage into BigQuery.
@@ -199,6 +154,7 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     :param partition_type: the type of partitioning.
     :param require_partition_filter: whether the partition filter is required or not when querying the table.
     :param write_disposition: whether to append, overwrite or throw an error when data already exists in the table.
+    :param description: the description of the table.
     Default is to overwrite.
     :return:
     """
@@ -220,6 +176,7 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     job_config.source_format = source_format
     job_config.schema = client.schema_from_json(schema_file_path)
     job_config.write_disposition = write_disposition
+    job_config.destination_table_description = description
 
     # Set CSV options
     if source_format == SourceFormat.CSV:
@@ -230,19 +187,12 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
 
     # Set partitioning settings
     if partition:
-        job_config.time_partitioning = bigquery.TimePartitioning(
-            type_=partition_type,
-            field=partition_field,
-            require_partition_filter=require_partition_filter
-        )
+        job_config.time_partitioning = bigquery.TimePartitioning(type_=partition_type, field=partition_field,
+                                                                 require_partition_filter=require_partition_filter)
 
     try:
-        load_job: LoadJob = client.load_table_from_uri(
-            uri,
-            dataset.table(table),
-            location=location,
-            job_config=job_config
-        )
+        load_job: LoadJob = client.load_table_from_uri(uri, dataset.table(table), location=location,
+                                                       job_config=job_config)
         result = load_job.result()
         state = result.state == 'DONE'
 
@@ -270,18 +220,26 @@ def run_bigquery_query(query: str) -> List:
     return list(rows)
 
 
-def copy_bigquery_table(source_table_id: str, destination_table_id: str, data_location: str) -> bool:
+def copy_bigquery_table(source_table_id: Union[str, list], destination_table_id: str, data_location: str,
+                        write_disposition: bigquery.WriteDisposition = bigquery.WriteDisposition.WRITE_TRUNCATE) -> \
+        bool:
     """ Copy a BigQuery table.
 
     :param source_table_id: the id of the source table, including the project name and dataset id.
     :param destination_table_id: the id of the destination table, including the project name and dataset id.
     :param data_location: the location of the datasets.
+    :param write_disposition: whether to append, overwrite or throw an error when data already exists in the table.
     :return: whether the table was copied successfully or not.
     """
+    func_name = copy_bigquery_table.__name__
+    msg = f'source_table_ids={source_table_id}, destination_table_id={destination_table_id}, location={data_location}'
+    logging.info(f"{func_name}: copying bigquery table {msg}")
 
     client = bigquery.Client()
     job_config = bigquery.CopyJobConfig()
-    job_config.write_disposition = "WRITE_TRUNCATE"
+
+    job_config.write_disposition = write_disposition
+
     job = client.copy_table(source_table_id, destination_table_id, location=data_location, job_config=job_config)
     result = job.result()
     return result.done()
@@ -306,9 +264,8 @@ def create_bigquery_view(project_id: str, dataset_id: str, view_name: str, query
 
 
 def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str,
-                                     description: str = '', labels=None,
-                                     query_parameters=None,
-                                     partition: bool = False, partition_field: Union[None, str] = None,
+                                     description: str = '', labels=None, query_parameters=None, partition: bool = False,
+                                     partition_field: Union[None, str] = None,
                                      partition_type: str = bigquery.TimePartitioningType.DAY,
                                      require_partition_filter=True, cluster: bool = False,
                                      clustering_fields=None) -> bool:
@@ -355,23 +312,15 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
     dataset.location = location
     dataset.description = description
 
-    job_config = bigquery.QueryJobConfig(
-        allow_large_results=True,
-        destination=dataset.table(table_id),
-        description=description,
-        labels=labels,
-        use_legacy_sql=False,
-        query_parameters=query_parameters,
-        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE
-    )
+    job_config = bigquery.QueryJobConfig(allow_large_results=True, destination=dataset.table(table_id),
+                                         description=description, labels=labels, use_legacy_sql=False,
+                                         query_parameters=query_parameters,
+                                         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE)
 
     # Set partitioning settings
     if partition:
-        job_config.time_partitioning = bigquery.TimePartitioning(
-            type_=partition_type,
-            field=partition_field,
-            require_partition_filter=require_partition_filter,
-        )
+        job_config.time_partitioning = bigquery.TimePartitioning(type_=partition_type, field=partition_field,
+                                                                 require_partition_filter=require_partition_filter, )
 
     if cluster:
         job_config.clustering_fields = clustering_fields
@@ -381,6 +330,19 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
     success = query_job.done()
     logging.info(f"{func_name}: create bigquery table from query {msg}: {success}")
     return success
+
+
+def storage_bucket_exists(bucket_name: str):
+    """ Check if a storage bucket exists.
+    :param bucket_name: The bucket name.
+    :return: None.
+    """
+    client = storage.Client()
+    try:
+        bucket = client.get_bucket(bucket_name)
+    except Forbidden:
+        bucket = None
+    return True if bucket else None
 
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
@@ -628,8 +590,7 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
 
 def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azure_sas_token: str, azure_container: str,
                                            include_prefixes: List[str], gc_project_id: str, gc_bucket: str,
-                                           description: str, start_date: Pendulum = pendulum.utcnow()) \
-        -> bool:
+                                           description: str, start_date: Pendulum = pendulum.utcnow()) -> bool:
     """ Transfer files from an Azure blob container to a Google Cloud Storage bucket.
 
     :param azure_storage_account_name: the name of the Azure Storage account that holds the Azure blob container.
@@ -724,22 +685,3 @@ def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azur
         time.sleep(wait_time)
 
     return status == TransferStatus.success
-
-
-def upload_telescope_file_list(bucket_name: str, inst_id: str, telescope_path: str, file_list: List[str]) -> List[str]:
-    """ Upload list of files to cloud storage.
-
-    :param bucket_name: Name of storage bucket.
-    :param inst_id: institution id from airflow connection id.
-    :param telescope_path: Path to upload telescope data.
-    :param file_list: List of files to upload.
-    :return: List of location paths in the cloud.
-    """
-
-    blob_list = list()
-    for file in file_list:
-        file_name = os.path.basename(file)
-        blob_name = f'{telescope_path}/{inst_id}/{file_name}'
-        blob_list.append(blob_name)
-        upload_file_to_cloud_storage(bucket_name, blob_name, file_path=file)
-    return blob_list

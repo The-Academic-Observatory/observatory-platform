@@ -19,19 +19,26 @@ import unittest
 from typing import Optional
 
 import pendulum
-from azure.storage.blob import BlobServiceClient, BlobClient
+from azure.storage.blob import BlobClient, BlobServiceClient
 from click.testing import CliRunner
-from google.cloud import storage, bigquery
+from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat
-
-from observatory.platform.utils.gc_utils import (hex_to_base64_str, crc32c_base64_hash, bigquery_partitioned_table_id,
-                                                 azure_to_google_cloud_storage_transfer, create_bigquery_dataset,
-                                                 load_bigquery_table, upload_file_to_cloud_storage,
-                                                 download_blob_from_cloud_storage, upload_files_to_cloud_storage,
+from observatory.platform.utils.file_utils import crc32c_base64_hash, hex_to_base64_str
+from observatory.platform.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
+                                                 bigquery_partitioned_table_id,
+                                                 bigquery_table_exists,
+                                                 copy_bigquery_table,
+                                                 create_bigquery_dataset,
+                                                 create_bigquery_table_from_query,
+                                                 create_bigquery_view,
+                                                 download_blob_from_cloud_storage,
                                                  download_blobs_from_cloud_storage,
-                                                 table_name_from_blob, run_bigquery_query,
-                                                 copy_bigquery_table, create_bigquery_view, bigquery_table_exists,
-                                                 create_bigquery_table_from_query)
+                                                 load_bigquery_table,
+                                                 run_bigquery_query,
+                                                 table_name_from_blob,
+                                                 upload_file_to_cloud_storage,
+                                                 upload_files_to_cloud_storage)
+
 from tests.observatory.test_utils import random_id
 from tests.observatory.test_utils import test_fixtures_path
 
@@ -197,8 +204,8 @@ class TestGoogleCloudUtils(unittest.TestCase):
             table_name = random_id()
             result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
                                          schema_file_path=schema_path,
-                                         source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-                                         partition=True, partition_field='dob')
+                                         source_format=SourceFormat.NEWLINE_DELIMITED_JSON, partition=True,
+                                         partition_field='dob')
             self.assertTrue(result)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
         finally:
@@ -281,9 +288,9 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
         try:
             create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
-            success = create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
-                                                       table_name, data_location, partition=True,
-                                                       partition_field='date', cluster=True, clustering_fields=['date'])
+            success = create_bigquery_table_from_query(query, self.gc_project_id, dataset_id, table_name, data_location,
+                                                       partition=True, partition_field='date', cluster=True,
+                                                       clustering_fields=['date'])
             self.assertTrue(success)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
         finally:
@@ -393,16 +400,12 @@ class TestGoogleCloudUtils(unittest.TestCase):
             az_blob.upload_blob(self.data)
 
             # Transfer data
-            transfer = azure_to_google_cloud_storage_transfer(
-                self.az_storage_account_name,
-                self.az_container_sas_token,
-                self.az_container_name,
-                include_prefixes=[blob_name],
-                gc_project_id=self.gc_project_id,
-                gc_bucket=self.gc_bucket_name,
-                description=f'Test Azure to Google Cloud Storage Transfer '
-                            f'{pendulum.datetime.utcnow().to_datetime_string()}'
-            )
+            transfer = azure_to_google_cloud_storage_transfer(self.az_storage_account_name, self.az_container_sas_token,
+                                                              self.az_container_name, include_prefixes=[blob_name],
+                                                              gc_project_id=self.gc_project_id,
+                                                              gc_bucket=self.gc_bucket_name,
+                                                              description=f'Test Azure to Google Cloud Storage Transfer '
+                                                                          f'{pendulum.datetime.utcnow().to_datetime_string()}')
 
             # Check that transfer was successful
             self.assertTrue(transfer)

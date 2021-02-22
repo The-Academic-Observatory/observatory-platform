@@ -22,16 +22,15 @@ import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Tuple, List, ClassVar, Any, Union
+from typing import Any, ClassVar, Dict, List, Tuple, Union
 
 import cerberus.validator
 import yaml
 from airflow.configuration import generate_fernet_key
 from cerberus import Validator
-
 from observatory.platform.terraform_api import TerraformVariable
-from observatory.platform.utils.airflow_utils import AirflowVariable
-from observatory.platform.utils.config_utils import AirflowVars, module_file_path
+from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars
+from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
 
 
@@ -153,9 +152,7 @@ class Airflow:
         secret_key = dict_.get('secret_key')
         ui_user_password = dict_.get('ui_user_password')
         ui_user_email = dict_.get('ui_user_email')
-        return Airflow(fernet_key, secret_key,
-                       ui_user_password=ui_user_password,
-                       ui_user_email=ui_user_email)
+        return Airflow(fernet_key, secret_key, ui_user_password=ui_user_password, ui_user_email=ui_user_email)
 
 
 @dataclass
@@ -225,13 +222,8 @@ class GoogleCloud:
         data_location = dict_.get('data_location')
         buckets = CloudStorageBucket.parse_buckets(dict_.get('buckets', dict()))
 
-        return GoogleCloud(
-            project_id=project_id,
-            credentials=credentials,
-            region=region,
-            zone=zone,
-            data_location=data_location,
-            buckets=buckets)
+        return GoogleCloud(project_id=project_id, credentials=credentials, region=region, zone=zone,
+            data_location=data_location, buckets=buckets)
 
 
 def parse_dict_to_list(dict_: Dict, cls: ClassVar) -> List[Any]:
@@ -513,14 +505,9 @@ class ValidationError:
 
 class ObservatoryConfig:
 
-    def __init__(self,
-                 backend: Backend = None,
-                 airflow: Airflow = None,
-                 google_cloud: GoogleCloud = None,
-                 terraform: Terraform = None,
-                 airflow_variables: List[AirflowVariable] = None,
-                 airflow_connections: List[AirflowConnection] = None,
-                 dags_projects: List[DagsProject] = None,
+    def __init__(self, backend: Backend = None, airflow: Airflow = None, google_cloud: GoogleCloud = None,
+                 terraform: Terraform = None, airflow_variables: List[AirflowVariable] = None,
+                 airflow_connections: List[AirflowConnection] = None, dags_projects: List[DagsProject] = None,
                  validator: ObservatoryConfigValidator = None):
         """ Create an ObservatoryConfig instance.
 
@@ -587,9 +574,7 @@ class ObservatoryConfig:
         """
 
         # Create airflow variables from fixed config file values
-        variables = [
-            AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)
-        ]
+        variables = [AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)]
 
         if self.google_cloud.project_id is not None:
             variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
@@ -610,9 +595,8 @@ class ObservatoryConfig:
         return variables
 
     @staticmethod
-    def _parse_fields(dict_: Dict) -> Tuple[Backend, Airflow, GoogleCloud, Terraform,
-                                            List[AirflowVariable], List[AirflowConnection],
-                                            List[DagsProject]]:
+    def _parse_fields(dict_: Dict) -> Tuple[
+        Backend, Airflow, GoogleCloud, Terraform, List[AirflowVariable], List[AirflowConnection], List[DagsProject]]:
         backend = Backend.from_dict(dict_.get('backend', dict()))
         airflow = Airflow.from_dict(dict_.get('airflow', dict()))
         google_cloud = GoogleCloud.from_dict(dict_.get('google_cloud', dict()))
@@ -652,9 +636,7 @@ class ObservatoryConfig:
         except ModuleNotFoundError:
             observatory_dags_path = '/path/to/observatory-platform/observatory-dags'
 
-        render = render_template(template_path,
-                                 fernet_key=fernet_key,
-                                 secret_key=secret_key,
+        render = render_template(template_path, fernet_key=fernet_key, secret_key=secret_key,
                                  observatory_dags_path=observatory_dags_path)
 
         # Save file
@@ -677,17 +659,12 @@ class ObservatoryConfig:
         is_valid = validator.validate(dict_, schema)
 
         if is_valid:
-            (backend, airflow, google_cloud, terraform,
-             airflow_variables, airflow_connections, dags_projects) = ObservatoryConfig._parse_fields(dict_)
+            (backend, airflow, google_cloud, terraform, airflow_variables, airflow_connections,
+             dags_projects) = ObservatoryConfig._parse_fields(dict_)
 
-            return ObservatoryConfig(backend,
-                                     airflow,
-                                     google_cloud=google_cloud,
-                                     terraform=terraform,
-                                     airflow_variables=airflow_variables,
-                                     airflow_connections=airflow_connections,
-                                     dags_projects=dags_projects,
-                                     validator=validator)
+            return ObservatoryConfig(backend, airflow, google_cloud=google_cloud, terraform=terraform,
+                                     airflow_variables=airflow_variables, airflow_connections=airflow_connections,
+                                     dags_projects=dags_projects, validator=validator)
         else:
             return ObservatoryConfig(validator=validator)
 
@@ -716,18 +693,11 @@ class ObservatoryConfig:
 class TerraformConfig(ObservatoryConfig):
     WORKSPACE_PREFIX = "observatory-"
 
-    def __init__(self,
-                 backend: Backend = None,
-                 airflow: Airflow = None,
-                 google_cloud: GoogleCloud = None,
-                 terraform: Terraform = None,
-                 airflow_variables: List[AirflowVariable] = None,
-                 airflow_connections: List[AirflowConnection] = None,
-                 dags_projects: List[DagsProject] = None,
-                 cloud_sql_database: CloudSqlDatabase = None,
-                 airflow_main_vm: VirtualMachine = None,
-                 airflow_worker_vm: VirtualMachine = None,
-                 validator: ObservatoryConfigValidator = None):
+    def __init__(self, backend: Backend = None, airflow: Airflow = None, google_cloud: GoogleCloud = None,
+                 terraform: Terraform = None, airflow_variables: List[AirflowVariable] = None,
+                 airflow_connections: List[AirflowConnection] = None, dags_projects: List[DagsProject] = None,
+                 cloud_sql_database: CloudSqlDatabase = None, airflow_main_vm: VirtualMachine = None,
+                 airflow_worker_vm: VirtualMachine = None, validator: ObservatoryConfigValidator = None):
         """ Create a TerraformConfig instance.
 
         :param backend: the backend config.
@@ -743,14 +713,9 @@ class TerraformConfig(ObservatoryConfig):
         :param validator: an ObservatoryConfigValidator instance.
         """
 
-        super().__init__(backend=backend,
-                         airflow=airflow,
-                         google_cloud=google_cloud,
-                         terraform=terraform,
-                         airflow_variables=airflow_variables,
-                         airflow_connections=airflow_connections,
-                         dags_projects=dags_projects,
-                         validator=validator)
+        super().__init__(backend=backend, airflow=airflow, google_cloud=google_cloud, terraform=terraform,
+                         airflow_variables=airflow_variables, airflow_connections=airflow_connections,
+                         dags_projects=dags_projects, validator=validator)
         self.cloud_sql_database = cloud_sql_database
         self.airflow_main_vm = airflow_main_vm
         self.airflow_worker_vm = airflow_worker_vm
@@ -771,9 +736,7 @@ class TerraformConfig(ObservatoryConfig):
         """
 
         # Create airflow variables from fixed config file values
-        variables = [
-            AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)
-        ]
+        variables = [AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)]
 
         if self.google_cloud.project_id is not None:
             variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
@@ -803,8 +766,7 @@ class TerraformConfig(ObservatoryConfig):
                                   hcl=True),
                 TerraformVariable('airflow_main_vm', self.airflow_main_vm.to_hcl(), hcl=True),
                 TerraformVariable('airflow_worker_vm', self.airflow_worker_vm.to_hcl(), hcl=True),
-                TerraformVariable('airflow_variables', list_to_hcl(self.airflow_variables), hcl=True,
-                                  sensitive=False),
+                TerraformVariable('airflow_variables', list_to_hcl(self.airflow_variables), hcl=True, sensitive=False),
                 TerraformVariable('airflow_connections', list_to_hcl(self.airflow_connections), hcl=True,
                                   sensitive=sensitive)]
 
@@ -824,23 +786,17 @@ class TerraformConfig(ObservatoryConfig):
         is_valid = validator.validate(dict_, schema)
 
         if is_valid:
-            (backend, airflow, google_cloud, terraform,
-             airflow_variables, airflow_connections, dags_projects) = ObservatoryConfig._parse_fields(dict_)
+            (backend, airflow, google_cloud, terraform, airflow_variables, airflow_connections,
+             dags_projects) = ObservatoryConfig._parse_fields(dict_)
 
             cloud_sql_database = CloudSqlDatabase.from_dict(dict_.get('cloud_sql_database', dict()))
             airflow_main_vm = VirtualMachine.from_dict(dict_.get('airflow_main_vm', dict()))
             airflow_worker_vm = VirtualMachine.from_dict(dict_.get('airflow_worker_vm', dict()))
 
-            return TerraformConfig(backend,
-                                   airflow,
-                                   google_cloud=google_cloud,
-                                   terraform=terraform,
-                                   airflow_variables=airflow_variables,
-                                   airflow_connections=airflow_connections,
-                                   dags_projects=dags_projects,
-                                   cloud_sql_database=cloud_sql_database,
-                                   airflow_main_vm=airflow_main_vm,
-                                   airflow_worker_vm=airflow_worker_vm,
+            return TerraformConfig(backend, airflow, google_cloud=google_cloud, terraform=terraform,
+                                   airflow_variables=airflow_variables, airflow_connections=airflow_connections,
+                                   dags_projects=dags_projects, cloud_sql_database=cloud_sql_database,
+                                   airflow_main_vm=airflow_main_vm, airflow_worker_vm=airflow_worker_vm,
                                    validator=validator)
         else:
             return TerraformConfig(validator=validator)

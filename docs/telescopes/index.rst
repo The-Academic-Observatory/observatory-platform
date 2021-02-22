@@ -8,7 +8,8 @@ Telecopes
     geonames
     grid
     mag
-    unpaywall
-    terraform
-    wos
+    oapen_metadata
     scopus
+    terraform
+    unpaywall
+    wos

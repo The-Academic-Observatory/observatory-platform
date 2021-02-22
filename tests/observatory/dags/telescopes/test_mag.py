@@ -26,11 +26,13 @@ from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud import storage
 from google.cloud.storage import Blob
-
-from observatory.dags.telescopes.mag import (list_mag_release_files, transform_mag_file, transform_mag_release,
-                                             db_load_mag_release)
-from observatory.platform.utils.data_utils import _hash_file
+from observatory.dags.telescopes.mag import (db_load_mag_release,
+                                             list_mag_release_files,
+                                             transform_mag_file,
+                                             transform_mag_release)
+from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
+
 from tests.observatory.test_utils import random_id, test_fixtures_path
 
 
@@ -82,8 +84,8 @@ class TestMag(unittest.TestCase):
                     'PaperUrls.txt', 'Papers.txt']
         self.nlp = ['PaperAbstractsInvertedIndex.txt.1', 'PaperAbstractsInvertedIndex.txt.2',
                     'PaperCitationContexts.txt']
-        self.samples = ['CreateDatabase.usql', 'CreateFunctions.usql', 'HIndexDatabricksSample.py',
-                        'ReadMe.pdf', 'ReleaseNote.txt']
+        self.samples = ['CreateDatabase.usql', 'CreateFunctions.usql', 'HIndexDatabricksSample.py', 'ReadMe.pdf',
+                        'ReleaseNote.txt']
 
     def test_list_mag_release_files(self):
         """ Test that list_mag_release_files lists all files in the MAG releases folder.
@@ -238,8 +240,7 @@ class TestMag(unittest.TestCase):
 
                 # Load release into BigQuery
                 result = db_load_mag_release(self.gc_project_id, self.gc_bucket_name, self.gc_data_location,
-                                             release_path,
-                                             self.release_date, dataset_id=dataset_id)
+                                             release_path, self.release_date, dataset_id=dataset_id)
 
                 # Check that all tables have loaded
                 self.assertTrue(result)
