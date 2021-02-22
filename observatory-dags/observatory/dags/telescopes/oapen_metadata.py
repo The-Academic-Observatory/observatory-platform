@@ -78,8 +78,7 @@ class OapenMetadataRelease(StreamRelease):
         with open(self.csv_path, 'r') as f:
             csv_entries = [{k: v for k, v in row.items()} for row in csv.DictReader(f, skipinitialspace=True)]
 
-        # fieldnames with '.' are nested dictionaries
-        nested_fields = set([key.rsplit('.', 1)[0] for key in csv_entries[0].keys() if len(key.rsplit('.', 1)) > 1])
+        nested_fields = get_nested_fieldnames(csv_entries)
         # values of these fields should be transformed to a list
         list_fields = {'oapen.grant.number', 'oapen.grant.acronym', 'oapen.relation.hasChapter_dc.title',
                        'dc.subject.classification', 'oapen.grant.program', 'oapen.redirect', 'oapen.imprint',
@@ -168,7 +167,36 @@ class OapenMetadataTelescope(StreamTelescope):
         release.transform()
 
 
+def get_nested_fieldnames(csv_entries: dict) -> set:
+    """ Fieldnames with '.' should be converted to nested dictionaries. This function will return a set of
+    fieldnames for nested dictionaries from the highest to second lowest levels.
+    E.g these fieldnames: dc.date.available, dc.date.issued, dc.description
+    Will give this set: dc, dc.date, dc.description
+
+    :param csv_entries: Dictionary with csv entries
+    :return: Set of field names which should be converted to nested fields
+    """
+    keys = csv_entries[0].keys()
+    nested_fields = set()
+    for key in keys:
+        # split string in two, starting from the right
+        split_key = key.rsplit('.', 1)
+        # add key to set if there is at least one '.' in key name
+        if len(split_key) > 1:
+            nested_fields.add(split_key[0])
+    return nested_fields
+
+
 def transform_value_to_list(k: str, v: str) -> Tuple[list, list]:
+    """ Takes a key and value from the dictionary of csv entries. The value is always in a string format. Based on the
+    key name (k) the delimiter in the the value (v) is replaced with '||'. All values are then split on '||' so they
+    are transformed into a list. The values of 'dc.subject.classification' are parsed and stored in a variable,
+    so they can later be added to a custom key of the csv entries dictionary.
+
+    :param k: Dictionary key
+    :param v: Dictionary value (string)
+    :return: Dictionary value (list) and classification code info.
+    """
     # Get classification code for custom added column
     classification_code = []
     if k == 'BITSTREAM ISBN':
@@ -190,20 +218,37 @@ def transform_value_to_list(k: str, v: str) -> Tuple[list, list]:
     return v, classification_code
 
 
-def transform_key_to_nested_dict(k: str, v, nested_fields: set, list_fields: set, classification_code: list, new):
+def transform_key_to_nested_dict(k: str, v, nested_fields: set, list_fields: set, classification_code: list, new: dict):
+    """ Takes a dictionary key and value. The key is split on '.', a nested dictionary is created and the value will be
+    added to the most nested level. The dictionary is updated in place so it is not returned.
+    For example first k = 'dc.date.issued', the dictionary = {'dc': {'date': {'issued': v1}}
+    Second k = 'dc.date.accessed', the dictionary = {'dc': {'date': {'issued': v1, 'accessed': v2}}
+
+    :param k: Dictionary key
+    :param v: Dictionary value
+    :param nested_fields: Set of field names for which the values should be a nested dictionary
+    :param list_fields: Set of field names for which the values should be a list
+    :param classification_code: List of classification code abbreviations
+    :param new: New, updated dictionary
+    :return: None.
+    """
+    # Get all (nested) fields of a specific key
     fields = k.split('.')
     tmp = new
+    # Create one dictionary for each field
     for key in fields:
         key = convert(key)
         try:
             tmp[key]
         except KeyError:
+            # Add the value to the most nested level
             if key == fields[-1]:
                 tmp[key] = transform_dict(v, convert, nested_fields, list_fields)
                 if key == 'classification':
                     # Add classification code column
                     tmp['classification_code'] = transform_dict(classification_code, convert, nested_fields,
                                                                 list_fields)
+            # Create empty dictionary for key
             else:
                 tmp[key] = {}
         tmp = tmp[key]

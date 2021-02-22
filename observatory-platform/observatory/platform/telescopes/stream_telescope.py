@@ -37,7 +37,7 @@ from observatory.platform.utils.template_utils import blob_name, \
 
 class StreamRelease(Release):
     def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
-                 first_release: bool = False, download_files_regex: str = None, extract_files_regex: str = None,
+                 first_release: bool, download_files_regex: str = None, extract_files_regex: str = None,
                  transform_files_regex: str = None):
         """ Construct a StreamRelease instance
         :param dag_id: the id of the DAG.
