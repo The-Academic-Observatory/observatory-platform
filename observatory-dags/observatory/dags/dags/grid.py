@@ -16,6 +16,7 @@
 
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
+
 from observatory.dags.telescopes.grid import GridTelescope
 
 grid = GridTelescope()
