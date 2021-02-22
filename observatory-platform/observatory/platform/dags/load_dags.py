@@ -18,8 +18,8 @@ import json
 import logging
 
 from airflow.models import DagBag, Variable
-
-from observatory.platform.utils.config_utils import module_file_path, AirflowVars
+from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.config_utils import module_file_path
 
 
 def load_dag_bag(path: str) -> None:

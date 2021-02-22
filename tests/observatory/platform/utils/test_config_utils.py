@@ -21,17 +21,13 @@ from unittest.mock import patch
 
 import pendulum
 from click.testing import CliRunner
+from observatory.platform.utils.config_utils import (find_schema,
+                                                     module_file_path,
+                                                     observatory_home,
+                                                     terraform_credentials_path)
+from observatory.platform.utils.template_utils import SubFolder, telescope_path, test_data_path
 
 import tests.observatory.platform.utils as platform_utils_tests
-from observatory.platform.utils.config_utils import (
-    SubFolder,
-    find_schema,
-    observatory_home,
-    telescope_path,
-    module_file_path,
-    terraform_credentials_path,
-    test_data_path
-)
 from tests.observatory.test_utils import test_fixtures_path
 
 
@@ -145,7 +141,7 @@ class TestConfigUtils(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_telescope_path(self, mock_variable_get):
         runner = CliRunner()
         with runner.isolated_filesystem():
@@ -175,7 +171,7 @@ class TestConfigUtils(unittest.TestCase):
             self.assertEqual(expected, path_transformed)
             self.assertTrue(os.path.exists(path_transformed))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_test_data_path(self, mock_variable_get):
         # Mock test data path variable
         expected_path = '/tmp/test_data'

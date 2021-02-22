@@ -37,9 +37,13 @@ from google.cloud.bigquery import SourceFormat
 from natsort import natsorted
 
 from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
-from observatory.platform.utils.config_utils import (AirflowVars, AirflowConns, SubFolder, find_schema, telescope_path,
-                                                     check_variables, check_connections, test_data_path)
+from observatory.platform.utils.airflow_utils import AirflowConns, \
+    AirflowVariable as Variable, \
+    AirflowVars, \
+    check_connections, \
+    check_variables
+from observatory.platform.utils.config_utils import (find_schema)
+from observatory.platform.utils.template_utils import SubFolder, telescope_path, test_data_path
 from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,

@@ -23,17 +23,14 @@ from unittest.mock import patch
 import pendulum
 import vcr
 from click.testing import CliRunner
-
-from observatory.dags.telescopes.geonames import (
-    GeonamesRelease,
-    GeonamesTelescope,
-    transform_release,
-    first_sunday_of_month
-)
+from observatory.dags.telescopes.geonames import GeonamesRelease, \
+    GeonamesTelescope, \
+    first_sunday_of_month, \
+    transform_release
 from observatory.dags.telescopes.geonames import fetch_release_date
-from observatory.platform.utils.config_utils import telescope_path, SubFolder
-from observatory.platform.utils.data_utils import _hash_file
-from observatory.platform.utils.gc_utils import gzip_file_crc
+from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
+from observatory.platform.utils.template_utils import SubFolder, telescope_path
+
 from tests.observatory.test_utils import test_fixtures_path
 
 
@@ -92,7 +89,7 @@ class TestGeonames(unittest.TestCase):
             date = fetch_release_date()
             self.assertEqual(date, pendulum.datetime(year=2020, month=7, day=16, hour=1, minute=22, second=15))
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_download(self, mock_variable_get):
         """ Test that path of downloaded file is correct.
 
@@ -110,7 +107,7 @@ class TestGeonames(unittest.TestCase):
             path = telescope_path(SubFolder.downloaded, GeonamesTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.geonames_test_download_file_name), file_path_download)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_decompress(self, mock_variable_get):
         """ Test that path of downloaded file is correct.
 
@@ -128,7 +125,7 @@ class TestGeonames(unittest.TestCase):
             path = telescope_path(SubFolder.extracted, GeonamesTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.geonames_test_decompress_file_name), file_path_decompress)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_extract(self, mock_variable_get):
         """ Test that path of decompressed/extracted file is correct for given url.
 
@@ -146,7 +143,7 @@ class TestGeonames(unittest.TestCase):
             path = telescope_path(SubFolder.extracted, GeonamesTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.geonames_test_decompress_file_name), file_path_extract)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_filepath_transform(self, mock_variable_get):
         """ Test that path of transformed file is correct for given url.
 
@@ -164,7 +161,7 @@ class TestGeonames(unittest.TestCase):
             path = telescope_path(SubFolder.transformed, GeonamesTelescope.DAG_ID)
             self.assertEqual(os.path.join(path, self.geonames_test_transform_file_name), file_path_transform)
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_get_blob_name(self, mock_variable_get):
         """ Test get_blob_name.
 
@@ -178,12 +175,11 @@ class TestGeonames(unittest.TestCase):
 
         with CliRunner().isolated_filesystem():
             release = GeonamesRelease(self.geonames_test_date)
-            self.assertEqual(release.get_blob_name(SubFolder.downloaded),
-                             'telescopes/geonames/geonames_3000_01_01.zip')
+            self.assertEqual(release.get_blob_name(SubFolder.downloaded), 'telescopes/geonames/geonames_3000_01_01.zip')
             self.assertEqual(release.get_blob_name(SubFolder.transformed),
                              'telescopes/geonames/geonames_3000_01_01.csv.gz')
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_transform_release(self, mock_variable_get):
         """ Test that the release is transformed as expected.
 

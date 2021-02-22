@@ -27,20 +27,19 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from pendulum import Pendulum
-
 from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
-from observatory.platform.utils.config_utils import AirflowVars, SubFolder, telescope_path, check_variables
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 bigquery_table_exists,
                                                  create_bigquery_dataset,
                                                  load_bigquery_table,
-                                                 bigquery_table_exists,
                                                  upload_files_to_cloud_storage)
 from observatory.platform.utils.proc_utils import wait_for_process
+from observatory.platform.utils.template_utils import SubFolder, telescope_path
 from observatory.platform.utils.url_utils import retry_session
+from pendulum import Pendulum
 
 OPEN_CITATIONS_ARTICLE_ID = 6741422
 OPEN_CITATIONS_VERSION_URL = "https://api.figshare.com/v2/articles/{article_id}/versions"
@@ -76,22 +75,19 @@ class OpenCitationsRelease:
 
     @property
     def download_path(self) -> str:
-        return os.path.join(telescope_path(SubFolder.downloaded, OpenCitationsTelescope.DAG_ID),
-                            self.release_name)
+        return os.path.join(telescope_path(SubFolder.downloaded, OpenCitationsTelescope.DAG_ID), self.release_name)
 
     @property
     def extract_path(self) -> str:
-        return os.path.join(telescope_path(SubFolder.extracted, OpenCitationsTelescope.DAG_ID),
-                            self.release_name)
+        return os.path.join(telescope_path(SubFolder.extracted, OpenCitationsTelescope.DAG_ID), self.release_name)
 
     @property
     def transformed_blob_path(self) -> str:
         return f'telescopes/{OpenCitationsTelescope.DAG_ID}/{self.release_name}/*.csv'
 
 
-def list_open_citations_releases(start_date: Pendulum = None,
-                                 end_date: Pendulum = None,
-                                 timeout: float = 30.) -> List[OpenCitationsRelease]:
+def list_open_citations_releases(start_date: Pendulum = None, end_date: Pendulum = None, timeout: float = 30.) -> List[
+    OpenCitationsRelease]:
     """ List the Open Citations releases for a given time period.
 
     :param start_date: the start date.
@@ -136,8 +132,7 @@ def fetch_open_citations_versions():
 
 def pull_releases(ti: TaskInstance) -> List[OpenCitationsRelease]:
     return ti.xcom_pull(key=OpenCitationsTelescope.RELEASES_TOPIC_NAME,
-                        task_ids=OpenCitationsTelescope.TASK_ID_LIST_RELEASES,
-                        include_prior_dates=False)
+                        task_ids=OpenCitationsTelescope.TASK_ID_LIST_RELEASES, include_prior_dates=False)
 
 
 class OpenCitationsTelescope:
@@ -168,9 +163,8 @@ class OpenCitationsTelescope:
         for a list of the keyword arguments that are passed to this argument.
         """
 
-        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
-                                     AirflowVars.TRANSFORM_BUCKET)
+        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                                     AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET)
         if not vars_valid:
             raise AirflowException('Required variables are missing')
 
@@ -227,11 +221,8 @@ class OpenCitationsTelescope:
         for release in releases:
             os.makedirs(release.download_path, exist_ok=True)
             for file in release.files:
-                file_path, updated = get_file(file.name,
-                                              file.download_url,
-                                              cache_subdir='',
-                                              cache_dir=release.download_path,
-                                              md5_hash=file.md5hash)
+                file_path, updated = get_file(file.name, file.download_url, cache_subdir='',
+                                              cache_dir=release.download_path, md5_hash=file.md5hash)
 
     @staticmethod
     def upload_downloaded(**kwargs):
@@ -293,8 +284,7 @@ class OpenCitationsTelescope:
                     logging.info(stdout)
 
                 if stderr:
-                    raise AirflowException(
-                        f"bash command failed for {file_path}, {release.release_date}: {stderr}")
+                    raise AirflowException(f"bash command failed for {file_path}, {release.release_date}: {stderr}")
 
                 logging.info(f"File extracted to: {release.extract_path}")
 

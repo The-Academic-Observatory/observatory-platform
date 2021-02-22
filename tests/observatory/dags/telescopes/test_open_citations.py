@@ -38,7 +38,7 @@ class TestOpenCitations(unittest.TestCase):
                                                                'vcr_cassettes',
                                                                'fetch_open_citations_versions.yaml')
 
-    @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_open_citations_release(self, mock_variable_get):
         """ Test that the getter properties in OpenCitationsRelease work as expected.
 
