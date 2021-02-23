@@ -132,6 +132,18 @@
     "type": "STRING"
   },
   {
+    "description": "Family name of the lyricists",
+    "mode": "REPEATED",
+    "name": "lyricists_name_family",
+    "type": "STRING"
+  },
+  {
+    "description": "Given name of the lyricists",
+    "mode": "REPEATED",
+    "name": "lyricists_name_given",
+    "type": "STRING"
+  },
+  {
     "description": "Begin date.",
     "mode": "REQUIRED",
     "name": "begin_date",

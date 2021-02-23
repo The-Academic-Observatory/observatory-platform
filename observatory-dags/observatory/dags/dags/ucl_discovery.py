@@ -14,77 +14,10 @@
 
 # Author: Aniek Roelofs
 
-from datetime import datetime
-
-from airflow import DAG
-from airflow.operators.python_operator import (PythonOperator,
-                                               ShortCircuitOperator)
+# The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
+# https://airflow.apache.org/docs/stable/faq.html
 
 from observatory.dags.telescopes.ucl_discovery import UclDiscoveryTelescope
 
-default_args = {
-    "owner": "airflow",
-    "start_date": datetime(2008, 1, 1)
-}
-
-with DAG(dag_id=UclDiscoveryTelescope.DAG_ID, schedule_interval="@monthly", catchup=True, default_args=default_args,
-         max_active_runs=1) as dag:
-    # Check that dependencies exist before starting
-    check = PythonOperator(
-        task_id=UclDiscoveryTelescope.TASK_ID_CHECK_DEPENDENCIES,
-        python_callable=UclDiscoveryTelescope.check_dependencies,
-        queue=UclDiscoveryTelescope.QUEUE
-    )
-
-    # Downloads the events of this release
-    download = ShortCircuitOperator(
-        task_id=UclDiscoveryTelescope.TASK_ID_DOWNLOAD,
-        python_callable=UclDiscoveryTelescope.download,
-        provide_context=True,
-        retries=UclDiscoveryTelescope.MAX_RETRIES,
-        queue=UclDiscoveryTelescope.QUEUE,
-    )
-
-    # Upload downloaded events file to google cloud storage
-    upload_downloaded = PythonOperator(
-        task_id=UclDiscoveryTelescope.TASK_ID_UPLOAD_DOWNLOADED,
-        provide_context=True,
-        python_callable=UclDiscoveryTelescope.upload_downloaded,
-        queue=UclDiscoveryTelescope.QUEUE
-    )
-
-    # Upload this release as partition to separate BigQuery table
-    bq_load_shard = PythonOperator(
-        task_id=UclDiscoveryTelescope.TASK_ID_BQ_LOAD_SHARD,
-        python_callable=UclDiscoveryTelescope.bq_load_shard,
-        provide_context=True,
-        queue=UclDiscoveryTelescope.QUEUE
-    )
-
-    # Delete events in main table which are edited/deleted in this release
-    bq_delete_old = PythonOperator(
-        task_id=UclDiscoveryTelescope.TASK_ID_BQ_DELETE_OLD,
-        python_callable=UclDiscoveryTelescope.bq_delete_old,
-        provide_context=True,
-        queue=UclDiscoveryTelescope.QUEUE
-    )
-
-    # Append this release to main BigQuery table
-    bq_append_new = PythonOperator(
-        task_id=UclDiscoveryTelescope.TASK_ID_BQ_APPEND_NEW,
-        python_callable=UclDiscoveryTelescope.bq_append_new,
-        provide_context=True,
-        queue=UclDiscoveryTelescope.QUEUE,
-        wait_for_downstream=True
-    )
-
-    # Delete locally stored files
-    cleanup = PythonOperator(
-        task_id=UclDiscoveryTelescope.TASK_ID_CLEANUP,
-        python_callable=UclDiscoveryTelescope.cleanup,
-        provide_context=True,
-        queue=UclDiscoveryTelescope.QUEUE
-    )
-
-    # Task dependencies
-    check >> download >> upload_downloaded >> bq_load_shard >> bq_delete_old >> bq_append_new >> cleanup
+ucl_discovery = UclDiscoveryTelescope()
+globals()[ucl_discovery.dag_id] = ucl_discovery.make_dag()

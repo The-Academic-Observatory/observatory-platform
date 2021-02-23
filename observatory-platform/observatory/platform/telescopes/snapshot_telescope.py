@@ -37,7 +37,7 @@ class SnapshotRelease(Release):
         :param transform_files_regex: regex pattern that is used to find files in transform folder
         """
         self.release_date = release_date
-        release_id = f'{self.dag_id}_{self.release_date.strftime("%Y_%m_%d")}'
+        release_id = f'{dag_id}_{release_date.strftime("%Y_%m_%d")}'
         super().__init__(dag_id, release_id, download_files_regex, extract_files_regex, transform_files_regex)
 
 
