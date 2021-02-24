@@ -17,16 +17,16 @@
 import logging
 import os
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pendulum
 import vcr
 from click.testing import CliRunner
-from observatory.dags.telescopes.ucl_discovery import UclDiscoveryTelescope, UclDiscoveryRelease
+from observatory.dags.telescopes.ucl_discovery import UclDiscoveryRelease, UclDiscoveryTelescope
 from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
 
 from tests.observatory.test_utils import test_fixtures_path
-from types import SimpleNamespace
 
 
 def side_effect(arg):
@@ -42,7 +42,7 @@ def side_effect(arg):
 
 @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
 class TestUclDiscovery(unittest.TestCase):
-    """ Tests for the functions used by the OapenMetadata telescope """
+    """ Tests for the functions used by the UclDiscovery telescope """
 
     def __init__(self, *args, **kwargs, ):
         """ Constructor which sets up variables used by tests.
@@ -52,6 +52,7 @@ class TestUclDiscovery(unittest.TestCase):
         """
 
         super(TestUclDiscovery, self).__init__(*args, **kwargs)
+
         # Paths
         self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
         self.download_path = os.path.join(self.vcr_cassettes_path, 'ucl_discovery_2008-02-01.yaml')
@@ -61,16 +62,14 @@ class TestUclDiscovery(unittest.TestCase):
         self.ucl_discovery = UclDiscoveryTelescope()
 
         # Dag run info
-        self.start_date = pendulum.parse('2008-01-01')
-        self.end_date = pendulum.parse('2008-02-01')
-        self.download_hash = '2348830491b8a384f56672b9530775f2'
-        self.transform_crc = 'fc38d475'
-        # self.transform_crc = 'bc2ed2e0'
+        self.start_date = pendulum.parse('2021-01-01')
+        self.end_date = pendulum.parse('2021-02-01')
+        self.download_hash = 'ed054db8c4221b7e8055507c4718b7f2'
+        self.transform_crc = '22b5d082'
 
         # Create release instance that is used to test download/transform
         with patch('observatory.platform.utils.template_utils.AirflowVariable.get') as mock_variable_get:
             mock_variable_get.side_effect = side_effect
-
             self.release = UclDiscoveryRelease(self.ucl_discovery.dag_id, self.start_date, self.end_date)
 
         # Turn logging to warning because vcr prints too much at info level
@@ -78,7 +77,7 @@ class TestUclDiscovery(unittest.TestCase):
         logging.getLogger().setLevel(logging.WARNING)
 
     def test_make_release(self, mock_variable_get):
-        """ Check that make_release returns a list of GridRelease instances.
+        """ Check that make_release returns a list with one UclDiscoveryRelease instance.
 
         :param mock_variable_get: Mock result of airflow's Variable.get() function
         :return: None.
@@ -126,11 +125,11 @@ class TestUclDiscovery(unittest.TestCase):
             with vcr.use_cassette(self.download_path):
                 self.release.download()
 
-            # use only first eprintid for transform test
+            # use only one eprintid for transform test, for which we know the country downloads is not empty
             with open(self.release.download_path, 'r') as f_in:
                 lines = f_in.readlines()
             with open(self.release.download_path, 'w') as f_out:
-                f_out.writelines(lines[:2])
+                f_out.writelines(lines[0:1] + lines[36:61])
 
             with vcr.use_cassette(self.country_report_path):
                 self.release.transform()

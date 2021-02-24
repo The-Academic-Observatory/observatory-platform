@@ -32,8 +32,12 @@ from observatory.platform.utils.template_utils import upload_files_from_list
 from observatory.platform.utils.url_utils import retry_session
 
 
-def get_downloads_per_country(countries_url: str) -> Tuple[list, int]:
-    print(countries_url)
+def get_downloads_per_country(countries_url: str) -> Tuple[List[dict], int]:
+    """ Requests info on downloads per country for a specific eprint id
+
+    :param countries_url: The url to the downloads per country info
+    :return: Number of total downloads and list of downloads per country, country code and country name.
+    """
     response = retry_session(num_retries=5).get(countries_url)
     response_content = response.content.decode('utf-8')
     if response_content == '\n':
@@ -55,10 +59,22 @@ def get_downloads_per_country(countries_url: str) -> Tuple[list, int]:
     return results, total_downloads
 
 
-def create_result_dict(begin_date, end_date, total_downloads, downloads_per_country, multi_row_columns,
-                       single_row_columns):
+def create_result_dict(begin_date: str, end_date: str, total_downloads: int, downloads_per_country: List[dict],
+                       multi_row_columns: dict, single_row_columns: dict) -> dict:
+    """ Create one result dictionary with info on downloads for a specific eprint id in a given time period.
+
+    :param begin_date: The begin date of download period
+    :param end_date: The end date of download period
+    :param total_downloads: Total of downloads in that period
+    :param downloads_per_country: List of downloads per country
+    :param multi_row_columns: Dict of column names & values for columns that have values over multiple rows of an
+    eprintid
+    :param single_row_columns: Dict of column names & values for columns that have values only in the first row of an eprint id
+    :return: Results dictionary
+    """
     result = dict(begin_date=begin_date, end_date=end_date, total_downloads=total_downloads,
                   downloads_per_country=downloads_per_country, **multi_row_columns, **single_row_columns)
+    # change empty strings to None so they don't show up in BigQuery table
     for k, v in result.items():
         result[k] = v if v != '' else None
     return result
@@ -82,13 +98,19 @@ def normalize_schedule_interval(schedule_interval: str):
 
 
 class UclDiscoveryRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, release_date: pendulum.Pendulum, ):
+    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, release_date: pendulum.Pendulum):
+        """ Construct a UclDiscoveryRelease instance.
+        :param dag_id: the id of the DAG.
+        :param start_date: the start date of the download period.
+        :param release_date: the end date of the download period, also used as release date for BigQuery table and
+        file paths.
+        """
         super().__init__(dag_id, release_date)
 
         self.start_date = start_date
         self.end_date = release_date
 
-        self.list_ids_url = UclDiscoveryTelescope.LIST_IDS_URL.format(end_date=self.end_date.strftime("%Y"))
+        self.eprint_metadata_url = UclDiscoveryTelescope.EPRINT_METADATA_URL.format(end_date=self.end_date.strftime("%Y"))
         self.countries_url = UclDiscoveryTelescope.COUNTRIES_URL.format(start_date=self.start_date.strftime("%Y%m%d"),
                                                                         end_date=self.end_date.strftime("%Y%m%d"))
 
@@ -100,20 +122,22 @@ class UclDiscoveryRelease(SnapshotRelease):
     def transform_path(self) -> str:
         return os.path.join(self.transform_folder, f'{self.dag_id}.jsonl')
 
-    def download(self):
-        """
+    def download(self) -> bool:
+        """ Download metadata for all eprints that are published before a specific date
 
-        :return:
+        :return: True or False depending on whether download was successful
         """
-        print(self.list_ids_url)
-        response = retry_session(num_retries=5).get(self.list_ids_url)
+        logging.info(f'Downloading metadata from {self.eprint_metadata_url}')
+        response = retry_session(num_retries=5).get(self.eprint_metadata_url)
         if response.status_code == 200:
             response_content = response.content.decode('utf-8')
             csv_reader = csv.DictReader(response_content.splitlines())
             try:
                 next(csv_reader)
             except StopIteration:
+                logging.info(f'No metadata available.')
                 return False
+            logging.info(f'Saving metadata to file: {self.download_path}')
             with open(self.download_path, 'w') as f:
                 f.write(response_content)
             return True
@@ -121,9 +145,12 @@ class UclDiscoveryRelease(SnapshotRelease):
             return False
 
     def transform(self):
-        """
+        """ Parse the csv file and for each eprint id store the relevant metadata in a dictionary and get the downloads
+        per country (between begin_date and end_date). The list of dictionaries is stored in a gzipped json lines file.
+        There might be multiple rows for 1 eprint id. Some columns only have a value in the first row, some columns
+        have values in multiple rows.
 
-        :return:
+        :return: None.
         """
         begin_date = self.start_date.strftime("%Y-%m-%d")
         end_date = self.end_date.strftime("%Y-%m-%d")
@@ -179,17 +206,14 @@ class UclDiscoveryRelease(SnapshotRelease):
 
                 # append results of current eprint id
                 for column in multi_row_columns:
-                    # make sure that for 'name' columns a value is added for both, even if only 1 of the columns has a
-                    # value
+                    # For 'name' type columns, don't add empty strings as a name, but make sure that  a value is added
+                    # for both family and given, even if only 1 of the columns has a value.
                     start_column_name = column.split('_')[0]
                     if start_column_name in ['creators', 'lyricists', 'editors']:
                         name_family = row[start_column_name + '_name.family']
                         name_given = row[start_column_name + '_name.given']
+
                         name = name_family + name_given
-                        # if not name_family and name_given:
-                        #     print('stop')
-                        # if not name_given and name_family:
-                        #     print('stop')
                         if name:
                             column_name = '.'.join(column.rsplit('_', 1))
                             multi_row_columns[column].append(row[column_name])
@@ -209,7 +233,7 @@ class UclDiscoveryRelease(SnapshotRelease):
 
 
 class UclDiscoveryTelescope(SnapshotTelescope):
-    LIST_IDS_URL = 'https://discovery.ucl.ac.uk/cgi/search/archive/advanced/export_discovery_CSV.csv?' \
+    EPRINT_METADATA_URL = 'https://discovery.ucl.ac.uk/cgi/search/archive/advanced/export_discovery_CSV.csv?' \
                    'screen=Search&dataset=archive&_action_export=1&output=CSV' \
                    '&exp=0|1|-date/creators_name/title|archive|-|date:date:ALL:EQ:-{end_date}|primo:primo:ANY:EQ:open' \
                    '|type:type:ANY:EQ:book|-|eprint_status:eprint_status:ANY:EQ:archive' \
@@ -219,21 +243,35 @@ class UclDiscoveryTelescope(SnapshotTelescope):
 
     def __init__(self, dag_id: str = 'ucl_discovery', start_date: datetime = datetime(2008, 1, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'ucl_discovery', airflow_vars: list = None):
+        """ Construct a UclDiscoveryTelescope instance.
+        :param dag_id: the id of the DAG.
+        :param start_date: the start date of the DAG.
+        :param schedule_interval: the schedule interval of the DAG.
+        :param dataset_id: the name of the dataset in BigQuery.
+        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
+        """
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, airflow_vars=airflow_vars)
 
         self.add_setup_task(self.check_dependencies)
-        self.add_task_chain(
-            [self.download, self.upload_downloaded, self.transform, self.upload_transformed, self.bq_load,
-             self.cleanup])
+        self.add_task_chain([self.download,
+                             self.upload_downloaded,
+                             self.transform,
+                             self.upload_transformed,
+                             self.bq_load,
+                             self.cleanup])
 
     def make_release(self, **kwargs) -> List[UclDiscoveryRelease]:
-        """
+        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        called in 'task_callable'. There will only be 1 release, but it is passed on as a list so the
+        SnapshotTelescope template methods can be used.
 
-        :param kwargs:
-        :return:
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are
+        passed to this argument.
+        :return: A list with one ucldiscovery release instance.
         """
 
         # Get start and end date (release_date)
@@ -247,8 +285,8 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         return releases
 
     def download(self, releases: List[UclDiscoveryRelease], **kwargs):
-        """ Task to download the GRID releases for a given month.
-        :param releases: a list of GRID releases.
+        """ Task to download the ucldiscovery release for a given month.
+        :param releases: a list with the ucldiscovery release.
         :return: None.
         """
         # Download each release
@@ -256,8 +294,8 @@ class UclDiscoveryTelescope(SnapshotTelescope):
             release.download()
 
     def upload_downloaded(self, releases: List[UclDiscoveryRelease], **kwargs):
-        """ Task to upload the downloaded GRID releases for a given month.
-        :param releases: a list of GRID releases.
+        """ Task to upload the downloaded ucldiscovery release for a given month.
+        :param releases: a list with the ucldiscovery release.
         :return: None.
         """
         # Upload each downloaded release
@@ -265,8 +303,8 @@ class UclDiscoveryTelescope(SnapshotTelescope):
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def transform(self, releases: List[UclDiscoveryRelease], **kwargs):
-        """ Task to transform the GRID releases for a given month.
-        :param releases: a list of GRID releases.
+        """ Task to transform the ucldiscovery release for a given month.
+        :param releases: a list with the ucldiscovery release.
         :return: None.
         """
         # Transform each release
