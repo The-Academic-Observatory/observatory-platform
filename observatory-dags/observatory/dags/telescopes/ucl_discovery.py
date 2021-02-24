@@ -154,7 +154,9 @@ class UclDiscoveryRelease(SnapshotRelease):
         """
         begin_date = self.start_date.strftime("%Y-%m-%d")
         end_date = self.end_date.strftime("%Y-%m-%d")
-
+        total_downloads = 0
+        downloads_per_country = []
+        single_row_columns = {}
         with open(self.download_path, 'r') as f:
             csv_reader = csv.DictReader(f)
 
