@@ -1,0 +1,437 @@
+swagger: '2.0'
+info:
+  description: Observatory Platform API
+  version: 0.1.0
+  title: Observatory Platform API
+  contact:
+    email: agent@observatory.academy
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+
+tags:
+- name: admins
+  description: API key secured calls only
+
+paths:
+  /connection_type:
+    get:
+      tags:
+      - admins
+      summary: get a ConnectionType
+      operationId: observatory.platform.api.api.get_connection_type
+      description: |
+        Get the details of a ConnectionType by passing it's id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: ConnectionType id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: the fetched ConnectionType
+          schema:
+            $ref: '#/definitions/ConnectionType'
+        400:
+          description: bad input parameter
+    post:
+      tags:
+      - admins
+      summary: create a ConnectionType
+      operationId: observatory.platform.api.api.post_connection_type
+      description: |
+        Create a ConnectionType by passing a ConnectionType object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: ConnectionType to create
+        required: true
+        schema:
+          $ref: '#/definitions/ConnectionType'
+      responses:
+        201:
+          description: ConnectionType created, returning the created object's id
+    put:
+      tags:
+      - admins
+      summary: create or update a ConnectionType
+      operationId: observatory.platform.api.api.put_connection_type
+      description: |
+        Create a ConnectionType by passing a ConnectionType object, without an id. Update an existing ConnectionType by
+        passing a ConnectionType object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: ConnectionType to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/ConnectionType'
+      responses:
+        200:
+          description: ConnectionType updated
+        201:
+          description: ConnectionType created, returning the created object's id
+    delete:
+      tags:
+      - admins
+      summary: delete a ConnectionType
+      operationId: observatory.platform.api.api.delete_connection_type
+      description: |
+        Delete a ConnectionType by passing it's id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: ConnectionType id
+        required: true
+        type: integer
+      responses:
+        201:
+          description: ConnectionType deleted
+  /connection_types:
+    get:
+      tags:
+      - admins
+      summary: Get a list of ConnectionType objects
+      operationId: observatory.platform.api.api.get_connection_types
+      description: |
+        Get a list of ConnectionType objects
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: limit
+        description: the maximum number of results to return
+        required: true
+        type: integer
+      responses:
+        200:
+          description: a list of ConnectionType objects
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/ConnectionType'
+        400:
+          description: bad input parameter
+
+  /connection:
+    get:
+      tags:
+      - admins
+      summary: get a Connection
+      operationId: observatory.platform.api.api.get_connection
+      description: |
+        Get the details of a Connection by passing it's id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: Connection id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: the fetched Connection
+          schema:
+            $ref: '#/definitions/Connection'
+        400:
+          description: bad input parameter
+    post:
+      tags:
+      - admins
+      summary: create a Connection
+      operationId: observatory.platform.api.api.post_connection
+      description: |
+        Create a Connection by passing a Connection object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Connection to create
+        required: true
+        schema:
+          $ref: '#/definitions/Connection'
+      responses:
+        201:
+          description: Connection created, returning the created object's id
+    put:
+      tags:
+      - admins
+      summary: create or update a Connection
+      operationId: observatory.platform.api.api.put_connection
+      description: |
+        Create a Connection by passing a Connection object, without an id. Update an existing Connection by
+        passing a Connection object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Connection to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/Connection'
+      responses:
+        200:
+          description: Connection updated
+        201:
+          description: Connection created, returning the created object's id
+    delete:
+      tags:
+      - admins
+      summary: delete a Connection
+      operationId: observatory.platform.api.api.delete_connection
+      description: |
+        Delete a Connection by passing it's id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: Connection id
+        required: true
+        type: integer
+      responses:
+        201:
+          description: Connection deleted
+  /connections:
+    get:
+      tags:
+      - admins
+      summary: Get an Organisations's Connection objects
+      operationId: observatory.platform.api.api.get_connections
+      description: |
+        Get an Organisation's Connection objects by passing the Organisation's organisation_id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: organisation_id
+        description: filter connections by organisation id
+        required: true
+        type: integer
+      - in: query
+        name: limit
+        description: the maximum number of results to return
+        required: true
+        type: integer
+      responses:
+        200:
+          description: an Organisation's Connection objects
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Connection'
+        400:
+          description: bad input parameter
+
+  /organisation:
+    get:
+      tags:
+      - admins
+      summary: get an Organisation
+      operationId: observatory.platform.api.api.get_organisation
+      description: |
+        Get the details of an Organisation by passing it's id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: Organisation id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: the fetched Organisation
+          schema:
+            $ref: '#/definitions/Organisation'
+        400:
+          description: bad input parameter
+    post:
+      tags:
+      - admins
+      summary: create an Organisation
+      operationId: observatory.platform.api.api.post_organisation
+      description: |
+        Create an Organisation by passing an Organisation object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Organisation to create
+        required: true
+        schema:
+          $ref: '#/definitions/Organisation'
+      responses:
+        201:
+          description: Organisation created
+    put:
+      tags:
+      - admins
+      summary: create or update an Organisation
+      operationId: observatory.platform.api.api.put_organisation
+      description: |
+        Create an Organisation by passing an Organisation object, without an id. Update an existing Organisation by
+        passing an Organisation object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Organisation to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/Organisation'
+      responses:
+        200:
+          description: Organisation updated
+        201:
+          description: Organisation created
+  /organisations:
+    get:
+      tags:
+      - admins
+      summary: Get a list of Organisations
+      operationId: observatory.platform.api.api.get_organisations
+      description: |
+        Gets a list of organisations
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: limit
+        description: the maximum number of results to return
+        required: true
+        type: integer
+      responses:
+        200:
+          description: a list of Organisation objects
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Organisation'
+        400:
+          description: bad input parameter
+
+definitions:
+  ConnectionType:
+    required:
+    - name
+    properties:
+      id:
+        type: integer
+        example: 1
+      name:
+        type: string
+        example: Scopus
+        minLength: 1
+        maxLength: 250
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
+  Connection:
+    required:
+    - name
+    properties:
+      id:
+        type: integer
+        example: 1
+      name:
+        type: string
+        example: Curtin University Scopus Connection
+        minLength: 1
+        maxLength: 250
+      organisation:
+        $ref: '#/definitions/Organisation'
+      connection_type:
+        $ref: '#/definitions/ConnectionType'
+      airflow_connection_id:
+        type: integer
+        example: 1
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
+  Organisation:
+    type: object
+    required:
+    - name
+    properties:
+      id:
+        type: integer
+        example: 1
+      name:
+        type: string
+        example: Curtin University
+        minLength: 1
+        maxLength: 250
+      gcp_project_id:
+        type: string
+        example: curtin-dev
+        minLength: 6
+        maxLength: 30
+      gcp_download_bucket:
+        type: string
+        example: curtin-dev-download
+        minLength: 3
+        maxLength: 222
+      gcp_transform_bucket:
+        type: string
+        example: curtin-dev-transform
+        minLength: 3
+        maxLength: 222
+      connections:
+        type: array
+        items:
+          $ref: '#/definitions/Connection'
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
