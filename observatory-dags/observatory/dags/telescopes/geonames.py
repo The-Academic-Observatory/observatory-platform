@@ -16,88 +16,37 @@
 
 from __future__ import annotations
 
+import datetime
 import gzip
 import logging
 import os
-import pathlib
 import shutil
+from datetime import datetime
+from typing import List
 from zipfile import ZipFile
 
 import pendulum
 import requests
-from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
-from observatory.platform.utils.config_utils import (find_schema)
-from observatory.platform.utils.data_utils import get_file
-from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
-                                                 create_bigquery_dataset,
-                                                 load_bigquery_table,
-                                                 upload_file_to_cloud_storage)
-from observatory.platform.utils.template_utils import SubFolder, telescope_path, test_data_path
 from pendulum import Pendulum
 
-
-def pull_release(ti: TaskInstance):
-    return ti.xcom_pull(key=GeonamesTelescope.RELEASES_TOPIC_NAME, task_ids=GeonamesTelescope.TASK_ID_DOWNLOAD,
-                        include_prior_dates=False)
+from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.data_utils import get_file
+from observatory.platform.utils.template_utils import upload_files_from_list
 
 
 def fetch_release_date() -> Pendulum:
+    """ Fetch the Geonames release date.
+
+    :return: the release date.
     """
 
-    :return:
-    """
-
-    response = requests.head(GeonamesTelescope.DOWNLOAD_URL)
+    response = requests.head(GeonamesRelease.DOWNLOAD_URL)
     date_str = response.headers['Last-Modified']
     date: Pendulum = pendulum.parse(date_str, tz='GMT')
     return date
-
-
-def download_release(release: GeonamesRelease) -> str:
-    """ Downloads geonames dump file containing country data. The file is in zip format and will be extracted
-    after downloading, saving the unzipped content.
-
-    :param release: instance of GeonamesRelease class
-    :return: None.
-    """
-
-    file_path, updated = get_file(fname=release.filepath_download, origin=GeonamesTelescope.DOWNLOAD_URL,
-                                  cache_subdir='', extract=False)
-
-    return file_path
-
-
-def extract_release(release: GeonamesRelease):
-    """ Extract a downloaded Geonames release
-
-    :param release: instance of GeonamesRelease class
-    :return: file path of transformed file
-    """
-
-    extract_folder = os.path.dirname(release.filepath_extract)
-
-    with ZipFile(release.filepath_download) as zip_file:
-        zip_file.extractall(extract_folder)
-
-    os.rename(os.path.join(extract_folder, GeonamesTelescope.UNZIPPED_FILE_NAME), release.filepath_extract)
-
-
-def transform_release(release: GeonamesRelease) -> str:
-    """ Transforms release by storing file content in gzipped csv format.
-
-    :param release: instance of GeonamesRelease class
-    :return: file path of transformed file
-    """
-
-    with open(release.filepath_extract, 'rb') as file_in:
-        with gzip.open(release.filepath_transform, 'wb') as file_out:
-            shutil.copyfileobj(file_in, file_out)
-
-    return release.filepath_transform
 
 
 def first_sunday_of_month(datetime: Pendulum) -> Pendulum:
@@ -110,266 +59,175 @@ def first_sunday_of_month(datetime: Pendulum) -> Pendulum:
     return datetime.start_of('month').first_of('month', day_of_week=7)
 
 
-class GeonamesRelease:
-    """ Used to store info on a given geonames release """
-
-    def __init__(self, date: Pendulum):
-        self.url = GeonamesTelescope.DOWNLOAD_URL
-        self.date = date
-        self.filepath_download = self.get_filepath(SubFolder.downloaded)
-        self.filepath_extract = self.get_filepath(SubFolder.extracted)
-        self.filepath_transform = self.get_filepath(SubFolder.transformed)
-
-    def get_filepath(self, sub_folder: SubFolder) -> str:
-        """ Gets complete path of file for download/extract/transform directory.
-
-        :param sub_folder: name of subfolder
-        :return: path of file.
-        """
-
-        date_str = self.date.strftime("%Y_%m_%d")
-
-        if sub_folder == SubFolder.downloaded:
-            file_name = f"{GeonamesTelescope.DAG_ID}_{date_str}.zip"
-        elif sub_folder == SubFolder.extracted:
-            file_name = f"{GeonamesTelescope.DAG_ID}_{date_str}.txt"
-        else:
-            file_name = f"{GeonamesTelescope.DAG_ID}_{date_str}.csv.gz"
-
-        file_dir = telescope_path(sub_folder, GeonamesTelescope.DAG_ID)
-        path = os.path.join(file_dir, file_name)
-
-        return path
-
-    def get_blob_name(self, sub_folder: SubFolder) -> str:
-        """ Gives blob name that is used to determine path inside storage bucket
-
-        :param sub_folder: name of subfolder
-        :return: blob name
-        """
-
-        file_name = os.path.basename(self.get_filepath(sub_folder))
-        blob_name = f'telescopes/{GeonamesTelescope.DAG_ID}/{file_name}'
-
-        return blob_name
-
-
-class GeonamesTelescope:
-    """ A container for holding the constants and static functions for the Geonames telescope. """
-
-    DAG_ID = 'geonames'
-    DESCRIPTION = 'The GeoNames geographical database: https://www.geonames.org/'
-    DATASET_ID = DAG_ID
-    QUEUE = 'default'
-    RETRIES = 3
-
-    UNZIPPED_FILE_NAME = 'allCountries.txt'
+class GeonamesRelease(SnapshotRelease):
     DOWNLOAD_URL = 'https://download.geonames.org/export/dump/allCountries.zip'
-    # DEBUG_FILE_PATH = os.path.join(test_data_path(), 'telescopes', 'geonames.txt')
-    RELEASES_TOPIC_NAME = 'releases'
 
-    TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
-    TASK_ID_SKIP = "skip"
-    TASK_ID_DOWNLOAD = "download"
-    TASK_ID_UPLOAD_DOWNLOADED = "upload_downloaded"
-    TASK_ID_EXTRACT = "extract"
-    TASK_ID_TRANSFORM = "transform"
-    TASK_ID_UPLOAD_TRANSFORMED = "upload_transformed"
-    TASK_ID_BQ_LOAD = "bq_load"
-    TASK_ID_CLEANUP = "cleanup"
+    def __init__(self, dag_id: str, release_date: Pendulum):
+        download_file_name = f'{dag_id}.zip'
+        extract_file_name = f'allCountries.txt'
+        transform_file_name = f'{dag_id}.csv.gz'
+        super().__init__(dag_id, release_date, download_file_name, extract_file_name, transform_file_name)
 
-    @staticmethod
-    def check_dependencies(**kwargs):
-        """ Check that all variables exist that are required to run the DAG.
+    @property
+    def download_path(self) -> str:
+        return os.path.join(self.download_folder, self.download_files_regex)
 
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+    @property
+    def extract_path(self) -> str:
+        return os.path.join(self.extract_folder, self.extract_files_regex)
+
+    @property
+    def transform_path(self) -> str:
+        return os.path.join(self.transform_folder, self.transform_files_regex)
+
+    def download(self):
+        """ Downloads geonames dump file containing country data. The file is in zip format and will be extracted
+        after downloading, saving the unzipped content.
+
+        :return: None
         """
 
-        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                                     AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET)
-        if not vars_valid:
-            raise AirflowException('Required variables are missing')
+        file_path, updated = get_file(fname=self.download_path,
+                                      origin=GeonamesRelease.DOWNLOAD_URL,
+                                      cache_subdir='',
+                                      extract=False)
 
-    @staticmethod
-    def skip(**kwargs):
-        """ Determine whether to run the geonames release. Only run on the first Sunday of a month.
+        logging.info(f'Downloaded file: {file_path}')
 
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+    def extract(self):
+        """ Extract a downloaded Geonames release.
+
+        :return: None
         """
 
+        with ZipFile(self.download_path) as zip_file:
+            zip_file.extractall(self.extract_folder)
+
+    def transform(self):
+        """ Transforms release by storing file content in gzipped csv format.
+
+        :return: None
+        """
+
+        with open(self.extract_path, 'rb') as file_in:
+            with gzip.open(self.transform_path, 'wb') as file_out:
+                shutil.copyfileobj(file_in, file_out)
+
+
+class GeonamesTelescope(SnapshotTelescope):
+    """
+    A Telescope that harvests the GeoNames geographical database: https://www.geonames.org/
+
+    Saved to the BigQuery table: <project_id>.geonames.geonamesYYYYMMDD
+    """
+
+    DATASET_DESCRIPTION = 'The GeoNames geographical database: https://www.geonames.org/'
+
+    def __init__(self, dag_id: str = 'geonames', start_date: datetime = datetime(2020, 9, 1),
+                 schedule_interval: str = '@weekly', dataset_id: str = 'geonames',
+                 catchup: bool = False, airflow_vars=None):
+
+        if airflow_vars is None:
+            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id,
+                         source_format=SourceFormat.CSV,
+                         dataset_description=self.DATASET_DESCRIPTION,
+                         load_bigquery_table_kwargs={'csv_field_delimiter': '\t', 'csv_quote_character': ''},
+                         catchup=catchup, airflow_vars=airflow_vars)
+        self.add_setup_task(self.check_dependencies)
+        self.add_setup_task(self.list_releases)
+        self.add_task(self.download)
+        self.add_task(self.upload_downloaded)
+        self.add_task(self.extract)
+        self.add_task(self.transform)
+        self.add_task(self.upload_transformed)
+        self.add_task(self.bq_load)
+        self.add_task(self.cleanup)
+
+    def make_release(self, **kwargs) -> List[GeonamesRelease]:
+        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        called in 'task_callable'.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are
+        passed to this argument.
+        :return: a list of GeonamesRelease instances.
+        """
+
+        ti: TaskInstance = kwargs['ti']
+        release_dates = ti.xcom_pull(key=GeonamesTelescope.RELEASE_INFO,
+                                     task_ids=self.list_releases.__name__,
+                                     include_prior_dates=False)
+
+        assert len(
+            release_dates) == 1, f"There should only be one Geonames release: len(release_dates) is {len(release_dates)}"
+
+        return [GeonamesRelease(self.dag_id, release_dates[0])]
+
+    def list_releases(self, **kwargs):
+        """ Get the Geonames release for a given month and publishes the release_date as an XCom.
+
+        :param kwargs: the context passed from the BranchPythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: whether to keep executing the DAG.
+        """
+
+        # Check if first Sunday of month
         execution_date = kwargs['execution_date']
         run_date = first_sunday_of_month(execution_date)
         logging.info(f'execution_date={execution_date}, run_date={run_date}')
 
-        continue_dag = execution_date == run_date
+        # If first Sunday of month get current release date and push for processing
+        continue_dag = True  # execution_date == run_date
+        if continue_dag:
+            # Fetch release date
+            release_date = fetch_release_date()
+
+            # Push messages
+            ti: TaskInstance = kwargs['ti']
+            ti.xcom_push(GeonamesTelescope.RELEASE_INFO, [release_date], execution_date)
+
         return continue_dag
 
-    @staticmethod
-    def download(**kwargs):
-        """ Download release to file.
-        If develop environment, copy test file from this repository to the right location. Else download from url.
+    def download(self, releases: List[GeonamesRelease], **kwargs):
+        """ Task to download the GeonamesRelease release for a given month.
 
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+        :param releases: the list of GeonamesRelease instances.
         :return: None.
         """
 
-        # Get variables
-        environment = Variable.get(AirflowVars.ENVIRONMENT)
+        # Download each release
+        for release in releases:
+            release.download()
 
-        # Fetch release date and create GeonamesRelease object
-        release_date = fetch_release_date()
-        release = GeonamesRelease(release_date)
+    def upload_downloaded(self, releases: List[GeonamesRelease], **kwargs):
+        """ Task to upload the downloaded GeonamesRelease release for a given month.
 
-        # Download release
-        if environment == 'test':
-            shutil.copy(test_data_path(), release.filepath_download)
-        else:
-            download_release(release)
-
-        # Push release date for other tasks
-        ti: TaskInstance = kwargs['ti']
-        ti.xcom_push(GeonamesTelescope.RELEASES_TOPIC_NAME, release, kwargs['execution_date'])
-
-    @staticmethod
-    def upload_downloaded(**kwargs):
-        """ Task to upload the downloaded Geonames release.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+        :param releases: the list of GeonamesRelease instances.
         :return: None.
         """
 
-        # Pull release
-        ti: TaskInstance = kwargs['ti']
-        release: GeonamesRelease = pull_release(ti)
+        for release in releases:
+            upload_files_from_list(release.download_files, release.download_bucket)
 
-        # Get variables
-        bucket_name = Variable.get(AirflowVars.DOWNLOAD_BUCKET)
+    def extract(self, releases: List[GeonamesRelease], **kwargs):
+        """ Task to extract the GeonamesRelease release for a given month.
 
-        # Upload file
-        upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.downloaded),
-                                     file_path=release.filepath_download)
-
-    @staticmethod
-    def extract(**kwargs):
-        """ Task to extract the downloaded Geonames release.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+        :param release: GeonamesRelease.
         :return: None.
         """
 
-        # Pull release
-        ti: TaskInstance = kwargs['ti']
-        release: GeonamesRelease = pull_release(ti)
+        for release in releases:
+            release.extract()
 
-        # Extract release
-        extract_release(release)
+    def transform(self, releases: List[GeonamesRelease], **kwargs):
+        """ Task to transform the GeonamesRelease release for a given month.
 
-    @staticmethod
-    def transform(**kwargs):
-        """ Transform release into a jsonl file.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+        :param releases: the list of GeonamesRelease instances.
         :return: None.
         """
 
-        # Pull release
-        ti: TaskInstance = kwargs['ti']
-        release: GeonamesRelease = pull_release(ti)
-
-        # Transform
-        transform_release(release)
-
-    @staticmethod
-    def upload_transformed(**kwargs):
-        """ Upload transformed release to a google cloud storage bucket.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Pull release
-        ti: TaskInstance = kwargs['ti']
-        release: GeonamesRelease = pull_release(ti)
-
-        # Get variables
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
-
-        # Upload file
-        upload_file_to_cloud_storage(bucket_name, release.get_blob_name(SubFolder.transformed),
-                                     file_path=release.filepath_transform)
-
-    @staticmethod
-    def load_to_bq(**kwargs):
-        """ Upload transformed release to a bigquery table.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Pull release date and create GeonamesRelease object
-        ti: TaskInstance = kwargs['ti']
-        release: GeonamesRelease = pull_release(ti)
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
-
-        # Create dataset and make table_id
-        dataset_id = GeonamesTelescope.DATASET_ID
-        create_bigquery_dataset(project_id, dataset_id, data_location, GeonamesTelescope.DESCRIPTION)
-        table_id = bigquery_partitioned_table_id(GeonamesTelescope.DAG_ID, release.date)
-
-        # Select schema file based on release date
-        analysis_schema_path = schema_path()
-        schema_file_path = find_schema(analysis_schema_path, GeonamesTelescope.DAG_ID, release.date)
-        if schema_file_path is None:
-            logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
-                          f'table_name={GeonamesTelescope.DAG_ID}, release_date={release.date}')
-            exit(os.EX_CONFIG)
-
-        # Load BigQuery table
-        uri = f"gs://{bucket_name}/{release.get_blob_name(SubFolder.transformed)}"
-        logging.info(f"URI: {uri}")
-        load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path, SourceFormat.CSV,
-                            csv_field_delimiter='\t', csv_quote_character="")
-
-    @staticmethod
-    def cleanup(**kwargs):
-        """ Delete files of downloaded, extracted and transformed release.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Pull release
-        ti: TaskInstance = kwargs['ti']
-        release: GeonamesRelease = pull_release(ti)
-
-        try:
-            pathlib.Path(release.filepath_download).unlink()
-        except FileNotFoundError as e:
-            logging.warning(f"No such file or directory {release.filepath_download}: {e}")
-
-        try:
-            pathlib.Path(release.filepath_transform).unlink()
-        except FileNotFoundError as e:
-            logging.warning(f"No such file or directory {release.filepath_transform}: {e}")
+        for release in releases:
+            release.transform()

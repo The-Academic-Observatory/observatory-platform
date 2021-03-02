@@ -147,9 +147,10 @@ class Telescope(AbstractTelescope):
     RELEASE_INFO = 'releases'
 
     def __init__(self, dag_id: str, start_date: datetime, schedule_interval: str, catchup: bool = False,
-                 queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1, schema_prefix: str = '',
-                 schema_version: str = None, airflow_vars: list = None, airflow_conns: list = None):
+                 queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1,
+                 airflow_vars: list = None, airflow_conns: list = None):
         """ Construct a Telescope instance.
+
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
@@ -157,11 +158,10 @@ class Telescope(AbstractTelescope):
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
-        :param schema_prefix: the prefix used to find the schema path
-        :param schema_version: the version used to find the schema path
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         """
+
         self.dag_id = dag_id
         self.start_date = start_date
         self.schedule_interval = schedule_interval
@@ -169,8 +169,6 @@ class Telescope(AbstractTelescope):
         self.queue = queue
         self.max_retries = max_retries
         self.max_active_runs = max_active_runs
-        self.schema_prefix = schema_prefix
-        self.schema_version = schema_version
         self.airflow_vars = airflow_vars
         self.airflow_conns = airflow_conns
 
@@ -234,6 +232,7 @@ class Telescope(AbstractTelescope):
     def task_callable(self, func: TelescopeFunction, **kwargs) -> Any:
         """ Invoke a task callable. Creates a Release instance and calls the given task method. The result can be
         pulled as an xcom in Airflow.
+
         :param func: the task method.
         :param kwargs: the context passed from the PythonOperator.
         See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
@@ -247,6 +246,7 @@ class Telescope(AbstractTelescope):
 
     def make_dag(self) -> DAG:
         """ Make an Airflow DAG for a telescope.
+
         :return: the DAG object.
         """
         tasks = []
@@ -274,6 +274,7 @@ class Telescope(AbstractTelescope):
 
     def check_dependencies(self, **kwargs) -> bool:
         """ Checks the 'telescope' attributes, airflow variables & connections and possibly additional custom checks.
+
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
