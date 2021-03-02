@@ -63,6 +63,12 @@ class GeonamesRelease(SnapshotRelease):
     DOWNLOAD_URL = 'https://download.geonames.org/export/dump/allCountries.zip'
 
     def __init__(self, dag_id: str, release_date: Pendulum):
+        """ Create a GeonamesRelease instance.
+
+        :param dag_id: the DAG id.
+        :param release_date: the date of the release.
+        """
+
         download_file_name = f'{dag_id}.zip'
         extract_file_name = f'allCountries.txt'
         transform_file_name = f'{dag_id}.csv.gz'
@@ -70,14 +76,29 @@ class GeonamesRelease(SnapshotRelease):
 
     @property
     def download_path(self) -> str:
+        """ Get the path to the downloaded file.
+
+        :return: the file path.
+        """
+
         return os.path.join(self.download_folder, self.download_files_regex)
 
     @property
     def extract_path(self) -> str:
+        """ Get the path to the extracted file.
+
+        :return: the file path.
+        """
+
         return os.path.join(self.extract_folder, self.extract_files_regex)
 
     @property
     def transform_path(self) -> str:
+        """ Get the path to the transformed file.
+
+        :return: the file path.
+        """
+
         return os.path.join(self.transform_folder, self.transform_files_regex)
 
     def download(self):
@@ -180,7 +201,7 @@ class GeonamesTelescope(SnapshotTelescope):
         logging.info(f'execution_date={execution_date}, run_date={run_date}')
 
         # If first Sunday of month get current release date and push for processing
-        continue_dag = True  # execution_date == run_date
+        continue_dag = execution_date == run_date
         if continue_dag:
             # Fetch release date
             release_date = fetch_release_date()
