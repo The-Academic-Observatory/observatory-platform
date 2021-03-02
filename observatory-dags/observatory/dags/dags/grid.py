@@ -19,5 +19,5 @@
 
 from observatory.dags.telescopes.grid import GridTelescope
 
-grid = GridTelescope()
-globals()[grid.dag_id] = grid.make_dag()
+telescope = GridTelescope()
+globals()[telescope.dag_id] = telescope.make_dag()

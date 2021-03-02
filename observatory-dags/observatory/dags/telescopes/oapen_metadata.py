@@ -14,6 +14,8 @@
 
 # Author: Aniek Roelofs
 
+from __future__ import annotations
+
 import csv
 import logging
 import os
@@ -99,13 +101,15 @@ class OapenMetadataRelease(StreamRelease):
 
 class OapenMetadataTelescope(StreamTelescope):
     """ Oapen Metadata telescope """
+
     CSV_URL = 'https://library.oapen.org/download-export?format=csv'
 
     def __init__(self, dag_id: str = 'oapen_metadata', start_date: datetime = datetime(2018, 5, 14),
                  schedule_interval: str = '@weekly', dataset_id: str = 'oapen', merge_partition_field: str = 'id',
                  updated_date_field: str = 'dc.date.available', bq_merge_days: int = 7, schema_prefix: str =
-                 'oapen_', airflow_vars=None):
+                 'oapen_'):
         """ Construct a OapenMetadataTelescope instance.
+
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
@@ -116,9 +120,9 @@ class OapenMetadataTelescope(StreamTelescope):
         :param schema_prefix: the prefix used to find the schema path
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         """
-        if airflow_vars is None:
-            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+
+        airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                        AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
                          updated_date_field, bq_merge_days, schema_prefix=schema_prefix, airflow_vars=airflow_vars)
 
@@ -133,7 +137,7 @@ class OapenMetadataTelescope(StreamTelescope):
                                                  self.bq_append_new,
                                                  self.cleanup]))
 
-    def make_release(self, **kwargs) -> 'OapenMetadataRelease':
+    def make_release(self, **kwargs) -> OapenMetadataRelease:
         # Make Release instance
         ti: TaskInstance = kwargs['ti']
         start_date, end_date, first_release = ti.xcom_pull(key=OapenMetadataTelescope.RELEASE_INFO,

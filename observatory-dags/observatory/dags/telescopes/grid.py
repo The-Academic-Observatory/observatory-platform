@@ -205,8 +205,7 @@ class GridTelescope(SnapshotTelescope):
     DATASET_DESCRIPTION = 'Datasets provided by Digital Science: https://www.digital-science.com/'
 
     def __init__(self, dag_id: str = 'grid', start_date: datetime = datetime(2015, 9, 1),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'digital_science', catchup: bool = True,
-                 airflow_vars=None):
+                 schedule_interval: str = '@weekly', dataset_id: str = 'digital_science', catchup: bool = True):
         """ Construct a GridTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -216,9 +215,8 @@ class GridTelescope(SnapshotTelescope):
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         """
 
-        if airflow_vars is None:
-            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+        airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                        AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id,
                          source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
                          dataset_description=self.DATASET_DESCRIPTION,

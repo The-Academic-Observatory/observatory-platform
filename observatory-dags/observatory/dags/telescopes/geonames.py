@@ -146,11 +146,10 @@ class GeonamesTelescope(SnapshotTelescope):
 
     def __init__(self, dag_id: str = 'geonames', start_date: datetime = datetime(2020, 9, 1),
                  schedule_interval: str = '@weekly', dataset_id: str = 'geonames',
-                 catchup: bool = False, airflow_vars=None):
+                 catchup: bool = False):
 
-        if airflow_vars is None:
-            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+        airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                        AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id,
                          source_format=SourceFormat.CSV,
                          dataset_description=self.DATASET_DESCRIPTION,
