@@ -183,7 +183,7 @@ class Telescope(AbstractTelescope):
         }
         self.description = self.__doc__
         self.dag = DAG(dag_id=self.dag_id, schedule_interval=self.schedule_interval, default_args=self.default_args,
-                       catchup=self.catchup, max_active_runs=1, doc_md=self.__doc__)
+                       catchup=self.catchup, max_active_runs=self.max_active_runs, doc_md=self.__doc__)
 
     def add_setup_task(self, func: Callable):
         """ Add a setup task, which is used to run tasks before 'Release' objects are created, e.g. checking
