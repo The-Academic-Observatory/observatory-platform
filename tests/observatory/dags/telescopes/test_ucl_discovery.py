@@ -29,7 +29,7 @@ from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
 from tests.observatory.test_utils import test_fixtures_path
 
 
-def side_effect(arg):
+def mock_airflow_variable(arg):
     values = {
         'project_id': 'project',
         'download_bucket_name': 'download-bucket',
@@ -38,6 +38,18 @@ def side_effect(arg):
         'data_location': 'US'
     }
     return values[arg]
+
+
+def mocked_requests_get(*args, **kwargs):
+    class MockResponse:
+        def __init__(self, content, status_code):
+            self.content = content
+            self.status_code = status_code
+
+    if args[0] == 'test_status_code':
+        return MockResponse(b'no content', 404)
+    elif args[0] == 'test_empty_csv':
+        return MockResponse(b'"eprintid","rev_number","eprint_status","userid","importid","source"', 200)
 
 
 @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
@@ -56,7 +68,8 @@ class TestUclDiscovery(unittest.TestCase):
         # Paths
         self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
         self.download_path = os.path.join(self.vcr_cassettes_path, 'ucl_discovery_2008-02-01.yaml')
-        self.country_report_path = os.path.join(self.vcr_cassettes_path, 'ucl_discovery_country_2008-02-01.yaml')
+        self.country_report_path = os.path.join(self.vcr_cassettes_path,
+                                                'ucl_discovery_country_2008-02-01.yaml')
 
         # Telescope instance
         self.ucl_discovery = UclDiscoveryTelescope()
@@ -65,11 +78,11 @@ class TestUclDiscovery(unittest.TestCase):
         self.start_date = pendulum.parse('2021-01-01')
         self.end_date = pendulum.parse('2021-02-01')
         self.download_hash = 'ed054db8c4221b7e8055507c4718b7f2'
-        self.transform_crc = '22b5d082'
+        self.transform_crc = '12444a7d'
 
         # Create release instance that is used to test download/transform
         with patch('observatory.platform.utils.template_utils.AirflowVariable.get') as mock_variable_get:
-            mock_variable_get.side_effect = side_effect
+            mock_variable_get.side_effect = mock_airflow_variable
             self.release = UclDiscoveryRelease(self.ucl_discovery.dag_id, self.start_date, self.end_date)
 
         # Turn logging to warning because vcr prints too much at info level
@@ -82,23 +95,23 @@ class TestUclDiscovery(unittest.TestCase):
         :param mock_variable_get: Mock result of airflow's Variable.get() function
         :return: None.
         """
-        mock_variable_get.side_effect = side_effect
+        mock_variable_get.side_effect = mock_airflow_variable
 
-        schedule_interval = self.ucl_discovery.schedule_interval
+        schedule_interval = '0 0 1 * *'
         execution_date = self.start_date
-        releases = self.ucl_discovery.make_release(dag=SimpleNamespace(schedule_interval=schedule_interval),
+        releases = self.ucl_discovery.make_release(dag=SimpleNamespace(normalized_schedule_interval=schedule_interval),
                                                    dag_run=SimpleNamespace(execution_date=execution_date))
         self.assertEqual(1, len(releases))
         self.assertIsInstance(releases, list)
         self.assertIsInstance(releases[0], UclDiscoveryRelease)
 
     def test_download_release(self, mock_variable_get):
-        """ Download release and check it has the expected md5 sum.
+        """ Download release to check it has the expected md5 sum and test unsuccessful mocked responses.
 
         :param mock_variable_get: Mock result of airflow's Variable.get() function
         :return:
         """
-        mock_variable_get.side_effect = side_effect
+        mock_variable_get.side_effect = mock_airflow_variable
 
         with CliRunner().isolated_filesystem():
             with vcr.use_cassette(self.download_path):
@@ -113,23 +126,35 @@ class TestUclDiscovery(unittest.TestCase):
                 self.assertTrue(os.path.exists(self.release.download_path))
                 self.assertEqual(self.download_hash, _hash_file(self.release.download_path, algorithm='md5'))
 
+            with patch('observatory.platform.utils.url_utils.requests.Session.get') as mock_requests_get:
+                # mock response status code is not 200
+                mock_requests_get.side_effect = mocked_requests_get
+                self.release.eprint_metadata_url = 'test_status_code'
+                success = self.release.download()
+                self.assertFalse(success)
+
+                # mock response content is empty CSV file (only headers)
+                self.release.eprint_metadata_url = 'test_empty_csv'
+                success = self.release.download()
+                self.assertFalse(success)
+
     def test_transform_release(self, mock_variable_get):
         """ Test that the release is transformed as expected.
 
         :param mock_variable_get: Mock result of airflow's Variable.get() function
         :return: None.
         """
-        mock_variable_get.side_effect = side_effect
+        mock_variable_get.side_effect = mock_airflow_variable
 
         with CliRunner().isolated_filesystem():
             with vcr.use_cassette(self.download_path):
                 self.release.download()
 
-            # use only one eprintid for transform test, for which we know the country downloads is not empty
+            # use three eprintids for transform test, for first one the country downloads is empty
             with open(self.release.download_path, 'r') as f_in:
                 lines = f_in.readlines()
             with open(self.release.download_path, 'w') as f_out:
-                f_out.writelines(lines[0:1] + lines[36:61])
+                f_out.writelines(lines[0:1] + lines[23:36] + lines[36:61] + lines[61:88])
 
             with vcr.use_cassette(self.country_report_path):
                 self.release.transform()

@@ -22,8 +22,6 @@ from typing import List
 from typing import Tuple
 
 import pendulum
-import six
-from airflow.utils.dates import cron_presets
 from croniter import croniter
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars
@@ -80,23 +78,6 @@ def create_result_dict(begin_date: str, end_date: str, total_downloads: int, dow
     return result
 
 
-def normalize_schedule_interval(schedule_interval: str):
-    """
-    Returns Normalized Schedule Interval. This is used internally by the Scheduler to
-    schedule DAGs.
-    1. Converts Cron Preset to a Cron Expression (e.g ``@monthly`` to ``0 0 1 * *``)
-    2. If Schedule Interval is "@once" return "None"
-    3. If not (1) or (2) returns schedule_interval
-    """
-    if isinstance(schedule_interval, six.string_types) and schedule_interval in cron_presets:
-        _schedule_interval = cron_presets.get(schedule_interval)
-    elif schedule_interval == '@once':
-        _schedule_interval = None
-    else:
-        _schedule_interval = schedule_interval
-    return _schedule_interval
-
-
 class UclDiscoveryRelease(SnapshotRelease):
     def __init__(self, dag_id: str, start_date: pendulum.Pendulum, release_date: pendulum.Pendulum):
         """ Construct a UclDiscoveryRelease instance.
@@ -110,17 +91,30 @@ class UclDiscoveryRelease(SnapshotRelease):
         self.start_date = start_date
         self.end_date = release_date
 
-        self.eprint_metadata_url = UclDiscoveryTelescope.EPRINT_METADATA_URL.format(end_date=self.end_date.strftime("%Y"))
-        self.countries_url = UclDiscoveryTelescope.COUNTRIES_URL.format(start_date=self.start_date.strftime("%Y%m%d"),
-                                                                        end_date=self.end_date.strftime("%Y%m%d"))
+        self.eprint_metadata_url = 'https://discovery.ucl.ac.uk/cgi/search/archive/advanced/export_discovery_CSV.csv?' \
+                                   'screen=Search&dataset=archive&_action_export=1&output=CSV' \
+                                   '&exp=0|1|-date/creators_name/title|archive|-|date:date:ALL:EQ:-' \
+                                   f'{self.end_date.strftime("%Y")}|primo:primo:ANY:EQ:open' \
+                                   '|type:type:ANY:EQ:book|-|eprint_status:eprint_status:ANY:EQ:archive' \
+                                   '|metadata_visibility:metadata_visibility:ANY:EQ:show'
+        self.countries_url = 'https://discovery.ucl.ac.uk/cgi/stats/get?from=' \
+                             f'{self.start_date.strftime("%Y%m%d")}&to=' \
+                             f'{self.end_date.strftime("%Y%m%d")}&irs2report=eprint&datatype=countries&top=countries' \
+                             f'&view=Table&limit=all&set_name=eprint&export=CSV&set_value='
 
     @property
     def download_path(self) -> str:
+        """ Creates path to store the downloaded UCL discovery data
+        :return: Full path to the download file
+        """
         return os.path.join(self.download_folder, f'{self.dag_id}.txt')
 
     @property
     def transform_path(self) -> str:
-        return os.path.join(self.transform_folder, f'{self.dag_id}.jsonl')
+        """ Creates path to store the transformed and gzipped UCL discovery data
+        :return: Full path to the transform file
+        """
+        return os.path.join(self.transform_folder, f'{self.dag_id}.jsonl.gz')
 
     def download(self) -> bool:
         """ Download metadata for all eprints that are published before a specific date
@@ -210,14 +204,15 @@ class UclDiscoveryRelease(SnapshotRelease):
                 for column in multi_row_columns:
                     # For 'name' type columns, don't add empty strings as a name, but make sure that  a value is added
                     # for both family and given, even if only 1 of the columns has a value.
-                    start_column_name = column.split('_')[0]
+                    start_column_name = column.split('_')[0]  # 'creators' when column = 'creators_name_family'
                     if start_column_name in ['creators', 'lyricists', 'editors']:
                         name_family = row[start_column_name + '_name.family']
                         name_given = row[start_column_name + '_name.given']
 
                         name = name_family + name_given
                         if name:
-                            column_name = '.'.join(column.rsplit('_', 1))
+                            column_name = '.'.join(column.rsplit('_', 1))  # 'creators_name.family' when column =
+                            # 'creators_name_family'
                             multi_row_columns[column].append(row[column_name])
                     else:
                         if row[column]:
@@ -235,16 +230,9 @@ class UclDiscoveryRelease(SnapshotRelease):
 
 
 class UclDiscoveryTelescope(SnapshotTelescope):
-    EPRINT_METADATA_URL = 'https://discovery.ucl.ac.uk/cgi/search/archive/advanced/export_discovery_CSV.csv?' \
-                   'screen=Search&dataset=archive&_action_export=1&output=CSV' \
-                   '&exp=0|1|-date/creators_name/title|archive|-|date:date:ALL:EQ:-{end_date}|primo:primo:ANY:EQ:open' \
-                   '|type:type:ANY:EQ:book|-|eprint_status:eprint_status:ANY:EQ:archive' \
-                   '|metadata_visibility:metadata_visibility:ANY:EQ:show'
-    COUNTRIES_URL = 'https://discovery.ucl.ac.uk/cgi/stats/get?from={start_date}&to={end_date}&irs2report=eprint' \
-                    '&datatype=countries&top=countries&view=Table&limit=all&set_name=eprint&export=CSV&set_value='
-
     def __init__(self, dag_id: str = 'ucl_discovery', start_date: datetime = datetime(2008, 1, 1),
-                 schedule_interval: str = '@monthly', dataset_id: str = 'ucl_discovery', airflow_vars: list = None):
+                 schedule_interval: str = '@monthly', dataset_id: str = 'ucl', airflow_vars: list = None,
+                 max_active_runs: int = 10):
         """ Construct a UclDiscoveryTelescope instance.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -255,7 +243,8 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, airflow_vars=airflow_vars)
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id, airflow_vars=airflow_vars,
+                         max_active_runs=max_active_runs)
 
         self.add_setup_task(self.check_dependencies)
         self.add_task_chain([self.download,
@@ -277,7 +266,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         """
 
         # Get start and end date (release_date)
-        cron_schedule = normalize_schedule_interval(kwargs['dag'].schedule_interval)
+        cron_schedule = kwargs['dag'].normalized_schedule_interval
         start_date = pendulum.instance(kwargs['dag_run'].execution_date)
         cron_iter = croniter(cron_schedule, start_date)
         end_date = pendulum.instance(cron_iter.get_next(datetime))
