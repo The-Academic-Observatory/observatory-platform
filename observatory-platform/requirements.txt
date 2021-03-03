@@ -26,3 +26,5 @@ pyjwt==1.7.1
 idna==2.7
 marshmallow==2.21.0
 SQLAlchemy
+flask
+connexion[swagger-ui]
