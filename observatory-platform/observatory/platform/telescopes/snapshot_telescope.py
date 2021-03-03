@@ -70,7 +70,7 @@ class SnapshotTelescope(Telescope):
         # Set transform_bucket_name as required airflow variable
         if not airflow_vars:
             airflow_vars = []
-        self.airflow_vars = list(set([AirflowVars.TRANSFORM_BUCKET] + airflow_vars))
+        airflow_vars = list(set([AirflowVars.TRANSFORM_BUCKET] + airflow_vars))
         super().__init__(dag_id, start_date, schedule_interval, catchup, queue, max_retries, max_active_runs,
                          airflow_vars, airflow_conns)
         self.dataset_id = dataset_id
@@ -93,7 +93,8 @@ class SnapshotTelescope(Telescope):
 
     def bq_load(self, releases: List[SnapshotRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.
-        :param releases: a list of GRID releases.
+
+        :param releases: a list of releases.
         :return: None.
         """
 

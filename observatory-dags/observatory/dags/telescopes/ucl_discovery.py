@@ -234,12 +234,14 @@ class UclDiscoveryTelescope(SnapshotTelescope):
                  schedule_interval: str = '@monthly', dataset_id: str = 'ucl', airflow_vars: list = None,
                  max_active_runs: int = 10):
         """ Construct a UclDiscoveryTelescope instance.
+
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the name of the dataset in BigQuery.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         """
+
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
