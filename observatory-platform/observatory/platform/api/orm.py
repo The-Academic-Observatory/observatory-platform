@@ -21,9 +21,7 @@ import datetime
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
-from typing import ClassVar
-from typing import List
+from typing import ClassVar, Dict, Union, Any
 
 from sqlalchemy import String, create_engine, Integer, ForeignKey, Column, DateTime
 from sqlalchemy.ext.declarative import declarative_base
@@ -47,25 +45,32 @@ def create_session(uri: str = os.environ.get('OBSERVATORY_DB_URI'), connect_args
     return s
 
 
-def fetch_db_item(item: Base):
-    cls = item.__class__
-    return_item = item
+def fetch_db_item(cls: ClassVar, body: Any):
+    if body is None:
+        item = None
+    elif isinstance(body, cls):
+        item = body
+    elif isinstance(body, Dict):
+        if 'id' not in body:
+            raise AttributeError(f'id not found in {body}')
 
-    if item is not None and item.id is not None:
-        return_item = session_.query(cls).filter(cls.id == item.id).one_or_none()
-        if return_item is None:
-            raise ValueError(f'{return_item} with id {item.id} not found')
+        id = body['id']
+        item = session_.query(cls).filter(cls.id == id).one_or_none()
+        if item is None:
+            raise ValueError(f'{item} with id {id} not found')
+    else:
+        raise ValueError(f'Unknown item type {body}')
 
-    return return_item
+    return item
 
 
-def dict_to_dataclass(cls: ClassVar, body: Any):
-    if body is None or isinstance(body, cls):
-        return body
-    elif isinstance(body, dict):
-        return cls(**body)
+def to_datetime(obj: Union[str, datetime]) -> datetime:
+    if obj is None or isinstance(obj, datetime):
+        return obj
+    elif isinstance(obj, str):
+        return datetime.strptime(obj, '%Y-%m-%d %H:%M:%S')
 
-    raise ValueError('body should be a Dict')
+    raise ValueError('body should be a str or datetime')
 
 
 @dataclass
@@ -84,7 +89,6 @@ class Organisation(Base):
     gcp_transform_bucket: str
     created: datetime
     modified: datetime
-    connections: List[Connection]
 
     id = Column(Integer, primary_key=True)
     name = Column(String(250))
@@ -96,37 +100,43 @@ class Organisation(Base):
     connections = relationship("Connection", backref='organisation')
 
     def __init__(self, id: int = None, name: str = None, gcp_project_id: str = None, gcp_download_bucket: str = None,
-                 gcp_transform_bucket: str = None, created: datetime = None, modified: datetime = None,
-                 connections: List[Connection] = None):
+                 gcp_transform_bucket: str = None, created: datetime = None, modified: datetime = None):
         self.id = id
         self.name = name
         self.gcp_project_id = gcp_project_id
         self.gcp_download_bucket = gcp_download_bucket
         self.gcp_transform_bucket = gcp_transform_bucket
-        self.created = created
-        self.modified = modified
+        self.created = to_datetime(created)
+        self.modified = to_datetime(modified)
 
-        # Fetch connections from database if they exist
-        if connections is not None:
-            self.connections = []
-            for conn in connections:
-                self.connections.append(fetch_db_item(dict_to_dataclass(Connection, conn)))
+    def update(self, name: str = None, gcp_project_id: str = None, gcp_download_bucket: str = None,
+               gcp_transform_bucket: str = None, modified: Union[datetime, str] = None):
+        if name is not None:
+            self.name = name
 
+        if gcp_project_id is not None:
+            self.gcp_project_id = gcp_project_id
 
-#
-# # https://stackoverflow.com/questions/5022066/how-to-serialize-sqlalchemy-result-to-json
+        if gcp_download_bucket is not None:
+            self.gcp_download_bucket = gcp_download_bucket
+
+        if gcp_transform_bucket is not None:
+            self.gcp_transform_bucket = gcp_transform_bucket
+
+        if modified is not None:
+            self.modified = to_datetime(modified)
 
 
 @dataclass
 class Connection(Base):
     __tablename__ = 'connection'
 
+    # Only include should be serialized to JSON as dataclass attributes
     id: int
     name: str
     airflow_connection_id: int
     created: datetime
     modified: datetime
-    organisation: Organisation = None
     connection_type: ConnectionType = None
 
     id = Column(Integer, primary_key=True)
@@ -137,32 +147,37 @@ class Connection(Base):
     organisation_id = Column(Integer, ForeignKey('organisation.id'))
     connection_type_id = Column(Integer, ForeignKey('connection_type.id'))
 
-    def __init__(self, id: int = None, name: str = None, airflow_connection_id: int = None,
-                 created: datetime = None, modified: datetime = None,
-                 organisation: Organisation = None, connection_type: ConnectionType = None, ):
+    def __init__(self, id: int = None, name: str = None, airflow_connection_uri: str = None,
+                 airflow_connection_id: int = None, created: datetime = None, modified: datetime = None,
+                 organisation: Union[Organisation, Dict] = None, connection_type: Union[ConnectionType, Dict] = None):
         self.id = id
         self.name = name
-        self.airflow_connection_id = airflow_connection_id
-        self.created = created
-        self.modified = modified
+        self.airflow_connection_uri = airflow_connection_uri  # TODO: use Airflow API to modify AirflowConnection
+        self.airflow_connection_id = airflow_connection_id  # User should fetch Airflow Connection with this id.
+        self.created = to_datetime(created)
+        self.modified = to_datetime(modified)
 
         # Fetch organisation and connection type from database if it exists
-        self.organisation = fetch_db_item(dict_to_dataclass(Organisation, organisation))
-        self.connection_type = fetch_db_item(dict_to_dataclass(ConnectionType, connection_type))
+        self.organisation = fetch_db_item(Organisation, organisation)
+        self.connection_type = fetch_db_item(ConnectionType, connection_type)
 
-    def update(self, organisation: Organisation = None, connection_type: ConnectionType = None,
-               name: str = None, airflow_connection_id: int = None):
+    def update(self, name: str = None, airflow_connection_uri: str = None, airflow_connection_id: int = None,
+               modified: Union[datetime, str] = None, organisation: Union[Organisation, Dict] = None,
+               connection_type: Union[ConnectionType, Dict] = None):
+        if name is not None:
+            self.name = name
+
         if organisation is not None:
-            pass
+            self.organisation = fetch_db_item(Organisation, organisation)
 
         if connection_type is not None:
-            pass
-
-        if name is not None:
-            pass
+            self.connection_type = fetch_db_item(ConnectionType, connection_type)
 
         if airflow_connection_id is not None:
-            pass
+            self.airflow_connection_id = airflow_connection_id
+
+        if modified is not None:
+            self.modified = to_datetime(modified)
 
 
 @dataclass
@@ -180,8 +195,15 @@ class ConnectionType(Base):
     modified = Column(DateTime())
     connections = relationship("Connection", backref='connection_type')
 
-    def update(self, name: str = None, modified: datetime = None):
+    def __init__(self, id: int = None, name: str = None, created: Union[datetime, str] = None,
+                 modified: Union[datetime, str] = None):
+        self.id = id
+        self.name = name
+        self.created = to_datetime(created)
+        self.modified = to_datetime(modified)
+
+    def update(self, name: str = None, modified: Union[datetime, str] = None):
         if name is not None:
             self.name = name
         if modified is not None:
-            self.modified = modified
+            self.modified = to_datetime(modified)

@@ -38,6 +38,10 @@ def create_conn_types(session: scoped_session, names: List[str], created: dateti
     return items
 
 
+def datetime_to_str(dt: datetime):
+    return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+
 class TestOrm(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestOrm, self).__init__(*args, **kwargs)
@@ -58,7 +62,7 @@ class TestOrm(unittest.TestCase):
     def test_connection_type(self):
         """ Test that ConnectionType can be created, fetched, updates and deleted """
 
-        created = datetime.now()
+        created = datetime.utcnow()
 
         # Create and assert created
         conn_types_a = create_conn_types(self.session, self.conn_type_names, created)
@@ -94,9 +98,13 @@ class TestOrm(unittest.TestCase):
         self.assertEqual(len(conn_types_d), 0)
 
     def test_connection_type_from_dict(self):
-        """ Test that ConnectionType can be created from a dictionary """
+        """ Test that ConnectionType can be created and updated from a dictionary """
 
-        dict_ = {'name': 'My Connection Type', 'created': datetime.now()}
+        # Create
+        expected_id = 1
+        dt_str = datetime_to_str(datetime.utcnow())
+        dict_ = {'name': 'My Connection Type', 'created': dt_str, 'modified': dt_str}
+
         obj = ConnectionType(**dict_)
         self.session.add(obj)
         self.session.commit()
@@ -104,14 +112,18 @@ class TestOrm(unittest.TestCase):
         self.assertIsNotNone(obj.id)
         self.assertEqual(obj.id, 1)
 
-    def test_connection_type_update(self):
-        self.fail()
+        # Update
+        dt_str = datetime_to_str(datetime.utcnow())
+        dict_ = {'name': 'My Connection Type 2', 'modified': dt_str}
+        connection_type = self.session.query(ConnectionType).filter(ConnectionType.id == expected_id).one()
+        connection_type.update(**dict_)
+        self.session.commit()
 
     def test_connection(self):
-        """ Test that Connection can be created, fetched, updates and deleted """
+        """ Test that Connection can be created, fetched, updated and deleted """
 
         # Create ConnectionType instances
-        created = datetime.now()
+        created = datetime.utcnow()
         create_conn_types(self.session, self.conn_type_names, created)
 
         # Create Connection
@@ -150,64 +162,71 @@ class TestOrm(unittest.TestCase):
             get_connection()
 
     def test_connection_from_dict(self):
-        """ Test that Connection can be created from a dictionary """
+        """ Test that Connection can be created and updated from a dictionary """
 
-        # No existing organisation or connection type
-        created = datetime.now()
+        # Create Organisation
+        dt = datetime.utcnow()
+        organisation = Organisation(name='My Organisation',
+                                    gcp_project_id='project-id',
+                                    gcp_download_bucket='download-bucket',
+                                    gcp_transform_bucket='transform-bucket',
+                                    created=dt,
+                                    modified=dt)
+        self.session.add(organisation)
+        self.session.commit()
+
+        # Create ConnectionType
+        conn_type = ConnectionType(name='GCP', created=dt, modified=dt)
+        self.session.add(conn_type)
+        self.session.commit()
+
+        # Create Connection
+        expected_id = 1
+        dt_str = datetime_to_str(datetime.utcnow())
         dict_ = {'name': 'My Connection Type',
                  'organisation': {
-                     'name': 'My Organisation',
-                     'gcp_project_id': 'project-id',
-                     'gcp_download_bucket': 'download-bucket',
-                     'gcp_transform_bucket': 'transform-bucket',
-                     'created': created
+                     'id': organisation.id
                  },
                  'connection_type': {
-                     'name': 'ONIX',
-                     'created': created
-                 },
-                 'airflow_connection_id': 1,
-                 'created': created}
-        obj = Connection(**dict_)
-        self.session.add(obj)
-        self.session.commit()
-        self.assertIsNotNone(obj.id)
-        self.assertEqual(obj.id, 1)
-
-        # Existing organisation and connection type
-        expected_id = 1
-        dict_ = {'name': 'My Connection Type 2',
-                 'organisation': {
-                     'id': expected_id
-                 },
-                 'connection_type': {
-                     'id': expected_id
+                     'id': conn_type.id
                  },
                  'airflow_connection_id': 2,
-                 'created': created}
+                 'created': dt_str,
+                 'modified': dt_str}
         obj = Connection(**dict_)
         self.session.add(obj)
         self.session.commit()
         self.assertIsNotNone(obj.id)
-        self.assertEqual(obj.id, 2)
+        self.assertEqual(obj.id, expected_id)
 
-    def test_connection_update(self):
-        self.fail()
+        # Update Connection
+        expected_org_id = 2
+        organisation2 = Organisation(name='My Organisation 2',
+                                     gcp_project_id='project-id',
+                                     gcp_download_bucket='download-bucket',
+                                     gcp_transform_bucket='transform-bucket',
+                                     created=dt,
+                                     modified=dt)
+        self.session.add(organisation2)
+        self.session.commit()
+
+        dict_ = {'organisation': {
+            'id': organisation2.id
+        }}
+        obj.update(**dict_)
+        self.session.commit()
+        self.assertEqual(obj.organisation.id, expected_org_id)
 
     def test_organisation(self):
         """ Test that Organisation can be created, fetched, updates and deleted """
 
         # Create Organisation
-        created = datetime.now()
+        created = datetime.utcnow()
         organisation = Organisation(name='My Organisation',
                                     gcp_project_id='project-id',
                                     gcp_download_bucket='download-bucket',
                                     gcp_transform_bucket='transform-bucket',
-                                    created=created,
-                                    connections=[Connection(name='My Connection',
-                                                            connection_type=ConnectionType(name='ONIX'),
-                                                            airflow_connection_id=2,
-                                                            created=created)])
+                                    created=created)
         self.session.add(organisation)
         self.session.commit()
 
@@ -216,7 +235,7 @@ class TestOrm(unittest.TestCase):
         self.assertIsNotNone(organisation.id)
         self.assertEqual(organisation.id, expected_id)
 
-        # Update Connection
+        # Update Organisation
         new_name = 'New Organisation'
         organisation = self.session.query(Organisation).filter(Organisation.id == expected_id).one()
         organisation.name = new_name
@@ -234,54 +253,31 @@ class TestOrm(unittest.TestCase):
     def test_organisation_from_dict(self):
         """ Test that Organisation can be created from a dictionary """
 
-        # No existing organisation or connection type
-        created = datetime.now()
+        # Create
+        expected_id = 1
+        dt_str = datetime_to_str(datetime.utcnow())
         dict_ = {
             'name': 'My Organisation',
             'gcp_project_id': 'project-id',
             'gcp_download_bucket': 'download-bucket',
             'gcp_transform_bucket': 'transform-bucket',
-            'created': created,
-            'connections': [
-                {
-                    'name': 'Curtin ONIX',
-                    'connection_type': {
-                        'name': 'ONIX',
-                        'created': created
-                    },
-                    'airflow_connection_id': 1,
-                    'created': created},
-                {
-                    'name': 'Curtin GCP',
-                    'connection_type': {
-                        'name': 'GCP',
-                        'created': created
-                    },
-                    'airflow_connection_id': 2,
-                    'created': created}
-            ]}
+            'created': dt_str,
+            'modified': dt_str
+        }
         obj = Organisation(**dict_)
         self.session.add(obj)
         self.session.commit()
         self.assertIsNotNone(obj.id)
-        self.assertEqual(obj.id, 1)
+        self.assertEqual(obj.id, expected_id)
 
-        # Existing organisation and connection type
+        # Update
+        dt = datetime.utcnow()
+        dt_str = datetime_to_str(dt)
         dict_ = {
             'name': 'My Organisation 2',
-            'gcp_project_id': 'project-id',
-            'gcp_download_bucket': 'download-bucket',
-            'gcp_transform_bucket': 'transform-bucket',
-            'created': created,
-            'connections': [
-                {'id': 1},
-                {'id': 2}
-            ]}
-        obj = Organisation(**dict_)
-        self.session.add(obj)
+            'modified': dt_str
+        }
+        obj.update(**dict_)
         self.session.commit()
-        self.assertIsNotNone(obj.id)
-        self.assertEqual(obj.id, 2)
-
-    def test_organisation_update(self):
-        self.fail()
+        self.assertEqual(dt_str, datetime_to_str(obj.modified))
+        self.assertEqual('My Organisation 2', obj.name)

@@ -106,7 +106,9 @@ def put_item(cls: ClassVar, body: Dict) -> Response:
 
         if item is not None:
             logging.info(f'Updating {cls.__name__} {item_id}')
-            body['modified'] = datetime.utcnow()  # Automatically set modified datetime
+            # Remove id and automatically set modified time
+            body.pop('id')
+            body['modified'] = datetime.utcnow()
             item.update(**body)
             session_.commit()
 
@@ -262,7 +264,7 @@ def get_connections(organisation_id: int, limit: int) -> Response:
     :return: a Response object.
     """
 
-    items = session_.query(Connection).filter(Connection.organisation_id.id == organisation_id).limit(limit).all()
+    items = session_.query(Connection).filter(Connection.organisation_id == organisation_id).limit(limit).all()
     status_code = 200
     description = f'Found items: {Organisation.__class__}'
     return make_response(status_code, description, data=items)

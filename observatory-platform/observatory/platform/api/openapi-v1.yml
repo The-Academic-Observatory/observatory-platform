@@ -315,6 +315,26 @@ paths:
           description: Organisation updated
         201:
           description: Organisation created
+    delete:
+      tags:
+        - admins
+      summary: delete an Organisation
+      operationId: observatory.platform.api.api.delete_organisation
+      description: |
+        Delete an Organisation by passing it's id.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: id
+          description: Organisation id
+          required: true
+          type: integer
+      responses:
+        201:
+          description: Organisation deleted
   /organisations:
     get:
       tags:
@@ -343,8 +363,6 @@ paths:
 
 definitions:
   ConnectionType:
-    required:
-    - name
     properties:
       id:
         type: integer
@@ -365,8 +383,6 @@ definitions:
         example: 2020-01-02T20:01:05Z
         readOnly: true
   Connection:
-    required:
-    - name
     properties:
       id:
         type: integer
@@ -380,6 +396,9 @@ definitions:
         $ref: '#/definitions/Organisation'
       connection_type:
         $ref: '#/definitions/ConnectionType'
+      airflow_connection_uri:
+        type: string
+        example: 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val'
       airflow_connection_id:
         type: integer
         example: 1
@@ -395,8 +414,6 @@ definitions:
         readOnly: true
   Organisation:
     type: object
-    required:
-    - name
     properties:
       id:
         type: integer
@@ -423,6 +440,7 @@ definitions:
         maxLength: 222
       connections:
         type: array
+        readOnly: true
         items:
           $ref: '#/definitions/Connection'
       created:
