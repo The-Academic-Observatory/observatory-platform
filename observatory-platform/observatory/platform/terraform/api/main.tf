@@ -1,7 +1,6 @@
 ########################################################################################################################
 # Enable API services
 ########################################################################################################################
-
 resource "google_project_service" "servicemanagement" {
   project = var.google_cloud.project_id
   service = "servicemanagement.googleapis.com"
@@ -33,7 +32,7 @@ resource "google_project_service" "api-project-service" {
 ########################################################################################################################
 resource "google_service_account" "api-backend_service_account" {
   account_id   = "api-backend"
-  display_name = "API backend Service Account"
+  display_name = "Cloud Run backend Service Account"
   description = "The Google Service Account used by the cloud run backend"
 }
 
@@ -77,11 +76,6 @@ resource "google_cloud_run_service" "api_backend" {
 ########################################################################################################################
 # Endpoints service
 ########################################################################################################################
-# Random id to use in endpoints hostname
-resource "random_id" "endpoint-suffix" {
-  byte_length = 8
-}
-
 locals {
   #TODO get "api.observatory.academy" from variable
   custom_domain =  var.environment == "production" ? "api.observatory.academy" : "${var.environment}.api.observatory.academy"
@@ -103,26 +97,29 @@ resource "google_endpoints_service" "api" {
   })
 }
 
+########################################################################################################################
+# Cloud Run Gateway
+########################################################################################################################
+
 # Create service account used by Cloud Run
-resource "google_service_account" "api-endpoint_service_account" {
-  account_id = "api-endpoint"
-  display_name = "API endpoint Service Account"
-  description = "The Google Service Account used by the cloud run endpoint"
+resource "google_service_account" "api-gateway_service_account" {
+  account_id = "api-gateway"
+  display_name = "Cloud Run gateway Service Account"
+  description = "The Google Service Account used by the cloud run gateway"
 }
 
-
-# Give permission to Cloud Run Endpoint service-account to access private Cloud Run backend
-resource "google_project_iam_member" "api-endpoint_service_account_cloudrun_iam" {
+# Give permission to Cloud Run gateway service-account to access private Cloud Run backend
+resource "google_project_iam_member" "api-gateway_service_account_cloudrun_iam" {
   project = var.google_cloud.project_id
   role    = "roles/run.invoker"
-  member  = "serviceAccount:${google_service_account.api-endpoint_service_account.email}"
+  member  = "serviceAccount:${google_service_account.api-gateway_service_account.email}"
 }
 
-# Give permission to Cloud Run Endpoint service-account to control service management
-resource "google_project_iam_member" "api-endpoint_service_account_servicecontroller_iam" {
+# Give permission to Cloud Run gateway service-account to control service management
+resource "google_project_iam_member" "api-gateway_service_account_servicecontroller_iam" {
   project = var.google_cloud.project_id
   role    = "roles/servicemanagement.serviceController"
-  member  = "serviceAccount:${google_service_account.api-endpoint_service_account.email}"
+  member  = "serviceAccount:${google_service_account.api-gateway_service_account.email}"
 }
 
 # Create/update Cloud Run service
@@ -139,10 +136,10 @@ resource "google_cloud_run_service" "api_gateway" {
           value = google_endpoints_service.api.service_name
         }
       }
-      service_account_name = google_service_account.api-endpoint_service_account.email
+      service_account_name = google_service_account.api-gateway_service_account.email
     }
   }
-  depends_on = [google_endpoints_service.api, google_project_iam_member.api-endpoint_service_account_servicecontroller_iam]
+  depends_on = [google_endpoints_service.api, google_project_iam_member.api-gateway_service_account_servicecontroller_iam]
 }
 
 # Create custom domain mapping for cloud run gateway
@@ -169,7 +166,7 @@ data "google_iam_policy" "noauth" {
   }
 }
 
-# Enable public access policy on endpoints service (access is restricted with API key by openapi config)
+# Enable public access policy on gateway (access is restricted with API key by openapi config)
 resource "google_cloud_run_service_iam_policy" "noauth-endpoints" {
   location    = google_cloud_run_service.api_gateway.location
   project     = google_cloud_run_service.api_gateway.project
