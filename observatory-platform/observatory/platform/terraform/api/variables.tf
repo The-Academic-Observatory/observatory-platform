@@ -1,3 +1,8 @@
+variable "environment" {
+  description = "The environment type: develop, staging or production."
+  type = string
+}
+
 variable "google_cloud" {
   description = <<EOF
 The Google Cloud settings for the Observatory Platform.

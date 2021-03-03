@@ -1,9 +1,9 @@
-output "endpoints-url" {
-  value = google_cloud_run_service.endpoints-cloud-run.status[0].url
-  description = "API endpoint URL"
+output "gateway-url" {
+  value = google_cloud_run_service.api_gateway.status[0].url
+  description = "Cloud run gateway URL"
 }
 
 output "backend-url" {
-  value = google_cloud_run_service.backend.status[0].url
-  description = "API backend URL"
+  value = google_cloud_run_service.api_backend.status[0].url
+  description = "Cloud run backend URL"
 }

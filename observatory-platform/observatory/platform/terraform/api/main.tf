@@ -46,9 +46,9 @@ module "elasticsearch-logins" {
   service_account_email = google_service_account.api-backend_service_account.email
 }
 
-resource "google_cloud_run_service" "backend" {
+resource "google_cloud_run_service" "api_backend" {
   name     = "api-backend"
-  location = "us-central1"
+  location = var.google_cloud.region
 
   template {
     spec {
@@ -75,7 +75,7 @@ resource "google_cloud_run_service" "backend" {
 }
 
 ########################################################################################################################
-# Cloud Endpoints API
+# Endpoints service
 ########################################################################################################################
 # Random id to use in endpoints hostname
 resource "random_id" "endpoint-suffix" {
@@ -83,16 +83,17 @@ resource "random_id" "endpoint-suffix" {
 }
 
 locals {
-  endpoints_host = "api-${random_id.endpoint-suffix.hex}.endpoints.${var.google_cloud.project_id}.cloud.goog"
+  #TODO get "api.observatory.academy" from variable
+  custom_domain =  var.environment == "production" ? "api.observatory.academy" : "${var.environment}.api.observatory.academy"
 }
 
 # Create/update endpoints configuration based on OpenAPI
 resource "google_endpoints_service" "api" {
   project = var.google_cloud.project_id
-  service_name = local.endpoints_host
+  service_name = local.custom_domain
   openapi_config = templatefile("./openapi_endpoint.yml", {
-    host = local.endpoints_host,
-    backend_address = google_cloud_run_service.backend.status[0].url,
+    host = local.custom_domain
+    backend_address = google_cloud_run_service.api_backend.status[0].url,
     query_parameters = ["id", "name", "published_year", "coordinates", "country", "country_code", "region",
                                "subregion", "access_type", "label", "status", "collaborator_coordinates",
                                "collaborator_country", "collaborator_country_code", "collaborator_id",
@@ -125,8 +126,8 @@ resource "google_project_iam_member" "api-endpoint_service_account_servicecontro
 }
 
 # Create/update Cloud Run service
-resource "google_cloud_run_service" "endpoints-cloud-run" {
-  name     = "endpoints-${random_id.endpoint-suffix.hex}"
+resource "google_cloud_run_service" "api_gateway" {
+  name     = "api-gateway"
   location = var.google_cloud.region
   project = var.google_cloud.project_id
   template {
@@ -135,13 +136,27 @@ resource "google_cloud_run_service" "endpoints-cloud-run" {
         image = "gcr.io/endpoints-release/endpoints-runtime-serverless:2"
         env {
           name = "ENDPOINTS_SERVICE_NAME"
-          value = local.endpoints_host
+          value = google_endpoints_service.api.service_name
         }
       }
       service_account_name = google_service_account.api-endpoint_service_account.email
     }
   }
   depends_on = [google_endpoints_service.api, google_project_iam_member.api-endpoint_service_account_servicecontroller_iam]
+}
+
+# Create custom domain mapping for cloud run gateway
+resource "google_cloud_run_domain_mapping" "default" {
+  location = google_cloud_run_service.api_gateway.location
+  name     = local.custom_domain
+
+  metadata {
+    namespace = var.google_cloud.project_id
+  }
+
+  spec {
+    route_name = google_cloud_run_service.api_gateway.name
+  }
 }
 
 # Create public access policy
@@ -156,8 +171,8 @@ data "google_iam_policy" "noauth" {
 
 # Enable public access policy on endpoints service (access is restricted with API key by openapi config)
 resource "google_cloud_run_service_iam_policy" "noauth-endpoints" {
-  location    = google_cloud_run_service.endpoints-cloud-run.location
-  project     = google_cloud_run_service.endpoints-cloud-run.project
-  service     = google_cloud_run_service.endpoints-cloud-run.name
+  location    = google_cloud_run_service.api_gateway.location
+  project     = google_cloud_run_service.api_gateway.project
+  service     = google_cloud_run_service.api_gateway.name
   policy_data = data.google_iam_policy.noauth.policy_data
 }

@@ -567,6 +567,7 @@ module "airflow_worker_vm" {
 
 module "observatory_api" {
   source = "./api"
+  environment = var.environment
   google_cloud = var.google_cloud
   elasticsearch = var.elasticsearch
   # necessary for api-endpoint_service_account, api-backend_service_account and elasticsearch-logins
