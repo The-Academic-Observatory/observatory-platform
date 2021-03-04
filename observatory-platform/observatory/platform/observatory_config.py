@@ -493,6 +493,33 @@ class ElasticSearch:
         return ElasticSearch(host, api_key)
 
 
+@dataclass
+class Api:
+    """ The API domain name for the Observatory Platform API.
+
+    Attributes:
+        domain_name: the custom domain name of the API
+     """
+
+    domain_name: str
+
+    def to_hcl(self):
+        return to_hcl({
+            'domain_name': self.domain_name,
+        })
+
+    @staticmethod
+    def from_dict(dict_: Dict) -> Api:
+        """ Constructs a CloudSqlDatabase instance from a dictionary.
+
+        :param dict_: the dictionary.
+        :return: the CloudSqlDatabase instance.
+        """
+
+        domain_name = dict_.get('domain_name')
+        return Api(domain_name)
+
+
 def customise_pointer(field, value, error):
     """ Throw an error when a field contains the value ' <--' which means that the user should customise the
     value in the config file.
@@ -736,6 +763,7 @@ class TerraformConfig(ObservatoryConfig):
                  airflow_main_vm: VirtualMachine = None,
                  airflow_worker_vm: VirtualMachine = None,
                  elasticsearch: ElasticSearch = None,
+                 api: Api = None,
                  validator: ObservatoryConfigValidator = None):
         """ Create a TerraformConfig instance.
 
@@ -759,6 +787,7 @@ class TerraformConfig(ObservatoryConfig):
         self.airflow_main_vm = airflow_main_vm
         self.airflow_worker_vm = airflow_worker_vm
         self.elasticsearch = elasticsearch
+        self.api = api
 
     @property
     def terraform_workspace_id(self):
@@ -809,8 +838,10 @@ class TerraformConfig(ObservatoryConfig):
                 TerraformVariable('airflow_variables', list_to_hcl(self.airflow_variables), hcl=True, sensitive=False),
                 TerraformVariable('airflow_connections', list_to_hcl(self.airflow_connections), hcl=True,
                                   sensitive=sensitive),
-                TerraformVariable('elasticsearch', self.elasticsearch.to_hcl(), sensitive=sensitive, hcl=True)
+                TerraformVariable('elasticsearch', self.elasticsearch.to_hcl(), sensitive=sensitive, hcl=True),
+                TerraformVariable('api', self.api.to_hcl(), hcl=True)
                 ]
+
 
     @classmethod
     def from_dict(cls, dict_: Dict) -> TerraformConfig:
@@ -835,6 +866,7 @@ class TerraformConfig(ObservatoryConfig):
             airflow_main_vm = VirtualMachine.from_dict(dict_.get('airflow_main_vm', dict()))
             airflow_worker_vm = VirtualMachine.from_dict(dict_.get('airflow_worker_vm', dict()))
             elasticsearch = ElasticSearch.from_dict(dict_.get('elasticsearch', dict()))
+            api = Api.from_dict(dict_.get('api', dict()))
 
             return TerraformConfig(backend,
                                    airflow,
@@ -847,6 +879,7 @@ class TerraformConfig(ObservatoryConfig):
                                    airflow_main_vm=airflow_main_vm,
                                    airflow_worker_vm=airflow_worker_vm,
                                    elasticsearch=elasticsearch,
+                                   api=api,
                                    validator=validator)
         else:
             return TerraformConfig(validator=validator)
@@ -1079,19 +1112,31 @@ def make_schema(backend_type: BackendType) -> Dict:
         }
     }
 
-    schema['elasticsearch'] = {
-        'required': True,
-        'type': 'dict',
-        'schema': {
-            'host': {
-                'required': True,
-                'type': 'string'
-            },
-            'api_key': {
-                'required': True,
-                'type': 'string',
+    if is_backend_terraform:
+        schema['elasticsearch'] = {
+            'required': True,
+            'type': 'dict',
+            'schema': {
+                'host': {
+                    'required': True,
+                    'type': 'string'
+                },
+                'api_key': {
+                    'required': True,
+                    'type': 'string',
+                }
             }
         }
-    }
+
+        schema['api'] = {
+            'required': True,
+            'type': 'dict',
+            'schema': {
+                'domain_name': {
+                    'required': True,
+                    'type': 'string'
+                }
+            }
+        }
 
     return schema

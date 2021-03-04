@@ -77,8 +77,7 @@ resource "google_cloud_run_service" "api_backend" {
 # Endpoints service
 ########################################################################################################################
 locals {
-  #TODO get "api.observatory.academy" from variable
-  custom_domain =  var.environment == "production" ? "api.observatory.academy" : "${var.environment}.api.observatory.academy"
+  custom_domain =  var.environment == "production" ? var.api.domain_name : "${var.environment}.${var.api.domain_name}"
 }
 
 # Create/update endpoints configuration based on OpenAPI

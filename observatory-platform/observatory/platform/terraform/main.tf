@@ -570,6 +570,7 @@ module "observatory_api" {
   environment = var.environment
   google_cloud = var.google_cloud
   elasticsearch = var.elasticsearch
+  api = var.api
   # necessary for api-endpoint_service_account, api-backend_service_account and elasticsearch-logins
   depends_on = [google_project_service.services]
 }
