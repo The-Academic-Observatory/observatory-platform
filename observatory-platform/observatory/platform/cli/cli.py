@@ -354,7 +354,8 @@ def config(command: str, config_path: str):
 # increase content width for cleaner help output
 @cli.command(context_settings=dict(max_content_width=120))
 @click.argument('command',
-                type=click.Choice(['build-terraform', 'build-image', 'create-workspace', 'update-workspace']))
+                type=click.Choice(['build-terraform', 'build-image', 'build-api-image', 'create-workspace',
+                                   'update-workspace']))
 # The path to the config-terraform.yaml configuration file.
 @click.argument('config-path',
                 type=click.Path(exists=True, file_okay=True, dir_okay=False))
@@ -393,6 +394,9 @@ def terraform(command, config_path, terraform_credentials_path, debug):
     elif command == 'build-image':
         # Build image with packer
         terraform_cmd.build_image()
+    elif command == 'build-api-image':
+        # Build docker image stored in google container registry
+        terraform_cmd.build_google_container_image()
     else:
         # Create a new workspace
         if command == 'create-workspace':
@@ -446,8 +450,15 @@ def terraform_check_dependencies(terraform_cmd: TerraformCommand,
     else:
         print(indent("- not installed, please install https://www.packer.io/docs/install", INDENT2))
 
+    print(indent("Google Cloud SDK", INDENT1))
+    if terraform_cmd.terraform_builder.gcloud_exe_path is not None:
+        print(indent(f"- path: {terraform_cmd.terraform_builder.gcloud_exe_path}", INDENT2))
+    else:
+        print(indent("- not installed, please install https://cloud.google.com/sdk/docs/install", INDENT2))
+
     if not terraform_cmd.is_environment_valid:
         exit(os.EX_CONFIG)
+
 
 
 if __name__ == "__main__":

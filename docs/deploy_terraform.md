@@ -19,6 +19,15 @@ unzip /usr/local/bin/packer -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/packer
 ```
 
+Install Google Cloud SDK:
+```bash
+sudo curl -L "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-330.0.0-linux-x86_64.tar.gz" -o /usr/local/bin/google-cloud-sdk.tar.gz
+sudo tar -xzvf /usr/local/bin/google-cloud-sdk.tar.gz -C /usr/local/bin
+rm /usr/local/bin/google-cloud-sdk.tar.gz
+sudo chmod +x /usr/local/bin/google-cloud-sdk
+/usr/local/bin/google-cloud-sdk/install.sh
+```
+
 Install Terraform:
 ```bash
 sudo curl -L "https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_linux_amd64.zip" -o /usr/local/bin/terraform
@@ -34,6 +43,16 @@ sudo curl -L "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_darwin_am
 # When asked to replace, answer 'y'
 unzip /usr/local/bin/packer -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/packer
+```
+
+Install Google Cloud SDK:
+```bash
+sudo curl -L "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-330.0.0-darwin-x86_64.tar.gz" -o /usr/local/bin/google-cloud-sdk.tar.gz
+mkdir /usr/local/bin/google-cloud-sdk
+sudo tar -xzvf /usr/local/bin/google-cloud-sdk.tar.gz -C /usr/local/bin
+rm /usr/local/bin/google-cloud-sdk.tar.gz
+sudo chmod +x /usr/local/bin/google-cloud-sdk
+/usr/local/bin/google-cloud-sdk/install.sh
 ```
 
 Install Terraform:
@@ -60,6 +79,7 @@ For the development and staging environments, the following permissions will nee
 so that Terraform and Packer are able to provision the appropriate services:
 ```bash
 BigQuery Admin
+Cloud Build Service Account (API)
 Cloud Run Admin (API)
 Cloud SQL Admin
 Compute Admin
@@ -100,6 +120,7 @@ This new role replaces the 'Storage Admin' role compared to the development envi
 Custom Cloud SQL Editor
 Custom Storage Admin
 BigQuery Admin
+Cloud Build Service Account (API)
 Cloud Run Admin (API)
 Compute Admin
 Compute Image User
@@ -119,6 +140,11 @@ Storage Transfer Admin
 Enable the [Compute Engine API](https://console.developers.google.com/apis/api/compute.googleapis.com/overview) for the
 google project. This is required for Packer to create the image. Other Google Cloud services are enabled by Terraform 
 itself.
+
+## Add user as verified domain owner
+The terraform service account needs to be added as a verified domain owner in order to map the Cloud Run domain that is created
+to a custom domain. The custom domain is used for the API service. See the [Google documentation](https://cloud.google.com/run/docs/mapping-custom-domains#adding_verified_domain_owners_to_other_users_or_service_accounts) 
+for more info on how to add a verified owner. 
 
 ## Switch to the branch that you would like to deploy
 Enter the observatory-platform project folder:
@@ -255,20 +281,6 @@ Concat id:api_key and base64 encode (this final value is what you use in the con
 printf 'random_id:random_api_key' | base64
 ```
 
-## Building the Cloud Run image with gclouds
-The docker image for the API needs to be uploaded to the cloud container registry. This is used in the Cloud Run setup.
-To build and submit the docker image:
-
-Enter the directory with the Dockerfile 
-```bash
-cd  /home/user/workspace/observatory-platform/observatory-platform/observatory/platform/api
-```
-
-Build and submit the file to the cloud container registry:
-```bash
-gcloud builds submit --tag gcr.io/<project_id>/observatory-api
-```
-
 ## Building the Google Compute VM image with Packer
 First, build and deploy the Observatory Platform Google Compute VM image with Packer:
 ```bash
@@ -290,8 +302,18 @@ Terraform config file: in this case you will need to update the Terraform worksp
 * You have changed any other settings in the Observatory Terraform config file (apart from `backend.environment`): 
 in this case you will need to update the Terraform workspace variables and run `terraform apply`.
 
+## Building the Cloud Run image
+The Docker image for the API needs to be uploaded to the Google Cloud container registry. This is used to create the 
+Cloud Run backend service, to build the Docker image run the following command:
+```bash
+observatory terraform build-api-image ~/.observatory/config-terraform.yaml
+```
 
-### Building the Terraform files
+Use this command if:
+ * This is the first time you are deploying the Terraform resources
+ * You have updated any files in the API directory (`/home/user/workspace/observatory-platform/observatory-platform/observatory/platform/api`)
+
+## Building the Terraform files
 To refresh the files that are built into the `~/.observatory/build/terraform` directory, without rebuilding the entire
 Google Compute VM image again, run the following command:
 ```bash
@@ -348,6 +370,7 @@ Terraform Cloud Workspace:
    * google_cloud: sensitive
    * cloud_sql_database: sensitive
    * elasticsearch: sensitive
+   * api: {"domain_name"="api.observatory.academy"}
    * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
    * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}
    * airflow_variables: {}
@@ -384,6 +407,7 @@ Terraform Cloud Workspace:
    * airflow_connections: sensitive -> sensitive
    * elasticsearch: sensitive -> sensitive
   UNCHANGED
+   * api: {"domain_name"="api.observatory.academy"}
    * environment: develop
    * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
    * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}
