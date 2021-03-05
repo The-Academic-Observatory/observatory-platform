@@ -14,415 +14,202 @@
 
 # Author: Aniek Roelofs
 
-
-import glob
-import gzip
-import io
-import json
-import logging
+import csv
 import os
-import pathlib
-import shutil
-from shutil import copyfile
-from typing import Dict, List, Tuple
-from zipfile import BadZipFile, ZipFile
-
-import jsonlines
-import pendulum
-from airflow.exceptions import AirflowException
-from airflow.models.taskinstance import TaskInstance
-from google.cloud.bigquery import SourceFormat
-from pendulum import Pendulum
-
-from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable
-from observatory.platform.utils.config_utils import AirflowVars, AirflowConns, SubFolder, find_schema, telescope_path, \
-    check_variables
-from observatory.platform.utils.data_utils import get_file
-from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
-                                                 create_bigquery_dataset,
-                                                 load_bigquery_table,
-                                                 upload_file_to_cloud_storage)
-from observatory.platform.utils.url_utils import retry_session
-from selenium import webdriver
-import time
+from collections import OrderedDict
 from datetime import datetime
-import requests
-from observatory.platform.utils.url_utils import get_ao_user_agent
-import jsonlines
-import logging
-import os
-import pathlib
+from typing import List
+
+from airflow.models.taskinstance import TaskInstance
+from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, initialize_sftp_connection, convert
+from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns, AirflowVariable as Variable
 import pendulum
 import re
-import shutil
-import subprocess
-import tarfile
-import xmltodict
-from datetime import datetime, timedelta
-from functools import partial
-from io import BytesIO
-from multiprocessing import cpu_count, Pool
-from subprocess import Popen
-from typing import Tuple
-from airflow.hooks.base_hook import BaseHook
-from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import Variable
-from airflow.models.taskinstance import TaskInstance
-from google.cloud import bigquery
-from google.cloud.bigquery import SourceFormat
-
-from observatory.platform.utils.config_utils import (AirflowConns,
-                                                     AirflowVars,
-                                                     SubFolder,
-                                                     check_connections,
-                                                     check_variables,
-                                                     find_schema,
-                                                     telescope_path)
-from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
-                                                 copy_bigquery_table,
-                                                 create_bigquery_dataset,
-                                                 download_blobs_from_cloud_storage,
-                                                 load_bigquery_table,
-                                                 run_bigquery_query,
-                                                 upload_file_to_cloud_storage)
-from observatory.platform.utils.jinja2_utils import (make_sql_jinja2_filename, render_template)
-from observatory.platform.utils.proc_utils import stream_process
-import csv
-import io
+from collections import defaultdict
 
 
-def google_login(driver, service_account: str, password: str, login_url: str):
-    driver.get(login_url)
-    driver.find_element_by_id("identifierId").send_keys(service_account)
-    driver.find_element_by_id("identifierNext").click()
-
-    time.sleep(3)
-    driver.find_element_by_name("password").send_keys(password)
-    driver.find_element_by_id("passwordNext").click()
-    time.sleep(4)
-    return driver
-
-
-def get_report(report_url: str, user_agent: str, cookies) -> str:
-    headers = {
-        'user-agent': user_agent
-    }
-    res = requests.get(report_url, headers=headers, cookies=cookies)
-    if not res.status_code == 200 or not res.headers['content-type'] == 'text/csv; charset=utf-16le':
-        # These are not the reports we're looking for
-        raise ValueError(res.text)
-    content = res.content.decode('utf-16')
-    return content
-
-
-def download_reports(release: 'GoogleBooksRelease'):
-    user_agent = get_ao_user_agent()
-    # User agent needs to include 'Chrome' bit, otherwise can't find correct element
-    user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 " \
-                 "Safari/537.36"
-
-    options = webdriver.ChromeOptions()
-    options.headless = True
-    options.add_argument(f'user-agent={user_agent}')
-
-    #TODO install chromedriver in /usr/local/bin and remove executable path
-    executable_path = '/Users/284060a/Downloads/chromedriver'
-    driver = webdriver.Chrome(executable_path, chrome_options=options)
-
-    service_account = BaseHook.get_connection(AirflowConns.OAEBU_SERVICE_ACCOUNT)
-    password = BaseHook.get_connection(AirflowConns.OAEBU_PASSWORD)
-    login_url = GoogleBooksTelescope.LOGIN_URL
-
-    driver = google_login(driver, service_account, password, login_url)
-    for report, url in release.report_urls.items():
-        try:
-            logging.info(f'Downloading report: {report}, url: {url}')
-            report_content = get_report(url, user_agent, driver.get_cookies())
-        except (UnicodeDecodeError, ValueError):
-            raise AirflowException(f'Failed to retrieve report. This is likely to be caused by an authentication issue')
-        finally:
-            driver.close()
-
-        csv_reader = csv.DictReader(io.StringIO(report_content))
-
-
-def transform_reports(release: 'GoogleBooksRelease'):
-    pass
-
-
-def bq_load_shards(release: 'GoogleBooksRelease'):
-    # Get variables
-    project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
-    bucket_name = AirflowVariable.get(AirflowVars.TRANSFORM_BUCKET)
-    data_location = AirflowVariable.get(AirflowVars.DATA_LOCATION)
-
-    # Create dataset
-    dataset_id = GoogleBooksTelescope.DATASET_ID
-    create_bigquery_dataset(project_id, dataset_id, data_location)
-
-    for report in release.report_urls:
-        # Select schema file based on release date
-        table_id = 'books' + report
-        release_date = release.end_date
-
-        analysis_schema_path = schema_path()
-        schema_file_path = find_schema(analysis_schema_path, table_id, release_date)
-        if schema_file_path is None:
-            exit(os.EX_CONFIG)
-
-        # Create table id
-        table_id = bigquery_partitioned_table_id(table_id, release_date)
-
-        # Load BigQuery table
-        blob_name = release.blob_name(release.transform_path(report))
-        uri = f"gs://{bucket_name}/{blob_name}"
-        logging.info(f"URI: {uri}")
-        success = load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
-                                      SourceFormat.NEWLINE_DELIMITED_JSON)
-        if not success:
-            raise AirflowException()
-
-
-def cleanup_dirs(release: 'GoogleBooksRelease'):
-    try:
-        shutil.rmtree(release.subdir(SubFolder.downloaded))
-    except FileNotFoundError as e:
-        logging.warning(f"No such file or directory {release.subdir(SubFolder.downloaded)}: {e}")
-
-    try:
-        shutil.rmtree(release.subdir(SubFolder.transformed))
-    except FileNotFoundError as e:
-        logging.warning(f"No such file or directory {release.subdir(SubFolder.transformed)}: {e}")
-
-
-class GoogleBooksRelease:
-    """ Used to store info on a given google books release """
-
-    def __init__(self, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, account_number: str):
-        self.start_date = start_date
-        self.end_date = end_date
-
-        fmt = '%Y,%-m,%-d'
-        report_types = ['TrafficReport', 'SalesTransactionReport']
-        self.report_urls = {}
-        for report in report_types:
-            self.report_urls[report] = GoogleBooksTelescope.REPORT_URL.format(account_number=account_number,
-                                                                              report=report,
-                                                                              start=start_date.strftime(fmt),
-                                                                              end=end_date.strftime(fmt))
-
-    @property
-    def download_dir(self) -> str:
-        download_dir = self.subdir(SubFolder.downloaded.value)
-        if not os.path.exists(download_dir):
-            os.makedirs(download_dir, exist_ok=True)
-
-        return download_dir
-
-    def download_path(self, report_type: str) -> str:
-        date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
-
-        file_name = f"{GoogleBooksTelescope.DAG_ID}_{report_type}_{date_str}.csv"
-        return self.get_path(SubFolder.downloaded.value, file_name)
-
-    def transform_path(self, report_type: str) -> str:
-        date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
-
-        file_name = f"{GoogleBooksTelescope.DAG_ID}_{report_type}_{date_str}.json"
-        return self.get_path(SubFolder.transformed.value, file_name)
-
-    def blob_name(self, path: str) -> str:
+class GoogleBooksRelease(SnapshotRelease):
+    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, sftp_files: List[str]):
+        """ Construct a GoogleBooksRelease.
+        :param dag_id:
+        :param release_date: the release date.
+        :param reports: which reports are part of the release (sales and/or traffic)
         """
-        Returns blob name that is used to determine path inside google cloud storage bucket
-        :return: The blob name
-        """
-        file_name = os.path.basename(path)
-        blob_name = f'telescopes/{GoogleBooksTelescope.DAG_ID}/{file_name}'
+        self.dag_id = dag_id
+        self.release_date = release_date
+        self.project_id = Variable.get(AirflowVars.PROJECT_ID)
+        self.data_location = Variable.get(AirflowVars.DATA_LOCATION)
+        self.sftp_files = sftp_files
 
-        return blob_name
+        download_files_regex = f"^{self.dag_id}_(sales|traffic)\.csv$"
+        transform_files_regex = f"^{self.dag_id}_(sales|traffic)\.jsonl\.gz$"
+        super().__init__(self.dag_id, release_date, download_files_regex=download_files_regex,
+                         transform_files_regex=transform_files_regex)
 
-    def subdir(self, sub_folder: SubFolder):
+    def download_path(self, remote_path: str) -> str:
+        """ Creates full download path
+        :param remote_path: filepath of remote sftp tile
+        :return: Download path
         """
-        Path to subdirectory of a specific release for either downloaded/transformed files.
-        :param sub_folder:
+        report_type = 'sales' if 'Sales' in remote_path else 'traffic'
+        return os.path.join(self.download_folder, f'{self.dag_id}_{report_type}.csv')
+
+    def transform_path(self, path: str) -> str:
+        """ Creates full transform path
+        :param path: filepath of download file
+        :return: Transform path
+        """
+        report_type = 'sales' if 'sales' in path else 'traffic'
+        return os.path.join(self.transform_folder, f"{self.dag_id}_{report_type}.jsonl.gz")
+
+    def download(self):
+        """ Downloads Google Books reports.
+        :return: the paths on the system of the downloaded files.
+        """
+        sftp = initialize_sftp_connection()
+        for file in self.sftp_files:
+            sftp.get(file, localpath=self.download_path(file))
+        sftp.close()
+
+    def transform(self):
+        """ Transforms sales and traffic report. For both reports it transforms the csv into a jsonl file and
+        replaces spaces in the keys with underscores.
         :return:
         """
-        date_str = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
-        return os.path.join(telescope_path(sub_folder, GoogleBooksTelescope.DAG_ID), date_str)
+        for file in self.download_files:
+            results = []
+            with open(file, encoding='utf-16') as csv_file:
+                csv_reader = csv.DictReader(csv_file, delimiter='\t')
+                for row in csv_reader:
+                    transformed_row = OrderedDict((convert(k.replace('%', 'Perc')), v) for k, v in row.items())
+                    if 'sales' in file:
+                        # transform to valid date format
+                        transformed_row['Transaction_Date'] = pendulum.parse(transformed_row['Transaction_Date']).to_date_string()
+                        # remove percentage sign
+                        transformed_row['Publisher_Revenue_Perc'] = transformed_row['Publisher_Revenue_Perc'].strip('%')
+                        # this field is not present for some publishers (UCL Press), for ANU Press the field value is
+                        # “E-Book”
+                        try:
+                            transformed_row['Line_of_Business']
+                        except KeyError:
+                            transformed_row['Line_of_Business'] = None
+                    else:
+                        # remove percentage sign
+                        transformed_row['Buy_Link_CTR'] = transformed_row['Buy_Link_CTR'].strip('%')
 
-    def get_path(self, sub_folder: SubFolder, name: str) -> str:
+                    results.append(transformed_row)
+            list_to_jsonl_gz(self.transform_path(file), results)
+
+    def cleanup(self):
+        super().cleanup()
+
+        sftp = initialize_sftp_connection()
+        for file in self.sftp_files:
+            sftp.remove(file)
+        sftp.close()
+
+
+class GoogleBooksTelescope(SnapshotTelescope):
+    """ The Google Books telescope."""
+
+    def __init__(self, dag_id: str = 'google_books', start_date: datetime = datetime(2015, 9, 1),
+                 schedule_interval: str = '@weekly', dataset_id: str = 'google', catchup: bool = False,
+                 airflow_vars=None, airflow_conns=None):
+        """ Construct a GoogleBooksTelescope instance.
+        :param dag_id: the id of the DAG.
+        :param start_date: the start date of the DAG.
+        :param schedule_interval: the schedule interval of the DAG.
+        :param catchup: whether to catchup the DAG or not.
+        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         """
-        Gets path to file based on subfolder and name. Will also create the subfolder if it doesn't exist yet.
-        # :param start_date: Start date of this release
-        :param sub_folder: Name of the subfolder
-        :param name: File base name including extension
-        :return: The file path.
-        """
-        release_subdir = self.subdir(sub_folder)
-        if not os.path.exists(release_subdir):
-            os.makedirs(release_subdir, exist_ok=True)
+        if airflow_vars is None:
+            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+        if airflow_conns is None:
+            airflow_conns = [AirflowConns.SFTP_SERVICE]
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id, catchup=catchup,
+                         airflow_vars=airflow_vars, airflow_conns=airflow_conns)
+        publisher = 'anu-press'
+        self.sftp_folder = f'/upload/{publisher}/google_books'
+        self.sftp_regex = r'^Google(SalesTransaction|BooksTraffic)Report_\d{4}_\d{2}.csv$'
 
-        path = os.path.join(release_subdir, name)
-        return path
+        self.add_setup_task_chain([self.check_dependencies, self.list_releases])
+        self.add_task_chain(
+            [self.download, self.upload_downloaded, self.transform, self.upload_transformed, self.bq_load,
+             self.cleanup])
 
-
-def pull_release(ti: TaskInstance) -> GoogleBooksRelease:
-    return ti.xcom_pull(key=GoogleBooksTelescope.RELEASE_INFO, task_ids=GoogleBooksTelescope.TASK_ID_CREATE_RELEASE,
-                        include_prior_dates=False)
-
-
-class GoogleBooksTelescope:
-    """ A container for holding the constants and static functions for the google books telescope. """
-
-    DAG_ID = 'google_books'
-    DATASET_ID = 'google'
-    PARTITION_FIELD = ''
-    DESCRIPTION = ''
-    RELEASE_INFO = "releases"
-    LAST_MODIFIED_XCOM = "start_date"
-    QUEUE = 'remote_queue'
-    MAX_RETRIES = 3
-    MAX_PROCESSES = cpu_count()
-
-    LOGIN_URL = "https://accounts.google.com/ServiceLogin"
-    REPORT_URL = "https://play.google.com/books/publish/a/{account_number}/download{report}?f.req=[[null,{start}],[null,{end}],2]&hl=en-US&token="
-
-    TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
-    TASK_ID_CREATE_RELEASE = "create_release"
-    TASK_ID_DOWNLOAD = "download"
-    TASK_ID_EXTRACT = "extract"
-    TASK_ID_TRANSFORM = "transform_release"
-    TASK_ID_UPLOAD_TRANSFORMED = "upload_transformed"
-    TASK_ID_BQ_LOAD_SHARD = "bq_load_shard"
-    TASK_ID_CLEANUP = "cleanup"
-
-    @staticmethod
-    def check_dependencies():
-        """ Check that all variables exist that are required to run the DAG.
-        :return: None.
-        """
-
-        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID,
-                                     AirflowVars.DATA_LOCATION, AirflowVars.DOWNLOAD_BUCKET,
-                                     AirflowVars.TRANSFORM_BUCKET)
-        conns_valid = check_connections(AirflowConns.OAEBU_PASSWORD, AirflowConns.OAEBU_SERVICE_ACCOUNT,
-                                        AirflowConns.GOOGLE_BOOKS_ACCOUNT_NUMBER)
-
-        service_account = BaseHook.get_connection(AirflowConns.OAEBU_SERVICE_ACCOUNT)
-        password = BaseHook.get_connection(AirflowConns.OAEBU_PASSWORD)
-        account_number = BaseHook.get_connection(AirflowConns.GOOGLE_BOOKS_ACCOUNT_NUMBER)
-        logging.info(f"test connections: {service_account}, {password}, {account_number}")
-        if not vars_valid or not conns_valid:
-            raise AirflowException('Required variables or connections are missing')
-
-    @staticmethod
-    def create_release(**kwargs) -> bool:
-        """ Create a release instance and update the xcom value with the last start date.
-        :param kwargs: The context passed from the PythonOperator.
-        :return: None.
-        """
-        ti: TaskInstance = kwargs['ti']
-
-        try:
-            start_date = pendulum.parse(kwargs['prev_ds_nodash'])
-        except TypeError:
-            start_date = pendulum.instance(kwargs['dag'].default_args['start_date']).start_of('day')
-        end_date = pendulum.parse(kwargs['ds_nodash'])
-        logging.info(f'Start date: {start_date}, end date: {end_date}')
-
-        account_number = BaseHook.get_connection(AirflowConns.GOOGLE_BOOKS_ACCOUNT_NUMBER)
-        release = GoogleBooksRelease(start_date, end_date, account_number)
-        ti.xcom_push(GoogleBooksTelescope.RELEASE_INFO, release)
-        return True
-
-    @staticmethod
-    def download(**kwargs):
-        ti: TaskInstance = kwargs['ti']
-        release = pull_release(ti)
-
-        download_reports(release)
-
-    @staticmethod
-    def upload_downloaded(**kwargs):
-        """ Upload the downloaded files to a Google Cloud Storage bucket.
+    def make_release(self, **kwargs) -> List[GoogleBooksRelease]:
+        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        called in 'task_callable'.
 
         :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are
+        passed to this argument.
+        :return: A list of google books release instances
+        """
+        ti: TaskInstance = kwargs['ti']
+        reports_info = ti.xcom_pull(key=GoogleBooksTelescope.RELEASE_INFO, task_ids=self.list_releases.__name__,
+                                    include_prior_dates=False)
+        releases = []
+        for release_date, sftp_files in reports_info.items():
+            releases.append(GoogleBooksRelease(self.dag_id, release_date, sftp_files))
+        return releases
+
+    def list_releases(self, **kwargs):
+        """ Lists all Google Books releases available on the SFTP server and publishes sftp file paths and
+        release_date's as an XCom.
+        :param kwargs: the context passed from the BranchPythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
+        :return: the identifier of the task to execute next.
+        """
+
+        reports_info = defaultdict(list)
+
+        sftp = initialize_sftp_connection()
+        report_files = sftp.listdir(self.sftp_folder)
+        for file in report_files:
+            if re.match(self.sftp_regex, file):
+                release_date = file[-11:].strip('.csv')
+                release_date = pendulum.from_format(release_date, 'YYYY_MM', formatter='alternative')
+                sftp_file = os.path.join(self.sftp_folder, file)
+                # report_type = 'sales' if m.group(1) == 'SalesTransaction' else 'traffic'
+                reports_info[release_date].append(sftp_file)
+        sftp.close()
+
+        continue_dag = len(reports_info)
+        if continue_dag:
+            # Push messages
+            ti: TaskInstance = kwargs['ti']
+            ti.xcom_push(GoogleBooksTelescope.RELEASE_INFO, reports_info)
+
+        return continue_dag
+
+    def download(self, releases: List[GoogleBooksRelease], **kwargs):
+        """ Task to download the Google Books releases for a given month.
+        :param releases: a list of Google Books releases.
         :return: None.
         """
+        # Download each release
+        for release in releases:
+            release.download()
 
-        ti: TaskInstance = kwargs['ti']
-        release = pull_release(ti)
-
-        gcp_bucket = Variable.get(AirflowVars.DOWNLOAD_BUCKET)
-        for report in release.report_urls:
-            file_path = release.download_path(report)
-            upload_file_to_cloud_storage(gcp_bucket, release.blob_name(file_path), file_path)
-
-    @staticmethod
-    def transform(**kwargs):
-        """ Transform release with sed command and save to new file.
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+    def upload_downloaded(self, releases: List[GoogleBooksRelease], **kwargs):
+        """ Task to upload the downloaded Google Books releases for a given month.
+        :param releases: a list of Google Books releases.
         :return: None.
         """
+        # Upload each downloaded release
+        for release in releases:
+            upload_files_from_list(release.download_files, release.download_bucket)
 
-        # Pull releases
-        ti: TaskInstance = kwargs['ti']
-        release = pull_release(ti)
-
-        # Transform release
-        transform_reports(release)
-
-    @staticmethod
-    def upload_transformed(**kwargs):
-        """ Upload transformed release to a Google Cloud Storage bucket.
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+    def transform(self, releases: List[GoogleBooksRelease], **kwargs):
+        """ Task to transform the Google Books releases for a given month.
+        :param releases: a list of Google Books releases.
         :return: None.
         """
-
-        # Pull releases
-        ti: TaskInstance = kwargs['ti']
-        release = pull_release(ti)
-
-        gcp_bucket = Variable.get(AirflowVars.TRANSFORM_BUCKET)
-        for report in release.report_urls:
-            file_path = release.transform_path(report)
-            upload_file_to_cloud_storage(gcp_bucket, release.blob_name(file_path), file_path)
-
-    @staticmethod
-    def bq_load_shards(**kwargs):
-        """
-        Create a table shard containing only records of this release. The date in the table name is based on the end
-        date of this release.
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None
-        """
-        # Pull release
-        ti: TaskInstance = kwargs['ti']
-        release = pull_release(ti)
-
-        bq_load_shards(release)
-
-    @staticmethod
-    def cleanup(**kwargs):
-        """
-        Delete subdirectories for downloaded and transformed events files.
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Pull release
-        ti: TaskInstance = kwargs['ti']
-        release = pull_release(ti)
-
-        cleanup_dirs(release)
+        # Transform each release
+        for release in releases:
+            release.transform()
