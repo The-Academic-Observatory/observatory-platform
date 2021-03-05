@@ -14,6 +14,7 @@
 
 # Author: James Diprose
 
+import os
 import pathlib
 import uuid
 
@@ -28,12 +29,12 @@ def random_id():
     return str(uuid.uuid4()).replace("-", "")
 
 
-def test_fixtures_path() -> str:
+def test_fixtures_path(*subdirs) -> str:
     """ Get the path to the Observatory Platform test data directory.
 
     :return: he Observatory Platform test data directory.
     """
 
     file_path = pathlib.Path(tests.fixtures.__file__).resolve()
-    path = pathlib.Path(*file_path.parts[:-1])
-    return str(path.resolve())
+    base_path = str(pathlib.Path(*file_path.parts[:-1]).resolve())
+    return os.path.join(base_path, *subdirs)
