@@ -12,25 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs
+# Author: Aniek Roelofs, James Diprose
 
-import logging
 import os
-import shutil
-import unittest
-from unittest.mock import patch
 
+import httpretty
 import pendulum
 import vcr
-from click.testing import CliRunner
+from observatory.platform.utils.tests import ObservatoryEnvironment, ObservatoryTestCase
 
-from observatory.dags.telescopes.geonames import fetch_release_date, GeonamesRelease, first_sunday_of_month
-from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
+from observatory.dags.telescopes.geonames import (fetch_release_date, GeonamesRelease, first_sunday_of_month,
+                                                  GeonamesTelescope)
+from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
+from observatory.platform.utils.template_utils import telescope_path, SubFolder
 from tests.observatory.test_utils import test_fixtures_path
 
 
-class TestGeonames(unittest.TestCase):
-    """ Tests for the functions used by the geonames telescope """
+class TestGeonames(ObservatoryTestCase):
+    """ Tests for the Geonames telescope """
 
     def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
@@ -40,25 +40,43 @@ class TestGeonames(unittest.TestCase):
         """
 
         super(TestGeonames, self).__init__(*args, **kwargs)
+        self.all_countries_path = test_fixtures_path('telescopes', 'geonames', 'allCountries.zip')
+        self.fetch_release_date_path = test_fixtures_path('vcr_cassettes', 'geonames', 'fetch_release_date.yaml')
+        self.list_releases_path = test_fixtures_path('vcr_cassettes', 'geonames', 'list_releases.yaml')
 
-        # GeoNames test release
-        self.geonames_test_path = os.path.join(test_fixtures_path(), 'telescopes', 'geonames.txt')
-        self.fetch_release_date_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
-                                                    'geonames_fetch_release_date.yaml')
+    def test_dag_structure(self):
+        """ Test that the Geonames DAG has the correct structure.
 
-        self.geonames_test_date = pendulum.datetime(year=3000, month=1, day=1)
-        self.geonames_test_decompress_hash = 'de1bf005df4840d16faf598999d72051'
-        self.geonames_test_transform_crc = '26c14e16'
+        :return: None
+        """
 
-        logging.info("Check that test fixtures exist")
-        self.assertTrue(os.path.isfile(self.geonames_test_path))
-        self.assertTrue(self.geonames_test_decompress_hash, _hash_file(self.geonames_test_path, algorithm='md5'))
+        dag = GeonamesTelescope().make_dag()
+        self.assert_dag_structure({
+            'check_dependencies': ['list_releases'],
+            'list_releases': ['download'],
+            'download': ['upload_downloaded'],
+            'upload_downloaded': ['extract'],
+            'extract': ['transform'],
+            'transform': ['upload_transformed'],
+            'upload_transformed': ['bq_load'],
+            'bq_load': ['cleanup'],
+            'cleanup': []
+        }, dag)
 
-        # Turn logging to warning because vcr prints too much at info level
-        logging.basicConfig()
-        logging.getLogger().setLevel(logging.WARNING)
+    def test_dag_load(self):
+        """ Test that the Geonames DAG can be loaded from a DAG bag.
+
+        :return: None
+        """
+
+        self.assert_dag_load('geonames')
 
     def test_first_sunday_of_month(self):
+        """ Test first_sunday_of_month function.
+
+        :return: None.
+        """
+
         # Test when the date is later in the month
         datetime = pendulum.datetime(year=2020, month=7, day=28)
         expected_datetime = pendulum.datetime(year=2020, month=7, day=5)
@@ -72,7 +90,7 @@ class TestGeonames(unittest.TestCase):
         self.assertEqual(expected_datetime, actual_datetime)
 
     def test_fetch_release_date(self):
-        """ Test that fetch_release_date function works.
+        """ Test fetch_release_date function.
 
         :return: None.
         """
@@ -81,25 +99,80 @@ class TestGeonames(unittest.TestCase):
             date = fetch_release_date()
             self.assertEqual(date, pendulum.datetime(year=2020, month=7, day=16, hour=1, minute=22, second=15))
 
-    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-    def test_transform_release(self, mock_variable_get):
-        """ Test that the release is transformed as expected.
+    def test_telescope(self):
+        """ Test the Geonames telescope end to end.
 
         :return: None.
         """
 
-        # Mock data variable
-        data_path = 'data'
-        mock_variable_get.return_value = data_path
+        # Setup Observatory environment
+        project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
+        data_location = os.getenv('TESTS_DATA_LOCATION')
+        env = ObservatoryEnvironment(project_id, data_location)
+        dataset_id = env.add_dataset()
 
-        with CliRunner().isolated_filesystem():
-            release = GeonamesRelease('geonames', self.geonames_test_date)
-            shutil.copyfile(self.geonames_test_path, release.extract_path)
+        # Setup Telescope
+        execution_date = pendulum.datetime(year=2020, month=11, day=1)
+        telescope = GeonamesTelescope(dataset_id=dataset_id)
+        dag = telescope.make_dag()
 
-            # Transform
-            release.transform()
+        # Create the Observatory environment and run tests
+        with env.create():
+            # Release settings
+            release_date = pendulum.datetime(year=2021, month=3, day=5, hour=1, minute=34, second=32)
+            release_id = f'{telescope.dag_id}_{release_date.strftime("%Y_%m_%d")}'
+            download_folder = telescope_path(SubFolder.downloaded, telescope.dag_id, release_id)
+            extract_folder = telescope_path(SubFolder.extracted, telescope.dag_id, release_id)
+            transform_folder = telescope_path(SubFolder.transformed, telescope.dag_id, release_id)
 
-            # Assert file is as expected
-            self.assertTrue(os.path.exists(release.transform_path))
-            gzip_crc = gzip_file_crc(release.transform_path)
-            self.assertEqual(self.geonames_test_transform_crc, gzip_crc)
+            # Test that all dependencies are specified: no error should be thrown
+            env.run_task(dag, telescope.check_dependencies.__name__, execution_date)
+
+            # Test list releases task
+            with vcr.use_cassette(self.list_releases_path):
+                ti = env.run_task(dag, telescope.list_releases.__name__, execution_date)
+
+            release_dates = ti.xcom_pull(key=GeonamesTelescope.RELEASE_INFO,
+                                         task_ids=telescope.list_releases.__name__,
+                                         include_prior_dates=False)
+            self.assertEqual(1, len(release_dates))
+            self.assertEqual(release_date, release_dates[0])
+
+            # Test download task
+            with httpretty.enabled():
+                self.setup_mock_file_download(GeonamesRelease.DOWNLOAD_URL, self.all_countries_path)
+                env.run_task(dag, telescope.download.__name__, execution_date)
+
+            download_file_path = os.path.join(download_folder, f'{telescope.dag_id}.zip')
+            expected_file_hash = _hash_file(self.all_countries_path, algorithm='md5')
+            self.assert_file_integrity(download_file_path, expected_file_hash, 'md5')
+
+            # Test that file uploaded
+            env.run_task(dag, telescope.upload_downloaded.__name__, execution_date)
+            self.assert_blob_integrity(env.download_bucket, download_file_path)
+
+            # Test that file extracted
+            env.run_task(dag, telescope.extract.__name__, execution_date)
+            extracted_file_path = os.path.join(extract_folder, 'allCountries.txt')
+            expected_file_hash = 'de1bf005df4840d16faf598999d72051'
+            self.assert_file_integrity(extracted_file_path, expected_file_hash, 'md5')
+
+            # Test that file transformed
+            env.run_task(dag, telescope.transform.__name__, execution_date)
+            transformed_file_path = os.path.join(transform_folder, f'{telescope.dag_id}.csv.gz')
+            expected_file_hash = '26c14e16'
+            self.assert_file_integrity(transformed_file_path, expected_file_hash, 'gzip_crc')
+
+            # Test that transformed file uploaded
+            env.run_task(dag, telescope.upload_transformed.__name__, execution_date)
+            self.assert_blob_integrity(env.transform_bucket, transformed_file_path)
+
+            # Test that data loaded into BigQuery
+            env.run_task(dag, telescope.bq_load.__name__, execution_date)
+            table_id = f'{project_id}.{dataset_id}.{bigquery_partitioned_table_id(telescope.dag_id, release_date)}'
+            expected_rows = 50
+            self.assert_table_integrity(table_id, expected_rows)
+
+            # Test that all telescope data deleted
+            env.run_task(dag, telescope.cleanup.__name__, execution_date)
+            self.assert_cleanup(download_folder, extract_folder, transform_folder)
