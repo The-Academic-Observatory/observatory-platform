@@ -46,7 +46,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# Source: https://github.com/apache/airflow/blob/ffb472cf9e630bd70f51b74b0d0ea4ab98635572/airflow/cli/commands/task_command.py
+# Sources:
+# * https://github.com/apache/airflow/blob/ffb472cf9e630bd70f51b74b0d0ea4ab98635572/airflow/cli/commands/task_command.py
+# * https://github.com/apache/airflow/blob/master/docs/apache-airflow/best-practices.rst
 
 # Copyright 2021 Curtin University
 #
