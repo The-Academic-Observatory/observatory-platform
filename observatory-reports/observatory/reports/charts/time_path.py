@@ -17,6 +17,8 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
 from IPython.display import HTML
 from matplotlib import animation
 
@@ -51,6 +53,7 @@ class TimePath(AbstractObservatoryChart):
         self.unis = unis
         self.hue_column = hue_column
         self.size_column = size_column
+        self.figdata = None
         super().__init__(df)
 
     def process_data(self, **kwargs):
@@ -72,8 +75,44 @@ class TimePath(AbstractObservatoryChart):
             lambda v: self.unis.index(v))
         figdata = figdata.sort_values(
             ['order', 'published_year'], ascending=True)
-        self.df = figdata
-        return self.df
+        self.figdata = figdata
+        return self.figdata
+
+    def plotly(self,
+               year_range=None,
+               palette=None,
+               **kwargs):
+
+        if not year_range:
+            year_range = self.year_range
+        if not self.figdata:
+            self.process_data()
+        if not palette:
+            colors = px.colors.qualitative.Bold
+            palette = { uni: color for uni, color in zip(self.unis, colors)}
+
+        self.figdata = self.figdata[self.figdata.published_year.isin(year_range)]
+        fig = px.scatter(self.figdata,
+                         x=self.xcolumn,
+                         y=self.ycolumn,
+                         size='total_outputs',
+                         size_max=20,
+                         hover_name='name',
+                         color='name',
+                         color_discrete_sequence=colors,
+                         animation_frame='published_year',
+                         animation_group='name')
+        for uni in self.unis:
+            col = px.colors.unlabel_rgb(palette.get(uni))
+            color = px.colors.label_rgb([(255 - 0.4 * (255 - c)) for c in col])
+            fig.add_trace(go.Scatter(
+                x=self.figdata.loc[self.figdata.id==uni, self.xcolumn],
+                y=self.figdata.loc[self.figdata.id==uni,self.ycolumn],
+                line=dict(color=color),
+                mode='lines',
+                showlegend=False
+            ))
+        return fig
 
     def plot(self, year_range=None, colorpalette=None, ax=None, **kwargs):
         """Plotting function
@@ -91,7 +130,7 @@ class TimePath(AbstractObservatoryChart):
         else:
             self.fig = ax.get_figure()
 
-        figdata = self.df[self.df.published_year.isin(year_range)]
+        figdata = self.figdata[self.figdata.published_year.isin(year_range)]
 
         sns.scatterplot(x=self.xcolumn, y=self.ycolumn,
                         data=figdata, s=20,
