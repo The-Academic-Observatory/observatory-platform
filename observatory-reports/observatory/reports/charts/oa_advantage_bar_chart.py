@@ -60,6 +60,7 @@ class OAAdvantageBarChart(AbstractObservatoryChart):
                           (self.df.published_year == self.focus_year)
                           ][self.columns]
         figdata = figdata.melt()
+        figdata.variable = pd.Categorical(figdata.variable, categories=self.columns, ordered=True)
         figdata.set_index('variable', inplace=True)
         self.figdata = figdata
         return self.figdata

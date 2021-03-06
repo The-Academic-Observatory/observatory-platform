@@ -164,6 +164,8 @@ class ScatterPlot(AbstractObservatoryChart):
                          animation_frame=animation_frame,
                          animation_group=animation_group,
                          hover_name='name',
+                         range_x=[0,100],
+                         range_y=[0,100],
                          **scatter_kwargs)
 
         # fig.update_layout(**kwargs)

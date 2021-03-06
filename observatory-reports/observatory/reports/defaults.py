@@ -45,9 +45,13 @@ countries = {
         "United Kingdom",
     "Iran (Islamic Republic of)": "Iran",
     "Korea, Republic of": "South Korea",
-    "Taiwan, Province of China": "Taiwan"
+    "Taiwan, Province of China": "Taiwan",
+    "US": "USA",
+    "AU": "AUS",
+    "GB": "GBR",
+    "UK": "GBR"
 }
-country_clean = {k: countries for k in ['country', 'name', 'collaborator_name']}
+country_clean = {k: countries for k in ['country', 'name', 'collaborator_name', 'country_code']}
 
 # Standardisation of the names of output types
 outputs_clean = {'type': {
