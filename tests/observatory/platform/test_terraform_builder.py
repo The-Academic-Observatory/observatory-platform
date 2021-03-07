@@ -104,6 +104,13 @@ class TestTerraformBuilder(unittest.TestCase):
             },
             'airflow_connections': {
                 'my-connection': 'http://:my-token-key@'
+            },
+            'elasticsearch': {
+                'host': 'https://address.region.gcp.cloud.es.io:port',
+                'api_key': 'API_KEY'
+            },
+            'api': {
+                'domain_name': 'api.custom.domain'
             }
         }
 

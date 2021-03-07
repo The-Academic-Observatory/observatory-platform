@@ -349,8 +349,16 @@ class TestObservatoryTerraform(unittest.TestCase):
                     'disk_size': 1,
                     'disk_type': 'pd-standard',
                     'create': False
+                },
+                'elasticsearch': {
+                    'host': 'https://address.region.gcp.cloud.es.io:port',
+                    'api_key': 'API_KEY'
+                },
+                'api': {
+                    'domain_name': 'api.custom.domain'
                 }
             })
+            self.assertTrue(config.is_valid)
             mock_load_config.return_value = config
 
             # Create terraform api instance
@@ -452,6 +460,13 @@ class TestObservatoryTerraform(unittest.TestCase):
                     'disk_size': 1,
                     'disk_type': 'pd-standard',
                     'create': False
+                },
+                'elasticsearch': {
+                    'host': 'https://address.region.gcp.cloud.es.io:port',
+                    'api_key': 'API_KEY'
+                },
+                'api': {
+                    'domain_name': 'api.custom.domain'
                 }
             })
             mock_load_config.return_value = config
