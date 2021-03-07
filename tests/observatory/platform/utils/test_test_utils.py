@@ -14,6 +14,8 @@
 
 # Author: James Diprose
 
+from __future__ import annotations
+
 import datetime
 import os
 import unittest
@@ -58,7 +60,7 @@ class TelescopeTest(Telescope):
         super().__init__(dag_id, start_date, schedule_interval, airflow_vars=airflow_vars, airflow_conns=airflow_conns)
         self.add_setup_task(self.check_dependencies)
 
-    def make_release(self, **kwargs) -> Union['AbstractRelease', List['AbstractRelease']]:
+    def make_release(self, **kwargs) -> Union[AbstractRelease, List[AbstractRelease]]:
         pass
 
 
@@ -173,7 +175,7 @@ class TestObservatoryTestCase(unittest.TestCase):
             with open(file_path, mode='w') as f:
                 f.write(DAG_FILE_CONTENT)
 
-            # DAG loaded successfully: should be not errors
+            # DAG loaded successfully: should be no errors
             test_case.assert_dag_load(DAG_ID, dag_folder=temp_dir)
 
             # Remove DAG from temp_dir

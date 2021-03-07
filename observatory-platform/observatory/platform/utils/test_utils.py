@@ -265,6 +265,7 @@ class ObservatoryEnvironment:
             os.makedirs(settings.DAGS_FOLDER, exist_ok=True)
             airflow_db_path = os.path.join(self.temp_dir, 'airflow.db')
             settings.SQL_ALCHEMY_CONN = f"sqlite:///{airflow_db_path}"
+            logging.info(f'SQL_ALCHEMY_CONN: {settings.SQL_ALCHEMY_CONN}')
             settings.configure_orm(disable_connection_pool=True)
             self.session = settings.Session
             db.initdb()
