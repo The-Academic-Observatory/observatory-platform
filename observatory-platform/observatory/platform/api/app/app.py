@@ -14,11 +14,12 @@
 
 # Author: Aniek Roelofs
 
+import os
+
 import connexion
 from connexion import FlaskApp
-from flask import render_template
-import os
 from flask import current_app
+from flask import render_template
 
 
 def create_app() -> FlaskApp:

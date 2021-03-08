@@ -214,8 +214,8 @@ airflow_worker_vm:
 
 # Elasticsearch
 elasticsearch:
-  host: https://address.region.gcp.cloud.es.io:port <--
-  api_key: API_KEY <--
+  host: https://address.region.gcp.cloud.es.io:port <-- # the address of the elasticsearch host
+  api_key: API_KEY <-- # the api key of the elasticsearch account
 
 # User defined Apache Airflow variables:
 # airflow_variables:
