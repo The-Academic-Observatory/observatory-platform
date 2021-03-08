@@ -1,4 +1,4 @@
-Telecopes
+Telescopes
 ----------------------------
 .. toctree::
     :maxdepth: 3
