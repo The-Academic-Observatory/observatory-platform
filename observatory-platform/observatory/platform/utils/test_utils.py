@@ -385,9 +385,10 @@ class ObservatoryTestCase(unittest.TestCase):
         self.assertIsNotNone(dag)
         self.assertEqual(1, len(dag.tasks))
 
-    def assert_blob_integrity(self, bucket_id: str, local_file_path: str):
+    def assert_blob_integrity(self, bucket_id: str, blob_name: str, local_file_path: str):
         """ Assert whether the blob uploaded and that it has the expected hash.
 
+        :param blob_name: the Google Cloud Blob name, i.e. the entire path to the blob on the Cloud Storage bucket.
         :param bucket_id: the Google Cloud Storage bucket id.
         :param local_file_path: the path to the local file.
         :return: whether the blob uploaded and that it has the expected hash.
@@ -395,7 +396,7 @@ class ObservatoryTestCase(unittest.TestCase):
 
         # Get blob
         bucket = self.storage_client.get_bucket(bucket_id)
-        blob = bucket.blob(blob_name(local_file_path))
+        blob = bucket.blob(blob_name)
         result = blob.exists()
 
         # Check that blob hash matches if it exists

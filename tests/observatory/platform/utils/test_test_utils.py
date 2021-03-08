@@ -26,12 +26,15 @@ import pendulum
 from airflow.models.connection import Connection
 from airflow.models.variable import Variable
 from click.testing import CliRunner
+from google.cloud.bigquery import SourceFormat
 from google.cloud.exceptions import NotFound
 
 from observatory.platform.telescopes.telescope import Telescope, AbstractRelease
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.gc_utils import create_bigquery_dataset
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, random_id, ObservatoryTestCase
+from observatory.platform.utils.gc_utils import (create_bigquery_dataset, upload_file_to_cloud_storage,
+                                                 load_bigquery_table)
+from observatory.platform.utils.test_utils import (ObservatoryEnvironment, random_id, ObservatoryTestCase,
+                                                   test_fixtures_path)
 from observatory.platform.utils.url_utils import retry_session
 
 DAG_ID = 'telescope-test'
@@ -86,6 +89,10 @@ class TestObservatoryEnvironment(unittest.TestCase):
         name = env.add_bucket()
         self.assertEqual(name, env.buckets[-1])
 
+        # No Google Cloud variables raises error
+        with self.assertRaises(AssertionError):
+            ObservatoryEnvironment().add_bucket()
+
     def test_create_delete_bucket(self):
         """ Test _create_bucket and _delete_bucket """
 
@@ -101,12 +108,19 @@ class TestObservatoryEnvironment(unittest.TestCase):
         env._delete_bucket(bucket_id)
         self.assertFalse(bucket.exists())
 
-    def test_delete_dataset(self):
-        """ Test _delete_dataset """
+        # No Google Cloud variables raises error
+        bucket_id = random_id()
+        with self.assertRaises(AssertionError):
+            ObservatoryEnvironment()._create_bucket(bucket_id)
+        with self.assertRaises(AssertionError):
+            ObservatoryEnvironment()._delete_bucket(bucket_id)
+
+    def test_add_delete_dataset(self):
+        """ Test add_dataset and _delete_dataset """
 
         # Create dataset
         env = ObservatoryEnvironment(self.project_id, self.data_location)
-        dataset_id = random_id()
+        dataset_id = env.add_dataset()
         create_bigquery_dataset(self.project_id, dataset_id, self.data_location)
 
         # Check that dataset exists: should not raise NotFound exception
@@ -118,6 +132,12 @@ class TestObservatoryEnvironment(unittest.TestCase):
         # Check that dataset doesn't exist
         with self.assertRaises(NotFound):
             env.bigquery_client.get_dataset(dataset_id)
+
+        # No Google Cloud variables raises error
+        with self.assertRaises(AssertionError):
+            ObservatoryEnvironment().add_dataset()
+        with self.assertRaises(AssertionError):
+            ObservatoryEnvironment()._delete_dataset(random_id())
 
     def test_create(self):
         """ Tests create, add_variable, add_connection and run_task """
@@ -147,6 +167,8 @@ class TestObservatoryTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestObservatoryTestCase, self).__init__(*args, **kwargs)
+        self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
+        self.data_location = os.getenv('TESTS_DATA_LOCATION')
 
     def test_assert_dag_structure(self):
         """ Test assert_dag_structure """
@@ -188,17 +210,80 @@ class TestObservatoryTestCase(unittest.TestCase):
     def test_assert_blob_integrity(self):
         """ Test assert_blob_integrity """
 
-        pass
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        with env.create():
+            # Upload file to download bucket and check gzip-crc
+            file_name = 'people.csv'
+            file_path = os.path.join(test_fixtures_path('utils', 'gc_utils'), file_name)
+            uploaded = upload_file_to_cloud_storage(env.download_bucket, file_name, file_path)
+            self.assertTrue(uploaded)
+
+            # Check that blob exists
+            test_case = ObservatoryTestCase()
+            test_case.assert_blob_integrity(env.download_bucket, file_name, file_path)
+
+            # Check that blob doesn't exist
+            with self.assertRaises(AssertionError):
+                test_case.assert_blob_integrity(env.transform_bucket, file_name, file_path)
 
     def test_assert_table_integrity(self):
         """ Test assert_table_integrity """
 
-        pass
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        with env.create():
+            # Upload file to download bucket and check gzip-crc
+            file_name = 'people.jsonl'
+            file_path = os.path.join(test_fixtures_path('utils', 'gc_utils'), file_name)
+            uploaded = upload_file_to_cloud_storage(env.download_bucket, file_name, file_path)
+            self.assertTrue(uploaded)
+
+            # Create dataset
+            dataset_id = env.add_dataset()
+            create_bigquery_dataset(self.project_id, dataset_id, self.data_location)
+
+            # Test loading JSON newline table
+            table_name = random_id()
+            schema_path = os.path.join(test_fixtures_path('utils', 'gc_utils'), 'people_schema.json')
+            uri = f"gs://{env.download_bucket}/{file_name}"
+            result = load_bigquery_table(uri, dataset_id, self.data_location, table_name,
+                                         schema_file_path=schema_path,
+                                         source_format=SourceFormat.NEWLINE_DELIMITED_JSON)
+            self.assertTrue(result)
+
+            # Check BigQuery table exists and has expected rows
+            test_case = ObservatoryTestCase()
+            table_id = f'{dataset_id}.{table_name}'
+            expected_rows = 5
+            test_case.assert_table_integrity(table_id, expected_rows)
+
+            # Check that BigQuery table doesn't exist
+            with self.assertRaises(AssertionError):
+                table_id = f'{dataset_id}.{random_id()}'
+                test_case.assert_table_integrity(table_id, expected_rows)
+
+            # Check that BigQuery table has incorrect rows
+            with self.assertRaises(AssertionError):
+                table_id = f'{dataset_id}.{table_name}'
+                expected_rows = 20
+                test_case.assert_table_integrity(table_id, expected_rows)
 
     def test_assert_file_integrity(self):
         """ Test assert_file_integrity """
 
-        pass
+        test_case = ObservatoryTestCase()
+        tests_path = test_fixtures_path('utils', 'gc_utils')
+
+        # Test md5
+        file_path = os.path.join(tests_path, 'people.csv')
+        expected_hash = "ad0d7ad3dc3434337cebd5fb543420e7"
+        algorithm = "md5"
+        test_case.assert_file_integrity(file_path, expected_hash, algorithm)
+
+        # Test gzip-crc
+        file_path = os.path.join(tests_path, 'people.csv.gz')
+        expected_hash = "3beea5ac"
+        algorithm = "gzip_crc"
+        test_case.assert_file_integrity(file_path, expected_hash, algorithm)
 
     def test_assert_cleanup(self):
         """ Test assert_cleanup """
