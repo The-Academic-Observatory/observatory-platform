@@ -115,11 +115,11 @@ def test_fixtures_path(*subdirs) -> str:
 class ObservatoryEnvironment:
     OBSERVATORY_HOME_KEY = 'OBSERVATORY_HOME'
 
-    def __init__(self, project_id: str, data_location: str):
+    def __init__(self, project_id: str = None, data_location: str = None):
         """ Constructor for an Observatory environment.
 
         To create an Observatory environment:
-        env = ObservatoryEnvironment(...)
+        env = ObservatoryEnvironment()
         with env.create():
             pass
 
@@ -131,13 +131,37 @@ class ObservatoryEnvironment:
         self.data_location = data_location
         self.buckets = []
         self.datasets = []
-        self.download_bucket = self.add_bucket()
-        self.transform_bucket = self.add_bucket()
         self.data_path = None
-        self.storage_client = storage.Client()
-        self.bigquery_client = bigquery.Client()
         self.session = None
         self.temp_dir = None
+
+        if self.create_gcp_env:
+            self.download_bucket = self.add_bucket()
+            self.transform_bucket = self.add_bucket()
+            self.storage_client = storage.Client()
+            self.bigquery_client = bigquery.Client()
+        else:
+            self.download_bucket = None
+            self.transform_bucket = None
+            self.storage_client = None
+            self.bigquery_client = None
+
+    @property
+    def create_gcp_env(self) -> bool:
+        """ Whether to create the Google Cloud project environment.
+
+        :return: whether to create Google Cloud project environ,ent
+        """
+
+        return self.project_id is not None and self.data_location is not None
+
+    def assert_gcp_dependencies(self):
+        """ Assert that the Google Cloud project dependencies are met.
+
+        :return: None.
+        """
+
+        assert self.create_gcp_env, "Please specify the Google Cloud project_id and data_location"
 
     def add_bucket(self) -> str:
         """ Add a Google Cloud Storage Bucket to the Observatory environment.
@@ -148,6 +172,7 @@ class ObservatoryEnvironment:
         :return: returns the bucket name.
         """
 
+        self.assert_gcp_dependencies()
         bucket_name = random_id()
         self.buckets.append(bucket_name)
         return bucket_name
@@ -159,6 +184,7 @@ class ObservatoryEnvironment:
         :return: None.
         """
 
+        self.assert_gcp_dependencies()
         self.storage_client.create_bucket(bucket_id, location=self.data_location)
 
     def _delete_bucket(self, bucket_id: str) -> None:
@@ -168,6 +194,7 @@ class ObservatoryEnvironment:
         :return: None.
         """
 
+        self.assert_gcp_dependencies()
         bucket = self.storage_client.get_bucket(bucket_id)
         bucket.delete(force=True)
 
@@ -179,6 +206,7 @@ class ObservatoryEnvironment:
         :return: the BigQuery dataset identifier.
         """
 
+        self.assert_gcp_dependencies()
         dataset_id = random_id()
         self.datasets.append(dataset_id)
         return dataset_id
@@ -190,6 +218,7 @@ class ObservatoryEnvironment:
         :return: None.
         """
 
+        self.assert_gcp_dependencies()
         self.bigquery_client.delete_dataset(dataset_id, not_found_ok=True, delete_contents=True)
 
     def add_variable(self, var: Variable) -> None:
@@ -232,6 +261,7 @@ class ObservatoryEnvironment:
     @contextlib.contextmanager
     def create(self):
         """ Make and destroy an Observatory isolated environment, which involves:
+
         * Creating a temporary directory.
         * Setting the OBSERVATORY_HOME environment variable.
         * Initialising a temporary Airflow database.
@@ -271,16 +301,20 @@ class ObservatoryEnvironment:
             db.initdb()
 
             # Create buckets
-            for bucket_id in self.buckets:
-                self._create_bucket(bucket_id)
+            if self.create_gcp_env:
+                for bucket_id in self.buckets:
+                    self._create_bucket(bucket_id)
 
             # Add default Airflow variables
             self.data_path = os.path.join(self.temp_dir, 'data')
             self.add_variable(Variable(key=AirflowVars.DATA_PATH, val=self.data_path))
-            self.add_variable(Variable(key=AirflowVars.PROJECT_ID, val=self.project_id))
-            self.add_variable(Variable(key=AirflowVars.DATA_LOCATION, val=self.data_location))
-            self.add_variable(Variable(key=AirflowVars.DOWNLOAD_BUCKET, val=self.download_bucket))
-            self.add_variable(Variable(key=AirflowVars.TRANSFORM_BUCKET, val=self.transform_bucket))
+
+            # Add Google Cloud environment related Airflow variables
+            if self.create_gcp_env:
+                self.add_variable(Variable(key=AirflowVars.PROJECT_ID, val=self.project_id))
+                self.add_variable(Variable(key=AirflowVars.DATA_LOCATION, val=self.data_location))
+                self.add_variable(Variable(key=AirflowVars.DOWNLOAD_BUCKET, val=self.download_bucket))
+                self.add_variable(Variable(key=AirflowVars.TRANSFORM_BUCKET, val=self.transform_bucket))
 
             yield self.temp_dir
         finally:
@@ -294,13 +328,14 @@ class ObservatoryEnvironment:
             os.environ.clear()
             os.environ.update(prev_env)
 
-            # Remove Google Cloud Storage buckets
-            for bucket_id in self.buckets:
-                self._delete_bucket(bucket_id)
+            if self.create_gcp_env:
+                # Remove Google Cloud Storage buckets
+                for bucket_id in self.buckets:
+                    self._delete_bucket(bucket_id)
 
-            # Remove BigQuery datasets
-            for dataset_id in self.datasets:
-                self._delete_dataset(dataset_id)
+                # Remove BigQuery datasets
+                for dataset_id in self.datasets:
+                    self._delete_dataset(dataset_id)
 
 
 class ObservatoryTestCase(unittest.TestCase):

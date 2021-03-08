@@ -169,7 +169,7 @@ class TestObservatoryTestCase(unittest.TestCase):
         """ Test assert_dag_load """
 
         test_case = ObservatoryTestCase()
-        with CliRunner().isolated_filesystem() as temp_dir:
+        with ObservatoryEnvironment().create() as temp_dir:
             # Write DAG into temp_dir
             file_path = os.path.join(temp_dir, f'telescope_test.py')
             with open(file_path, mode='w') as f:
@@ -186,12 +186,18 @@ class TestObservatoryTestCase(unittest.TestCase):
                 test_case.assert_dag_load(DAG_ID, dag_folder=temp_dir)
 
     def test_assert_blob_integrity(self):
+        """ Test assert_blob_integrity """
+
         pass
 
     def test_assert_table_integrity(self):
+        """ Test assert_table_integrity """
+
         pass
 
     def test_assert_file_integrity(self):
+        """ Test assert_file_integrity """
+
         pass
 
     def test_assert_cleanup(self):
