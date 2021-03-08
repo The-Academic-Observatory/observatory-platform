@@ -91,7 +91,12 @@ resource "google_cloud_run_service" "api_backend" {
 # Endpoints service
 ########################################################################################################################
 locals {
-  custom_domain =  var.environment == "production" ? var.api.domain_name : "${var.environment}.${var.api.domain_name}"
+  # Set to true when using a project that will not host the final production API. The endpoint service/domain name is
+  # unique and can only be used in 1 project. Once it is created in one project, it can't be fully deleted for 30 days.
+  development_project = true
+  tmp_custom_domain = "${var.google_cloud.project_id}.${var.api.domain_name}"
+  final_custom_domain = var.environment == "production" ? var.api.domain_name : "${var.environment}.${var.api.domain_name}"
+  custom_domain =  development_project == true ? local.tmp_custom_domain : local.final_custom_domain
 }
 
 # Create/update endpoints configuration based on OpenAPI
