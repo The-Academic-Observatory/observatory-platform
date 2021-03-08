@@ -34,6 +34,12 @@ from flask import request
 
 
 def create_es_connection(address: str, api_key: str) -> Union[Elasticsearch, None]:
+    """ Create an elasticsearch connection
+
+    :param address: elasticsearch address
+    :param api_key: elasticsearch API key
+    :return: elasticsearch connection
+    """
     for value in [address, api_key]:
         if value is None or value == '':
             return None
@@ -45,7 +51,14 @@ def create_es_connection(address: str, api_key: str) -> Union[Elasticsearch, Non
 
 
 def list_available_index_dates(es: Elasticsearch, alias: str) -> List[str]:
+    """ For a given index name (e.g. journals-institution), list which dates are available
+
+    :param es: elasticsearch connection
+    :param alias: index alias
+    :return: list of available dates for given index
+    """
     available_dates = []
+    # search for indices that include alias, is not an exact match
     available_indices = es.cat.indices(alias, format='json')
     for index in available_indices:
         index_date = index['index'][-8:]
@@ -53,77 +66,86 @@ def list_available_index_dates(es: Elasticsearch, alias: str) -> List[str]:
     return available_dates
 
 
-def create_search_body_search_after(from_year: str, to_year: str, filter_fields: dict, size: int, pit_id: str,
-                                    search_after: list) -> dict:
-    filter_list = []
-    for field in filter_fields:
-        if filter_fields[field]:
-            filter_list.append({
-                "terms": {
-                    f"{field}.keyword": filter_fields[field]
-                }
-            })
-    if from_year or to_year:
-        range_dict = {
-            "range": {
-                "published_year": {
-                    "format": "yyyy-MM-dd"
-                }
-            }
-        }
-        if from_year:
-            range_dict["range"]["published_year"]["gte"] = from_year
-        if to_year:
-            range_dict["range"]["published_year"]["lte"] = to_year
-        filter_list.append(range_dict)
-
-    query_body = {
-        "bool": {
-            "filter": filter_list
-        }
-    }
-
-    search_body = {
-        "size": size,
-        "query": query_body,
-        "sort": [
-            {"published_year": "asc"},
-            {"_id": "asc"}
-        ]
-    }
-    if pit_id:
-        search_body["pit"] = {
-            "id": pit_id,
-            "keep_alive": "1m"
-        }
-    if search_after:
-        search_body['search_after'] = search_after
-    return search_body
-
-
-def process_response_after_search(res: dict) -> Tuple[str, int, str, list]:
-    pit_id = res['pit_id']
-    # flatten nested dictionary '_source'
-    for hit in res['hits']['hits']:
-        source = hit.pop('_source')
-        for k, v in source.items():
-            hit[k] = v
-    hits = res['hits']['hits']
-
-    if hits:
-        search_after = hits[-1]['sort']
-        search_after_no = search_after[0]
-        search_after_text = search_after[1]
-    else:
-        search_after_no = None
-        search_after_text = None
-
-    return pit_id, search_after_no, search_after_text, hits
+# def create_search_body_search_after(from_year: str, to_year: str, filter_fields: dict, size: int, pit_id: str,
+#                                     search_after: list) -> dict:
+#     filter_list = []
+#     for field in filter_fields:
+#         if filter_fields[field]:
+#             filter_list.append({
+#                 "terms": {
+#                     f"{field}.keyword": filter_fields[field]
+#                 }
+#             })
+#     if from_year or to_year:
+#         range_dict = {
+#             "range": {
+#                 "published_year": {
+#                     "format": "yyyy-MM-dd"
+#                 }
+#             }
+#         }
+#         if from_year:
+#             range_dict["range"]["published_year"]["gte"] = from_year
+#         if to_year:
+#             range_dict["range"]["published_year"]["lte"] = to_year
+#         filter_list.append(range_dict)
+#
+#     query_body = {
+#         "bool": {
+#             "filter": filter_list
+#         }
+#     }
+#
+#     search_body = {
+#         "size": size,
+#         "query": query_body,
+#         "sort": [
+#             {"published_year": "asc"},
+#             {"_id": "asc"}
+#         ]
+#     }
+#     if pit_id:
+#         search_body["pit"] = {
+#             "id": pit_id,
+#             "keep_alive": "1m"
+#         }
+#     if search_after:
+#         search_body['search_after'] = search_after
+#     return search_body
+#
+#
+# def process_response_after_search(res: dict) -> Tuple[str, int, str, list]:
+#     pit_id = res['pit_id']
+#     # flatten nested dictionary '_source'
+#     for hit in res['hits']['hits']:
+#         source = hit.pop('_source')
+#         for k, v in source.items():
+#             hit[k] = v
+#     hits = res['hits']['hits']
+#
+#     if hits:
+#         search_after = hits[-1]['sort']
+#         search_after_no = search_after[0]
+#         search_after_text = search_after[1]
+#     else:
+#         search_after_no = None
+#         search_after_text = None
+#
+#     return pit_id, search_after_no, search_after_text, hits
 
 
 def create_search_body(from_year: Union[str, None], to_year: Union[str, None], filter_fields: dict, size: int) -> dict:
+    """ Create a search body that is passed on to the elasticsearch 'search' method.
+
+    :param from_year: Refers to published year, add to 'range'. Include results where published year >= from_year
+    :param to_year: Refers to published year, add to 'rangen'. Include results where published year < to_year
+    :param filter_fields: Add each field and their value in filter_fields as a filter term.
+    :param size: The returned size (number of hits)
+    :return: search body
+    """
     filter_list = []
     for field in filter_fields:
+        # add if value is not None
         if filter_fields[field]:
             filter_list.append({
                 "terms": {
@@ -156,7 +178,13 @@ def create_search_body(from_year: Union[str, None], to_year: Union[str, None], f
     }
     return search_body
 
+
 def process_response(res: dict) -> Tuple[str, list]:
+    """ Get the scroll id and hits from the response of an elasticsearch search query.
+
+    :param res: The response.
+    :return: scroll id and hits
+    """
     scroll_id = res['_scroll_id']
     # flatten nested dictionary '_source'
     for hit in res['hits']['hits']:
@@ -168,6 +196,10 @@ def process_response(res: dict) -> Tuple[str, list]:
 
 
 def create_schema():
+    """ Create schema for the given index that is queried. Useful if there are no results returned.
+
+    :return: schema of index
+    """
     return {
         'schema': 'to_be_created'
     }
@@ -248,6 +280,17 @@ def create_schema():
 #     return results
 
 def parse_args() -> Tuple[str, str, str, str, dict, int, str]:
+    """ Parse the arguments coming in from the request.
+    alias: concatenate 'subset' and 'agg'
+    index_date: directly from requests.args. None allowed
+    from_date: from_date + '-12-31'. None allowed
+    to_date: to_date + '-12-31'. None allowed
+    filter_fields: directly from requests.args for each item in 'query_filter_parameters'. Empty dict allowed
+    size: If 'limit' is given -> set to 'limit', can't be more than 10000. If no 'limit' -> 10000
+    scroll_id: directly from requests.args
+
+    :return: alias, index_date, from_date, to_date, filter_fields, size, scroll_id
+    """
     agg = request.args.get('agg')
     subset = request.args.get('subset')
     index_date = request.args.get('index_date')
@@ -286,13 +329,14 @@ def parse_args() -> Tuple[str, str, str, str, dict, int, str]:
     return alias, index_date, from_date, to_date, filter_fields, size, scroll_id
 
 
-def searchv1():
+def searchv1() -> Union[Tuple[str, int], dict]:
+    """ Search elasticsearch for hits based on either a search body or a scroll id.
+
+    :return: results dictionary or error response
+    """
     start = time.time()
 
     alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-    if alias == '':
-        return "Invalid combination of aggregation (publisher) and subset (collaborations)", 400
-    search_body = create_search_body(from_date, to_date, filter_fields, size)
 
     es_api_key = os.environ.get('ES_API_KEY')
     es_address = os.environ.get('ES_HOST')
@@ -300,42 +344,52 @@ def searchv1():
     if es is None:
         return "Elasticsearch environment variable for host or api key is empty", 400
 
-    # use specific index if date is given, otherwise use alias which points to latest date
-    if index_date:
-        index = alias + f"-{index_date}"
-        index_exists = es.indices.exists(index)
-        if not index_exists:
-            available_dates = list_available_index_dates(es, alias)
-            return f"Index does not exist: {index}\n Available dates for this agg & subset:\n" \
-                   f"{chr(10).join(available_dates)}", 400
-    else:
-        index = es.cat.aliases(alias, format='json')[0]['index']
-
+    # use scroll id
     if scroll_id:
         res = es.scroll(scroll_id=scroll_id, scroll='1m')
+        index = 'N/A'
+    # use search body
     else:
+        if alias == '':
+            return "Invalid combination of aggregation (publisher) and subset (collaborations)", 400
+
+        search_body = create_search_body(from_date, to_date, filter_fields, size)
+
+        # use specific index if date is given, otherwise use alias which points to latest date
+        if index_date:
+            index = alias + f"-{index_date}"
+            index_exists = es.indices.exists(index)
+            if not index_exists:
+                available_dates = list_available_index_dates(es, alias)
+                return f"Index does not exist: {index}\n Available dates for this agg & subset:\n" \
+                       f"{chr(10).join(available_dates)}", 400
+        else:
+            index = es.cat.aliases(alias, format='json')[0]['index']
+
         res = es.search(index=index, body=search_body, scroll='1m')
     scroll_id, results_data = process_response(res)
 
     number_total_results = res['hits']['total']['value']
 
-
     end = time.time()
     print(end - start)
-    schema = create_schema()
     results = {
         'version': 'v1',
         'index': index,
         'scroll_id': scroll_id,
         'returned_hits': len(results_data),
         'total_hits': number_total_results,
-        'schema': schema,
+        'schema': create_schema(),
         'results': results_data
     }
     return results
 
 
 def searchv2():
+    """ Example of having a different function for an upgraded version of the API.
+
+    :return:
+    """
     results = searchv1()
     results['version'] = 'v2'
     return results

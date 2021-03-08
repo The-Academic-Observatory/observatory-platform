@@ -15,12 +15,17 @@
 # Author: Aniek Roelofs
 
 import connexion
+from connexion import FlaskApp
 from flask import render_template
 import os
 from flask import current_app
 
 
-def create_app():
+def create_app() -> FlaskApp:
+    """ Create app using connexion
+
+    :return: FlaskApp instance
+    """
     app_dir = os.path.dirname(os.path.realpath(__file__))
     # create the application instance
     conn_app = connexion.App(__name__, specification_dir=app_dir)
@@ -50,8 +55,8 @@ app = create_app()
 # Create a URL route in our application for "/"
 @app.route("/")
 def home():
-    """
-    :return:        the rendered template "home.html"
+    """ Create home route.
+    :return: the rendered template "home.html"
     """
     return render_template("home.html")
 

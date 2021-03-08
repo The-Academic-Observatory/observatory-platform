@@ -24,7 +24,6 @@ from click.testing import CliRunner
 from observatory.platform.observatory_config import save_yaml
 from observatory.platform.terraform_builder import TerraformBuilder
 
-
 class Popen(Mock):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
