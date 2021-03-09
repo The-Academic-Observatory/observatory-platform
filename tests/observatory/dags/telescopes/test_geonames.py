@@ -54,8 +54,8 @@ class TestGeonames(ObservatoryTestCase):
 
         dag = GeonamesTelescope().make_dag()
         self.assert_dag_structure({
-            'check_dependencies': ['list_releases'],
-            'list_releases': ['download'],
+            'check_dependencies': ['fetch_release_date'],
+            'fetch_release_date': ['download'],
             'download': ['upload_downloaded'],
             'upload_downloaded': ['extract'],
             'extract': ['transform'],
@@ -131,10 +131,10 @@ class TestGeonames(ObservatoryTestCase):
 
             # Test list releases task
             with vcr.use_cassette(self.list_releases_path):
-                ti = env.run_task(dag, telescope.list_releases.__name__, execution_date)
+                ti = env.run_task(dag, telescope.fetch_release_date.__name__, execution_date)
 
             release_dates = ti.xcom_pull(key=GeonamesTelescope.RELEASE_INFO,
-                                         task_ids=telescope.list_releases.__name__,
+                                         task_ids=telescope.fetch_release_date.__name__,
                                          include_prior_dates=False)
             self.assertEqual(1, len(release_dates))
             self.assertEqual(release_date, release_dates[0])

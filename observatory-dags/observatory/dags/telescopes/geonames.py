@@ -157,7 +157,7 @@ class GeonamesTelescope(SnapshotTelescope):
                          load_bigquery_table_kwargs={'csv_field_delimiter': '\t', 'csv_quote_character': ''},
                          catchup=catchup, airflow_vars=airflow_vars)
         self.add_setup_task(self.check_dependencies)
-        self.add_setup_task(self.list_releases)
+        self.add_setup_task(self.fetch_release_date)
         self.add_task(self.download)
         self.add_task(self.upload_downloaded)
         self.add_task(self.extract)
@@ -177,16 +177,13 @@ class GeonamesTelescope(SnapshotTelescope):
         """
 
         ti: TaskInstance = kwargs['ti']
-        release_dates = ti.xcom_pull(key=GeonamesTelescope.RELEASE_INFO,
-                                     task_ids=self.list_releases.__name__,
-                                     include_prior_dates=False)
+        release_date = ti.xcom_pull(key=GeonamesTelescope.RELEASE_INFO,
+                                    task_ids=self.fetch_release_date.__name__,
+                                    include_prior_dates=False)
 
-        assert len(
-            release_dates) == 1, f"There should only be one Geonames release: len(release_dates) is {len(release_dates)}"
+        return [GeonamesRelease(self.dag_id, release_date)]
 
-        return [GeonamesRelease(self.dag_id, release_dates[0])]
-
-    def list_releases(self, **kwargs):
+    def fetch_release_date(self, **kwargs):
         """ Get the Geonames release for a given month and publishes the release_date as an XCom.
 
         :param kwargs: the context passed from the BranchPythonOperator. See
@@ -208,7 +205,7 @@ class GeonamesTelescope(SnapshotTelescope):
 
             # Push messages
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(GeonamesTelescope.RELEASE_INFO, [release_date], execution_date)
+            ti.xcom_push(GeonamesTelescope.RELEASE_INFO, release_date, execution_date)
 
         return continue_dag
 
