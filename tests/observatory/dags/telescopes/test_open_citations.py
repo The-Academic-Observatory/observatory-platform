@@ -24,6 +24,7 @@ import vcr
 from observatory.dags.telescopes.open_citations import (list_open_citations_releases,
                                                         fetch_open_citations_versions,
                                                         OpenCitationsRelease, File)
+from observatory.platform.utils.template_utils import reset_variables
 from tests.observatory.test_utils import test_fixtures_path
 
 
@@ -46,6 +47,7 @@ class TestOpenCitations(unittest.TestCase):
         """
 
         # Mock data variable
+        reset_variables()
         data_path = 'data'
         mock_variable_get.return_value = data_path
 
