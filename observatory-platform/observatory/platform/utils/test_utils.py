@@ -91,7 +91,7 @@ from google.cloud.exceptions import NotFound
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash, gzip_file_crc, _hash_file
-from observatory.platform.utils.template_utils import blob_name
+from observatory.platform.utils.template_utils import reset_variables
 
 
 def random_id():
@@ -272,6 +272,9 @@ class ObservatoryEnvironment:
 
         :yield: Observatory environment temporary directory.
         """
+
+        # Reset Airflow variables
+        reset_variables()
 
         # Make temporary directory
         cwd = os.getcwd()

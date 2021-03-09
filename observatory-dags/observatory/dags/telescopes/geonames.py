@@ -108,7 +108,6 @@ class GeonamesRelease(SnapshotRelease):
         :return: None
         """
 
-        print(f'Release download_path: {self.download_path}')
         file_path, updated = get_file(fname=self.download_path,
                                       origin=GeonamesRelease.DOWNLOAD_URL,
                                       cache_subdir='',

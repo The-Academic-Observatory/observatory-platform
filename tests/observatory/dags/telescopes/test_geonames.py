@@ -45,10 +45,6 @@ class TestGeonames(ObservatoryTestCase):
         self.all_countries_path = test_fixtures_path('telescopes', 'geonames', 'allCountries.zip')
         self.fetch_release_date_path = test_fixtures_path('vcr_cassettes', 'geonames', 'fetch_release_date.yaml')
         self.list_releases_path = test_fixtures_path('vcr_cassettes', 'geonames', 'list_releases.yaml')
-        print("PATHS:")
-        print(self.all_countries_path)
-        print(self.fetch_release_date_path)
-        print(self.list_releases_path)
 
     def test_dag_structure(self):
         """ Test that the Geonames DAG has the correct structure.
@@ -129,10 +125,6 @@ class TestGeonames(ObservatoryTestCase):
             download_folder = telescope_path(SubFolder.downloaded, telescope.dag_id, release_id)
             extract_folder = telescope_path(SubFolder.extracted, telescope.dag_id, release_id)
             transform_folder = telescope_path(SubFolder.transformed, telescope.dag_id, release_id)
-            print("Folders:")
-            print(f"download_folder: {download_folder}")
-            print(f"extract_folder: {extract_folder}")
-            print(f"transform_folder: {transform_folder}")
 
             # Test that all dependencies are specified: no error should be thrown
             env.run_task(dag, telescope.check_dependencies.__name__, execution_date)

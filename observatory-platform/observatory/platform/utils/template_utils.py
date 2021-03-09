@@ -20,6 +20,7 @@ import logging
 import os
 import pathlib
 import traceback
+from datetime import timedelta
 from enum import Enum
 from typing import List, Tuple
 
@@ -28,9 +29,9 @@ import six
 from airflow import AirflowException
 from airflow.utils.dates import cron_presets
 from croniter import croniter
-from datetime import timedelta
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
+
 from observatory.dags.config import schema_path, workflow_sql_templates_path
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars, create_slack_webhook
@@ -53,6 +54,27 @@ data_location = None
 environment = None
 
 
+def reset_variables():
+    """ Rest Airflow variables.
+
+    :return: None.
+    """
+
+    global data_path
+    global test_data_path_val_
+    global project_id
+    global bucket_name
+    global data_location
+    global environment
+
+    data_path = None
+    test_data_path_val_ = None
+    project_id = None
+    bucket_name = None
+    data_location = None
+    environment = None
+
+
 def telescope_path(*subdirs) -> str:
     """ Return a path for saving telescope data. Create it if it doesn't exist.
     :param subdirs: the subdirectories.
@@ -63,7 +85,6 @@ def telescope_path(*subdirs) -> str:
         logging.info('telescope_path: requesting data_path variable')
         data_path = AirflowVariable.get(AirflowVars.DATA_PATH)
 
-    print(f'telescope_path: data_path={data_path}, data_path_refresh={AirflowVariable.get(AirflowVars.DATA_PATH)}')
     subdirs = [subdir.value if isinstance(subdir, Enum) else subdir for subdir in subdirs]
 
     # Create telescope path
@@ -245,7 +266,7 @@ def bq_delete_old(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, da
     """
     # include end date in period
     start_date = start_date.strftime("%Y-%m-%d")
-    end_date = (end_date+timedelta(days=1)).strftime("%Y-%m-%d")
+    end_date = (end_date + timedelta(days=1)).strftime("%Y-%m-%d")
     # Get merge variables
     dataset_id = dataset_id
     main_table = main_table_id
@@ -276,7 +297,7 @@ def bq_append_from_partition(start_date: pendulum.Pendulum, end_date: pendulum.P
     project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(dataset_id, main_table_id, end_date,
                                                                                prefix, schema_version)
     # include end date in period
-    period = pendulum.period(start_date, end_date+timedelta(days=1))
+    period = pendulum.period(start_date, end_date + timedelta(days=1))
     logging.info(f'Getting table partitions: ')
     source_table_ids = []
     for dt in period:
