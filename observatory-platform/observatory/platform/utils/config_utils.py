@@ -47,17 +47,24 @@ def observatory_home(*subdirs) -> str:
     """ Get the .observatory Observatory Platform home directory or subdirectory on the host machine. The home
     directory and subdirectories will be created if they do not exist.
 
+    The default path: ~/.observatory can be overridden with the environment variable OBSERVATORY_HOME.
+
     :param: subdirs: an optional list of subdirectories.
     :return: the path.
     """
 
-    user_home = str(pathlib.Path.home())
-    observatory_home_ = os.path.join(user_home, ".observatory", *subdirs)
+    obs_home = os.environ.get('OBSERVATORY_HOME', None)
+    if obs_home is not None:
+        path = os.path.join(os.path.expanduser(obs_home), *subdirs)
+    else:
+        user_home = str(pathlib.Path.home())
+        path = os.path.join(user_home, ".observatory", *subdirs)
 
-    if not os.path.exists(observatory_home_):
-        os.makedirs(observatory_home_, exist_ok=True)
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
 
-    return observatory_home_
+    return path
+
 
 
 def terraform_credentials_path() -> str:
