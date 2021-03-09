@@ -31,12 +31,12 @@ output "default_transfer_service_account" {
   value = data.google_storage_transfer_project_service_account.default.email
 }
 
-output "observatory_api_gateway_url" {
-  value = module.observatory_api.gateway-url
-  description = "Cloud run gateway URL"
+output "api-domain-name" {
+  value = module.observatory_api.api-domain-name
+  description = "Custom domain name for the API"
 }
 
-output "observatory_api_backend_url" {
-  value = module.observatory_api.backend-url
-  description = "Cloud run backend URL"
+output "api-gateway-url" {
+  value = module.observatory_api.api-gateway-url
+  description = "Cloud run gateway URL for the API"
 }

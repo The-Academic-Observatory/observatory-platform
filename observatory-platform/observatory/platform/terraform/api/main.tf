@@ -91,20 +91,19 @@ resource "google_cloud_run_service" "api_backend" {
 # Endpoints service
 ########################################################################################################################
 locals {
-  # Set to true when using a project that will not host the final production API. The endpoint service/domain name is
+  # Use the project id as a subdomain for a project that will not host the final production API. The endpoint service/domain name is
   # unique and can only be used in 1 project. Once it is created in one project, it can't be fully deleted for 30 days.
-  development_project = true
-  tmp_custom_domain = "${var.google_cloud.project_id}.${var.api.domain_name}"
-  final_custom_domain = var.environment == "production" ? var.api.domain_name : "${var.environment}.${var.api.domain_name}"
-  custom_domain =  development_project == true ? local.tmp_custom_domain : local.final_custom_domain
+  project_domain_name = "${var.google_cloud.project_id}.${var.api.domain_name}"
+  environment_domain_name = var.environment == "production" ? var.api.domain_name : "${var.environment}.${var.api.domain_name}"
+  full_domain_name =  var.api.subdomain == "project_id" ? local.project_domain_name : local.environment_domain_name
 }
 
 # Create/update endpoints configuration based on OpenAPI
 resource "google_endpoints_service" "api" {
   project = var.google_cloud.project_id
-  service_name = local.custom_domain
+  service_name = local.full_domain_name
   openapi_config = templatefile("./openapi_endpoint.yml", {
-    host = local.custom_domain
+    host = local.full_domain_name
     backend_address = google_cloud_run_service.api_backend.status[0].url,
     query_parameters = ["id", "name", "published_year", "coordinates", "country", "country_code", "region",
                                "subregion", "access_type", "label", "status", "collaborator_coordinates",
@@ -163,7 +162,7 @@ resource "google_cloud_run_service" "api_gateway" {
 # Create custom domain mapping for cloud run gateway
 resource "google_cloud_run_domain_mapping" "default" {
   location = google_cloud_run_service.api_gateway.location
-  name     = local.custom_domain
+  name     = local.full_domain_name
 
   metadata {
     namespace = var.google_cloud.project_id

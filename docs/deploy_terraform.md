@@ -217,6 +217,11 @@ elasticsearch:
   host: https://address.region.gcp.cloud.es.io:port <-- # the address of the elasticsearch host
   api_key: API_KEY <-- # the api key of the elasticsearch account
 
+# API settings
+api:
+  domain_name: api.observatory.academy <-- # the custom domain name for the API, used for the google cloud endpoints service
+  subdomain: project_id # can be either 'project_id' or 'environment', used to determine a prefix for the domain_name
+
 # User defined Apache Airflow variables:
 # airflow_variables:
 #   my_variable_name: my-variable-value
@@ -370,7 +375,7 @@ Terraform Cloud Workspace:
    * google_cloud: sensitive
    * cloud_sql_database: sensitive
    * elasticsearch: sensitive
-   * api: {"domain_name"="api.observatory.academy"}
+   * api: {"domain_name"="api.observatory.academy","subdomain"="project_id"}
    * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
    * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}
    * airflow_variables: {}
@@ -407,7 +412,7 @@ Terraform Cloud Workspace:
    * airflow_connections: sensitive -> sensitive
    * elasticsearch: sensitive -> sensitive
   UNCHANGED
-   * api: {"domain_name"="api.observatory.academy"}
+   * api: {"domain_name"="api.observatory.academy","subdomain"="project_id"}
    * environment: develop
    * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
    * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}

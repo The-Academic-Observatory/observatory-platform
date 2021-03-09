@@ -115,9 +115,11 @@ variable "api" {
   description = <<EOF
 Settings related to the Observatory API
 
-domain_name: The custom domain name
+domain_name: the custom domain name for the API, used for the google cloud endpoints service
+subdomain: can be either 'project_id' or 'environment', used to determine a prefix for the domain_name
 EOF
   type = object({
     domain_name = string
+    subdomain = string
   })
 }

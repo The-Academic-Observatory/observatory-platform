@@ -499,13 +499,17 @@ class Api:
 
     Attributes:
         domain_name: the custom domain name of the API
+        subdomain: the subdomain of the API, can be either based on the google project id or the environment. When
+        based on the environment, there is no subdomain for the production environment.
      """
 
     domain_name: str
+    subdomain: str
 
     def to_hcl(self):
         return to_hcl({
             'domain_name': self.domain_name,
+            'subdomain': self.subdomain
         })
 
     @staticmethod
@@ -517,7 +521,8 @@ class Api:
         """
 
         domain_name = dict_.get('domain_name')
-        return Api(domain_name)
+        subdomain = dict_.get('subdomain')
+        return Api(domain_name, subdomain)
 
 
 def customise_pointer(field, value, error):
@@ -1135,6 +1140,11 @@ def make_schema(backend_type: BackendType) -> Dict:
                 'domain_name': {
                     'required': True,
                     'type': 'string'
+                },
+                'subdomain': {
+                    'required': True,
+                    'type': 'string',
+                    'allowed': ['project_id', 'environment']
                 }
             }
         }
