@@ -63,6 +63,7 @@ def telescope_path(*subdirs) -> str:
         logging.info('telescope_path: requesting data_path variable')
         data_path = AirflowVariable.get(AirflowVars.DATA_PATH)
 
+    print(f'telescope_path: data_path={data_path}, data_path_refresh={AirflowVariable.get(AirflowVars.DATA_PATH)}')
     subdirs = [subdir.value if isinstance(subdir, Enum) else subdir for subdir in subdirs]
 
     # Create telescope path
