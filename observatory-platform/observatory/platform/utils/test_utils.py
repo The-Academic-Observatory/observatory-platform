@@ -383,7 +383,7 @@ class ObservatoryTestCase(unittest.TestCase):
         dag = dag_bag.get_dag(dag_id=dag_id)
         self.assertEqual({}, dag_bag.import_errors)
         self.assertIsNotNone(dag)
-        self.assertEqual(1, len(dag.tasks))
+        self.assertGreaterEqual(len(dag.tasks), 1)
 
     def assert_blob_integrity(self, bucket_id: str, blob_name: str, local_file_path: str):
         """ Assert whether the blob uploaded and that it has the expected hash.

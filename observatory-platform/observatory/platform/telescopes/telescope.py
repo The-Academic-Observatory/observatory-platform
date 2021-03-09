@@ -60,6 +60,7 @@ TelescopeFunction = Union[ReleaseFunction, ListReleaseFunction]
 
 
 class AbstractTelescope(ABC):
+
     @abstractmethod
     def add_setup_task(self, func: Callable):
         """ Add a setup task, which is used to run tasks before 'Release' objects are created, e.g. checking

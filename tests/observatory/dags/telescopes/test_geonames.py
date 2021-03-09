@@ -19,13 +19,13 @@ import os
 import httpretty
 import pendulum
 import vcr
-from observatory.platform.utils.tests import ObservatoryEnvironment, ObservatoryTestCase
 
 from observatory.dags.telescopes.geonames import (fetch_release_date, GeonamesRelease, first_sunday_of_month,
                                                   GeonamesTelescope)
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
-from observatory.platform.utils.template_utils import telescope_path, SubFolder
+from observatory.platform.utils.template_utils import telescope_path, SubFolder, blob_name
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
 from tests.observatory.test_utils import test_fixtures_path
 
 
@@ -40,6 +40,8 @@ class TestGeonames(ObservatoryTestCase):
         """
 
         super(TestGeonames, self).__init__(*args, **kwargs)
+        self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
+        self.data_location = os.getenv('TESTS_DATA_LOCATION')
         self.all_countries_path = test_fixtures_path('telescopes', 'geonames', 'allCountries.zip')
         self.fetch_release_date_path = test_fixtures_path('vcr_cassettes', 'geonames', 'fetch_release_date.yaml')
         self.list_releases_path = test_fixtures_path('vcr_cassettes', 'geonames', 'list_releases.yaml')
@@ -69,7 +71,8 @@ class TestGeonames(ObservatoryTestCase):
         :return: None
         """
 
-        self.assert_dag_load('geonames')
+        with ObservatoryEnvironment().create():
+            self.assert_dag_load('geonames')
 
     def test_first_sunday_of_month(self):
         """ Test first_sunday_of_month function.
@@ -106,9 +109,7 @@ class TestGeonames(ObservatoryTestCase):
         """
 
         # Setup Observatory environment
-        project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        data_location = os.getenv('TESTS_DATA_LOCATION')
-        env = ObservatoryEnvironment(project_id, data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
         dataset_id = env.add_dataset()
 
         # Setup Telescope
@@ -149,7 +150,7 @@ class TestGeonames(ObservatoryTestCase):
 
             # Test that file uploaded
             env.run_task(dag, telescope.upload_downloaded.__name__, execution_date)
-            self.assert_blob_integrity(env.download_bucket, download_file_path)
+            self.assert_blob_integrity(env.download_bucket, blob_name(download_file_path), download_file_path)
 
             # Test that file extracted
             env.run_task(dag, telescope.extract.__name__, execution_date)
@@ -165,11 +166,11 @@ class TestGeonames(ObservatoryTestCase):
 
             # Test that transformed file uploaded
             env.run_task(dag, telescope.upload_transformed.__name__, execution_date)
-            self.assert_blob_integrity(env.transform_bucket, transformed_file_path)
+            self.assert_blob_integrity(env.transform_bucket, blob_name(transformed_file_path), transformed_file_path)
 
             # Test that data loaded into BigQuery
             env.run_task(dag, telescope.bq_load.__name__, execution_date)
-            table_id = f'{project_id}.{dataset_id}.{bigquery_partitioned_table_id(telescope.dag_id, release_date)}'
+            table_id = f'{self.project_id}.{dataset_id}.{bigquery_partitioned_table_id(telescope.dag_id, release_date)}'
             expected_rows = 50
             self.assert_table_integrity(table_id, expected_rows)
 

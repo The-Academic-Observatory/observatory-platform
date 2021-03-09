@@ -142,9 +142,10 @@ class GeonamesTelescope(SnapshotTelescope):
     Saved to the BigQuery table: <project_id>.geonames.geonamesYYYYMMDD
     """
 
+    DAG_ID = 'geonames'
     DATASET_DESCRIPTION = 'The GeoNames geographical database: https://www.geonames.org/'
 
-    def __init__(self, dag_id: str = 'geonames', start_date: datetime = datetime(2020, 9, 1),
+    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 9, 1),
                  schedule_interval: str = '@weekly', dataset_id: str = 'geonames',
                  catchup: bool = False):
 
