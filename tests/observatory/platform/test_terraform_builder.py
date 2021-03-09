@@ -109,7 +109,8 @@ class TestTerraformBuilder(unittest.TestCase):
                 'api_key': 'API_KEY'
             },
             'api': {
-                'domain_name': 'api.custom.domain'
+                'domain_name': 'api.custom.domain',
+                'subdomain': 'project_id'
             }
         }
 
