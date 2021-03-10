@@ -233,11 +233,10 @@ def searchv1() -> Union[Tuple[str, int], dict]:
     return results
 
 
-def searchv2():
-    """ Example of having a different function for an upgraded version of the API.
-
-    :return:
-    """
-    results = searchv1()
-    results['version'] = 'v2'
-    return results
+# def searchv2():
+#     """ Example of having a different function for an upgraded version of the API.
+#
+#     :return:
+#     """
+#
+#     return "Hello World"

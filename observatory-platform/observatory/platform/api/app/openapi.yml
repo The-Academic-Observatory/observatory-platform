@@ -120,16 +120,16 @@ paths:
           $ref: '#/responses/UnauthorizedError'
       produces:
         - application/json
-  /v2/query:
-    get:
-      operationId: elastic.searchv2
-      tags:
-        - Query
-      summary: Perform an elasticsearch search query
-      description: Perform an elasticsearch search query
-      responses:
-        '200':
-          description: Successfully return query results
+#  /v2/query:
+#    get:
+#      operationId: app.searchv2
+#      tags:
+#        - Query
+#      summary: An example of how to create v2 of an API endpoint
+#      description: An example of how to create v2 of an API endpoint
+#      responses:
+#        '200':
+#          description: Successfully return query results
 responses:
   UnauthorizedError:
     description: API key is missing or invalid
