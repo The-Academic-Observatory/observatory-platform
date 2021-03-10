@@ -19,5 +19,5 @@
 
 from observatory.dags.telescopes.ucl_discovery import UclDiscoveryTelescope
 
-ucl_discovery = UclDiscoveryTelescope()
-globals()[ucl_discovery.dag_id] = ucl_discovery.make_dag()
+telescope = UclDiscoveryTelescope()
+globals()[telescope.dag_id] = telescope.make_dag()

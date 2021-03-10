@@ -17,8 +17,6 @@
 from __future__ import annotations
 
 import datetime
-import gzip
-import io
 import json
 import logging
 import os
@@ -31,32 +29,32 @@ from zipfile import BadZipFile, ZipFile
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars
-from observatory.platform.utils.data_utils import get_file
-from observatory.platform.utils.template_utils import upload_files_from_list
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
-from observatory.platform.utils.url_utils import retry_session
+from google.cloud.bigquery import SourceFormat
 from pendulum import Pendulum
+
+from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.data_utils import get_file
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
+from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.url_utils import retry_session
 
 
 class GridRelease(SnapshotRelease):
+
     def __init__(self, dag_id: str, article_ids: List[str], release_date: Pendulum):
         """ Construct a GridRelease.
+
         :param article_ids: the titles of the Figshare articles.
         :param release_date: the release date.
         """
-        self.dag_id = dag_id
+
         self.article_ids = article_ids
-        self.release_date = release_date
-        self.project_id = Variable.get(AirflowVars.PROJECT_ID)
-        self.data_location = Variable.get(AirflowVars.DATA_LOCATION)
-
-        download_files_regex = self.dag_id + "\.[a-zA-Z]+"
+        download_files_regex = dag_id + "\.[a-zA-Z]+"
         extract_files_regex = "grid.json"
-        transform_files_regex = f"{self.dag_id}.jsonl.gz"
+        transform_files_regex = f"{dag_id}.jsonl.gz"
 
-        super().__init__(self.dag_id, release_date, download_files_regex, extract_files_regex, transform_files_regex)
+        super().__init__(dag_id, release_date, download_files_regex, extract_files_regex, transform_files_regex)
 
     @property
     def transform_path(self) -> str:
@@ -64,6 +62,7 @@ class GridRelease(SnapshotRelease):
 
     def download(self, timeout: float = 30.) -> List[str]:
         """ Downloads an individual GRID release from Figshare.
+
         :param timeout: the timeout in seconds when calling the Figshare API.
         :return: the paths on the system of the downloaded files.
         """
@@ -96,6 +95,7 @@ class GridRelease(SnapshotRelease):
     def extract(self) -> None:
         """ Extract a single GRID release to a given extraction path. The release will be extracted into the following
         directory structure: extraction_path/file_name (without extension).
+
         If the release is a .zip file, it will be extracted, otherwise it will be copied to a directory within the
         extraction path.
         :return: None.
@@ -122,6 +122,7 @@ class GridRelease(SnapshotRelease):
 
     def transform(self) -> str:
         """ Transform an extracted GRID release .json file into json lines format and gzip the result.
+
         :return: the GRID version, the file name and the file path.
         """
 
@@ -148,9 +149,10 @@ class GridRelease(SnapshotRelease):
         return version
 
 
-def list_grid_records(start_date: Pendulum, end_date: Pendulum, grid_dataset_url: str, timeout: float = 30.) -> List[
-    dict]:
+def list_grid_records(start_date: Pendulum, end_date: Pendulum, grid_dataset_url: str, timeout: float = 30.) \
+        -> List[dict]:
     """ List all GRID records available on Figshare between two dates.
+
     :param timeout: the number of seconds to wait until timing out.
     :return: the list of GRID releases with required variables stored as a dictionary.
     """
@@ -192,29 +194,45 @@ def list_grid_records(start_date: Pendulum, end_date: Pendulum, grid_dataset_url
 
 
 class GridTelescope(SnapshotTelescope):
-    """ The Global Research Identifier Database (GRID): https://grid.ac/ """
+    """
+    The Global Research Identifier Database (GRID): https://grid.ac/
+
+    Saved to the BigQuery table: <project_id>.digital_science.gridYYYYMMDD
+    """
+
+    DAG_ID = 'grid'
     GRID_FILE_URL = "https://api.figshare.com/v2/articles/{article_id}/files"
     GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"
 
-    def __init__(self, dag_id: str = 'grid', start_date: datetime = datetime(2015, 9, 1),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'digital_science', catchup: bool = True,
-                 airflow_vars=None):
+    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2015, 9, 1),
+                 schedule_interval: str = '@weekly', dataset_id: str = 'digital_science',
+                 source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
+                 dataset_description: str = 'Datasets provided by Digital Science: https://www.digital-science.com/',
+                 catchup: bool = True, airflow_vars: List = None):
         """ Construct a GridTelescope instance.
+
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
+        :param dataset_id: the BigQuery dataset id.
+        :param source_format: the format of the data to load into BigQuery.
+        :param dataset_description: description for the BigQuery dataset.
         :param catchup: whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         """
+
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, catchup=catchup, airflow_vars=airflow_vars)
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id,
+                         source_format=source_format,
+                         dataset_description=dataset_description,
+                         catchup=catchup,
+                         airflow_vars=airflow_vars)
 
         self.add_setup_task_chain([self.check_dependencies, self.list_releases])
-        self.add_task_chain(
-            [self.download, self.upload_downloaded, self.extract, self.transform, self.upload_transformed, self.bq_load,
-             self.cleanup])
+        self.add_task_chain([self.download, self.upload_downloaded, self.extract, self.transform,
+                             self.upload_transformed, self.bq_load, self.cleanup])
 
     def make_release(self, **kwargs) -> List[GridRelease]:
         """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
@@ -225,6 +243,7 @@ class GridTelescope(SnapshotTelescope):
         passed to this argument.
         :return: A list of grid release instances
         """
+
         ti: TaskInstance = kwargs['ti']
         records = ti.xcom_pull(key=GridTelescope.RELEASE_INFO, task_ids=self.list_releases.__name__,
                                include_prior_dates=False)
@@ -239,6 +258,7 @@ class GridTelescope(SnapshotTelescope):
     def list_releases(self, **kwargs):
         """ Lists all GRID releases for a given month and publishes their article_id's and
         release_date's as an XCom.
+
         :param kwargs: the context passed from the BranchPythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
@@ -259,36 +279,44 @@ class GridTelescope(SnapshotTelescope):
 
     def download(self, releases: List[GridRelease], **kwargs):
         """ Task to download the GRID releases for a given month.
+
         :param releases: a list of GRID releases.
         :return: None.
         """
+
         # Download each release
         for release in releases:
             release.download()
 
     def upload_downloaded(self, releases: List[GridRelease], **kwargs):
         """ Task to upload the downloaded GRID releases for a given month.
+
         :param releases: a list of GRID releases.
         :return: None.
         """
+
         # Upload each downloaded release
         for release in releases:
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def extract(self, releases: List[GridRelease], **kwargs):
         """ Task to extract the GRID releases for a given month.
+
         :param releases: a list of GRID releases.
         :return: None.
         """
+
         # Extract each release
         for release in releases:
             release.extract()
 
     def transform(self, releases: List[GridRelease], **kwargs):
         """ Task to transform the GRID releases for a given month.
+
         :param releases: a list of GRID releases.
         :return: None.
         """
+
         # Transform each release
         for release in releases:
             release.transform()

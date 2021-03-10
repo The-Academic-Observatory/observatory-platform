@@ -91,7 +91,7 @@ from google.cloud.exceptions import NotFound
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash, gzip_file_crc, _hash_file
-from observatory.platform.utils.template_utils import blob_name
+from observatory.platform.utils.template_utils import reset_variables
 
 
 def random_id():
@@ -273,6 +273,9 @@ class ObservatoryEnvironment:
         :yield: Observatory environment temporary directory.
         """
 
+        # Reset Airflow variables
+        reset_variables()
+
         # Make temporary directory
         cwd = os.getcwd()
         self.temp_dir = tempfile.mkdtemp()
@@ -383,7 +386,7 @@ class ObservatoryTestCase(unittest.TestCase):
         dag = dag_bag.get_dag(dag_id=dag_id)
         self.assertEqual({}, dag_bag.import_errors)
         self.assertIsNotNone(dag)
-        self.assertEqual(1, len(dag.tasks))
+        self.assertGreaterEqual(len(dag.tasks), 1)
 
     def assert_blob_integrity(self, bucket_id: str, blob_name: str, local_file_path: str):
         """ Assert whether the blob uploaded and that it has the expected hash.
