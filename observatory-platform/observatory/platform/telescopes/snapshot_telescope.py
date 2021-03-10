@@ -59,9 +59,9 @@ class SnapshotTelescope(Telescope):
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
-        :param source_format: the prefix used to find the schema path
-        :param schema_prefix: the prefix used to find the schema path
-        :param schema_version: the version used to find the schema path
+        :param source_format: the format of the data to load into BigQuery.
+        :param schema_prefix: the prefix used to find the schema path.
+        :param schema_version: the version used to find the schema path.
         :param dataset_description: description for the BigQuery dataset.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
