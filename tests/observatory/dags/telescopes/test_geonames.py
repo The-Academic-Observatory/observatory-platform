@@ -19,6 +19,7 @@ import os
 import httpretty
 import pendulum
 import vcr
+from pendulum import Pendulum
 
 from observatory.dags.telescopes.geonames import (fetch_release_date, GeonamesRelease, first_sunday_of_month,
                                                   GeonamesTelescope)
@@ -133,11 +134,11 @@ class TestGeonames(ObservatoryTestCase):
             with vcr.use_cassette(self.list_releases_path):
                 ti = env.run_task(dag, telescope.fetch_release_date.__name__, execution_date)
 
-            release_dates = ti.xcom_pull(key=GeonamesTelescope.RELEASE_INFO,
-                                         task_ids=telescope.fetch_release_date.__name__,
-                                         include_prior_dates=False)
-            self.assertEqual(1, len(release_dates))
-            self.assertEqual(release_date, release_dates[0])
+            pulled_release_date = ti.xcom_pull(key=GeonamesTelescope.RELEASE_INFO,
+                                               task_ids=telescope.fetch_release_date.__name__,
+                                               include_prior_dates=False)
+            self.assertIsInstance(pulled_release_date, Pendulum)
+            self.assertEqual(release_date, pulled_release_date)
 
             # Test download task
             with httpretty.enabled():
