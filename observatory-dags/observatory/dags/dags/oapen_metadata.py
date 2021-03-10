@@ -19,5 +19,5 @@
 
 from observatory.dags.telescopes.oapen_metadata import OapenMetadataTelescope
 
-oapen_metadata = OapenMetadataTelescope()
-globals()[oapen_metadata.dag_id] = oapen_metadata.make_dag()
+telescope = OapenMetadataTelescope()
+globals()[telescope.dag_id] = telescope.make_dag()

@@ -61,6 +61,7 @@ class StreamTelescope(Telescope):
                  queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1, schema_prefix: str = '',
                  schema_version: str = None, airflow_vars: list = None, airflow_conns: list = None):
         """ Construct a StreamTelescope instance.
+
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
@@ -77,15 +78,18 @@ class StreamTelescope(Telescope):
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         """
-        super().__init__(dag_id, start_date, schedule_interval, catchup, queue, max_retries, max_active_runs,
-                         schema_prefix, schema_version, airflow_vars, airflow_conns)
 
-        self.dataset_id = dataset_id
         # Set transform_bucket_name as required airflow variable
         if not airflow_vars:
             airflow_vars = []
-        self.airflow_vars = list(set([AirflowVars.TRANSFORM_BUCKET] + airflow_vars))
+        airflow_vars = list(set([AirflowVars.TRANSFORM_BUCKET] + airflow_vars))
 
+        super().__init__(dag_id, start_date, schedule_interval, catchup=catchup, queue=queue, max_retries=max_retries,
+                         max_active_runs=max_active_runs, airflow_vars=airflow_vars, airflow_conns=airflow_conns)
+
+        self.schema_prefix = schema_prefix
+        self.schema_version = schema_version
+        self.dataset_id = dataset_id
         self.merge_partition_field = merge_partition_field
         self.updated_date_field = updated_date_field
         self.bq_merge_days = bq_merge_days
