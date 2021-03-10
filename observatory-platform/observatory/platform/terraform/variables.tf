@@ -1,4 +1,3 @@
-
 variable "environment" {
   description = "The environment type: develop, staging or production."
   type = string
@@ -97,4 +96,30 @@ variable "airflow_variables" {
 variable "airflow_connections" {
   description = "User defined Apache Airflow connections"
   type = map(string)
+}
+
+variable "elasticsearch" {
+    description = <<EOF
+Elasticsearch login information
+
+api_key: The elasticsearch api-key
+host: The address of the elasticsearch server
+EOF
+  type = object({
+    api_key = string
+    host = string
+  })
+}
+
+variable "api" {
+  description = <<EOF
+Settings related to the Observatory API
+
+domain_name: the custom domain name for the API, used for the google cloud endpoints service
+subdomain: can be either 'project_id' or 'environment', used to determine a prefix for the domain_name
+EOF
+  type = object({
+    domain_name = string
+    subdomain = string
+  })
 }

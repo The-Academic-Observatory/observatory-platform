@@ -14,6 +14,7 @@ Tutorials
     installation
     observatory_dev
     deploy_terraform
+    api
     license
 
 Telescopes

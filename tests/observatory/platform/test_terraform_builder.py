@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
 import os
+import subprocess
 import unittest
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -23,7 +24,7 @@ from click.testing import CliRunner
 
 from observatory.platform.observatory_config import save_yaml
 from observatory.platform.terraform_builder import TerraformBuilder
-
+from observatory.platform.utils.proc_utils import stream_process
 
 class Popen(Mock):
     def __init__(self, **kwargs):
@@ -43,12 +44,14 @@ class TestTerraformBuilder(unittest.TestCase):
         # Make directories
         self.config_path = os.path.abspath('config.yaml')
         self.build_path = os.path.join(os.path.abspath('build'), 'terraform')
+        self.terraform_build_path = os.path.join(self.build_path, 'terraform')
         self.dags_path = os.path.abspath('dags')
         self.data_path = os.path.abspath('data')
         self.logs_path = os.path.abspath('logs')
         self.postgres_path = os.path.abspath('postgres')
 
         os.makedirs(self.build_path, exist_ok=True)
+        os.makedirs(self.terraform_build_path, exist_ok=True)
         os.makedirs(self.dags_path, exist_ok=True)
         os.makedirs(self.data_path, exist_ok=True)
         os.makedirs(self.logs_path, exist_ok=True)
@@ -104,6 +107,14 @@ class TestTerraformBuilder(unittest.TestCase):
             },
             'airflow_connections': {
                 'my-connection': 'http://:my-token-key@'
+            },
+            'elasticsearch': {
+                'host': 'https://address.region.gcp.cloud.es.io:port',
+                'api_key': 'API_KEY'
+            },
+            'api': {
+                'domain_name': 'api.custom.domain',
+                'subdomain': 'project_id'
             }
         }
 
@@ -190,3 +201,76 @@ class TestTerraformBuilder(unittest.TestCase):
             # Assert that the image built
             expected_return_code = 0
             self.assertEqual(expected_return_code, return_code)
+
+    @patch('subprocess.Popen')
+    @patch('observatory.platform.terraform_builder.stream_process')
+    def test_gcloud_activate_service_account(self, mock_stream_process, mock_subprocess):
+        """ Test activating the gcloud service account """
+
+        # Check that the environment variables are set properly for the default config
+        with CliRunner().isolated_filesystem():
+            mock_subprocess.return_value = Popen()
+            mock_stream_process.return_value = ('', '')
+
+            self.set_dirs()
+
+            # Save default config file
+            self.save_terraform_config(self.config_path)
+
+            # Make observatory files
+            cmd = self.make_terraform_builder()
+
+            # Activate the service account
+            output, error, return_code = cmd.gcloud_activate_service_account()
+
+            # Assert that account was activated
+            expected_return_code = 0
+            self.assertEqual(expected_return_code, return_code)
+
+    @patch('subprocess.Popen')
+    @patch('observatory.platform.terraform_builder.stream_process')
+    def test_gcloud_builds_submit(self, mock_stream_process, mock_subprocess):
+        """ Test gcloud builds submit command """
+
+        # Check that the environment variables are set properly for the default config
+        with CliRunner().isolated_filesystem():
+            mock_subprocess.return_value = Popen()
+            mock_stream_process.return_value = ('', '')
+
+            self.set_dirs()
+
+            # Save default config file
+            self.save_terraform_config(self.config_path)
+
+            # Make observatory files
+            cmd = self.make_terraform_builder()
+
+            # Build the image
+            output, error, return_code = cmd.gcloud_builds_submit()
+
+            # Assert that the image built
+            expected_return_code = 0
+            self.assertEqual(expected_return_code, return_code)
+
+    def test_build_api_image(self):
+        """ Test building API image using Docker """
+
+        # Check that the environment variables are set properly for the default config
+        with CliRunner().isolated_filesystem():
+            self.set_dirs()
+
+            # Save default config file
+            self.save_terraform_config(self.config_path)
+
+            # Make observatory files
+            cmd = self.make_terraform_builder()
+
+            args = ['docker', 'build', '.']
+            print('Executing subprocess:')
+
+            proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cmd.api_path)
+            output, error = stream_process(proc, True)
+
+            # Assert that the image built
+            expected_return_code = 0
+            self.assertEqual(expected_return_code, proc.returncode)
