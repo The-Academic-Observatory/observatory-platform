@@ -20,11 +20,12 @@ import csv
 import logging
 import os
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, List
 
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
+
 from observatory.platform.telescopes.stream_telescope import (StreamRelease, StreamTelescope)
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.telescope_utils import convert, list_to_jsonl_gz
@@ -107,7 +108,7 @@ class OapenMetadataTelescope(StreamTelescope):
     def __init__(self, dag_id: str = 'oapen_metadata', start_date: datetime = datetime(2018, 5, 14),
                  schedule_interval: str = '@weekly', dataset_id: str = 'oapen', merge_partition_field: str = 'id',
                  updated_date_field: str = 'dc.date.available', bq_merge_days: int = 7, schema_prefix: str =
-                 'oapen_'):
+                 'oapen_', airflow_vars: List = None):
         """ Construct a OapenMetadataTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -121,8 +122,9 @@ class OapenMetadataTelescope(StreamTelescope):
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         """
 
-        airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                        AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+        if airflow_vars is None:
+            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
                          updated_date_field, bq_merge_days, schema_prefix=schema_prefix, airflow_vars=airflow_vars)
 

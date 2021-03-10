@@ -22,7 +22,7 @@ import logging
 import os
 import shutil
 from datetime import datetime
-from typing import List
+from typing import Dict, List
 from zipfile import ZipFile
 
 import pendulum
@@ -143,19 +143,38 @@ class GeonamesTelescope(SnapshotTelescope):
     """
 
     DAG_ID = 'geonames'
-    DATASET_DESCRIPTION = 'The GeoNames geographical database: https://www.geonames.org/'
 
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 9, 1),
                  schedule_interval: str = '@weekly', dataset_id: str = 'geonames',
-                 catchup: bool = False):
+                 source_format: str = SourceFormat.CSV,
+                 dataset_description: str = 'The GeoNames geographical database: https://www.geonames.org/',
+                 load_bigquery_table_kwargs: Dict = None, catchup: bool = False, airflow_vars: List = None):
 
-        airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                        AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+        """ The Geonames telescope.
+
+        :param dag_id: the id of the DAG.
+        :param start_date: the start date of the DAG.
+        :param schedule_interval: the schedule interval of the DAG.
+        :param dataset_id: the BigQuery dataset id.
+        :param source_format: the format of the data to load into BigQuery.
+        :param dataset_description: description for the BigQuery dataset.
+        :param load_bigquery_table_kwargs: the customisation parameters for loading data into BigQuery.
+        :param catchup:  whether to catchup the DAG or not.
+        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
+        """
+
+        if load_bigquery_table_kwargs is None:
+            load_bigquery_table_kwargs = {'csv_field_delimiter': '\t', 'csv_quote_character': ''}
+
+        if airflow_vars is None:
+            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id,
-                         source_format=SourceFormat.CSV,
-                         dataset_description=self.DATASET_DESCRIPTION,
-                         load_bigquery_table_kwargs={'csv_field_delimiter': '\t', 'csv_quote_character': ''},
-                         catchup=catchup, airflow_vars=airflow_vars)
+                         source_format=source_format,
+                         dataset_description=dataset_description,
+                         load_bigquery_table_kwargs=load_bigquery_table_kwargs,
+                         catchup=catchup,
+                         airflow_vars=airflow_vars)
         self.add_setup_task(self.check_dependencies)
         self.add_setup_task(self.fetch_release_date)
         self.add_task(self.download)

@@ -203,25 +203,32 @@ class GridTelescope(SnapshotTelescope):
     DAG_ID = 'grid'
     GRID_FILE_URL = "https://api.figshare.com/v2/articles/{article_id}/files"
     GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"
-    DATASET_DESCRIPTION = 'Datasets provided by Digital Science: https://www.digital-science.com/'
 
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2015, 9, 1),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'digital_science', catchup: bool = True):
+                 schedule_interval: str = '@weekly', dataset_id: str = 'digital_science',
+                 source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
+                 dataset_description: str = 'Datasets provided by Digital Science: https://www.digital-science.com/',
+                 catchup: bool = True, airflow_vars: List = None):
         """ Construct a GridTelescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
+        :param dataset_id: the BigQuery dataset id.
+        :param source_format: the format of the data to load into BigQuery.
+        :param dataset_description: description for the BigQuery dataset.
         :param catchup: whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         """
 
-        airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                        AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+        if airflow_vars is None:
+            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id,
-                         source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-                         dataset_description=self.DATASET_DESCRIPTION,
-                         catchup=catchup, airflow_vars=airflow_vars)
+                         source_format=source_format,
+                         dataset_description=dataset_description,
+                         catchup=catchup,
+                         airflow_vars=airflow_vars)
 
         self.add_setup_task_chain([self.check_dependencies, self.list_releases])
         self.add_task_chain([self.download, self.upload_downloaded, self.extract, self.transform,

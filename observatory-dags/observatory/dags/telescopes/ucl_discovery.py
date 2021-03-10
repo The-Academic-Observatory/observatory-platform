@@ -240,6 +240,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the name of the dataset in BigQuery.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
+        :param max_active_runs: the maximum number of DAG runs to execute in parallel.
         """
 
         if airflow_vars is None:
