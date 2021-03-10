@@ -51,6 +51,7 @@ class TerraformBuilder:
         self.build_path = build_path
         self.package_path = module_file_path('observatory.platform', nav_back_steps=-3)
         self.terraform_path = module_file_path('observatory.platform.terraform')
+        self.api_path = module_file_path('observatory.platform.api')
         self.packages_build_path = os.path.join(build_path, 'packages')
         self.terraform_build_path = os.path.join(build_path, 'terraform')
         self.platform_builder = PlatformBuilder(config_path, build_path=build_path, backend_type=self.backend_type)
@@ -78,12 +79,21 @@ class TerraformBuilder:
 
     @property
     def packer_exe_path(self) -> str:
-        """ The path to the Docker executable.
+        """ The path to the Packer executable.
 
         :return: the path or None.
         """
 
         return shutil.which("packer")
+
+    @property
+    def gcloud_exe_path(self) -> str:
+        """ The path to the Google Cloud SDK executable.
+
+        :return: the path or None.
+        """
+
+        return shutil.which("gcloud")
 
     def make_files(self):
         ignore = shutil.ignore_patterns('__pycache__', '*.eggs', '*.egg-info')
@@ -152,14 +162,55 @@ class TerraformBuilder:
             print(indent(f'Command: {subprocess.list2cmdline(args)}', INDENT1))
             print(indent(f'Cwd: {self.terraform_build_path}', INDENT1))
 
-        proc: Popen = subprocess.Popen(args,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE,
+        proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                        cwd=self.terraform_build_path)
 
         # Wait for results
         # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
         # image building is
         output, error = stream_process(proc, True)
+        return output, error, proc.returncode
 
+    def gcloud_activate_service_account(self) -> Tuple[str, str, int]:
+        args = ['gcloud', 'auth', 'activate-service-account', '--key-file', self.config.google_cloud.credentials]
+
+        if self.debug:
+            print('Executing subprocess:')
+            print(indent(f'Command: {subprocess.list2cmdline(args)}', INDENT1))
+            print(indent(f'Cwd: {self.api_path}', INDENT1))
+
+        proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       cwd=self.api_path)
+
+        # Wait for results
+        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
+        # image building is
+        output, error = stream_process(proc, True)
+        return output, error, proc.returncode
+
+    def gcloud_builds_submit(self) -> Tuple[str, str, int]:
+        # Build the google container image
+        project_id = self.config.google_cloud.project_id
+        # --gcs-logs-dir is specified to avoid storage.objects.get access error, see:
+        # https://github.com/google-github-actions/setup-gcloud/issues/105
+        # the _cloudbuild bucket is created already to store the build image
+        args = ['gcloud', 'builds', 'submit', '--tag', f'gcr.io/'
+                                                       f'{project_id}/observatory-api',
+                '--project', project_id, '--gcs-log-dir', f'gs://{project_id}_cloudbuild/logs']
+        if self.debug:
+            print('Executing subprocess:')
+            print(indent(f'Command: {subprocess.list2cmdline(args)}', INDENT1))
+            print(indent(f'Cwd: {self.api_path}', INDENT1))
+
+        proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       cwd=self.api_path)
+
+        # Wait for results
+        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
+        # image building is
+        output, error = stream_process(proc, True)
+
+        info_filepath = os.path.join(self.terraform_build_path, 'api_image_build.txt')
+        with open(info_filepath, 'w') as f:
+            f.writelines(line + '\n' for line in output.splitlines()[-2:])
         return output, error, proc.returncode

@@ -257,6 +257,14 @@ class TestTerraformConfig(unittest.TestCase):
                     'disk_size': 1,
                     'disk_type': 'pd-standard',
                     'create': False
+                },
+                'elasticsearch': {
+                    'host': 'https://address.region.gcp.cloud.es.io:port',
+                    'api_key': 'API_KEY'
+                },
+                'api': {
+                    'domain_name': 'api.custom.domain',
+                    'subdomain': 'project_id'
                 }
             }
 
@@ -327,7 +335,15 @@ class TestTerraformConfig(unittest.TestCase):
                         'path': '/path/to/dags/project',
                         'dags_module': 'observatory.dags.dags'
                     }
-                ]
+                ],
+                'elasticsearch': {
+                    'host': 'https://address.region.gcp.cloud.es.io:port',
+                    'api_key': 'API_KEY'
+                },
+                'api': {
+                    'domain_name': 'api.custom.domain',
+                    'subdomain': 'project_id'
+                }
             }
 
             save_yaml(file_path, dict_)

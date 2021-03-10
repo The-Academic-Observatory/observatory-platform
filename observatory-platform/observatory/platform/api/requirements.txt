@@ -1,0 +1,4 @@
+gunicorn
+flask
+connexion[swagger-ui]
+elasticsearch
