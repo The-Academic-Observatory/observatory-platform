@@ -460,6 +460,5 @@ def terraform_check_dependencies(terraform_cmd: TerraformCommand,
         exit(os.EX_CONFIG)
 
 
-
 if __name__ == "__main__":
     cli()

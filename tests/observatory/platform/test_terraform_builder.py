@@ -26,6 +26,7 @@ from observatory.platform.observatory_config import save_yaml
 from observatory.platform.terraform_builder import TerraformBuilder
 from observatory.platform.utils.proc_utils import stream_process
 
+
 class Popen(Mock):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -268,7 +269,7 @@ class TestTerraformBuilder(unittest.TestCase):
             args = ['docker', 'build', '.']
             print('Executing subprocess:')
 
-            proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cmd.api_path)
+            proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cmd.api_package_path)
             output, error = stream_process(proc, True)
 
             # Assert that the image built

@@ -67,7 +67,7 @@ resource "google_project_service" "compute_engine" {
 
 resource "google_project_service" "services" {
   for_each = toset(["storagetransfer.googleapis.com", "iam.googleapis.com", "servicenetworking.googleapis.com",
-"sqladmin.googleapis.com", "secretmanager.googleapis.com"])
+                    "sqladmin.googleapis.com", "secretmanager.googleapis.com"])
   project = var.google_cloud.project_id
   service = each.key
   disable_dependent_services = true
@@ -405,6 +405,7 @@ resource "google_sql_database_instance" "observatory_db_instance" {
   }
 }
 
+// Airflow Database
 resource "google_sql_database" "airflow_db" {
   name = "airflow"
   depends_on = [google_sql_database_instance.observatory_db_instance]
@@ -412,9 +413,16 @@ resource "google_sql_database" "airflow_db" {
 }
 
 resource "google_sql_user" "users" {
-  name = "airflow"
+  name = "observatory"
   instance = google_sql_database_instance.observatory_db_instance.name
   password = var.cloud_sql_database.postgres_password
+}
+
+// Observatory Platform Database
+resource "google_sql_database" "observatory_db" {
+  name = "observatory"
+  depends_on = [google_sql_database_instance.observatory_db_instance]
+  instance = google_sql_database_instance.observatory_db_instance.name
 }
 
 ########################################################################################################################

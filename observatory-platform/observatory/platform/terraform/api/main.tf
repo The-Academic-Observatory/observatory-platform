@@ -1,6 +1,7 @@
 ########################################################################################################################
 # Enable API services
 ########################################################################################################################
+
 resource "google_project_service" "servicemanagement" {
   project = var.google_cloud.project_id
   service = "servicemanagement.googleapis.com"
@@ -30,6 +31,7 @@ resource "google_project_service" "api-project-service" {
 ########################################################################################################################
 # Cloud Run backend for API
 ########################################################################################################################
+
 resource "google_service_account" "api-backend_service_account" {
   account_id   = "api-backend"
   display_name = "Cloud Run backend Service Account"
@@ -69,6 +71,10 @@ resource "google_cloud_run_service" "api_backend" {
           name = "ES_HOST"
           value = "sm://${var.google_cloud.project_id}/elasticsearch-host"
         }
+        env {
+          name = "OBSERVATORY_DB_URI"
+          value = "sm://${var.google_cloud.project_id}/observatory-db-uri"
+        }
       }
       service_account_name = google_service_account.api-backend_service_account.email
     }
@@ -81,7 +87,7 @@ resource "google_cloud_run_service" "api_backend" {
   }
 
   traffic {
-    percent         = 100
+    percent = 100
     latest_revision = true
   }
   depends_on = [module.elasticsearch-logins]
@@ -90,6 +96,7 @@ resource "google_cloud_run_service" "api_backend" {
 ########################################################################################################################
 # Endpoints service
 ########################################################################################################################
+
 locals {
   # Use the project id as a subdomain for a project that will not host the final production API. The endpoint service/domain name is
   # unique and can only be used in 1 project. Once it is created in one project, it can't be fully deleted for 30 days.
@@ -102,15 +109,9 @@ locals {
 resource "google_endpoints_service" "api" {
   project = var.google_cloud.project_id
   service_name = local.full_domain_name
-  openapi_config = templatefile("./openapi_endpoint.yml", {
+  openapi_config = templatefile("./openapi.yaml.tpl", {
     host = local.full_domain_name
-    backend_address = google_cloud_run_service.api_backend.status[0].url,
-    query_parameters = ["id", "name", "published_year", "coordinates", "country", "country_code", "region",
-                               "subregion", "access_type", "label", "status", "collaborator_coordinates",
-                               "collaborator_country", "collaborator_country_code", "collaborator_id",
-                               "collaborator_name", "collaborator_region", "collaborator_subregion", "field", "source",
-                               "funder_country_code", "funder_name", "funder_sub_type", "funder_type", "journal",
-                               "output_type", "publisher"]
+    backend_address = google_cloud_run_service.api_backend.status[0].url
   })
 }
 
@@ -128,20 +129,20 @@ resource "google_service_account" "api-gateway_service_account" {
 # Give permission to Cloud Run gateway service-account to access private Cloud Run backend
 resource "google_project_iam_member" "api-gateway_service_account_cloudrun_iam" {
   project = var.google_cloud.project_id
-  role    = "roles/run.invoker"
-  member  = "serviceAccount:${google_service_account.api-gateway_service_account.email}"
+  role = "roles/run.invoker"
+  member = "serviceAccount:${google_service_account.api-gateway_service_account.email}"
 }
 
 # Give permission to Cloud Run gateway service-account to control service management
 resource "google_project_iam_member" "api-gateway_service_account_servicecontroller_iam" {
   project = var.google_cloud.project_id
-  role    = "roles/servicemanagement.serviceController"
-  member  = "serviceAccount:${google_service_account.api-gateway_service_account.email}"
+  role = "roles/servicemanagement.serviceController"
+  member = "serviceAccount:${google_service_account.api-gateway_service_account.email}"
 }
 
 # Create/update Cloud Run service
 resource "google_cloud_run_service" "api_gateway" {
-  name     = "api-gateway"
+  name = "api-gateway"
   location = var.google_cloud.region
   project = var.google_cloud.project_id
   template {
@@ -162,7 +163,7 @@ resource "google_cloud_run_service" "api_gateway" {
 # Create custom domain mapping for cloud run gateway
 resource "google_cloud_run_domain_mapping" "default" {
   location = google_cloud_run_service.api_gateway.location
-  name     = local.full_domain_name
+  name = local.full_domain_name
 
   metadata {
     namespace = var.google_cloud.project_id
@@ -185,8 +186,8 @@ data "google_iam_policy" "noauth" {
 
 # Enable public access policy on gateway (access is restricted with API key by openapi config)
 resource "google_cloud_run_service_iam_policy" "noauth-endpoints" {
-  location    = google_cloud_run_service.api_gateway.location
-  project     = google_cloud_run_service.api_gateway.project
-  service     = google_cloud_run_service.api_gateway.name
+  location = google_cloud_run_service.api_gateway.location
+  project = google_cloud_run_service.api_gateway.project
+  service = google_cloud_run_service.api_gateway.name
   policy_data = data.google_iam_policy.noauth.policy_data
 }
