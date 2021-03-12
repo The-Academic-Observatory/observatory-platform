@@ -57,8 +57,7 @@ def initialize_sftp_connection() -> pysftp.Connection:
     password = sftp_service_conn.password
 
     # add public host key
-    extra = sftp_service_conn.get_extra()
-    public_key = json.loads(extra)['host_key']
+    public_key = sftp_service_conn.extra_dejson['host_key']
     key = paramiko.RSAKey(data=b64decode(public_key))
     cnopts = pysftp.CnOpts()
     cnopts.hostkeys.add(host, 'ssh-rsa', key)
