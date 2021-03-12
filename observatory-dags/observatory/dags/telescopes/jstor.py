@@ -16,47 +16,24 @@
 
 from __future__ import annotations
 
+import csv
 import datetime
-import json
-import logging
 import os
+import os.path
 import re
+from collections import OrderedDict, defaultdict
 from datetime import datetime
-from shutil import copyfile
-from typing import Dict, List
-from zipfile import BadZipFile, ZipFile
+from typing import List
 
 import pendulum
-from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-from airflow.hooks.base_hook import BaseHook
 from google.cloud.bigquery import SourceFormat
+from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
+from observatory.platform.utils.telescope_utils import convert, initialize_sftp_connection, list_to_jsonl_gz
+from observatory.platform.utils.template_utils import upload_files_from_list
 from pendulum import Pendulum
 
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
-from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
-from observatory.platform.utils.data_utils import get_file
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
-from observatory.platform.utils.template_utils import upload_files_from_list
-from observatory.platform.utils.url_utils import retry_session
-
-import os.path
-from googleapiclient.discovery import build, Resource
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-import base64
-from bs4 import BeautifulSoup, SoupStrainer
-import csv
-from typing import Tuple
-from observatory.platform.utils.url_utils import get_ao_user_agent
-from selenium import webdriver
-from observatory.platform.utils.url_utils import get_ao_user_agent
-import chromedriver_binary # Adds chromedriver binary to path
-import shutil
-from http_request_randomizer.requests.proxy.requestProxy import RequestProxy
-import requests
-import time
 
 class JstorRelease(SnapshotRelease):
 
@@ -148,6 +125,9 @@ class JstorRelease(SnapshotRelease):
             results = []
             with open(file) as tsv_file:
                 csv_reader = csv.DictReader(tsv_file, delimiter='\t')
+                for row in csv_reader:
+                    transformed_row = OrderedDict((convert(k), v) for k, v in row.items())
+                    results.append(transformed_row)
 
             report_type = 'country' if 'country' in file else 'institution'
             list_to_jsonl_gz(self.transform_path(report_type), results)
@@ -250,8 +230,7 @@ class JstorTelescope(SnapshotTelescope):
 
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2015, 9, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'jstor',
-                 source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
-                 dataset_description: str = '',
+                 source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON, dataset_description: str = '',
                  catchup: bool = True, airflow_vars: List = None, airflow_conns: List = None):
         """ Construct a JstorTelescope instance.
 
