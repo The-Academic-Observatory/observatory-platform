@@ -33,7 +33,7 @@ from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease
 
 
 class TestJstor(ObservatoryTestCase):
-    """ Tests for the Geonames telescope """
+    """ Tests for the Jstor telescope """
 
     def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
@@ -45,13 +45,15 @@ class TestJstor(ObservatoryTestCase):
         super(TestJstor, self).__init__(*args, **kwargs)
         self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
         self.data_location = os.getenv('TESTS_DATA_LOCATION')
-        # self.all_countries_path = test_fixtures_path('telescopes', 'geonames', 'allCountries.zip')
-        # self.fetch_release_date_path = test_fixtures_path('vcr_cassettes', 'geonames', 'fetch_release_date.yaml')
+        self.list_releases_path = test_fixtures_path('vcr_cassettes', 'jstor', 'list_releases.yaml')
         self.list_releases_path1 = test_fixtures_path('vcr_cassettes', 'jstor', 'list_releases1.yaml')
         self.list_releases_path2 = test_fixtures_path('vcr_cassettes', 'jstor', 'list_releases2.yaml')
 
+    def download_path(self, report_type: str) -> str:
+        return test_fixtures_path('telescopes', 'jstor', f'{report_type}.tsv')
+
     def test_dag_structure(self):
-        """ Test that the Geonames DAG has the correct structure.
+        """ Test that the Jstor DAG has the correct structure.
 
         :return: None
         """
@@ -69,7 +71,7 @@ class TestJstor(ObservatoryTestCase):
         }, dag)
 
     def test_dag_load(self):
-        """ Test that the Geonames DAG can be loaded from a DAG bag.
+        """ Test that the Jstor DAG can be loaded from a DAG bag.
 
         :return: None
         """
@@ -78,7 +80,7 @@ class TestJstor(ObservatoryTestCase):
             self.assert_dag_load('jstor')
 
     def test_telescope(self):
-        """ Test the Geonames telescope end to end.
+        """ Test the Jstor telescope end to end.
 
         :return: None.
         """
@@ -96,7 +98,8 @@ class TestJstor(ObservatoryTestCase):
         with env.create():
             # add gmail connection
             conn = Connection(conn_id=AirflowConns.GMAIL_API)
-            conn.parse_from_uri('google-cloud-platform://?extra__google_cloud_platform__keyfile_dict=token')
+            conn.parse_from_uri('gcp://login:passwd@host/extra?credentials=credentials'
+)
             env.add_connection(conn)
 
             # Release settings
@@ -112,24 +115,29 @@ class TestJstor(ObservatoryTestCase):
             env.run_task(dag, telescope.check_dependencies.__name__, execution_date)
 
             # Test list releases task
-            with vcr.use_cassette(self.list_releases_path1):
-                with vcr.use_cassette(self.list_releases_path2):
-                    ti = env.run_task(dag, telescope.list_releases.__name__, execution_date)
+            with vcr.use_cassette(self.list_releases_path):
+                ti = env.run_task(dag, telescope.list_releases.__name__, execution_date)
 
             pulled_list_releases = ti.xcom_pull(key=JstorTelescope.RELEASE_INFO,
-                                               task_ids=telescope.list_releases.__name__,
-                                               include_prior_dates=False)
-            self.assertIsInstance(pulled_list_releases, list)
-            for release_date in pulled_list_releases:
+                                                task_ids=telescope.list_releases.__name__, include_prior_dates=False)
+            self.assertIsInstance(pulled_list_releases, dict)
+            for release_date, reports_info in pulled_list_releases.items():
                 self.assertIsInstance(release_date, Pendulum)
-                release_info = pulled_list_releases[release_date]
-                self.assertIn(release_info['type'], ['country', 'institution'])
-                self.assertTrue(release_info['url'].startswith('https://www.jstor.org/admin/reports/download/'))
+                for report in reports_info:
+                    self.assertIn(report['type'], ['country', 'institution'])
+                    self.assertTrue(report['url'].startswith('https://www.jstor.org/admin/reports/download/'))
+                    self.assertIsInstance(report['id'], str)
 
             # Test download task
-            with httpretty.enabled():
-                # self.setup_mock_file_download(GeonamesRelease.DOWNLOAD_URL, self.all_countries_path)
-                env.run_task(dag, telescope.download.__name__, execution_date)
+            env.run_task(dag, telescope.download.__name__, execution_date)
+
+            # with httpretty.enabled():
+            #     for release_date, reports_info in pulled_list_releases.items():
+            #         for report in reports_info:
+            #             url = report['url']
+            #             report_type = report['type']
+            #             self.setup_mock_file_download(url, self.download_path(report_type))
+            #             env.run_task(dag, telescope.download.__name__, execution_date)
 
             # download_file_path = os.path.join(download_folder, f'{telescope.dag_id}.zip')
             # expected_file_hash = _hash_file(self.all_countries_path, algorithm='md5')
