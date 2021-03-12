@@ -37,5 +37,4 @@ RUN pip3 install /observatory-api
 COPY --from=gcr.io/berglas/berglas:latest /bin/berglas /bin/berglas
 
 # Run app
-ENTRYPOINT ["/bin/berglas", "exec",  "--",  "gunicorn", "-b", "0.0.0.0:8080", "observatory.api.app:app"]
-
+ENTRYPOINT ["/bin/berglas", "exec",  "--", "gunicorn", "-b", "0.0.0.0:8080", "--timeout", "0", "observatory.api.app:app"]

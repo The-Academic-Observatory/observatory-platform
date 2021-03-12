@@ -1,6 +1,7 @@
 ########################################################################################################################
 # Configure Google Cloud Provider
 ########################################################################################################################
+
 terraform {
   backend "remote" {
     workspaces {
@@ -287,13 +288,18 @@ resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observat
 # Observatory Platform VPC Network
 ########################################################################################################################
 
+locals {
+  network_name =  "ao-network"
+  vpc_connector_name = "observatory-vpc-connector"
+}
+
 resource "google_compute_network" "observatory_network" {
-  name = "ao-network"
+  name = local.network_name
   depends_on = [google_project_service.compute_engine]
 }
 
 data "google_compute_subnetwork" "observatory_subnetwork" {
-  name = "ao-network"
+  name =  local.network_name
   depends_on = [google_compute_network.observatory_network] # necessary to force reading of data
 }
 
@@ -345,6 +351,13 @@ resource "google_compute_firewall" "allow_ssh" {
     ports = ["22"]
   }
   priority = 65534
+}
+
+resource "google_vpc_access_connector" "observatory_vpc_connector" {
+  name = local.vpc_connector_name
+  ip_cidr_range = "10.8.0.0/28"
+  network = local.network_name
+  region = var.google_cloud.region
 }
 
 ########################################################################################################################
@@ -578,7 +591,9 @@ module "observatory_api" {
   environment = var.environment
   google_cloud = var.google_cloud
   elasticsearch = var.elasticsearch
+  vpc_connector_name = local.vpc_connector_name
+  observatory_db_uri = "postgres://observatory:${urlencode(var.cloud_sql_database.postgres_password)}@${google_sql_database_instance.observatory_db_instance.private_ip_address}:5432/observatory"
   api = var.api
   # necessary for api-endpoint_service_account, api-backend_service_account and elasticsearch-logins
-  depends_on = [google_project_service.services]
+  depends_on = [google_project_service.services, google_sql_database.observatory_db, google_vpc_access_connector.observatory_vpc_connector]
 }

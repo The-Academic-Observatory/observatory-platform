@@ -29,7 +29,7 @@ from sqlalchemy import and_
 
 from observatory.api.elastic import (create_schema, process_response, list_available_index_dates, create_search_body,
                                      create_es_connection, parse_args)
-from observatory.api.open_api_renderer import OpenApiRenderer
+from observatory.api.openapi_renderer import OpenApiRenderer
 from observatory.api.orm import Telescope, TelescopeType, Organisation
 
 Response = Tuple[Union[Dict, str], int]
@@ -411,12 +411,15 @@ def create_app() -> connexion.App:
     :return: the Connexion App.
     """
 
+    logging.info('Creating app')
+
     # Create the application instance and don't sort JSON output alphabetically
     conn_app = connexion.App(__name__)
     conn_app.app.config['JSON_SORT_KEYS'] = False
 
     # Add the OpenAPI specification
     specification_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'openapi.yaml.jinja2')
+    logging.info(f'Loading specification: {specification_path}')
     builder = OpenApiRenderer(specification_path, cloud_endpoints=False)
     specification = builder.to_dict()
     conn_app.add_api(specification)
