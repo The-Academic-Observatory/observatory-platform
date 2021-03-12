@@ -103,7 +103,8 @@ class JstorTelescope(SnapshotTelescope):
     """
     The JSTOR telescope.
 
-    Saved to the BigQuery tables: <project_id>.jstor.countryYYYYMMDD and <project_id>.jstor.institutionYYYYMMDD
+    Saved to the BigQuery tables: <project_id>.jstor.jstor_countryYYYYMMDD and
+    <project_id>.jstor.jstor_institutionYYYYMMDD
     """
 
     DAG_ID = 'jstor'
