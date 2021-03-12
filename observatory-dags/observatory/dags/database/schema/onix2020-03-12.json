@@ -3,8 +3,42 @@
     "fields": [
       {
         "mode": "NULLABLE",
+        "name": "WorkRelationCode",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "WorkIDType",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "IDValue",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "IDTypeName",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "WorkIdentifiers",
+        "type": "RECORD"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "RelatedWorks",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
         "name": "TextType",
-        "type": "INTEGER"
+        "type": "STRING"
       },
       {
         "mode": "REPEATED",
@@ -20,6 +54,81 @@
     "mode": "REPEATED",
     "name": "CityOfPublications",
     "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Value",
+                    "type": "STRING"
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "PartNumber",
+                "type": "RECORD"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "TitleElementLevel",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "TitleText",
+                "type": "STRING"
+              }
+            ],
+            "mode": "REPEATED",
+            "name": "TitleElements",
+            "type": "RECORD"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "TitleType",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "TitleDetails",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "IDTypeName",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "IDValue",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "CollectionIdType",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "CollectionIdentifers",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "CollectionType",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "Collections",
+    "type": "RECORD"
   },
   {
     "fields": [
@@ -72,7 +181,7 @@
           {
             "mode": "NULLABLE",
             "name": "WebsiteRole",
-            "type": "INTEGER"
+            "type": "STRING"
           },
           {
             "mode": "REPEATED",
@@ -87,7 +196,7 @@
       {
         "mode": "NULLABLE",
         "name": "PublishingRole",
-        "type": "INTEGER"
+        "type": "STRING"
       }
     ],
     "mode": "REPEATED",
@@ -111,7 +220,7 @@
           {
             "mode": "NULLABLE",
             "name": "TitleWithoutPrefix_TextCaseFlags",
-            "type": "INTEGER"
+            "type": "STRING"
           },
           {
             "mode": "NULLABLE",
@@ -138,17 +247,17 @@
           {
             "mode": "NULLABLE",
             "name": "TitleElementLevel",
-            "type": "INTEGER"
+            "type": "STRING"
           },
           {
             "mode": "NULLABLE",
             "name": "TitleText_TextCaseFlags",
-            "type": "INTEGER"
+            "type": "STRING"
           },
           {
             "mode": "NULLABLE",
             "name": "Subtitle_TextCaseFlags",
-            "type": "INTEGER"
+            "type": "STRING"
           },
           {
             "mode": "NULLABLE",
@@ -178,7 +287,7 @@
       {
         "mode": "NULLABLE",
         "name": "TitleType",
-        "type": "INTEGER"
+        "type": "STRING"
       }
     ],
     "mode": "REPEATED",
@@ -200,7 +309,7 @@
       {
         "mode": "NULLABLE",
         "name": "PublishingDateRole",
-        "type": "INTEGER"
+        "type": "STRING"
       },
       {
         "mode": "NULLABLE",
@@ -227,7 +336,7 @@
       {
         "mode": "NULLABLE",
         "name": "LanguageRole",
-        "type": "INTEGER"
+        "type": "STRING"
       },
       {
         "mode": "NULLABLE",
@@ -306,7 +415,7 @@
       {
         "mode": "NULLABLE",
         "name": "ExtentType",
-        "type": "INTEGER"
+        "type": "STRING"
       },
       {
         "mode": "NULLABLE",
@@ -316,7 +425,7 @@
       {
         "mode": "NULLABLE",
         "name": "ExtentUnit",
-        "type": "INTEGER"
+        "type": "STRING"
       }
     ],
     "mode": "REPEATED",
@@ -333,7 +442,7 @@
       {
         "mode": "NULLABLE",
         "name": "NameType",
-        "type": "INTEGER"
+        "type": "STRING"
       },
       {
         "mode": "NULLABLE",
@@ -365,7 +474,7 @@
           {
             "mode": "NULLABLE",
             "name": "TextFormat",
-            "type": "INTEGER"
+            "type": "STRING"
           },
           {
             "mode": "NULLABLE",
@@ -435,6 +544,6 @@
   {
     "mode": "NULLABLE",
     "name": "RecordSourceType",
-    "type": "INTEGER"
+    "type": "STRING"
   }
 ]
