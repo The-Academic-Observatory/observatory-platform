@@ -12,16 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: Aniek Roelofs, James Diprose
 
+import copy
 import json
 import unittest
 from typing import Dict, ClassVar
+from unittest.mock import patch
 
 from sqlalchemy.pool import StaticPool
 
 from observatory.api.api import make_response, create_app
 from observatory.api.orm import create_session, set_session, TelescopeType, Telescope, Organisation
+from tests.observatory.api.test_elastic import SCROLL_ID, RES_EXAMPLE, Elasticsearch
 
 
 class TestApp(unittest.TestCase):
@@ -204,3 +207,145 @@ class TestApp(unittest.TestCase):
             actual = json.loads(response.data)
             self.assertEqual(status_code, response.status_code)
             self.assertDictEqual(expected, actual)
+
+    @patch('observatory.api.elastic.Elasticsearch.scroll')
+    @patch('observatory.api.elastic.Elasticsearch.search')
+    @patch('observatory.api.api.create_es_connection')
+    def test_query(self, mock_create_connection, mock_es_search, mock_es_scroll):
+        """ Test elasticsearch search query with different args.
+
+        :return: None.
+        """
+
+        endpoint_query = f'/{self.version}/query'
+        flask_app = create_app()
+        with flask_app.app.test_client() as test_client:
+            # Test ElasticSearch connection is None
+            mock_create_connection.return_value = None
+
+            response = test_client.get(endpoint_query,
+                                       query_string={'subset': 'citations',
+                                                     'agg': 'country',
+                                                     'limit': 1000},
+                                       content_type=self.content_type)
+
+            self.assertEqual(400, response.status_code)
+            self.assertEqual(b'"Elasticsearch environment variable for host or api key is empty"\n', response.data)
+
+            # Test successful query
+            mock_create_connection.return_value = Elasticsearch()
+            res = copy.deepcopy(RES_EXAMPLE)
+            mock_es_scroll.return_value = res
+
+            expected_results = {
+                'version': 'v1',
+                'index': 'N/A',
+                'scroll_id': SCROLL_ID,
+                'returned_hits': len(res['hits']['hits']),
+                'total_hits': res['hits']['total']['value'],
+                'schema': {
+                    'schema': 'to_be_created'
+                },
+                'results': res['hits']['hits']
+            }
+
+            response = test_client.get(endpoint_query,
+                                       query_string={'subset': 'citations',
+                                                     'agg': 'funder',
+                                                     'limit': 1000,
+                                                     'scroll_id': SCROLL_ID},
+                                       content_type=self.content_type)
+
+            self.assertEqual(200, response.status_code)
+            self.assertEqual(expected_results, json.loads(response.data.decode('utf-8')))
+
+            # With search body, test with empty (invalid) subset and agg
+            mock_es_search.return_value = copy.deepcopy(RES_EXAMPLE)
+
+            response = test_client.get(endpoint_query,
+                                       query_string={'subset': '',
+                                                     'agg': '',
+                                                     'limit': 1000,
+                                                     'scroll_id': SCROLL_ID},
+                                       content_type=self.content_type)
+
+            self.assertEqual(400, response.status_code)
+
+            # With search body, test with valid alias and without index date
+            with patch('elasticsearch.client.CatClient.aliases') as mock_es_cat:
+                res = copy.deepcopy(RES_EXAMPLE)
+                mock_es_search.return_value = res
+                index_name = 'citations-country-20201212'
+                mock_es_cat.return_value = [{
+                    'index': index_name
+                }]
+                expected_results = {
+                    'version': 'v1',
+                    'index': index_name,
+                    'scroll_id': SCROLL_ID,
+                    'returned_hits': len(res['hits']['hits']),
+                    'total_hits': res['hits']['total']['value'],
+                    'schema': {
+                        'schema': 'to_be_created'
+                    },
+                    'results': res['hits']['hits']
+                }
+
+                response = test_client.get(endpoint_query,
+                                           query_string={'subset': 'citations',
+                                                         'agg': 'country',
+                                                         'limit': 1000},
+                                           content_type=self.content_type)
+
+                self.assertEqual(200, response.status_code)
+                self.assertEqual(expected_results, json.loads(response.data.decode('utf-8')))
+
+            # With search body, test with valid index date
+            with patch('elasticsearch.client.IndicesClient.exists') as mock_es_indices:
+                res = copy.deepcopy(RES_EXAMPLE)
+                mock_es_indices.return_value = True
+                mock_es_search.return_value = res
+                index_date = '20200101'
+                expected_results = {
+                    'version': 'v1',
+                    'index': f"citations-country-{index_date}",
+                    'scroll_id': SCROLL_ID,
+                    'returned_hits': len(res['hits']['hits']),
+                    'total_hits': res['hits']['total']['value'],
+                    'schema': {
+                        'schema': 'to_be_created'
+                    },
+                    'results': res['hits']['hits']
+                }
+
+                response = test_client.get(endpoint_query,
+                                           query_string={'subset': 'citations',
+                                                         'agg': 'country',
+                                                         'index_date': index_date,
+                                                         'limit': 1000},
+                                           content_type=self.content_type)
+
+                self.assertEqual(200, response.status_code)
+                self.assertEqual(expected_results, json.loads(response.data.decode('utf-8')))
+
+                # With search body, test with invalid index date
+                with patch('observatory.api.api.list_available_index_dates') as mock_index_dates:
+                    res = copy.deepcopy(RES_EXAMPLE)
+                    mock_es_search.return_value = res
+                    index_date = '20200101'
+
+                    mock_es_indices.return_value = False
+                    available_date = '20201212'
+                    mock_index_dates.return_value = [available_date]
+
+                    response = test_client.get(endpoint_query,
+                                               query_string={'subset': 'citations',
+                                                             'agg': 'country',
+                                                             'index_date': index_date,
+                                                             'limit': 1000},
+                                               content_type=self.content_type)
+
+                    self.assertEqual(400, response.status_code)
+                    self.assertEqual(b'"Index does not exist: citations-country-20200101\\n Available dates for this '
+                                     b'agg & subset:\\n20201212"\n',
+                                     response.data)
