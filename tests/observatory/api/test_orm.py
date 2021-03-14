@@ -286,3 +286,6 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
         self.assertEqual(dt_str, datetime_to_str(obj.modified))
         self.assertEqual('My Organisation 2', obj.name)
+        self.assertEqual('project-id-2', obj.gcp_project_id)
+        self.assertEqual('download-bucket-2', obj.gcp_download_bucket)
+        self.assertEqual('transform-bucket-2', obj.gcp_transform_bucket)
