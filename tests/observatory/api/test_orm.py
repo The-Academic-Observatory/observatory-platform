@@ -58,6 +58,13 @@ class TestOrm(unittest.TestCase):
 
         self.assertIsInstance(self.session, scoped_session)
 
+        # Assert ValueError because uri=None
+        with self.assertRaises(ValueError):
+            create_session(uri=None)
+
+        # connect_args=None
+        create_session(uri=self.uri, connect_args=None, poolclass=StaticPool)
+
     def test_telescope_type(self):
         """ Test that TelescopeType can be created, fetched, updated and deleted """
 
@@ -270,6 +277,9 @@ class TestOrm(unittest.TestCase):
         dt_str = datetime_to_str(dt)
         dict_ = {
             'name': 'My Organisation 2',
+            'gcp_project_id': 'project-id-2',
+            'gcp_download_bucket': 'download-bucket-2',
+            'gcp_transform_bucket': 'transform-bucket-2',
             'modified': dt_str
         }
         obj.update(**dict_)
