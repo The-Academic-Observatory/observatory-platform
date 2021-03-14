@@ -43,13 +43,16 @@ class TestApp(unittest.TestCase):
         endpoint_telescope_type = f'/{self.version}/telescope_type'
         post_expected_id = 1
         put_create_expected_id = 2
+        put_update_not_found_id = 10
+        get_not_found_id = 10
         post_data = {'name': 'ONIX Telescope'}
         put_create_data = {'name': 'Scopus Telescope'}
         put_update_data = {'id': put_create_expected_id, 'name': 'WoS Telescope'}
         self.post_test(TelescopeType, endpoint_telescope_type, post_data, post_expected_id)
-        self.get_test(TelescopeType, endpoint_telescope_type, post_expected_id)
+        self.get_test(TelescopeType, endpoint_telescope_type, post_expected_id, get_not_found_id)
         self.put_create_test(TelescopeType, endpoint_telescope_type, put_create_data, put_create_expected_id)
-        self.put_update_test(TelescopeType, endpoint_telescope_type, put_update_data, put_create_expected_id)
+        self.put_update_test(TelescopeType, endpoint_telescope_type, put_update_data,
+                             put_create_expected_id, put_update_not_found_id)
         self.put_gets_test(endpoint_telescope_type, 2)
 
         # Organisation
@@ -71,9 +74,10 @@ class TestApp(unittest.TestCase):
             'name': 'Sydney'
         }
         self.post_test(Organisation, endpoint_organisation, post_data, post_expected_id)
-        self.get_test(Organisation, endpoint_organisation, post_expected_id)
+        self.get_test(Organisation, endpoint_organisation, post_expected_id, get_not_found_id)
         self.put_create_test(Organisation, endpoint_organisation, put_create_data, put_create_expected_id)
-        self.put_update_test(Organisation, endpoint_organisation, put_update_data, put_create_expected_id)
+        self.put_update_test(Organisation, endpoint_organisation, put_update_data,
+                             put_create_expected_id, put_update_not_found_id)
         self.put_gets_test(endpoint_organisation, 2)
 
         # Connection
@@ -92,9 +96,10 @@ class TestApp(unittest.TestCase):
             'telescope_type': {'id': put_create_expected_id}
         }
         self.post_test(Telescope, endpoint_telescope, post_data, post_expected_id)
-        self.get_test(Telescope, endpoint_telescope, post_expected_id)
+        self.get_test(Telescope, endpoint_telescope, post_expected_id, get_not_found_id)
         self.put_create_test(Telescope, endpoint_telescope, put_create_data, put_create_expected_id)
-        self.put_update_test(Telescope, endpoint_telescope, put_update_data, put_create_expected_id)
+        self.put_update_test(Telescope, endpoint_telescope, put_update_data,
+                             put_create_expected_id, put_update_not_found_id)
         self.put_gets_test(endpoint_telescope, 2, query_string={'limit': 10})
         self.put_gets_test(endpoint_telescope, 1, query_string={'limit': 10,
                                                                 'telescope_type_id': post_expected_id})
@@ -109,7 +114,7 @@ class TestApp(unittest.TestCase):
         self.delete_test(Organisation, endpoint_organisation, put_create_expected_id)
         self.delete_test(Telescope, endpoint_telescope, put_create_expected_id)
 
-    def get_test(self, cls: ClassVar, endpoint: str, expected_id: int):
+    def get_test(self, cls: ClassVar, endpoint: str, expected_id: int, not_found_id: int):
         flask_app = create_app()
         with flask_app.app.test_client() as test_client:
             # GET
@@ -119,6 +124,18 @@ class TestApp(unittest.TestCase):
 
             status_code = 200
             description = f'Found: {cls.__name__} with id {expected_id}'
+            expected = make_response(status_code, description, json=False)[0]
+            actual = json.loads(response.data)
+            self.assertEqual(status_code, response.status_code)
+            self.assertDictEqual(expected['response'], actual['response'])
+
+            # GET 404
+            response = test_client.get(endpoint,
+                                       query_string={'id': not_found_id},
+                                       content_type=self.content_type)
+
+            status_code = 404
+            description = f'Not found: {cls.__name__} with id {not_found_id}'
             expected = make_response(status_code, description, json=False)[0]
             actual = json.loads(response.data)
             self.assertEqual(status_code, response.status_code)
@@ -152,7 +169,7 @@ class TestApp(unittest.TestCase):
             self.assertEqual(status_code, response.status_code)
             self.assertDictEqual(expected, actual)
 
-    def put_update_test(self, cls: ClassVar, endpoint: str, data: Dict, expected_id: int):
+    def put_update_test(self, cls: ClassVar, endpoint: str, data: Dict, expected_id: int, not_found_id: int):
         flask_app = create_app()
         with flask_app.app.test_client() as test_client:
             # PUT: update
@@ -161,6 +178,19 @@ class TestApp(unittest.TestCase):
                                        content_type=self.content_type)
             status_code = 200
             description = f'Updated: {cls.__name__} with id {expected_id}'
+            expected = make_response(status_code, description, json=False)[0]
+            actual = json.loads(response.data)
+            self.assertEqual(status_code, response.status_code)
+            self.assertDictEqual(expected, actual)
+
+            # PUT: update not found
+            data = copy.deepcopy(data)
+            data['id'] = not_found_id
+            response = test_client.put(endpoint,
+                                       data=json.dumps(data),
+                                       content_type=self.content_type)
+            status_code = 404
+            description = f'Not found: {cls.__name__} with id {not_found_id}'
             expected = make_response(status_code, description, json=False)[0]
             actual = json.loads(response.data)
             self.assertEqual(status_code, response.status_code)
