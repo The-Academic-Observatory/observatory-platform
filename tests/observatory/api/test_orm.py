@@ -23,10 +23,18 @@ from sqlalchemy.orm import scoped_session
 from sqlalchemy.pool import StaticPool
 
 from observatory.api.orm import (create_session, set_session, TelescopeType, Telescope, Organisation, to_datetime,
-                                 fetch_db_item)
+                                 fetch_db_object)
 
 
 def create_telescope_types(session: scoped_session, names: List[str], created: datetime):
+    """ Create a list of TelescopeType objects.
+
+    :param session: the SQLAlchemy session.
+    :param names: the names of the TelescopeType objects.
+    :param created:the created datetime in UTC.
+    :return: a list of TelescopeType objects.
+    """
+
     items = []
 
     for name in names:
@@ -38,7 +46,13 @@ def create_telescope_types(session: scoped_session, names: List[str], created: d
     return items
 
 
-def datetime_to_str(dt: datetime):
+def datetime_to_str(dt: datetime) -> str:
+    """ Convert a datetime to a string.
+
+    :param dt: the datetime.
+    :return: the string.
+    """
+
     return dt.strftime('%Y-%m-%d %H:%M:%S')
 
 
@@ -55,34 +69,34 @@ class TestOrm(unittest.TestCase):
         set_session(self.session)
 
     def test_fetch_db_item(self):
-        """ Test fetch_db_item """
+        """ Test fetch_db_object """
 
         # Body is None
-        self.assertEqual(None, fetch_db_item(TelescopeType, None))
+        self.assertEqual(None, fetch_db_object(TelescopeType, None))
 
         # Body is instance of cls
         dt_str = datetime_to_str(datetime.utcnow())
         dict_ = {'name': 'My Telescope Type', 'created': dt_str, 'modified': dt_str}
         obj = TelescopeType(**dict_)
-        self.assertEqual(obj, fetch_db_item(TelescopeType, obj))
+        self.assertEqual(obj, fetch_db_object(TelescopeType, obj))
 
         # Body is Dict and no id
         with self.assertRaises(AttributeError):
-            fetch_db_item(TelescopeType, {'name': 'My Telescope Type'})
+            fetch_db_object(TelescopeType, {'name': 'My Telescope Type'})
 
         # Body is Dict, has id and is not found
         with self.assertRaises(ValueError):
-            fetch_db_item(TelescopeType, {'id': 1})
+            fetch_db_object(TelescopeType, {'id': 1})
 
         # Body is Dict, has id and is found
         self.session.add(obj)
         self.session.commit()
-        obj_fetched = fetch_db_item(TelescopeType, {'id': 1})
+        obj_fetched = fetch_db_object(TelescopeType, {'id': 1})
         self.assertEqual(obj, obj_fetched)
 
         # Body is wrong type
         with self.assertRaises(ValueError):
-            fetch_db_item(TelescopeType, 'hello')
+            fetch_db_object(TelescopeType, 'hello')
 
     def test_to_datetime(self):
         """ Test to_datetime """

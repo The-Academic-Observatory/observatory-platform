@@ -37,6 +37,15 @@ session_ = None  # Global session
 
 
 def make_response(status_code: int, description: str, data: Dict = None, json: bool = True) -> Response:
+    """ Make an API response.
+
+    :param status_code: the status code.
+    :param description: the description for the status code.
+    :param data: the data.
+    :param json: whether to jsonify the data.
+    :return: a Response.
+    """
+
     data_response = {
         'data': data,
         'response': {'status_code': status_code, 'description': description}
@@ -419,7 +428,6 @@ def create_app() -> connexion.App:
 
     # Add the OpenAPI specification
     specification_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'openapi.yaml.jinja2')
-    logging.info(f'Loading specification: {specification_path}')
     builder = OpenApiRenderer(specification_path, cloud_endpoints=False)
     specification = builder.to_dict()
     conn_app.add_api(specification)

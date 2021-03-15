@@ -24,7 +24,6 @@ from observatory.api.api import create_app
 from observatory.api.elastic import (create_es_connection, create_search_body, list_available_index_dates,
                                      parse_args, process_response, QUERY_FILTER_PARAMETERS)
 
-
 AGGREGATIONS = ['author', 'country', 'funder', 'group', 'institution', 'publisher']
 SUBSETS = ['citations', 'collaborations', 'disciplines', 'events', 'funders', 'journals', 'oa-metrics',
            'output-types', 'publishers']

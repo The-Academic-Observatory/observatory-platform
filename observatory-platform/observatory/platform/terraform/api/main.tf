@@ -88,6 +88,7 @@ resource "google_cloud_run_service" "api_backend" {
     }
     metadata {
       annotations = {
+        "autoscaling.knative.dev/maxScale" = "10"
         # make resource dependent on sha256 of file describing image info
         build_image = data.archive_file.build_image_info.output_base64sha256
         "run.googleapis.com/vpc-access-egress" : "private-ranges-only"

@@ -1,3 +1,20 @@
+# Copyright 2020 Artificial Dimensions Ltd
+# Copyright 2020-2021 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: James Diprose
+
 from typing import Dict
 
 import yaml
@@ -30,13 +47,29 @@ def render_template(template_path: str, **kwargs) -> str:
 class OpenApiRenderer:
 
     def __init__(self, openapi_template_path: str, cloud_endpoints: bool = False):
+        """ Construct an object that renders an OpenAPI 2 Jinja2 file.
+
+        :param openapi_template_path: the path to the OpenAPI 2 Jinja2 template.
+        :param cloud_endpoints: whether to render the file for Cloud Endpoints.
+        """
+
         self.openapi_template_path = openapi_template_path
         self.cloud_endpoints = cloud_endpoints
 
-    def render(self):
+    def render(self) -> str:
+        """ Render the OpenAPI file.
+
+        :return: the rendered output.
+        """
+
         return render_template(self.openapi_template_path, cloud_endpoints=self.cloud_endpoints,
                                query_filter_parameters=QUERY_FILTER_PARAMETERS)
 
     def to_dict(self) -> Dict:
+        """ Render and output the OpenAPI file as a dictionary.
+
+        :return: the dictionary.
+        """
+
         assert not self.cloud_endpoints, "Only supported where self.cloud_endpoints is False"
         return yaml.safe_load(self.render())

@@ -35,10 +35,14 @@ class TestApp(unittest.TestCase):
         self.version = 'v1'
 
     def setUp(self) -> None:
+        """ Create SQLAlchemy session using in memory SQLite database and set the session globally """
+
         self.session = create_session(uri=self.uri, connect_args={'check_same_thread': False}, poolclass=StaticPool)
         set_session(self.session)
 
     def test_endpoints(self):
+        """ Test all of the management endpoints of the Observatory API """
+
         # TelescopeType
         endpoint_telescope_type = f'/{self.version}/telescope_type'
         post_expected_id = 1
@@ -115,6 +119,8 @@ class TestApp(unittest.TestCase):
         self.delete_test(Telescope, endpoint_telescope, put_create_expected_id)
 
     def get_test(self, cls: ClassVar, endpoint: str, expected_id: int, not_found_id: int):
+        """ A generic method for testing get endpoints """
+
         flask_app = create_app()
         with flask_app.app.test_client() as test_client:
             # GET
@@ -142,6 +148,8 @@ class TestApp(unittest.TestCase):
             self.assertDictEqual(expected['response'], actual['response'])
 
     def post_test(self, cls: ClassVar, endpoint: str, data: Dict, expected_id: int):
+        """ A generic method for testing post endpoints """
+
         flask_app = create_app()
         with flask_app.app.test_client() as test_client:
             # POST
@@ -157,6 +165,8 @@ class TestApp(unittest.TestCase):
             self.assertDictEqual(expected, actual)
 
     def put_create_test(self, cls: ClassVar, endpoint: str, data: Dict, expected_id: int):
+        """ A generic method for testing create endpoints """
+
         flask_app = create_app()
         with flask_app.app.test_client() as test_client:
             response = test_client.put(endpoint,
@@ -170,6 +180,8 @@ class TestApp(unittest.TestCase):
             self.assertDictEqual(expected, actual)
 
     def put_update_test(self, cls: ClassVar, endpoint: str, data: Dict, expected_id: int, not_found_id: int):
+        """ A generic method for testing update endpoints """
+
         flask_app = create_app()
         with flask_app.app.test_client() as test_client:
             # PUT: update
@@ -197,6 +209,8 @@ class TestApp(unittest.TestCase):
             self.assertDictEqual(expected, actual)
 
     def put_gets_test(self, endpoint: str, expected_num: int, query_string: Dict = None):
+        """ A generic method for testing get many item endpoints """
+
         if query_string is None:
             query_string = {'limit': 10}
 
@@ -214,6 +228,8 @@ class TestApp(unittest.TestCase):
             self.assertEqual(expected_num, len(items))
 
     def delete_test(self, cls: ClassVar, endpoint: str, expected_id: int):
+        """ A generic method for testing delete endpoints """
+
         flask_app = create_app()
         with flask_app.app.test_client() as test_client:
             # DELETE

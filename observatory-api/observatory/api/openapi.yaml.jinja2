@@ -1,7 +1,8 @@
 swagger: '2.0'
 info:
   title: Observatory API
-  description: 'Observatory API'
+  description: |
+    The REST API for managing and accessing data from the Observatory Platform.
   version: 1.0.0
   contact:
     email: agent@observatory.academy
@@ -31,11 +32,11 @@ security:
 tags:
 - name: Reports
   description: Query data to build Open Access reports.
-- name: Organisations
+- name: Organisation
   description: Create, read, update, delete and list information about organisations.
-- name: Telescopes
+- name: Telescope
   description: Create, read, update, delete and list information about telescopes.
-- name: TelescopeTypes
+- name: TelescopeType
   description: Create, read, update, delete and list information about the type of telescopes that exist.
 
 paths:
@@ -159,7 +160,7 @@ paths:
   /v1/telescope_type:
     get:
       tags:
-      - TelescopeTypes
+      - TelescopeType
       summary: get a TelescopeType
       operationId: observatory.api.api.get_telescope_type
       description: |
@@ -181,7 +182,7 @@ paths:
           description: bad input parameter
     post:
       tags:
-      - TelescopeTypes
+      - TelescopeType
       summary: create a TelescopeType
       operationId: observatory.api.api.post_telescope_type
       description: |
@@ -202,7 +203,7 @@ paths:
           description: TelescopeType created, returning the created object's id
     put:
       tags:
-      - TelescopeTypes
+      - TelescopeType
       summary: create or update a TelescopeType
       operationId: observatory.api.api.put_telescope_type
       description: |
@@ -226,7 +227,7 @@ paths:
           description: TelescopeType created, returning the created object's id
     delete:
       tags:
-      - TelescopeTypes
+      - TelescopeType
       summary: delete a TelescopeType
       operationId: observatory.api.api.delete_telescope_type
       description: |
@@ -248,7 +249,7 @@ paths:
   /v1/telescope_types:
     get:
       tags:
-      - TelescopeTypes
+      - TelescopeType
       summary: Get a list of TelescopeType objects
       operationId: observatory.api.api.get_telescope_types
       description: |
@@ -274,7 +275,7 @@ paths:
   /v1/telescope:
     get:
       tags:
-      - Telescopes
+      - Telescope
       summary: get a Telescope
       operationId: observatory.api.api.get_telescope
       description: |
@@ -296,7 +297,7 @@ paths:
           description: bad input parameter
     post:
       tags:
-      - Telescopes
+      - Telescope
       summary: create a Telescope
       operationId: observatory.api.api.post_telescope
       description: |
@@ -317,7 +318,7 @@ paths:
           description: Telescope created, returning the created object's id
     put:
       tags:
-      - Telescopes
+      - Telescope
       summary: create or update a Telescope
       operationId: observatory.api.api.put_telescope
       description: |
@@ -341,7 +342,7 @@ paths:
           description: Telescope created, returning the created object's id
     delete:
       tags:
-      - Telescopes
+      - Telescope
       summary: delete a Telescope
       operationId: observatory.api.api.delete_telescope
       description: |
@@ -363,7 +364,7 @@ paths:
   /v1/telescopes:
     get:
       tags:
-      - Telescopes
+      - Telescope
       summary: Get a list of Telescope objects
       operationId: observatory.api.api.get_telescopes
       description: |
@@ -399,7 +400,7 @@ paths:
   /v1/organisation:
     get:
       tags:
-      - Organisations
+        - Organisation
       summary: get an Organisation
       operationId: observatory.api.api.get_organisation
       description: |
@@ -421,7 +422,7 @@ paths:
           description: bad input parameter
     post:
       tags:
-      - Organisations
+        - Organisation
       summary: create an Organisation
       operationId: observatory.api.api.post_organisation
       description: |
@@ -442,7 +443,7 @@ paths:
           description: Organisation created
     put:
       tags:
-      - Organisations
+        - Organisation
       summary: create or update an Organisation
       operationId: observatory.api.api.put_organisation
       description: |
@@ -466,7 +467,7 @@ paths:
           description: Organisation created
     delete:
       tags:
-        - Organisations
+        - Organisation
       summary: delete an Organisation
       operationId: observatory.api.api.delete_organisation
       description: |
@@ -488,7 +489,7 @@ paths:
   /v1/organisations:
     get:
       tags:
-      - Organisations
+        - Organisation
       summary: Get a list of Organisations
       operationId: observatory.api.api.get_organisations
       description: |
