@@ -22,7 +22,8 @@ import sqlalchemy
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.pool import StaticPool
 
-from observatory.api.orm import create_session, set_session, TelescopeType, Telescope, Organisation
+from observatory.api.orm import (create_session, set_session, TelescopeType, Telescope, Organisation, to_datetime,
+                                 fetch_db_item)
 
 
 def create_telescope_types(session: scoped_session, names: List[str], created: datetime):
@@ -52,6 +53,50 @@ class TestOrm(unittest.TestCase):
 
         self.session = create_session(uri=self.uri, connect_args={'check_same_thread': False}, poolclass=StaticPool)
         set_session(self.session)
+
+    def test_fetch_db_item(self):
+        """ Test fetch_db_item """
+
+        # Body is None
+        self.assertEqual(None, fetch_db_item(TelescopeType, None))
+
+        # Body is instance of cls
+        dt_str = datetime_to_str(datetime.utcnow())
+        dict_ = {'name': 'My Telescope Type', 'created': dt_str, 'modified': dt_str}
+        obj = TelescopeType(**dict_)
+        self.assertEqual(obj, fetch_db_item(TelescopeType, obj))
+
+        # Body is Dict and no id
+        with self.assertRaises(AttributeError):
+            fetch_db_item(TelescopeType, {'name': 'My Telescope Type'})
+
+        # Body is Dict, has id and is not found
+        with self.assertRaises(ValueError):
+            fetch_db_item(TelescopeType, {'id': 1})
+
+        # Body is Dict, has id and is found
+        self.session.add(obj)
+        self.session.commit()
+        obj_fetched = fetch_db_item(TelescopeType, {'id': 1})
+        self.assertEqual(obj, obj_fetched)
+
+        # Body is wrong type
+        with self.assertRaises(ValueError):
+            fetch_db_item(TelescopeType, 'hello')
+
+    def test_to_datetime(self):
+        """ Test to_datetime """
+
+        # From datetime
+        dt = datetime(year=2020, month=12, day=31)
+        self.assertEqual(dt, to_datetime(dt))
+
+        # From string
+        self.assertEqual(dt, to_datetime('2020-12-31 00:00:00'))
+
+        # From another type
+        with self.assertRaises(ValueError):
+            to_datetime(dt.date())
 
     def test_create_session(self):
         """ Test that session is created """
@@ -117,6 +162,14 @@ class TestOrm(unittest.TestCase):
 
         self.assertIsNotNone(obj.id)
         self.assertEqual(obj.id, 1)
+
+        # Update with no new values
+        obj.update(**{})
+        self.session.commit()
+        self.assertEqual(expected_id, obj.id)
+        self.assertEqual(dict_['name'], obj.name)
+        self.assertEqual(dt_str, datetime_to_str(obj.created))
+        self.assertEqual(dt_str, datetime_to_str(obj.modified))
 
         # Update
         dt_str = datetime_to_str(datetime.utcnow())
@@ -184,19 +237,29 @@ class TestOrm(unittest.TestCase):
         # Create Telescope
         expected_id = 1
         dt_str = datetime_to_str(datetime.utcnow())
-        dict_ = {'organisation': {
-            'id': organisation.id
-        },
+        dict_ = {
+            'organisation': {
+                'id': organisation.id
+            },
             'telescope_type': {
                 'id': expected_id
             },
             'created': dt_str,
-            'modified': dt_str}
+            'modified': dt_str
+        }
         obj = Telescope(**dict_)
         self.session.add(obj)
         self.session.commit()
         self.assertIsNotNone(obj.id)
         self.assertEqual(obj.id, expected_id)
+
+        # Update with no new values
+        obj.update(**{})
+        self.session.commit()
+        self.assertEqual(expected_id, obj.telescope_type.id)
+        self.assertEqual(expected_id, obj.organisation.id)
+        self.assertEqual(dt_str, datetime_to_str(obj.created))
+        self.assertEqual(dt_str, datetime_to_str(obj.modified))
 
         # Update Telescope
         expected_id = 2
@@ -209,15 +272,20 @@ class TestOrm(unittest.TestCase):
         self.session.add(organisation2)
         self.session.commit()
 
-        dict_ = {'organisation': {
-            'id': expected_id
-        }, 'telescope_type': {
-            'id': expected_id
-        }}
+        dict_ = {
+            'organisation': {
+                'id': expected_id
+            },
+            'telescope_type': {
+                'id': expected_id
+            }
+        }
         obj.update(**dict_)
         self.session.commit()
-        self.assertEqual(obj.telescope_type.id, expected_id)
-        self.assertEqual(obj.organisation.id, expected_id)
+        self.assertEqual(expected_id, obj.telescope_type.id)
+        self.assertEqual(expected_id, obj.organisation.id)
+        self.assertEqual(dt_str, datetime_to_str(obj.created))
+        self.assertEqual(dt_str, datetime_to_str(obj.modified))
 
     def test_organisation(self):
         """ Test that Organisation can be created, fetched, updates and deleted """
@@ -272,6 +340,16 @@ class TestOrm(unittest.TestCase):
         self.assertIsNotNone(obj.id)
         self.assertEqual(obj.id, expected_id)
 
+        # Update with no new values
+        obj.update(**{})
+        self.session.commit()
+        self.assertEqual(dict_['name'], obj.name)
+        self.assertEqual(dict_['gcp_project_id'], obj.gcp_project_id)
+        self.assertEqual(dict_['gcp_download_bucket'], obj.gcp_download_bucket)
+        self.assertEqual(dict_['gcp_transform_bucket'], obj.gcp_transform_bucket)
+        self.assertEqual(dt_str, datetime_to_str(obj.created))
+        self.assertEqual(dt_str, datetime_to_str(obj.modified))
+
         # Update
         dt = datetime.utcnow()
         dt_str = datetime_to_str(dt)
@@ -284,8 +362,8 @@ class TestOrm(unittest.TestCase):
         }
         obj.update(**dict_)
         self.session.commit()
+        self.assertEqual(dict_['name'], obj.name)
+        self.assertEqual(dict_['gcp_project_id'], obj.gcp_project_id)
+        self.assertEqual(dict_['gcp_download_bucket'], obj.gcp_download_bucket)
+        self.assertEqual(dict_['gcp_transform_bucket'], obj.gcp_transform_bucket)
         self.assertEqual(dt_str, datetime_to_str(obj.modified))
-        self.assertEqual('My Organisation 2', obj.name)
-        self.assertEqual('project-id-2', obj.gcp_project_id)
-        self.assertEqual('download-bucket-2', obj.gcp_download_bucket)
-        self.assertEqual('transform-bucket-2', obj.gcp_transform_bucket)
