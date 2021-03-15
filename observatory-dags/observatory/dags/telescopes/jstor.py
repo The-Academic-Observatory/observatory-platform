@@ -113,7 +113,7 @@ class JstorTelescope(SnapshotTelescope):
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2015, 9, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'jstor',
                  source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON, dataset_description: str = '',
-                 catchup: bool = True, airflow_vars: List = None, airflow_conns: List = None):
+                 catchup: bool = False, airflow_vars: List = None, airflow_conns: List = None):
         """ Construct a JstorTelescope instance.
 
         :param dag_id: the id of the DAG.
