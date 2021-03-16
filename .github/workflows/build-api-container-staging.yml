@@ -1,0 +1,22 @@
+name: Build API Container Staging
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push-to-gcr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - uses: RafikFarhad/push-to-gcr-github-action@v3.0.2
+        with:
+          gcloud_service_key: ${{ secrets.STAGING_GCP_SERVICE_KEY }}
+          registry: gcr.io
+          project_id: ${{ secrets.STAGING_GCP_PROJECT_ID }}
+          image_name: observatory-api
+          image_tag: latest
+          dockerfile: ./observatory-api/Dockerfile
+          context: ./observatory-api/
