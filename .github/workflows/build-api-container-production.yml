@@ -1,0 +1,25 @@
+name: Build API Container Production
+
+on:
+  push:
+    tags:
+    - '*'
+
+jobs:
+  build-and-push-to-gcr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - name: Set the tag name
+        id: set_tag_name
+        run: echo ::set-output name=GIT_TAG_NAME::${GITHUB_REF/refs\/tags\//}
+      - uses: RafikFarhad/push-to-gcr-github-action@v3.0.2
+        with:
+          gcloud_service_key: ${{ secrets.PRODUCTION_GCP_SERVICE_KEY }}
+          registry: gcr.io
+          project_id: ${{ secrets.PRODUCTION_GCP_PROJECT_ID }}
+          image_name: observatory-api
+          image_tag: ${{ steps.set_tag_name.outputs.GIT_TAG_NAME}},latest
+          dockerfile: ./observatory-api/Dockerfile
+          context: ./observatory-api/
