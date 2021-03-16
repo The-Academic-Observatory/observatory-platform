@@ -353,6 +353,8 @@ resource "google_compute_firewall" "allow_ssh" {
   priority = 65534
 }
 
+# The VPC Access Connector is required to enable the Cloud Run backend to connect to the CloudSQL database with
+# the CloudSQL private IP address.
 resource "google_vpc_access_connector" "observatory_vpc_connector" {
   name = local.vpc_connector_name
   ip_cidr_range = "10.8.0.0/28"
