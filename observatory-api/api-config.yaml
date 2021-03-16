@@ -1,0 +1,11 @@
+globalProperties:
+  apiTests: "false"
+  modelTests: "false"
+additionalProperties:
+  generateSourceCodeOnly: "true"
+  hideGenerationTimestamp: "true"
+  library: urllib3
+  packageName: observatory.api.client
+  projectName: client
+  pythonAttrNoneIfUnset: "true"
+  useNose: "false"

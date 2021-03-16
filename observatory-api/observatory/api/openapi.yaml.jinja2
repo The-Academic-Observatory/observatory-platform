@@ -10,6 +10,24 @@ info:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
 
+{# API Client specific settings #}
+{%- if api_client %}
+host: api.observatory.academy
+schemes:
+  - https
+produces:
+  - application/json
+securityDefinitions:
+  # This section configures basic authentication with an API key.
+  api_key:
+    type: "apiKey"
+    name: "key"
+    in: "query"
+security:
+  - api_key: []
+{%- endif %}
+
+{# Cloud Endpoints specific settings #}
 {%- if cloud_endpoints %}
 host: ${host}
 x-google-backend:
@@ -29,6 +47,16 @@ security:
   - api_key: []
 {%- endif %}
 
+{# Tag settings #}
+{%- if api_client %}
+tags:
+- name: Observatory
+  description: the Observatory API
+{%- set reports_tag="Observatory" -%}
+{%- set organisation_tag="Observatory" -%}
+{%- set telecope_tag="Observatory" -%}
+{%- set telescope_type_tag="Observatory" -%}
+{% else %}
 tags:
 - name: Reports
   description: Query data to build Open Access reports.
@@ -38,13 +66,25 @@ tags:
   description: Create, read, update, delete and list information about telescopes.
 - name: TelescopeType
   description: Create, read, update, delete and list information about the type of telescopes that exist.
+{%- set reports_tag="Reports" -%}
+{%- set organisation_tag="Organisation" -%}
+{%- set telecope_tag="Telescope" -%}
+{%- set telescope_type_tag="TelescopeType" -%}
+{%- endif %}
+
+{# Operation id namespace #}
+{%- if api_client %}
+{%- set operation_id_namespace="" -%}
+{% else %}
+{%- set operation_id_namespace="observatory.api.api." -%}
+{%- endif %}
 
 paths:
   /v1/query:
     get:
-      operationId: observatory.api.api.queryv1
+      operationId: {{ operation_id_namespace }}queryv1
       tags:
-        - Reports
+        - {{ reports_tag }}
       summary: Search the Observatory API
       description: Search the Observatory API
       parameters:
@@ -160,9 +200,9 @@ paths:
   /v1/telescope_type:
     get:
       tags:
-      - TelescopeType
+      - {{ telescope_type_tag }}
       summary: get a TelescopeType
-      operationId: observatory.api.api.get_telescope_type
+      operationId: {{ operation_id_namespace }}get_telescope_type
       description: |
         Get the details of a TelescopeType by passing it's id.
       produces:
@@ -182,9 +222,9 @@ paths:
           description: bad input parameter
     post:
       tags:
-      - TelescopeType
+      - {{ telescope_type_tag }}
       summary: create a TelescopeType
-      operationId: observatory.api.api.post_telescope_type
+      operationId: {{ operation_id_namespace }}post_telescope_type
       description: |
         Create a TelescopeType by passing a TelescopeType object, without an id.
       consumes:
@@ -203,9 +243,9 @@ paths:
           description: TelescopeType created, returning the created object's id
     put:
       tags:
-      - TelescopeType
+      - {{ telescope_type_tag }}
       summary: create or update a TelescopeType
-      operationId: observatory.api.api.put_telescope_type
+      operationId: {{ operation_id_namespace }}put_telescope_type
       description: |
         Create a TelescopeType by passing a TelescopeType object, without an id. Update an existing TelescopeType by
         passing a TelescopeType object with an id.
@@ -227,9 +267,9 @@ paths:
           description: TelescopeType created, returning the created object's id
     delete:
       tags:
-      - TelescopeType
+      - {{ telescope_type_tag }}
       summary: delete a TelescopeType
-      operationId: observatory.api.api.delete_telescope_type
+      operationId: {{ operation_id_namespace }}delete_telescope_type
       description: |
         Delete a TelescopeType by passing it's id.
       consumes:
@@ -249,9 +289,9 @@ paths:
   /v1/telescope_types:
     get:
       tags:
-      - TelescopeType
+      - {{ telescope_type_tag }}
       summary: Get a list of TelescopeType objects
-      operationId: observatory.api.api.get_telescope_types
+      operationId: {{ operation_id_namespace }}get_telescope_types
       description: |
         Get a list of TelescopeType objects
       produces:
@@ -275,9 +315,9 @@ paths:
   /v1/telescope:
     get:
       tags:
-      - Telescope
+      - {{ telescope_tag }}
       summary: get a Telescope
-      operationId: observatory.api.api.get_telescope
+      operationId: {{ operation_id_namespace }}get_telescope
       description: |
         Get the details of a Telescope by passing it's id.
       produces:
@@ -297,9 +337,9 @@ paths:
           description: bad input parameter
     post:
       tags:
-      - Telescope
+      - {{ telescope_tag }}
       summary: create a Telescope
-      operationId: observatory.api.api.post_telescope
+      operationId: {{ operation_id_namespace }}post_telescope
       description: |
         Create a Telescope by passing a Telescope object, without an id.
       consumes:
@@ -318,9 +358,9 @@ paths:
           description: Telescope created, returning the created object's id
     put:
       tags:
-      - Telescope
+      - {{ telescope_tag }}
       summary: create or update a Telescope
-      operationId: observatory.api.api.put_telescope
+      operationId: {{ operation_id_namespace }}put_telescope
       description: |
         Create a Telescope by passing a Telescope object, without an id. Update an existing Telescope by
         passing a Telescope object with an id.
@@ -342,9 +382,9 @@ paths:
           description: Telescope created, returning the created object's id
     delete:
       tags:
-      - Telescope
+      - {{ telescope_tag }}
       summary: delete a Telescope
-      operationId: observatory.api.api.delete_telescope
+      operationId: {{ operation_id_namespace }}delete_telescope
       description: |
         Delete a Telescope by passing it's id.
       consumes:
@@ -364,9 +404,9 @@ paths:
   /v1/telescopes:
     get:
       tags:
-      - Telescope
+      - {{ telescope_tag }}
       summary: Get a list of Telescope objects
-      operationId: observatory.api.api.get_telescopes
+      operationId: {{ operation_id_namespace }}get_telescopes
       description: |
         Get a list of Telescope objects and optionally filter via a Telescope id and or an Organisation id.
       produces:
@@ -400,9 +440,9 @@ paths:
   /v1/organisation:
     get:
       tags:
-        - Organisation
+        - {{ organisation_tag }}
       summary: get an Organisation
-      operationId: observatory.api.api.get_organisation
+      operationId: {{ operation_id_namespace }}get_organisation
       description: |
         Get the details of an Organisation by passing it's id.
       produces:
@@ -422,9 +462,9 @@ paths:
           description: bad input parameter
     post:
       tags:
-        - Organisation
+        - {{ organisation_tag }}
       summary: create an Organisation
-      operationId: observatory.api.api.post_organisation
+      operationId: {{ operation_id_namespace }}post_organisation
       description: |
         Create an Organisation by passing an Organisation object, without an id.
       consumes:
@@ -443,9 +483,9 @@ paths:
           description: Organisation created
     put:
       tags:
-        - Organisation
+        - {{ organisation_tag }}
       summary: create or update an Organisation
-      operationId: observatory.api.api.put_organisation
+      operationId: {{ operation_id_namespace }}put_organisation
       description: |
         Create an Organisation by passing an Organisation object, without an id. Update an existing Organisation by
         passing an Organisation object with an id.
@@ -467,9 +507,9 @@ paths:
           description: Organisation created
     delete:
       tags:
-        - Organisation
+        - {{ organisation_tag }}
       summary: delete an Organisation
-      operationId: observatory.api.api.delete_organisation
+      operationId: {{ operation_id_namespace }}delete_organisation
       description: |
         Delete an Organisation by passing it's id.
       consumes:
@@ -489,9 +529,9 @@ paths:
   /v1/organisations:
     get:
       tags:
-        - Organisation
+        - {{ organisation_tag }}
       summary: Get a list of Organisations
-      operationId: observatory.api.api.get_organisations
+      operationId: {{ operation_id_namespace }}get_organisations
       description: |
         Gets a list of organisations
       produces:
