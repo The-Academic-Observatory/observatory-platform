@@ -16,6 +16,17 @@ variable "environment" {
   type = string
 }
 
+variable "observatory_db_uri" {
+  description = "The URI for the Observatory PostgreSQL database."
+  type = string
+}
+
+variable "vpc_connector_name" {
+  description = "The name of the VPC connector to connect the API backend to."
+  type = string
+}
+
+
 variable "google_cloud" {
   description = <<EOF
 The Google Cloud settings for the Observatory Platform.

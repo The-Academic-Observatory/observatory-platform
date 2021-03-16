@@ -1,6 +1,7 @@
 ########################################################################################################################
 # Configure Google Cloud Provider
 ########################################################################################################################
+
 terraform {
   backend "remote" {
     workspaces {
@@ -67,7 +68,7 @@ resource "google_project_service" "compute_engine" {
 
 resource "google_project_service" "services" {
   for_each = toset(["storagetransfer.googleapis.com", "iam.googleapis.com", "servicenetworking.googleapis.com",
-"sqladmin.googleapis.com", "secretmanager.googleapis.com"])
+                    "sqladmin.googleapis.com", "secretmanager.googleapis.com"])
   project = var.google_cloud.project_id
   service = each.key
   disable_dependent_services = true
@@ -287,13 +288,18 @@ resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observat
 # Observatory Platform VPC Network
 ########################################################################################################################
 
+locals {
+  network_name =  "ao-network"
+  vpc_connector_name = "observatory-vpc-connector"
+}
+
 resource "google_compute_network" "observatory_network" {
-  name = "ao-network"
+  name = local.network_name
   depends_on = [google_project_service.compute_engine]
 }
 
 data "google_compute_subnetwork" "observatory_subnetwork" {
-  name = "ao-network"
+  name =  local.network_name
   depends_on = [google_compute_network.observatory_network] # necessary to force reading of data
 }
 
@@ -345,6 +351,15 @@ resource "google_compute_firewall" "allow_ssh" {
     ports = ["22"]
   }
   priority = 65534
+}
+
+# The VPC Access Connector is required to enable the Cloud Run backend to connect to the CloudSQL database with
+# the CloudSQL private IP address.
+resource "google_vpc_access_connector" "observatory_vpc_connector" {
+  name = local.vpc_connector_name
+  ip_cidr_range = "10.8.0.0/28"
+  network = local.network_name
+  region = var.google_cloud.region
 }
 
 ########################################################################################################################
@@ -405,6 +420,7 @@ resource "google_sql_database_instance" "observatory_db_instance" {
   }
 }
 
+// Airflow Database
 resource "google_sql_database" "airflow_db" {
   name = "airflow"
   depends_on = [google_sql_database_instance.observatory_db_instance]
@@ -412,9 +428,16 @@ resource "google_sql_database" "airflow_db" {
 }
 
 resource "google_sql_user" "users" {
-  name = "airflow"
+  name = "observatory"
   instance = google_sql_database_instance.observatory_db_instance.name
   password = var.cloud_sql_database.postgres_password
+}
+
+// Observatory Platform Database
+resource "google_sql_database" "observatory_db" {
+  name = "observatory"
+  depends_on = [google_sql_database_instance.observatory_db_instance]
+  instance = google_sql_database_instance.observatory_db_instance.name
 }
 
 ########################################################################################################################
@@ -570,7 +593,9 @@ module "observatory_api" {
   environment = var.environment
   google_cloud = var.google_cloud
   elasticsearch = var.elasticsearch
+  vpc_connector_name = local.vpc_connector_name
+  observatory_db_uri = "postgres://observatory:${urlencode(var.cloud_sql_database.postgres_password)}@${google_sql_database_instance.observatory_db_instance.private_ip_address}:5432/observatory"
   api = var.api
   # necessary for api-endpoint_service_account, api-backend_service_account and elasticsearch-logins
-  depends_on = [google_project_service.services]
+  depends_on = [google_project_service.services, google_sql_database.observatory_db, google_vpc_access_connector.observatory_vpc_connector]
 }

@@ -14,13 +14,17 @@
 
 # Author: Aniek Roelofs
 
-import os
-import time
 from typing import List, Tuple, Union
 
 from elasticsearch import Elasticsearch
-from flask import current_app
 from flask import request
+
+QUERY_FILTER_PARAMETERS = ['id', 'name', 'published_year', 'coordinates', 'country', 'country_code', 'region',
+                           'subregion', 'access_type', 'label', 'status', 'collaborator_coordinates',
+                           'collaborator_country', 'collaborator_country_code', 'collaborator_id',
+                           'collaborator_name', 'collaborator_region', 'collaborator_subregion', 'field', 'source',
+                           'funder_country_code', 'funder_name', 'funder_sub_type', 'funder_type', 'journal',
+                           'output_type', 'publisher']
 
 
 def create_es_connection(address: str, api_key: str) -> Union[Elasticsearch, None]:
@@ -139,6 +143,7 @@ def parse_args() -> Tuple[str, str, str, str, dict, int, str]:
 
     :return: alias, index_date, from_date, to_date, filter_fields, size, scroll_id
     """
+
     agg = request.args.get('agg')
     subset = request.args.get('subset')
     index_date = request.args.get('index_date')
@@ -149,9 +154,7 @@ def parse_args() -> Tuple[str, str, str, str, dict, int, str]:
 
     # get filter keys/values from list of filter parameters
     filter_fields = {}
-    with current_app.app_context():
-        query_filter_parameters = current_app.query_filter_parameters
-    for field in query_filter_parameters:
+    for field in QUERY_FILTER_PARAMETERS:
         value = request.args.get(field)
         if value:
             value = value.split(',')
@@ -175,68 +178,3 @@ def parse_args() -> Tuple[str, str, str, str, dict, int, str]:
         size = max_size
 
     return alias, index_date, from_date, to_date, filter_fields, size, scroll_id
-
-
-def searchv1() -> Union[Tuple[str, int], dict]:
-    """ Search elasticsearch for hits based on either a search body or a scroll id.
-
-    :return: results dictionary or error response
-    """
-    start = time.time()
-
-    alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-
-    es_api_key = os.environ.get('ES_API_KEY')
-    es_address = os.environ.get('ES_HOST')
-    es = create_es_connection(es_address, es_api_key)
-    if es is None:
-        return "Elasticsearch environment variable for host or api key is empty", 400
-
-    # use scroll id
-    if scroll_id:
-        res = es.scroll(scroll_id=scroll_id, scroll='1m')
-        index = 'N/A'
-    # use search body
-    else:
-        if alias == '':
-            return "Invalid combination of aggregation (publisher) and subset (collaborations)", 400
-
-        search_body = create_search_body(from_date, to_date, filter_fields, size)
-
-        # use specific index if date is given, otherwise use alias which points to latest date
-        if index_date:
-            index = alias + f"-{index_date}"
-            index_exists = es.indices.exists(index)
-            if not index_exists:
-                available_dates = list_available_index_dates(es, alias)
-                return f"Index does not exist: {index}\n Available dates for this agg & subset:\n" \
-                       f"{chr(10).join(available_dates)}", 400
-        else:
-            index = es.cat.aliases(alias, format='json')[0]['index']
-
-        res = es.search(index=index, body=search_body, scroll='1m')
-    scroll_id, results_data = process_response(res)
-
-    number_total_results = res['hits']['total']['value']
-
-    end = time.time()
-    print(end - start)
-    results = {
-        'version': 'v1',
-        'index': index,
-        'scroll_id': scroll_id,
-        'returned_hits': len(results_data),
-        'total_hits': number_total_results,
-        'schema': create_schema(),
-        'results': results_data
-    }
-    return results
-
-
-# def searchv2():
-#     """ Example of having a different function for an upgraded version of the API.
-#
-#     :return:
-#     """
-#
-#     return "Hello World"

@@ -117,6 +117,11 @@ Install the `observatory-platform` package:
 pip3 install -e observatory-platform
 ```
 
+Install the `observatory-api` package (optional):
+```bash
+pip3 install -e observatory-api
+```
+
 Install the `observatory-dags` package (optional):
 ```bash
 pip3 install -e observatory-dags
