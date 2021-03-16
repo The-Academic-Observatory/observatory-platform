@@ -95,6 +95,7 @@ Secret Manager Admin
 Service Usage Admin
 Storage Admin
 Storage Transfer Admin
+Serverless VPC Access Admin
 ```
 
 ### Production project
@@ -134,6 +135,7 @@ Service Management Administrator (API)
 Secret Manager Admin
 Service Usage Admin
 Storage Transfer Admin
+Serverless VPC Access Admin
 ```
 
 ## Prepare Google Cloud services
@@ -464,7 +466,22 @@ To destroy the system with Terraform:
 terraform destroy
 ```
 
-## Rebuild the VMs with a new Google Cloud VM image
+## Troubleshooting
+See below for instructions on troubleshooting.
+
+### Undeleting Cloud Endpoints service
+If your Cloud Endpoints service is deleted by Terraform and you try to recreate it again, you will get the following
+error:
+```bash
+Error: googleapi: Error 400: Service <your endpoints service name> has been deleted and will be purged after 30 days. To reuse this service, please undelete the service following https://cloud.google.com/service-infrastructure/docs/create-services#undeleting., failedPrecondition
+```
+
+To restore the Cloud Endpoints service, run the following:
+```bash
+gcloud endpoints services undelete <name of endpoints service>
+```
+
+### Rebuild the VMs with a new Google Cloud VM image
 If you have re-built the Google Cloud VM image, then you will need to manually taint the VMs and rebuild them:
 ```bash
 terraform taint module.airflow_main_vm.google_compute_instance.vm_instance
@@ -472,14 +489,14 @@ terraform taint module.airflow_worker_vm.google_compute_instance.vm_instance
 terraform apply
 ```
 
-## Manually destroy the VMs
+### Manually destroy the VMs
 Run the following commands to manually destroy the VMs:
 ```
 terraform destroy -target module.airflow_main_vm.google_compute_instance.vm_instance
 terraform destroy -target module.airflow_worker_vm.google_compute_instance.vm_instance
 ```
 
-## Logging into the VMs
+### Logging into the VMs
 To ssh into airflow-main-vm:
 ```bash
 gcloud compute ssh airflow-main-vm --project your-project-id --zone your-compute-zone
@@ -490,7 +507,7 @@ To ssh into airflow-worker-vm (this is off by default, turn on using airflow DAG
 gcloud compute ssh airflow-worker-vm --project your-project-id --zone your-compute-zone
 ```
 
-## Viewing the Apache Airflow and Flower UIs
+### Viewing the Apache Airflow and Flower UIs
 To view the Apache Airflow and Flower web user interfaces you must forward ports 8080 and 5555 from the airflow-main-vm
 into your local workstation.
 
@@ -499,7 +516,7 @@ To port forward with the gcloud command line tool:
 gcloud compute ssh airflow-main-vm --project your-project-id --zone us-west1-c -- -L 5555:localhost:5555 -L 8080:localhost:8080
 ```
 
-## Syncing files with a VM
+### Syncing files with a VM
 To sync your local Observatory Platform project with a VM run the following commands, making sure to customise
 the username and vm-hostname for the machine:
 ```bash

@@ -1,4 +1,5 @@
 # Copyright 2020 Google, LLC.
+# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,22 +15,26 @@
 
 # Use the official lightweight Python image.
 # https://hub.docker.com/_/python
+
 FROM python:3.9-slim
 
+# Environment variables
+ENV PBR_VERSION 0.0.1
+ENV ES_API_KEY ""
+ENV ES_HOST ""
+ENV OBSERVATORY_DB_URI sqlite://
 # Allow statements and log messages to immediately appear in the Knative logs
 ENV PYTHONUNBUFFERED True
 
-# Copy local code to the container image.
-ENV APP_HOME /app
-WORKDIR $APP_HOME
+# Copy observatory-api to the container image.
+RUN mkdir /observatory-api
+COPY . ./observatory-api
 
-# Install requirements
-COPY requirements.txt ./
-RUN /bin/bash -c "pip3 install --no-cache-dir -r requirements.txt"
+# Install observatory-api
+RUN pip3 install /observatory-api
 
 # Install berglas
 COPY --from=gcr.io/berglas/berglas:latest /bin/berglas /bin/berglas
 
-COPY app ./
-
-ENTRYPOINT ["/bin/berglas", "exec",  "--",  "gunicorn", "-b", "0.0.0.0:8080", "app:app"]
+# Run app
+ENTRYPOINT ["/bin/berglas", "exec",  "--", "gunicorn", "-b", "0.0.0.0:8080", "--timeout", "0", "observatory.api.app:app"]
