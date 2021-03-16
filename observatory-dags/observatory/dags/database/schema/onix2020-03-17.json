@@ -1,5 +1,15 @@
 [
   {
+    "mode": "NULLABLE",
+    "name": "PID_Proprietary",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "RecordRef",
+    "type": "STRING"
+  },
+  {
     "fields": [
       {
         "mode": "NULLABLE",
@@ -54,6 +64,16 @@
     "mode": "REPEATED",
     "name": "CityOfPublications",
     "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "RecordSourceType",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "EditionNumber",
+    "type": "INTEGER"
   },
   {
     "fields": [
@@ -131,6 +151,16 @@
     "type": "RECORD"
   },
   {
+    "mode": "REPEATED",
+    "name": "EditionType",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "DOI",
+    "type": "STRING"
+  },
+  {
     "fields": [
       {
         "fields": [
@@ -205,7 +235,12 @@
   },
   {
     "mode": "NULLABLE",
-    "name": "PID_Proprietary",
+    "name": "ISBN13",
+    "type": "INTEGER"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ISBN10",
     "type": "STRING"
   },
   {
@@ -300,11 +335,6 @@
     "type": "STRING"
   },
   {
-    "mode": "NULLABLE",
-    "name": "EditionNumber",
-    "type": "INTEGER"
-  },
-  {
     "fields": [
       {
         "mode": "NULLABLE",
@@ -347,95 +377,6 @@
     "mode": "REPEATED",
     "name": "Languages",
     "type": "RECORD"
-  },
-  {
-    "mode": "REPEATED",
-    "name": "EditionType",
-    "type": "STRING"
-  },
-  {
-    "mode": "NULLABLE",
-    "name": "DOI",
-    "type": "STRING"
-  },
-  {
-    "mode": "NULLABLE",
-    "name": "ISBN10",
-    "type": "STRING"
-  },
-  {
-    "fields": [
-      {
-        "mode": "NULLABLE",
-        "name": "SubjectSchemeName",
-        "type": "STRING"
-      },
-      {
-        "mode": "REPEATED",
-        "name": "SubjectHeadingText",
-        "type": "STRING"
-      },
-      {
-        "mode": "NULLABLE",
-        "name": "SubjectSchemeIdentifier",
-        "type": "STRING"
-      },
-      {
-        "mode": "NULLABLE",
-        "name": "SubjectSchemeVersion",
-        "type": "FLOAT"
-      },
-      {
-        "mode": "NULLABLE",
-        "name": "SubjectCode",
-        "type": "STRING"
-      },
-      {
-        "mode": "NULLABLE",
-        "name": "MainSubject",
-        "type": "BOOLEAN"
-      }
-    ],
-    "mode": "REPEATED",
-    "name": "Subjects",
-    "type": "RECORD"
-  },
-  {
-    "mode": "NULLABLE",
-    "name": "RecordRef",
-    "type": "STRING"
-  },
-  {
-    "fields": [
-      {
-        "mode": "NULLABLE",
-        "name": "ExtentValueRoman",
-        "type": "STRING"
-      },
-      {
-        "mode": "NULLABLE",
-        "name": "ExtentType",
-        "type": "STRING"
-      },
-      {
-        "mode": "NULLABLE",
-        "name": "ExtentValue",
-        "type": "INTEGER"
-      },
-      {
-        "mode": "NULLABLE",
-        "name": "ExtentUnit",
-        "type": "STRING"
-      }
-    ],
-    "mode": "REPEATED",
-    "name": "Extent",
-    "type": "RECORD"
-  },
-  {
-    "mode": "NULLABLE",
-    "name": "ISBN13",
-    "type": "INTEGER"
   },
   {
     "fields": [
@@ -543,7 +484,71 @@
   },
   {
     "mode": "NULLABLE",
-    "name": "RecordSourceType",
+    "name": "COKI_ID",
     "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "ExtentValueRoman",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ExtentType",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ExtentValue",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ExtentUnit",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "Extent",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "SubjectSchemeName",
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "SubjectHeadingText",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "SubjectSchemeIdentifier",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "SubjectSchemeVersion",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "SubjectCode",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "MainSubject",
+        "type": "BOOLEAN"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "Subjects",
+    "type": "RECORD"
   }
 ]
