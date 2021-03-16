@@ -22,8 +22,8 @@ import sqlalchemy
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.pool import StaticPool
 
-from observatory.api.orm import (create_session, set_session, TelescopeType, Telescope, Organisation, to_datetime,
-                                 fetch_db_object)
+from observatory.api.server.orm import (create_session, set_session, TelescopeType, Telescope, Organisation,
+                                        to_datetime, fetch_db_object)
 
 
 def create_telescope_types(session: scoped_session, names: List[str], created: datetime):

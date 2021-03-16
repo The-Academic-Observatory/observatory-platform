@@ -20,7 +20,7 @@ from typing import Dict
 import yaml
 from jinja2 import Template
 
-from observatory.api.elastic import QUERY_FILTER_PARAMETERS
+from observatory.api.server.elastic import QUERY_FILTER_PARAMETERS
 
 
 def render_template(template_path: str, **kwargs) -> str:

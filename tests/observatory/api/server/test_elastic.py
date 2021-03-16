@@ -20,9 +20,9 @@ from unittest.mock import patch
 
 from elasticsearch import Elasticsearch
 
-from observatory.api.api import create_app
-from observatory.api.elastic import (create_es_connection, create_search_body, list_available_index_dates,
-                                     parse_args, process_response, QUERY_FILTER_PARAMETERS)
+from observatory.api.server.api import create_app
+from observatory.api.server.elastic import (create_es_connection, create_search_body, list_available_index_dates,
+                                            parse_args, process_response, QUERY_FILTER_PARAMETERS)
 
 AGGREGATIONS = ['author', 'country', 'funder', 'group', 'institution', 'publisher']
 SUBSETS = ['citations', 'collaborations', 'disciplines', 'events', 'funders', 'journals', 'oa-metrics',
@@ -64,7 +64,7 @@ RES_EXAMPLE = {
 class TestElastic(unittest.TestCase):
     """ Tests for the 'query' endpoint of the API. """
 
-    @patch('observatory.api.elastic.Elasticsearch.ping')
+    @patch('observatory.api.server.elastic.Elasticsearch.ping')
     def test_create_es_connection(self, mock_elasticsearch_ping):
         """ Test creating elasticsearch connection with (in)valid address and api_key
 

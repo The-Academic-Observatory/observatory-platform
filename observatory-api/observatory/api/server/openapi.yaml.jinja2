@@ -68,7 +68,7 @@ tags:
   description: Create, read, update, delete and list information about the type of telescopes that exist.
 {%- set reports_tag="Reports" -%}
 {%- set organisation_tag="Organisation" -%}
-{%- set telecope_tag="Telescope" -%}
+{%- set telescope_tag="Telescope" -%}
 {%- set telescope_type_tag="TelescopeType" -%}
 {%- endif %}
 
@@ -76,7 +76,7 @@ tags:
 {%- if api_client %}
 {%- set operation_id_namespace="" -%}
 {% else %}
-{%- set operation_id_namespace="observatory.api.api." -%}
+{%- set operation_id_namespace="observatory.api.server.api." -%}
 {%- endif %}
 
 paths:

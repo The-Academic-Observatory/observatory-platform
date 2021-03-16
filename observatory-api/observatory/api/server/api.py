@@ -27,10 +27,10 @@ import connexion
 from flask import jsonify
 from sqlalchemy import and_
 
-from observatory.api.elastic import (create_schema, process_response, list_available_index_dates, create_search_body,
-                                     create_es_connection, parse_args)
-from observatory.api.openapi_renderer import OpenApiRenderer
-from observatory.api.orm import Telescope, TelescopeType, Organisation
+from observatory.api.server.elastic import (create_schema, process_response, list_available_index_dates,
+                                            create_search_body, create_es_connection, parse_args)
+from observatory.api.server.openapi_renderer import OpenApiRenderer
+from observatory.api.server.orm import Telescope, TelescopeType, Organisation
 
 Response = Tuple[Union[Dict, str], int]
 session_ = None  # Global session

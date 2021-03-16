@@ -22,9 +22,9 @@ from unittest.mock import patch
 
 from sqlalchemy.pool import StaticPool
 
-from observatory.api.api import make_response, create_app
-from observatory.api.orm import create_session, set_session, TelescopeType, Telescope, Organisation
-from tests.observatory.api.test_elastic import SCROLL_ID, RES_EXAMPLE, Elasticsearch
+from observatory.api.server.api import make_response, create_app
+from observatory.api.server.orm import create_session, set_session, TelescopeType, Telescope, Organisation
+from tests.observatory.api.server.test_elastic import SCROLL_ID, RES_EXAMPLE, Elasticsearch
 
 
 class TestApp(unittest.TestCase):
@@ -254,9 +254,9 @@ class TestApp(unittest.TestCase):
             self.assertEqual(status_code, response.status_code)
             self.assertDictEqual(expected, actual)
 
-    @patch('observatory.api.elastic.Elasticsearch.scroll')
-    @patch('observatory.api.elastic.Elasticsearch.search')
-    @patch('observatory.api.api.create_es_connection')
+    @patch('observatory.api.server.elastic.Elasticsearch.scroll')
+    @patch('observatory.api.server.elastic.Elasticsearch.search')
+    @patch('observatory.api.server.api.create_es_connection')
     def test_query(self, mock_create_connection, mock_es_search, mock_es_scroll):
         """ Test elasticsearch search query with different args.
 
@@ -375,7 +375,7 @@ class TestApp(unittest.TestCase):
                 self.assertEqual(expected_results, json.loads(response.data.decode('utf-8')))
 
                 # With search body, test with invalid index date
-                with patch('observatory.api.api.list_available_index_dates') as mock_index_dates:
+                with patch('observatory.api.server.api.list_available_index_dates') as mock_index_dates:
                     res = copy.deepcopy(RES_EXAMPLE)
                     mock_es_search.return_value = res
                     index_date = '20200101'

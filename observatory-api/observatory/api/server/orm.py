@@ -66,7 +66,7 @@ def set_session(session):
 
     global session_
     session_ = session
-    import observatory.api.api as api
+    import observatory.api.server.api as api
     api.session_ = session
 
 
