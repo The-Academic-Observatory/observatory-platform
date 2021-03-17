@@ -1,6 +1,6 @@
 globalProperties:
-  apiTests: "false"
-  modelTests: "false"
+  apiTests: "true"
+  modelTests: "true"
 additionalProperties:
   generateSourceCodeOnly: "true"
   hideGenerationTimestamp: "true"
