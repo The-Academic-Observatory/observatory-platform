@@ -67,7 +67,7 @@ class TelescopeType(ModelNormal):
     _nullable = False
 
     @cached_property
-    def openapi_types():
+    def openapi_types(self):
         """
         This must be a method because a model may have properties that are
         of type self, this must run after the class is loaded
@@ -77,14 +77,14 @@ class TelescopeType(ModelNormal):
                 and the value is attribute type.
         """
         return {
-            'id': (int,),  # noqa: E501
-            'name': (str,),  # noqa: E501
-            'created': (datetime,),  # noqa: E501
-            'modified': (datetime,),  # noqa: E501
+            'id': (int,),  # noqa: E501, F821
+            'name': (str,),  # noqa: E501, F821
+            'created': (datetime,),  # noqa: E501, F821
+            'modified': (datetime,),  # noqa: E501, F821
         }
 
     @cached_property
-    def discriminator():
+    def discriminator(self):
         return None
 
 

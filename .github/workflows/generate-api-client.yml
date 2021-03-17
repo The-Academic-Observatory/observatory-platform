@@ -38,7 +38,7 @@ jobs:
 
       - name: Generate Observatory API Client
         run |
-          openapi-generator-cli generate -i observatory-api/openapi.yaml -g python -c observatory-api/api-config.yaml -o observatory-api
+          openapi-generator-cli generate -i observatory-api/openapi.yaml -g python -c observatory-api/api-config.yaml -t observatory-api/templates/ -o observatory-api
 
       - name: Massage generated files into the right places
         run |
