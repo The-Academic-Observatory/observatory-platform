@@ -14,144 +14,212 @@
 
 # Author: Aniek Roelofs
 
-import logging
 import os
-import unittest
-from unittest.mock import patch
+from datetime import timedelta
 
+import httpretty
 import pendulum
-import vcr
-from click.testing import CliRunner
-from observatory.dags.telescopes.doab import DoabRelease, DoabTelescope
-from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
-
-from tests.observatory.test_utils import test_fixtures_path
-
-
-class MockTaskInstance:
-    def __init__(self, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
-        """ Construct a MockTaskInstance. This mocks the airflow TaskInstance and is passed as a keyword arg to the
-        make_release function.
-        :param start_date: Start date of dag run
-        :param end_date: End date of dag run
-        :param first_release: Whether first time a release is processed
-        """
-        self.start_date = start_date
-        self.end_date = end_date
-        self.first_release = first_release
-
-    def xcom_pull(self, key: str, include_prior_dates: bool):
-        """ Mock xcom_pull method of airflow TaskInstance.
-        :param key: -
-        :param include_prior_dates: -
-        :return: Records list
-        """
-        return self.start_date, self.end_date, self.first_release
+import time_machine
+from observatory.dags.telescopes.doab import (DoabRelease, DoabTelescope)
+from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, test_fixtures_path
 
 
-def side_effect(arg):
-    values = {
-        'project_id': 'project',
-        'download_bucket_name': 'download-bucket',
-        'transform_bucket_name': 'transform-bucket',
-        'data_path': 'data',
-        'data_location': 'US'
-    }
-    return values[arg]
+class TestDoab(ObservatoryTestCase):
+    """ Tests for the DOAB telescope """
 
-
-@patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-class TestDoab(unittest.TestCase):
-    """ Tests for the functions used by the Doab telescope """
-
-    def __init__(self, *args, **kwargs, ):
+    def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
-
         :param args: arguments.
         :param kwargs: keyword arguments.
         """
-
         super(TestDoab, self).__init__(*args, **kwargs)
-        # Paths
-        self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
-        self.download_path = os.path.join(self.vcr_cassettes_path, 'doab_2021-02-12.yaml')
+        self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
+        self.data_location = os.getenv('TESTS_DATA_LOCATION')
 
-        # Telescope instance
-        self.doab = DoabTelescope()
+        self.first_download_path = test_fixtures_path('telescopes', 'doab', 'doab1.csv')
+        self.first_execution_date = pendulum.datetime(year=2021, month=2, day=1)
+        self.first_run_date = time_machine.travel(self.first_execution_date)
 
-        # Dag run info
-        self.start_date = pendulum.parse('2021-02-12')
-        self.end_date = pendulum.parse('2021-02-12')
+        self.second_download_path = test_fixtures_path('telescopes', 'doab', 'doab2.csv')
+        self.second_execution_date = pendulum.datetime(year=2021, month=3, day=1)
+        self.second_run_date = time_machine.travel(self.second_execution_date)
 
-        # Hash values
-        self.csv_hash = 'b504ced22d319fff198e3435496882fd'
-        self.oai_pmh_hash = '18f353ff41b9f8908dcb258e487a4ea8'
-        self.transform_crc = '34ac5707'
+    def test_dag_structure(self):
+        """ Test that the DOAB DAG has the correct structure.
+        :return: None
+        """
 
-        # Create release instance that is used to test download/transform
-        with patch('observatory.platform.utils.template_utils.AirflowVariable.get') as mock_variable_get:
-            mock_variable_get.side_effect = side_effect
+        dag = DoabTelescope().make_dag()
+        self.assert_dag_structure({
+            'check_dependencies': ['get_release_info'],
+            'get_release_info': ['download'],
+            'download': ['upload_downloaded'],
+            'upload_downloaded': ['transform'],
+            'transform': ['upload_transformed'],
+            'upload_transformed': ['bq_load_partition'],
+            'bq_load_partition': ['bq_delete_old'],
+            'bq_delete_old': ['bq_append_new'],
+            'bq_append_new': ['cleanup'],
+            'cleanup': []
+        }, dag)
 
-            self.release = DoabRelease(self.doab.dag_id, self.start_date, self.end_date, first_release=True)
+    def test_dag_load(self):
+        """ Test that the DOAB DAG can be loaded from a DAG bag.
+        :return: None
+        """
 
-        # Turn logging to warning because vcr prints too much at info level
-        logging.basicConfig()
-        logging.getLogger().setLevel(logging.WARNING)
+        with ObservatoryEnvironment().create():
+            self.assert_dag_load('doab')
 
-    def test_make_release(self, mock_variable_get):
-        """ Check that make_release returns a doab release instance.
-
-        :param mock_variable_get: Mock result of airflow's Variable.get() function
+    def test_telescope(self):
+        """ Test the DOAB telescope end to end.
         :return: None.
         """
-        mock_variable_get.side_effect = side_effect
+        # Setup Observatory environment
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        dataset_id = env.add_dataset()
 
-        first_release = self.doab.make_release(ti=MockTaskInstance(self.start_date, self.end_date, True))
-        later_release = self.doab.make_release(ti=MockTaskInstance(self.start_date, self.end_date, False))
-        for release in [first_release, later_release]:
-            self.assertIsInstance(release, DoabRelease)
-        self.assertTrue(first_release.first_release)
-        self.assertFalse(later_release.first_release)
+        # Setup Telescope
+        telescope = DoabTelescope(dataset_id=dataset_id)
+        telescope.sftp_folder = '/unittests/jstor'
+        dag = telescope.make_dag()
 
-    def test_download_release(self, mock_variable_get):
-        """ Download release and check it has the expected md5 sum.
+        # Create the Observatory environment and run tests
+        with env.create():
+            # first run
+            self.first_run_date.start()
+            with env.create_dag_run(dag, self.first_execution_date):
+                # Test that all dependencies are specified: no error should be thrown
+                env.run_task(telescope.check_dependencies.__name__)
 
-        :param mock_variable_get: Mock result of airflow's Variable.get() function
-        :return:
-        """
-        mock_variable_get.side_effect = side_effect
+                # Test list releases task with files available
+                ti = env.run_task(telescope.get_release_info.__name__)
+                start_date, end_date, first_release = ti.xcom_pull(key=DoabTelescope.RELEASE_INFO,
+                                                                   task_ids=telescope.get_release_info.__name__,
+                                                                   include_prior_dates=False)
+                self.assertEqual(start_date, dag.default_args['start_date'])
+                self.assertEqual(end_date, pendulum.today('UTC') - timedelta(days=1))
+                self.assertTrue(first_release)
 
-        with CliRunner().isolated_filesystem():
-            with vcr.use_cassette(self.download_path):
-                success = self.release.download()
+                # use release info for other tasks
+                release = DoabRelease(telescope.dag_id, start_date, end_date, first_release)
 
-                # Check that download is successful
-                self.assertTrue(success)
+                # Test download task
+                with httpretty.enabled():
+                    self.setup_mock_file_download(DoabTelescope.CSV_URL, self.first_download_path)
+                    env.run_task(telescope.download.__name__)
 
-                # Check that both csv and oai-pmh files have expected hash
-                self.assertEqual(2, len(self.release.download_files))
-                # csv
-                self.assertTrue(os.path.exists(self.release.csv_path))
-                self.assertEqual(self.csv_hash, _hash_file(self.release.csv_path, algorithm='md5'))
-                # oai-pmh
-                self.assertTrue(os.path.exists(self.release.oai_pmh_path))
-                self.assertEqual(self.oai_pmh_hash, _hash_file(self.release.oai_pmh_path, algorithm='md5'))
+                self.assertEqual(1, len(release.download_files))
+                download_path = release.download_files[0]
+                expected_file_hash = _hash_file(self.first_download_path, algorithm='md5')
+                self.assert_file_integrity(download_path, expected_file_hash, 'md5')
 
-    def test_transform_release(self, mock_variable_get):
-        """ Test that the release is transformed as expected.
+                # Test that file uploaded
+                env.run_task(telescope.upload_downloaded.__name__)
+                self.assert_blob_integrity(env.download_bucket, blob_name(download_path), download_path)
 
-        :param mock_variable_get: Mock result of airflow's Variable.get() function
-        :return: None.
-        """
-        mock_variable_get.side_effect = side_effect
+                # Test that file transformed
+                env.run_task(telescope.transform.__name__)
 
-        with CliRunner().isolated_filesystem():
-            with vcr.use_cassette(self.download_path):
-                self.release.download()
-                self.release.transform()
+                self.assertEqual(1, len(release.transform_files))
+                transform_path = release.transform_files[0]
+                expected_file_hash = 'ed36b4ac'
+                self.assert_file_integrity(transform_path, expected_file_hash, 'gzip_crc')
 
-                # Check that file has expected crc
-                self.assertEqual(1, len(self.release.transform_files))
-                file_path = self.release.transform_files[0]
-                self.assertTrue(os.path.exists(file_path))
-                self.assertEqual(self.transform_crc, gzip_file_crc(file_path))
+                # Test that transformed file uploaded
+                env.run_task(telescope.upload_transformed.__name__)
+                self.assert_blob_integrity(env.transform_bucket, blob_name(transform_path), transform_path)
+
+                # Test that load partition task is skipped for the first release
+                ti = env.run_task(telescope.bq_load_partition.__name__)
+                self.assertEqual(ti.state, 'skipped')
+
+                # Test delete old task is in success state, without doing anything
+                ti = env.run_task(telescope.bq_delete_old.__name__)
+                self.assertEqual(ti.state, 'success')
+
+                # Test append new creates table
+                env.run_task(telescope.bq_append_new.__name__)
+                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                table_id = f'{self.project_id}.{telescope.dataset_id}.{main_table_id}'
+                expected_rows = 4
+                self.assert_table_integrity(table_id, expected_rows)
+
+                # Test that all telescope data deleted
+                download_folder, extract_folder, transform_folder = release.download_folder, release.extract_folder, \
+                                                                    release.transform_folder
+                env.run_task(telescope.cleanup.__name__)
+                self.assert_cleanup(download_folder, extract_folder, transform_folder)
+            self.first_run_date.stop()
+
+            # second run
+            self.second_run_date.start()
+            with env.create_dag_run(dag, self.second_execution_date):
+                # Test that all dependencies are specified: no error should be thrown
+                env.run_task(telescope.check_dependencies.__name__)
+
+                # Test list releases task with files available
+                ti = env.run_task(telescope.get_release_info.__name__)
+                start_date, end_date, first_release = ti.xcom_pull(key=DoabTelescope.RELEASE_INFO,
+                                                                   task_ids=telescope.get_release_info.__name__,
+                                                                   include_prior_dates=False)
+                self.assertEqual(start_date, release.end_date)
+                self.assertEqual(end_date, pendulum.today('UTC') - timedelta(days=1))
+                self.assertFalse(first_release)
+
+                # use release info for other tasks
+                release = DoabRelease(telescope.dag_id, start_date, end_date, first_release)
+
+                # Test download task
+                with httpretty.enabled():
+                    self.setup_mock_file_download(DoabTelescope.CSV_URL, self.second_download_path)
+                    env.run_task(telescope.download.__name__)
+
+                self.assertEqual(1, len(release.download_files))
+                download_path = release.download_files[0]
+                expected_file_hash = _hash_file(self.second_download_path, algorithm='md5')
+                self.assert_file_integrity(download_path, expected_file_hash, 'md5')
+
+                # Test that file uploaded
+                env.run_task(telescope.upload_downloaded.__name__)
+                self.assert_blob_integrity(env.download_bucket, blob_name(download_path), download_path)
+
+                # Test that file transformed
+                env.run_task(telescope.transform.__name__)
+
+                self.assertEqual(1, len(release.transform_files))
+                transform_path = release.transform_files[0]
+                expected_file_hash = '96f95637'
+                self.assert_file_integrity(transform_path, expected_file_hash, 'gzip_crc')
+
+                # Test that transformed file uploaded
+                env.run_task(telescope.upload_transformed.__name__)
+                self.assert_blob_integrity(env.transform_bucket, blob_name(transform_path), transform_path)
+
+                # Test that load partition task creates partition
+                env.run_task(telescope.bq_load_partition.__name__)
+                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                table_id = f'{self.project_id}.{telescope.dataset_id}.{partition_table_id}'
+                expected_rows = 4
+                self.assert_table_integrity(table_id, expected_rows)
+
+                # Test task deleted rows from main table
+                env.run_task(telescope.bq_delete_old.__name__)
+                table_id = f'{self.project_id}.{telescope.dataset_id}.{main_table_id}'
+                expected_rows = 3
+                self.assert_table_integrity(table_id, expected_rows)
+
+                # Test append new adds rows to table
+                env.run_task(telescope.bq_append_new.__name__)
+                table_id = f'{self.project_id}.{telescope.dataset_id}.{main_table_id}'
+                expected_rows = 7
+                self.assert_table_integrity(table_id, expected_rows)
+
+                # Test that all telescope data deleted
+                download_folder, extract_folder, transform_folder = release.download_folder, release.extract_folder, \
+                                                                    release.transform_folder
+                env.run_task(telescope.cleanup.__name__)
+                self.assert_cleanup(download_folder, extract_folder, transform_folder)
+            self.second_run_date.stop()
