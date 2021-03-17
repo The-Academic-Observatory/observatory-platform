@@ -38,15 +38,15 @@ jobs:
 
       - name: Generate Observatory API Client
         run |
-        openapi-generator-cli generate -i observatory-api/openapi.yaml -g python -c observatory-api/api-config.yaml -o observatory-api
+          openapi-generator-cli generate -i observatory-api/openapi.yaml -g python -c observatory-api/api-config.yaml -o observatory-api
 
       - name: Massage generated files into the right places
         run |
-        mv
-        cp -rn observatory-api/observatory/api/client/test/* tests/observatory/api/client/
-        cp -rn observatory-api/observatory/api/client/docs/* docs/api/
-        rm -r observatory-api/observatory/api/client/test/
-        rm -r observatory-api/observatory/api/client/docs/
+          mv
+          cp -rn observatory-api/observatory/api/client/test/* tests/observatory/api/client/
+          cp -rn observatory-api/observatory/api/client/docs/* docs/api/
+          rm -r observatory-api/observatory/api/client/test/
+          rm -r observatory-api/observatory/api/client/docs/
 
       - name: Create Pull Request
         id: cpr
