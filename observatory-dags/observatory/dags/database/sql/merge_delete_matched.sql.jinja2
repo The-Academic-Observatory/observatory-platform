@@ -14,9 +14,9 @@
 # Author: Aniek Roelofs#}
 
 MERGE
-  {{ dataset }}.{{ main_table }} M
+  `{{ dataset }}.{{ main_table }}` M
 USING
-  (SELECT {{ merge_condition_field }} AS id, {{ updated_date_field }} AS date FROM {{ dataset }}.{{ partitioned_table }} WHERE _PARTITIONDATE >= '{{ start_date }}' AND _PARTITIONDATE < '{{ end_date }}') P
+  (SELECT {{ merge_condition_field }} AS id, {{ updated_date_field }} AS date FROM `{{ dataset }}.{{ partitioned_table }}` WHERE _PARTITIONDATE >= '{{ start_date }}' AND _PARTITIONDATE < '{{ end_date }}') P
 ON
   M.{{ merge_condition_field }} = P.id
 WHEN MATCHED AND M.{{ updated_date_field }} <= P.date OR M.{{ updated_date_field }} is null THEN
