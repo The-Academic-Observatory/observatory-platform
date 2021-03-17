@@ -54,7 +54,7 @@ tags:
   description: the Observatory API
 {%- set reports_tag="Observatory" -%}
 {%- set organisation_tag="Observatory" -%}
-{%- set telecope_tag="Observatory" -%}
+{%- set telescope_tag="Observatory" -%}
 {%- set telescope_type_tag="Observatory" -%}
 {% else %}
 tags:
@@ -169,29 +169,10 @@ paths:
           collectionFormat: multi
         {% endfor %}
       responses:
-        '200':
+        200:
           description: Successfully return query results
           schema:
-            type: object
-            properties:
-              index:
-                type: string
-                description: The full name of the elasticsearch index that is searched
-              scroll_id:
-                type: string
-                description: The scroll id that can be used to get the next batch of results (only active for 1min)
-              returned_hits:
-                type: integer
-                description: The number of returned hits (can be less than total_hits if a limit is set)
-              total_hits:
-                type: integer
-                description: The number of total hits
-              schema:
-                type: object
-                description: The schema for an individual hit
-              results:
-                type: array
-                description: A list of the actual results (one dictionary per hit)
+            $ref: '#/definitions/QueryResponse'
         401:
           $ref: '#/responses/UnauthorizedError'
       produces:
@@ -564,6 +545,39 @@ paths:
 #          description: Successfully return query results
 
 definitions:
+  QueryResponse:
+    type: object
+    properties:
+      version:
+        type: string
+        description: The API version
+        example: 'v1'
+      index:
+        type: string
+        description: The full name of the elasticsearch index that is searched
+        example: 'citations-country-20201212'
+      scroll_id:
+        type: string
+        description: The scroll id that can be used to get the next batch of results (only active for 1min)
+        example: 'FGluY2x1ZGVfY29udGV4dF91dWlkDXF1ZXJ5QW5kRmV0Y2gBFlFkWThoZy1FUTZPQ2JhcXpGSnFjTEEAAAAAALEIyRZYRkVGWmNSRVRqU0VpTFdYbGFPUERR'
+      returned_hits:
+        type: integer
+        description: The number of returned hits (can be less than total_hits if a limit is set)
+        example: 10000
+      total_hits:
+        type: integer
+        description: The number of total hits
+        example: 126538
+      schema:
+        type: object
+        description: The schema for an individual hit
+        example: ''
+      results:
+        type: array
+        description: A list of the actual results (one dictionary per hit)
+        items:
+          type: object
+
   TelescopeType:
     type: object
     properties:
