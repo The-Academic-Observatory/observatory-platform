@@ -1,4 +1,4 @@
-# Observatory API
+# Observatory API Server
 This is a tutorial for deploying the Observatory Platform to Google Cloud with Terraform.
 
 You should have [installed the Observatory Platform](installation.html) before following this tutorial.
