@@ -202,7 +202,7 @@ class StreamTelescope(Telescope):
             for transform_path in release.transform_files:
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
                 bq_append_from_partition(start_date, end_date, self.dataset_id, main_table_id, partition_table_id,
-                                         self.schema_prefix, self.schema_version)
+                                         self.schema_prefix, self.schema_version, self.description)
         else:
             raise AirflowSkipException(f'Skipped, not first release and only append new records every '
                                        f'{self.bq_merge_days} days. Last append was'
