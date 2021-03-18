@@ -4,7 +4,7 @@ Telescopes
     :maxdepth: 3
 
     crossref_metadata
-    crossref_events
+    doab
     fundref
     geonames
     google_analytics
