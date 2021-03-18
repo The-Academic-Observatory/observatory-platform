@@ -22,7 +22,7 @@ import subprocess
 from subprocess import Popen
 from typing import Tuple
 
-from observatory.api.openapi_renderer import OpenApiRenderer
+from observatory.api.server.openapi_renderer import OpenApiRenderer
 from observatory.platform.cli.click_utils import indent, INDENT1
 from observatory.platform.observatory_config import TerraformConfig, BackendType
 from observatory.platform.platform_builder import PlatformBuilder
