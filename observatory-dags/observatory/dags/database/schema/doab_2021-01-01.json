@@ -60,6 +60,12 @@
         "type": "RECORD",
         "fields": [
           {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "value",
+            "type": "STRING"
+          },
+          {
             "description": "Author name.",
             "mode": "REPEATED",
             "name": "author",
@@ -69,6 +75,12 @@
             "description": "Editor name.",
             "mode": "REPEATED",
             "name": "editor",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "other",
             "type": "STRING"
           }
         ]
@@ -110,6 +122,12 @@
             "type": "TIMESTAMP"
           }
         ]
+      },
+      {
+        "description": "",
+        "mode": "REPEATED",
+        "name": "dateSubmitted",
+        "type": "TIMESTAMP"
       },
       {
         "description": "description",

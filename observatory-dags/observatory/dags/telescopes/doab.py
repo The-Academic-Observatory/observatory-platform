@@ -82,7 +82,7 @@ class DoabRelease(StreamRelease):
         #         if '||' in v:
         #             list_fields.add(k)
         list_fields = {'BITSTREAM Download URL', 'BITSTREAM License', 'BITSTREAM Webshop URL', 'dc.contributor',
-                       'dc.contributor.author', 'dc.contributor.editor', 'dc.date.available', 'dc.date.issued',
+                       'dc.contributor.author', 'dc.contributor.editor', 'dc.contributor.other', 'dc.date.available', 'dc.date.issued',
                        'dc.date.submitted', 'dc.dateSubmitted', 'dc.description.abstract', 'dc.description.provenance',
                        'dc.grantproject', 'dc.identifier', 'dc.language', 'dc.notes', 'dc.number', 'dc.redirect',
                        'dc.relation.ispartofseries', 'dc.relationisFundedBy', 'dc.subject', 'dc.subject.classification',
