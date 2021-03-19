@@ -15,10 +15,13 @@
 # Author: James Diprose -#}
 version: '3.8'
 
+{# Values same for different environments #}
+{%- set postgres_user="observatory" -%}
+{%- set airflow_db_name="airflow" -%}
+
 {# Values different in different environments #}
 {%- if config.backend.type.value == 'local' -%}
-
-{%- set postgres_password="airflow" -%}
+{%- set postgres_password="observatory" -%}
 {%- set postgres_hostname="postgres" -%}
 {%- set redis_hostname="redis" -%}
 {%- set airflow_ui_user_email="airflow@airflow.com" -%}
@@ -51,7 +54,7 @@ version: '3.8'
 x-environment: &environment
   # Airflow settings
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres://observatory:{{ postgres_password }}@{{ postgres_hostname }}:5432/airflow"
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
   AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
   AIRFLOW__CORE__AIRFLOW_HOME: /opt/airflow
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
@@ -59,7 +62,7 @@ x-environment: &environment
   AIRFLOW__WEBSERVER__RBAC: "True"
   AIRFLOW__WEBSERVER__SECRET_KEY: ${SECRET_KEY}
   AIRFLOW__CELERY__BROKER_URL: "redis://:@{{ redis_hostname }}:6379/0"
-  AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://observatory:{{ postgres_password }}@{{ postgres_hostname }}:5432/airflow"
+  AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
   {%- if config.backend.type.value == 'terraform' %}
   AIRFLOW__CORE__REMOTE_LOGGING: "True"
   AIRFLOW__CORE__REMOTE_BASE_LOG_FOLDER: "gs://${AIRFLOW_VAR_AIRFLOW_BUCKET}/logs"
@@ -253,9 +256,9 @@ services:
   postgres:
     image: postgres:12.2
     environment:
-      - POSTGRES_DB=airflow
-      - POSTGRES_USER=airflow
-      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB={{ airflow_db_name }}
+      - POSTGRES_USER={{ postgres_user }}
+      - POSTGRES_PASSWORD={{ postgres_password }}
     volumes:
       - ${HOST_POSTGRES_PATH}:/var/lib/postgresql/data
     restart: always
