@@ -14,12 +14,14 @@
 
 # Author: Aniek Roelofs
 
+import datetime
 import os
 from datetime import timedelta
+from unittest.mock import patch
 
 import httpretty
 import pendulum
-import time_machine
+from freezegun import freeze_time
 from observatory.dags.telescopes.doab import (DoabRelease, DoabTelescope)
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
@@ -40,11 +42,11 @@ class TestDoab(ObservatoryTestCase):
 
         self.first_download_path = test_fixtures_path('telescopes', 'doab', 'doab1.csv')
         self.first_execution_date = pendulum.datetime(year=2021, month=2, day=1)
-        self.first_run_date = time_machine.travel(self.first_execution_date)
+        self.first_run_date = freeze_time(self.first_execution_date, tick=True)
 
         self.second_download_path = test_fixtures_path('telescopes', 'doab', 'doab2.csv')
         self.second_execution_date = pendulum.datetime(year=2021, month=3, day=1)
-        self.second_run_date = time_machine.travel(self.second_execution_date)
+        self.second_run_date = freeze_time(self.second_execution_date, tick=True)
 
     def test_dag_structure(self):
         """ Test that the DOAB DAG has the correct structure.
@@ -73,10 +75,14 @@ class TestDoab(ObservatoryTestCase):
         with ObservatoryEnvironment().create():
             self.assert_dag_load('doab')
 
-    def test_telescope(self):
+    @patch('google.auth._helpers.utcnow')
+    def test_telescope(self, mock_utcnow):
         """ Test the DOAB telescope end to end.
         :return: None.
         """
+        # make sure google auth uses real datetime and not freezegun fake time
+        mock_utcnow.return_value = datetime.datetime.utcnow()
+
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.project_id, self.data_location)
         dataset_id = env.add_dataset()
