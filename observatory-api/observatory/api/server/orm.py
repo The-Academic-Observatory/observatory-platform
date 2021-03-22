@@ -22,6 +22,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 from typing import ClassVar, Dict, Union, Any
+from pendulum import Pendulum
 
 from sqlalchemy import String, create_engine, Integer, ForeignKey, Column, DateTime
 from sqlalchemy.ext.declarative import declarative_base
@@ -98,7 +99,7 @@ def fetch_db_object(cls: ClassVar, body: Any):
     return item
 
 
-def to_datetime(obj: Union[str, datetime]) -> datetime:
+def to_datetime_utc(obj: Union[str, Pendulum]) -> Pendulum:
     """ Converts a string into a datetime object.
 
     :param obj: a string with the pattern YYYY-MM-DD HH:MM:SS (which will be converted) or a datetime object (which
@@ -106,8 +107,8 @@ def to_datetime(obj: Union[str, datetime]) -> datetime:
     :return: a datetime object.
     """
 
-    if obj is None or isinstance(obj, datetime):
-        return obj
+    if obj is None or isinstance(obj, Pendulum):
+        return obj.in_tz(tz='UTC')
     elif isinstance(obj, str):
         return datetime.strptime(obj, '%Y-%m-%d %H:%M:%S')
 
@@ -123,8 +124,8 @@ class Organisation(Base):
     gcp_project_id: str
     gcp_download_bucket: str
     gcp_transform_bucket: str
-    created: datetime
-    modified: datetime
+    created: Pendulum
+    modified: Pendulum
 
     id = Column(Integer, primary_key=True)
     name = Column(String(250))
@@ -136,7 +137,7 @@ class Organisation(Base):
     telescopes = relationship("Telescope", backref='organisation')
 
     def __init__(self, id: int = None, name: str = None, gcp_project_id: str = None, gcp_download_bucket: str = None,
-                 gcp_transform_bucket: str = None, created: datetime = None, modified: datetime = None):
+                 gcp_transform_bucket: str = None, created: Pendulum = None, modified: Pendulum = None):
         """ Construct an Organisation object, which contains information about what Google Cloud project an
         organisation uses, what are it's download and transform buckets and what telescopes does it have.
 
@@ -160,11 +161,11 @@ class Organisation(Base):
         self.gcp_project_id = gcp_project_id
         self.gcp_download_bucket = gcp_download_bucket
         self.gcp_transform_bucket = gcp_transform_bucket
-        self.created = to_datetime(created)
-        self.modified = to_datetime(modified)
+        self.created = to_datetime_utc(created)
+        self.modified = to_datetime_utc(modified)
 
     def update(self, name: str = None, gcp_project_id: str = None, gcp_download_bucket: str = None,
-               gcp_transform_bucket: str = None, modified: Union[datetime, str] = None):
+               gcp_transform_bucket: str = None, modified: Union[Pendulum, str] = None):
         """ Update the properties of an existing Organisation object. This method is handy when you want to update
         the Organisation from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
 
@@ -189,7 +190,7 @@ class Organisation(Base):
             self.gcp_transform_bucket = gcp_transform_bucket
 
         if modified is not None:
-            self.modified = to_datetime(modified)
+            self.modified = to_datetime_utc(modified)
 
 
 @dataclass
@@ -198,17 +199,18 @@ class Telescope(Base):
 
     # Only include should be serialized to JSON as dataclass attributes
     id: int
-    created: datetime
-    modified: datetime
+    created: Pendulum
+    modified: Pendulum
     telescope_type: TelescopeType = None
+    organisation: Organisation = None
 
     id = Column(Integer, primary_key=True)
     created = Column(DateTime())
     modified = Column(DateTime())
-    organisation_id = Column(Integer, ForeignKey('organisation.id'))
-    telescope_type_id = Column(Integer, ForeignKey('telescope_type.id'))
+    organisation_id = Column(Integer, ForeignKey('organisation.id'), nullable=False)
+    telescope_type_id = Column(Integer, ForeignKey('telescope_type.id'), nullable=False)
 
-    def __init__(self, id: int = None, created: datetime = None, modified: datetime = None,
+    def __init__(self, id: int = None, created: Pendulum = None, modified: Pendulum = None,
                  organisation: Union[Organisation, Dict] = None, telescope_type: Union[TelescopeType, Dict] = None):
         """ Construct a Telescope object.
 
@@ -220,14 +222,14 @@ class Telescope(Base):
         """
 
         self.id = id
-        self.created = to_datetime(created)
-        self.modified = to_datetime(modified)
+        self.created = to_datetime_utc(created)
+        self.modified = to_datetime_utc(modified)
 
         # Fetch organisation and connection type from database if it exists
         self.organisation = fetch_db_object(Organisation, organisation)
         self.telescope_type = fetch_db_object(TelescopeType, telescope_type)
 
-    def update(self, modified: Union[datetime, str] = None, organisation: Union[Organisation, Dict] = None,
+    def update(self, modified: Union[Pendulum, str] = None, organisation: Union[Organisation, Dict] = None,
                telescope_type: Union[TelescopeType, Dict] = None):
         """ Update the properties of an existing Telescope object. This method is handy when you want to update
         the Telescope from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
@@ -245,7 +247,7 @@ class Telescope(Base):
             self.telescope_type = fetch_db_object(TelescopeType, telescope_type)
 
         if modified is not None:
-            self.modified = to_datetime(modified)
+            self.modified = to_datetime_utc(modified)
 
 
 @dataclass
@@ -254,8 +256,8 @@ class TelescopeType(Base):
 
     id: int
     name: str
-    created: datetime
-    modified: datetime
+    created: Pendulum
+    modified: Pendulum
 
     id = Column(Integer, primary_key=True)
     name = Column(String(250))
@@ -263,8 +265,8 @@ class TelescopeType(Base):
     modified = Column(DateTime())
     telescopes = relationship("Telescope", backref='telescope_type')
 
-    def __init__(self, id: int = None, name: str = None, created: Union[datetime, str] = None,
-                 modified: Union[datetime, str] = None):
+    def __init__(self, id: int = None, name: str = None, created: Union[Pendulum, str] = None,
+                 modified: Union[Pendulum, str] = None):
         """ Construct a TelescopeType object.
 
         :param id: unique id.
@@ -275,10 +277,10 @@ class TelescopeType(Base):
 
         self.id = id
         self.name = name
-        self.created = to_datetime(created)
-        self.modified = to_datetime(modified)
+        self.created = to_datetime_utc(created)
+        self.modified = to_datetime_utc(modified)
 
-    def update(self, name: str = None, modified: Union[datetime, str] = None):
+    def update(self, name: str = None, modified: Union[Pendulum, str] = None):
         """ Update the properties of an existing TelescopeType object. This method is handy when you want to update
         the TelescopeType from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
 
@@ -290,4 +292,4 @@ class TelescopeType(Base):
         if name is not None:
             self.name = name
         if modified is not None:
-            self.modified = to_datetime(modified)
+            self.modified = to_datetime_utc(modified)

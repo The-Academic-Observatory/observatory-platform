@@ -221,7 +221,9 @@ paths:
           $ref: '#/definitions/TelescopeType'
       responses:
         201:
-          description: TelescopeType created, returning the created object's id
+          description: TelescopeType created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/TelescopeType'
     put:
       tags:
       - {{ telescope_type_tag }}
@@ -244,8 +246,12 @@ paths:
       responses:
         200:
           description: TelescopeType updated
+          schema:
+            $ref: '#/definitions/TelescopeType'
         201:
-          description: TelescopeType created, returning the created object's id
+          description: TelescopeType created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/TelescopeType'
     delete:
       tags:
       - {{ telescope_type_tag }}
@@ -264,7 +270,7 @@ paths:
         required: true
         type: integer
       responses:
-        201:
+        200:
           description: TelescopeType deleted
 
   /v1/telescope_types:
@@ -336,7 +342,9 @@ paths:
           $ref: '#/definitions/Telescope'
       responses:
         201:
-          description: Telescope created, returning the created object's id
+          description: Telescope created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Telescope'
     put:
       tags:
       - {{ telescope_tag }}
@@ -359,8 +367,12 @@ paths:
       responses:
         200:
           description: Telescope updated
+          schema:
+            $ref: '#/definitions/Telescope'
         201:
-          description: Telescope created, returning the created object's id
+          description: Telescope created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Telescope'
     delete:
       tags:
       - {{ telescope_tag }}
@@ -379,7 +391,7 @@ paths:
         required: true
         type: integer
       responses:
-        201:
+        200:
           description: Telescope deleted
 
   /v1/telescopes:
@@ -461,7 +473,9 @@ paths:
           $ref: '#/definitions/Organisation'
       responses:
         201:
-          description: Organisation created
+          description: Organisation created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Organisation'
     put:
       tags:
         - {{ organisation_tag }}
@@ -484,8 +498,12 @@ paths:
       responses:
         200:
           description: Organisation updated
+          schema:
+            $ref: '#/definitions/Organisation'
         201:
-          description: Organisation created
+          description: Organisation created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Organisation'
     delete:
       tags:
         - {{ organisation_tag }}
@@ -504,7 +522,7 @@ paths:
           required: true
           type: integer
       responses:
-        201:
+        200:
           description: Organisation deleted
 
   /v1/organisations:
@@ -637,16 +655,19 @@ definitions:
         example: curtin-dev
         minLength: 6
         maxLength: 30
+        x-nullable: true
       gcp_download_bucket:
         type: string
         example: curtin-dev-download
         minLength: 3
         maxLength: 222
+        x-nullable: true
       gcp_transform_bucket:
         type: string
         example: curtin-dev-transform
         minLength: 3
         maxLength: 222
+        x-nullable: true
       telescopes:
         type: array
         readOnly: true

@@ -16,48 +16,27 @@
 
 from __future__ import annotations
 
-import datetime
 import logging
 import os
 import time
-from datetime import datetime
-from typing import ClassVar, Dict, Tuple, Union
+from typing import ClassVar, Dict, Tuple, Union, Any
 
 import connexion
+import pendulum
+from connexion import NoContent
 from flask import jsonify
 from sqlalchemy import and_
 
 from observatory.api.server.elastic import (create_schema, process_response, list_available_index_dates,
                                             create_search_body, create_es_connection, parse_args)
 from observatory.api.server.openapi_renderer import OpenApiRenderer
-from observatory.api.server.orm import Telescope, TelescopeType, Organisation
+from observatory.api.server.orm import Telescope, TelescopeType, Organisation, Base
 
-Response = Tuple[Union[Dict, str], int]
+Response = Tuple[Any, int]
 session_ = None  # Global session
 
 
-def make_response(status_code: int, description: str, data: Dict = None, json: bool = True) -> Response:
-    """ Make an API response.
-
-    :param status_code: the status code.
-    :param description: the description for the status code.
-    :param data: the data.
-    :param json: whether to jsonify the data.
-    :return: a Response.
-    """
-
-    data_response = {
-        'data': data,
-        'response': {'status_code': status_code, 'description': description}
-    }
-
-    if json:
-        data_response = jsonify(data_response)
-
-    return data_response, status_code
-
-
-def get_item(cls: ClassVar, item_id: int) -> Response:
+def get_item(cls: ClassVar, item_id: int):
     """ Get an item.
 
     :param cls: the SQLAlchemy Table metadata class.
@@ -67,15 +46,11 @@ def get_item(cls: ClassVar, item_id: int) -> Response:
 
     item = session_.query(cls).filter(cls.id == item_id).one_or_none()
     if item is not None:
-        status_code = 200
-        description = f'Found: {cls.__name__} with id {item_id}'
-        logging.info(description)
-        return make_response(status_code, description, data=item)
+        logging.info(f'Found: {cls.__name__} with id {item_id}')
+        return jsonify(item)
 
-    status_code = 404
-    description = f'Not found: {cls.__name__} with id {item_id}'
-    logging.info(description)
-    return make_response(status_code, description)
+    logging.info(f'Not found: {cls.__name__} with id {item_id}')
+    return NoContent, 404
 
 
 def post_item(cls: ClassVar, body: Dict) -> Response:
@@ -89,7 +64,7 @@ def post_item(cls: ClassVar, body: Dict) -> Response:
     logging.info(f'Creating item: {cls.__name__}')
 
     # Automatically set created and modified datetime
-    now = datetime.utcnow()
+    now = pendulum.utcnow()
     body['created'] = now
     body['modified'] = now
 
@@ -98,13 +73,9 @@ def post_item(cls: ClassVar, body: Dict) -> Response:
     session_.flush()
     session_.commit()
 
-    item_id = create_item.id
-    status_code = 201
-    description = f'Created: {cls.__name__} with id {item_id}'
-    data = {'id': create_item.id}
-    logging.info(description)
+    logging.info(f'Created: {cls.__name__} with id {create_item.id}')
 
-    return make_response(status_code, description, data=data)
+    return jsonify(create_item), 201
 
 
 def put_item(cls: ClassVar, body: Dict) -> Response:
@@ -123,19 +94,15 @@ def put_item(cls: ClassVar, body: Dict) -> Response:
             logging.info(f'Updating {cls.__name__} {item_id}')
             # Remove id and automatically set modified time
             body.pop('id')
-            body['modified'] = datetime.utcnow()
+            body['modified'] = pendulum.utcnow()
             item.update(**body)
             session_.commit()
 
-            status_code = 200
-            description = f'Updated: {cls.__name__} with id {item_id}'
-            logging.info(description)
-            return make_response(status_code, description)
+            logging.info(f'Updated: {cls.__name__} with id {item_id}')
+            return jsonify(item), 200
         else:
-            status_code = 404
-            description = f'Not found: {cls.__name__} with id {item_id}'
-            logging.info(description)
-            return make_response(status_code, description)
+            logging.info(f'Not found: {cls.__name__} with id {item_id}')
+            return NoContent, 404
     else:
         return post_item(cls, body)
 
@@ -154,15 +121,11 @@ def delete_item(cls: ClassVar, item_id: int) -> Response:
         session_.query(cls).filter(cls.id == item_id).delete()
         session_.commit()
 
-        status_code = 200
-        description = f'Deleted: {cls.__name__} with id {item_id}'
-        logging.info(description)
-        return make_response(status_code, description)
+        logging.info(f'Deleted: {cls.__name__} with id {item_id}')
+        return NoContent, 200
     else:
-        status_code = 404
-        description = f'Not found: {cls.__name__} with id {item_id}'
-        logging.info(description)
-        return make_response(status_code, description)
+        logging.info(f'Not found: {cls.__name__} with id {item_id}')
+        return NoContent, 404
 
 
 def get_items(cls: ClassVar, limit: int) -> Response:
@@ -175,10 +138,8 @@ def get_items(cls: ClassVar, limit: int) -> Response:
 
     items = session_.query(cls).limit(limit).all()
 
-    status_code = 200
-    description = f'Found items: {cls.__name__}'
-    logging.info(description)
-    return make_response(status_code, description, data=items)
+    logging.info(f'Found items: {cls.__name__} {items}')
+    return jsonify(items)
 
 
 def get_telescope_type(id: int) -> Response:
@@ -292,10 +253,7 @@ def get_telescopes(limit: int, telescope_type_id=None, organisation_id: int = No
         q = q.filter(and_(*filters))
 
     # Return items that match with a limit
-    items = q.limit(limit).all()
-    status_code = 200
-    description = f'Found items: {Organisation.__class__}'
-    return make_response(status_code, description, data=items)
+    return q.limit(limit).all()
 
 
 def get_organisation(id: int) -> Response:

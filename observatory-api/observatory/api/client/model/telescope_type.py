@@ -67,7 +67,7 @@ class TelescopeType(ModelNormal):
     _nullable = False
 
     @cached_property
-    def openapi_types(self):
+    def openapi_types():
         """
         This must be a method because a model may have properties that are
         of type self, this must run after the class is loaded
@@ -84,7 +84,7 @@ class TelescopeType(ModelNormal):
         }
 
     @cached_property
-    def discriminator(self):
+    def discriminator():
         return None
 
 

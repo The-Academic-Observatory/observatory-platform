@@ -1156,7 +1156,7 @@ class ObservatoryApi(object):
                 async_req (bool): execute request asynchronously
 
             Returns:
-                None
+                Organisation
                     If the method is called asynchronously, returns the request
                     thread.
             """
@@ -1185,7 +1185,7 @@ class ObservatoryApi(object):
 
         self.post_organisation = _Endpoint(
             settings={
-                'response_type': None,
+                'response_type': (Organisation,),
                 'auth': [
                     'api_key'
                 ],
@@ -1226,7 +1226,9 @@ class ObservatoryApi(object):
                 }
             },
             headers_map={
-                'accept': [],
+                'accept': [
+                    'application/json'
+                ],
                 'content_type': [
                     'application/json'
                 ]
@@ -1274,7 +1276,7 @@ class ObservatoryApi(object):
                 async_req (bool): execute request asynchronously
 
             Returns:
-                None
+                Telescope
                     If the method is called asynchronously, returns the request
                     thread.
             """
@@ -1303,7 +1305,7 @@ class ObservatoryApi(object):
 
         self.post_telescope = _Endpoint(
             settings={
-                'response_type': None,
+                'response_type': (Telescope,),
                 'auth': [
                     'api_key'
                 ],
@@ -1344,7 +1346,9 @@ class ObservatoryApi(object):
                 }
             },
             headers_map={
-                'accept': [],
+                'accept': [
+                    'application/json'
+                ],
                 'content_type': [
                     'application/json'
                 ]
@@ -1392,7 +1396,7 @@ class ObservatoryApi(object):
                 async_req (bool): execute request asynchronously
 
             Returns:
-                None
+                TelescopeType
                     If the method is called asynchronously, returns the request
                     thread.
             """
@@ -1421,7 +1425,7 @@ class ObservatoryApi(object):
 
         self.post_telescope_type = _Endpoint(
             settings={
-                'response_type': None,
+                'response_type': (TelescopeType,),
                 'auth': [
                     'api_key'
                 ],
@@ -1462,7 +1466,9 @@ class ObservatoryApi(object):
                 }
             },
             headers_map={
-                'accept': [],
+                'accept': [
+                    'application/json'
+                ],
                 'content_type': [
                     'application/json'
                 ]
@@ -1510,7 +1516,7 @@ class ObservatoryApi(object):
                 async_req (bool): execute request asynchronously
 
             Returns:
-                None
+                Organisation
                     If the method is called asynchronously, returns the request
                     thread.
             """
@@ -1539,7 +1545,7 @@ class ObservatoryApi(object):
 
         self.put_organisation = _Endpoint(
             settings={
-                'response_type': None,
+                'response_type': (Organisation,),
                 'auth': [
                     'api_key'
                 ],
@@ -1580,7 +1586,9 @@ class ObservatoryApi(object):
                 }
             },
             headers_map={
-                'accept': [],
+                'accept': [
+                    'application/json'
+                ],
                 'content_type': [
                     'application/json'
                 ]
@@ -1628,7 +1636,7 @@ class ObservatoryApi(object):
                 async_req (bool): execute request asynchronously
 
             Returns:
-                None
+                Telescope
                     If the method is called asynchronously, returns the request
                     thread.
             """
@@ -1657,7 +1665,7 @@ class ObservatoryApi(object):
 
         self.put_telescope = _Endpoint(
             settings={
-                'response_type': None,
+                'response_type': (Telescope,),
                 'auth': [
                     'api_key'
                 ],
@@ -1698,7 +1706,9 @@ class ObservatoryApi(object):
                 }
             },
             headers_map={
-                'accept': [],
+                'accept': [
+                    'application/json'
+                ],
                 'content_type': [
                     'application/json'
                 ]
@@ -1746,7 +1756,7 @@ class ObservatoryApi(object):
                 async_req (bool): execute request asynchronously
 
             Returns:
-                None
+                TelescopeType
                     If the method is called asynchronously, returns the request
                     thread.
             """
@@ -1775,7 +1785,7 @@ class ObservatoryApi(object):
 
         self.put_telescope_type = _Endpoint(
             settings={
-                'response_type': None,
+                'response_type': (TelescopeType,),
                 'auth': [
                     'api_key'
                 ],
@@ -1816,7 +1826,9 @@ class ObservatoryApi(object):
                 }
             },
             headers_map={
-                'accept': [],
+                'accept': [
+                    'application/json'
+                ],
                 'content_type': [
                     'application/json'
                 ]

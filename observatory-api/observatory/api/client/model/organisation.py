@@ -83,7 +83,7 @@ class Organisation(ModelNormal):
     _nullable = False
 
     @cached_property
-    def openapi_types(self):
+    def openapi_types():
         """
         This must be a method because a model may have properties that are
         of type self, this must run after the class is loaded
@@ -96,16 +96,16 @@ class Organisation(ModelNormal):
         return {
             'id': (int,),  # noqa: E501, F821
             'name': (str,),  # noqa: E501, F821
-            'gcp_project_id': (str,),  # noqa: E501, F821
-            'gcp_download_bucket': (str,),  # noqa: E501, F821
-            'gcp_transform_bucket': (str,),  # noqa: E501, F821
+            'gcp_project_id': (str, none_type,),  # noqa: E501, F821
+            'gcp_download_bucket': (str, none_type,),  # noqa: E501, F821
+            'gcp_transform_bucket': (str, none_type,),  # noqa: E501, F821
             'telescopes': ([Telescope],),  # noqa: E501, F821
             'created': (datetime,),  # noqa: E501, F821
             'modified': (datetime,),  # noqa: E501, F821
         }
 
     @cached_property
-    def discriminator(self):
+    def discriminator():
         return None
 
 
@@ -168,9 +168,9 @@ class Organisation(ModelNormal):
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
             name (str): [optional]  # noqa: E501
-            gcp_project_id (str): [optional]  # noqa: E501
-            gcp_download_bucket (str): [optional]  # noqa: E501
-            gcp_transform_bucket (str): [optional]  # noqa: E501
+            gcp_project_id (str, none_type): [optional]  # noqa: E501
+            gcp_download_bucket (str, none_type): [optional]  # noqa: E501
+            gcp_transform_bucket (str, none_type): [optional]  # noqa: E501
             telescopes ([Telescope]): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501
