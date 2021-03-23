@@ -120,21 +120,13 @@ class TestElastic(unittest.TestCase):
 
             # test from & to dates
             parameters = {
-                'from': '2000',
-                'to': '2010'
+                'from': 2000,
+                'to': 2010
             }
             test_client.get('/query', query_string=parameters)
             alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
             self.assertEqual('2000-12-31', from_date)
             self.assertEqual('2010-12-31', to_date)
-
-            # TODO use openapi config so that this will not be allowed
-            parameters = {
-                'from': '2020-01-01',
-                'to': '2010'
-            }
-            test_client.get('/query', query_string=parameters)
-            alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
 
             # test aliases
             parameters = {}
@@ -159,7 +151,7 @@ class TestElastic(unittest.TestCase):
             }
             test_client.get('/query', query_string=parameters)
             alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-            self.assertEqual('2020-01-01', index_date)
+            self.assertEqual('20200101', index_date)
 
             test_client.get('/query')
             alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()

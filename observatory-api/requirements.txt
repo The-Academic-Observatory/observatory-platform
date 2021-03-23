@@ -8,3 +8,4 @@ psycopg2-binary==2.8.*
 urllib3
 python-dateutil
 certifi
+pendulum==1.4.*

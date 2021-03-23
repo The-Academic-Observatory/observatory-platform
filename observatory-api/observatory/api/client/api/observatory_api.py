@@ -1858,8 +1858,8 @@ class ObservatoryApi(object):
 
             Keyword Args:
                 index_date (date): Index date, defaults to latest. [optional]
-                _from (str): Start date (included), format YYYY. [optional]
-                to (str): End date (not included), format YYYY. [optional]
+                _from (int): Start year (included). [optional]
+                to (int): End year (not included). [optional]
                 limit (int): Limit number of results (max 10000). [optional]
                 scroll_id (str): The scroll id. [optional]
                 pit_id (str): The PIT id. [optional]
@@ -2004,7 +2004,6 @@ class ObservatoryApi(object):
                     'subset',
                 ],
                 'validation': [
-                    'index_date',
                     '_from',
                     'to',
                     'limit',
@@ -2012,23 +2011,15 @@ class ObservatoryApi(object):
             },
             root_map={
                 'validations': {
-                    ('index_date',): {
-
-                        'regex': {
-                            'pattern': r'^\d{4}\d{2}\d{2}$',  # noqa: E501
-                        },
-                    },
                     ('_from',): {
 
-                        'regex': {
-                            'pattern': r'^\d{4}$',  # noqa: E501
-                        },
+                        'inclusive_maximum': 4,
+                        'inclusive_minimum': 4,
                     },
                     ('to',): {
 
-                        'regex': {
-                            'pattern': r'^\d{4}$',  # noqa: E501
-                        },
+                        'inclusive_maximum': 4,
+                        'inclusive_minimum': 4,
                     },
                     ('limit',): {
 
@@ -2066,9 +2057,9 @@ class ObservatoryApi(object):
                     'index_date':
                         (date,),
                     '_from':
-                        (str,),
+                        (int,),
                     'to':
-                        (str,),
+                        (int,),
                     'limit':
                         (int,),
                     'scroll_id':

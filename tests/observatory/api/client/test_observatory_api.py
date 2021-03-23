@@ -1,3 +1,19 @@
+# Copyright 2021 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Aniek Roelofs, James Diprose
+
 """
     Observatory API
 
@@ -9,22 +25,59 @@
 """
 
 import contextlib
+import copy
+import datetime
 import threading
 import unittest
+from unittest.mock import patch
 
 import pendulum
+import pytz
 from sqlalchemy.pool import StaticPool
 from werkzeug.serving import make_server
 
 import observatory.api.server.orm as orm
 from observatory.api.client import Configuration, ApiClient
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
-from observatory.api.client.exceptions import NotFoundException
+from observatory.api.client.exceptions import NotFoundException, ApiException, ApiValueError
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType
 from observatory.api.server.api import create_app
 from observatory.api.server.orm import create_session, set_session
+from tests.observatory.api.server.test_elastic import SCROLL_ID, Elasticsearch
+
+RES_EXAMPLE = {
+    '_scroll_id': SCROLL_ID,
+    'hits': {
+        'total': {
+            'value': 452
+        },
+        'hits': [{
+            '_index': 'journals-institution-20201205',
+            '_type': '_doc',
+            '_id': 'bQ88QXYBGinIh2YA4IaO',
+            '_score': None,
+            '_source': {
+                'id': 'example_id',
+                'name': 'Example Name',
+                'published_year': datetime.datetime(year=2018, month=12, day=31, tzinfo=pytz.UTC)
+            },
+            'sort': [77250]
+        }, {
+            '_index': 'journals-institution-20201205',
+            '_type': '_doc',
+            '_id': 'bQ88QXYBGinIh2YA4Ia1',
+            '_score': None,
+            '_source': {
+                'id': 'example_id2',
+                'name': 'Example Name2',
+                'published_year': datetime.datetime(year=2018, month=12, day=31, tzinfo=pytz.UTC)
+            },
+            'sort': [77251]
+        }]
+    }
+}
 
 
 class ObservatoryApiEnvironment:
@@ -493,13 +546,134 @@ class TestObservatoryApi(unittest.TestCase):
             with self.assertRaises(NotFoundException):
                 self.api.put_telescope_type(TelescopeType(id=2, name=new_name))
 
-    def test_queryv1(self):
+    @patch('observatory.api.server.elastic.Elasticsearch.scroll')
+    @patch('observatory.api.server.elastic.Elasticsearch.search')
+    @patch('observatory.api.server.api.create_es_connection')
+    def test_queryv1(self, mock_create_connection, mock_es_search, mock_es_scroll):
         """Test case for queryv1
 
         Search the Observatory API  # noqa: E501
         """
 
-        self.api.queryv1()
+        with self.env.create():
+            # Test ElasticSearch connection is None
+            mock_create_connection.return_value = None
+
+            with self.assertRaises(ApiException) as e:
+                self.api.queryv1(subset='citations', agg='country', limit=1000)
+            self.assertEqual(400, e.exception.status)
+            self.assertEqual('"Elasticsearch environment variable for host or api key is empty"\n', e.exception.body)
+
+            # Test successful query
+            mock_create_connection.return_value = Elasticsearch()
+            res = copy.deepcopy(RES_EXAMPLE)
+            mock_es_scroll.return_value = res
+
+            expected_results = {
+                'version': 'v1',
+                'index': 'N/A',
+                'scroll_id': SCROLL_ID,
+                'returned_hits': len(res['hits']['hits']),
+                'total_hits': res['hits']['total']['value'],
+                'schema': {
+                    'schema': 'to_be_created'
+                },
+                'results': res['hits']['hits']
+            }
+
+            response = self.api.queryv1(subset='citations', agg='funder', limit=1000, scroll_id=SCROLL_ID)
+            self.assertEqual(expected_results['version'], response.version)
+            self.assertEqual(expected_results['index'], response.index)
+            self.assertEqual(expected_results['scroll_id'], response.scroll_id)
+            self.assertEqual(expected_results['returned_hits'], response.returned_hits)
+            self.assertEqual(expected_results['schema'], response.schema)
+            self.assertEqual(expected_results['results'], response.results)
+
+            # With search body, test with empty (invalid) subset and agg
+            mock_es_search.return_value = copy.deepcopy(RES_EXAMPLE)
+
+            with self.assertRaises(ApiValueError) as e:
+                self.api.queryv1(subset='', agg='', limit=1000, scroll_id=SCROLL_ID)
+            # response = test_client.get(endpoint_query,
+            #                            query_string={'subset': '',
+            #                                          'agg': '',
+            #                                          'limit': 1000,
+            #                                          'scroll_id': SCROLL_ID},
+            #                            content_type=self.content_type)
+            #
+            # self.assertEqual(400, e.exception.status)
+
+            # With search body, test with valid alias and without index date
+            with patch('elasticsearch.client.CatClient.aliases') as mock_es_cat:
+                res = copy.deepcopy(RES_EXAMPLE)
+                mock_es_search.return_value = res
+                index_name = 'citations-country-20201212'
+                mock_es_cat.return_value = [{
+                    'index': index_name
+                }]
+                expected_results = {
+                    'version': 'v1',
+                    'index': index_name,
+                    'scroll_id': SCROLL_ID,
+                    'returned_hits': len(res['hits']['hits']),
+                    'total_hits': res['hits']['total']['value'],
+                    'schema': {
+                        'schema': 'to_be_created'
+                    },
+                    'results': res['hits']['hits']
+                }
+
+                response = self.api.queryv1(subset='citations', agg='country', limit=1000)
+                self.assertEqual(expected_results['version'], response.version)
+                self.assertEqual(expected_results['index'], response.index)
+                self.assertEqual(expected_results['scroll_id'], response.scroll_id)
+                self.assertEqual(expected_results['returned_hits'], response.returned_hits)
+                self.assertEqual(expected_results['schema'], response.schema)
+                self.assertEqual(expected_results['results'], response.results)
+
+            # With search body, test with valid index date
+            with patch('elasticsearch.client.IndicesClient.exists') as mock_es_indices:
+                res = copy.deepcopy(RES_EXAMPLE)
+                mock_es_indices.return_value = True
+                mock_es_search.return_value = res
+                index_date = pendulum.date(year=2020, month=1, day=1)
+
+                expected_results = {
+                    'version': 'v1',
+                    'index': f"citations-country-{index_date.strftime('%Y%m%d')}",
+                    'scroll_id': SCROLL_ID,
+                    'returned_hits': len(res['hits']['hits']),
+                    'total_hits': res['hits']['total']['value'],
+                    'schema': {
+                        'schema': 'to_be_created'
+                    },
+                    'results': res['hits']['hits']
+                }
+
+                response = self.api.queryv1(subset='citations', agg='country', index_date=index_date, limit=1000)
+                self.assertEqual(expected_results['version'], response.version)
+                self.assertEqual(expected_results['index'], response.index)
+                self.assertEqual(expected_results['scroll_id'], response.scroll_id)
+                self.assertEqual(expected_results['returned_hits'], response.returned_hits)
+                self.assertEqual(expected_results['schema'], response.schema)
+                self.assertEqual(expected_results['results'], response.results)
+
+                # With search body, test with invalid index date
+                with patch('observatory.api.server.api.list_available_index_dates') as mock_index_dates:
+                    res = copy.deepcopy(RES_EXAMPLE)
+                    mock_es_search.return_value = res
+
+                    mock_es_indices.return_value = False
+                    available_date = '20201212'
+                    mock_index_dates.return_value = [available_date]
+
+                    with self.assertRaises(ApiException) as e:
+                        self.api.queryv1(subset='citations', agg='country', index_date=index_date, limit=1000)
+
+                    self.assertEqual(400, e.exception.status)
+                    self.assertEqual('"Index does not exist: citations-country-20200101\\n Available dates for this '
+                                     'agg & subset:\\n20201212"\n',
+                                     e.exception.body)
 
 
 if __name__ == '__main__':
