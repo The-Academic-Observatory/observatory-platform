@@ -1,153 +1,174 @@
-import json
+import logging
 import os
-import pickle
 import shutil
-import subprocess
 from datetime import datetime
+from typing import List
 
-import geoip2.database
-import requests
-from geoip2.errors import AddressNotFoundError
-
-
-class OapenIrusUKRelease:
-    def __init__(self, start_date: datetime, end_date: datetime):
-        self.start_date = start_date.strftime("%Y-%m")
-        self.end_date = end_date.strftime("%Y-%m")
-        self.url = OapenIrusUk.url.format(requestor_id=OapenIrusUk.requestor_id, start=self.start_date,
-                                          end=self.end_date, api_key=OapenIrusUk.api_key)
-
-
-class OapenIrusUk:
-    requestor_id = ''
-    api_key = ''
-    geoip_license_key = ''
-    geoip_userid = 0
-    url = 'https://irus.jisc.ac.uk/sushiservice/oapen/reports/oapen_ir/?requestor_id={requestor_id}' \
-          '&platform=215&begin_date={start}&end_date={end}&formatted&api_key={' \
-          'api_key}&attributes_to_show=Client_IP%7CCountry'
-    # 'item_id=hdl:20.500.12657/25757'
-    geolite_download_path = os.path.join('geolite_city.tar.gz')
-    geolite_database_path = os.path.join('geolite_city.mmdb')
+import pendulum
+from google.auth import environment_vars
+from google.auth.transport.requests import AuthorizedSession
+from google.oauth2.service_account import IDTokenCredentials
+from googleapiclient.discovery import Resource, build
+from oauth2client.service_account import ServiceAccountCredentials
+from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars
+from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
 
 
-release = OapenIrusUKRelease(datetime(2020, 4, 1), datetime(2020, 4, 1))
+def create_cloud_function(service: Resource, location: str, full_name: str, source_bucket: str, blob_name: str,
+                          max_active_runs: int):
+    """
+
+    :param service:
+    :param location:
+    :param full_name:
+    :param source_bucket:
+    :param blob_name:
+    :param max_active_runs:
+    :return:
+    """
+    project_id = Variable.get(AirflowVars.PROJECT_ID)
+    body = {
+        "name": full_name,
+        "description": 'the description',
+        "entryPoint": 'download',
+        "runtime": 'python37',
+        "timeout": '540s',  # maximum
+        "availableMemoryMb": 4000,  # maximum
+        "serviceAccountEmail": f'{project_id}@{project_id}.iam.gserviceaccount.com',  # airflow service account
+        "maxInstances": max_active_runs,  # set to max number of active airflow dag runs
+        "ingressSettings": 'ALLOW_ALL',
+        "sourceArchiveUrl": os.path.join(source_bucket, blob_name),
+        "httpsTrigger": {
+            'securityLevel': 'SECURE_ALWAYS'
+        }
+    }
+    service.projects().locations().functions().create(location=location, body=body).execute()
 
 
-def download_geoip():
-    geolite_url = 'https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=' \
-                  f'{OapenIrusUk.geoip_license_key}&suffix=tar.gz'
-    # Download release in tar.gz format
-    with requests.get(geolite_url, stream=True) as response:
-        with open(OapenIrusUk.geolite_download_path, 'wb') as file:
-            shutil.copyfileobj(response.raw, file)
+def call_function(function_url: str, release_date: str, publisher_info: dict, blob_name: str) -> bool:
+    """
 
-    # Tar file contains multiple files, use tar -ztf to get path of 'GeoLite2-City.mmdb'
-    # Use this path to extract only GeoLite2-City.mmdb to a new file.
-    cmd = f"registry_path=$(tar -ztf {OapenIrusUk.geolite_download_path} | grep -m1 '/GeoLite2-City.mmdb'); " \
-          f"tar -xOzf {OapenIrusUk.geolite_download_path} $registry_path > {OapenIrusUk.geolite_database_path}"
-    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
-    output, error = proc.communicate()
-    output = output.decode('utf-8')
-    error = error.decode('utf-8')
-
-
-def download():
-    test = True
-    if test:
-        with open('/Users/284060a/test_files/oapen_response.pickle', 'rb') as handle:
-            response_json = pickle.load(handle)
-    else:
-        response = requests.get(release.url)
-        response_json = response.json()
-    geoip_client = geoip2.database.Reader(OapenIrusUk.geolite_database_path)
-
-    country_name_found = 0
-    country_code_found = 0
-    country_name_not_found = 0
-    country_code_not_found = 0
-    address_found = 0
-    address_not_found = 0
-    all_results = []
-    for item in response_json['Report_Items']:
-        item_id = item['Item_ID']['URI']
-        if item_id.startswith('http://library.oapen.org/handle/'):
-            item_id = item_id[len('http://library.oapen.org/handle/'):]
-        book_title = item['Item']
-        for client in item['Performance']:
-            begin_date = client['Period']['Begin_Date']
-            end_date = client['Period']['End_Date']
-            total_item_investigations = client['Instance']['Total_Item_Investigations']
-            total_item_requests = client['Instance']['Total_Item_Requests']
-            unique_item_investigations = client['Instance']['Unique_Item_Investigations']
-            unique_item_requests = client['Instance']['Unique_Item_Requests']
-            country = client['Instance'].get('Country', {
-                'Country_Name': ''
-            })['Country_Name']
-            country_code = client['Instance'].get('Country', {
-                'Country_Code': ''
-            })['Country_Code']
-            # try:
-            #     country = client['Instance']['Country']['Country_Name']
-            #     country_name_found += 1
-            # except KeyError:
-            #     country_name_not_found += 1
-            #     country = ''
-            # try:
-            #     country_code = client['Instance']['Country']['Country_Code']
-            #     country_code_found += 1
-            # except KeyError:
-            #     country_code = ''
-            #     country_code_not_found +=1
-
-            client_ip = client['Instance']['Client_IP']
-            try:
-                geoip_response = geoip_client.city(client_ip)
-                client_lat = geoip_response.location.latitude
-                client_lon = geoip_response.location.longitude
-                client_city = geoip_response.city.name
-                client_country = geoip_response.country.name
-                client_country_code = geoip_response.country.iso_code
-                address_found += 1
-            except AddressNotFoundError:
-                address_not_found += 1
-                client_lat = ''
-                client_lon = ''
-                client_city = ''
-                client_country = ''
-                client_country_code = ''
-
-            result = {
-                'item_id': item_id,
-                'book_title': book_title,
-                'begin_date': begin_date,
-                'end_date': end_date,
-                'total_item_investigations': total_item_investigations,
-                'total_item_requests': total_item_requests,
-                'unique_item_investigations': unique_item_investigations,
-                'unique_item_requests': unique_item_requests,
-                'country': country,
-                'country_code': country_code,
-                'client_lat': client_lat,
-                'client_lon': client_lon,
-                'client_city': client_city,
-                'client_country': client_country,
-                'client_country_code': client_country_code
-            }
-            all_results.append(result)
-    print(address_not_found, address_found, address_not_found + address_found)
-    print(country_name_not_found, country_name_found, country_name_not_found + country_name_found)
-    print(country_code_not_found, country_code_found, country_code_not_found + country_code_found)
-    print(len(all_results))
-    with open('/Users/284060a/test_files/oapen_result.json', 'w') as fp:
-        json.dump(all_results, fp)
+    :param function_url:
+    :param release_date:
+    :param publisher_info:
+    :param blob_name:
+    :return:
+    """
+    creds = IDTokenCredentials.from_service_account_file(os.environ.get(environment_vars.CREDENTIALS),
+                                                         target_audience=function_url)
+    authed_session = AuthorizedSession(creds)
+    logging.info('Calling google cloud function')
+    response = authed_session.get(function_url, data={
+        'release_date': release_date,
+        'publisher_info': publisher_info,
+        'blob_name': blob_name
+    })
+    logging.info(f'Cloud function response status code: {response.status_code}')
+    return response.status_code == 200
 
 
-def upload():
-    pass
+class OapenIrusUkRelease(SnapshotRelease):
+    def __init__(self, dag_id: str, release_date: pendulum.Pendulum):
+        """ Create a OapenIrusUkReleaes instance.
+
+        :param dag_id: the DAG id.
+        :param release_date: the date of the release.
+        """
+
+        transform_files_regex = f'{dag_id}.jsonl.gz'
+        super().__init__(dag_id, release_date, transform_files_regex=transform_files_regex)
+
+    def download(self, max_instances: int):
+        """
+
+        :param max_instances:
+        :return:
+        """
+        # set up variables
+        oapen_project_id = 'oapen-library-usage-portal'
+        region = 'us-central1'
+        location = f'projects/{oapen_project_id}/locations/{region}'
+        function_name = 'oapen_access_stats'
+        full_name = f'{location}/functions/{function_name}'
+
+        # zip source code
+        source_dir = module_file_path('observatory.dags.telescopes.oapen_irus_uk_sc.main')
+        source_file_path = os.path.join(module_file_path('observatory.dags.telescopes'), 'oapen_irus_uk_sc.zip')
+        shutil.make_archive(source_file_path, 'zip', source_dir)
+
+        # upload to cloud storage
+        source_bucket = 'gs://test_cloud_function_123'
+        source_blob_name = 'main.zip'
+        upload_file_to_cloud_storage(source_bucket, source_blob_name, source_file_path)
+
+        # should have permissions to create/list/invoke cloud functions inside oapen project to airflow service account
+        creds = ServiceAccountCredentials.from_json_keyfile_name(os.environ.get(environment_vars.CREDENTIALS))
+        service = build('cloudfunctions', 'v1', credentials=creds)
+
+        # create function if it does not exist yet
+        response = service.projects().locations().functions().list(parent=location).execute()
+        for function in response['functions']:
+            if function['name'] == full_name:
+                break
+        else:
+            create_cloud_function(service, location, full_name, source_bucket, source_blob_name, max_instances)
+
+        # call function
+        function_url = f'https://{region}-{oapen_project_id}.cloudfunctions.net/{function_name}'
+        blob_name = self.transform_files_regex
+        publisher_info = {
+            "name": "UCL Press",
+            "project": "aniek-dev",
+            "bucket": "test_cloud_function_123"
+        }
+        success = call_function(function_url, self.release_date.strftime('%Y-%m'), publisher_info, blob_name)
 
 
-if __name__ == '__main__':
-    # download_geoip()
-    download()
-    upload()
+class OapenIrusUkTelescope(SnapshotTelescope):
+    DAG_ID = 'oapen_irus_uk'
+
+    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 9, 1),
+                 schedule_interval: str = '@monthly', dataset_id: str = 'oapen',
+                 dataset_description: str = 'Oapen dataset', catchup: bool = False, airflow_vars: List = None):
+
+        """ The OAPEN irus uk telescope.
+
+        :param dag_id: the id of the DAG.
+        :param start_date: the start date of the DAG.
+        :param schedule_interval: the schedule interval of the DAG.
+        :param dataset_id: the BigQuery dataset id.
+        :param dataset_description: description for the BigQuery dataset.
+        :param catchup:  whether to catchup the DAG or not.
+        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
+        """
+
+        if airflow_vars is None:
+            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
+                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id, dataset_description=dataset_description,
+                         catchup=catchup, airflow_vars=airflow_vars)
+        self.add_setup_task(self.check_dependencies)
+        self.add_task(self.download)
+        self.add_task(self.bq_load)
+        self.add_task(self.cleanup)
+
+    def make_release(self, **kwargs) -> List[OapenIrusUkRelease]:
+        # Get release_date
+        release_date = pendulum.instance(kwargs['dag_run'].execution_date)
+
+        logging.info(f'Release month: {release_date}')
+        releases = [OapenIrusUkRelease(self.dag_id, release_date)]
+        return releases
+
+    def download(self, releases: List[OapenIrusUkRelease], **kwargs):
+        """ Task to download the GeonamesRelease release for a given month.
+
+        :param releases: the list of GeonamesRelease instances.
+        :return: None.
+        """
+
+        # Download each release
+        for release in releases:
+            release.download(self.max_active_runs)
