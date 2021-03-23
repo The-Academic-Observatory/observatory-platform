@@ -53,7 +53,7 @@ class TerraformBuilder:
         self.package_path = module_file_path('observatory.platform', nav_back_steps=-3)
         self.terraform_path = module_file_path('observatory.platform.terraform')
         self.api_package_path = module_file_path('observatory.api', nav_back_steps=-3)
-        self.api_path = module_file_path('observatory.api')
+        self.api_path = module_file_path('observatory.api.server')
         self.packages_build_path = os.path.join(build_path, 'packages')
         self.terraform_build_path = os.path.join(build_path, 'terraform')
         self.platform_builder = PlatformBuilder(config_path, build_path=build_path, backend_type=self.backend_type)

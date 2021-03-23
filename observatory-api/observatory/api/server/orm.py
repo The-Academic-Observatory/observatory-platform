@@ -99,20 +99,19 @@ def fetch_db_object(cls: ClassVar, body: Any):
     return item
 
 
-def to_datetime_utc(obj: Union[str, Pendulum]) -> Pendulum:
-    """ Converts a string into a datetime object.
+def to_datetime_utc(obj: Union[None, Pendulum]) -> Union[Pendulum, None]:
+    """ Converts Pendulum into UTC object.
 
-    :param obj: a string with the pattern YYYY-MM-DD HH:MM:SS (which will be converted) or a datetime object (which
-    will just be returned).
+    :param obj: a Pendulum object (which will just be converted to UTC) or None which will be returned.
     :return: a datetime object.
     """
 
-    if obj is None or isinstance(obj, Pendulum):
+    if isinstance(obj, Pendulum):
         return obj.in_tz(tz='UTC')
-    elif isinstance(obj, str):
-        return datetime.strptime(obj, '%Y-%m-%d %H:%M:%S')
+    elif obj is None:
+        return None
 
-    raise ValueError('body should be a str or datetime')
+    raise ValueError('body should be None or Pendulum')
 
 
 @dataclass

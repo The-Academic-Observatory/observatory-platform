@@ -18,12 +18,13 @@ import unittest
 from datetime import datetime
 from typing import List
 
+import pendulum
 import sqlalchemy
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.pool import StaticPool
 
 from observatory.api.server.orm import (create_session, set_session, TelescopeType, Telescope, Organisation,
-                                        to_datetime, fetch_db_object)
+                                        to_datetime_utc, fetch_db_object)
 
 
 def create_telescope_types(session: scoped_session, names: List[str], created: datetime):
@@ -98,19 +99,21 @@ class TestOrm(unittest.TestCase):
         with self.assertRaises(ValueError):
             fetch_db_object(TelescopeType, 'hello')
 
-    def test_to_datetime(self):
+    def test_to_datetime_utc(self):
         """ Test to_datetime """
 
         # From datetime
-        dt = datetime(year=2020, month=12, day=31)
-        self.assertEqual(dt, to_datetime(dt))
+        dt_nz = pendulum.datetime(year=2020, month=12, day=31, tzinfo=pendulum.timezone('Pacific/Auckland'))
+        dt_utc = pendulum.datetime(year=2020, month=12, day=30, hour=11, tzinfo=pendulum.timezone('UTC'))
+        self.assertEqual(dt_utc, to_datetime_utc(dt_nz))
+        self.assertEqual(dt_utc, to_datetime_utc(dt_utc))
 
-        # From string
-        self.assertEqual(dt, to_datetime('2020-12-31 00:00:00'))
+        # From None
+        self.assertIsNone(to_datetime_utc(None))
 
         # From another type
         with self.assertRaises(ValueError):
-            to_datetime(dt.date())
+            to_datetime_utc(dt_nz.date())
 
     def test_create_session(self):
         """ Test that session is created """
