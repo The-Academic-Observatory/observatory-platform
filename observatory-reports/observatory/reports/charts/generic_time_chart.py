@@ -21,6 +21,8 @@ import pandas as pd
 import seaborn as sns
 
 from observatory.reports.abstract_chart import AbstractObservatoryChart
+import plotly.express as px
+from observatory.reports.chart_utils import _collect_kwargs_for
 
 
 class GenericTimeChart(AbstractObservatoryChart):
@@ -40,6 +42,7 @@ class GenericTimeChart(AbstractObservatoryChart):
         self.columns = columns
         self.identifier = identifier
         self.melt_var_name = 'variable'
+        self.processed = False
 
     def process_data(self):
         """Data selection and processing function
@@ -61,6 +64,7 @@ class GenericTimeChart(AbstractObservatoryChart):
 
         figdata.sort_values('Year of Publication', inplace=True)
         self.figdata = figdata
+        self.processed = True
         return self.figdata
 
     def plot(self, palette=None, ax=None, lines=None, **kwargs):
@@ -74,8 +78,8 @@ class GenericTimeChart(AbstractObservatoryChart):
         else:
             self.fig = ax.get_figure()
 
-        #self.figdata['Year of Publication'].astype(str)
-        #pd.to_datetime(self.figdata['Year of Publication'], format='%Y')
+        # self.figdata['Year of Publication'].astype(str)
+        # pd.to_datetime(self.figdata['Year of Publication'], format='%Y')
         sns.lineplot(x='Year of Publication',
                      y='value',
                      data=self.figdata,
@@ -88,9 +92,25 @@ class GenericTimeChart(AbstractObservatoryChart):
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         diff = self.year_range[1] - self.year_range[0]
-        if diff > 11: step = 5
-        else: step = 2
+        if diff > 11:
+            step = 5
+        else:
+            step = 2
         ax.xaxis.set_major_locator(ticker.FixedLocator(range(*self.year_range, step)))
         if lines:
             ax.axhline(**lines)
         return self.fig
+
+    def plotly(self, palette, **kwargs):
+
+        if not self.processed:
+            self.process_data()
+        px_line_kwargs = _collect_kwargs_for(px.line, kwargs)
+        fig = px.line(self.figdata,
+                           x='Year of Publication',
+                           y='value',
+                           color=self.melt_var_name,
+                           color_discrete_map=palette,
+                           **px_line_kwargs)
+        self.fig = fig
+        return fig

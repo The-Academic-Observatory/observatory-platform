@@ -14,13 +14,42 @@
 
 # Author: Cameron Neylon & Richard Hosing 
 
-from typing import Union
+from typing import Union, Optional
 
 import pandas as pd
 import pydata_google_auth
 from num2words import num2words
+import plotly.graph_objects as go
+from pathlib import Path
+from string import Template
 
 from observatory.reports.charts.oapc_time_chart import *
+
+
+def build_html_figure(figure: go.Figure,
+                      title: str,
+                      html_template: Union[str, Path],
+                      filename: Union[str, Path],
+                      subtitle: Optional[str] = None,
+                      explanatory_text: Optional[str] = None) -> Path:
+    plotly_div = figure.to_html(
+        default_height='800px',
+        full_html=False)
+    with open(html_template, 'r') as f:
+        t = f.read()
+
+    template = Template(t)
+    output = template.substitute(title=title,
+                                 subtitle=subtitle,
+                                 plotly_div=plotly_div,
+                                 explanatory_text=explanatory_text)
+
+    if not filename: filename = f'{title}.html'
+
+    with open(filename, 'w') as f:
+        f.writelines(output)
+
+    return filename
 
 
 def generate_table_data(title: str,
@@ -333,8 +362,8 @@ def generate_highlights(df: pd.DataFrame,
                         filter_column='country',
                         measures=['percent_total_oa', 'percent_gold', 'percent_green',
                                   'citations_per_output', 'oa_citation_advantage', 'total'],
-                        global_rank_cutoff: int=201,
-                        local_rank_cutoff: int=25):
+                        global_rank_cutoff: int = 201,
+                        local_rank_cutoff: int = 25):
     nice_text = {
         'percent_total_oa': 'overall percentage of open access',
         'percent_oa': 'overall percentage of open access',
@@ -357,7 +386,7 @@ def generate_highlights(df: pd.DataFrame,
                                'value': num2words(rank, to='ordinal')})
 
         rank = is_ranked(df, identifier, focus_year, measure, filter_column, do_num2words=False)
-        localname = df[df.id==identifier][filter_column].values[0]
+        localname = df[df.id == identifier][filter_column].values[0]
         if rank < local_rank_cutoff and (filter_column is not None):
             highlights.append({'type': 'Ranked',
                                'measure': measure,

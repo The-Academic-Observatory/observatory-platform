@@ -86,7 +86,7 @@ class ScatterPlot(AbstractObservatoryChart):
         self.y = y
         self.filter_name = filter_name
 
-        if (type(filter_value) == tuple) \
+        if ((type(filter_value) == tuple) or (type(filter_value) == list)) \
                 and (type(filter_value[0]) == int) \
                 and (len(filter_value) == 2):
             self.filter_value = range(*filter_value)
@@ -113,11 +113,15 @@ class ScatterPlot(AbstractObservatoryChart):
         figdata = self.df
         figdata = figdata[figdata[self.filter_name].isin(self.filter_value)]
         if self.hue_column == 'region':
-            sorter = ['Asia', 'Europe', 'North America',
+            self.sorter = ['Asia', 'Europe', 'North America',
                       'Latin America', 'Africa', 'Oceania']
-            sorter_index = dict(zip(sorter, range(len(sorter))))
+            additional_legend_items = set(figdata[self.hue_column].unique()) - set(self.sorter)
+            self.sorter.extend(list(additional_legend_items))
+            sorter_index = dict(zip(self.sorter, range(len(self.sorter))))
             figdata.loc[:, 'order'] = figdata.region.map(sorter_index)
             figdata = figdata.sort_values('order', ascending=True)
+        else:
+            self.sorter = None
         self.figdata = figdata
         self.processed = True
         return self.figdata
@@ -161,14 +165,13 @@ class ScatterPlot(AbstractObservatoryChart):
                          color=self.hue_column,
                          color_discrete_sequence=color_discrete_sequence,
                          color_discrete_map=color_discrete_map,
+                         category_orders=dict(region=self.sorter),
                          animation_frame=animation_frame,
                          animation_group=animation_group,
                          hover_name='name',
                          range_x=[0,100],
                          range_y=[0,100],
                          **scatter_kwargs)
-
-        # fig.update_layout(**kwargs)
         return fig
 
     def plot(self,

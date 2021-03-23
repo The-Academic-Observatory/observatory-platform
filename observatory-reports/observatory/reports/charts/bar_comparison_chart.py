@@ -16,6 +16,8 @@
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.express as px
+from typing import Union
 
 from observatory.reports.abstract_chart import AbstractObservatoryChart
 
@@ -43,9 +45,19 @@ class BarComparisonChart(AbstractObservatoryChart):
         """
 
         self.comparison = comparison
-        self.focus_year = focus_year
+
+        if ((type(focus_year) == tuple) or (type(focus_year) == list)) \
+                and (type(focus_year[0]) == int) \
+                and (len(focus_year) == 2):
+            self.focus_year = range(*focus_year)
+        elif type(focus_year) != list:
+            self.focus_year = [focus_year]
+        else:
+            self.focus_year = focus_year
+
         self.color_palette = color_palette
         self.df = df
+        self.processed = False
 
     def process_data(self, **kwargs):
         """Data selection and processing function
@@ -53,11 +65,17 @@ class BarComparisonChart(AbstractObservatoryChart):
         param: kwargs: Keyword arguments, currently unused
         """
 
-        figdata = self.df[(self.df.published_year == self.focus_year) &
+        figdata = self.df[(self.df.published_year.isin(self.focus_year)) &
                           (self.df.id.isin(self.comparison))]
-        figdata = figdata.set_index('id').reindex(self.comparison)
-        figdata = figdata.set_index('name')
+        if len(self.focus_year) ==1:
+            figdata = figdata.set_index('id').reindex(self.comparison)
+            figdata['Comparators'] = figdata.name
+            figdata = figdata.set_index('name')
+        else:
+            figdata['order'] = figdata.id.map({id:order for order, id in enumerate(self.comparison)})
+            figdata.sort_values(['order', 'Year of Publication'], ascending=True, inplace=True)
         self.figdata = figdata
+        self.processed = True
         return self.figdata
 
     def plot(self, ax=None, **kwargs):
@@ -86,3 +104,34 @@ class BarComparisonChart(AbstractObservatoryChart):
         ax.set(ylabel='Percent of all outputs', xlabel=None)
         ax.legend(bbox_to_anchor=(1, 0.8))
         return self.fig
+
+
+    def plotly(self,
+               **kwargs):
+
+        if not self.processed:
+            self.process_data()
+
+        # Detect whether a year range is set or single year to set up an animation
+        animation_frame = None
+        animation_group = None
+        if len(self.focus_year) > 1:
+            animation_frame = 'Year of Publication'
+            animation_group = 'id'
+
+        fig = px.bar(self.figdata,
+                     x='name',
+                     y=['Bronze (%)',
+                      'Hybrid OA (%)',
+                      'Gold in DOAJ (%)',
+                      'Green Only (%)'],
+                     color_discrete_sequence=self.color_palette,
+                     animation_frame=animation_frame,
+                     animation_group=animation_group,
+                     range_y=(0,100),
+                     labels=dict(variable='Open Access Category',
+                                 name=''))
+        fig.update_yaxes(title='Open Access (%)')
+        fig.update_xaxes(tickangle=-30)
+        self.fig = fig
+        return fig
