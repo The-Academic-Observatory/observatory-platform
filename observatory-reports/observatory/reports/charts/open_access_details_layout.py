@@ -64,7 +64,4 @@ class OpenAccessDetailsLayout(AbstractObservatoryChart):
         plt.subplots_adjust(wspace=1)
         return self.fig
 
-    def plotly(self, **kwargs):
-
-        fig = make_subplots(row=1, cols=2)
 

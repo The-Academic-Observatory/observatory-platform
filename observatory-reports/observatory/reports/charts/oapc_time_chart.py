@@ -16,7 +16,6 @@
 
 from observatory.reports.charts.output_types_time_chart import *
 
-
 class OApcTimeChart(GenericTimeChart):
     """Generate a Plot of Standard OA Types Over Time
 
@@ -43,3 +42,12 @@ class OApcTimeChart(GenericTimeChart):
 
         self.fig = super().plot(palette, ax=ax, **kwargs)
         return self.fig
+
+    def plotly(self,
+               palette=defaults.oatypes_palette,
+               **kwargs):
+
+        fig = super().plotly(palette=palette, **kwargs)
+        fig.update_yaxes(title_text='Open Access (%)')
+        self.fig = fig
+        return fig
