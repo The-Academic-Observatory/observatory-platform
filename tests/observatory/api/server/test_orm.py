@@ -47,16 +47,6 @@ def create_telescope_types(session: scoped_session, names: List[str], created: d
     return items
 
 
-def datetime_to_str(dt: datetime) -> str:
-    """ Convert a datetime to a string.
-
-    :param dt: the datetime.
-    :return: the string.
-    """
-
-    return dt.strftime('%Y-%m-%d %H:%M:%S')
-
-
 class TestOrm(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestOrm, self).__init__(*args, **kwargs)
@@ -76,8 +66,8 @@ class TestOrm(unittest.TestCase):
         self.assertEqual(None, fetch_db_object(TelescopeType, None))
 
         # Body is instance of cls
-        dt_str = datetime_to_str(datetime.utcnow())
-        dict_ = {'name': 'My Telescope Type', 'created': dt_str, 'modified': dt_str}
+        dt = pendulum.utcnow()
+        dict_ = {'name': 'My Telescope Type', 'created': dt, 'modified': dt}
         obj = TelescopeType(**dict_)
         self.assertEqual(obj, fetch_db_object(TelescopeType, obj))
 
@@ -130,7 +120,7 @@ class TestOrm(unittest.TestCase):
     def test_telescope_type(self):
         """ Test that TelescopeType can be created, fetched, updated and deleted """
 
-        created = datetime.utcnow()
+        created = pendulum.utcnow()
 
         # Create and assert created
         telescope_types_a = create_telescope_types(self.session, self.telescope_type_names, created)
@@ -170,8 +160,8 @@ class TestOrm(unittest.TestCase):
 
         # Create
         expected_id = 1
-        dt_str = datetime_to_str(datetime.utcnow())
-        dict_ = {'name': 'My Telescope Type', 'created': dt_str, 'modified': dt_str}
+        dt = pendulum.utcnow()
+        dict_ = {'name': 'My Telescope Type', 'created': dt, 'modified': dt}
 
         obj = TelescopeType(**dict_)
         self.session.add(obj)
@@ -185,12 +175,12 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
         self.assertEqual(expected_id, obj.id)
         self.assertEqual(dict_['name'], obj.name)
-        self.assertEqual(dt_str, datetime_to_str(obj.created))
-        self.assertEqual(dt_str, datetime_to_str(obj.modified))
+        self.assertEqual(dt, obj.created)
+        self.assertEqual(dt, obj.modified)
 
         # Update
-        dt_str = datetime_to_str(datetime.utcnow())
-        dict_ = {'name': 'My Telescope Type 2', 'modified': dt_str}
+        dt = pendulum.utcnow()
+        dict_ = {'name': 'My Telescope Type 2', 'modified': dt}
         connection_type = self.session.query(TelescopeType).filter(TelescopeType.id == expected_id).one()
         connection_type.update(**dict_)
         self.session.commit()
@@ -199,14 +189,23 @@ class TestOrm(unittest.TestCase):
         """ Test that Telescope can be created, fetched, updated and deleted """
 
         # Create TelescopeType instances
-        created = datetime.utcnow()
-        create_telescope_types(self.session, self.telescope_type_names, created)
+        dt = pendulum.utcnow()
+        create_telescope_types(self.session, self.telescope_type_names, dt)
 
-        # Create Telescope
+        organisation = Organisation(name='My Organisation',
+                                    gcp_project_id='project-id',
+                                    gcp_download_bucket='download-bucket',
+                                    gcp_transform_bucket='transform-bucket',
+                                    created=dt,
+                                    modified=dt)
+        self.session.add(organisation)
+        self.session.commit()
+
         telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
         telescope = Telescope(telescope_type=telescope_type,
-                              modified=created,
-                              created=created)
+                              organisation=organisation,
+                              modified=dt,
+                              created=dt)
         self.session.add(telescope)
         self.session.commit()
 
@@ -237,7 +236,7 @@ class TestOrm(unittest.TestCase):
         """ Test that Telescope can be created and updated from a dictionary """
 
         # Create Organisation
-        dt = datetime.utcnow()
+        dt = pendulum.utcnow()
         organisation = Organisation(name='My Organisation',
                                     gcp_project_id='project-id',
                                     gcp_download_bucket='download-bucket',
@@ -248,12 +247,12 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
 
         # Create TelescopeType instances
-        created = datetime.utcnow()
+        created = pendulum.utcnow()
         create_telescope_types(self.session, self.telescope_type_names, created)
 
         # Create Telescope
         expected_id = 1
-        dt_str = datetime_to_str(datetime.utcnow())
+        dt = pendulum.utcnow()
         dict_ = {
             'organisation': {
                 'id': organisation.id
@@ -261,8 +260,8 @@ class TestOrm(unittest.TestCase):
             'telescope_type': {
                 'id': expected_id
             },
-            'created': dt_str,
-            'modified': dt_str
+            'created': dt,
+            'modified': dt
         }
         obj = Telescope(**dict_)
         self.session.add(obj)
@@ -275,8 +274,8 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
         self.assertEqual(expected_id, obj.telescope_type.id)
         self.assertEqual(expected_id, obj.organisation.id)
-        self.assertEqual(dt_str, datetime_to_str(obj.created))
-        self.assertEqual(dt_str, datetime_to_str(obj.modified))
+        self.assertEqual(dt, obj.created)
+        self.assertEqual(dt, obj.modified)
 
         # Update Telescope
         expected_id = 2
@@ -301,14 +300,14 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
         self.assertEqual(expected_id, obj.telescope_type.id)
         self.assertEqual(expected_id, obj.organisation.id)
-        self.assertEqual(dt_str, datetime_to_str(obj.created))
-        self.assertEqual(dt_str, datetime_to_str(obj.modified))
+        self.assertEqual(dt, obj.created)
+        self.assertEqual(dt, obj.modified)
 
     def test_organisation(self):
         """ Test that Organisation can be created, fetched, updates and deleted """
 
         # Create Organisation
-        created = datetime.utcnow()
+        created = pendulum.utcnow()
         organisation = Organisation(name='My Organisation',
                                     gcp_project_id='project-id',
                                     gcp_download_bucket='download-bucket',
@@ -342,14 +341,14 @@ class TestOrm(unittest.TestCase):
 
         # Create
         expected_id = 1
-        dt_str = datetime_to_str(datetime.utcnow())
+        dt = pendulum.utcnow()
         dict_ = {
             'name': 'My Organisation',
             'gcp_project_id': 'project-id',
             'gcp_download_bucket': 'download-bucket',
             'gcp_transform_bucket': 'transform-bucket',
-            'created': dt_str,
-            'modified': dt_str
+            'created': dt,
+            'modified': dt
         }
         obj = Organisation(**dict_)
         self.session.add(obj)
@@ -364,18 +363,17 @@ class TestOrm(unittest.TestCase):
         self.assertEqual(dict_['gcp_project_id'], obj.gcp_project_id)
         self.assertEqual(dict_['gcp_download_bucket'], obj.gcp_download_bucket)
         self.assertEqual(dict_['gcp_transform_bucket'], obj.gcp_transform_bucket)
-        self.assertEqual(dt_str, datetime_to_str(obj.created))
-        self.assertEqual(dt_str, datetime_to_str(obj.modified))
+        self.assertEqual(dt, obj.created)
+        self.assertEqual(dt, obj.modified)
 
         # Update
-        dt = datetime.utcnow()
-        dt_str = datetime_to_str(dt)
+        dt = pendulum.utcnow()
         dict_ = {
             'name': 'My Organisation 2',
             'gcp_project_id': 'project-id-2',
             'gcp_download_bucket': 'download-bucket-2',
             'gcp_transform_bucket': 'transform-bucket-2',
-            'modified': dt_str
+            'modified': dt
         }
         obj.update(**dict_)
         self.session.commit()
@@ -383,4 +381,4 @@ class TestOrm(unittest.TestCase):
         self.assertEqual(dict_['gcp_project_id'], obj.gcp_project_id)
         self.assertEqual(dict_['gcp_download_bucket'], obj.gcp_download_bucket)
         self.assertEqual(dict_['gcp_transform_bucket'], obj.gcp_transform_bucket)
-        self.assertEqual(dt_str, datetime_to_str(obj.modified))
+        self.assertEqual(dt, obj.modified)

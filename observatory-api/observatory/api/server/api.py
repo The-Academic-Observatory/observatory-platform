@@ -30,7 +30,7 @@ from sqlalchemy import and_
 from observatory.api.server.elastic import (create_schema, process_response, list_available_index_dates,
                                             create_search_body, create_es_connection, parse_args)
 from observatory.api.server.openapi_renderer import OpenApiRenderer
-from observatory.api.server.orm import Telescope, TelescopeType, Organisation, Base
+from observatory.api.server.orm import Telescope, TelescopeType, Organisation
 
 Response = Tuple[Any, int]
 session_ = None  # Global session
@@ -49,8 +49,9 @@ def get_item(cls: ClassVar, item_id: int):
         logging.info(f'Found: {cls.__name__} with id {item_id}')
         return jsonify(item)
 
-    logging.info(f'Not found: {cls.__name__} with id {item_id}')
-    return NoContent, 404
+    body = f'Not found: {cls.__name__} with id {item_id}'
+    logging.info(body)
+    return body, 404
 
 
 def post_item(cls: ClassVar, body: Dict) -> Response:
@@ -74,7 +75,6 @@ def post_item(cls: ClassVar, body: Dict) -> Response:
     session_.commit()
 
     logging.info(f'Created: {cls.__name__} with id {create_item.id}')
-
     return jsonify(create_item), 201
 
 
@@ -101,8 +101,9 @@ def put_item(cls: ClassVar, body: Dict) -> Response:
             logging.info(f'Updated: {cls.__name__} with id {item_id}')
             return jsonify(item), 200
         else:
-            logging.info(f'Not found: {cls.__name__} with id {item_id}')
-            return NoContent, 404
+            body = f'Not found: {cls.__name__} with id {item_id}'
+            logging.info(body)
+            return body, 404
     else:
         return post_item(cls, body)
 
@@ -124,8 +125,9 @@ def delete_item(cls: ClassVar, item_id: int) -> Response:
         logging.info(f'Deleted: {cls.__name__} with id {item_id}')
         return NoContent, 200
     else:
-        logging.info(f'Not found: {cls.__name__} with id {item_id}')
-        return NoContent, 404
+        body = f'Not found: {cls.__name__} with id {item_id}'
+        logging.info(body)
+        return body, 404
 
 
 def get_items(cls: ClassVar, limit: int) -> Response:

@@ -109,7 +109,7 @@ class ObservatoryApiEnvironment:
 
             # Create the Connexion App and start the server
             app = create_app()
-            self.server = make_server("localhost", 5000, app)
+            self.server = make_server(self.host, self.port, app)
             self.server_thread = threading.Thread(target=self.server.serve_forever)
             self.server_thread.start()
             yield
@@ -125,7 +125,7 @@ class TestObservatoryApi(unittest.TestCase):
     def setUp(self):
         self.timezone = 'Pacific/Auckland'
         self.host = "localhost"
-        self.port = 5000
+        self.port = 5001
         configuration = Configuration(host=f"http://{self.host}:{self.port}")
         api_client = ApiClient(configuration)
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
@@ -150,8 +150,10 @@ class TestObservatoryApi(unittest.TestCase):
 
             result = self.api.delete_organisation(expected_id)
 
-            with self.assertRaises(NotFoundException):
+            with self.assertRaises(NotFoundException) as e:
                 self.api.delete_organisation(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: Organisation with id {expected_id}"\n', e.exception.body)
 
     def test_delete_telescope(self):
         """Test case for delete_telescope
@@ -176,8 +178,10 @@ class TestObservatoryApi(unittest.TestCase):
 
             result = self.api.delete_telescope(expected_id)
 
-            with self.assertRaises(NotFoundException):
+            with self.assertRaises(NotFoundException) as e:
                 self.api.delete_telescope(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
 
     def test_delete_telescope_type(self):
         """Test case for delete_telescope_type
@@ -195,8 +199,10 @@ class TestObservatoryApi(unittest.TestCase):
 
             result = self.api.delete_telescope_type(expected_id)
 
-            with self.assertRaises(NotFoundException):
+            with self.assertRaises(NotFoundException) as e:
                 self.api.delete_telescope_type(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: TelescopeType with id {expected_id}"\n', e.exception.body)
 
     def test_get_organisation(self):
         """Test case for get_organisation
@@ -208,7 +214,7 @@ class TestObservatoryApi(unittest.TestCase):
             expected_id = 1
 
             # Assert that TelescopeType with given id does not exist
-            with self.assertRaises(NotFoundException):
+            with self.assertRaises(NotFoundException) as e:
                 self.api.get_telescope_type(expected_id)
 
             # Add TelescopeType
@@ -273,8 +279,10 @@ class TestObservatoryApi(unittest.TestCase):
             expected_id = 1
 
             # Assert that Telescope with given id does not exist
-            with self.assertRaises(NotFoundException):
+            with self.assertRaises(NotFoundException) as e:
                 self.api.get_telescope(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
 
             # Add Telescope
             telescope_type_name = 'ONIX Telescope'
@@ -310,8 +318,10 @@ class TestObservatoryApi(unittest.TestCase):
             expected_id = 1
 
             # Assert that TelescopeType with given id does not exist
-            with self.assertRaises(NotFoundException):
+            with self.assertRaises(NotFoundException) as e:
                 self.api.get_telescope_type(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: TelescopeType with id {expected_id}"\n', e.exception.body)
 
             # Add TelescopeType
             name = 'ONIX Telescope'
@@ -478,8 +488,11 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(new_name, result.name)
 
             # Put not found
-            with self.assertRaises(NotFoundException):
-                self.api.put_organisation(Organisation(id=2, name=new_name))
+            expected_id = 2
+            with self.assertRaises(NotFoundException) as e:
+                self.api.put_organisation(Organisation(id=expected_id, name=new_name))
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: Organisation with id {expected_id}"\n', e.exception.body)
 
     def test_put_telescope(self):
         """Test case for put_telescope
@@ -513,10 +526,13 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual('Massachusetts Institute of Technology', result.organisation.name)
 
             # Put not found
-            with self.assertRaises(NotFoundException):
-                self.api.put_telescope(Telescope(id=2,
+            expected_id = 2
+            with self.assertRaises(NotFoundException) as e:
+                self.api.put_telescope(Telescope(id=expected_id,
                                                  organisation=Organisation(id=expected_id),
                                                  telescope_type=TelescopeType(id=expected_id)))
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
 
     def test_put_telescope_type(self):
         """Test case for put_telescope_type
@@ -543,8 +559,11 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(new_name, result.name)
 
             # Put not found
-            with self.assertRaises(NotFoundException):
-                self.api.put_telescope_type(TelescopeType(id=2, name=new_name))
+            expected_id = 2
+            with self.assertRaises(NotFoundException) as e:
+                self.api.put_telescope_type(TelescopeType(id=expected_id, name=new_name))
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: TelescopeType with id {expected_id}"\n', e.exception.body)
 
     @patch('observatory.api.server.elastic.Elasticsearch.scroll')
     @patch('observatory.api.server.elastic.Elasticsearch.search')
