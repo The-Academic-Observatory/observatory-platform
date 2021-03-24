@@ -159,6 +159,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->delete_organisation: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -177,7 +178,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>id</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>Organisation id</td>
 <td></td>
 </tr>
@@ -269,6 +270,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->delete_telescope: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -287,7 +289,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>id</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>Telescope id</td>
 <td></td>
 </tr>
@@ -379,6 +381,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->delete_telescope_type: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -397,7 +400,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>id</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>TelescopeType id</td>
 <td></td>
 </tr>
@@ -491,6 +494,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->get_organisation: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -509,7 +513,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>id</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>Organisation id</td>
 <td></td>
 </tr>
@@ -608,6 +612,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->get_organisations: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -626,7 +631,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>limit</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>the maximum number of results to return</td>
 <td></td>
 </tr>
@@ -725,6 +730,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->get_telescope: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -743,7 +749,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>id</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>Telescope id</td>
 <td></td>
 </tr>
@@ -842,6 +848,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->get_telescope_type: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -860,7 +867,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>id</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>TelescopeType id</td>
 <td></td>
 </tr>
@@ -959,6 +966,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->get_telescope_types: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -977,7 +985,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>limit</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>the maximum number of results to return</td>
 <td></td>
 </tr>
@@ -1087,6 +1095,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->get_telescopes: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -1105,7 +1114,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>limit</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>the maximum number of results to return</td>
 <td></td>
 </tr>
@@ -1115,13 +1124,13 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>telescope_type_id</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>filter telescopes by a TelescopeType id</td>
 <td>
 [optional]
 <tr>
 <td><strong>organisation_id</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>filter telescopes by an Organisation id</td>
 <td>
 [optional]
@@ -1237,6 +1246,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     except observatory.api.client.ApiException as e:
         print("Exception when calling ObservatoryApi->post_organisation: %s\n" % e)
 ```
+
 
 ### Parameters
 
@@ -1372,6 +1382,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->post_telescope: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -1488,6 +1499,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     except observatory.api.client.ApiException as e:
         print("Exception when calling ObservatoryApi->post_telescope_type: %s\n" % e)
 ```
+
 
 ### Parameters
 
@@ -1622,6 +1634,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     except observatory.api.client.ApiException as e:
         print("Exception when calling ObservatoryApi->put_organisation: %s\n" % e)
 ```
+
 
 ### Parameters
 
@@ -1762,6 +1775,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->put_telescope: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -1883,6 +1897,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     except observatory.api.client.ApiException as e:
         print("Exception when calling ObservatoryApi->put_telescope_type: %s\n" % e)
 ```
+
 
 ### Parameters
 
@@ -2100,6 +2115,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         print("Exception when calling ObservatoryApi->queryv1: %s\n" % e)
 ```
 
+
 ### Parameters
 
 
@@ -2118,14 +2134,14 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>agg</strong></td>
-<td><td><strong>str</strong></td></td>
+<td><strong>str</strong></td>
 <td>The aggregation level</td>
 <td></td>
 </tr>
 
 <tr>
 <td><strong>subset</strong></td>
-<td><td><strong>str</strong></td></td>
+<td><strong>str</strong></td>
 <td>The required subset</td>
 <td></td>
 </tr>
@@ -2136,211 +2152,211 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>index_date</strong></td>
-<td><td><strong>date</strong></td></td>
+<td><strong>date</strong></td>
 <td>Index date, defaults to latest</td>
 <td>
 [optional]
 <tr>
 <td><strong>_from</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>Start year (included)</td>
 <td>
 [optional]
 <tr>
 <td><strong>to</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>End year (not included)</td>
 <td>
 [optional]
 <tr>
 <td><strong>limit</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>Limit number of results (max 10000)</td>
 <td>
 [optional]
 <tr>
 <td><strong>scroll_id</strong></td>
-<td><td><strong>str</strong></td></td>
+<td><strong>str</strong></td>
 <td>The scroll id</td>
 <td>
 [optional]
 <tr>
 <td><strong>pit_id</strong></td>
-<td><td><strong>str</strong></td></td>
+<td><strong>str</strong></td>
 <td>The PIT id</td>
 <td>
 [optional]
 <tr>
 <td><strong>search_after_no</strong></td>
-<td><td><strong>int</strong></td></td>
+<td><strong>int</strong></td>
 <td>The search after key</td>
 <td>
 [optional]
 <tr>
 <td><strong>search_after_text</strong></td>
-<td><td><strong>str</strong></td></td>
+<td><strong>str</strong></td>
 <td>The search after key</td>
 <td>
 [optional]
 <tr>
 <td><strong>id</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>name</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>published_year</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>coordinates</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>country</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>country_code</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>region</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>subregion</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>access_type</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>label</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>status</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>collaborator_coordinates</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>collaborator_country</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>collaborator_country_code</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>collaborator_id</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>collaborator_name</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>collaborator_region</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>collaborator_subregion</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>field</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>source</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>funder_country_code</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>funder_name</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>funder_sub_type</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>funder_type</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>journal</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>output_type</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]
 <tr>
 <td><strong>publisher</strong></td>
-<td><td><strong>[str]</strong></td></td>
+<td><strong>[str]</strong></td>
 <td></td>
 <td>
 [optional]

@@ -30,7 +30,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install --upgrade pip
-          pip install observatory-api
+          pip install -e observatory-api
 
       - name: Generate OpenAPI specification
         run: |

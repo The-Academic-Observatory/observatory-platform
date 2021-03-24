@@ -18,4 +18,9 @@ observatory/api/client/model/telescope_type.py
 observatory/api/client/model_utils.py
 observatory/api/client/rest.py
 observatory/api/client/test/__init__.py
+observatory/api/client/test/test_observatory_api.py
+observatory/api/client/test/test_organisation.py
+observatory/api/client/test/test_query_response.py
+observatory/api/client/test/test_telescope.py
+observatory/api/client/test/test_telescope_type.py
 observatory/api/client_README.md
