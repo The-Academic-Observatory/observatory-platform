@@ -613,14 +613,6 @@ class TestObservatoryApi(unittest.TestCase):
 
             with self.assertRaises(ApiValueError) as e:
                 self.api.queryv1(subset='', agg='', limit=1000, scroll_id=SCROLL_ID)
-            # response = test_client.get(endpoint_query,
-            #                            query_string={'subset': '',
-            #                                          'agg': '',
-            #                                          'limit': 1000,
-            #                                          'scroll_id': SCROLL_ID},
-            #                            content_type=self.content_type)
-            #
-            # self.assertEqual(400, e.exception.status)
 
             # With search body, test with valid alias and without index date
             with patch('elasticsearch.client.CatClient.aliases') as mock_es_cat:

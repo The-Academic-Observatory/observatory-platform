@@ -54,6 +54,7 @@ All URIs are relative to *{{basePath}}*
 {{/authMethods}}
 {{/hasAuthMethods}}
 {{> api_doc_example }}
+
 ### Parameters
 {{^allParams}}This endpoint does not need any parameter.{{/allParams}}{{#allParams}}{{#-last}}
 
@@ -72,7 +73,7 @@ All URIs are relative to *{{basePath}}*
 {{#requiredParams}}{{^defaultValue}}
 <tr>
 <td><strong>{{paramName}}</strong></td>
-<td>{{^baseType}}<td><strong>{{dataType}}</strong></td>{{/baseType}}{{#baseType}}<a href="{{baseType}}.html"><strong>{{dataType}}</strong></a>{{/baseType}}</td>
+{{^baseType}}<td><strong>{{dataType}}</strong></td>{{/baseType}}{{#baseType}}<td><a href="{{baseType}}.html"><strong>{{dataType}}</strong></a></td>{{/baseType}}
 <td>{{description}}</td>
 <td></td>
 </tr>
@@ -81,7 +82,7 @@ All URIs are relative to *{{basePath}}*
 {{#requiredParams}}{{#defaultValue}}
 <tr>
 <td><strong>{{paramName}}</strong></td>
-<td>{{^baseType}}<td><strong>{{dataType}}</strong></td>{{/baseType}}{{#baseType}}<a href="{{baseType}}.html"><strong>{{dataType}}</strong></a>{{/baseType}}</td>
+{{^baseType}}<td><strong>{{dataType}}</strong></td>{{/baseType}}{{#baseType}}<td><a href="{{baseType}}.html"><strong>{{dataType}}</strong></a></td>{{/baseType}}
 <td>{{description}}</td>
 <td>
 defaults to {{{.}}}
@@ -92,7 +93,7 @@ defaults to {{{.}}}
 {{/requiredParams}}{{#optionalParams}}
 <tr>
 <td><strong>{{paramName}}</strong></td>
-<td>{{^baseType}}<td><strong>{{dataType}}</strong></td>{{/baseType}}{{#baseType}}<a href="{{baseType}}.html"><strong>{{dataType}}</strong></a>{{/baseType}}</td>
+{{^baseType}}<td><strong>{{dataType}}</strong></td>{{/baseType}}{{#baseType}}<td><a href="{{baseType}}.html"><strong>{{dataType}}</strong></a></td>{{/baseType}}
 <td>{{description}}</td>
 <td>
 [optional]{{#defaultValue}} if omitted the server will use the default value of {{{.}}}
