@@ -1,17 +1,72 @@
 # Organisation
 
 ## Properties
-Name | Type | Description | Notes
------------- | ------------- | ------------- | -------------
-**id** | **int** |  | [optional] 
-**name** | **str** |  | [optional] 
-**gcp_project_id** | **str** |  | [optional] 
-**gcp_download_bucket** | **str** |  | [optional] 
-**gcp_transform_bucket** | **str** |  | [optional] 
-**telescopes** | [**[Telescope]**](Telescope.md) |  | [optional] [readonly] 
-**created** | **datetime** |  | [optional] [readonly] 
-**modified** | **datetime** |  | [optional] [readonly] 
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
 
-[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 
+
+
+
+
+<tr>
+    <td><strong>id</strong></td>
+    <td><strong>int</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>name</strong></td>
+    <td><strong>str</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>gcp_project_id</strong></td>
+    <td><strong>str, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>gcp_download_bucket</strong></td>
+    <td><strong>str, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>gcp_transform_bucket</strong></td>
+    <td><strong>str, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>telescopes</strong></td>
+    <td><a href="Telescope.html"><strong>[Telescope]</strong></a></td>
+    <td></td>
+    <td>[optional] [readonly] </td>
+</tr>
+<tr>
+    <td><strong>created</strong></td>
+    <td><strong>datetime</strong></td>
+    <td></td>
+    <td>[optional] [readonly] </td>
+</tr>
+<tr>
+    <td><strong>modified</strong></td>
+    <td><strong>datetime</strong></td>
+    <td></td>
+    <td>[optional] [readonly] </td>
+</tr>
+
+
+</tbody>
+</table></div>
 

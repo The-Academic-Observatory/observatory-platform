@@ -35,6 +35,7 @@ jobs:
       - name: Generate OpenAPI specification
         run: |
           observatory-api generate-openapi-spec observatory-api/observatory/api/server/openapi.yaml.jinja2 observatory-api/openapi.yaml --api-client
+          cp observatory-api/openapi.yaml docs/api/openapi.yaml
 
       - name: Generate Observatory API Client
         run |
@@ -42,11 +43,13 @@ jobs:
 
       - name: Massage generated files into the right places
         run |
-          mv
+          mv observatory-api/observatory/api/client_README.md docs/api/api_client.md
           cp -rn observatory-api/observatory/api/client/test/* tests/observatory/api/client/
-          cp -rn observatory-api/observatory/api/client/docs/* docs/api/
+          mv observatory-api/observatory/api/client/docs/* docs/api/
           rm -r observatory-api/observatory/api/client/test/
           rm -r observatory-api/observatory/api/client/docs/
+          rm -r observatory-api/observatory/api/client/apis/
+          rm -r observatory-api/observatory/api/client/models/
 
       - name: Create Pull Request
         id: cpr

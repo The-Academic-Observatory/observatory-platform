@@ -14,8 +14,14 @@ Tutorials
     installation
     observatory_dev
     deploy_terraform
-    api
     license
+
+Observatory Platform API
+=======================
+.. toctree::
+    :maxdepth: 2
+
+    api/index
 
 Telescopes
 =======================
