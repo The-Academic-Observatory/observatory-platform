@@ -8,7 +8,7 @@ def cli():
     """ The Observatory API command line tool.
 
     COMMAND: the commands to run include:\n
-      - generate-open-api: start and stop the local Observatory Platform platform.\n
+      - generate-open-api: generate an OpenAPI specification for the Observatory API.\n
     """
 
     pass
