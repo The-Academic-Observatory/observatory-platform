@@ -16,8 +16,8 @@
 
 from __future__ import annotations
 
-from observatory.api.api import create_app
-from observatory.api.orm import create_session, set_session
+from observatory.api.server.api import create_app
+from observatory.api.server.orm import create_session, set_session
 
 # Setup Observatory DB Session
 session_ = create_session()

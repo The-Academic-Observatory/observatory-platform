@@ -1,0 +1,148 @@
+# {{classname}}{{#description}}
+{{description}}{{/description}}
+
+All URIs are relative to *{{basePath}}*
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Method</th>
+<th>HTTP request</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+
+{{#operations}}{{#operation}}
+<tr>
+  <td><a href="{{classname}}.html#{{operationId}}"><strong>{{operationId}}</strong></a></td>
+  <td><strong>{{httpMethod}}</strong> {{path}}</td>
+  <td>{{#summary}}{{summary}}{{/summary}}</td>
+</tr>
+{{/operation}}{{/operations}}
+
+</tbody>
+</table></div>
+
+{{#operations}}
+{{#operation}}
+## **{{{operationId}}}**
+> {{#returnType}}{{{returnType}}} {{/returnType}}{{{operationId}}}({{#requiredParams}}{{^defaultValue}}{{paramName}}{{^-last}}, {{/-last}}{{/defaultValue}}{{/requiredParams}})
+
+{{{summary}}}{{#notes}}
+
+{{{notes}}}{{/notes}}
+
+### Example
+
+{{#hasAuthMethods}}
+{{#authMethods}}
+{{#isBasic}}
+{{#isBasicBasic}}
+* Basic Authentication ({{name}}):
+{{/isBasicBasic}}
+{{#isBasicBearer}}
+* Bearer{{#bearerFormat}} ({{{.}}}){{/bearerFormat}} Authentication ({{name}}):
+{{/isBasicBearer}}
+{{/isBasic}}
+{{#isApiKey}}
+* Api Key Authentication ({{name}}):
+{{/isApiKey }}
+{{#isOAuth}}
+* OAuth Authentication ({{name}}):
+{{/isOAuth }}
+{{/authMethods}}
+{{/hasAuthMethods}}
+{{> api_doc_example }}
+
+### Parameters
+{{^allParams}}This endpoint does not need any parameter.{{/allParams}}{{#allParams}}{{#-last}}
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+{{/-last}}{{/allParams}}
+{{#requiredParams}}{{^defaultValue}}
+<tr>
+<td><strong>{{paramName}}</strong></td>
+{{^baseType}}<td><strong>{{dataType}}</strong></td>{{/baseType}}{{#baseType}}<td><a href="{{baseType}}.html"><strong>{{dataType}}</strong></a></td>{{/baseType}}
+<td>{{description}}</td>
+<td></td>
+</tr>
+{{/defaultValue}}{{/requiredParams}}
+
+{{#requiredParams}}{{#defaultValue}}
+<tr>
+<td><strong>{{paramName}}</strong></td>
+{{^baseType}}<td><strong>{{dataType}}</strong></td>{{/baseType}}{{#baseType}}<td><a href="{{baseType}}.html"><strong>{{dataType}}</strong></a></td>{{/baseType}}
+<td>{{description}}</td>
+<td>
+defaults to {{{.}}}
+</td>
+</tr>
+{{/defaultValue}}
+
+{{/requiredParams}}{{#optionalParams}}
+<tr>
+<td><strong>{{paramName}}</strong></td>
+{{^baseType}}<td><strong>{{dataType}}</strong></td>{{/baseType}}{{#baseType}}<td><a href="{{baseType}}.html"><strong>{{dataType}}</strong></a></td>{{/baseType}}
+<td>{{description}}</td>
+<td>
+[optional]{{#defaultValue}} if omitted the server will use the default value of {{{.}}}
+</td>
+</tr>
+{{/defaultValue}}
+{{/optionalParams}}
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+{{#returnType}}{{#returnTypeIsPrimitive}}**{{{returnType}}}**{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}[**{{{returnType}}}**]({{returnBaseType}}.html){{/returnTypeIsPrimitive}}{{/returnType}}{{^returnType}}void (empty response body){{/returnType}}
+
+### Authorization
+
+{{^authMethods}}No authorization required{{/authMethods}}{{#authMethods}}[{{{name}}}](ObservatoryApi.html#{{{name}}}){{^-last}}, {{/-last}}{{/authMethods}}
+
+### HTTP request headers
+
+ - **Content-Type**: {{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}{{^consumes}}Not defined{{/consumes}}
+ - **Accept**: {{#produces}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/produces}}{{^produces}}Not defined{{/produces}}
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+{{#responses.0}}
+{{#responses}}
+<tr>
+    <td><strong>{{code}}</strong></td>
+    <td>{{message}}</td>
+    <td>{{#headers}} * {{baseName}} - {{description}} <br> {{/headers}}{{^headers.0}} - {{/headers.0}}</td>
+</tr>
+{{/responses}}
+{{/responses.0}}
+
+</tbody>
+</table></div>
+
+{{/operation}}
+{{/operations}}

@@ -33,12 +33,13 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'autoapi.extension',
-    'recommonmark'
+    'recommonmark',
+    'sphinxcontrib.openapi'
 ]
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = 'python'
-autoapi_dirs = ['../observatory-platform', '../observatory-dags', '../observatory-reports']
+autoapi_dirs = ['../observatory-api', '../observatory-platform', '../observatory-dags', '../observatory-reports']
 autoapi_add_toctree_entry = True
 autoapi_python_use_implicit_namespaces = True
 

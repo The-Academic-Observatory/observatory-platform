@@ -15,7 +15,7 @@
 # Author: Aniek Roelofs
 
 from typing import List, Tuple, Union
-
+import pendulum
 from elasticsearch import Elasticsearch
 from flask import request
 
@@ -160,8 +160,9 @@ def parse_args() -> Tuple[str, str, str, str, dict, int, str]:
             value = value.split(',')
         filter_fields[field] = value
 
-    from_date = from_date + '-12-31' if from_date else None
-    to_date = to_date + '-12-31' if to_date else None
+    index_date = pendulum.parse(index_date).strftime('%Y%m%d') if index_date else None
+    from_date = f'{from_date}-12-31' if from_date else None
+    to_date = f'{to_date}-12-31' if to_date else None
 
     # TODO determine which combinations/indices we can use
     if agg == 'author' or agg == 'funder':

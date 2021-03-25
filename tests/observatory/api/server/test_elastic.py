@@ -20,9 +20,9 @@ from unittest.mock import patch
 
 from elasticsearch import Elasticsearch
 
-from observatory.api.api import create_app
-from observatory.api.elastic import (create_es_connection, create_search_body, list_available_index_dates,
-                                     parse_args, process_response, QUERY_FILTER_PARAMETERS)
+from observatory.api.server.api import create_app
+from observatory.api.server.elastic import (create_es_connection, create_search_body, list_available_index_dates,
+                                            parse_args, process_response, QUERY_FILTER_PARAMETERS)
 
 AGGREGATIONS = ['author', 'country', 'funder', 'group', 'institution', 'publisher']
 SUBSETS = ['citations', 'collaborations', 'disciplines', 'events', 'funders', 'journals', 'oa-metrics',
@@ -64,7 +64,7 @@ RES_EXAMPLE = {
 class TestElastic(unittest.TestCase):
     """ Tests for the 'query' endpoint of the API. """
 
-    @patch('observatory.api.elastic.Elasticsearch.ping')
+    @patch('observatory.api.server.elastic.Elasticsearch.ping')
     def test_create_es_connection(self, mock_elasticsearch_ping):
         """ Test creating elasticsearch connection with (in)valid address and api_key
 
@@ -120,21 +120,13 @@ class TestElastic(unittest.TestCase):
 
             # test from & to dates
             parameters = {
-                'from': '2000',
-                'to': '2010'
+                'from': 2000,
+                'to': 2010
             }
             test_client.get('/query', query_string=parameters)
             alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
             self.assertEqual('2000-12-31', from_date)
             self.assertEqual('2010-12-31', to_date)
-
-            # TODO use openapi config so that this will not be allowed
-            parameters = {
-                'from': '2020-01-01',
-                'to': '2010'
-            }
-            test_client.get('/query', query_string=parameters)
-            alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
 
             # test aliases
             parameters = {}
@@ -159,7 +151,7 @@ class TestElastic(unittest.TestCase):
             }
             test_client.get('/query', query_string=parameters)
             alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-            self.assertEqual('2020-01-01', index_date)
+            self.assertEqual('20200101', index_date)
 
             test_client.get('/query')
             alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
