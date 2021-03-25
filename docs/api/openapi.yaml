@@ -10,11 +10,8 @@ info:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
 
-{%- if cloud_endpoints %}
-host: ${host}
-x-google-backend:
-  address: ${backend_address}
-  protocol: h2
+
+host: api.observatory.academy
 schemes:
   - https
 produces:
@@ -27,24 +24,22 @@ securityDefinitions:
     in: "query"
 security:
   - api_key: []
-{%- endif %}
+
+
+
 
 tags:
-- name: Reports
-  description: Query data to build Open Access reports.
-- name: Organisation
-  description: Create, read, update, delete and list information about organisations.
-- name: Telescope
-  description: Create, read, update, delete and list information about telescopes.
-- name: TelescopeType
-  description: Create, read, update, delete and list information about the type of telescopes that exist.
+- name: Observatory
+  description: the Observatory API
+
+
 
 paths:
   /v1/query:
     get:
-      operationId: observatory.api.api.queryv1
+      operationId: queryv1
       tags:
-        - Reports
+        - Observatory
       summary: Search the Observatory API
       description: Search the Observatory API
       parameters:
@@ -81,19 +76,20 @@ paths:
           required: false
           format: date
           type: string
-          pattern: '^\d{4}\d{2}\d{2}$'
         - name: from
           in: query
-          description: Start date (included), format YYYY
+          description: Start year (included)
           required: false
-          type: string
-          pattern: '^\d{4}$'
+          type: integer
+          minimum: 4
+          maximum: 4
         - name: to
           in: query
-          description: End date (not included), format YYYY
+          description: End year (not included)
           required: false
-          type: string
-          pattern: '^\d{4}$'
+          type: integer
+          minimum: 4
+          maximum: 4
         - name: limit
           in: query
           description: Limit number of results (max 10000)
@@ -120,39 +116,203 @@ paths:
           description: The search after key
           required: false
           type: string
-        {% for param in query_filter_parameters %}
-        - name: {{ param }}
+        
+        - name: id
           in: query
           type: array
           items:
             type: string
           collectionFormat: multi
-        {% endfor %}
+        
+        - name: name
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: published_year
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: coordinates
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: country
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: country_code
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: region
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: subregion
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: access_type
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: label
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: status
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: collaborator_coordinates
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: collaborator_country
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: collaborator_country_code
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: collaborator_id
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: collaborator_name
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: collaborator_region
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: collaborator_subregion
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: field
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: source
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: funder_country_code
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: funder_name
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: funder_sub_type
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: funder_type
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: journal
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: output_type
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
+        - name: publisher
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        
       responses:
-        '200':
+        200:
           description: Successfully return query results
           schema:
-            type: object
-            properties:
-              index:
-                type: string
-                description: The full name of the elasticsearch index that is searched
-              scroll_id:
-                type: string
-                description: The scroll id that can be used to get the next batch of results (only active for 1min)
-              returned_hits:
-                type: integer
-                description: The number of returned hits (can be less than total_hits if a limit is set)
-              total_hits:
-                type: integer
-                description: The number of total hits
-              schema:
-                type: object
-                description: The schema for an individual hit
-              results:
-                type: array
-                description: A list of the actual results (one dictionary per hit)
+            $ref: '#/definitions/QueryResponse'
         401:
+          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
       produces:
         - application/json
@@ -160,9 +320,9 @@ paths:
   /v1/telescope_type:
     get:
       tags:
-      - TelescopeType
+      - Observatory
       summary: get a TelescopeType
-      operationId: observatory.api.api.get_telescope_type
+      operationId: get_telescope_type
       description: |
         Get the details of a TelescopeType by passing it's id.
       produces:
@@ -180,11 +340,14 @@ paths:
             $ref: '#/definitions/TelescopeType'
         400:
           description: bad input parameter
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
     post:
       tags:
-      - TelescopeType
+      - Observatory
       summary: create a TelescopeType
-      operationId: observatory.api.api.post_telescope_type
+      operationId: post_telescope_type
       description: |
         Create a TelescopeType by passing a TelescopeType object, without an id.
       consumes:
@@ -200,12 +363,17 @@ paths:
           $ref: '#/definitions/TelescopeType'
       responses:
         201:
-          description: TelescopeType created, returning the created object's id
+          description: TelescopeType created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/TelescopeType'
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
     put:
       tags:
-      - TelescopeType
+      - Observatory
       summary: create or update a TelescopeType
-      operationId: observatory.api.api.put_telescope_type
+      operationId: put_telescope_type
       description: |
         Create a TelescopeType by passing a TelescopeType object, without an id. Update an existing TelescopeType by
         passing a TelescopeType object with an id.
@@ -223,13 +391,20 @@ paths:
       responses:
         200:
           description: TelescopeType updated
+          schema:
+            $ref: '#/definitions/TelescopeType'
         201:
-          description: TelescopeType created, returning the created object's id
+          description: TelescopeType created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/TelescopeType'
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
-      - TelescopeType
+      - Observatory
       summary: delete a TelescopeType
-      operationId: observatory.api.api.delete_telescope_type
+      operationId: delete_telescope_type
       description: |
         Delete a TelescopeType by passing it's id.
       consumes:
@@ -243,15 +418,18 @@ paths:
         required: true
         type: integer
       responses:
-        201:
+        200:
           description: TelescopeType deleted
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
 
   /v1/telescope_types:
     get:
       tags:
-      - TelescopeType
+      - Observatory
       summary: Get a list of TelescopeType objects
-      operationId: observatory.api.api.get_telescope_types
+      operationId: get_telescope_types
       description: |
         Get a list of TelescopeType objects
       produces:
@@ -271,13 +449,16 @@ paths:
               $ref: '#/definitions/TelescopeType'
         400:
           description: bad input parameter
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
 
   /v1/telescope:
     get:
       tags:
-      - Telescope
+      - Observatory
       summary: get a Telescope
-      operationId: observatory.api.api.get_telescope
+      operationId: get_telescope
       description: |
         Get the details of a Telescope by passing it's id.
       produces:
@@ -295,11 +476,14 @@ paths:
             $ref: '#/definitions/Telescope'
         400:
           description: bad input parameter
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
     post:
       tags:
-      - Telescope
+      - Observatory
       summary: create a Telescope
-      operationId: observatory.api.api.post_telescope
+      operationId: post_telescope
       description: |
         Create a Telescope by passing a Telescope object, without an id.
       consumes:
@@ -315,12 +499,17 @@ paths:
           $ref: '#/definitions/Telescope'
       responses:
         201:
-          description: Telescope created, returning the created object's id
+          description: Telescope created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Telescope'
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
     put:
       tags:
-      - Telescope
+      - Observatory
       summary: create or update a Telescope
-      operationId: observatory.api.api.put_telescope
+      operationId: put_telescope
       description: |
         Create a Telescope by passing a Telescope object, without an id. Update an existing Telescope by
         passing a Telescope object with an id.
@@ -338,13 +527,20 @@ paths:
       responses:
         200:
           description: Telescope updated
+          schema:
+            $ref: '#/definitions/Telescope'
         201:
-          description: Telescope created, returning the created object's id
+          description: Telescope created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Telescope'
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
-      - Telescope
+      - Observatory
       summary: delete a Telescope
-      operationId: observatory.api.api.delete_telescope
+      operationId: delete_telescope
       description: |
         Delete a Telescope by passing it's id.
       consumes:
@@ -358,15 +554,18 @@ paths:
         required: true
         type: integer
       responses:
-        201:
+        200:
           description: Telescope deleted
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
 
   /v1/telescopes:
     get:
       tags:
-      - Telescope
+      - Observatory
       summary: Get a list of Telescope objects
-      operationId: observatory.api.api.get_telescopes
+      operationId: get_telescopes
       description: |
         Get a list of Telescope objects and optionally filter via a Telescope id and or an Organisation id.
       produces:
@@ -396,13 +595,16 @@ paths:
               $ref: '#/definitions/Telescope'
         400:
           description: bad input parameter
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
 
   /v1/organisation:
     get:
       tags:
-        - Organisation
+        - Observatory
       summary: get an Organisation
-      operationId: observatory.api.api.get_organisation
+      operationId: get_organisation
       description: |
         Get the details of an Organisation by passing it's id.
       produces:
@@ -420,11 +622,14 @@ paths:
             $ref: '#/definitions/Organisation'
         400:
           description: bad input parameter
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
     post:
       tags:
-        - Organisation
+        - Observatory
       summary: create an Organisation
-      operationId: observatory.api.api.post_organisation
+      operationId: post_organisation
       description: |
         Create an Organisation by passing an Organisation object, without an id.
       consumes:
@@ -440,12 +645,17 @@ paths:
           $ref: '#/definitions/Organisation'
       responses:
         201:
-          description: Organisation created
+          description: Organisation created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Organisation'
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
     put:
       tags:
-        - Organisation
+        - Observatory
       summary: create or update an Organisation
-      operationId: observatory.api.api.put_organisation
+      operationId: put_organisation
       description: |
         Create an Organisation by passing an Organisation object, without an id. Update an existing Organisation by
         passing an Organisation object with an id.
@@ -463,13 +673,20 @@ paths:
       responses:
         200:
           description: Organisation updated
+          schema:
+            $ref: '#/definitions/Organisation'
         201:
-          description: Organisation created
+          description: Organisation created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Organisation'
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
-        - Organisation
+        - Observatory
       summary: delete an Organisation
-      operationId: observatory.api.api.delete_organisation
+      operationId: delete_organisation
       description: |
         Delete an Organisation by passing it's id.
       consumes:
@@ -483,15 +700,18 @@ paths:
           required: true
           type: integer
       responses:
-        201:
+        200:
           description: Organisation deleted
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
 
   /v1/organisations:
     get:
       tags:
-        - Organisation
+        - Observatory
       summary: Get a list of Organisations
-      operationId: observatory.api.api.get_organisations
+      operationId: get_organisations
       description: |
         Gets a list of organisations
       produces:
@@ -511,6 +731,9 @@ paths:
               $ref: '#/definitions/Organisation'
         400:
           description: bad input parameter
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
 
 #  /v2/query:
 #    get:
@@ -524,6 +747,39 @@ paths:
 #          description: Successfully return query results
 
 definitions:
+  QueryResponse:
+    type: object
+    properties:
+      version:
+        type: string
+        description: The API version
+        example: 'v1'
+      index:
+        type: string
+        description: The full name of the elasticsearch index that is searched
+        example: 'citations-country-20201212'
+      scroll_id:
+        type: string
+        description: The scroll id that can be used to get the next batch of results (only active for 1min)
+        example: 'FGluY2x1ZGVfY29udGV4dF91dWlkDXF1ZXJ5QW5kRmV0Y2gBFlFkWThoZy1FUTZPQ2JhcXpGSnFjTEEAAAAAALEIyRZYRkVGWmNSRVRqU0VpTFdYbGFPUERR'
+      returned_hits:
+        type: integer
+        description: The number of returned hits (can be less than total_hits if a limit is set)
+        example: 10000
+      total_hits:
+        type: integer
+        description: The number of total hits
+        example: 126538
+      schema:
+        type: object
+        description: The schema for an individual hit
+        example: ''
+      results:
+        type: array
+        description: A list of the actual results (one dictionary per hit)
+        items:
+          type: object
+
   TelescopeType:
     type: object
     properties:
@@ -583,16 +839,19 @@ definitions:
         example: curtin-dev
         minLength: 6
         maxLength: 30
+        x-nullable: true
       gcp_download_bucket:
         type: string
         example: curtin-dev-download
         minLength: 3
         maxLength: 222
+        x-nullable: true
       gcp_transform_bucket:
         type: string
         example: curtin-dev-transform
         minLength: 3
         maxLength: 222
+        x-nullable: true
       telescopes:
         type: array
         readOnly: true

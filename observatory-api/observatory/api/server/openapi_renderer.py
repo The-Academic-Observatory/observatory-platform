@@ -20,7 +20,7 @@ from typing import Dict
 import yaml
 from jinja2 import Template
 
-from observatory.api.elastic import QUERY_FILTER_PARAMETERS
+from observatory.api.server.elastic import QUERY_FILTER_PARAMETERS
 
 
 def render_template(template_path: str, **kwargs) -> str:
@@ -46,15 +46,17 @@ def render_template(template_path: str, **kwargs) -> str:
 
 class OpenApiRenderer:
 
-    def __init__(self, openapi_template_path: str, cloud_endpoints: bool = False):
+    def __init__(self, openapi_template_path: str, cloud_endpoints: bool = False, api_client: bool = False):
         """ Construct an object that renders an OpenAPI 2 Jinja2 file.
 
         :param openapi_template_path: the path to the OpenAPI 2 Jinja2 template.
-        :param cloud_endpoints: whether to render the file for Cloud Endpoints.
+        :param cloud_endpoints: whether to render the file for the backend (default) or Cloud Endpoints.
+        :param api_client: whether to render the file for the Server (default) or the Client.
         """
 
         self.openapi_template_path = openapi_template_path
         self.cloud_endpoints = cloud_endpoints
+        self.api_client = api_client
 
     def render(self) -> str:
         """ Render the OpenAPI file.
@@ -62,7 +64,9 @@ class OpenApiRenderer:
         :return: the rendered output.
         """
 
-        return render_template(self.openapi_template_path, cloud_endpoints=self.cloud_endpoints,
+        return render_template(self.openapi_template_path,
+                               cloud_endpoints=self.cloud_endpoints,
+                               api_client=self.api_client,
                                query_filter_parameters=QUERY_FILTER_PARAMETERS)
 
     def to_dict(self) -> Dict:
@@ -71,5 +75,6 @@ class OpenApiRenderer:
         :return: the dictionary.
         """
 
-        assert not self.cloud_endpoints, "Only supported where self.cloud_endpoints is False"
+        assert not self.cloud_endpoints and not self.api_client, "Only supported where self.cloud_endpoints is False " \
+                                                                 "and self.api_client is False"
         return yaml.safe_load(self.render())

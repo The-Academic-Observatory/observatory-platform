@@ -22,7 +22,7 @@ import subprocess
 from subprocess import Popen
 from typing import Tuple
 
-from observatory.api.openapi_renderer import OpenApiRenderer
+from observatory.api.server.openapi_renderer import OpenApiRenderer
 from observatory.platform.cli.click_utils import indent, INDENT1
 from observatory.platform.observatory_config import TerraformConfig, BackendType
 from observatory.platform.platform_builder import PlatformBuilder
@@ -53,7 +53,7 @@ class TerraformBuilder:
         self.package_path = module_file_path('observatory.platform', nav_back_steps=-3)
         self.terraform_path = module_file_path('observatory.platform.terraform')
         self.api_package_path = module_file_path('observatory.api', nav_back_steps=-3)
-        self.api_path = module_file_path('observatory.api')
+        self.api_path = module_file_path('observatory.api.server')
         self.packages_build_path = os.path.join(build_path, 'packages')
         self.terraform_build_path = os.path.join(build_path, 'terraform')
         self.platform_builder = PlatformBuilder(config_path, build_path=build_path, backend_type=self.backend_type)

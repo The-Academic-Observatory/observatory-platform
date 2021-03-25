@@ -1,0 +1,87 @@
+{{#models}}{{#model}}# {{classname}}
+
+{{#description}}{{&description}}
+{{/description}}
+## Properties
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+{{#isEnum}}
+<tr>
+    <td><strong>value</strong></td>
+    <td>{{^arrayModelType}}<strong>{{dataType}}</strong>{{/arrayModelType}}</td>
+    <td>{{description}}</td>
+    <td>{{#defaultValue}}{{#hasRequired}} if omitted the server will use the default value of {{/hasRequired}}{{^hasRequired}}defaults to {{/hasRequired}}{{{.}}}{{/defaultValue}}{{#allowableValues}}{{#defaultValue}}, {{/defaultValue}} must be one of [{{#enumVars}}{{{value}}}, {{/enumVars}}]{{/allowableValues}}</td>
+</tr>
+{{/isEnum}}
+
+{{#isAlias}}
+<tr>
+    <td><strong>value</strong></td>
+    <td>{{^arrayModelType}}<strong>{{dataType}}</strong>{{/arrayModelType}}</td>
+    <td>{{description}}</td>
+    <td>{{#defaultValue}}{{#hasRequired}} if omitted the server will use the default value of {{/hasRequired}}{{^hasRequired}}defaults to {{/hasRequired}}{{{.}}}{{/defaultValue}}</td>
+</tr>
+{{/isAlias}}
+
+{{#isArray}}
+<tr>
+    <td><strong>value</strong></td>
+    <td>{{^arrayModelType}}<strong>{{dataType}}</strong>{{/arrayModelType}}{{#arrayModelType}}<a href="{{arrayModelType}}.html"><strong>{{dataType}}</strong></a>{{/arrayModelType}}</td>
+    <td>{{description}}</td>
+    <td>{{#defaultValue}}{{#hasRequired}} if omitted the server will use the default value of {{/hasRequired}}{{^hasRequired}}defaults to {{/hasRequired}}{{{.}}}{{/defaultValue}}</td>
+</tr>
+{{/isArray}}
+
+{{#requiredVars}}
+{{^defaultValue}}
+<tr>
+    <td><strong>{{name}}</strong></td>
+    <td>{{^complexType}}<strong>{{dataType}}</strong>{{/complexType}}{{#complexType}}<a href="{{complexType}}.html"><strong>{{dataType}}</strong></a>{{/complexType}}</td>
+    <td>{{description}}</td>
+    <td>{{#isReadOnly}}[readonly] {{/isReadOnly}}</td>
+</tr>
+{{/defaultValue}}
+{{/requiredVars}}
+
+{{#requiredVars}}
+{{#defaultValue}}
+<tr>
+    <td><strong>{{name}}</strong></td>
+    <td>{{^complexType}}<strong>{{dataType}}</strong>{{/complexType}}{{#complexType}}<a href="{{complexType}}.html"><strong>{{dataType}}</strong></a>{{/complexType}}</td>
+    <td>{{description}}</td>
+    <td>{{^required}}[optional] {{/required}}{{#isReadOnly}}[readonly] {{/isReadOnly}}{{#defaultValue}}defaults to {{{.}}}{{/defaultValue}}</td>
+</tr>
+{{/defaultValue}}
+{{/requiredVars}}
+
+{{#optionalVars}}
+<tr>
+    <td><strong>{{name}}</strong></td>
+    <td>{{^complexType}}<strong>{{dataType}}</strong>{{/complexType}}{{#complexType}}<a href="{{complexType}}.html"><strong>{{dataType}}</strong></a>{{/complexType}}</td>
+    <td>{{description}}</td>
+    <td>[optional] {{#isReadOnly}}[readonly] {{/isReadOnly}}{{#defaultValue}} if omitted the server will use the default value of {{{.}}}{{/defaultValue}}</td>
+</tr>
+{{/optionalVars}}
+
+{{#additionalPropertiesType}}
+<tr>
+    <td><strong>any string name</strong></td>
+    <td><strong>{{additionalPropertiesType}}</strong></td>
+    <td>any string name can be used but the value must be the correct type</td>
+    <td>[optional]</td>
+</tr>
+{{/additionalPropertiesType}}
+
+</tbody>
+</table></div>
+
+{{/model}}{{/models}}

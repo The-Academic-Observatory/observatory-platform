@@ -12,3 +12,8 @@ exclude_lines =
 ignore_errors = True
 omit =
     tests/*
+    observatory-api/observatory/api/client/api_client.py
+    observatory-api/observatory/api/client/configuration.py
+    observatory-api/observatory/api/client/exceptions.py
+    observatory-api/observatory/api/client/model_utils.py
+    observatory-api/observatory/api/client/rest.py
