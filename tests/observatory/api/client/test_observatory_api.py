@@ -227,7 +227,7 @@ class TestObservatoryApi(unittest.TestCase):
 
             # Assert that TelescopeType with given id does not exist
             with self.assertRaises(NotFoundException) as e:
-                self.api.get_telescope_type(expected_id)
+                self.api.get_telescope_type(id=expected_id)
 
             # Add TelescopeType
             name = 'Curtin University'
