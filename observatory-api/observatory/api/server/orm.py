@@ -86,7 +86,7 @@ def init_db(session: scoped_session):
     ]
 
     for type_id, name in telescope_types:
-        item = session.query(TelescopeType).filter(type_id == type_id).one_or_none()
+        item = session.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
         if item is None:
             dt = pendulum.utcnow()
             obj = TelescopeType(type_id=type_id, name=name, created=dt, modified=dt)
