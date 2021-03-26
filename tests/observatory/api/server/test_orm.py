@@ -23,6 +23,7 @@ import sqlalchemy
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.pool import StaticPool
 
+from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.server.orm import (create_session, set_session, TelescopeType, Telescope, Organisation,
                                         to_datetime_utc, fetch_db_object)
 
@@ -45,6 +46,27 @@ def create_telescope_types(session: scoped_session, telescope_types: List, creat
         session.commit()
 
     return items
+
+
+class TestSession(unittest.TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super(TestSession, self).__init__(*args, **kwargs)
+        self.uri = 'sqlite://'
+
+    def test_create_session(self):
+        """ Test create_session and init_db """
+
+        # Create session with seed_db set to True
+        self.session = create_session(uri=self.uri, connect_args={'check_same_thread': False},
+                                      poolclass=StaticPool, seed_db=True)
+        set_session(self.session)
+
+        # Test that all expected objects exist
+        type_ids = [type_id for type_id in TelescopeTypes.__dict__.keys() if not type_id.startswith('_')]
+        for type_id in type_ids:
+            item = self.session.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
+            self.assertIsNotNone(item)
 
 
 class TestOrm(unittest.TestCase):
