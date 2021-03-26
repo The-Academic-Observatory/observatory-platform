@@ -16,63 +16,82 @@
 
 from __future__ import annotations
 
+import base64
 import csv
 import datetime
+import logging
 import os
 import os.path
-import re
-from collections import OrderedDict, defaultdict
+import os.path
+import time
+from collections import OrderedDict
 from datetime import datetime
+from typing import Dict
 from typing import List
 
 import pendulum
+import requests
+from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 from airflow.models.taskinstance import TaskInstance
+from bs4 import BeautifulSoup, SoupStrainer
 from google.cloud.bigquery import SourceFormat
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import Resource, build
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import convert, initialize_sftp_connection, list_to_jsonl_gz
+from observatory.platform.utils.telescope_utils import convert
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
 from observatory.platform.utils.template_utils import upload_files_from_list
 from pendulum import Pendulum
 
 
 class JstorRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: Pendulum, sftp_files: List[str]):
+    def __init__(self, dag_id: str, release_date: Pendulum, reports_info: List[dict]):
         """ Construct a JstorRelease.
 
         :param release_date: the release date.
         :param reports_info: list with report_type (country or institution) and url of reports
         """
 
-        self.sftp_files = sftp_files
+        self.reports_info = reports_info
         download_files_regex = f"^{dag_id}_(country|institution)\.tsv$"
         transform_files_regex = f"^{dag_id}_(country|institution)\.jsonl.gz"
 
         super().__init__(dag_id, release_date, download_files_regex, transform_files_regex)
 
-    def download_path(self, remote_path: str) -> str:
+    def download_path(self, report_type: str) -> str:
         """ Creates full download path
-        :param remote_path: filepath of remote sftp tile
+
+        :param report_type: The report type (country or institution)
         :return: Download path
         """
-        report_type = 'country' if 'BCU' in remote_path else 'institution'
         return os.path.join(self.download_folder, f'{self.dag_id}_{report_type}.tsv')
 
-    def transform_path(self, path: str) -> str:
+    def transform_path(self, report_type: str) -> str:
         """ Creates full transform path
-        :param path: filepath of download file
+
+        :param report_type: The report type (country or institution)
         :return: Transform path
         """
-        report_type = 'country' if 'country' in path else 'institution'
         return os.path.join(self.transform_folder, f"{self.dag_id}_{report_type}.jsonl.gz")
 
     def download(self):
         """ Downloads Google Books reports.
+
         :return: the paths on the system of the downloaded files.
         """
-        sftp = initialize_sftp_connection()
-        for file in self.sftp_files:
-            sftp.get(file, localpath=self.download_path(file))
-        sftp.close()
+        for report in self.reports_info:
+            headers = create_headers(report['url'])
+            time.sleep(20)
+            response = requests.get(report['url'], headers=headers)
+            if response.status_code != 200:
+                raise AirflowException(f'Could not get content from download url, reason: {response.reason}, '
+                                       f'status_code: {response.status_code}')
+
+            content = response.content.decode('utf-8')
+            with open(self.download_path(report['type']), 'w') as f:
+                f.write(content)
 
     def transform(self):
         """ Transform a Jstor release into json lines format and gzip the result.
@@ -88,15 +107,25 @@ class JstorRelease(SnapshotRelease):
                     transformed_row = OrderedDict((convert(k), v) for k, v in row.items())
                     results.append(transformed_row)
 
-            list_to_jsonl_gz(self.transform_path(file), results)
+            report_type = 'country' if 'country' in file else 'institution'
+            list_to_jsonl_gz(self.transform_path(report_type), results)
 
     def cleanup(self) -> None:
+        """ Delete files of downloaded, extracted and transformed release. Add to parent method cleanup and assign a
+        label to the gmail messages that have been processed.
+
+        :return: None.
+        """
         super().cleanup()
 
-        sftp = initialize_sftp_connection()
-        for file in self.sftp_files:
-            sftp.remove(file)
-        sftp.close()
+        service = create_gmail_service()
+        label_id = get_label_id(service, JstorTelescope.PROCESSED_LABEL_NAME)
+        for report in self.reports_info:
+            message_id = report['id']
+            body = {
+                'addLabelIds': [label_id]
+            }
+            service.users().messages().modify(userId='me', id=message_id, body=body).execute()
 
 
 class JstorTelescope(SnapshotTelescope):
@@ -108,7 +137,7 @@ class JstorTelescope(SnapshotTelescope):
     """
 
     DAG_ID = 'jstor'
-    PROCESSED_LABEL_ID = 'processed_report'
+    PROCESSED_LABEL_NAME = 'processed_report'
 
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2015, 9, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'jstor',
@@ -130,14 +159,11 @@ class JstorTelescope(SnapshotTelescope):
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         if airflow_conns is None:
-            airflow_conns = [AirflowConns.SFTP_SERVICE]
+            airflow_conns = [AirflowConns.GMAIL_API]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, source_format=source_format,
                          dataset_description=dataset_description, catchup=catchup, airflow_vars=airflow_vars,
                          airflow_conns=airflow_conns)
-        publisher = 'anu-press'
-        self.sftp_folder = f'/upload/{publisher}/jstor'
-        self.sftp_regex = r'^PUB_(anu|ucl)press_PUB(BCU|BIU)_\d{8}\.tsv$'
-
+        self.publisher = 'anupress'
         self.add_setup_task_chain([self.check_dependencies, self.list_releases])
         self.add_task_chain(
             [self.download, self.upload_downloaded, self.transform, self.upload_transformed, self.bq_load,
@@ -146,52 +172,48 @@ class JstorTelescope(SnapshotTelescope):
     def make_release(self, **kwargs) -> List[JstorRelease]:
         """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'.
+
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are
         passed to this argument.
-        :return: A list of google books release instances
+        :return: A list of grid release instances
         """
+
         ti: TaskInstance = kwargs['ti']
-        reports_info = ti.xcom_pull(key=JstorTelescope.RELEASE_INFO, task_ids=self.list_releases.__name__,
-                                    include_prior_dates=False)
+        available_releases = ti.xcom_pull(key=JstorTelescope.RELEASE_INFO, task_ids=self.list_releases.__name__,
+                                          include_prior_dates=False)
         releases = []
-        for release_date, sftp_files in reports_info.items():
-            releases.append(JstorRelease(self.dag_id, release_date, sftp_files))
+        for release_date in available_releases:
+            reports_info = available_releases[release_date]
+            releases.append(JstorRelease(self.dag_id, release_date, reports_info))
         return releases
 
     def list_releases(self, **kwargs):
-        """ Lists all Jstor releases available on the SFTP server and publishes sftp file paths and
+        """ Lists all Jstor releases for a given month and publishes their report_type, download_url and
         release_date's as an XCom.
+
         :param kwargs: the context passed from the BranchPythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         :return: the identifier of the task to execute next.
         """
 
-        reports_info = defaultdict(list)
+        service = create_gmail_service()
+        label_id = get_label_id(service, self.PROCESSED_LABEL_NAME)
+        available_releases = list_available_releases(service, self.publisher, label_id)
 
-        sftp = initialize_sftp_connection()
-        report_files = sftp.listdir(self.sftp_folder)
-        for file in report_files:
-            if re.match(self.sftp_regex, file):
-                release_date = file[-12:].strip('.tsv')
-                release_date = pendulum.from_format(release_date, 'YYYYMMDD', formatter='alternative')
-                sftp_file = os.path.join(self.sftp_folder, file)
-                reports_info[release_date].append(sftp_file)
-        sftp.close()
-
-        continue_dag = len(reports_info)
+        continue_dag = len(available_releases)
         if continue_dag:
             # Push messages
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(JstorTelescope.RELEASE_INFO, reports_info)
+            ti.xcom_push(JstorTelescope.RELEASE_INFO, available_releases)
 
         return continue_dag
 
     def download(self, releases: List[JstorRelease], **kwargs):
-        """ Task to download the GRID releases for a given month.
+        """ Task to download the Jstor releases for a given month.
 
-        :param releases: a list of GRID releases.
+        :param releases: a list of Jstor releases.
         :return: None.
         """
 
@@ -200,9 +222,9 @@ class JstorTelescope(SnapshotTelescope):
             release.download()
 
     def upload_downloaded(self, releases: List[JstorRelease], **kwargs):
-        """ Task to upload the downloaded GRID releases for a given month.
+        """ Task to upload the downloaded Jstor releases for a given month.
 
-        :param releases: a list of GRID releases.
+        :param releases: a list of Jstor releases.
         :return: None.
         """
 
@@ -211,12 +233,164 @@ class JstorTelescope(SnapshotTelescope):
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def transform(self, releases: List[JstorRelease], **kwargs):
-        """ Task to transform the GRID releases for a given month.
+        """ Task to transform the Jstor releases for a given month.
 
-        :param releases: a list of GRID releases.
+        :param releases: a list of Jstor releases.
         :return: None.
         """
 
         # Transform each release
         for release in releases:
             release.transform()
+
+
+def create_headers(url: str) -> dict:
+    """ Create a headers dict that can be used to make a request
+
+    :param url: the download url
+    :return: headers dictionary
+    """
+    referer = f"https://www.google.com/url?q={url}" \
+              f"&amp;source=gmail&amp;ust={int(time.time())}000&amp;usg=AFQjCNFtACM-4Zqs3yA1AXl4GyEbfvCqwQ"
+    headers = {
+        'Referer': referer,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/89.0.4389.90 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
+                  'application/signed-exchange;v=b3;q=0.9'
+
+    }
+    return headers
+
+
+def create_gmail_service() -> Resource:
+    """ Build the gmail service.
+
+    :return: Gmail service instance
+    """
+    gmail_api_conn = BaseHook.get_connection(AirflowConns.GMAIL_API)
+    scopes = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.modify']
+    creds = Credentials.from_authorized_user_info(gmail_api_conn.extra_dejson, scopes=scopes)
+
+    service = build('gmail', 'v1', credentials=creds, cache_discovery=False)
+
+    return service
+
+
+def get_label_id(service: Resource, label_name: str) -> str:
+    """ Get the id of a label based on the label name.
+
+    :param service: Gmail service
+    :param label_name: The name of the label
+    :return: The label id
+    """
+    existing_labels = service.users().labels().list(userId='me').execute()['labels']
+    label_id = [label['id'] for label in existing_labels if label['name'] == label_name]
+    if label_id:
+        label_id = label_id[0]
+    else:
+        # create label
+        label_body = {
+            'name': label_name,
+            'messageListVisibility': 'show',
+            'labelListVisibility': 'labelShow',
+            'type': 'user'
+        }
+        result = service.users().labels().create(userId='me', body=label_body).execute()
+        label_id = result['id']
+    return label_id
+
+
+def message_has_label(message: dict, label_id: str) -> bool:
+    """ Checks if a message has the given label
+
+    :param message: A Gmail message
+    :param label_id: The label id
+    :return: True if the message has the label
+    """
+    label_ids = message['labelIds']
+    for label in label_ids:
+        if label == label_id:
+            return True
+
+
+def list_available_releases(service: Resource, publisher: str, processed_label_id: str) -> Dict[Pendulum, List[dict]]:
+    """ List the available releases by going through the messages of a gmail account and looking for a specific pattern.
+
+    If a message has been processed previously it has a specific label, messages with this label will be skipped.
+    The message should include a download url. The head of this download url contains the filename, from which the
+    release date and publisher can be derived.
+
+    :param service: Gmail service
+    :param publisher: Name of the publisher
+    :param processed_label_id: Id of the 'processed_reports' label
+    :return: Dictionary with release dates as key and reports info as value, where reports info is a list of country
+    and/or institution reports.
+    """
+
+    available_releases = {}
+    # Call the Gmail API
+    results = service.users().messages().list(userId='me', q='subject:"JSTOR Publisher Report Available"').execute()
+    for message_info in results['messages']:
+        message_id = message_info['id']
+        message = service.users().messages().get(userId='me', id=message_id).execute()
+
+        # check if message has label 'processed'
+        if message_has_label(message, processed_label_id):
+            continue
+
+        # get download url
+        download_url = None
+        message_data = base64.urlsafe_b64decode(message['payload']['body']['data'])
+        for link in BeautifulSoup(message_data, 'html.parser', parse_only=SoupStrainer('a')):
+            if link.text == 'Download Completed Report':
+                download_url = link['href']
+                break
+        if download_url is None:
+            raise AirflowException(f"Can't find download link for report in e-mail, message snippet: {message.snippet}")
+
+        # get filename from head
+        headers = create_headers(download_url)
+        time.sleep(20)
+        response = requests.head(download_url, headers=headers, allow_redirects=True)
+        if response.status_code != 200:
+            raise AirflowException(f'Could not get HEAD of report download url, reason: {response.reason}, '
+                                   f'status_code: {response.status_code}')
+        filename, extension = response.headers['Content-Disposition'].split('=')[1].split('.')
+
+        # get publisher
+        report_publisher = filename.split('_')[1]
+        if report_publisher != publisher:
+            continue
+
+        # get report_type
+        report_mapping = {
+            'PUBBCU': 'country',
+            'PUBBIU': 'institution'
+        }
+        report_type = report_mapping[filename.split('_')[2]]
+
+        # get release date
+        release_date = pendulum.parse(filename.split('_')[-1])
+
+        # check format
+        if extension != 'tsv':
+            raise AirflowException(f'File "{filename}.{extension}" does not have ".tsv" extension')
+
+        # add report info
+        try:
+            available_releases[release_date].append({
+                'type': report_type,
+                'url': download_url,
+                'id': message_id
+            })
+        except KeyError:
+            available_releases[release_date] = [{
+                'type': report_type,
+                'url': download_url,
+                'id': message_id
+            }]
+
+        logging.info(f'Processing report. Report type: {report_type}, release date: '
+                     f'{release_date}, url: {download_url}, message id: {message_id}.')
+    return available_releases

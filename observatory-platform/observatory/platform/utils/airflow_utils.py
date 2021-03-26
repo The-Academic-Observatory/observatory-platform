@@ -62,6 +62,7 @@ class AirflowConns:
     OAEBU_SERVICE_ACCOUNT = "oaebu_service_account"
     SFTP_SERVICE = "sftp_service"
     OBSERVATORY_API = "observatory_api"
+    GMAIL_API = "gmail_api"
 
 
 def get_variable(key: str) -> Optional[str]:
