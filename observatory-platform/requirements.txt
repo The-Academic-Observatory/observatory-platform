@@ -26,5 +26,6 @@ pyjwt==1.7.1
 idna==2.7
 marshmallow==2.21.0
 pysftp==0.2.*
+google-auth-oauthlib==0.4.*
 paramiko==2.7.*
 sftpserver==0.3
