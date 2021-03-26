@@ -119,6 +119,18 @@ class ObservatoryApiEnvironment:
             self.server_thread.join()
 
 
+def make_telescope_types(env: ObservatoryApiEnvironment, dt):
+    # Add TelescopeType objects
+    telescope_types = [('onix', 'ONIX Telescope'), ('jstor', 'JSTOR Telescope'),
+                       ('google_analytics', 'Google Analytics Telescope')]
+
+    for type_id, name in telescope_types:
+        env.session.add(orm.TelescopeType(type_id=type_id, name=name, created=dt, modified=dt))
+    env.session.commit()
+
+    return telescope_types
+
+
 class TestObservatoryApi(unittest.TestCase):
     """ObservatoryApi unit test stubs"""
 
@@ -168,7 +180,7 @@ class TestObservatoryApi(unittest.TestCase):
             telescope_type_name = 'ONIX Telescope'
             org_name = 'Curtin University'
             dt = pendulum.datetime.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.TelescopeType(type_id='onix', name=telescope_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(orm.Telescope(organisation={'id': expected_id},
@@ -194,7 +206,7 @@ class TestObservatoryApi(unittest.TestCase):
             expected_id = 1
 
             dt = pendulum.datetime.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(name='ONIX Telescope', created=dt, modified=dt))
+            self.env.session.add(orm.TelescopeType(type_id='onix', name='ONIX Telescope', created=dt, modified=dt))
             self.env.session.commit()
 
             result = self.api.delete_telescope_type(expected_id)
@@ -289,12 +301,15 @@ class TestObservatoryApi(unittest.TestCase):
             org_name = 'Curtin University'
             dt = pendulum.datetime.now(self.timezone)
             dt_utc = dt.in_tz(tz='UTC')
-            self.env.session.add(orm.TelescopeType(name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.TelescopeType(type_id='onix', name=telescope_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
-            self.env.session.add(orm.Telescope(organisation={'id': expected_id},
+            self.env.session.add(orm.Telescope(name='Curtin ONIX Telescope',
+                                               extra={'view_id': 123456},
+                                               organisation={'id': expected_id},
                                                telescope_type={'id': expected_id},
-                                               created=dt, modified=dt))
+                                               created=dt,
+                                               modified=dt))
             self.env.session.commit()
 
             # Assert that Telescope with given id exists
@@ -316,22 +331,50 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
+            type_id = 'onix'
 
             # Assert that TelescopeType with given id does not exist
             with self.assertRaises(NotFoundException) as e:
-                self.api.get_telescope_type(expected_id)
+                self.api.get_telescope_type(id=expected_id)
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: TelescopeType with id {expected_id}"\n', e.exception.body)
+
+            # Assert that TelescopeType with given type_id does not exist
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_telescope_type(type_id=type_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: TelescopeType with type_id {type_id}"\n', e.exception.body)
+
+            # Assert that 400 error raised: both missing
+            expected_body = '"At least one and only one of id or type_id must be specified"\n'
+            with self.assertRaises(ApiException) as e:
+                self.api.get_telescope_type()
+            self.assertEqual(400, e.exception.status)
+            self.assertEqual(expected_body, e.exception.body)
+
+            # Assert that 400 error raised: both present
+            with self.assertRaises(ApiException) as e:
+                self.api.get_telescope_type(id=expected_id, type_id=type_id)
+            self.assertEqual(400, e.exception.status)
+            self.assertEqual(expected_body, e.exception.body)
 
             # Add TelescopeType
             name = 'ONIX Telescope'
             dt = pendulum.datetime.now(self.timezone)
             dt_utc = dt.in_tz(tz='UTC')
-            self.env.session.add(orm.TelescopeType(name=name, created=dt, modified=dt))
+            self.env.session.add(orm.TelescopeType(type_id=type_id, name=name, created=dt, modified=dt))
             self.env.session.commit()
 
             # Assert that TelescopeType with given id exists
-            obj = self.api.get_telescope_type(expected_id)
+            obj = self.api.get_telescope_type(id=expected_id)
+            self.assertIsInstance(obj, TelescopeType)
+            self.assertEqual(expected_id, obj.id)
+            self.assertEqual(name, obj.name)
+            self.assertEqual(dt_utc, obj.created)
+            self.assertEqual(dt_utc, obj.modified)
+
+            # Assert that TelescopeType can be fetched with type_id
+            obj = self.api.get_telescope_type(type_id=type_id)
             self.assertIsInstance(obj, TelescopeType)
             self.assertEqual(expected_id, obj.id)
             self.assertEqual(name, obj.name)
@@ -346,20 +389,18 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             # Add TelescopeType objects
-            names = ['ONIX Telescope', 'JSTOR Telescope', 'Google Analytics Telescope']
             dt = pendulum.datetime.now(self.timezone)
             dt_utc = dt.in_tz(tz='UTC')
-            for name in names:
-                self.env.session.add(orm.TelescopeType(name=name, created=dt, modified=dt))
-            self.env.session.commit()
+            telescope_types = make_telescope_types(self.env, dt)
 
             # Assert that TelescopeType objects returned
             objects = self.api.get_telescope_types(limit=10)
-            self.assertEqual(len(names), len(objects))
-            for i, (obj, name) in enumerate(zip(objects, names)):
+            self.assertEqual(len(telescope_types), len(objects))
+            for i, (obj, (type_id, name)) in enumerate(zip(objects, telescope_types)):
                 expected_id = i + 1
                 self.assertIsInstance(obj, TelescopeType)
                 self.assertEqual(expected_id, obj.id)
+                self.assertEqual(type_id, obj.type_id)
                 self.assertEqual(name, obj.name)
                 self.assertEqual(dt_utc, obj.created)
                 self.assertEqual(dt_utc, obj.modified)
@@ -372,11 +413,8 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             # Add TelescopeType objects
-            names = ['ONIX Telescope', 'JSTOR Telescope', 'Google Analytics Telescope']
             dt = pendulum.datetime.now(self.timezone)
-            for name in names:
-                self.env.session.add(orm.TelescopeType(name=name, created=dt, modified=dt))
-            self.env.session.commit()
+            make_telescope_types(self.env, dt)
 
             # Add Organisations
             names = ['Curtin University', 'Massachusetts Institute of Technology']
@@ -437,13 +475,15 @@ class TestObservatoryApi(unittest.TestCase):
         with self.env.create():
             # Add TelescopeType and Organisation
             dt = pendulum.datetime.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(name='ONIX Telescope', created=dt, modified=dt))
+            self.env.session.add(orm.TelescopeType(type_id='onix', name='ONIX Telescope', created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name='Curtin University', created=dt, modified=dt))
             self.env.session.commit()
 
             # Post telescope
             expected_id = 1
-            obj = Telescope(organisation=Organisation(id=expected_id),
+            obj = Telescope(name='Curtin University ONIX Telescope',
+                            extra={'view_id': 123456},
+                            organisation=Organisation(id=expected_id),
                             telescope_type=TelescopeType(id=expected_id))
             result = self.api.post_telescope(obj)
             self.assertIsInstance(result, Telescope)
@@ -457,7 +497,7 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            obj = TelescopeType(name='ONIX Telescope')
+            obj = TelescopeType(type_id='onix', name='ONIX Telescope')
             result = self.api.post_telescope_type(obj)
 
             self.assertIsInstance(result, TelescopeType)
@@ -503,7 +543,7 @@ class TestObservatoryApi(unittest.TestCase):
         with self.env.create():
             expected_id = 1
             dt = pendulum.datetime.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(name='ONIX Telescope', created=dt, modified=dt))
+            self.env.session.add(orm.TelescopeType(type_id='onix', name='ONIX Telescope', created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name='Curtin University', created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name='Massachusetts Institute of Technology',
                                                   created=dt, modified=dt))
@@ -517,12 +557,18 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(expected_id, result.id)
 
             # Put update
+            name = 'Curtin ONIX Telescope'
+            extra = {'view_id': 123456}
             obj = Telescope(id=expected_id,
+                            name=name,
+                            extra=extra,
                             organisation=Organisation(id=2),
                             telescope_type=TelescopeType(id=expected_id))
             result = self.api.put_telescope(obj)
             self.assertIsInstance(result, Telescope)
             self.assertEqual(expected_id, result.id)
+            self.assertEqual(name, result.name)
+            self.assertDictEqual(extra, result.extra)
             self.assertEqual('Massachusetts Institute of Technology', result.organisation.name)
 
             # Put not found
@@ -544,7 +590,7 @@ class TestObservatoryApi(unittest.TestCase):
             # Put create
             expected_id = 1
             name = 'ONIX Telescope'
-            obj = TelescopeType(name=name)
+            obj = TelescopeType(type_id='onix', name=name)
             result = self.api.put_telescope_type(obj)
             self.assertIsInstance(result, TelescopeType)
             self.assertEqual(expected_id, result.id)
@@ -552,7 +598,7 @@ class TestObservatoryApi(unittest.TestCase):
 
             # Put update
             new_name = 'Google Analytics Telescope'
-            obj = TelescopeType(id=expected_id, name=new_name)
+            obj = TelescopeType(type_id='google_analytics', id=expected_id, name=new_name)
             result = self.api.put_telescope_type(obj)
             self.assertIsInstance(result, TelescopeType)
             self.assertEqual(expected_id, result.id)

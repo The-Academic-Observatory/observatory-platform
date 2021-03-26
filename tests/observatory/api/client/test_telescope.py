@@ -26,6 +26,7 @@ class TestTelescope(unittest.TestCase):
         # Create valid object
         dt = datetime.datetime.utcnow()
         Telescope(id=1,
+                  name='Curtin ONIX Telescope',
                   organisation=Organisation(id=1,
                                             name='Curtin',
                                             gcp_project_id='my-gcp-project',
@@ -35,6 +36,7 @@ class TestTelescope(unittest.TestCase):
                                             modified=dt),
                   telescope_type=TelescopeType(id=1,
                                                name='ONIX Telescope'),
+                  extra={'view_id': 123456},
                   created=dt,
                   modified=dt)
 

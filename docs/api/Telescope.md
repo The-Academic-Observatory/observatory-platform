@@ -24,6 +24,18 @@
     <td>[optional] </td>
 </tr>
 <tr>
+    <td><strong>name</strong></td>
+    <td><strong>str, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>extra</strong></td>
+    <td><strong>{str: (bool, date, datetime, dict, float, int, list, str, none_type)}, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
     <td><strong>organisation</strong></td>
     <td><a href="Organisation.html"><strong>Organisation</strong></a></td>
     <td></td>

@@ -220,6 +220,11 @@ void (empty response body)
     <td>Organisation deleted</td>
     <td> - </td>
 </tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
@@ -331,6 +336,11 @@ void (empty response body)
     <td>Telescope deleted</td>
     <td> - </td>
 </tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
@@ -441,6 +451,11 @@ void (empty response body)
     <td><strong>200</strong></td>
     <td>TelescopeType deleted</td>
     <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
 </tr>
 
 </tbody>
@@ -560,6 +575,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td>bad input parameter</td>
     <td> - </td>
 </tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
@@ -677,6 +697,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td><strong>400</strong></td>
     <td>bad input parameter</td>
     <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
 </tr>
 
 </tbody>
@@ -796,16 +821,21 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td>bad input parameter</td>
     <td> - </td>
 </tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
 
 ## **get_telescope_type**
-> TelescopeType get_telescope_type(id)
+> TelescopeType get_telescope_type()
 
 get a TelescopeType
 
-Get the details of a TelescopeType by passing it's id. 
+Get the details of a TelescopeType by passing it's id or type_id. 
 
 ### Example
 
@@ -837,12 +867,14 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | TelescopeType id
+    id = 1 # int | TelescopeType id (optional)
+    type_id = "type_id_example" # str | TelescopeType type_id (optional)
 
     # example passing only required values which don't have defaults set
+    # and optional values
     try:
         # get a TelescopeType
-        api_response = api_instance.get_telescope_type(id)
+        api_response = api_instance.get_telescope_type(id=id, type_id=type_id)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
         print("Exception when calling ObservatoryApi->get_telescope_type: %s\n" % e)
@@ -865,16 +897,20 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 
 
+
+
 <tr>
 <td><strong>id</strong></td>
 <td><strong>int</strong></td>
 <td>TelescopeType id</td>
-<td></td>
-</tr>
-
-
-
-
+<td>
+[optional]
+<tr>
+<td><strong>type_id</strong></td>
+<td><strong>str</strong></td>
+<td>TelescopeType type_id</td>
+<td>
+[optional]
 </tbody>
 </table></div>
 
@@ -913,6 +949,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td><strong>400</strong></td>
     <td>bad input parameter</td>
     <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
 </tr>
 
 </tbody>
@@ -1031,6 +1072,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td><strong>400</strong></td>
     <td>bad input parameter</td>
     <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
 </tr>
 
 </tbody>
@@ -1173,6 +1219,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td>bad input parameter</td>
     <td> - </td>
 </tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
@@ -1223,9 +1274,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         telescopes=[
             Telescope(
                 id=1,
+                name="Curtin University ONIX Telescope",
+                extra={},
                 organisation=Organisation(Organisation),
                 telescope_type=TelescopeType(
                     id=1,
+                    type_id="onix",
                     name="Scopus",
                     created=dateutil_parser('1970-01-01T00:00:00.00Z'),
                     modified=dateutil_parser('1970-01-01T00:00:00.00Z'),
@@ -1308,6 +1362,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td>Organisation created, returning the created object with an id</td>
     <td> - </td>
 </tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
@@ -1351,6 +1410,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     api_instance = observatory_api.ObservatoryApi(api_client)
     body = Telescope(
         id=1,
+        name="Curtin University ONIX Telescope",
+        extra={},
         organisation=Organisation(
             id=1,
             name="Curtin University",
@@ -1365,6 +1426,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         ),
         telescope_type=TelescopeType(
             id=1,
+            type_id="onix",
             name="Scopus",
             created=dateutil_parser('1970-01-01T00:00:00.00Z'),
             modified=dateutil_parser('1970-01-01T00:00:00.00Z'),
@@ -1443,6 +1505,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td>Telescope created, returning the created object with an id</td>
     <td> - </td>
 </tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
@@ -1486,6 +1553,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     api_instance = observatory_api.ObservatoryApi(api_client)
     body = TelescopeType(
         id=1,
+        type_id="onix",
         name="Scopus",
         created=dateutil_parser('1970-01-01T00:00:00.00Z'),
         modified=dateutil_parser('1970-01-01T00:00:00.00Z'),
@@ -1561,6 +1629,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td>TelescopeType created, returning the created object with an id</td>
     <td> - </td>
 </tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
@@ -1611,9 +1684,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         telescopes=[
             Telescope(
                 id=1,
+                name="Curtin University ONIX Telescope",
+                extra={},
                 organisation=Organisation(Organisation),
                 telescope_type=TelescopeType(
                     id=1,
+                    type_id="onix",
                     name="Scopus",
                     created=dateutil_parser('1970-01-01T00:00:00.00Z'),
                     modified=dateutil_parser('1970-01-01T00:00:00.00Z'),
@@ -1701,6 +1777,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td>Organisation created, returning the created object with an id</td>
     <td> - </td>
 </tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
@@ -1744,6 +1825,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     api_instance = observatory_api.ObservatoryApi(api_client)
     body = Telescope(
         id=1,
+        name="Curtin University ONIX Telescope",
+        extra={},
         organisation=Organisation(
             id=1,
             name="Curtin University",
@@ -1758,6 +1841,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         ),
         telescope_type=TelescopeType(
             id=1,
+            type_id="onix",
             name="Scopus",
             created=dateutil_parser('1970-01-01T00:00:00.00Z'),
             modified=dateutil_parser('1970-01-01T00:00:00.00Z'),
@@ -1841,6 +1925,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td>Telescope created, returning the created object with an id</td>
     <td> - </td>
 </tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
@@ -1884,6 +1973,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     api_instance = observatory_api.ObservatoryApi(api_client)
     body = TelescopeType(
         id=1,
+        type_id="onix",
         name="Scopus",
         created=dateutil_parser('1970-01-01T00:00:00.00Z'),
         modified=dateutil_parser('1970-01-01T00:00:00.00Z'),
@@ -1963,6 +2053,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td><strong>201</strong></td>
     <td>TelescopeType created, returning the created object with an id</td>
     <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
 </tr>
 
 </tbody>

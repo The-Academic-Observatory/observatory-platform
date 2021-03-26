@@ -27,19 +27,19 @@ from observatory.api.server.orm import (create_session, set_session, TelescopeTy
                                         to_datetime_utc, fetch_db_object)
 
 
-def create_telescope_types(session: scoped_session, names: List[str], created: datetime):
+def create_telescope_types(session: scoped_session, telescope_types: List, created: datetime):
     """ Create a list of TelescopeType objects.
 
     :param session: the SQLAlchemy session.
-    :param names: the names of the TelescopeType objects.
+    :param telescope_types: a list of tuples of telescope type id and names.
     :param created:the created datetime in UTC.
     :return: a list of TelescopeType objects.
     """
 
     items = []
 
-    for name in names:
-        item = TelescopeType(name=name, created=created, modified=created)
+    for type_id, name in telescope_types:
+        item = TelescopeType(name=name, type_id=type_id, created=created, modified=created)
         items.append(item)
         session.add(item)
         session.commit()
@@ -51,7 +51,7 @@ class TestOrm(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestOrm, self).__init__(*args, **kwargs)
         self.uri = 'sqlite://'
-        self.telescope_type_names = ['ONIX Telescope', 'Scopus Telescope', 'WoS Telescope']
+        self.telescope_types = [('onix', 'ONIX Telescope'), ('scopus', 'Scopus Telescope'), ('wos', 'WoS Telescope')]
 
     def setUp(self) -> None:
         """ Create the SQLAlchemy Session """
@@ -67,7 +67,7 @@ class TestOrm(unittest.TestCase):
 
         # Body is instance of cls
         dt = pendulum.utcnow()
-        dict_ = {'name': 'My Telescope Type', 'created': dt, 'modified': dt}
+        dict_ = {'name': 'My Telescope Type', 'type_id': 'onix', 'created': dt, 'modified': dt}
         obj = TelescopeType(**dict_)
         self.assertEqual(obj, fetch_db_object(TelescopeType, obj))
 
@@ -123,7 +123,7 @@ class TestOrm(unittest.TestCase):
         created = pendulum.utcnow()
 
         # Create and assert created
-        telescope_types_a = create_telescope_types(self.session, self.telescope_type_names, created)
+        telescope_types_a = create_telescope_types(self.session, self.telescope_types, created)
         for i, conn_type in enumerate(telescope_types_a):
             self.assertIsNotNone(conn_type.id)
             expected_id = i + 1
@@ -131,7 +131,7 @@ class TestOrm(unittest.TestCase):
 
         # Fetch items
         telescope_types_b = self.session.query(TelescopeType).order_by(TelescopeType.id).all()
-        self.assertEqual(len(telescope_types_b), len(self.telescope_type_names))
+        self.assertEqual(len(telescope_types_b), len(self.telescope_types))
         for a, b in zip(telescope_types_a, telescope_types_b):
             self.assertEqual(a, b)
 
@@ -161,7 +161,7 @@ class TestOrm(unittest.TestCase):
         # Create
         expected_id = 1
         dt = pendulum.utcnow()
-        dict_ = {'name': 'My Telescope Type', 'created': dt, 'modified': dt}
+        dict_ = {'name': 'My Telescope Type', 'type_id': 'onix', 'created': dt, 'modified': dt}
 
         obj = TelescopeType(**dict_)
         self.session.add(obj)
@@ -190,7 +190,7 @@ class TestOrm(unittest.TestCase):
 
         # Create TelescopeType instances
         dt = pendulum.utcnow()
-        create_telescope_types(self.session, self.telescope_type_names, dt)
+        create_telescope_types(self.session, self.telescope_types, dt)
 
         organisation = Organisation(name='My Organisation',
                                     gcp_project_id='project-id',
@@ -202,7 +202,9 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
 
         telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
-        telescope = Telescope(telescope_type=telescope_type,
+        telescope = Telescope(name='Curtin ONIX Telescope',
+                              extra={'view_id': 123456},
+                              telescope_type=telescope_type,
                               organisation=organisation,
                               modified=dt,
                               created=dt)
@@ -248,7 +250,7 @@ class TestOrm(unittest.TestCase):
 
         # Create TelescopeType instances
         created = pendulum.utcnow()
-        create_telescope_types(self.session, self.telescope_type_names, created)
+        create_telescope_types(self.session, self.telescope_types, created)
 
         # Create Telescope
         expected_id = 1
@@ -289,6 +291,8 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
 
         dict_ = {
+            'name': 'Curtin ONIX Telescope',
+            'extra': {'view_id': 123456},
             'organisation': {
                 'id': expected_id
             },
