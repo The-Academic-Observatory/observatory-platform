@@ -9,6 +9,7 @@ Telescopes
     google_analytics
     google_books
     grid
+    jstor
     mag
     oapen_metadata
     scopus
