@@ -16,7 +16,7 @@ jsonlines==1.2.*
 tldextract==3.1.*
 docker-compose==1.28.*
 click==7.1.*
-oauth2client==1.5.2
+oauth2client==4.1.*
 httpretty==1.0.*
 pbr==5.5.*
 redis==3.5.*
