@@ -26,12 +26,13 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
 from typing import List, Union
+from typing import Tuple
 
 import pendulum
-from google.api_core.exceptions import BadRequest, Conflict, Forbidden
+from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat
-from google.cloud.exceptions import NotFound
+from google.cloud.exceptions import Conflict, NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
 from observatory.platform.utils.file_utils import crc32c_base64_hash
@@ -336,17 +337,58 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
     return success
 
 
-def storage_bucket_exists(bucket_name: str):
-    """ Check if a storage bucket exists.
-    :param bucket_name: The bucket name.
+def create_cloud_storage_bucket(bucket_name: str, location: str = None, project_id: str = None,
+                                lifecycle_delete_age: int = None) -> bool:
+    """ Create a cloud storage bucket
+    
+    :param bucket_name: The name of the bucket. Bucket names must start and end with a number or letter.
+    :param location: (Optional) The location of the bucket. If not passed, the default location, US, will be used.
+    :param project_id: The project which the client acts on behalf of. Will be passed when creating a topic. If not 
+    passed, falls back to the default inferred from the environment.
+    :param lifecycle_delete_age: Days until files in bucket are deleted
+    :return: Whether creating bucket was successful or not.
+    """
+    func_name = create_cloud_storage_bucket.__name__
+    logging.info(f"{func_name}: {bucket_name}")
+
+    success = False
+
+    client = storage.Client(project=project_id)
+    bucket = storage.Bucket(client, name=bucket_name)
+    if lifecycle_delete_age:
+        bucket.add_lifecycle_delete_rule(age=lifecycle_delete_age)
+    try:
+        client.create_bucket(bucket, location=location)
+        success = True
+    except Conflict:
+        logging.info(f'{func_name}: bucket already exists, name: {bucket.name}, project: {bucket.project_number}, '
+                     f'location: {bucket.location}')
+    return success
+
+
+def copy_blob_from_cloud_storage(blob_name: str, bucket_name: str, destination_bucket_name: str, new_name: str = None):
+    """ Copy a blob from one bucket to another
+
+    :param blob_name: The name of the blob. This corresponds to the unique path of the object in the bucket.
+    :param bucket_name: The bucket to which the blob belongs.
+    :param destination_bucket_name: The bucket into which the blob should be copied.
+    :param new_name:  (Optional) The new name for the copied file.
     :return: None.
     """
+    func_name = copy_blob_from_cloud_storage.__name__
+    logging.info(f"{func_name}: {os.path.join(bucket_name, blob_name)}")
+
     client = storage.Client()
-    try:
-        bucket = client.get_bucket(bucket_name)
-    except Forbidden:
-        bucket = None
-    return True if bucket else None
+
+    # source blob and bucket
+    bucket = storage.Bucket(client, name=bucket_name)
+    blob = bucket.blob(blob_name)
+
+    # destination bucket
+    destination_bucket = storage.Bucket(client, name=destination_bucket_name)
+
+    # copy
+    bucket.copy_blob(blob, destination_bucket=destination_bucket, new_name=new_name)
 
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
@@ -527,7 +569,8 @@ def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_
 
 
 def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
-                                 connection_sem: BoundedSemaphore = None, chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
+                                 connection_sem: BoundedSemaphore = None, chunk_size: int = DEFAULT_CHUNK_SIZE,
+                                 project_id: str = None) -> Tuple[bool, bool]:
     """ Upload a file to Google Cloud Storage.
 
     :param bucket_name: the name of the Google Cloud Storage bucket.
@@ -536,7 +579,8 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
     :param retries: the number of times to retry uploading a file if an error occurs.
     :param connection_sem: a BoundedSemaphore to limit the number of upload connections that can run at once.
     :param chunk_size: the chunk size to use when uploading a blob in multiple parts, must be a multiple of 256 KB.
-    :return: whether the upload was successful or not.
+    :param project_id: the project in which the bucket is located, defaults to inferred from the environment.
+    :return: whether the task was successful or not and whether the file was uploaded.
     """
     func_name = upload_file_to_cloud_storage.__name__
     logging.info(f"{func_name}: bucket_name={bucket_name}, blob_name={blob_name}")
@@ -546,7 +590,7 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
     success = False
 
     # Get blob
-    storage_client = storage.Client()
+    storage_client = storage.Client(project=project_id)
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(blob_name)
 
@@ -589,7 +633,7 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
         if connection_sem is not None:
             connection_sem.release()
 
-    return success
+    return success, upload
 
 
 def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azure_sas_token: str, azure_container: str,
