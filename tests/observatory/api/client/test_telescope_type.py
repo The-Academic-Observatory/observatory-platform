@@ -24,6 +24,7 @@ class TestTelescopeType(unittest.TestCase):
         # Create valid object
         dt = datetime.datetime.utcnow()
         TelescopeType(id=1,
+                      type_id='onix',
                       name='ONIX Telescope',
                       created=dt,
                       modified=dt)

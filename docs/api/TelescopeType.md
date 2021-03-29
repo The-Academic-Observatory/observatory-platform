@@ -24,6 +24,12 @@
     <td>[optional] </td>
 </tr>
 <tr>
+    <td><strong>type_id</strong></td>
+    <td><strong>str</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
     <td><strong>name</strong></td>
     <td><strong>str</strong></td>
     <td></td>

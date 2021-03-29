@@ -175,7 +175,6 @@ paths:
           schema:
             $ref: '#/definitions/QueryResponse'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
       produces:
         - application/json
@@ -187,15 +186,20 @@ paths:
       summary: get a TelescopeType
       operationId: {{ operation_id_namespace }}get_telescope_type
       description: |
-        Get the details of a TelescopeType by passing it's id.
+        Get the details of a TelescopeType by passing it's id or type_id.
       produces:
       - application/json
       parameters:
       - in: query
         name: id
         description: TelescopeType id
-        required: true
+        required: false
         type: integer
+      - in: query
+        name: type_id
+        description: TelescopeType type_id
+        required: false
+        type: string
       responses:
         200:
           description: the fetched TelescopeType
@@ -204,7 +208,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -230,7 +233,6 @@ paths:
           schema:
             $ref: '#/definitions/TelescopeType'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -261,7 +263,6 @@ paths:
           schema:
             $ref: '#/definitions/TelescopeType'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -284,7 +285,6 @@ paths:
         200:
           description: TelescopeType deleted
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescope_types:
@@ -313,7 +313,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescope:
@@ -340,7 +339,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -366,7 +364,6 @@ paths:
           schema:
             $ref: '#/definitions/Telescope'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -397,7 +394,6 @@ paths:
           schema:
             $ref: '#/definitions/Telescope'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -420,7 +416,6 @@ paths:
         200:
           description: Telescope deleted
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescopes:
@@ -459,7 +454,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
   /v1/organisation:
@@ -486,7 +480,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -512,7 +505,6 @@ paths:
           schema:
             $ref: '#/definitions/Organisation'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -543,7 +535,6 @@ paths:
           schema:
             $ref: '#/definitions/Organisation'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -566,7 +557,6 @@ paths:
         200:
           description: Organisation deleted
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
   /v1/organisations:
@@ -595,7 +585,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
 #  /v2/query:
@@ -649,6 +638,11 @@ definitions:
       id:
         type: integer
         example: 1
+      type_id:
+        type: string
+        example: onix
+        minLength: 1
+        maxLength: 250
       name:
         type: string
         example: Scopus
@@ -671,6 +665,18 @@ definitions:
       id:
         type: integer
         example: 1
+      name:
+        type: string
+        example: Curtin University ONIX Telescope
+        minLength: 1
+        maxLength: 250
+        x-nullable: true
+      extra:
+        type: object
+        example: {'view-id': '830'}
+        minLength: 1
+        maxLength: 250
+        x-nullable: true
       organisation:
         $ref: '#/definitions/Organisation'
       telescope_type:

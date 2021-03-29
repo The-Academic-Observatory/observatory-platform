@@ -750,22 +750,21 @@ class ObservatoryApi(object):
 
         def __get_telescope_type(
             self,
-            id,
             **kwargs
         ):
             """get a TelescopeType  # noqa: E501
 
-            Get the details of a TelescopeType by passing it's id.   # noqa: E501
+            Get the details of a TelescopeType by passing it's id or type_id.   # noqa: E501
             This method makes a synchronous HTTP request by default. To make an
             asynchronous HTTP request, please pass async_req=True
 
-            >>> thread = api.get_telescope_type(id, async_req=True)
+            >>> thread = api.get_telescope_type(async_req=True)
             >>> result = thread.get()
 
-            Args:
-                id (int): TelescopeType id
 
             Keyword Args:
+                id (int): TelescopeType id. [optional]
+                type_id (str): TelescopeType type_id. [optional]
                 _return_http_data_only (bool): response data without head status
                     code and headers. Default is True.
                 _preload_content (bool): if False, the urllib3.HTTPResponse object
@@ -810,8 +809,6 @@ class ObservatoryApi(object):
                 '_check_return_type', True
             )
             kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['id'] = \
-                id
             return self.call_with_http_info(**kwargs)
 
         self.get_telescope_type = _Endpoint(
@@ -828,10 +825,9 @@ class ObservatoryApi(object):
             params_map={
                 'all': [
                     'id',
+                    'type_id',
                 ],
-                'required': [
-                    'id',
-                ],
+                'required': [],
                 'nullable': [
                 ],
                 'enum': [
@@ -847,12 +843,16 @@ class ObservatoryApi(object):
                 'openapi_types': {
                     'id':
                         (int,),
+                    'type_id':
+                        (str,),
                 },
                 'attribute_map': {
                     'id': 'id',
+                    'type_id': 'type_id',
                 },
                 'location_map': {
                     'id': 'query',
+                    'type_id': 'query',
                 },
                 'collection_format_map': {
                 }
