@@ -27,13 +27,13 @@
     "description": "The latitude based on the client's ip address.",
     "mode": "NULLABLE",
     "name": "client_lat",
-    "type": "STRING"
+    "type": "FLOAT"
   },
   {
     "description": "The longitude based on the client's ip address.",
     "mode": "NULLABLE",
     "name": "client_lon",
-    "type": "STRING"
+    "type": "FLOAT"
   },
   {
     "description": "The city based on the client's ip address.",
