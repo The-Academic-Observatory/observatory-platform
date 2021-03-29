@@ -341,11 +341,11 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 copy_blob_from_cloud_storage(upload_file_name, self.gc_bucket_name, self.gc_bucket_name,
                                              new_name=copy_file_name)
                 self.assertTrue(blob_original.exists())
-                self.assertTrue(blob_copy.exist())
+                self.assertTrue(blob_copy.exists())
 
             finally:
                 for blob in [blob_original, blob_copy]:
-                    if blob.exiss():
+                    if blob.exists():
                         blob.delete()
 
     def test_upload_download_blobs_from_cloud_storage(self):
