@@ -56,6 +56,10 @@ class TelescopeType(ModelNormal):
     }
 
     validations = {
+        ('type_id',): {
+            'max_length': 250,
+            'min_length': 1,
+        },
         ('name',): {
             'max_length': 250,
             'min_length': 1,
@@ -78,6 +82,7 @@ class TelescopeType(ModelNormal):
         """
         return {
             'id': (int,),  # noqa: E501, F821
+            'type_id': (str,),  # noqa: E501, F821
             'name': (str,),  # noqa: E501, F821
             'created': (datetime,),  # noqa: E501, F821
             'modified': (datetime,),  # noqa: E501, F821
@@ -90,6 +95,7 @@ class TelescopeType(ModelNormal):
 
     attribute_map = {
         'id': 'id',  # noqa: E501
+        'type_id': 'type_id',  # noqa: E501
         'name': 'name',  # noqa: E501
         'created': 'created',  # noqa: E501
         'modified': 'modified',  # noqa: E501
@@ -142,6 +148,7 @@ class TelescopeType(ModelNormal):
                                 through its discriminator because we passed in
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
+            type_id (str): [optional]  # noqa: E501
             name (str): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501

@@ -144,14 +144,29 @@ def get_items(cls: ClassVar, limit: int) -> Response:
     return jsonify(items)
 
 
-def get_telescope_type(id: int) -> Response:
+def get_telescope_type(id: int = None, type_id: str = None) -> Response:
     """ Get a TelescopeType.
 
     :param id: the TelescopeType id.
+    :param type_id: the TelescopeType type_id.
     :return: a Response object.
     """
 
-    return get_item(TelescopeType, id)
+    if (id is not None and type_id is not None) or (id is None and type_id is None):
+        body = 'At least one and only one of id or type_id must be specified'
+        logging.error(body)
+        return body, 400
+    elif id is not None:
+        return get_item(TelescopeType, id)
+    elif type_id is not None:
+        item = session_.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
+        if item is not None:
+            logging.info(f'Found: TelescopeType with type_id {type_id}')
+            return jsonify(item)
+
+        body = f'Not found: TelescopeType with type_id {type_id}'
+        logging.info(body)
+        return body, 404
 
 
 def post_telescope_type(body: Dict) -> Response:

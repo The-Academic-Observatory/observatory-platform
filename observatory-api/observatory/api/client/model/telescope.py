@@ -62,6 +62,10 @@ class Telescope(ModelNormal):
     }
 
     validations = {
+        ('name',): {
+            'max_length': 250,
+            'min_length': 1,
+        },
     }
 
     additional_properties_type = None
@@ -81,6 +85,8 @@ class Telescope(ModelNormal):
         lazy_import()
         return {
             'id': (int,),  # noqa: E501, F821
+            'name': (str, none_type,),  # noqa: E501, F821
+            'extra': ({str: (bool, date, datetime, dict, float, int, list, str, none_type)}, none_type,),  # noqa: E501, F821
             'organisation': (Organisation,),  # noqa: E501, F821
             'telescope_type': (TelescopeType,),  # noqa: E501, F821
             'created': (datetime,),  # noqa: E501, F821
@@ -94,6 +100,8 @@ class Telescope(ModelNormal):
 
     attribute_map = {
         'id': 'id',  # noqa: E501
+        'name': 'name',  # noqa: E501
+        'extra': 'extra',  # noqa: E501
         'organisation': 'organisation',  # noqa: E501
         'telescope_type': 'telescope_type',  # noqa: E501
         'created': 'created',  # noqa: E501
@@ -147,6 +155,8 @@ class Telescope(ModelNormal):
                                 through its discriminator because we passed in
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
+            name (str, none_type): [optional]  # noqa: E501
+            extra ({str: (bool, date, datetime, dict, float, int, list, str, none_type)}, none_type): [optional]  # noqa: E501
             organisation (Organisation): [optional]  # noqa: E501
             telescope_type (TelescopeType): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501

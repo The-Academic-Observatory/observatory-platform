@@ -17,27 +17,30 @@
 
 from __future__ import annotations
 
-import datetime
 import os
 from dataclasses import dataclass
-from datetime import datetime
 from typing import ClassVar, Dict, Union, Any
-from pendulum import Pendulum
 
-from sqlalchemy import String, create_engine, Integer, ForeignKey, Column, DateTime
+import pendulum
+from pendulum import Pendulum
+from sqlalchemy import String, create_engine, Integer, ForeignKey, Column, DateTime, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
+
+from observatory.api.client.identifiers import TelescopeTypes
 
 Base = declarative_base()
 session_ = None  # Global session
 
 
-def create_session(uri: str = os.environ.get('OBSERVATORY_DB_URI'), connect_args=None, poolclass=None):
+def create_session(uri: str = os.environ.get('OBSERVATORY_DB_URI'), connect_args=None, poolclass=None,
+                   seed_db: bool = False):
     """ Create an SQLAlchemy session.
 
     :param uri: the database URI.
     :param connect_args: connect arguments for SQLAlchemy.
     :param poolclass: what SQLAlchemy poolclass to use.
+    :param seed_db: seed the database with initial values.
     :return: the SQLAlchemy session.
     """
 
@@ -55,7 +58,41 @@ def create_session(uri: str = os.environ.get('OBSERVATORY_DB_URI'), connect_args
     s = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
     Base.query = s.query_property()
     Base.metadata.create_all(bind=engine)  # create all tables.
+
+    # Insert data if it doesn't exist
+    if seed_db:
+        init_db(s)
+
     return s
+
+
+def init_db(session: scoped_session):
+    """ Initialise the database with initial values.
+
+    :param session: the SQLAlchemy session.
+    :return: None.
+    """
+
+    # Add default TelescopeTypes
+    telescope_types = [
+        (TelescopeTypes.onix, 'ONIX Telescope'),
+        (TelescopeTypes.jstor, 'JSTOR Telescope'),
+        (TelescopeTypes.google_books, 'Google Books Telescope'),
+        (TelescopeTypes.google_analytics, 'Google Analytics Telescope'),
+        (TelescopeTypes.oapen_irus_uk, 'OAPEN IRUS-UK Telescope'),
+        (TelescopeTypes.scopus, 'Scopus Telescope'),
+        (TelescopeTypes.wos, 'Web of Science Telescope'),
+        (TelescopeTypes.fulcrum, 'Fulcrum Telescope'),
+    ]
+
+    for type_id, name in telescope_types:
+        item = session.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
+        if item is None:
+            dt = pendulum.utcnow()
+            obj = TelescopeType(type_id=type_id, name=name, created=dt, modified=dt)
+            session.add(obj)
+
+    session.commit()
 
 
 def set_session(session):
@@ -164,7 +201,7 @@ class Organisation(Base):
         self.modified = to_datetime_utc(modified)
 
     def update(self, name: str = None, gcp_project_id: str = None, gcp_download_bucket: str = None,
-               gcp_transform_bucket: str = None, modified: Union[Pendulum, str] = None):
+               gcp_transform_bucket: str = None, modified: Pendulum = None):
         """ Update the properties of an existing Organisation object. This method is handy when you want to update
         the Organisation from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
 
@@ -198,22 +235,29 @@ class Telescope(Base):
 
     # Only include should be serialized to JSON as dataclass attributes
     id: int
+    name: str
+    extra: Dict
     created: Pendulum
     modified: Pendulum
     telescope_type: TelescopeType = None
     organisation: Organisation = None
 
     id = Column(Integer, primary_key=True)
+    name = Column(String(250))
+    extra = Column(JSON())
     created = Column(DateTime())
     modified = Column(DateTime())
     organisation_id = Column(Integer, ForeignKey('organisation.id'), nullable=False)
     telescope_type_id = Column(Integer, ForeignKey('telescope_type.id'), nullable=False)
 
-    def __init__(self, id: int = None, created: Pendulum = None, modified: Pendulum = None,
-                 organisation: Union[Organisation, Dict] = None, telescope_type: Union[TelescopeType, Dict] = None):
+    def __init__(self, id: int = None, name: str = None, extra: Dict = None, created: Pendulum = None,
+                 modified: Pendulum = None, organisation: Union[Organisation, Dict] = None,
+                 telescope_type: Union[TelescopeType, Dict] = None):
         """ Construct a Telescope object.
 
         :param id: unique id.
+        :param name: the telescope name.
+        :param extra: additional metadata for a telescope, stored as JSON.
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
         :param organisation: the organisation associated with this telescope.
@@ -221,6 +265,8 @@ class Telescope(Base):
         """
 
         self.id = id
+        self.name = name
+        self.extra = extra
         self.created = to_datetime_utc(created)
         self.modified = to_datetime_utc(modified)
 
@@ -228,16 +274,24 @@ class Telescope(Base):
         self.organisation = fetch_db_object(Organisation, organisation)
         self.telescope_type = fetch_db_object(TelescopeType, telescope_type)
 
-    def update(self, modified: Union[Pendulum, str] = None, organisation: Union[Organisation, Dict] = None,
-               telescope_type: Union[TelescopeType, Dict] = None):
+    def update(self, name: str = None, extra: Dict = None, modified: Pendulum = None,
+               organisation: Union[Organisation, Dict] = None, telescope_type: Union[TelescopeType, Dict] = None):
         """ Update the properties of an existing Telescope object. This method is handy when you want to update
         the Telescope from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
 
+        :param name: the telescope name.
+        :param extra: additional metadata for a telescope, stored as JSON.
         :param modified: datetime modified in UTC.
         :param organisation: the organisation associated with this telescope.
         :param telescope_type: the telescope type associated with this telescope.
         :return: None.
         """
+
+        if name is not None:
+            self.name = name
+
+        if extra is not None:
+            self.extra = extra
 
         if organisation is not None:
             self.organisation = fetch_db_object(Organisation, organisation)
@@ -254,41 +308,50 @@ class TelescopeType(Base):
     __tablename__ = 'telescope_type'
 
     id: int
+    type_id: str
     name: str
     created: Pendulum
     modified: Pendulum
 
     id = Column(Integer, primary_key=True)
+    type_id = Column(String(250), unique=True, nullable=False)
     name = Column(String(250))
     created = Column(DateTime())
     modified = Column(DateTime())
     telescopes = relationship("Telescope", backref='telescope_type')
 
-    def __init__(self, id: int = None, name: str = None, created: Union[Pendulum, str] = None,
-                 modified: Union[Pendulum, str] = None):
+    def __init__(self, id: int = None, type_id: str = None, name: str = None, created: Pendulum = None,
+                 modified: Pendulum = None):
         """ Construct a TelescopeType object.
 
         :param id: unique id.
+        :param type_id: a unique string id for the telescope type.
         :param name: the name.
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
         """
 
         self.id = id
+        self.type_id = type_id
         self.name = name
         self.created = to_datetime_utc(created)
         self.modified = to_datetime_utc(modified)
 
-    def update(self, name: str = None, modified: Union[Pendulum, str] = None):
+    def update(self, type_id: str = None, name: str = None, modified: Pendulum = None):
         """ Update the properties of an existing TelescopeType object. This method is handy when you want to update
         the TelescopeType from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
 
         :param name: the name of the TelescopeType.
+        :param type_id: a unique string id for the telescope type.
         :param modified: datetime modified in UTC.
         :return: None.
         """
 
+        if type_id is not None:
+            self.type_id = type_id
+
         if name is not None:
             self.name = name
+
         if modified is not None:
             self.modified = to_datetime_utc(modified)

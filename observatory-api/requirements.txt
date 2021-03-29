@@ -9,3 +9,4 @@ urllib3
 python-dateutil
 certifi
 pendulum==1.4.*
+openapi-spec-validator==0.3.*
