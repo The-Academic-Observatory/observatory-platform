@@ -22,7 +22,7 @@ import logging
 import shutil
 import subprocess
 from datetime import datetime
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import geoip2.database
 import jsonlines
@@ -252,7 +252,8 @@ def download_access_stats_new(file_path: str, release_date: str, username: str, 
     list_to_jsonl_gz(file_path, all_results)
 
 
-def replace_ip_address(client_ip: str, geoip_client: geoip2.database.Reader) -> Tuple[float, float, str, str, str]:
+def replace_ip_address(client_ip: str, geoip_client: geoip2.database.Reader) -> Tuple[
+                        Union[float, None], Union[float, None], str, str, str]:
     """ Replace IP addresses with geographical information using the geoip client.
 
     :param client_ip: Ip address of the client that is using oapen irus uk
@@ -262,7 +263,7 @@ def replace_ip_address(client_ip: str, geoip_client: geoip2.database.Reader) -> 
     try:
         geoip_response = geoip_client.city(client_ip)
     except AddressNotFoundError:
-        return 0, 0, '', '', ''
+        return None, None, '', '', ''
 
     client_lat = geoip_response.location.latitude
     client_lon = geoip_response.location.longitude
