@@ -22,78 +22,60 @@ import logging
 import shutil
 import subprocess
 from datetime import datetime
-from typing import List
-from urllib.parse import ParseResult, quote, urlparse
+from typing import List, Tuple
 
 import geoip2.database
-import google.auth
 import jsonlines
 import requests
 from geoip2.errors import AddressNotFoundError
-from google.cloud import secretmanager, storage
+from google.cloud import storage
 
 
 def download(request):
-    """Responds to any HTTP request.
-    Args:
-        request (flask.Request): HTTP request object.
-    Returns:
-        The response text or any set of values that can be turned into a
-        Response object using
-        `make_response <http://flask.pocoo.org/docs/1.0/api/#flask.Flask.make_response>`.
+    """ Download oapen irus uk access stats data, replace IP addresses and upload data to storage bucket.
+
+    :param request: (flask.Request): HTTP request object.
+    :return: None.
     """
-    example = {
-        "release_date": "2020-05",
-        "publisher_info": {
-            "name": "UCL Press",
-            "project": "aniek-dev",
-            "bucket": "test_cloud_function_123"
-        },
-        "blob_name": "oapen_access_stats.jsonl.gz"
-    }
+
     request_json = request.get_json()
     release_date = request_json.get('release_date')  # 'YYYY-MM'
-    publisher_info = request_json.get('publisher_info')  # e.g. 'UCL Press'
+    username = request_json.get('username')
+    password = request_json.get('password')
+    geoip_license_key = request_json.get('geoip_license_key')
+    publisher_name = request_json.get('publisher_name')  # e.g. 'UCL Press'
+    bucket_name = request_json.get('bucket_name')
     blob_name = request_json.get('blob_name')
 
-    # credentials and project
-    credentials, project_id = google.auth.default()
-
-    # secret manager client
-    client = secretmanager.SecretManagerServiceClient()
-    geoip_license_key = urlparse_secret(f'airflow-connections-geoip_license_key', project_id, client)
-    oapen_irus_uk_api = urlparse_secret(f'airflow-connections-oapen_irus_uk_api', project_id, client)
-    oapen_irus_uk_login = urlparse_secret(f'airflow-connections-oapen_irus_uk_login', project_id, client)
-
     # download geoip database
-    geoip_client = download_geoip(geoip_license_key.password, '/tmp/geolite_city.tar.gz', '/tmp/geolite_city.mmdb')
+    download_geoip(geoip_license_key, '/tmp/geolite_city.tar.gz', '/tmp/geolite_city.mmdb')
+
+    # initialise geoip client
+    geoip_client = geoip2.database.Reader('/tmp/geolite_city.mmdb')
 
     # download oapen access stats and replace ip addresses
     file_path = '/tmp/oapen_access_stats.jsonl.gz'
-    publisher_name = quote(publisher_info["name"])
     logging.info(f'Downloading oapen access stats for month: {release_date}, publisher: {publisher_name}')
     if datetime.strptime(release_date, '%Y-%m') >= datetime(2020, 4, 1):
-        download_access_stats_new(file_path, release_date, oapen_irus_uk_api, publisher_name, geoip_client)
+        download_access_stats_new(file_path, release_date, username, password, publisher_name, geoip_client)
     else:
-        download_access_stats_old(file_path, release_date, oapen_irus_uk_login, publisher_name, geoip_client)
+        download_access_stats_old(file_path, release_date, username, password, publisher_name, geoip_client)
 
     # upload oapen access stats to bucket
-    upload_to_bucket(file_path, blob_name, publisher_info)
-
-
-def urlparse_secret(secret_name: str, project_id: str, client) -> ParseResult:
-    request = {
-        "name": f"projects/{project_id}/secrets/{secret_name}/versions/latest"
-    }
-    response = client.access_secret_version(request)
-    payload = response.payload.data.decode("UTF-8")
-    uri_parts = urlparse(payload)
-    return uri_parts
+    upload_file_to_storage_bucket(file_path, bucket_name, blob_name)
 
 
 def download_geoip(geoip_license_key: str, download_path: str, extract_path: str):
+    """ Download geoip database. The database is downloaded as a .tar.gz file and extracted to a '.mmdb' file.
+
+    :param geoip_license_key: The geoip license key
+    :param download_path: The download path of .tar.gz file
+    :param extract_path: The extract path of .mmdb file
+    :return: None.
+    """
     geolite_url = 'https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=' \
                   f'{geoip_license_key}&suffix=tar.gz'
+
     # Download release in tar.gz format
     logging.info(f'Downloading geolite database file to: {download_path}')
     with requests.get(geolite_url, stream=True) as response:
@@ -108,15 +90,25 @@ def download_geoip(geoip_license_key: str, download_path: str, extract_path: str
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
     output, error = proc.communicate()
 
-    geoip_client = geoip2.database.Reader(extract_path)
-    return geoip_client
 
-
-def download_access_stats_old(file_path: str, release_date: str, oapen_irus_uk_login: ParseResult, publisher_name: str,
+def download_access_stats_old(file_path: str, release_date: str, username: str, password: str, publisher_name: str,
                               geoip_client: geoip2.database.Reader):
-    start_date = release_date + "-01"
+    """ Download the oapen irus uk access stats data and replace IP addresses with geographical information.
+
+    :param file_path: Path to store the access stats results.
+    :param release_date: Release date
+    :param username: Oapen username/email
+    :param password: Oapen password
+    :param publisher_name: Publisher name
+    :param geoip_client: Geoip client
+    :return:
+    """
+    # get last date of month
     year, month = release_date.split('-')
-    end_date = release_date + "-" + calendar.monthrange(int(year), int(month))
+    last_date_month = str(calendar.monthrange(int(year), int(month))[1])
+
+    start_date = release_date + "-01"
+    end_date = release_date + "-" + last_date_month
     url = f'https://irus.jisc.ac.uk/IRUSConsult/irus-oapen/v2/br1b/?frmRepository=1%7COAPEN+Library&frmPublisher' \
           f'={publisher_name}&frmFrom={start_date}&frmTo={end_date}&frmFormat=TSV&Go=Generate+Report'
 
@@ -125,8 +117,8 @@ def download_access_stats_old(file_path: str, release_date: str, oapen_irus_uk_l
 
     # login
     login_response = s.post('https://irus.jisc.ac.uk/IRUSConsult/irus-oapen/v2/?action=login', data={
-        'email': oapen_irus_uk_login.username,
-        'password': oapen_irus_uk_login.password,
+        'email': username,
+        'password': password,
         'action': 'login'
     })
     if 'After you have finished your session please remember to' in login_response.text:
@@ -187,11 +179,21 @@ def download_access_stats_old(file_path: str, release_date: str, oapen_irus_uk_l
     list_to_jsonl_gz(file_path, all_results)
 
 
-def download_access_stats_new(file_path: str, release_date: str, oapen_irus_uk_api: ParseResult, publisher_name: str,
+def download_access_stats_new(file_path: str, release_date: str, username: str, password: str, publisher_name: str,
                               geoip_client: geoip2.database.Reader):
+    """ Download the oapen irus uk access stats data and replace IP addresses with geographical information.
+
+    :param file_path: Path to store the access stats results.
+    :param release_date: Release date
+    :param username: Oapen username/email
+    :param password: Oapen password
+    :param publisher_name: Publisher name
+    :param geoip_client: Geoip client
+    :return:
+    """
     # create url
-    requestor_id = oapen_irus_uk_api.username
-    api_key = oapen_irus_uk_api.password
+    requestor_id = username
+    api_key = password
     url = f'https://irus.jisc.ac.uk/sushiservice/oapen/reports/oapen_ir/?requestor_id={requestor_id}' \
           f'&platform=215&begin_date={release_date}&end_date={release_date}&formatted&api_key={api_key}' \
           f'&attributes_to_show=Client_IP%7CCountry&publisher={publisher_name}'
@@ -250,17 +252,17 @@ def download_access_stats_new(file_path: str, release_date: str, oapen_irus_uk_a
     list_to_jsonl_gz(file_path, all_results)
 
 
-def replace_ip_address(client_ip: str, geoip_client: geoip2.database.Reader):
-    """
+def replace_ip_address(client_ip: str, geoip_client: geoip2.database.Reader) -> Tuple[float, float, str, str, str]:
+    """ Replace IP addresses with geographical information using the geoip client.
 
-    :param client_ip:
-    :param geoip_client:
-    :return:
+    :param client_ip: Ip address of the client that is using oapen irus uk
+    :param geoip_client: The geoip client
+    :return: latitude, longitude, city, country and country_code of the client.
     """
     try:
         geoip_response = geoip_client.city(client_ip)
     except AddressNotFoundError:
-        return '', '', '', '', ''
+        return 0, 0, '', '', ''
 
     client_lat = geoip_response.location.latitude
     client_lon = geoip_response.location.longitude
@@ -273,6 +275,7 @@ def replace_ip_address(client_ip: str, geoip_client: geoip2.database.Reader):
 
 def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
     """ Takes a list of dictionaries and writes this to a gzipped jsonl file.
+
     :param file_path: Path to the .jsonl.gz file
     :param list_of_dicts: A list containing dictionaries that can be written out with jsonlines
     :return: None.
@@ -287,11 +290,17 @@ def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
             jsonl_gzip_file.write(bytes_io.getvalue())
 
 
-def upload_to_bucket(file_path: str, blob_name: str, publisher_info: dict):
-    storage_client = storage.Client(publisher_info['project'])
-    bucket = storage_client.bucket(publisher_info['bucket'])
+def upload_file_to_storage_bucket(file_path: str, bucket_name: str, blob_name: str):
+    """ Upload a file to a google cloud storage bucket
+
+    :param file_path: The local file path of the file that will be uploaded
+    :param bucket_name: The storage bucket name
+    :param blob_name: The blob name inside the storage bucket
+    :return: None.
+    """
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
 
-    logging.info(f'Uploading file "{file_path}". Blob: {blob_name}, bucket: {publisher_info["bucket"]}, project:'
-                 f' {publisher_info["project"]}')
+    logging.info(f'Uploading file "{file_path}". Blob: {blob_name}, bucket: {bucket_name}, project:')
     blob.upload_from_filename(file_path)

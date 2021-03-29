@@ -1,5 +1,4 @@
 requests==2.20.*
 geoip2==4.1.*
-google-cloud-secret-manager==2.3.*
 jsonlines==1.2.*
 google-cloud-storage==1.35.*
