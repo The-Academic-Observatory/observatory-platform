@@ -319,21 +319,34 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
     def test_copy_blob_from_cloud_storage(self):
         """ Test that blob is copied from one bucket to another """
-        client = storage.Client()
-        bucket = client.bucket(self.gc_bucket_name)
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Create file
+            upload_file_name = f'{random_id()}.txt'
+            copy_file_name = f'{random_id()}.txt'
+            with open(upload_file_name, 'w') as f:
+                f.write(self.data)
 
-        blob_name = 'test'
-        new_name = 'test_copy'
+            # Create client for blob
+            storage_client = storage.Client()
+            bucket = storage_client.get_bucket(self.gc_bucket_name)
 
-        blob = bucket.blob(blob_name)
-        blob_copy = bucket.blob(new_name)
-        try:
-            copy_blob_from_cloud_storage(blob_name, self.gc_bucket_name, self.gc_bucket_name, new_name=new_name)
-            self.assertTrue(blob.exists())
-            self.assertTrue(blob_copy.exist())
-        finally:
-            blob.delete()
-            blob_copy.delete()
+            try:
+                # Upload file
+                result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, upload_file_name, upload_file_name)
+
+                blob_original = bucket.blob(upload_file_name)
+                blob_copy = bucket.blob(copy_file_name)
+
+                copy_blob_from_cloud_storage(upload_file_name, self.gc_bucket_name, self.gc_bucket_name,
+                                             new_name=copy_file_name)
+                self.assertTrue(blob_original.exists())
+                self.assertTrue(blob_copy.exist())
+
+            finally:
+                for blob in [blob_original, blob_copy]:
+                    if blob.exiss():
+                        blob.delete()
 
     def test_upload_download_blobs_from_cloud_storage(self):
         runner = CliRunner()
