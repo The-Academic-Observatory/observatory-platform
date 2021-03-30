@@ -25,3 +25,5 @@ requests==2.20.0
 pyjwt==1.7.1
 idna==2.7
 marshmallow==2.21.0
+pysftp==0.2.*
+paramiko==2.7.*

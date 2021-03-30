@@ -25,6 +25,7 @@ import os
 import re
 import shutil
 import sys
+from base64 import b64decode
 from collections import deque
 from dataclasses import dataclass
 from math import ceil
@@ -32,11 +33,37 @@ from pathlib import Path
 from typing import Any, List, Tuple, Type
 
 import jsonlines
+import paramiko
 import pendulum
+import pysftp
+from airflow.hooks.base_hook import BaseHook
 from airflow.models.taskinstance import TaskInstance
 from observatory.dags.config import workflow_sql_templates_path
+from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
 from observatory.platform.utils.jinja2_utils import (make_jinja2_filename, render_template)
+
+
+def initialize_sftp_connection() -> pysftp.Connection:
+    """ Create a SFTP connection using credentials from the airflow SFTP_SERVICE connection.
+    :return: SFTP connection
+    """
+    sftp_service_conn = BaseHook.get_connection(AirflowConns.SFTP_SERVICE)
+
+    # get host, username and password from connection
+    host = sftp_service_conn.host
+    username = sftp_service_conn.login
+    password = sftp_service_conn.password
+
+    # add public host key
+    public_key = sftp_service_conn.extra_dejson['host_key']
+    key = paramiko.RSAKey(data=b64decode(public_key))
+    cnopts = pysftp.CnOpts()
+    cnopts.hostkeys.add(host, 'ssh-rsa', key)
+
+    # set up connection
+    sftp = pysftp.Connection(host, username=username, password=password, cnopts=cnopts)
+    return sftp
 
 
 def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
