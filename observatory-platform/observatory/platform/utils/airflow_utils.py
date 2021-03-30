@@ -55,6 +55,7 @@ class AirflowConns:
     SLACK = "slack"
     ELASTIC = "elastic"
     KIBANA = "kibana"
+    SFTP_SERVICE = "sftp_service"
 
 
 def get_variable(key: str) -> Optional[str]:
