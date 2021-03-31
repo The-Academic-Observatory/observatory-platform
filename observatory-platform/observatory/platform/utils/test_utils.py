@@ -494,19 +494,23 @@ class ObservatoryTestCase(unittest.TestCase):
 class SftpServer:
     """ A Mock SFTP server for testing purposes """
 
-    def __init__(self, host: str = "localhost", port: int = 3373, level: str = 'INFO', backlog: int = 10):
+    def __init__(self, host: str = "localhost", port: int = 3373, level: str = 'INFO', backlog: int = 10,
+                 startup_wait_secs: int = 1):
         """ Create a Mock SftpServer instance.
 
         :param host: the host name.
         :param port: the port.
         :param level: the log level.
         :param backlog: ?
+        :param startup_wait_secs: time in seconds to wait before returning from create to give the server enough
+        time to start before connecting to it.
         """
 
         self.host = host
         self.port = port
         self.level = level
         self.backlog = backlog
+        self.startup_wait_secs = startup_wait_secs
         self.is_shutdown = True
         self.tmp_dir = None
         self.root_dir = None
@@ -574,6 +578,10 @@ class SftpServer:
                 self.is_shutdown = False
                 self.server_thread = threading.Thread(target=self._start_server)
                 self.server_thread.start()
+
+                # Wait a little bit to give the server time to grab the socket
+                time.sleep(self.startup_wait_secs)
+
                 yield self.root_dir
             finally:
                 # Stop server and wait for server thread to join

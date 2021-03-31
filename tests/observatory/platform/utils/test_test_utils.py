@@ -15,13 +15,12 @@
 # Author: James Diprose
 
 from __future__ import annotations
-import socket
+
 import datetime
 import os
 import unittest
 from typing import Union, List
-import time
-import paramiko
+
 import httpretty
 import pendulum
 import pysftp
@@ -340,28 +339,12 @@ class TestSftpServer(unittest.TestCase):
     def test_server(self):
         """ Test that the SFTP server can be connected to """
 
-        def check_port_in_use():
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                return s.connect_ex((self.host, self.port)) == 0
-
-        print(f'Port {self.port} in use: {check_port_in_use()}')
         server = SftpServer(host=self.host, port=self.port)
         with server.create() as root_dir:
             # Connect to SFTP server and disable host key checking
             cnopts = pysftp.CnOpts()
             cnopts.hostkeys = None
-
-            count = 1
-            while True:
-                try:
-                    sftp = pysftp.Connection(self.host, port=self.port, username='', password='', cnopts=cnopts)
-                    break
-                except paramiko.ssh_exception.SSHException as e:
-                    if count > 10:
-                        self.fail(e)
-
-                    time.sleep(5)
-                    count += 1
+            sftp = pysftp.Connection(self.host, port=self.port, username='', password='', cnopts=cnopts)
 
             # Check that there are no files
             files = sftp.listdir('.')
