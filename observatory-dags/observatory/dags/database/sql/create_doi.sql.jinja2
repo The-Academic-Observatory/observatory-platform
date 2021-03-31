@@ -21,7 +21,7 @@ SELECT
 FROM
   (SELECT 
     UPPER(TRIM(ref.doi)) as doi,
-    STRUCT( title, abstract, issued.date_parts[offset(0)] as published_year, CASE WHEN ARRAY_LENGTH(issued.date_parts) > 1 THEN issued.date_parts[offset(1)] ELSE 13 END as published_month, CONCAT(issued.date_parts[offset(0)], "-", CASE WHEN ARRAY_LENGTH(issued.date_parts) > 1 THEN issued.date_parts[offset(1)] ELSE 13 END) as published_year_month, type, ISSN, ISBN, issn_type, publisher_location, publisher, container_title, references_count, alternative_id, subject, published_print, license, volume, funder, is_referenced_by_count, page, author ) as crossref,
+    STRUCT( title, abstract, issued.date_parts[offset(0)] as published_year, CASE WHEN ARRAY_LENGTH(issued.date_parts) > 1 THEN issued.date_parts[offset(1)] ELSE 13 END as published_month, CONCAT(issued.date_parts[offset(0)], "-", CASE WHEN ARRAY_LENGTH(issued.date_parts) > 1 THEN issued.date_parts[offset(1)] ELSE 13 END) as published_year_month, type, ISSN, ISBN, issn_type, publisher_location, publisher, member, prefix, container_title, references_count, alternative_id, subject, published_print, license, volume, funder, is_referenced_by_count, page, author ) as crossref,
     (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.unpaywall{{ release_date.strftime('%Y%m%d') }}` as oa WHERE oa.doi = UPPER(TRIM(ref.doi))) as unpaywall,
     ARRAY((SELECT as STRUCT _TABLE_SUFFIX as unpaywall_release, * from `{{ project_id }}.{{ dataset_id }}.unpaywall*` as oa WHERE oa.doi = UPPER(TRIM(ref.doi)))) as unpaywall_history,
     (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.mag{{ release_date.strftime('%Y%m%d') }}` as mag WHERE mag.doi = UPPER(TRIM(ref.doi))) as mag,
