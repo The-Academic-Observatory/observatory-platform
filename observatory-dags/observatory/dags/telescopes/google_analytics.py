@@ -316,6 +316,19 @@ def get_reports(service: Resource, start_date: pendulum.Pendulum, end_date: pend
     # merge results of single book with different pagepaths (e.g. fbclid parameter)
     book_results = merge_pagepaths_per_book(book_results, pagepaths)
 
+    # transform nested dict to list of dicts
+    for book, result in book_results.items():
+        # field is 'unique_views' or 'sessions'
+        for field, value in result.items():
+            if isinstance(value, dict):
+                # nested_field is 'country', 'referrer' or 'social_network'
+                for nested_field, nested_value in value.items():
+                    values = []
+                    # k is e.g. 'Australia', v is e.g. 1
+                    for k, v in nested_value.items():
+                        values.append({'name': k, 'value': v})
+                    book_results[book][field][nested_field] = values
+
     # convert dict to list of results
     book_results = list(book_results.values())
     return book_results
