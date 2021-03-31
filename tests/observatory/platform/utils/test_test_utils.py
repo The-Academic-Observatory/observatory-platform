@@ -20,7 +20,8 @@ import datetime
 import os
 import unittest
 from typing import Union, List
-
+import time
+import paramiko
 import httpretty
 import pendulum
 import pysftp
@@ -344,7 +345,18 @@ class TestSftpServer(unittest.TestCase):
             # Connect to SFTP server and disable host key checking
             cnopts = pysftp.CnOpts()
             cnopts.hostkeys = None
-            sftp = pysftp.Connection(self.host, port=self.port, username='', password='', cnopts=cnopts)
+
+            count = 1
+            while True:
+                try:
+                    sftp = pysftp.Connection(self.host, port=self.port, username='', password='', cnopts=cnopts)
+                    break
+                except paramiko.ssh_exception.SSHException as e:
+                    if count > 10:
+                        self.fail(e)
+
+                    time.sleep(5)
+                    count += 1
 
             # Check that there are no files
             files = sftp.listdir('.')
