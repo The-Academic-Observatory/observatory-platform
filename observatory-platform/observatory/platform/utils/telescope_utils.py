@@ -38,6 +38,9 @@ import pendulum
 import pysftp
 from airflow.hooks.base_hook import BaseHook
 from airflow.models.taskinstance import TaskInstance
+from observatory.api.client.api.observatory_api import ObservatoryApi
+from observatory.api.client.api_client import ApiClient
+from observatory.api.client.configuration import Configuration
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
@@ -46,6 +49,7 @@ from observatory.platform.utils.jinja2_utils import (make_jinja2_filename, rende
 
 def initialize_sftp_connection() -> pysftp.Connection:
     """ Create a SFTP connection using credentials from the airflow SFTP_SERVICE connection.
+
     :return: SFTP connection
     """
     sftp_service_conn = BaseHook.get_connection(AirflowConns.SFTP_SERVICE)
@@ -64,6 +68,42 @@ def initialize_sftp_connection() -> pysftp.Connection:
     # set up connection
     sftp = pysftp.Connection(host, username=username, password=password, cnopts=cnopts)
     return sftp
+
+
+def make_dag_id(prefix: str, organisation_name: str) -> str:
+    """ Make a DAG id from a prefix and an organisation name.
+
+    :param prefix: the prefix.
+    :param organisation_name: the organisation name.
+    :return: the DAG id.
+    """
+
+    return f'{prefix}_{organisation_name.strip().lower().replace(" ", "_")}'
+
+
+def make_observatory_api() -> ObservatoryApi:
+    """ Make the ObservatoryApi object, configuring it with a host and api_key.
+
+    :return: the ObservatoryApi.
+    """
+
+    # Get connection
+    api_conn = BaseHook.get_connection(AirflowConns.OBSERVATORY_API)
+
+    # Assert connection has required fields
+    assert api_conn.conn_type is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} conn_type must not be None"
+    assert api_conn.host is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} host must not be None"
+    assert api_conn.password is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} password must not be None"
+
+    # Make host
+    host = f'{str(api_conn.conn_type).replace("_", "-").lower()}://{api_conn.host}'
+    if api_conn.port:
+        host += f':{api_conn.port}'
+
+    # Return ObservatoryApi
+    config = Configuration(host=host, api_key={'api_key': api_conn.password})
+    api_client = ApiClient(config)
+    return ObservatoryApi(api_client=api_client)
 
 
 def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
@@ -112,7 +152,7 @@ def convert(k: str) -> str:
     # Trim special characters at start:
     k = re.sub('^[^A-Za-z0-9]+', "", k)
     # Replace other special characters (except '_') in remaining string:
-    k = re.sub('\W+', '_', k)
+    k = re.sub(r'\W+', '_', k)
     return k
 
 

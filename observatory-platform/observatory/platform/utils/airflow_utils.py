@@ -43,6 +43,7 @@ class AirflowVars:
     TERRAFORM_ORGANIZATION = "terraform_organization"
     DAGS_MODULE_NAMES = "dags_module_names"
     KIBANA_SPACES = "kibana_spaces"
+    OBSERVATORY_API = "observatory_api"
 
 
 class AirflowConns:

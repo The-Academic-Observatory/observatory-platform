@@ -23,18 +23,18 @@ from typing import Union, List
 
 import httpretty
 import pendulum
+import pysftp
 from airflow.models.connection import Connection
 from airflow.models.variable import Variable
 from click.testing import CliRunner
 from google.cloud.bigquery import SourceFormat
 from google.cloud.exceptions import NotFound
-
 from observatory.platform.telescopes.telescope import Telescope, AbstractRelease
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.gc_utils import (create_bigquery_dataset, upload_file_to_cloud_storage,
                                                  load_bigquery_table)
 from observatory.platform.utils.test_utils import (ObservatoryEnvironment, random_id, ObservatoryTestCase,
-                                                   test_fixtures_path)
+                                                   test_fixtures_path, SftpServer)
 from observatory.platform.utils.url_utils import retry_session
 
 DAG_ID = 'telescope-test'
@@ -328,3 +328,33 @@ class TestObservatoryTestCase(unittest.TestCase):
                 test_case.setup_mock_file_download(url, file_path)
                 response = retry_session().get(url)
                 self.assertEqual(expected_data, response.content.decode("utf-8"))
+
+
+class TestSftpServer(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.host = 'localhost'
+        self.port = 3373
+
+    def test_server(self):
+        """ Test that the SFTP server can be connected to """
+
+        server = SftpServer(host=self.host, port=self.port)
+        with server.create() as root_dir:
+            # Connect to SFTP server and disable host key checking
+            cnopts = pysftp.CnOpts()
+            cnopts.hostkeys = None
+            sftp = pysftp.Connection(self.host, port=self.port, username='', password='', cnopts=cnopts)
+
+            # Check that there are no files
+            files = sftp.listdir('.')
+            self.assertFalse(len(files))
+
+            # Add a file and check that it exists
+            expected_file_name = 'onix.xml'
+            file_path = os.path.join(root_dir, expected_file_name)
+            with open(file_path, mode='w') as f:
+                f.write('hello world')
+            files = sftp.listdir('.')
+            self.assertEqual(1, len(files))
+            self.assertEqual(expected_file_name, files[0])
