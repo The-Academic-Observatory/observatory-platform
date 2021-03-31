@@ -47,7 +47,7 @@ from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
 from observatory.platform.utils.jinja2_utils import (make_jinja2_filename, render_template)
 
 
-def initialize_sftp_connection() -> pysftp.Connection:
+def make_sftp_connection() -> pysftp.Connection:
     """ Create a SFTP connection using credentials from the airflow SFTP_SERVICE connection.
 
     :return: SFTP connection
@@ -59,26 +59,20 @@ def initialize_sftp_connection() -> pysftp.Connection:
     username = sftp_service_conn.login
     password = sftp_service_conn.password
 
-    # add public host key
-    public_key = sftp_service_conn.extra_dejson['host_key']
-    key = paramiko.RSAKey(data=b64decode(public_key))
-    cnopts = pysftp.CnOpts()
-    cnopts.hostkeys.add(host, 'ssh-rsa', key)
+    # Add public host key
+    public_key = sftp_service_conn.extra_dejson.get('host_key', None)
+    if public_key is not None:
+        key = paramiko.RSAKey(data=b64decode(public_key))
+        cnopts = pysftp.CnOpts()
+        cnopts.hostkeys.add(host, 'ssh-rsa', key)
+    else:
+        logging.warning('')
+        cnopts = pysftp.CnOpts()
+        cnopts.hostkeys = None
 
     # set up connection
     sftp = pysftp.Connection(host, username=username, password=password, cnopts=cnopts)
     return sftp
-
-
-def make_dag_id(prefix: str, organisation_name: str) -> str:
-    """ Make a DAG id from a prefix and an organisation name.
-
-    :param prefix: the prefix.
-    :param organisation_name: the organisation name.
-    :return: the DAG id.
-    """
-
-    return f'{prefix}_{organisation_name.strip().lower().replace(" ", "_")}'
 
 
 def make_observatory_api() -> ObservatoryApi:
@@ -104,6 +98,17 @@ def make_observatory_api() -> ObservatoryApi:
     config = Configuration(host=host, api_key={'api_key': api_conn.password})
     api_client = ApiClient(config)
     return ObservatoryApi(api_client=api_client)
+
+
+def make_dag_id(namespace: str, organisation_name: str) -> str:
+    """ Make a DAG id from a namespace and an organisation name.
+
+    :param namespace: the namespace for the DAG id.
+    :param organisation_name: the organisation name.
+    :return: the DAG id.
+    """
+
+    return f'{namespace}_{organisation_name.strip().lower().replace(" ", "_")}'
 
 
 def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):

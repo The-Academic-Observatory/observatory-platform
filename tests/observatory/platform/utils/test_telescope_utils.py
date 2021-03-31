@@ -24,7 +24,7 @@ import pysftp
 from airflow.models.connection import Connection
 
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.telescope_utils import (PeriodCount, ScheduleOptimiser, initialize_sftp_connection)
+from observatory.platform.utils.telescope_utils import (PeriodCount, ScheduleOptimiser, make_sftp_connection)
 
 
 class TestTelescopeUtils(unittest.TestCase):
@@ -33,7 +33,7 @@ class TestTelescopeUtils(unittest.TestCase):
 
     @patch.object(pysftp, 'Connection')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    def test_initialize_sftp_connection(self, mock_airflow_conn, mock_pysftp_connection):
+    def test_make_sftp_connection(self, mock_airflow_conn, mock_pysftp_connection):
         """ Test that sftp connection is initialized correctly """
         # set up variables
         username = 'username'
@@ -48,7 +48,7 @@ class TestTelescopeUtils(unittest.TestCase):
         mock_airflow_conn.return_value = sftp_service_conn
 
         # run function
-        sftp = initialize_sftp_connection()
+        sftp = make_sftp_connection()
 
         # confirm sftp server was initialised with correct username, password and cnopts
         call_args = mock_pysftp_connection.call_args
