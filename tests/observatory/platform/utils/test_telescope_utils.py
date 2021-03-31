@@ -22,9 +22,8 @@ import paramiko
 import pendulum
 import pysftp
 from airflow.models.connection import Connection
-
-from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.telescope_utils import (PeriodCount, ScheduleOptimiser, initialize_sftp_connection)
+from observatory.platform.utils.telescope_utils import (PeriodCount, ScheduleOptimiser, make_sftp_connection,
+                                                        make_dag_id, make_observatory_api)
 
 
 class TestTelescopeUtils(unittest.TestCase):
@@ -33,8 +32,9 @@ class TestTelescopeUtils(unittest.TestCase):
 
     @patch.object(pysftp, 'Connection')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    def test_initialize_sftp_connection(self, mock_airflow_conn, mock_pysftp_connection):
+    def test_make_sftp_connection(self, mock_airflow_conn, mock_pysftp_connection):
         """ Test that sftp connection is initialized correctly """
+
         # set up variables
         username = 'username'
         password = 'password'
@@ -42,13 +42,10 @@ class TestTelescopeUtils(unittest.TestCase):
         host_key = quote(paramiko.RSAKey.generate(512).get_base64(), safe='')
 
         # mock airflow sftp service conn
-        example_uri = f'ssh://{username}:{password}@{host}?host_key={host_key}'
-        sftp_service_conn = Connection(conn_id=AirflowConns.SFTP_SERVICE)
-        sftp_service_conn.parse_from_uri(example_uri)
-        mock_airflow_conn.return_value = sftp_service_conn
+        mock_airflow_conn.return_value = Connection(uri=f'ssh://{username}:{password}@{host}?host_key={host_key}')
 
         # run function
-        sftp = initialize_sftp_connection()
+        sftp = make_sftp_connection()
 
         # confirm sftp server was initialised with correct username, password and cnopts
         call_args = mock_pysftp_connection.call_args
@@ -60,6 +57,64 @@ class TestTelescopeUtils(unittest.TestCase):
         self.assertEqual(username, call_args[1]['username'])
         self.assertEqual(password, call_args[1]['password'])
         self.assertIsInstance(call_args[1]['cnopts'], pysftp.CnOpts)
+
+    def test_make_dag_id(self):
+        """ Test make_dag_id """
+
+        expected_dag_id = 'onix_curtin_press'
+        dag_id = make_dag_id('onix', 'Curtin Press')
+        self.assertEqual(expected_dag_id, dag_id)
+
+    @patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    def test_make_observatory_api(self, mock_get_connection):
+        """ Test make_observatory_api """
+
+        conn_type = 'http'
+        host = 'api.observatory.academy'
+        api_key = 'my_api_key'
+
+        # No port
+        mock_get_connection.return_value = Connection(uri=f'{conn_type}://:{api_key}@{host}')
+        api = make_observatory_api()
+        self.assertEqual(f'http://{host}', api.api_client.configuration.host)
+        self.assertEqual(api_key, api.api_client.configuration.api_key['api_key'])
+
+        # Port
+        port = 8080
+        mock_get_connection.return_value = Connection(uri=f'{conn_type}://:{api_key}@{host}:{port}')
+        api = make_observatory_api()
+        self.assertEqual(f'http://{host}:{port}', api.api_client.configuration.host)
+        self.assertEqual(api_key, api.api_client.configuration.api_key['api_key'])
+
+        # Assertion error: missing conn_type empty string
+        with self.assertRaises(AssertionError):
+            mock_get_connection.return_value = Connection(uri=f'://:{api_key}@{host}')
+            make_observatory_api()
+
+        # Assertion error: missing host empty string
+        with self.assertRaises(AssertionError):
+            mock_get_connection.return_value = Connection(uri=f'{conn_type}://:{api_key}@')
+            make_observatory_api()
+
+        # Assertion error: missing password empty string
+        with self.assertRaises(AssertionError):
+            mock_get_connection.return_value = Connection(uri=f'://:{api_key}@{host}')
+            make_observatory_api()
+
+        # Assertion error: missing conn_type None
+        with self.assertRaises(AssertionError):
+            mock_get_connection.return_value = Connection(password=api_key, host=host)
+            make_observatory_api()
+
+        # Assertion error: missing host None
+        with self.assertRaises(AssertionError):
+            mock_get_connection.return_value = Connection(conn_type=conn_type, password=api_key)
+            make_observatory_api()
+
+        # Assertion error: missing password None
+        with self.assertRaises(AssertionError):
+            mock_get_connection.return_value = Connection(host=host, password=api_key)
+            make_observatory_api()
 
 
 class TestScheduleOptimiser(unittest.TestCase):
