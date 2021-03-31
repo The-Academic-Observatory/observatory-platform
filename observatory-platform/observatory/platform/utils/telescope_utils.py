@@ -66,13 +66,11 @@ def make_sftp_connection() -> pysftp.Connection:
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys.add(host, 'ssh-rsa', key)
     else:
-        logging.warning('')
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
 
     # set up connection
-    sftp = pysftp.Connection(host, username=username, password=password, cnopts=cnopts)
-    return sftp
+    return pysftp.Connection(host, username=username, password=password, cnopts=cnopts)
 
 
 def make_observatory_api() -> ObservatoryApi:
@@ -85,9 +83,9 @@ def make_observatory_api() -> ObservatoryApi:
     api_conn = BaseHook.get_connection(AirflowConns.OBSERVATORY_API)
 
     # Assert connection has required fields
-    assert api_conn.conn_type is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} conn_type must not be None"
-    assert api_conn.host is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} host must not be None"
-    assert api_conn.password is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} password must not be None"
+    assert api_conn.conn_type != '' and api_conn.conn_type is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} conn_type must not be None"
+    assert api_conn.host != '' and api_conn.host is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} host must not be None"
+    assert api_conn.password != '' and api_conn.password is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} password must not be None"
 
     # Make host
     host = f'{str(api_conn.conn_type).replace("_", "-").lower()}://{api_conn.host}'

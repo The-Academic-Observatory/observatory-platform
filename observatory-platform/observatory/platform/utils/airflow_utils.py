@@ -57,6 +57,7 @@ class AirflowConns:
     ELASTIC = "elastic"
     KIBANA = "kibana"
     SFTP_SERVICE = "sftp_service"
+    OBSERVATORY_API = "observatory_api"
 
 
 def get_variable(key: str) -> Optional[str]:
