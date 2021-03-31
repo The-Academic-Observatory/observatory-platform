@@ -16,171 +16,23 @@
 
 from __future__ import annotations
 
+import copy
 import datetime
-import json
 import logging
 import os
-import re
 from datetime import datetime
-from shutil import copyfile
-from typing import List
-from zipfile import BadZipFile, ZipFile
+from typing import Dict, List, Tuple
 
-from croniter import croniter
 import pendulum
-from airflow.exceptions import AirflowException
-from airflow.models.taskinstance import TaskInstance
 from airflow.hooks.base_hook import BaseHook
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, AirflowConns
-from observatory.platform.utils.data_utils import get_file
-from observatory.platform.utils.template_utils import upload_files_from_list
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
-from observatory.platform.utils.url_utils import retry_session
-from pendulum import Pendulum
-from googleapiclient.discovery import build, Resource
+from croniter import croniter
+from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
 
 VIEW_ID = ''
-
-
-def initialize_analyticsreporting() -> Resource:
-    """ Initializes an Analytics Reporting API V4 service object.
-
-  :return: An authorized Analytics Reporting API V4 service object.
-  """
-    oaebu_account_conn = BaseHook.get_connection(AirflowConns.OAEBU_SERVICE_ACCOUNT)
-
-    scopes = ['https://www.googleapis.com/auth/analytics.readonly']
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(oaebu_account_conn.extra_dejson, scopes=scopes)
-
-    # Build the service object.
-    service = build('analyticsreporting', 'v4', credentials=creds)
-
-    return service
-
-
-def get_reports(service: Resource, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum):
-    """ Queries the Analytics Reporting API V4.
-
-  :param service: An authorized Analytics Reporting API V4 service object.
-  :return: The Analytics Reporting API V4 response.
-  """
-    results = []
-    book_title = None
-    url = None
-    average_time = None
-    results = {'url': url,
-               'title': book_title,
-               'start_date': start_date.strftime("%Y-%m-%d"),
-               'end_date': end_date.strftime("%Y-%m-%d"),
-               'average_time': average_time,
-               'views': {'country': {},
-                         'referrer': {},
-                         'social_network': {}},
-               'sessions': {'country': {},
-                            'source': {}}
-    }
-    # Get all page paths for books
-    body = {
-        'reportRequests': [{
-            'viewId': VIEW_ID,
-            'dateRanges': [{
-                'startDate': start_date.strftime("%Y-%m-%d"),
-                'endDate': end_date.strftime("%Y-%m-%d"),
-            }],
-            "metrics": [{'expression': 'ga:pageviews'}],
-            "dimensions": [{'name': 'ga:pagepath'}]
-        }]
-    }
-    reports = service.reports().batchGet(body=body).execute()
-
-    metrics = ['sessions', 'uniquePageviews', 'avgTimeOnPage']
-    metrics = [{'expression': f'ga:{metric}'} for metric in metrics]
-
-    # loop through dimensions, as they are combined
-    dimensions = ['country', 'fullReferrer', 'socialNetwork', 'source']
-    dimensions = [{'name': f'ga:{dimension}'} for dimension in dimensions]
-    for dimension in dimensions:
-        body = {
-            'reportRequests': [{
-                'viewId': VIEW_ID,
-                'dateRanges': [{
-                    'startDate': start_date.strftime("%Y-%m-%d"),
-                    'endDate': end_date.strftime("%Y-%m-%d"),
-                }],
-                "metrics": metrics,
-                "dimensions": dimension,
-                "dimensionFilterClauses": [{
-                    "filters": [
-                        {
-                            'dimensionName': "ga:pagePath",
-                            "operator": "EXACT",
-                            "expressions": [book_title]
-                        }
-                    ]
-                }]
-            }]
-        }
-    # should return result, most results not returned because data is not stored that long
-    # body = {
-    #     "reportRequests": [{
-    #         "viewId": VIEW_ID,
-    #         "dateRanges": [{
-    #             "endDate": "2018-01-01",
-    #             "startDate": "2015-01-01"
-    #         }],
-    #         "metrics": [{
-    #             "expression": "ga:sessions"
-    #         }, ],
-    #         "dimensions": [{
-    #             "name": "ga:country"
-    #         },
-    #
-    #         ],
-    #         "includeEmptyRows": True
-    #     }]
-    # }
-        reports = service.reports().batchGet(body=body).execute()
-        result = reports['reports'][0]['data'].get('rows')
-        if result:
-            results.append(result)
-    return results
-
-
-# def get_report(analytics):
-#     """Queries the Analytics Reporting API V4.
-#
-#   Args:
-#     analytics: An authorized Analytics Reporting API V4 service object.
-#   Returns:
-#     The Analytics Reporting API V4 response.
-#   """
-#     metrics = ['sessions', 'uniquePageviews']
-#     metrics = [{
-#                    'expression': f'ga:{metric}'
-#                } for metric in metrics]
-#
-#     # loop through dimensions, as they are combined
-#     dimensions = ['country', 'fullReferrer', 'socialNetwork', 'source']
-#     # dimensions = [{'name': f'ga:{dimension}'} for dimension in dimensions]
-#     results = {}
-#     for dimension in dimensions:
-#         body = {
-#             'reportRequests': [{
-#                 'viewId': VIEW_ID,
-#                 'dateRanges': [{
-#                     'startDate': '2016-01-01',
-#                     'endDate': '2017-01-01'
-#                 }],
-#                 "metrics": metrics,
-#                 "dimensions": [{'name': f'ga:{dimension}'}],
-#             }]
-#         }
-#         result = analytics.reports().batchGet(body=body).execute()
-#         results[dimension] = result
-#     return results
 
 
 class GoogleAnalyticsRelease(SnapshotRelease):
@@ -204,70 +56,15 @@ class GoogleAnalyticsRelease(SnapshotRelease):
     def transform_path(self) -> str:
         return os.path.join(self.transform_folder, f'{self.dag_id}.jsonl.gz')
 
-    def download(self) -> bool:
+    def download_transform(self):
         """ Downloads an individual Google Analytics release.
         :return:
         """
 
         service = initialize_analyticsreporting()
         results = get_reports(service, self.start_date, self.end_date)
-        # print_response(response)
 
-        return True
-
-    def transform(self):
-        """ Transform a Google Analytics release into json lines format and gzip the result.
-        :return: None.
-        """
-
-        pass
-
-#
-# def list_available_releases(service: Resource) -> List[dict]:
-#     """ List all GRID records available on Figshare between two dates.
-#     :param timeout: the number of seconds to wait until timing out.
-#     :return: the list of GRID releases with required variables stored as a dictionary.
-#     """
-#
-#     available_releases = {}
-#
-#     # Call the Google Analaytics API
-#     results = service.reports().batchGet(body=body).execute()
-#
-#     response = retry_session().get(grid_dataset_url, timeout=timeout, headers={
-#         'Accept-encoding': 'gzip'
-#     })
-#     response_json = json.loads(response.text)
-#
-#     records: List[dict] = []
-#     release_articles = {}
-#     for item in response_json:
-#         published_date: Pendulum = pendulum.parse(item['published_date'])
-#
-#         if start_date <= published_date < end_date:
-#             article_id = item['id']
-#             title = item['title']
-#
-#             # Parse date:
-#             # The publish date is not used as the release date because the dataset is often
-#             # published after the release date
-#             date_matches = re.search("([0-9]{4}\-[0-9]{2}\-[0-9]{2})", title)
-#             if date_matches is None:
-#                 raise ValueError(f'No release date found in GRID title: {title}')
-#             release_date = pendulum.parse(date_matches[0])
-#
-#             try:
-#                 release_articles[release_date].append(article_id)
-#             except KeyError:
-#                 release_articles[release_date] = [article_id]
-#
-#     for release_date in release_articles:
-#         article_ids = release_articles[release_date]
-#         records.append({
-#             'article_ids': article_ids,
-#             'release_date': release_date
-#         })
-#     return records
+        list_to_jsonl_gz(self.transform_path, results)
 
 
 class GoogleAnalyticsTelescope(SnapshotTelescope):
@@ -289,9 +86,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, catchup=catchup, airflow_vars=airflow_vars)
 
         self.add_setup_task_chain([self.check_dependencies])
-        self.add_task_chain([self.download,
-                             self.upload_downloaded,
-                             self.transform,
+        self.add_task_chain([self.download_transform,
                              self.upload_transformed,
                              self.bq_load,
                              self.cleanup])
@@ -315,29 +110,212 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         releases = [GoogleAnalyticsRelease(self.dag_id, start_date, end_date)]
         return releases
 
-    def download(self, releases: List[GoogleAnalyticsRelease], **kwargs):
+    def download_transform(self, releases: List[GoogleAnalyticsRelease], **kwargs):
         """ Task to download the GRID releases for a given month.
         :param releases: a list of GRID releases.
         :return: None.
         """
         # Download each release
         for release in releases:
-            release.download()
+            release.download_transform()
 
-    def upload_downloaded(self, releases: List[GoogleAnalyticsRelease], **kwargs):
-        """ Task to upload the downloaded GRID releases for a given month.
-        :param releases: a list of GRID releases.
-        :return: None.
-        """
-        # Upload each downloaded release
-        for release in releases:
-            upload_files_from_list(release.download_files, release.download_bucket)
 
-    def transform(self, releases: List[GoogleAnalyticsRelease], **kwargs):
-        """ Task to transform the GRID releases for a given month.
-        :param releases: a list of GRID releases.
-        :return: None.
-        """
-        # Transform each release
-        for release in releases:
-            release.transform()
+def initialize_analyticsreporting() -> Resource:
+    """ Initializes an Analytics Reporting API V4 service object.
+
+  :return: An authorized Analytics Reporting API V4 service object.
+  """
+    oaebu_account_conn = BaseHook.get_connection(AirflowConns.OAEBU_SERVICE_ACCOUNT)
+
+    scopes = ['https://www.googleapis.com/auth/analytics.readonly']
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(oaebu_account_conn.extra_dejson, scopes=scopes)
+
+    # Build the service object.
+    service = build('analyticsreporting', 'v4', credentials=creds)
+
+    return service
+
+
+def list_all_books(service: Resource, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Tuple[list, list]:
+    # Get all page paths for books
+    body = {
+        'reportRequests': [{
+            'viewId': VIEW_ID,
+            'dateRanges': [{
+                'startDate': start_date.strftime("%Y-%m-%d"),
+                'endDate': end_date.strftime("%Y-%m-%d"),
+            }],
+            "metrics": [{'expression': 'ga:avgTimeOnPage'}],
+            "dimensions": [{'name': 'ga:pagepath'}, {'name': 'ga:pageTitle'}],
+            "dimensionFilterClauses": [{
+                "filters": [{
+                    "dimensionName": "ga:pagepath",
+                    "operator": "BEGINS_WITH",
+                    "expressions": ["/collections/open-access/products/"]
+                }]
+            }]
+        }]
+    }
+    reports = service.reports().batchGet(body=body).execute()
+    book_entries = reports['reports'][0]['data'].get('rows')
+    pagepaths = [path['dimensions'][0] for path in book_entries]
+
+    return book_entries, pagepaths
+
+
+def create_book_result_dicts(book_entries: list, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Dict[
+    dict]:
+    book_results = {}
+    for entry in book_entries:
+        pagepath = entry['dimensions'][0]
+        pagetitle = entry['dimensions'][1]
+        average_time = float(entry['metrics'][0]['values'][0])
+        book_result = {'url': pagepath,
+                       'title': pagetitle,
+                       'start_date': start_date.strftime("%Y-%m-%d"),
+                       'end_date': end_date.strftime("%Y-%m-%d"),
+                       'average_time': average_time,
+                       'unique_views': {'country': {},
+                                        'referrer': {},
+                                        'social_network': {}},
+                       'sessions': {'country': {},
+                                    'source': {}}
+                       }
+        book_results[pagepath] = book_result
+
+    return book_results
+
+
+def get_dimension_data(service: Resource, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, metrics: list,
+                       dimension: dict, pagepaths: list) -> list:
+    body = {
+        'reportRequests': [{
+            'viewId': VIEW_ID,
+            'dateRanges': [{
+                'startDate': start_date.strftime("%Y-%m-%d"),
+                'endDate': end_date.strftime("%Y-%m-%d"),
+            }],
+            "metrics": metrics,
+            "dimensions": [{'name': 'ga:pagePath'}, dimension],
+            "dimensionFilterClauses": [{
+                "filters": [
+                    {
+                        'dimensionName': "ga:pagePath",
+                        "operator": "IN_LIST",
+                        "expressions": pagepaths
+                    }
+                ]
+            }],
+            "orderBys": [{"fieldName": "ga:pagepath"}]
+        }]
+    }
+    reports = service.reports().batchGet(body=body).execute()
+    dimension_data = reports['reports'][0]['data'].get('rows')
+    return dimension_data
+
+
+def add_to_book_result_dict(book_results: dict, dimension: dict, pagepath: str, unique_views: dict, sessions: dict):
+    mapping = {'ga:country': 'country',
+               'ga:fullReferrer': 'referrer',
+               'ga:socialNetwork': 'social_network',
+               'ga:source': 'source'}
+    column_name = mapping[dimension['name']]
+    if column_name in ['country', 'referrer', 'social_network']:
+        book_results[pagepath]['unique_views'][column_name] = unique_views
+    if column_name in ['country', 'source']:
+        book_results[pagepath]['sessions'][column_name] = sessions
+
+
+def merge_pagepaths_per_book(book_results: dict, pagepaths: list):
+    unique_pagepaths = set([path.split('?')[0] for path in pagepaths])
+    unique_book_results = {}
+    paths_per_book = {}
+    for path in book_results:
+        unique_path = path.split('?')[0]
+        if unique_path in unique_pagepaths:
+            try:
+                # merge average time, sum values and divide to get average when known how many pagepaths for 1 book
+                paths_per_book[unique_path] += 1
+                unique_book_results[unique_path]['average_time'] += book_results[path]['average_time']
+
+                # merge unique views, sum values
+                for dimension in unique_book_results[unique_path]['unique_views']:
+                    current_views = unique_book_results[unique_path]['unique_views'][dimension]
+                    added_views = book_results[path]['unique_views'][dimension]
+                    merged_views = {k: current_views.get(k, 0) + added_views.get(k, 0) for k in
+                                    set(current_views) | set(added_views)}
+
+                    unique_book_results[unique_path]['unique_views'][dimension] = merged_views
+
+                # merge sessions, sum values
+                for dimension in unique_book_results[unique_path]['sessions']:
+                    current_sessions = unique_book_results[unique_path]['sessions'][dimension]
+                    added_sessions = book_results[path]['sessions'][dimension]
+                    merged_sessions = {k: current_sessions.get(k, 0) + added_sessions.get(k, 0) for k in
+                                       set(current_sessions) | set(added_sessions)}
+
+                    unique_book_results[unique_path]['sessions'][dimension] = merged_sessions
+
+            except KeyError:
+                paths_per_book[unique_path] = 1
+                unique_book_results[unique_path] = copy.deepcopy(book_results[path])
+
+    # divide summed up average time by number of paths per book
+    for unique_path in unique_book_results:
+        unique_book_results[unique_path] = {k: v / paths_per_book[unique_path] if k == 'average_time' else v for k, v in
+                                            unique_book_results[unique_path].items()}
+    return unique_book_results
+
+
+def get_reports(service: Resource, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> list:
+    """ Queries the Analytics Reporting API V4.
+
+  :param service: An authorized Analytics Reporting API V4 service object.
+  :return: The Analytics Reporting API V4 response.
+  """
+
+    book_entries, pagepaths = list_all_books(service, start_date, end_date)
+
+    book_results = create_book_result_dicts(book_entries, start_date, end_date)
+
+    metric_names = ['uniquePageviews', 'sessions']
+    metrics = [{'expression': f'ga:{metric}'} for metric in metric_names]
+
+    # loop through dimensions
+    dimension_names = ['country', 'fullReferrer', 'socialNetwork', 'source']
+    dimensions = [{'name': f'ga:{dimension}'} for dimension in dimension_names]
+
+    for dimension in dimensions:
+        dimension_data = get_dimension_data(service, start_date, end_date, metrics, dimension, pagepaths)
+
+        prev_pagepath = None
+        unique_views = {}
+        sessions = {}
+        for entry in dimension_data:
+            pagepath = entry['dimensions'][0]
+            dimension_of_interest = entry['dimensions'][1]  # e.g. 'Australia' for 'country' dimension
+
+            if prev_pagepath and pagepath != prev_pagepath:
+                add_to_book_result_dict(book_results, dimension, prev_pagepath, unique_views, sessions)
+
+                unique_views = {}
+                sessions = {}
+
+            # add values if they are not 0
+            views_metric = int(entry['metrics'][0]['values'][0])
+            sessions_metric = int(entry['metrics'][0]['values'][1])
+            if views_metric > 0:
+                unique_views[dimension_of_interest] = views_metric
+            if sessions_metric > 0:
+                sessions[dimension_of_interest] = sessions_metric
+
+            prev_pagepath = pagepath
+        else:
+            add_to_book_result_dict(book_results, dimension, prev_pagepath, unique_views, sessions)
+
+    # merge results of single book with different pagepaths (e.g. fbclid parameter)
+    book_results = merge_pagepaths_per_book(book_results, pagepaths)
+
+    # convert dict to list of results
+    book_results = list(book_results.values())
+    return book_results
