@@ -15,7 +15,7 @@
 # Author: James Diprose
 
 from __future__ import annotations
-
+import socket
 import datetime
 import os
 import unittest
@@ -340,6 +340,11 @@ class TestSftpServer(unittest.TestCase):
     def test_server(self):
         """ Test that the SFTP server can be connected to """
 
+        def check_port_in_use():
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                return s.connect_ex((self.host, self.port)) == 0
+
+        print(f'Port {self.port} in use: {check_port_in_use()}')
         server = SftpServer(host=self.host, port=self.port)
         with server.create() as root_dir:
             # Connect to SFTP server and disable host key checking
