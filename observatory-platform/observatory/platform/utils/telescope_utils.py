@@ -52,15 +52,11 @@ def make_sftp_connection() -> pysftp.Connection:
 
     :return: SFTP connection
     """
-    sftp_service_conn = BaseHook.get_connection(AirflowConns.SFTP_SERVICE)
-
-    # get host, username and password from connection
-    host = sftp_service_conn.host
-    username = sftp_service_conn.login
-    password = sftp_service_conn.password
+    conn = BaseHook.get_connection(AirflowConns.SFTP_SERVICE)
+    host = conn.host
 
     # Add public host key
-    public_key = sftp_service_conn.extra_dejson.get('host_key', None)
+    public_key = conn.extra_dejson.get('host_key', None)
     if public_key is not None:
         key = paramiko.RSAKey(data=b64decode(public_key))
         cnopts = pysftp.CnOpts()
@@ -70,7 +66,7 @@ def make_sftp_connection() -> pysftp.Connection:
         cnopts.hostkeys = None
 
     # set up connection
-    return pysftp.Connection(host, username=username, password=password, cnopts=cnopts)
+    return pysftp.Connection(host, port=conn.port, username=conn.login, password=conn.password, cnopts=cnopts)
 
 
 def make_observatory_api() -> ObservatoryApi:
@@ -80,20 +76,20 @@ def make_observatory_api() -> ObservatoryApi:
     """
 
     # Get connection
-    api_conn = BaseHook.get_connection(AirflowConns.OBSERVATORY_API)
+    conn = BaseHook.get_connection(AirflowConns.OBSERVATORY_API)
 
     # Assert connection has required fields
-    assert api_conn.conn_type != '' and api_conn.conn_type is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} conn_type must not be None"
-    assert api_conn.host != '' and api_conn.host is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} host must not be None"
-    assert api_conn.password != '' and api_conn.password is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} password must not be None"
+    assert conn.conn_type != '' and conn.conn_type is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} conn_type must not be None"
+    assert conn.host != '' and conn.host is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} host must not be None"
+    assert conn.password != '' and conn.password is not None, f"Airflow Connection {AirflowConns.OBSERVATORY_API} password must not be None"
 
     # Make host
-    host = f'{str(api_conn.conn_type).replace("_", "-").lower()}://{api_conn.host}'
-    if api_conn.port:
-        host += f':{api_conn.port}'
+    host = f'{str(conn.conn_type).replace("_", "-").lower()}://{conn.host}'
+    if conn.port:
+        host += f':{conn.port}'
 
     # Return ObservatoryApi
-    config = Configuration(host=host, api_key={'api_key': api_conn.password})
+    config = Configuration(host=host, api_key={'api_key': conn.password})
     api_client = ApiClient(config)
     return ObservatoryApi(api_client=api_client)
 
