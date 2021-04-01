@@ -53,10 +53,11 @@ class TestTelescopeUtils(unittest.TestCase):
         self.assertEqual(1, len(call_args[0]))
         self.assertEqual(host, call_args[0][0])
 
-        self.assertEqual(3, len(call_args[1]))
+        self.assertEqual(4, len(call_args[1]))
         self.assertEqual(username, call_args[1]['username'])
         self.assertEqual(password, call_args[1]['password'])
         self.assertIsInstance(call_args[1]['cnopts'], pysftp.CnOpts)
+        self.assertIsNone(call_args[1]['port'])
 
     def test_make_dag_id(self):
         """ Test make_dag_id """
