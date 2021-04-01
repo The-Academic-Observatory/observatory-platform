@@ -36,7 +36,7 @@
     "description": "Unique views for several different dimensions. Unique views is the number of sessions during which the specified page was viewed at least once. A unique pageview is counted for each page URL + page title combination.",
     "fields": [
       {
-        "mode": "NULLABLE",
+        "mode": "REPEATED",
         "name": "country",
         "type": "RECORD",
         "description": "Unique views per users' country, derived from their IP addresses or Geographical IDs.",
@@ -56,7 +56,7 @@
         ]
       },
       {
-        "mode": "NULLABLE",
+        "mode": "REPEATED",
         "name": "referrer",
         "type": "RECORD",
         "description": "Unique views per referrer, the full referring URL including the hostname and path.",
@@ -76,7 +76,7 @@
         ]
       },
       {
-        "mode": "NULLABLE",
+        "mode": "REPEATED",
         "name": "social_network",
         "type": "RECORD",
         "description": "Unique views per social network. This is related to the referring social network for traffic sources; e.g., Google+, Blogger.",
@@ -97,14 +97,14 @@
       }
     ]
   },
-    {
+  {
     "mode": "NULLABLE",
     "name": "sessions",
     "type": "RECORD",
     "description": "Total number of sessions for several different dimensions.",
     "fields": [
       {
-        "mode": "NULLABLE",
+        "mode": "REPEATED",
         "name": "country",
         "type": "RECORD",
         "description": "Unique views per users' country, derived from their IP addresses or Geographical IDs.",
@@ -124,7 +124,7 @@
         ]
       },
       {
-        "mode": "NULLABLE",
+        "mode": "REPEATED",
         "name": "source",
         "type": "RECORD",
         "description": "Sessions per source of referrals. For manual campaign tracking, it is the value of the utm_source campaign tracking parameter. For AdWords autotagging, it is google. If you use neither, it is the domain of the source (e.g., document.referrer) referring the users. It may also contain a port address. If users arrived without a referrer, its value is (direct)..",
