@@ -14,200 +14,214 @@
 
 # Author: Aniek Roelofs
 
-import logging
 import os
-import unittest
-from types import SimpleNamespace
-from unittest.mock import patch
+import shutil
 
+import observatory.api.server.orm as orm
 import pendulum
-import vcr
-from click.testing import CliRunner
-from observatory.dags.telescopes.google_books import GoogleBooksTelescope, GoogleBooksRelease
-from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
+from airflow.models.connection import Connection
+from observatory.api.client.identifiers import TelescopeTypes
+from observatory.api.client.model.organisation import Organisation
+from observatory.dags.telescopes.google_books import GoogleBooksRelease, GoogleBooksTelescope
+from observatory.platform.utils.airflow_utils import AirflowConns
+from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.telescope_utils import SftpFolders
+from observatory.platform.utils.template_utils import blob_name
+from observatory.platform.utils.test_utils import (ObservatoryEnvironment, ObservatoryTestCase, SftpServer,
+                                                   module_file_path, test_fixtures_path)
 
 from tests.observatory.test_utils import test_fixtures_path
 
 
-def mock_airflow_variable(arg):
-    values = {
-        'project_id': 'project',
-        'download_bucket_name': 'download-bucket',
-        'transform_bucket_name': 'transform-bucket',
-        'data_path': 'data',
-        'data_location': 'US'
-    }
-    return values[arg]
+class TestOnix(ObservatoryTestCase):
+    """ Tests for the ONIX telescope """
 
-
-def mocked_requests_get(*args, **kwargs):
-    class MockResponse:
-        def __init__(self, content, status_code):
-            self.content = content
-            self.status_code = status_code
-
-    if args[0] == 'test_status_code':
-        return MockResponse(b'no content', 404)
-    elif args[0] == 'test_empty_csv':
-        return MockResponse(b'"eprintid","rev_number","eprint_status","userid","importid","source"', 200)
-
-
-@patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-class TestGoogleBooks(unittest.TestCase):
-    """ Tests for the functions used by the GoogleBooks telescope """
-
-    def __init__(self, *args, **kwargs, ):
+    def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
-
         :param args: arguments.
         :param kwargs: keyword arguments.
         """
 
-        super(TestGoogleBooks, self).__init__(*args, **kwargs)
+        super(TestOnix, self).__init__(*args, **kwargs)
+        self.host = "localhost"
+        self.api_port = 5000
+        self.sftp_port = 3373
+        self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
+        self.data_location = os.getenv('TESTS_DATA_LOCATION')
+        self.organisation_name = 'anu-press'
+        self.organisation_folder = 'anu-press'
+        self.transform_hash = 'fef27961'
 
-        # Paths
-        self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
-        self.download_path = os.path.join(self.vcr_cassettes_path, 'google_books_2008-02-01.yaml')
+    def test_dag_structure(self):
+        """ Test that the Google Books DAG has the correct structure.
+        :return: None
+        """
 
-        # Telescope instance
-        self.google_books = GoogleBooksTelescope()
+        organisation = Organisation(name=self.organisation_name)
+        dag = GoogleBooksTelescope(organisation).make_dag()
+        self.assert_dag_structure({
+            'check_dependencies': ['list_release_info'],
+            'list_release_info': ['move_files_to_in_progress'],
+            'move_files_to_in_progress': ['download'],
+            'download': ['upload_downloaded'],
+            'upload_downloaded': ['transform'],
+            'transform': ['upload_transformed'],
+            'upload_transformed': ['bq_load'],
+            'bq_load': ['move_files_to_finished'],
+            'move_files_to_finished': ['cleanup'],
+            'cleanup': []
+        }, dag)
 
-        # Dag run info
-        self.start_date = pendulum.parse('2021-01-01')
-        self.end_date = pendulum.parse('2021-02-01')
-        self.download_hash = 'ed054db8c4221b7e8055507c4718b7f2'
-        self.transform_crc = '12444a7d'
+    def test_dag_load(self):
+        """ Test that the Google Books DAG can be loaded from a DAG bag.
+        :return: None
+        """
 
-        # Create release instance that is used to test download/transform
-        with patch('observatory.platform.utils.template_utils.AirflowVariable.get') as mock_variable_get:
-            mock_variable_get.side_effect = mock_airflow_variable
-            self.release = GoogleBooksRelease(self.google_books.dag_id, self.start_date, self.end_date)
+        env = ObservatoryEnvironment(self.project_id, self.data_location,
+                                     api_host=self.host, api_port=self.api_port)
+        with env.create():
+            # Add Observatory API connection
+            conn = Connection(conn_id=AirflowConns.OBSERVATORY_API,
+                              uri=f'http://:password@{self.host}:{self.api_port}')
+            env.add_connection(conn)
 
-        # Turn logging to warning because vcr prints too much at info level
-        logging.basicConfig()
-        logging.getLogger().setLevel(logging.WARNING)
+            # Add a Google Books telescope
+            dt = pendulum.utcnow()
+            telescope_type = orm.TelescopeType(name='Google Books Telescope',
+                                               type_id=TelescopeTypes.google_books,
+                                               created=dt,
+                                               modified=dt)
+            env.api_session.add(telescope_type)
+            organisation = orm.Organisation(name='anu-press',
+                                            created=dt,
+                                            modified=dt)
+            env.api_session.add(organisation)
+            telescope = orm.Telescope(name='anu-press Google Books Telescope',
+                                      telescope_type=telescope_type,
+                                      organisation=organisation,
+                                      modified=dt,
+                                      created=dt)
+            env.api_session.add(telescope)
+            env.api_session.commit()
 
-    def test_make_release(self, mock_variable_get):
-        """ Check that make_release returns a list with GoogleBooksRelease instances.
+            dag_file = os.path.join(module_file_path('observatory.dags.dags'), 'google_books.py')
+            self.assert_dag_load('google_books_anu-press', dag_file)
 
-        :param mock_variable_get: Mock result of airflow's Variable.get() function
+    def test_telescope(self):
+        """ Test the Google Books telescope end to end.
         :return: None.
         """
-        mock_variable_get.side_effect = mock_airflow_variable
 
-        schedule_interval = '0 0 1 * *'
-        execution_date = self.start_date
-        releases = self.google_books.make_release(dag=SimpleNamespace(normalized_schedule_interval=schedule_interval),
-                                                   dag_run=SimpleNamespace(execution_date=execution_date))
-        self.assertEqual(1, len(releases))
-        self.assertIsInstance(releases, list)
-        self.assertIsInstance(releases[0], GoogleBooksRelease)
+        # Setup Observatory environment
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        sftp_server = SftpServer(host=self.host, port=self.sftp_port)
+        dataset_id = env.add_dataset()
 
-    def test_download_release(self, mock_variable_get):
-        """ Download release to check it has the expected md5 sum and test unsuccessful mocked responses.
+        # Create the Observatory environment and run tests
+        with env.create():
+            with sftp_server.create() as sftp_root:
+                # Setup Telescope
+                execution_date = pendulum.datetime(year=2021, month=3, day=31)
+                org = Organisation(name=self.organisation_name,
+                                   gcp_project_id=self.project_id,
+                                   gcp_download_bucket=env.download_bucket,
+                                   gcp_transform_bucket=env.transform_bucket)
+                telescope = GoogleBooksTelescope(org, dataset_id=dataset_id)
+                dag = telescope.make_dag()
 
-        :param mock_variable_get: Mock result of airflow's Variable.get() function
-        :return:
-        """
-        mock_variable_get.side_effect = mock_airflow_variable
+                # Add SFTP connection
+                conn = Connection(conn_id=AirflowConns.SFTP_SERVICE,
+                                  uri=f'ssh://:password@{self.host}:{self.sftp_port}')
+                env.add_connection(conn)
 
-        with CliRunner().isolated_filesystem():
-            with vcr.use_cassette(self.download_path):
-                success = self.release.download()
+                # Test that all dependencies are specified: no error should be thrown
+                env.run_task(dag, telescope.check_dependencies.__name__, execution_date)
 
-                # Check that download is successful
-                self.assertTrue(success)
+                # Add file to SFTP server
+                sftp_file_name = 'GoogleSalesTransactionReport_2020_02.csv'
+                test_file = os.path.join(test_fixtures_path('telescopes', 'google_books'), sftp_file_name)
+                local_sftp_folders = SftpFolders(telescope.dag_id, self.organisation_name, sftp_root)
+                os.makedirs(local_sftp_folders.upload, exist_ok=True)
+                upload_file = os.path.join(local_sftp_folders.upload, sftp_file_name)
+                shutil.copy(test_file, upload_file)
 
-                # Check that file has expected hash
-                self.assertEqual(1, len(self.release.download_files))
-                self.assertEqual(self.release.download_path, self.release.download_files[0])
-                self.assertTrue(os.path.exists(self.release.download_path))
-                self.assertEqual(self.download_hash, _hash_file(self.release.download_path, algorithm='md5'))
+                # Get release info from SFTP server and check that the correct release info is returned via Xcom
+                ti = env.run_task(dag, telescope.list_release_info.__name__, execution_date)
+                release_info = ti.xcom_pull(key=GoogleBooksTelescope.RELEASE_INFO,
+                                            task_ids=telescope.list_release_info.__name__,
+                                            include_prior_dates=False)
 
-            with patch('observatory.platform.utils.url_utils.requests.Session.get') as mock_requests_get:
-                # mock response status code is not 200
-                mock_requests_get.side_effect = mocked_requests_get
-                self.release.eprint_metadata_url = 'test_status_code'
-                success = self.release.download()
-                self.assertFalse(success)
+                expected_release_date = pendulum.strptime(sftp_file_name[-11:].strip('.csv'), '%Y_%m')
+                expected_release_file = os.path.join(telescope.sftp_folders.in_progress, sftp_file_name)
+                expected_release_info = {expected_release_date: [expected_release_file]}
+                self.assertEqual(expected_release_info, release_info)
 
-                # mock response content is empty CSV file (only headers)
-                self.release.eprint_metadata_url = 'test_empty_csv'
-                success = self.release.download()
-                self.assertFalse(success)
+                # use release info for other tasks
+                releases = []
+                for release_date, sftp_files in release_info.items():
+                    releases.append(GoogleBooksRelease(telescope.dag_id, release_date, sftp_files, org))
 
-    def test_transform_release(self, mock_variable_get):
-        """ Test that the release is transformed as expected.
+                # Test move file to in progress
+                env.run_task(dag, telescope.move_files_to_in_progress.__name__, execution_date)
+                for release in releases:
+                    for file in release.sftp_files:
+                        file_name = os.path.basename(file)
+                        upload_file = os.path.join(local_sftp_folders.upload, file_name)
+                        self.assertFalse(os.path.isfile(upload_file))
 
-        :param mock_variable_get: Mock result of airflow's Variable.get() function
-        :return: None.
-        """
-        mock_variable_get.side_effect = mock_airflow_variable
+                        in_progress_file = os.path.join(local_sftp_folders.in_progress, file_name)
+                        self.assertTrue(os.path.isfile(in_progress_file))
 
-        with CliRunner().isolated_filesystem():
-            with vcr.use_cassette(self.download_path):
-                self.release.download()
+                # Test download
+                env.run_task(dag, telescope.download.__name__, execution_date)
+                for release in releases:
+                    for file in release.download_files:
+                        expected_file_hash = _hash_file(test_file, 'md5')
+                        self.assert_file_integrity(file, expected_file_hash, 'md5')
 
-            # use three eprintids for transform test, for first one the country downloads is empty
-            with open(self.release.download_path, 'r') as f_in:
-                lines = f_in.readlines()
-            with open(self.release.download_path, 'w') as f_out:
-                f_out.writelines(lines[0:1] + lines[23:36] + lines[36:61] + lines[61:88])
+                # Test upload downloaded
+                env.run_task(dag, telescope.upload_downloaded.__name__, execution_date)
+                for release in releases:
+                    for file in release.download_files:
+                        self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
 
-            with vcr.use_cassette(self.country_report_path):
-                self.release.transform()
+                # Test that file transformed
+                env.run_task(dag, telescope.transform.__name__, execution_date)
+                for release in releases:
+                    self.assertEqual(1, len(release.transform_files))
+                    for file in release.transform_files:
+                        transformed_file_hash = self.transform_hash
+                        self.assert_file_integrity(file, transformed_file_hash, 'gzip_crc')
 
-            # Check that file has expected crc
-            self.assertEqual(1, len(self.release.transform_files))
-            self.assertEqual(self.release.transform_path, self.release.transform_files[0])
-            self.assertTrue(os.path.exists(self.release.transform_path))
-            self.assertEqual(self.transform_crc, gzip_file_crc(self.release.transform_path))
+                # Test that transformed file uploaded
+                env.run_task(dag, telescope.upload_transformed.__name__, execution_date)
+                for release in releases:
+                    for file in release.transform_files:
+                        self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
-#
-# import logging
-# import unittest
-# from unittest.mock import patch
-#
-# import pendulum
-#
-# from click.testing import CliRunner
-#
-# from observatory.dags.telescopes.google_books import download_reports, GoogleBooksRelease, GoogleBooksTelescope
-#
-#
-# class TestGoogleBooks(unittest.TestCase):
-#     """ Tests for the functions used by the google books telescope """
-#
-#     def __init__(self, *args, **kwargs):
-#         """ Constructor which sets up variables used by tests.
-#         :param args: arguments.
-#         :param kwargs: keyword arguments.
-#         """
-#
-#         super(TestGoogleBooks, self).__init__(*args, **kwargs)
-#
-#         # self.start_date = pendulum.parse('2020-01-02 11:48:23.795099+00:00')
-#         self.start_date = pendulum.parse('2020-01-02')
-#         self.end_date = pendulum.parse('2020-02-02')
-#         self.account_number = '123456789'
-#         # Turn logging to warning because vcr prints too much at info level
-#         logging.basicConfig()
-#
-#     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
-#     @patch('observatory.platform.utils.config_utils.airflow.models.Variable.get')
-#     # @patch('observatory.dags.telescopes.google_books.GoogleBooksTelescope.DOWNLOAD_MODE', 'sequential')
-#     def test_download_reports(self, mock_variable_get, mock_connection_get):
-#         with CliRunner().isolated_filesystem():
-#             # set telescope data path variable
-#             mock_variable_get.return_value = 'data'
-#             mock_connection_get.side_effect = side_effect
-#             release = GoogleBooksRelease(self.start_date, self.end_date, self.account_number)
-#             download_reports(release)
-#
-#
-# def side_effect(arg):
-#     values = {
-#         'oaebu_service_account': 'unit_test@unit.test',
-#         'oaebu_password': 'passwd'
-#     }
-#     return values[arg]
+                # Test that data loaded into BigQuery
+                # TODO update schema path to drop organisation name from table id
+                # env.run_task(dag, telescope.bq_load.__name__, execution_date)
+                # for release in releases:
+                #     for file in release.transform_files:
+                #         table_id, _ = table_ids_from_path(file)
+                #         table_id = f'{self.project_id}.{telescope.dataset_id}.{table_id}{release_date.strftime("%Y%m%d")}'
+                #         expected_rows = 10
+                #         self.assert_table_integrity(table_id, expected_rows)
+                #
+                # # Test move files to finished
+                # env.run_task(dag, telescope.move_files_to_finished.__name__, execution_date)
+                # for release in releases:
+                #     for file in release.sftp_files:
+                #         file_name = os.path.basename(file)
+                #         in_progress_file = os.path.join(local_sftp_folders.in_progress, file_name)
+                #         self.assertFalse(os.path.isfile(in_progress_file))
+                #
+                #         finished_file = os.path.join(local_sftp_folders.finished, file_name)
+                #         self.assertTrue(os.path.isfile(finished_file))
+                #
+                # # Test cleanup
+                # download_folder, extract_folder, transform_folder = release.download_folder, release.extract_folder, \
+                #                                                     release.transform_folder
+                # env.run_task(dag, telescope.cleanup.__name__, execution_date)
+                # self.assert_cleanup(download_folder, extract_folder, transform_folder)
