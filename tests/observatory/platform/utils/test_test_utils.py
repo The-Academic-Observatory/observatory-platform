@@ -198,14 +198,14 @@ class TestObservatoryTestCase(unittest.TestCase):
                 f.write(DAG_FILE_CONTENT)
 
             # DAG loaded successfully: should be no errors
-            test_case.assert_dag_load(DAG_ID, dag_folder=temp_dir)
+            test_case.assert_dag_load(DAG_ID, file_path)
 
             # Remove DAG from temp_dir
             os.unlink(file_path)
 
             # DAG not loaded
             with self.assertRaises(AssertionError):
-                test_case.assert_dag_load(DAG_ID, dag_folder=temp_dir)
+                test_case.assert_dag_load(DAG_ID, file_path)
 
     def test_assert_blob_integrity(self):
         """ Test assert_blob_integrity """

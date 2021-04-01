@@ -61,6 +61,7 @@
 import contextlib
 import logging
 import os
+import shutil
 import socket
 import threading
 import time
@@ -375,19 +376,22 @@ class ObservatoryTestCase(unittest.TestCase):
             task = dag.get_task(task_id)
             self.assertEqual(set(downstream_list), task.downstream_task_ids)
 
-    def assert_dag_load(self, dag_id: str, dag_folder: str = module_file_path('observatory.dags.dags')):
+    def assert_dag_load(self, dag_id: str, dag_file: str):
         """ Assert that the given DAG loads from a DagBag.
 
         :param dag_id: the DAG id.
-        :param dag_folder: the folder to load the DAG from.
+        :param dag_file: the path to the DAG file.
         :return: None.
         """
 
-        dag_bag = DagBag(dag_folder=dag_folder)
-        dag = dag_bag.get_dag(dag_id=dag_id)
-        self.assertEqual({}, dag_bag.import_errors)
-        self.assertIsNotNone(dag)
-        self.assertGreaterEqual(len(dag.tasks), 1)
+        with CliRunner().isolated_filesystem() as dag_folder:
+            if os.path.exists(dag_file):
+                shutil.copy(dag_file, os.path.join(dag_folder, os.path.basename(dag_file)))
+            dag_bag = DagBag(dag_folder=dag_folder)
+            dag = dag_bag.get_dag(dag_id=dag_id)
+            self.assertEqual({}, dag_bag.import_errors)
+            self.assertIsNotNone(dag)
+            self.assertGreaterEqual(len(dag.tasks), 1)
 
     def assert_blob_integrity(self, bucket_id: str, blob_name: str, local_file_path: str):
         """ Assert whether the blob uploaded and that it has the expected hash.
@@ -516,6 +520,7 @@ class SftpServer:
         self.root_dir = None
         self.private_key_path = None
         self.server_thread = None
+        self.server_socket = None
 
     def _generate_key(self):
         """ Generate a private key.
@@ -543,6 +548,7 @@ class SftpServer:
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
         server_socket.bind((self.host, self.port))
         server_socket.listen(self.backlog)
+        self.server_socket = server_socket
 
         while not self.is_shutdown:
             conn, addr = server_socket.accept()
@@ -586,4 +592,5 @@ class SftpServer:
             finally:
                 # Stop server and wait for server thread to join
                 self.is_shutdown = True
+                self.server_socket.close()
                 self.server_thread.join()
