@@ -21,10 +21,12 @@ import datetime
 import logging
 import os
 from datetime import datetime
+from functools import partial
 from typing import Dict, List, Tuple
 
 import pendulum
 from airflow.hooks.base_hook import BaseHook
+from airflow.operators.python_operator import ShortCircuitOperator
 from croniter import croniter
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
@@ -56,23 +58,26 @@ class GoogleAnalyticsRelease(SnapshotRelease):
     def transform_path(self) -> str:
         return os.path.join(self.transform_folder, f'{self.dag_id}.jsonl.gz')
 
-    def download_transform(self):
+    def download_transform(self) -> bool:
         """ Downloads an individual Google Analytics release.
         :return:
         """
 
         service = initialize_analyticsreporting()
         results = get_reports(service, self.start_date, self.end_date)
-
-        list_to_jsonl_gz(self.transform_path, results)
+        if results:
+            list_to_jsonl_gz(self.transform_path, results)
+            return True
+        else:
+            return False
 
 
 class GoogleAnalyticsTelescope(SnapshotTelescope):
     """ Google Analytics Telescope."""
 
-    def __init__(self, dag_id: str = 'google_analytics', start_date: datetime = datetime(2015, 9, 1),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'google', catchup: bool = True,
-                 airflow_vars=None):
+    def __init__(self, dag_id: str = 'google_analytics', start_date: datetime = datetime(2021, 1, 1),
+                 schedule_interval: str = '@monthly', dataset_id: str = 'google', catchup: bool = True,
+                 airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleAnalyticsTelescope instance.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -83,11 +88,19 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, catchup=catchup, airflow_vars=airflow_vars)
+
+        if airflow_conns is None:
+            airflow_conns = [AirflowConns.OAEBU_SERVICE_ACCOUNT]
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id, catchup=catchup, airflow_vars=airflow_vars,
+                         airflow_conns=airflow_conns)
 
         self.add_setup_task_chain([self.check_dependencies])
-        self.add_task_chain([self.download_transform,
-                             self.upload_transformed,
+        # use shortcircuit operator
+        self.add_task(partial(ShortCircuitOperator, task_id=self.download_transform.__name__,
+                              python_callable=partial(self.task_callable, self.download_transform),
+                              queue=self.queue, default_args=self.default_args,
+                              provide_context=True))
+        self.add_task_chain([self.upload_transformed,
                              self.bq_load,
                              self.cleanup])
 
@@ -101,8 +114,8 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         :return: A list of grid release instances
         """
         # Get start and end date (release_date)
+        start_date = kwargs['dag_run'].execution_date
         cron_schedule = kwargs['dag'].normalized_schedule_interval
-        start_date = pendulum.instance(kwargs['execution_date'])
         cron_iter = croniter(cron_schedule, start_date)
         end_date = pendulum.instance(cron_iter.get_next(datetime))
 
@@ -111,13 +124,12 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         return releases
 
     def download_transform(self, releases: List[GoogleAnalyticsRelease], **kwargs):
-        """ Task to download the GRID releases for a given month.
-        :param releases: a list of GRID releases.
+        """ Task to download the google analytics release for a given month.
+        :param releases: a list with one google analyics release.
         :return: None.
         """
-        # Download each release
-        for release in releases:
-            release.download_transform()
+        success = releases[0].download_transform()
+        return success
 
 
 def initialize_analyticsreporting() -> Resource:
@@ -131,7 +143,7 @@ def initialize_analyticsreporting() -> Resource:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(oaebu_account_conn.extra_dejson, scopes=scopes)
 
     # Build the service object.
-    service = build('analyticsreporting', 'v4', credentials=creds)
+    service = build('analyticsreporting', 'v4', credentials=creds, cache_discovery=False)
 
     return service
 
@@ -141,6 +153,7 @@ def list_all_books(service: Resource, start_date: pendulum.Pendulum, end_date: p
     body = {
         'reportRequests': [{
             'viewId': VIEW_ID,
+            'pageSize': 10000,
             'dateRanges': [{
                 'startDate': start_date.strftime("%Y-%m-%d"),
                 'endDate': end_date.strftime("%Y-%m-%d"),
@@ -157,10 +170,22 @@ def list_all_books(service: Resource, start_date: pendulum.Pendulum, end_date: p
         }]
     }
     reports = service.reports().batchGet(body=body).execute()
-    book_entries = reports['reports'][0]['data'].get('rows')
-    pagepaths = [path['dimensions'][0] for path in book_entries]
+    all_book_entries = reports['reports'][0]['data'].get('rows')
+    next_page_token = reports['reports'][0].get('nextPageToken')
 
-    return book_entries, pagepaths
+    while next_page_token:
+        body['reportRequests'][0]['pageToken'] = next_page_token
+        reports = service.reports().batchGet(body=body).execute()
+        book_entries = reports['reports'][0]['data'].get('rows')
+        next_page_token = reports['reports'][0].get('nextPageToken')
+        all_book_entries += book_entries
+
+    if all_book_entries:
+        pagepaths = [path['dimensions'][0] for path in all_book_entries]
+    else:
+        pagepaths = []
+
+    return all_book_entries, pagepaths
 
 
 def create_book_result_dicts(book_entries: list, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Dict[
@@ -191,6 +216,7 @@ def get_dimension_data(service: Resource, start_date: pendulum.Pendulum, end_dat
     body = {
         'reportRequests': [{
             'viewId': VIEW_ID,
+            'pageSize': 10000,
             'dateRanges': [{
                 'startDate': start_date.strftime("%Y-%m-%d"),
                 'endDate': end_date.strftime("%Y-%m-%d"),
@@ -210,8 +236,17 @@ def get_dimension_data(service: Resource, start_date: pendulum.Pendulum, end_dat
         }]
     }
     reports = service.reports().batchGet(body=body).execute()
-    dimension_data = reports['reports'][0]['data'].get('rows')
-    return dimension_data
+    all_dimension_data = reports['reports'][0]['data'].get('rows')
+    next_page_token = reports['reports'][0].get('nextPageToken')
+
+    while next_page_token:
+        body['reportRequests'][0]['pageToken'] = next_page_token
+        reports = service.reports().batchGet(body=body).execute()
+        dimension_data = reports['reports'][0]['data'].get('rows')
+        next_page_token = reports['reports'][0].get('nextPageToken')
+        all_dimension_data += dimension_data
+
+    return all_dimension_data
 
 
 def add_to_book_result_dict(book_results: dict, dimension: dict, pagepath: str, unique_views: dict, sessions: dict):
@@ -275,7 +310,8 @@ def get_reports(service: Resource, start_date: pendulum.Pendulum, end_date: pend
   """
 
     book_entries, pagepaths = list_all_books(service, start_date, end_date)
-
+    if not book_entries:
+        return []
     book_results = create_book_result_dicts(book_entries, start_date, end_date)
 
     metric_names = ['uniquePageviews', 'sessions']
