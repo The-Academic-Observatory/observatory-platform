@@ -23,13 +23,13 @@ from typing import List, Optional, Dict
 import pendulum
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from pendulum import Pendulum
-
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
-from observatory.platform.utils.template_utils import upload_files_from_list
 from observatory.platform.utils.telescope_utils import make_dag_id, make_sftp_connection
+from observatory.platform.utils.template_utils import upload_files_from_list
+from pendulum import Pendulum
+
 
 class OnixRelease(SnapshotRelease):
     RELEASE_INFO = 'releases'
@@ -58,8 +58,26 @@ class OnixRelease(SnapshotRelease):
         return sftp_home(self.organisation.name)
 
     @property
+    def sftp_in_progress_folder(self):
+        """ The organisation's SFTP in_progress folder.
+
+        :return: path to folder.
+        """
+
+        return os.path.join(self.sftp_home, 'in_progress')
+
+    @property
+    def sftp_finished_folder(self):
+        """ The organisation's SFTP finished folder.
+
+        :return: path to folder.
+        """
+
+        return os.path.join(self.sftp_home, 'finished')
+
+    @property
     def sftp_upload_file(self):
-        """ The organisation's SFTP upload folder.
+        """ The organisation's SFTP upload file.
 
         :return: path to folder.
         """
@@ -68,21 +86,21 @@ class OnixRelease(SnapshotRelease):
 
     @property
     def sftp_in_progress_file(self):
-        """ The organisation's SFTP in_progress folder.
+        """ The organisation's SFTP in_progress file.
 
         :return: path to folder.
         """
 
-        return os.path.join(self.sftp_home, 'in_progress', self.file_name)
+        return os.path.join(self.sftp_in_progress_folder, self.file_name)
 
     @property
     def sftp_finished_file(self):
-        """ The organisation's SFTP finished folder.
+        """ The organisation's SFTP finished file.
 
         :return: path to folder.
         """
 
-        return os.path.join(self.sftp_home, 'finished', self.file_name)
+        return os.path.join(self.sftp_finished_folder, self.file_name)
 
     @property
     def download_file(self) -> str:
@@ -93,6 +111,22 @@ class OnixRelease(SnapshotRelease):
 
         return os.path.join(self.download_folder, self.file_name)
 
+    @property
+    def download_bucket(self):
+        """ The download bucket name.
+
+        :return: the download bucket name.
+        """
+        return self.organisation.gcp_download_bucket
+
+    @property
+    def transform_bucket(self):
+        """ The transform bucket name.
+
+        :return: the transform bucket name.
+        """
+        return self.organisation.gcp_transform_bucket
+
     def move_files_to_in_progress(self):
         """ Move ONIX file to in-progress folder
 
@@ -100,6 +134,7 @@ class OnixRelease(SnapshotRelease):
         """
 
         with make_sftp_connection() as sftp:
+            sftp.makedirs(self.sftp_in_progress_folder)
             sftp.rename(self.sftp_upload_file, self.sftp_in_progress_file)
 
     def download(self):
@@ -118,6 +153,7 @@ class OnixRelease(SnapshotRelease):
         """
 
         with make_sftp_connection() as sftp:
+            sftp.makedirs(self.sftp_finished_folder)
             sftp.rename(self.sftp_in_progress_file, self.sftp_finished_file)
 
 
@@ -140,6 +176,7 @@ def list_release_info(sftp_upload_folder: str) -> List[Dict]:
 
     results = []
     sftp = make_sftp_connection()
+    sftp.makedirs(sftp_upload_folder)
     files = sftp.listdir(sftp_upload_folder)
     for file_name in files:
         if re.match(OnixRelease.DOWNLOAD_FILES_REGEX, file_name):
