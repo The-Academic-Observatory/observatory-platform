@@ -21,17 +21,19 @@ from datetime import datetime
 from typing import List
 
 from airflow.models.taskinstance import TaskInstance
+from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, initialize_sftp_connection, convert
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, convert, make_sftp_connection, SftpFolders, make_dag_id
 from observatory.platform.utils.template_utils import upload_files_from_list
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns, AirflowVariable as Variable
 import pendulum
 import re
 from collections import defaultdict
+from typing import Optional
 
 
 class GoogleBooksRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, sftp_files: List[str]):
+    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, sftp_files: List[str], organisation: Organisation):
         """ Construct a GoogleBooksRelease.
         :param dag_id:
         :param release_date: the release date.
@@ -39,14 +41,29 @@ class GoogleBooksRelease(SnapshotRelease):
         """
         self.dag_id = dag_id
         self.release_date = release_date
-        self.project_id = Variable.get(AirflowVars.PROJECT_ID)
-        self.data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        self.sftp_files = sftp_files
 
         download_files_regex = f"^{self.dag_id}_(sales|traffic)\.csv$"
         transform_files_regex = f"^{self.dag_id}_(sales|traffic)\.jsonl\.gz$"
         super().__init__(self.dag_id, release_date, download_files_regex=download_files_regex,
                          transform_files_regex=transform_files_regex)
+        self.organisation = organisation
+        self.project_id = Variable.get(AirflowVars.PROJECT_ID)
+        self.data_location = Variable.get(AirflowVars.DATA_LOCATION)
+        self.sftp_files = sftp_files
+
+    @property
+    def download_bucket(self):
+        """ The download bucket name.
+        :return: the download bucket name.
+        """
+        return self.organisation.gcp_download_bucket
+
+    @property
+    def transform_bucket(self):
+        """ The transform bucket name.
+        :return: the transform bucket name.
+        """
+        return self.organisation.gcp_transform_bucket
 
     def download_path(self, remote_path: str) -> str:
         """ Creates full download path
@@ -68,10 +85,9 @@ class GoogleBooksRelease(SnapshotRelease):
         """ Downloads Google Books reports.
         :return: the paths on the system of the downloaded files.
         """
-        sftp = initialize_sftp_connection()
-        for file in self.sftp_files:
-            sftp.get(file, localpath=self.download_path(file))
-        sftp.close()
+        with make_sftp_connection() as sftp:
+            for file in self.sftp_files:
+                sftp.get(file, localpath=self.download_path(file))
 
     def transform(self):
         """ Transforms sales and traffic report. For both reports it transforms the csv into a jsonl file and
@@ -102,22 +118,16 @@ class GoogleBooksRelease(SnapshotRelease):
                     results.append(transformed_row)
             list_to_jsonl_gz(self.transform_path(file), results)
 
-    def cleanup(self):
-        super().cleanup()
-
-        sftp = initialize_sftp_connection()
-        for file in self.sftp_files:
-            sftp.remove(file)
-        sftp.close()
-
 
 class GoogleBooksTelescope(SnapshotTelescope):
     """ The Google Books telescope."""
+    DAG_ID_PREFIX = 'google_books'
 
-    def __init__(self, dag_id: str = 'google_books', start_date: datetime = datetime(2015, 9, 1),
+    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None, start_date: datetime = datetime(2015, 9, 1),
                  schedule_interval: str = '@weekly', dataset_id: str = 'google', catchup: bool = False,
                  airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleBooksTelescope instance.
+        :param organisation: the Organisation the DAG will process.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
@@ -129,16 +139,25 @@ class GoogleBooksTelescope(SnapshotTelescope):
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         if airflow_conns is None:
             airflow_conns = [AirflowConns.SFTP_SERVICE]
+
+        if dag_id is None:
+            dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
+
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, catchup=catchup,
                          airflow_vars=airflow_vars, airflow_conns=airflow_conns)
-        publisher = 'anu-press'
-        self.sftp_folder = f'/upload/{publisher}/google_books'
+        self.organisation = organisation
+        self.sftp_folders = SftpFolders(dag_id, organisation.name)
         self.sftp_regex = r'^Google(SalesTransaction|BooksTraffic)Report_\d{4}_\d{2}.csv$'
 
-        self.add_setup_task_chain([self.check_dependencies, self.list_releases])
-        self.add_task_chain(
-            [self.download, self.upload_downloaded, self.transform, self.upload_transformed, self.bq_load,
-             self.cleanup])
+        self.add_setup_task_chain([self.check_dependencies, self.list_release_info])
+        self.add_task_chain([self.move_files_to_in_progress,
+                             self.download,
+                             self.upload_downloaded,
+                             self.transform,
+                             self.upload_transformed,
+                             self.bq_load,
+                             self.move_files_to_finished,
+                             self.cleanup])
 
     def make_release(self, **kwargs) -> List[GoogleBooksRelease]:
         """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
@@ -150,14 +169,14 @@ class GoogleBooksTelescope(SnapshotTelescope):
         :return: A list of google books release instances
         """
         ti: TaskInstance = kwargs['ti']
-        reports_info = ti.xcom_pull(key=GoogleBooksTelescope.RELEASE_INFO, task_ids=self.list_releases.__name__,
+        reports_info = ti.xcom_pull(key=GoogleBooksTelescope.RELEASE_INFO, task_ids=self.list_release_info.__name__,
                                     include_prior_dates=False)
         releases = []
         for release_date, sftp_files in reports_info.items():
-            releases.append(GoogleBooksRelease(self.dag_id, release_date, sftp_files))
+            releases.append(GoogleBooksRelease(self.dag_id, release_date, sftp_files, self.organisation))
         return releases
 
-    def list_releases(self, **kwargs):
+    def list_release_info(self, **kwargs):
         """ Lists all Google Books releases available on the SFTP server and publishes sftp file paths and
         release_date's as an XCom.
         :param kwargs: the context passed from the BranchPythonOperator. See
@@ -166,26 +185,34 @@ class GoogleBooksTelescope(SnapshotTelescope):
         :return: the identifier of the task to execute next.
         """
 
-        reports_info = defaultdict(list)
+        release_info = defaultdict(list)
 
-        sftp = initialize_sftp_connection()
-        report_files = sftp.listdir(self.sftp_folder)
-        for file in report_files:
-            if re.match(self.sftp_regex, file):
-                release_date = file[-11:].strip('.csv')
-                release_date = pendulum.from_format(release_date, 'YYYY_MM', formatter='alternative')
-                sftp_file = os.path.join(self.sftp_folder, file)
-                # report_type = 'sales' if m.group(1) == 'SalesTransaction' else 'traffic'
-                reports_info[release_date].append(sftp_file)
-        sftp.close()
+        with make_sftp_connection() as sftp:
+            files = sftp.listdir(self.sftp_folders.upload)
+            for file_name in files:
+                if re.match(self.sftp_regex, file_name):
+                    date_str = file_name[-11:].strip('.csv')
+                    release_date = pendulum.strptime(date_str, '%Y_%m')
+                    # report_type = 'sales' if m.group(1) == 'SalesTransaction' else 'traffic'
+                    sftp_file = os.path.join(self.sftp_folders.in_progress, file_name)
+                    release_info[release_date].append(sftp_file)
 
-        continue_dag = len(reports_info)
+        continue_dag = len(release_info)
         if continue_dag:
             # Push messages
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(GoogleBooksTelescope.RELEASE_INFO, reports_info)
+            ti.xcom_push(GoogleBooksTelescope.RELEASE_INFO, release_info)
 
         return continue_dag
+
+    def move_files_to_in_progress(self, releases: List[GoogleBooksRelease], **kwargs):
+        """ Move Google Books files to SFTP in-progress folder.
+        :param releases: a list of ONIX releases.
+        :return: None.
+        """
+
+        for release in releases:
+            self.sftp_folders.move_files_to_in_progress(release.sftp_files)
 
     def download(self, releases: List[GoogleBooksRelease], **kwargs):
         """ Task to download the Google Books releases for a given month.
@@ -213,3 +240,12 @@ class GoogleBooksTelescope(SnapshotTelescope):
         # Transform each release
         for release in releases:
             release.transform()
+
+    def move_files_to_finished(self, releases: List[GoogleBooksRelease], **kwargs):
+        """ Move Google Books files to SFTP finished folder.
+        :param releases: a list of Google Books releases.
+        :return: None.
+        """
+
+        for release in releases:
+            self.sftp_folders.move_files_to_in_progress(release.sftp_files)
