@@ -27,7 +27,7 @@ from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.template_utils import telescope_path, SubFolder, blob_name
 from observatory.platform.utils.test_utils import (ObservatoryEnvironment, ObservatoryTestCase, SftpServer,
-                                                   test_fixtures_path)
+                                                   test_fixtures_path, module_file_path)
 
 
 class TestOnix(ObservatoryTestCase):
@@ -100,7 +100,8 @@ class TestOnix(ObservatoryTestCase):
             env.api_session.add(telescope)
             env.api_session.commit()
 
-            self.assert_dag_load('onix_curtin_press')
+            dag_file = os.path.join(module_file_path('observatory.dags.dags'), 'onix.py')
+            self.assert_dag_load('onix_curtin_press', dag_file)
 
     def test_telescope(self):
         """ Test the ONIX telescope end to end.
