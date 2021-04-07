@@ -17,14 +17,16 @@
 import os
 import shutil
 
-import observatory.api.server.orm as orm
 import pendulum
 from airflow.models.connection import Connection
+
+import observatory.api.server.orm as orm
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.client.model.organisation import Organisation
 from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
 from observatory.platform.utils.template_utils import telescope_path, SubFolder, blob_name
 from observatory.platform.utils.test_utils import (ObservatoryEnvironment, ObservatoryTestCase, SftpServer,
                                                    test_fixtures_path, module_file_path)
@@ -62,7 +64,10 @@ class TestOnix(ObservatoryTestCase):
             'list_release_info': ['move_files_to_in_progress'],
             'move_files_to_in_progress': ['download'],
             'download': ['upload_downloaded'],
-            'upload_downloaded': ['move_files_to_finished'],
+            'upload_downloaded': ['transform'],
+            'transform': ['upload_transformed'],
+            'upload_transformed': ['bq_load'],
+            'bq_load': ['move_files_to_finished'],
             'move_files_to_finished': ['cleanup'],
             'cleanup': []
         }, dag)
@@ -115,8 +120,8 @@ class TestOnix(ObservatoryTestCase):
         dataset_id = env.add_dataset()
 
         # Create the Observatory environment and run tests
-        with env.create():
-            with sftp_server.create() as sftp_root:
+        with sftp_server.create() as sftp_root:
+            with env.create():
                 # Setup Telescope
                 execution_date = pendulum.datetime(year=2021, month=3, day=31)
                 org = Organisation(name=self.organisation_name,
@@ -178,6 +183,22 @@ class TestOnix(ObservatoryTestCase):
                 # Test upload downloaded
                 env.run_task(dag, telescope.upload_downloaded.__name__, execution_date)
                 self.assert_blob_integrity(env.download_bucket, blob_name(download_file_path), download_file_path)
+
+                # Test transform
+                env.run_task(dag, telescope.transform.__name__, execution_date)
+                transform_file_path = os.path.join(transform_folder, 'onix.jsonl')
+                expected_file_hash = '82faa8c7940a9766376a1f3862d35828'
+                self.assert_file_integrity(transform_file_path, expected_file_hash, 'md5')
+
+                # Test upload to cloud storage
+                env.run_task(dag, telescope.upload_transformed.__name__, execution_date)
+                self.assert_blob_integrity(env.transform_bucket, blob_name(transform_file_path), transform_file_path)
+
+                # Test load into BigQuery
+                env.run_task(dag, telescope.bq_load.__name__, execution_date)
+                table_id = f'{self.project_id}.{dataset_id}.{bigquery_partitioned_table_id(telescope.DAG_ID_PREFIX, release_date)}'
+                expected_rows = 1
+                self.assert_table_integrity(table_id, expected_rows)
 
                 # Test move files to finished
                 env.run_task(dag, telescope.move_files_to_finished.__name__, execution_date)
