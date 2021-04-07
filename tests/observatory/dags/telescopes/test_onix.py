@@ -120,8 +120,9 @@ class TestOnix(ObservatoryTestCase):
         dataset_id = env.add_dataset()
 
         # Create the Observatory environment and run tests
-        with sftp_server.create() as sftp_root:
-            with env.create():
+
+        with env.create():
+            with sftp_server.create() as sftp_root:
                 # Setup Telescope
                 execution_date = pendulum.datetime(year=2021, month=3, day=31)
                 org = Organisation(name=self.organisation_name,

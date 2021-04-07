@@ -223,18 +223,17 @@ def list_release_info(sftp_upload_folder: str) -> List[Dict]:
     """
 
     results = []
-    sftp = make_sftp_connection()
-    sftp.makedirs(sftp_upload_folder)
-    files = sftp.listdir(sftp_upload_folder)
-    for file_name in files:
-        if re.match(OnixRelease.DOWNLOAD_FILES_REGEX, file_name):
-            date_str = file_name[:8]
-            release_date = pendulum.strptime(date_str, '%Y%m%d')
-            results.append({
-                'release_date': release_date,
-                'file_name': file_name
-            })
-    sftp.close()
+    with make_sftp_connection() as sftp:
+        sftp.makedirs(sftp_upload_folder)
+        files = sftp.listdir(sftp_upload_folder)
+        for file_name in files:
+            if re.match(OnixRelease.DOWNLOAD_FILES_REGEX, file_name):
+                date_str = file_name[:8]
+                release_date = pendulum.strptime(date_str, '%Y%m%d')
+                results.append({
+                    'release_date': release_date,
+                    'file_name': file_name
+                })
     return results
 
 
