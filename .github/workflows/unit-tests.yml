@@ -14,18 +14,20 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.7]
-        os: [ubuntu-18.04]
+        python-version: [ 3.7 ]
+        os: [ ubuntu-18.04 ]
 
     steps:
       - name: Checkout ${{ matrix.python-version }}
         uses: actions/checkout@v2
         with:
           lfs: true
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -33,6 +35,13 @@ jobs:
           pip install -e observatory-platform
           pip install -e observatory-dags
           pip install -e observatory-reports
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+
       - name: Check licenses
         run: |
           # stop the build if there are licensing issues
@@ -40,12 +49,14 @@ jobs:
           liccheck --sfile strategy.ini --rfile observatory-platform/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
           liccheck --sfile strategy.ini --rfile observatory-dags/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
           liccheck --sfile strategy.ini --rfile observatory-reports/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
+
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
       - name: Run unit tests with coverage
         env:
           TESTS_AZURE_CONTAINER_NAME: ${{ secrets.TESTS_AZURE_CONTAINER_NAME }}
@@ -63,6 +74,7 @@ jobs:
           echo "${TESTS_GOOGLE_APPLICATION_CREDENTIALS_BASE64}" | base64 --decode > /tmp/google_application_credentials.json
           coverage run -m unittest discover
           coverage xml
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
