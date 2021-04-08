@@ -178,7 +178,8 @@ class Telescope(AbstractTelescope):
         self.default_args = {
             "owner": "airflow",
             "start_date": self.start_date,
-            'on_failure_callback': on_failure_callback
+            'on_failure_callback': on_failure_callback,
+            'retries': self.max_retries
         }
         self.description = self.__doc__
         self.dag = DAG(dag_id=self.dag_id, schedule_interval=self.schedule_interval, default_args=self.default_args,
