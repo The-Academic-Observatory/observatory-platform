@@ -35,6 +35,7 @@ from observatory.platform.utils.config_utils import observatory_home
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.proc_utils import wait_for_process
 from observatory.platform.utils.telescope_utils import make_dag_id, make_sftp_connection
+from observatory.platform.utils.template_utils import blob_name, bq_load_shard_v2, table_ids_from_path
 from observatory.platform.utils.template_utils import upload_files_from_list
 
 
@@ -201,7 +202,14 @@ class OnixRelease(SnapshotRelease):
             sftp.rename(self.sftp_in_progress_file, self.sftp_finished_file)
 
 
-def org_id(organisation_name: str):
+def org_id(organisation_name: str) -> str:
+    """ Make an organisation id from the organisation name. Converts the organisation name to lower case,
+    strips whitespace and replaces internal spaces with underscores.
+
+    :param organisation_name: the organisation name.
+    :return: the organisation id.
+    """
+
     return organisation_name.strip().replace(' ', '_').lower()
 
 
@@ -370,6 +378,31 @@ class OnixTelescope(SnapshotTelescope):
         # Transform each release
         for release in releases:
             release.transform()
+
+    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
+        """ Task to load each transformed release to BigQuery.
+
+        The table_id is set to the file name without the extension.
+
+        :param releases: a list of releases.
+        :return: None.
+        """
+
+        # Get project settings
+        project_id = self.organisation.gcp_project_id
+        transform_bucket = self.organisation.gcp_transform_bucket
+        dataset_location = 'us'  # TODO: store in API for organisation
+
+        # Load each transformed release
+        for release in releases:
+            for transform_path in release.transform_files:
+                transform_blob = blob_name(transform_path)
+                table_id, _ = table_ids_from_path(transform_path)
+
+                bq_load_shard_v2(project_id, transform_bucket, transform_blob, self.dataset_id, dataset_location,
+                                 table_id, release.release_date, self.source_format, prefix=self.schema_prefix,
+                                 schema_version=self.schema_version,
+                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
 
     def move_files_to_finished(self, releases: List[OnixRelease], **kwargs):
         """ Move ONIX files to SFTP finished folder.

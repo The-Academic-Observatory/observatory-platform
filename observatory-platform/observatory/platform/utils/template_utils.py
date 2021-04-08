@@ -36,22 +36,18 @@ from observatory.dags.config import schema_path, workflow_sql_templates_path
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars, create_slack_webhook
 from observatory.platform.utils.config_utils import find_schema
-from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id, \
-    copy_bigquery_table, \
-    create_bigquery_dataset, \
-    load_bigquery_table, \
-    run_bigquery_query, \
-    upload_files_to_cloud_storage
+from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
+                                                 copy_bigquery_table,
+                                                 create_bigquery_dataset,
+                                                 load_bigquery_table,
+                                                 run_bigquery_query,
+                                                 upload_files_to_cloud_storage)
 from observatory.platform.utils.jinja2_utils import make_sql_jinja2_filename, render_template
 
 # To avoid hitting the airflow database and the secret backend unnecessarily, some variables are stored as a global
 # variable and only requested once
 data_path = None
 test_data_path_val_ = None
-project_id = None
-bucket_name = None
-data_location = None
-environment = None
 
 
 def reset_variables():
@@ -62,17 +58,9 @@ def reset_variables():
 
     global data_path
     global test_data_path_val_
-    global project_id
-    global bucket_name
-    global data_location
-    global environment
 
     data_path = None
     test_data_path_val_ = None
-    project_id = None
-    bucket_name = None
-    data_location = None
-    environment = None
 
 
 def telescope_path(*subdirs) -> str:
@@ -166,23 +154,17 @@ def prepare_bq_load(dataset_id: str, table_id: str, release_date: pendulum.Pendu
     :param dataset_description: dataset description.
     :return: The project id, bucket name, data location and schema path
     """
-    global project_id
-    if project_id is None:
-        logging.info('requesting project_id variable')
-        project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
 
-    global bucket_name
-    if bucket_name is None:
-        logging.info('requesting transform_bucket variable')
-        bucket_name = AirflowVariable.get(AirflowVars.TRANSFORM_BUCKET)
+    logging.info('requesting project_id variable')
+    project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
 
-    global data_location
-    if data_location is None:
-        logging.info('requesting data_location variable')
-        data_location = AirflowVariable.get(AirflowVars.DATA_LOCATION)
+    logging.info('requesting transform_bucket variable')
+    bucket_name = AirflowVariable.get(AirflowVars.TRANSFORM_BUCKET)
+
+    logging.info('requesting data_location variable')
+    data_location = AirflowVariable.get(AirflowVars.DATA_LOCATION)
 
     # Create dataset
-    dataset_id = dataset_id
     create_bigquery_dataset(project_id, dataset_id, data_location, description=dataset_description)
 
     # Select schema file based on release date
@@ -193,11 +175,41 @@ def prepare_bq_load(dataset_id: str, table_id: str, release_date: pendulum.Pendu
     return project_id, bucket_name, data_location, schema_file_path
 
 
+def prepare_bq_load_v2(project_id: str, dataset_id: str, dataset_location: str, table_id: str,
+                       release_date: pendulum.Pendulum, prefix: str, schema_version: str,
+                       dataset_description: str) -> str:
+    """
+    Prepare to load data into BigQuery. This will:
+     - create the dataset if it does not exist yet
+     - get the path to the schema
+     - return values of project id, bucket name, and data location
+    :param project_id: project id.
+    :param dataset_id: Dataset id.
+    :param dataset_location: location of dataset.
+    :param table_id: Table id.
+    :param release_date: The release date used for schema lookup.
+    :param prefix: The prefix for the schema.
+    :param schema_version: Schema version.
+    :param dataset_description: dataset description.
+    :return: The project id, bucket name, data location and schema path
+    """
+
+    # Create dataset
+    dataset_id = dataset_id
+    create_bigquery_dataset(project_id, dataset_id, dataset_location, description=dataset_description)
+
+    # Select schema file based on release date
+    analysis_schema_path = schema_path()
+    schema_file_path = find_schema(analysis_schema_path, table_id, release_date, prefix, schema_version)
+    if schema_file_path is None:
+        exit(os.EX_CONFIG)
+    return schema_file_path
+
+
 def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, table_id: str,
                   source_format: str, prefix: str = '', schema_version: str = None, dataset_description: str = '',
                   **load_bigquery_table_kwargs):
     """ Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
-
     :param release_date: Release date.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
@@ -219,6 +231,42 @@ def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_
     logging.info(f"URI: {uri}")
 
     success = load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path, source_format,
+                                  **load_bigquery_table_kwargs)
+    if not success:
+        raise AirflowException()
+
+
+def bq_load_shard_v2(project_id: str, transform_bucket: str, transform_blob: str, dataset_id: str,
+                     dataset_location: str, table_id: str, release_date: pendulum.Pendulum, source_format: str,
+                     prefix: str = '', schema_version: str = None, dataset_description: str = '',
+                     **load_bigquery_table_kwargs):
+    """ Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
+
+    :param project_id: project id.
+    :param transform_bucket: transform bucket name.
+    :param transform_blob: Name of the transform blob.
+    :param dataset_id: Dataset id.
+    :param dataset_location: location of dataset.
+    :param table_id: Table id.
+    :param release_date: Release date.
+    :param source_format: the format of the data to load into BigQuery.
+    :param prefix: The prefix for the schema.
+    :param schema_version: Schema version.
+    :param dataset_description: description of the BigQuery dataset.
+    :return: None.
+    """
+
+    schema_file_path = prepare_bq_load_v2(project_id, dataset_id, dataset_location, table_id, release_date, prefix,
+                                          schema_version, dataset_description)
+
+    # Create table id
+    table_id = bigquery_partitioned_table_id(table_id, release_date)
+
+    # Load BigQuery table
+    uri = f"gs://{transform_bucket}/{transform_blob}"
+    logging.info(f"URI: {uri}")
+
+    success = load_bigquery_table(uri, dataset_id, dataset_location, table_id, schema_file_path, source_format,
                                   **load_bigquery_table_kwargs)
     if not success:
         raise AirflowException()
@@ -295,7 +343,7 @@ def bq_append_from_partition(start_date: pendulum.Pendulum, end_date: pendulum.P
     :return: None.
     """
     project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(dataset_id, main_table_id, end_date,
-                                                                               prefix, schema_version)
+                                                                               prefix, schema_version, '')
     # include end date in period
     period = pendulum.period(start_date, end_date + timedelta(days=1))
     logging.info(f'Getting table partitions: ')
@@ -324,7 +372,7 @@ def bq_append_from_file(end_date: pendulum.Pendulum, transform_blob: str, datase
     :return: None.
     """
     project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(dataset_id, main_table_id, end_date,
-                                                                               prefix, schema_version)
+                                                                               prefix, schema_version, description)
 
     # Load BigQuery table
     uri = f"gs://{bucket_name}/{transform_blob}"
@@ -345,15 +393,12 @@ def on_failure_callback(kwargs):
     :param kwargs:
     :return: None.
     """
-    global environment
-    if environment is None:
-        logging.info('requesting environment variable')
-        environment = AirflowVariable.get(AirflowVars.ENVIRONMENT)
 
-    global project_id
-    if project_id is None:
-        logging.info('requesting project_id variable')
-        project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
+    logging.info('requesting environment variable')
+    environment = AirflowVariable.get(AirflowVars.ENVIRONMENT)
+
+    logging.info('requesting project_id variable')
+    project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
 
     if environment == Environment.develop:
         logging.info('Not sending slack notification in develop environment.')
