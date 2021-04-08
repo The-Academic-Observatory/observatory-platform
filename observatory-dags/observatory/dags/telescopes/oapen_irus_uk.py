@@ -20,10 +20,11 @@ import os
 import shutil
 import time
 from datetime import datetime
-from typing import List
-from typing import Tuple
+from typing import List, Tuple
+from urllib.parse import quote
 
 import pendulum
+import requests
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from google.auth import environment_vars
@@ -110,16 +111,18 @@ class OapenIrusUkRelease(SnapshotRelease):
         # call function
         function_url = f'https://{region}-{oapen_project_id}.cloudfunctions.net/{function_name}'
         geoip_license_key = BaseHook.get_connection(AirflowConns.GEOIP_LICENSE_KEY).password
-        publisher_name = "UCL Press"
+        publisher_name = quote("UCL Press", safe='')
 
         if self.release_date >= datetime(2020, 4, 1):
+            publisher_uuid = get_publisher_uuid(publisher_name)
             airflow_conn = AirflowConns.OAPEN_IRUS_UK_API
         else:
+            publisher_uuid = "NA"
             airflow_conn = AirflowConns.OAPEN_IRUS_UK_LOGIN
         username = BaseHook.get_connection(airflow_conn).login
         password = BaseHook.get_connection(airflow_conn).password
         success = call_function(function_url, self.release_date.strftime('%Y-%m'), username, password,
-                                geoip_license_key, publisher_name, source_bucket, self.blob_name)
+                                geoip_license_key, publisher_name, publisher_uuid, source_bucket, self.blob_name)
         if not success:
             raise AirflowException('Cloud function unsuccessful')
 
@@ -144,7 +147,8 @@ class OapenIrusUkTelescope(SnapshotTelescope):
 
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 3, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'oapen',
-                 dataset_description: str = 'Oapen dataset', catchup: bool = True, airflow_vars: List = None):
+                 dataset_description: str = 'Oapen dataset', catchup: bool = True, airflow_vars: List = None,
+                 max_active_runs=3):
 
         """ The OAPEN irus uk telescope.
 
@@ -161,7 +165,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, dataset_description=dataset_description,
-                         catchup=catchup, airflow_vars=airflow_vars)
+                         catchup=catchup, airflow_vars=airflow_vars, max_active_runs=max_active_runs)
         self.oapen_project_id = 'oapen-usage-data-gdpr-proof'
         self.function_name = 'oapen_access_stats'
         self.oapen_bucket = f'{self.oapen_project_id}_cloud-function'
@@ -213,6 +217,25 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         """
         for release in releases:
             release.download()
+
+
+def get_publisher_uuid(publisher_name: str) -> str:
+    """ Get the publisher UUID from the OAPEN API using the publisher name.
+
+    :param publisher_name: The name of the publisher
+    :return: The publisher UUID
+    """
+
+    url = f'https://library.oapen.org/rest/search?query=publisher.name:{publisher_name}&expand=metadata'
+    response = requests.get(url)
+    logging.info(f'Getting publisher UUID for publisher: {publisher_name}, from: {url}')
+    if response.status_code != 200:
+        raise RuntimeError(
+            f'Request to get publisher UUID unsuccessful, url: {url}, status code: {response.status_code}, response: {response.text}, reason: {response.reason}')
+    response_json = response.json()
+    publisher_uuid = response_json[0]['uuid']
+    logging.info(f'Found publisher UUID: {publisher_uuid}')
+    return publisher_uuid
 
 
 def upload_source_code_to_bucket(project_id: str, bucket_name: str, blob_name: str) -> Tuple[bool, bool]:
@@ -295,7 +318,7 @@ def create_cloud_function(service: Resource, location: str, full_name: str, sour
 
 
 def call_function(function_url: str, release_date: str, username: str, password: str, geoip_license_key: str,
-                  publisher_name: str, bucket_name: str, blob_name: str) -> bool:
+                  publisher_name: str, publisher_uuid: str, bucket_name: str, blob_name: str) -> bool:
     """ Call cloud function
 
     :param function_url: Url of the cloud function
@@ -303,7 +326,8 @@ def call_function(function_url: str, release_date: str, username: str, password:
     :param username: Oapen username (email or requestor_id)
     :param password: Oapen password (password or api_key)
     :param geoip_license_key: License key of geoip database
-    :param publisher_name: Name of the publisher
+    :param publisher_name: URL encoded name of the publisher (used for old version)
+    :param publisher_uuid: UUID of the publisher (used for new version, 'NA' for old version)
     :param bucket_name: Name of the bucket to store oapen access stats data
     :param blob_name: Blob name to store oapen access stats data
     :return: Whether response code is 2000
@@ -317,6 +341,7 @@ def call_function(function_url: str, release_date: str, username: str, password:
         'password': password,
         'geoip_license_key': geoip_license_key,
         'publisher_name': publisher_name,
+        'publisher_uuid': publisher_uuid,
         'bucket_name': bucket_name,
         'blob_name': blob_name
     }

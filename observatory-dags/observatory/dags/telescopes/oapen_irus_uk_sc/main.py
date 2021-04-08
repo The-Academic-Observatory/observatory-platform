@@ -43,7 +43,8 @@ def download(request):
     username = request_json.get('username')
     password = request_json.get('password')
     geoip_license_key = request_json.get('geoip_license_key')
-    publisher_name = request_json.get('publisher_name')  # e.g. 'UCL Press'
+    publisher_name = request_json.get('publisher_name')  # e.g. 'UCL+Press'
+    publisher_uuid = request_json.get('publisher_uuid')  # e.g. 'df73bf94-b818-494c-a8dd-6775b0573bc2'
     bucket_name = request_json.get('bucket_name')
     blob_name = request_json.get('blob_name')
 
@@ -55,9 +56,10 @@ def download(request):
 
     # download oapen access stats and replace ip addresses
     file_path = '/tmp/oapen_access_stats.jsonl.gz'
-    logging.info(f'Downloading oapen access stats for month: {release_date}, publisher: {publisher_name}')
+    logging.info(
+        f'Downloading oapen access stats for month: {release_date}, publisher name: {publisher_name}, publisher UUID: {publisher_uuid}')
     if datetime.strptime(release_date, '%Y-%m') >= datetime(2020, 4, 1):
-        download_access_stats_new(file_path, release_date, username, password, publisher_name, geoip_client)
+        download_access_stats_new(file_path, release_date, username, password, publisher_uuid, geoip_client)
     else:
         download_access_stats_old(file_path, release_date, username, password, publisher_name, geoip_client)
 
@@ -179,7 +181,7 @@ def download_access_stats_old(file_path: str, release_date: str, username: str, 
     list_to_jsonl_gz(file_path, all_results)
 
 
-def download_access_stats_new(file_path: str, release_date: str, username: str, password: str, publisher_name: str,
+def download_access_stats_new(file_path: str, release_date: str, username: str, password: str, publisher_uuid: str,
                               geoip_client: geoip2.database.Reader):
     """ Download the oapen irus uk access stats data and replace IP addresses with geographical information.
 
@@ -187,7 +189,7 @@ def download_access_stats_new(file_path: str, release_date: str, username: str, 
     :param release_date: Release date
     :param username: Oapen username/email
     :param password: Oapen password
-    :param publisher_name: Publisher name
+    :param publisher_uuid: UUID of publisher
     :param geoip_client: Geoip client
     :return:
     """
@@ -196,8 +198,7 @@ def download_access_stats_new(file_path: str, release_date: str, username: str, 
     api_key = password
     url = f'https://irus.jisc.ac.uk/sushiservice/oapen/reports/oapen_ir/?requestor_id={requestor_id}' \
           f'&platform=215&begin_date={release_date}&end_date={release_date}&formatted&api_key={api_key}' \
-          f'&attributes_to_show=Client_IP%7CCountry&publisher={publisher_name}'
-
+          f'&attributes_to_show=Client_IP%7CCountry&publisher={publisher_uuid}'
     response = requests.get(url)
     if response.status_code != 200:
         raise RuntimeError(f'Request unsuccessful, status code: {response.status_code}, response: {response.text}, '
@@ -253,7 +254,7 @@ def download_access_stats_new(file_path: str, release_date: str, username: str, 
 
 
 def replace_ip_address(client_ip: str, geoip_client: geoip2.database.Reader) -> Tuple[
-                        Union[float, None], Union[float, None], str, str, str]:
+    Union[float, None], Union[float, None], str, str, str]:
     """ Replace IP addresses with geographical information using the geoip client.
 
     :param client_ip: Ip address of the client that is using oapen irus uk
@@ -303,5 +304,5 @@ def upload_file_to_storage_bucket(file_path: str, bucket_name: str, blob_name: s
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
 
-    logging.info(f'Uploading file "{file_path}". Blob: {blob_name}, bucket: {bucket_name}, project:')
+    logging.info(f'Uploading file "{file_path}". Blob: {blob_name}, bucket: {bucket_name}')
     blob.upload_from_filename(file_path)
