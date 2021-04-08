@@ -86,12 +86,13 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
+
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash, gzip_file_crc, _hash_file
 from observatory.platform.utils.template_utils import reset_variables
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 
 def random_id():
@@ -499,7 +500,7 @@ class SftpServer:
     """ A Mock SFTP server for testing purposes """
 
     def __init__(self, host: str = "localhost", port: int = 3373, level: str = 'INFO', backlog: int = 10,
-                 startup_wait_secs: int = 1):
+                 startup_wait_secs: int = 1, socket_timeout: int = 10):
         """ Create a Mock SftpServer instance.
 
         :param host: the host name.
@@ -520,7 +521,7 @@ class SftpServer:
         self.root_dir = None
         self.private_key_path = None
         self.server_thread = None
-        self.server_socket = None
+        self.socket_timeout = socket_timeout
 
     def _generate_key(self):
         """ Generate a private key.
@@ -545,23 +546,29 @@ class SftpServer:
         paramiko.common.logging.basicConfig(level=paramiko_level)
 
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.settimeout(self.socket_timeout)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
         server_socket.bind((self.host, self.port))
         server_socket.listen(self.backlog)
-        self.server_socket = server_socket
 
         while not self.is_shutdown:
-            conn, addr = server_socket.accept()
-            transport = paramiko.Transport(conn)
-            transport.add_server_key(paramiko.RSAKey.from_private_key_file(self.private_key_path))
-            transport.set_subsystem_handler('sftp', paramiko.SFTPServer, StubSFTPServer)
+            try:
+                conn, addr = server_socket.accept()
+                transport = paramiko.Transport(conn)
+                transport.add_server_key(paramiko.RSAKey.from_private_key_file(self.private_key_path))
+                transport.set_subsystem_handler('sftp', paramiko.SFTPServer, StubSFTPServer)
 
-            server = StubServer()
-            transport.start_server(server=server)
+                server = StubServer()
+                transport.start_server(server=server)
 
-            channel = transport.accept()
-            while transport.is_active() and not self.is_shutdown:
-                time.sleep(1)
+                channel = transport.accept()
+                while transport.is_active() and not self.is_shutdown:
+                    time.sleep(1)
+
+            except socket.timeout:
+                # Timeout must be set for socket otherwise it will wait for a connection forever and block
+                # the thread from exiting. At: conn, addr = server_socket.accept()
+                pass
 
     @contextlib.contextmanager
     def create(self):
@@ -592,5 +599,5 @@ class SftpServer:
             finally:
                 # Stop server and wait for server thread to join
                 self.is_shutdown = True
-                self.server_socket.close()
-                self.server_thread.join()
+                if self.server_thread is not None:
+                    self.server_thread.join()
