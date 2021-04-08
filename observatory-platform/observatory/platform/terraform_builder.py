@@ -104,6 +104,10 @@ class TerraformBuilder:
         destination_path = os.path.join(self.packages_build_path, 'observatory-platform')
         copy_dir(self.package_path, destination_path, ignore)
 
+        # Copy Observatory API
+        destination_path = os.path.join(self.packages_build_path, 'observatory-api')
+        copy_dir(self.package_path, destination_path, ignore)
+
         # Copy DAGs projects
         for dags_project in self.config.dags_projects:
             destination_path = os.path.join(self.packages_build_path, dags_project.package_name)
