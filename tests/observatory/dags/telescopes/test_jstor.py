@@ -23,6 +23,8 @@ import httpretty
 import pendulum
 from airflow.models.connection import Connection
 from observatory.dags.telescopes.jstor import (JstorRelease, JstorTelescope)
+from observatory.api.client.identifiers import TelescopeTypes
+from observatory.api.client.model.organisation import Organisation
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
@@ -103,6 +105,7 @@ class TestJstor(ObservatoryTestCase):
         super(TestJstor, self).__init__(*args, **kwargs)
         self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
         self.data_location = os.getenv('TESTS_DATA_LOCATION')
+        self.organisation_name = 'anu-press'
         self.gmail_api_conn = 'google-cloud-platform://?token=123&refresh_token=123' \
                               '&client_id=123.apps.googleusercontent.com&client_secret=123'
 
@@ -123,7 +126,7 @@ class TestJstor(ObservatoryTestCase):
 
         :return: None
         """
-
+        organisation = Organisation(name=self.organisation_name)
         dag = JstorTelescope().make_dag()
         self.assert_dag_structure({
             'check_dependencies': ['list_releases'],

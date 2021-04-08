@@ -40,14 +40,16 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import Resource, build
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import convert
+from observatory.platform.utils.telescope_utils import convert, make_dag_id
 from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
 from observatory.platform.utils.template_utils import upload_files_from_list
 from pendulum import Pendulum
+from observatory.api.client.model.organisation import Organisation
+from typing import Optional
 
 
 class JstorRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: Pendulum, reports_info: List[dict]):
+    def __init__(self, dag_id: str, release_date: Pendulum, reports_info: List[dict], organisation: Organisation):
         """ Construct a JstorRelease.
 
         :param release_date: the release date.
@@ -59,6 +61,21 @@ class JstorRelease(SnapshotRelease):
         transform_files_regex = f"^{dag_id}_(country|institution)\.jsonl.gz"
 
         super().__init__(dag_id, release_date, download_files_regex, transform_files_regex)
+        self.organisation = organisation
+
+    @property
+    def download_bucket(self):
+        """ The download bucket name.
+        :return: the download bucket name.
+        """
+        return self.organisation.gcp_download_bucket
+
+    @property
+    def transform_bucket(self):
+        """ The transform bucket name.
+        :return: the transform bucket name.
+        """
+        return self.organisation.gcp_transform_bucket
 
     def download_path(self, report_type: str) -> str:
         """ Creates full download path
@@ -98,7 +115,6 @@ class JstorRelease(SnapshotRelease):
 
         :return: None.
         """
-
         for file in self.download_files:
             results = []
             with open(file) as tsv_file:
@@ -136,10 +152,10 @@ class JstorTelescope(SnapshotTelescope):
     <project_id>.jstor.jstor_institutionYYYYMMDD
     """
 
-    DAG_ID = 'jstor'
+    DAG_ID_PREFIX = 'jstor'
     PROCESSED_LABEL_NAME = 'processed_report'
 
-    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2015, 9, 1),
+    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None, start_date: datetime = datetime(2015, 9, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'jstor',
                  source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON, dataset_description: str = '',
                  catchup: bool = False, airflow_vars: List = None, airflow_conns: List = None):
@@ -160,14 +176,21 @@ class JstorTelescope(SnapshotTelescope):
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         if airflow_conns is None:
             airflow_conns = [AirflowConns.GMAIL_API]
+
+        if dag_id is None:
+            dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
+
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, source_format=source_format,
                          dataset_description=dataset_description, catchup=catchup, airflow_vars=airflow_vars,
                          airflow_conns=airflow_conns)
-        self.publisher = 'anupress'
+        self.organisation = organisation
         self.add_setup_task_chain([self.check_dependencies, self.list_releases])
-        self.add_task_chain(
-            [self.download, self.upload_downloaded, self.transform, self.upload_transformed, self.bq_load,
-             self.cleanup])
+        self.add_task_chain([self.download,
+                             self.upload_downloaded,
+                             self.transform,
+                             self.upload_transformed,
+                             self.bq_load,
+                             self.cleanup])
 
     def make_release(self, **kwargs) -> List[JstorRelease]:
         """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
@@ -185,7 +208,7 @@ class JstorTelescope(SnapshotTelescope):
         releases = []
         for release_date in available_releases:
             reports_info = available_releases[release_date]
-            releases.append(JstorRelease(self.dag_id, release_date, reports_info))
+            releases.append(JstorRelease(self.dag_id, release_date, reports_info, self.organisation))
         return releases
 
     def list_releases(self, **kwargs):
@@ -200,7 +223,7 @@ class JstorTelescope(SnapshotTelescope):
 
         service = create_gmail_service()
         label_id = get_label_id(service, self.PROCESSED_LABEL_NAME)
-        available_releases = list_available_releases(service, self.publisher, label_id)
+        available_releases = list_available_releases(service, self.organisation.name, label_id)
 
         continue_dag = len(available_releases)
         if continue_dag:
