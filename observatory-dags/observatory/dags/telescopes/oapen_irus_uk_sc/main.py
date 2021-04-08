@@ -56,8 +56,8 @@ def download(request):
 
     # download oapen access stats and replace ip addresses
     file_path = '/tmp/oapen_access_stats.jsonl.gz'
-    logging.info(
-        f'Downloading oapen access stats for month: {release_date}, publisher name: {publisher_name}, publisher UUID: {publisher_uuid}')
+    logging.info(f'Downloading oapen access stats for month: {release_date}, publisher name: {publisher_name}, '
+                 f'publisher UUID: {publisher_uuid}')
     if datetime.strptime(release_date, '%Y-%m') >= datetime(2020, 4, 1):
         download_access_stats_new(file_path, release_date, username, password, publisher_uuid, geoip_client)
     else:

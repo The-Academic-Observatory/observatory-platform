@@ -20,6 +20,7 @@ import os
 import shutil
 import time
 from datetime import datetime
+from functools import partial
 from typing import List, Tuple
 from urllib.parse import quote
 
@@ -27,6 +28,7 @@ import pendulum
 import requests
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.operators.python_operator import PythonOperator
 from google.auth import environment_vars
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2.service_account import IDTokenCredentials
@@ -72,8 +74,9 @@ class OapenIrusUkRelease(SnapshotRelease):
         """
         return os.path.join(self.transform_folder, f'{self.dag_id}.jsonl.gz')
 
-    def call_cloud_function(self, max_instances: int, oapen_project_id: str, source_bucket: str, function_name: str):
-        """ Create/update and then call the google cloud function that is inside the oapen project id
+    def create_cloud_function(self, max_instances: int, oapen_project_id: str, source_bucket: str, function_name: str,
+                              function_region: str):
+        """ Create/update the google cloud function that is inside the oapen project id if the source code has changed.
 
         :param max_instances: The limit on the maximum number of function instances that may coexist at a given time.
         :param oapen_project_id: The oapen project id.
@@ -82,8 +85,7 @@ class OapenIrusUkRelease(SnapshotRelease):
         :return: None.
         """
         # set up cloud function variables
-        region = 'europe-west1'
-        location = f'projects/{oapen_project_id}/locations/{region}'
+        location = f'projects/{oapen_project_id}/locations/{function_region}'
         full_name = f'{location}/functions/{function_name}'
 
         # zip source code and upload to bucket
@@ -100,16 +102,21 @@ class OapenIrusUkRelease(SnapshotRelease):
         exists = cloud_function_exists(service, location, full_name)
         if not exists or upload is True:
             update = True if exists else False
-            status = create_cloud_function(service, location, full_name, source_bucket, source_blob_name, max_instances,
+            success = create_cloud_function(service, location, full_name, source_bucket, source_blob_name, max_instances,
                                            update)
-            if status != 'ACTIVE':
-                raise AirflowException('Creating cloud function unsuccessful')
+        else:
+            logging.info(f'Using existing cloud function, source code has not changed.')
 
-            # wait until function is created
-            time.sleep(90)
+    def call_cloud_function(self, oapen_project_id: str, source_bucket: str, function_name: str, function_region: str):
+        """ Call the google cloud function that is inside the oapen project id
 
-        # call function
-        function_url = f'https://{region}-{oapen_project_id}.cloudfunctions.net/{function_name}'
+        :param oapen_project_id: The oapen project id.
+        :param source_bucket: Storage bucket with the source code
+        :param function_name: Name of the google cloud function
+        :param function_region: Region where the google cloud function resides
+        :return: None.
+        """
+        function_url = f'https://{function_region}-{oapen_project_id}.cloudfunctions.net/{function_name}'
         geoip_license_key = BaseHook.get_connection(AirflowConns.GEOIP_LICENSE_KEY).password
         publisher_name = quote("UCL Press", safe='')
 
@@ -145,10 +152,10 @@ class OapenIrusUkRelease(SnapshotRelease):
 class OapenIrusUkTelescope(SnapshotTelescope):
     DAG_ID = 'oapen_irus_uk'
 
-    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 3, 1),
+    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 2, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'oapen',
                  dataset_description: str = 'Oapen dataset', catchup: bool = True, airflow_vars: List = None,
-                 max_active_runs=3):
+                 max_active_runs=5):
 
         """ The OAPEN irus uk telescope.
 
@@ -168,9 +175,15 @@ class OapenIrusUkTelescope(SnapshotTelescope):
                          catchup=catchup, airflow_vars=airflow_vars, max_active_runs=max_active_runs)
         self.oapen_project_id = 'oapen-usage-data-gdpr-proof'
         self.function_name = 'oapen_access_stats'
+        self.function_region = 'europe-west1'
         self.oapen_bucket = f'{self.oapen_project_id}_cloud-function'
 
         self.add_setup_task(self.check_dependencies)
+        # create PythonOperator with task concurrency of 1, so tasks to create cloud function never run in parallel
+        self.add_task(partial(PythonOperator, task_id=self.create_cloud_function.__name__,
+                              python_callable=partial(self.task_callable, self.create_cloud_function),
+                              queue=self.queue, default_args=self.default_args, provide_context=True,
+                              task_concurrency=1))
         self.add_task(self.call_cloud_function)
         self.add_task(self.transfer)
         self.add_task(self.download)
@@ -190,6 +203,16 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         releases = [OapenIrusUkRelease(self.dag_id, release_date)]
         return releases
 
+    def create_cloud_function(self, releases: List[OapenIrusUkRelease], **kwargs):
+        """ Task to create the cloud function for each release.
+
+        :param releases: list of OapenIrusUkRelease instances
+        :return: None.
+        """
+        for release in releases:
+            release.create_cloud_function(self.max_active_runs, self.oapen_project_id, self.oapen_bucket,
+                                          self.function_name, self.function_region)
+
     def call_cloud_function(self, releases: List[OapenIrusUkRelease], **kwargs):
         """ Task to call the cloud function for each release.
 
@@ -197,8 +220,8 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         :return: None.
         """
         for release in releases:
-            release.call_cloud_function(self.max_active_runs, self.oapen_project_id, self.oapen_bucket,
-                                        self.function_name)
+            release.call_cloud_function(self.oapen_project_id, self.oapen_bucket,
+                                        self.function_name, self.function_region)
 
     def transfer(self, releases: List[OapenIrusUkRelease], **kwargs):
         """ Task to transfer the file for each release.
@@ -276,7 +299,7 @@ def cloud_function_exists(service: Resource, location: str, full_name: str) -> b
 
 def create_cloud_function(service: Resource, location: str, full_name: str, source_bucket: str, blob_name: str,
                           max_active_runs: int, update: bool) -> bool:
-    """ Create cloud function
+    """ Create cloud function.
 
     :param service: Cloud function service
     :param location: Location of the cloud function
@@ -305,16 +328,28 @@ def create_cloud_function(service: Resource, location: str, full_name: str, sour
         update_mask = ','.join(body.keys())
         response = service.projects().locations().functions().patch(name=full_name, updateMask=update_mask,
                                                                     body=body).execute()
+        logging.info('Patching cloud function')
     else:
         response = service.projects().locations().functions().create(location=location, body=body).execute()
+        logging.info('Creating cloud function')
 
-    try:
-        status = response['metadata']['request']['status']
-    except KeyError:
-        status = None
-    logging.info(f'Status of created cloud function: {status}')
+    operation_name = response.get('name')
+    done = response.get('done')
+    while not done:
+        time.sleep(10)
+        response = service.operations().get(name=operation_name).execute()
+        done = response.get('done')
 
-    return status
+    error = response.get('error')
+    resp = response.get('response')
+    success = True if resp else False
+
+    if success:
+        logging.info(f'Creating or patching cloud function successful, response: {resp}')
+    else:
+        raise AirflowException(f'Creating or patching cloud function unsuccessful, error: {error}')
+
+    return success
 
 
 def call_function(function_url: str, release_date: str, username: str, password: str, geoip_license_key: str,

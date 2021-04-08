@@ -609,7 +609,7 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
                      f'actual_hash={actual_hash}')
         if files_match:
             logging.info(
-                f'{func_name}: skipping upload as files match bucket_name={bucket_name}, blob_name={blob_name}, '
+                f'{func_name}: skipping upload as files match. bucket_name={bucket_name}, blob_name={blob_name}, '
                 f'file_path={file_path}')
             upload = False
             success = True
