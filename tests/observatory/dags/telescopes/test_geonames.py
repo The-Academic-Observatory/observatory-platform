@@ -26,7 +26,7 @@ from observatory.dags.telescopes.geonames import (fetch_release_date, GeonamesRe
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
 from observatory.platform.utils.template_utils import telescope_path, SubFolder, blob_name
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
 from tests.observatory.test_utils import test_fixtures_path
 
 
@@ -73,7 +73,8 @@ class TestGeonames(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            self.assert_dag_load('geonames')
+            dag_file = os.path.join(module_file_path('observatory.dags.dags'), 'geonames.py')
+            self.assert_dag_load('geonames', dag_file)
 
     def test_first_sunday_of_month(self):
         """ Test first_sunday_of_month function.

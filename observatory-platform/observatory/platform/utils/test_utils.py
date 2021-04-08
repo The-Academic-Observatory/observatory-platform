@@ -1,34 +1,3 @@
-# Copyright 2014 Pallets
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1.  Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#
-# 2.  Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in the
-#     documentation and/or other materials provided with the distribution.
-#
-# 3.  Neither the name of the copyright holder nor the names of its
-#     contributors may be used to endorse or promote products derived from
-#     this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-# TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Source: https://github.com/pallets/click/blob/c76fea1696c0ffe7edff8a36cadd4686cda8cbfb/src/click/testing.py#L384-L410
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -50,6 +19,29 @@
 # * https://github.com/apache/airflow/blob/ffb472cf9e630bd70f51b74b0d0ea4ab98635572/airflow/cli/commands/task_command.py
 # * https://github.com/apache/airflow/blob/master/docs/apache-airflow/best-practices.rst
 
+# Copyright (c) 2011-2017 Ruslan Spivak
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+# Sources:
+# * https://github.com/rspivak/sftpserver/blob/master/src/sftpserver/__init__.py
+
 # Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -70,13 +62,16 @@ import contextlib
 import logging
 import os
 import shutil
-import tempfile
+import socket
+import threading
+import time
 import unittest
 import uuid
 from functools import partial
 from typing import Dict
 
 import httpretty
+import paramiko
 import pendulum
 from airflow import settings
 from airflow.models import DagBag
@@ -85,13 +80,18 @@ from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.utils import db
+from click.testing import CliRunner
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
-
+from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash, gzip_file_crc, _hash_file
 from observatory.platform.utils.template_utils import reset_variables
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 
 def random_id():
@@ -115,7 +115,8 @@ def test_fixtures_path(*subdirs) -> str:
 class ObservatoryEnvironment:
     OBSERVATORY_HOME_KEY = 'OBSERVATORY_HOME'
 
-    def __init__(self, project_id: str = None, data_location: str = None):
+    def __init__(self, project_id: str = None, data_location: str = None, api_host: str = "localhost",
+                 api_port: int = 5000):
         """ Constructor for an Observatory environment.
 
         To create an Observatory environment:
@@ -125,15 +126,21 @@ class ObservatoryEnvironment:
 
         :param project_id: the Google Cloud project id.
         :param data_location: the Google Cloud data location.
+        :param api_host: the Observatory API host.
+        :param api_port: the Observatory API port.
         """
 
         self.project_id = project_id
         self.data_location = data_location
+        self.api_host = api_host
+        self.api_port = api_port
         self.buckets = []
         self.datasets = []
         self.data_path = None
         self.session = None
         self.temp_dir = None
+        self.api_env = None
+        self.api_session = None
 
         if self.create_gcp_env:
             self.download_bucket = self.add_bucket()
@@ -273,72 +280,67 @@ class ObservatoryEnvironment:
         :yield: Observatory environment temporary directory.
         """
 
-        # Reset Airflow variables
-        reset_variables()
+        with CliRunner().isolated_filesystem() as temp_dir:
+            # Set temporary directory
+            self.temp_dir = temp_dir
 
-        # Make temporary directory
-        cwd = os.getcwd()
-        self.temp_dir = tempfile.mkdtemp()
-        os.chdir(self.temp_dir)
+            # Reset Airflow variables
+            reset_variables()
 
-        # Prepare environment
-        new_env = {
-            self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, '.observatory')
-        }
-        prev_env = dict(os.environ)
+            # Prepare environment
+            new_env = {
+                self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, '.observatory')
+            }
+            prev_env = dict(os.environ)
 
-        try:
-            os.chdir(cwd)
-
-            # Update environment
-            os.environ.update(new_env)
-
-            # Create Airflow SQLite database
-            settings.DAGS_FOLDER = os.path.join(self.temp_dir, 'airflow', 'dags')
-            os.makedirs(settings.DAGS_FOLDER, exist_ok=True)
-            airflow_db_path = os.path.join(self.temp_dir, 'airflow.db')
-            settings.SQL_ALCHEMY_CONN = f"sqlite:///{airflow_db_path}"
-            logging.info(f'SQL_ALCHEMY_CONN: {settings.SQL_ALCHEMY_CONN}')
-            settings.configure_orm(disable_connection_pool=True)
-            self.session = settings.Session
-            db.initdb()
-
-            # Create buckets
-            if self.create_gcp_env:
-                for bucket_id in self.buckets:
-                    self._create_bucket(bucket_id)
-
-            # Add default Airflow variables
-            self.data_path = os.path.join(self.temp_dir, 'data')
-            self.add_variable(Variable(key=AirflowVars.DATA_PATH, val=self.data_path))
-
-            # Add Google Cloud environment related Airflow variables
-            if self.create_gcp_env:
-                self.add_variable(Variable(key=AirflowVars.PROJECT_ID, val=self.project_id))
-                self.add_variable(Variable(key=AirflowVars.DATA_LOCATION, val=self.data_location))
-                self.add_variable(Variable(key=AirflowVars.DOWNLOAD_BUCKET, val=self.download_bucket))
-                self.add_variable(Variable(key=AirflowVars.TRANSFORM_BUCKET, val=self.transform_bucket))
-
-            yield self.temp_dir
-        finally:
-            # Remove temporary folder
             try:
-                shutil.rmtree(self.temp_dir)
-            except (OSError, IOError):  # noqa: B014
-                pass
+                # Update environment
+                os.environ.update(new_env)
 
-            # Revert environment
-            os.environ.clear()
-            os.environ.update(prev_env)
+                # Create Airflow SQLite database
+                settings.DAGS_FOLDER = os.path.join(self.temp_dir, 'airflow', 'dags')
+                os.makedirs(settings.DAGS_FOLDER, exist_ok=True)
+                airflow_db_path = os.path.join(self.temp_dir, 'airflow.db')
+                settings.SQL_ALCHEMY_CONN = f"sqlite:///{airflow_db_path}"
+                logging.info(f'SQL_ALCHEMY_CONN: {settings.SQL_ALCHEMY_CONN}')
+                settings.configure_orm(disable_connection_pool=True)
+                self.session = settings.Session
+                db.initdb()
 
-            if self.create_gcp_env:
-                # Remove Google Cloud Storage buckets
-                for bucket_id in self.buckets:
-                    self._delete_bucket(bucket_id)
+                # Create buckets
+                if self.create_gcp_env:
+                    for bucket_id in self.buckets:
+                        self._create_bucket(bucket_id)
 
-                # Remove BigQuery datasets
-                for dataset_id in self.datasets:
-                    self._delete_dataset(dataset_id)
+                # Add default Airflow variables
+                self.data_path = os.path.join(self.temp_dir, 'data')
+                self.add_variable(Variable(key=AirflowVars.DATA_PATH, val=self.data_path))
+
+                # Add Google Cloud environment related Airflow variables
+                if self.create_gcp_env:
+                    self.add_variable(Variable(key=AirflowVars.PROJECT_ID, val=self.project_id))
+                    self.add_variable(Variable(key=AirflowVars.DATA_LOCATION, val=self.data_location))
+                    self.add_variable(Variable(key=AirflowVars.DOWNLOAD_BUCKET, val=self.download_bucket))
+                    self.add_variable(Variable(key=AirflowVars.TRANSFORM_BUCKET, val=self.transform_bucket))
+
+                # Create ObservatoryApiEnvironment
+                self.api_env = ObservatoryApiEnvironment(host=self.api_host, port=self.api_port)
+                with self.api_env.create():
+                    self.api_session = self.api_env.session
+                    yield self.temp_dir
+            finally:
+                # Revert environment
+                os.environ.clear()
+                os.environ.update(prev_env)
+
+                if self.create_gcp_env:
+                    # Remove Google Cloud Storage buckets
+                    for bucket_id in self.buckets:
+                        self._delete_bucket(bucket_id)
+
+                    # Remove BigQuery datasets
+                    for dataset_id in self.datasets:
+                        self._delete_dataset(dataset_id)
 
 
 class ObservatoryTestCase(unittest.TestCase):
@@ -374,19 +376,22 @@ class ObservatoryTestCase(unittest.TestCase):
             task = dag.get_task(task_id)
             self.assertEqual(set(downstream_list), task.downstream_task_ids)
 
-    def assert_dag_load(self, dag_id: str, dag_folder: str = module_file_path('observatory.dags.dags')):
+    def assert_dag_load(self, dag_id: str, dag_file: str):
         """ Assert that the given DAG loads from a DagBag.
 
         :param dag_id: the DAG id.
-        :param dag_folder: the folder to load the DAG from.
+        :param dag_file: the path to the DAG file.
         :return: None.
         """
 
-        dag_bag = DagBag(dag_folder=dag_folder)
-        dag = dag_bag.get_dag(dag_id=dag_id)
-        self.assertEqual({}, dag_bag.import_errors)
-        self.assertIsNotNone(dag)
-        self.assertGreaterEqual(len(dag.tasks), 1)
+        with CliRunner().isolated_filesystem() as dag_folder:
+            if os.path.exists(dag_file):
+                shutil.copy(dag_file, os.path.join(dag_folder, os.path.basename(dag_file)))
+            dag_bag = DagBag(dag_folder=dag_folder)
+            dag = dag_bag.get_dag(dag_id=dag_id)
+            self.assertEqual({}, dag_bag.import_errors)
+            self.assertIsNotNone(dag)
+            self.assertGreaterEqual(len(dag.tasks), 1)
 
     def assert_blob_integrity(self, bucket_id: str, blob_name: str, local_file_path: str):
         """ Assert whether the blob uploaded and that it has the expected hash.
@@ -488,3 +493,104 @@ class ObservatoryTestCase(unittest.TestCase):
         httpretty.register_uri(httpretty.GET, uri,
                                adding_headers=headers,
                                body=body)
+
+
+class SftpServer:
+    """ A Mock SFTP server for testing purposes """
+
+    def __init__(self, host: str = "localhost", port: int = 3373, level: str = 'INFO', backlog: int = 10,
+                 startup_wait_secs: int = 1):
+        """ Create a Mock SftpServer instance.
+
+        :param host: the host name.
+        :param port: the port.
+        :param level: the log level.
+        :param backlog: ?
+        :param startup_wait_secs: time in seconds to wait before returning from create to give the server enough
+        time to start before connecting to it.
+        """
+
+        self.host = host
+        self.port = port
+        self.level = level
+        self.backlog = backlog
+        self.startup_wait_secs = startup_wait_secs
+        self.is_shutdown = True
+        self.tmp_dir = None
+        self.root_dir = None
+        self.private_key_path = None
+        self.server_thread = None
+        self.server_socket = None
+
+    def _generate_key(self):
+        """ Generate a private key.
+
+        :return: the filepath to the private key.
+        """
+
+        key = rsa.generate_private_key(public_exponent=65537,
+                                       key_size=2048,
+                                       backend=default_backend())
+
+        private_key_path = os.path.join(self.tmp_dir, 'test_rsa.key')
+        with open(private_key_path, 'wb') as f:
+            f.write(key.private_bytes(encoding=serialization.Encoding.PEM,
+                                      format=serialization.PrivateFormat.TraditionalOpenSSL,
+                                      encryption_algorithm=serialization.NoEncryption()))
+
+        return private_key_path
+
+    def _start_server(self):
+        paramiko_level = getattr(paramiko.common, self.level)
+        paramiko.common.logging.basicConfig(level=paramiko_level)
+
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+        server_socket.bind((self.host, self.port))
+        server_socket.listen(self.backlog)
+        self.server_socket = server_socket
+
+        while not self.is_shutdown:
+            conn, addr = server_socket.accept()
+            transport = paramiko.Transport(conn)
+            transport.add_server_key(paramiko.RSAKey.from_private_key_file(self.private_key_path))
+            transport.set_subsystem_handler('sftp', paramiko.SFTPServer, StubSFTPServer)
+
+            server = StubServer()
+            transport.start_server(server=server)
+
+            channel = transport.accept()
+            while transport.is_active() and not self.is_shutdown:
+                time.sleep(1)
+
+    @contextlib.contextmanager
+    def create(self):
+        """ Make and destroy a test SFTP server.
+
+        :yield: None.
+        """
+
+        with CliRunner().isolated_filesystem() as tmp_dir:
+            # Override the root directory of the SFTP server, which is set as the cwd at import time
+            self.tmp_dir = tmp_dir
+            self.root_dir = os.path.join(tmp_dir, 'home')
+            os.makedirs(self.root_dir, exist_ok=True)
+            StubSFTPServer.ROOT = self.root_dir
+
+            # Generate private key
+            self.private_key_path = self._generate_key()
+
+            try:
+                self.is_shutdown = False
+                self.server_thread = threading.Thread(target=self._start_server)
+                self.server_thread.start()
+
+                # Wait a little bit to give the server time to grab the socket
+                time.sleep(self.startup_wait_secs)
+
+                yield self.root_dir
+            finally:
+                # Stop server and wait for server thread to join
+                self.is_shutdown = True
+                self.server_socket.close()
+                self.server_thread.join()
