@@ -172,7 +172,8 @@ class TestTerraformBuilder(unittest.TestCase):
 
             # Test that the expected Docker files have been written
             build_file_names = ['docker-compose.observatory.yml', 'Dockerfile.observatory', 'elasticsearch.yml',
-                                'entrypoint-airflow.sh', 'entrypoint-root.sh', 'requirements.txt']
+                                'entrypoint-airflow.sh', 'entrypoint-root.sh', 'requirements.observatory-platform.txt',
+                                'requirements.observatory-api.txt']
             for file_name in build_file_names:
                 path = os.path.join(self.build_path, 'docker', file_name)
                 self.assertTrue(os.path.isfile(path))
