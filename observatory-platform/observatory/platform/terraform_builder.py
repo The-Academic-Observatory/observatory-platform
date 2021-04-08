@@ -50,7 +50,8 @@ class TerraformBuilder:
         self.backend_type = BackendType.terraform
         self.config_path = config_path
         self.build_path = build_path
-        self.package_path = module_file_path('observatory.platform', nav_back_steps=-3)
+        self.platform_package_path = module_file_path('observatory.platform', nav_back_steps=-3)
+        self.api_package_path = module_file_path('observatory.api', nav_back_steps=-3)
         self.terraform_path = module_file_path('observatory.platform.terraform')
         self.api_package_path = module_file_path('observatory.api', nav_back_steps=-3)
         self.api_path = module_file_path('observatory.api.server')
@@ -102,11 +103,11 @@ class TerraformBuilder:
 
         # Copy Observatory Platform
         destination_path = os.path.join(self.packages_build_path, 'observatory-platform')
-        copy_dir(self.package_path, destination_path, ignore)
+        copy_dir(self.platform_package_path, destination_path, ignore)
 
         # Copy Observatory API
         destination_path = os.path.join(self.packages_build_path, 'observatory-api')
-        copy_dir(self.package_path, destination_path, ignore)
+        copy_dir(self.api_package_path, destination_path, ignore)
 
         # Copy DAGs projects
         for dags_project in self.config.dags_projects:
