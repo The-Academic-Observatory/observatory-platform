@@ -35,8 +35,8 @@ from observatory.platform.utils.config_utils import observatory_home
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.proc_utils import wait_for_process
 from observatory.platform.utils.telescope_utils import make_dag_id, make_sftp_connection
-from observatory.platform.utils.template_utils import blob_name, bq_load_shard_v2, table_ids_from_path
-from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.template_utils import (blob_name, bq_load_shard_v2, table_ids_from_path,
+                                                       upload_files_from_list)
 
 
 class OnixRelease(SnapshotRelease):
@@ -276,6 +276,9 @@ class OnixTelescope(SnapshotTelescope):
             dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
 
         dataset_description = f'{organisation.name} ONIX feeds'
+        self.project_id = organisation.gcp_project_id
+        self.transform_bucket = organisation.gcp_transform_bucket
+        self.dataset_location = 'us'  # TODO: add to API
 
         super().__init__(dag_id, start_date, schedule_interval, dataset_id,
                          source_format=source_format,
@@ -388,20 +391,15 @@ class OnixTelescope(SnapshotTelescope):
         :return: None.
         """
 
-        # Get project settings
-        project_id = self.organisation.gcp_project_id
-        transform_bucket = self.organisation.gcp_transform_bucket
-        dataset_location = 'us'  # TODO: store in API for organisation
-
         # Load each transformed release
         for release in releases:
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
 
-                bq_load_shard_v2(project_id, transform_bucket, transform_blob, self.dataset_id, dataset_location,
-                                 table_id, release.release_date, self.source_format, prefix=self.schema_prefix,
-                                 schema_version=self.schema_version,
+                bq_load_shard_v2(self.project_id, self.transform_bucket, transform_blob, self.dataset_id,
+                                 self.dataset_location, table_id, release.release_date, self.source_format,
+                                 prefix=self.schema_prefix, schema_version=self.schema_version,
                                  dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
 
     def move_files_to_finished(self, releases: List[OnixRelease], **kwargs):

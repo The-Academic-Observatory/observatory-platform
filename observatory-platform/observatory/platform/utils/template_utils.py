@@ -267,6 +267,7 @@ def bq_load_shard_v2(project_id: str, transform_bucket: str, transform_blob: str
     logging.info(f"URI: {uri}")
 
     success = load_bigquery_table(uri, dataset_id, dataset_location, table_id, schema_file_path, source_format,
+                                  project_id=project_id,
                                   **load_bigquery_table_kwargs)
     if not success:
         raise AirflowException()
