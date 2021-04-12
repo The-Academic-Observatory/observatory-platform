@@ -19,14 +19,18 @@ from typing import Any, Dict
 from unittest.mock import Mock, patch
 
 import pendulum
+import observatory.api.server.orm as orm
 from airflow.models.connection import Connection
+from observatory.api.client.model.organisation import Organisation
+from observatory.api.client.identifiers import TelescopeTypes
 from observatory.dags.telescopes.google_analytics import (GoogleAnalyticsTelescope, GoogleAnalyticsRelease)
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
 from pendulum import Pendulum
 from croniter import croniter
 from datetime import datetime
+
 
 class MockSftpService(Mock):
     def __init__(self, files: Dict[str, list], **kwargs: Any):
@@ -47,7 +51,7 @@ class MockSftpService(Mock):
 
 
 class TestGoogleAnalytics(ObservatoryTestCase):
-    """ Tests for the Jstor telescope """
+    """ Tests for the Google Analytics telescope """
 
     def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
@@ -58,35 +62,69 @@ class TestGoogleAnalytics(ObservatoryTestCase):
         self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
         self.data_location = os.getenv('TESTS_DATA_LOCATION')
         self.oaebu_account_conn = os.getenv('TESTS_OAEBU_ACCOUNT_CONN')
+        self.organisation_name = 'ucl_press'
+        self.host = "localhost"
+        self.api_port = 5000
         self.download_hashes = {
         }
         self.transform_hashes = {
         }
 
     def test_dag_structure(self):
-        """ Test that the Jstor DAG has the correct structure.
+        """ Test that the Google Analytics DAG has the correct structure.
         :return: None
         """
-
-        dag = GoogleAnalyticsTelescope().make_dag()
+        organisation = Organisation(name=self.organisation_name)
+        dag = GoogleAnalyticsTelescope(organisation).make_dag()
         self.assert_dag_structure({
-            'check_dependencies': ['list_releases'],
-            'list_releases': ['download'],
-            'download': ['upload_downloaded'],
-            'upload_downloaded': ['transform'],
-            'transform': ['upload_transformed'],
+            'check_dependencies': ['download_transform'],
+            'download_transform': ['upload_transformed'],
             'upload_transformed': ['bq_load'],
             'bq_load': ['cleanup'],
             'cleanup': []
         }, dag)
 
     def test_dag_load(self):
-        """ Test that the Jstor DAG can be loaded from a DAG bag.
+        """ Test that the Google Analytics DAG can be loaded from a DAG bag.
         :return: None
         """
 
-        with ObservatoryEnvironment().create():
-            self.assert_dag_load('jstor')
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        with env.create():
+            # Add Observatory API connection
+            conn = Connection(conn_id=AirflowConns.OBSERVATORY_API,
+                              uri=f'http://:password@{self.host}:{self.api_port}')
+            env.add_connection(conn)
+
+            # conn = Connection(conn_id=AirflowConns.OAEBU_SERVICE_ACCOUNT,
+            #                   uri=f'google-cloud-platform://?type=service_account&private_key_id=private_key_id'
+            #                       f'&private_key=private_key'
+            #                       f'&client_email=client_email'
+            #                       f'&client_id=client_id')
+            # env.add_connection(conn)
+
+            # Add a telescope
+            dt = pendulum.utcnow()
+            telescope_type = orm.TelescopeType(name='Google Analytics Telescope',
+                                               type_id=TelescopeTypes.google_analytics,
+                                               created=dt,
+                                               modified=dt)
+            env.api_session.add(telescope_type)
+            organisation = orm.Organisation(name='UCL Press',
+                                            created=dt,
+                                            modified=dt)
+            env.api_session.add(organisation)
+            telescope = orm.Telescope(name='UCL Press Google Analytics Telescope',
+                                      telescope_type=telescope_type,
+                                      organisation=organisation,
+                                      modified=dt,
+                                      created=dt)
+            env.api_session.add(telescope)
+            env.api_session.commit()
+
+            dag_file = os.path.join(module_file_path('observatory.dags.dags'), 'google_analytics.py')
+            self.assert_dag_load('google_analytics_ucl_press', dag_file)
+
 
     def test_telescope(self):
         """ Test the Jstor telescope end to end.
@@ -98,7 +136,10 @@ class TestGoogleAnalytics(ObservatoryTestCase):
 
         # Setup Telescope
         execution_date = pendulum.datetime(year=2020, month=11, day=1)
-        telescope = GoogleAnalyticsTelescope(dataset_id=dataset_id)
+        organisation = orm.Organisation(name='UCL Press',
+                                        created=pendulum.utcnow(),
+                                        modified=pendulum.utcnow())
+        telescope = GoogleAnalyticsTelescope(organisation=organisation, dataset_id=dataset_id)
         telescope.sftp_folder = '/unittests/jstor'
         dag = telescope.make_dag()
 
@@ -118,8 +159,8 @@ class TestGoogleAnalytics(ObservatoryTestCase):
             end_date = pendulum.instance(cron_iter.get_next(datetime))
             release = GoogleAnalyticsRelease(telescope.dag_id, execution_date, end_date)
 
-            # Test download task
-            env.run_task(dag, telescope.download.__name__, execution_date)
+            # Test download_transform task
+            env.run_task(dag, telescope.download_transform.__name__, execution_date)
             # for release in releases:
             #     self.assertEqual(2, len(release.download_files))
             #

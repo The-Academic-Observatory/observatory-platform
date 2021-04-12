@@ -22,19 +22,19 @@ import logging
 import os
 from datetime import datetime
 from functools import partial
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import pendulum
 from airflow.hooks.base_hook import BaseHook
+from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import ShortCircuitOperator
 from croniter import croniter
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
+from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
-
-VIEW_ID = ''
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, make_dag_id
 
 
 class GoogleAnalyticsRelease(SnapshotRelease):
@@ -56,15 +56,20 @@ class GoogleAnalyticsRelease(SnapshotRelease):
 
     @property
     def transform_path(self) -> str:
+        """ Get the path to the transformed file.
+
+        :return: the file path.
+        """
         return os.path.join(self.transform_folder, f'{self.dag_id}.jsonl.gz')
 
-    def download_transform(self) -> bool:
-        """ Downloads an individual Google Analytics release.
-        :return:
+    def download_transform(self, view_id: str) -> bool:
+        """ Downloads and transforms an individual Google Analytics release.
+
+        :return: True when data available for period, False if no data is available
         """
 
         service = initialize_analyticsreporting()
-        results = get_reports(service, self.start_date, self.end_date)
+        results = get_reports(service, view_id, self.start_date, self.end_date)
         if results:
             list_to_jsonl_gz(self.transform_path, results)
             return True
@@ -74,12 +79,17 @@ class GoogleAnalyticsRelease(SnapshotRelease):
 
 class GoogleAnalyticsTelescope(SnapshotTelescope):
     """ Google Analytics Telescope."""
+    DAG_ID_PREFIX = 'google_analytics'
+    VIEW_ID_MAPPING = {'ucl_press': '103373421',
+                       'anu_press': '1422597'}
 
-    def __init__(self, dag_id: str = 'google_analytics', start_date: datetime = datetime(2021, 1, 1),
+    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None, start_date: datetime = datetime(2021, 1, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'google', catchup: bool = True,
                  airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleAnalyticsTelescope instance.
-        :param dag_id: the id of the DAG.
+        :param organisation: the Organisation of which data is processed.
+        :param dag_id: the id of the DAG, by default this is automatically generated based on the DAG_ID_PREFIX and the
+        organisation name.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param catchup: whether to catchup the DAG or not.
@@ -91,11 +101,16 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
 
         if airflow_conns is None:
             airflow_conns = [AirflowConns.OAEBU_SERVICE_ACCOUNT]
+
+        if dag_id is None:
+            dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
+
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, catchup=catchup, airflow_vars=airflow_vars,
                          airflow_conns=airflow_conns)
 
+        self.organisation = organisation
+        self.view_id = get_view_id(self.organisation.name)
         self.add_setup_task_chain([self.check_dependencies])
-        # use shortcircuit operator
         self.add_task(partial(ShortCircuitOperator, task_id=self.download_transform.__name__,
                               python_callable=partial(self.task_callable, self.download_transform),
                               queue=self.queue, default_args=self.default_args,
@@ -124,19 +139,41 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         return releases
 
     def download_transform(self, releases: List[GoogleAnalyticsRelease], **kwargs):
-        """ Task to download the google analytics release for a given month.
+        """ Task to download and transform the google analytics release for a given month.
+
         :param releases: a list with one google analyics release.
         :return: None.
         """
-        success = releases[0].download_transform()
+        success = releases[0].download_transform(self.view_id)
         return success
+
+    def check_dependencies(self, **kwargs) -> bool:
+        """ Check dependencies of DAG. Add to parent method to additionally check for a view id
+
+        :return: True if dependencies are valid.
+        """
+        super().check_dependencies()
+
+        if self.view_id is None:
+            raise AirflowException(f"Can't find view ID for organisation: {self.organisation.name}")
+        return True
+
+
+def get_view_id(organisation_name: str) -> str:
+    """ Get the google analytics view id based on the organisation name
+
+    :param organisation_name: Name of the organisation.
+    :return: The view id.
+    """
+    view_id = GoogleAnalyticsTelescope.VIEW_ID_MAPPING.get(organisation_name)
+    return view_id
 
 
 def initialize_analyticsreporting() -> Resource:
     """ Initializes an Analytics Reporting API V4 service object.
 
-  :return: An authorized Analytics Reporting API V4 service object.
-  """
+    :return: An authorized Analytics Reporting API V4 service object.
+    """
     oaebu_account_conn = BaseHook.get_connection(AirflowConns.OAEBU_SERVICE_ACCOUNT)
 
     scopes = ['https://www.googleapis.com/auth/analytics.readonly']
@@ -148,11 +185,20 @@ def initialize_analyticsreporting() -> Resource:
     return service
 
 
-def list_all_books(service: Resource, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Tuple[list, list]:
-    # Get all page paths for books
+def list_all_books(service: Resource, view_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Tuple[List[dict], list]:
+    """ List all available books by getting all pagepaths of a view id in a given period.
+
+    :param service: The Google Analytics Reporting service object.
+    :param view_id: The view id.
+    :param start_date: Start date of analytics period
+    :param end_date: End date of analytics period
+    :return: A list with dictionaries, one for each book entry (the dict contains the pagepath, title and average time
+    on page) and a list of all pagepaths.
+    """
+    # Get pagepath, pagetitle and average time on page for each path
     body = {
         'reportRequests': [{
-            'viewId': VIEW_ID,
+            'viewId': view_id,
             'pageSize': 10000,
             'dateRanges': [{
                 'startDate': start_date.strftime("%Y-%m-%d"),
@@ -180,6 +226,7 @@ def list_all_books(service: Resource, start_date: pendulum.Pendulum, end_date: p
         next_page_token = reports['reports'][0].get('nextPageToken')
         all_book_entries += book_entries
 
+    # create list with just pagepaths
     if all_book_entries:
         pagepaths = [path['dimensions'][0] for path in all_book_entries]
     else:
@@ -188,8 +235,16 @@ def list_all_books(service: Resource, start_date: pendulum.Pendulum, end_date: p
     return all_book_entries, pagepaths
 
 
-def create_book_result_dicts(book_entries: list, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Dict[
-    dict]:
+def create_book_result_dicts(book_entries: List[dict], start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> \
+        Dict[dict]:
+    """ Create a dictionary to store results for a single book. Pagepath, title and avg time on page are already given.
+    The other metrics will be added to the dictionary later.
+
+    :param book_entries: List with dictionaries of book entries.
+    :param start_date: Start date of analytics period.
+    :param end_date: End date of analytics period.
+    :return:
+    """
     book_results = {}
     for entry in book_entries:
         pagepath = entry['dimensions'][0]
@@ -211,11 +266,23 @@ def create_book_result_dicts(book_entries: list, start_date: pendulum.Pendulum, 
     return book_results
 
 
-def get_dimension_data(service: Resource, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, metrics: list,
+def get_dimension_data(service: Resource, view_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, metrics: list,
                        dimension: dict, pagepaths: list) -> list:
+    """ Get reports data from the Google Analytics Reporting service for a single dimension and multiple metrics.
+    The results are filtered by pagepaths of interest and ordered by pagepath as well.
+
+    :param service: The Google Analytics Reporting service.
+    :param view_id: The view id.
+    :param start_date: The start date of the analytics period.
+    :param end_date: The end date of the analytics period.
+    :param metrics: List with dictionaries of metric.
+    :param dimension: The dimension.
+    :param pagepaths: List with pagepaths to filter and sort on.
+    :return: List with reports data for dimension and metrics.
+    """
     body = {
         'reportRequests': [{
-            'viewId': VIEW_ID,
+            'viewId': view_id,
             'pageSize': 10000,
             'dateRanges': [{
                 'startDate': start_date.strftime("%Y-%m-%d"),
@@ -250,6 +317,16 @@ def get_dimension_data(service: Resource, start_date: pendulum.Pendulum, end_dat
 
 
 def add_to_book_result_dict(book_results: dict, dimension: dict, pagepath: str, unique_views: dict, sessions: dict):
+    """ Add the 'unique_views' and 'sessions' results to the book results dict if these metrics are of interest for the
+    current dimension.
+
+    :param book_results: A dictionary with all book results.
+    :param dimension: Current dimension for which 'unique_views' and 'sessions' data is given.
+    :param pagepath: Pagepath of the book.
+    :param unique_views: Number of unique views for the pagepath&dimension
+    :param sessions: Number of sessions for the pagepath&dimension
+    :return: None
+    """
     mapping = {'ga:country': 'country',
                'ga:fullReferrer': 'referrer',
                'ga:socialNetwork': 'social_network',
@@ -262,6 +339,16 @@ def add_to_book_result_dict(book_results: dict, dimension: dict, pagepath: str, 
 
 
 def merge_pagepaths_per_book(book_results: dict, pagepaths: list):
+    """ Merge results of multiple pagepaths for a single book.
+    There might be multiple pagepaths for one book (e.g. some paths have a fbclid parameter).
+    The unique views and sessions can be summed, the average time on page is first summed and then divided by the number
+    of pagepaths available for that book, so it is the correct average.
+
+    :param book_results: Dictionary with all book results.
+    :param pagepaths: List of pagepaths.
+    :return: None.
+    """
+    # get unique book pagepaths, stripping everything after '?'
     unique_pagepaths = set([path.split('?')[0] for path in pagepaths])
     unique_book_results = {}
     paths_per_book = {}
@@ -297,36 +384,40 @@ def merge_pagepaths_per_book(book_results: dict, pagepaths: list):
 
     # divide summed up average time by number of paths per book
     for unique_path in unique_book_results:
-        unique_book_results[unique_path] = {k: v / paths_per_book[unique_path] if k == 'average_time' else v for k, v in
-                                            unique_book_results[unique_path].items()}
+        unique_book_results[unique_path] = {k: v / paths_per_book[unique_path] if k == 'average_time' else v
+                                            for k, v in unique_book_results[unique_path].items()}
     return unique_book_results
 
 
-def get_reports(service: Resource, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> list:
-    """ Queries the Analytics Reporting API V4.
+def get_reports(service: Resource, view_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> list:
+    """ Get reports data from the Google Analytics Reporting API.
 
-  :param service: An authorized Analytics Reporting API V4 service object.
-  :return: The Analytics Reporting API V4 response.
-  """
+    :param service: The Google Analytics Reporting service.
+    :return: List with google analytics data for each book
+    """
 
-    book_entries, pagepaths = list_all_books(service, start_date, end_date)
+    # list all books
+    book_entries, pagepaths = list_all_books(service, view_id, start_date, end_date)
+    # if no books in period return empty list and raise airflow skip exception
     if not book_entries:
         return []
+    # create dict with dict for each book to store results
     book_results = create_book_result_dicts(book_entries, start_date, end_date)
 
     metric_names = ['uniquePageviews', 'sessions']
     metrics = [{'expression': f'ga:{metric}'} for metric in metric_names]
 
-    # loop through dimensions
     dimension_names = ['country', 'fullReferrer', 'socialNetwork', 'source']
     dimensions = [{'name': f'ga:{dimension}'} for dimension in dimension_names]
 
+    # get data per dimension
     for dimension in dimensions:
-        dimension_data = get_dimension_data(service, start_date, end_date, metrics, dimension, pagepaths)
+        dimension_data = get_dimension_data(service, view_id, start_date, end_date, metrics, dimension, pagepaths)
 
         prev_pagepath = None
         unique_views = {}
         sessions = {}
+        # entry is combination of book pagepath & dimension
         for entry in dimension_data:
             pagepath = entry['dimensions'][0]
             dimension_of_interest = entry['dimensions'][1]  # e.g. 'Australia' for 'country' dimension
