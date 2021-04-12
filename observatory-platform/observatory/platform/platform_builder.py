@@ -89,7 +89,8 @@ class PlatformBuilder:
         self.host_uid = host_uid
         self.host_gid = host_gid
         self.debug = debug
-        self.package_path = module_file_path('observatory.platform', nav_back_steps=-3)
+        self.platform_package_path = module_file_path('observatory.platform', nav_back_steps=-3)
+        self.api_package_path = module_file_path('observatory.api', nav_back_steps=-3)
         self.docker_build_path = os.path.join(build_path, 'docker')
         os.makedirs(self.docker_build_path, exist_ok=True)
         self.redis_port = redis_port
@@ -225,9 +226,14 @@ class PlatformBuilder:
         :return: None.
         """
 
-        # Copy observatory requirements.txt
-        input_file = os.path.join(self.package_path, 'requirements.txt')
-        output_file = os.path.join(self.docker_build_path, 'requirements.txt')
+        # Copy observatory platform requirements.txt
+        input_file = os.path.join(self.platform_package_path, 'requirements.txt')
+        output_file = os.path.join(self.docker_build_path, 'requirements.observatory-platform.txt')
+        shutil.copy(input_file, output_file)
+
+        # Copy observatory api requirements.txt
+        input_file = os.path.join(self.api_package_path, 'requirements.txt')
+        output_file = os.path.join(self.docker_build_path, 'requirements.observatory-api.txt')
         shutil.copy(input_file, output_file)
 
         # Copy all project requirements files for local projects
@@ -256,7 +262,8 @@ class PlatformBuilder:
         env['HOST_DAGS_PATH'] = self.dags_path
         env['HOST_DATA_PATH'] = self.data_path
         env['HOST_POSTGRES_PATH'] = self.postgres_path
-        env['HOST_PACKAGE_PATH'] = self.package_path
+        env['HOST_PLATFORM_PACKAGE_PATH'] = self.platform_package_path
+        env['HOST_API_PACKAGE_PATH'] = self.api_package_path
         env['HOST_REDIS_PORT'] = str(self.redis_port)
         env['HOST_FLOWER_UI_PORT'] = str(self.flower_ui_port)
         env['HOST_AIRFLOW_UI_PORT'] = str(self.airflow_ui_port)

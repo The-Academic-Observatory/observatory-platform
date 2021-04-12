@@ -27,14 +27,23 @@ if [ $1="webserver" ]; then
   airflow users create -r Admin -u ${AIRFLOW_UI_USER_EMAIL} -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
 fi
 
+# Set PBR version for installing packages
+export PBR_VERSION=0.0.1
+
+###############################
+# Install observatory-api
+###############################
+# Enter observatory platform folder
+cd /opt/observatory-api
+
+# Install the Observatory API Python package
+pip3 install -e . --user
+
 ###############################
 # Install observatory-platform
 ###############################
 # Enter observatory platform folder
 cd /opt/observatory-platform
-
-# Set PBR version for installing packages
-export PBR_VERSION=0.0.1
 
 # Install the Observatory Platform Python package
 pip3 install -e . --user
