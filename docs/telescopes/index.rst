@@ -6,6 +6,7 @@ Telescopes
     crossref_metadata
     fundref
     geonames
+    google_analytics
     google_books
     grid
     mag
