@@ -23,13 +23,13 @@ import os
 import pathlib
 import shutil
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
 from subprocess import Popen
 
 import pendulum
 import requests
-import time
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models.taskinstance import TaskInstance
@@ -43,7 +43,6 @@ from observatory.platform.utils.airflow_utils import AirflowConns, \
     check_connections, \
     check_variables
 from observatory.platform.utils.config_utils import (find_schema)
-from observatory.platform.utils.template_utils import SubFolder, telescope_path, test_data_path
 from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,
@@ -51,6 +50,7 @@ from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
                                                  upload_file_to_cloud_storage,
                                                  upload_files_to_cloud_storage)
 from observatory.platform.utils.proc_utils import wait_for_process
+from observatory.platform.utils.template_utils import SubFolder, telescope_path, test_data_path
 from observatory.platform.utils.url_utils import retry_session
 
 
@@ -502,8 +502,11 @@ class CrossrefMetadataTelescope:
         # Load BigQuery table
         uri = f"gs://{bucket_name}/{release.get_blob_name(SubFolder.transformed)}/*"
         logging.info(f"URI: {uri}")
-        load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
-                            SourceFormat.NEWLINE_DELIMITED_JSON)
+        success = load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
+                                      SourceFormat.NEWLINE_DELIMITED_JSON)
+
+        if not success:
+            raise AirflowException("bq_load task: data failed to load data into BigQuery")
 
     @staticmethod
     def cleanup(**kwargs):
