@@ -22,37 +22,56 @@ import logging
 import os
 from datetime import datetime
 from functools import partial
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 import pendulum
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 from airflow.operators.python_operator import ShortCircuitOperator
-from croniter import croniter
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
+
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, make_dag_id
+from observatory.platform.utils.template_utils import blob_name, bq_load_shard_v2, table_ids_from_path
 
 
 class GoogleAnalyticsRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, release_date: pendulum.Pendulum):
+    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, release_date: pendulum.Pendulum,
+                 organisation: Organisation):
         """ Construct a GoogleAnalyticsRelease.
+
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the download period.
         :param release_date: the end date of the download period, also used as release date for BigQuery table and
         file paths
+        :param organisation: the Organisation of which data is processed.
         """
-        download_files_regex = f"{dag_id}.jsonl"
-        transform_files_regex = f"{dag_id}.jsonl.gz"
+        self.dag_id_prefix = GoogleAnalyticsTelescope.DAG_ID_PREFIX
+        transform_files_regex = f"{self.dag_id_prefix}.jsonl.gz"
 
-        super().__init__(dag_id=dag_id, release_date=release_date, download_files_regex=download_files_regex,
+        super().__init__(dag_id=dag_id, release_date=release_date,
                          transform_files_regex=transform_files_regex)
 
+        self.organisation = organisation
         self.start_date = start_date
         self.end_date = release_date
+
+    @property
+    def download_bucket(self):
+        """ The download bucket name.
+        :return: the download bucket name.
+        """
+        return self.organisation.gcp_download_bucket
+
+    @property
+    def transform_bucket(self):
+        """ The transform bucket name.
+        :return: the transform bucket name.
+        """
+        return self.organisation.gcp_transform_bucket
 
     @property
     def transform_path(self) -> str:
@@ -60,16 +79,18 @@ class GoogleAnalyticsRelease(SnapshotRelease):
 
         :return: the file path.
         """
-        return os.path.join(self.transform_folder, f'{self.dag_id}.jsonl.gz')
+        return os.path.join(self.transform_folder, f'{self.dag_id_prefix}.jsonl.gz')
 
-    def download_transform(self, view_id: str) -> bool:
+    def download_transform(self, view_id: str, pagepath_prefix: str) -> bool:
         """ Downloads and transforms an individual Google Analytics release.
 
+        :param view_id: The view id.
+        :param pagepath_prefix: The prefix of the pagepath for a book.
         :return: True when data available for period, False if no data is available
         """
 
         service = initialize_analyticsreporting()
-        results = get_reports(service, view_id, self.start_date, self.end_date)
+        results = get_reports(service, view_id, pagepath_prefix, self.start_date, self.end_date)
         if results:
             list_to_jsonl_gz(self.transform_path, results)
             return True
@@ -80,10 +101,11 @@ class GoogleAnalyticsRelease(SnapshotRelease):
 class GoogleAnalyticsTelescope(SnapshotTelescope):
     """ Google Analytics Telescope."""
     DAG_ID_PREFIX = 'google_analytics'
-    VIEW_ID_MAPPING = {'ucl_press': '103373421',
-                       'anu_press': '1422597'}
+    ORG_MAPPING = {'ucl_press': ('103373421', '/collections/open-access/products/'),
+                   'anu_press': ('1422597', '')}
 
-    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None, start_date: datetime = datetime(2021, 1, 1),
+    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
+                 start_date: datetime = datetime(2021, 1, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'google', catchup: bool = True,
                  airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleAnalyticsTelescope instance.
@@ -109,7 +131,11 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
                          airflow_conns=airflow_conns)
 
         self.organisation = organisation
+        self.project_id = organisation.gcp_project_id
+        self.dataset_location = 'us'  # TODO: add to API
         self.view_id = get_view_id(self.organisation.name)
+        self.pagepath_prefix = get_pagepath_prefix(self.organisation.name)
+
         self.add_setup_task_chain([self.check_dependencies])
         self.add_task(partial(ShortCircuitOperator, task_id=self.download_transform.__name__,
                               python_callable=partial(self.task_callable, self.download_transform),
@@ -129,23 +155,12 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         :return: A list of grid release instances
         """
         # Get start and end date (release_date)
-        start_date = kwargs['dag_run'].execution_date
-        cron_schedule = kwargs['dag'].normalized_schedule_interval
-        cron_iter = croniter(cron_schedule, start_date)
-        end_date = pendulum.instance(cron_iter.get_next(datetime))
+        start_date = kwargs['execution_date']
+        end_date = kwargs['next_execution_date']
 
         logging.info(f'Start date: {start_date}, end date:{end_date}')
-        releases = [GoogleAnalyticsRelease(self.dag_id, start_date, end_date)]
+        releases = [GoogleAnalyticsRelease(self.dag_id, start_date, end_date, self.organisation)]
         return releases
-
-    def download_transform(self, releases: List[GoogleAnalyticsRelease], **kwargs):
-        """ Task to download and transform the google analytics release for a given month.
-
-        :param releases: a list with one google analyics release.
-        :return: None.
-        """
-        success = releases[0].download_transform(self.view_id)
-        return success
 
     def check_dependencies(self, **kwargs) -> bool:
         """ Check dependencies of DAG. Add to parent method to additionally check for a view id
@@ -158,6 +173,43 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
             raise AirflowException(f"Can't find view ID for organisation: {self.organisation.name}")
         return True
 
+    def download_transform(self, releases: List[GoogleAnalyticsRelease], **kwargs):
+        """ Task to download and transform the google analytics release for a given month.
+
+        :param releases: a list with one google analyics release.
+        :return: None.
+        """
+        success = releases[0].download_transform(self.view_id, self.pagepath_prefix)
+        return success
+
+    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
+        """ Task to load each transformed release to BigQuery.
+        The table_id is set to the file name without the extension.
+        :param releases: a list of releases.
+        :return: None.
+        """
+
+        # Load each transformed release
+        for release in releases:
+            for transform_path in release.transform_files:
+                transform_blob = blob_name(transform_path)
+                table_id, _ = table_ids_from_path(transform_path)
+
+                bq_load_shard_v2(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                 self.dataset_location, table_id, release.release_date, self.source_format,
+                                 prefix=self.schema_prefix, schema_version=self.schema_version,
+                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+
+#TODO replace with make_org_id from telecope_utils
+def make_org_id(organisation_name: str) -> str:
+    """ Make an organisation id from the organisation name. Converts the organisation name to lower case,
+    strips whitespace and replaces internal spaces with underscores.
+    :param organisation_name: the organisation name.
+    :return: the organisation id.
+    """
+
+    return organisation_name.strip().replace(' ', '_').lower()
+
 
 def get_view_id(organisation_name: str) -> str:
     """ Get the google analytics view id based on the organisation name
@@ -165,8 +217,18 @@ def get_view_id(organisation_name: str) -> str:
     :param organisation_name: Name of the organisation.
     :return: The view id.
     """
-    view_id = GoogleAnalyticsTelescope.VIEW_ID_MAPPING.get(organisation_name)
+    view_id = GoogleAnalyticsTelescope.ORG_MAPPING.get(make_org_id(organisation_name))[0]
     return view_id
+
+
+def get_pagepath_prefix(organisation_name: str) -> str:
+    """ Get the pagepath prefix for books based on the organisation name
+
+    :param organisation_name: Name of the organisation.
+    :return: The pagepath prefix
+    """
+    pagepath_prefix = GoogleAnalyticsTelescope.ORG_MAPPING.get(make_org_id(organisation_name))[1]
+    return pagepath_prefix
 
 
 def initialize_analyticsreporting() -> Resource:
@@ -185,11 +247,13 @@ def initialize_analyticsreporting() -> Resource:
     return service
 
 
-def list_all_books(service: Resource, view_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Tuple[List[dict], list]:
+def list_all_books(service: Resource, view_id: str, pagepath_prefix: str,
+                   start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Tuple[List[dict], list]:
     """ List all available books by getting all pagepaths of a view id in a given period.
 
     :param service: The Google Analytics Reporting service object.
     :param view_id: The view id.
+    :param pagepath_prefix: The prefix of the pagepath for a book.
     :param start_date: Start date of analytics period
     :param end_date: End date of analytics period
     :return: A list with dictionaries, one for each book entry (the dict contains the pagepath, title and average time
@@ -210,7 +274,7 @@ def list_all_books(service: Resource, view_id: str, start_date: pendulum.Pendulu
                 "filters": [{
                     "dimensionName": "ga:pagepath",
                     "operator": "BEGINS_WITH",
-                    "expressions": ["/collections/open-access/products/"]
+                    "expressions": [pagepath_prefix]
                 }]
             }]
         }]
@@ -266,7 +330,8 @@ def create_book_result_dicts(book_entries: List[dict], start_date: pendulum.Pend
     return book_results
 
 
-def get_dimension_data(service: Resource, view_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, metrics: list,
+def get_dimension_data(service: Resource, view_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
+                       metrics: list,
                        dimension: dict, pagepaths: list) -> list:
     """ Get reports data from the Google Analytics Reporting service for a single dimension and multiple metrics.
     The results are filtered by pagepaths of interest and ordered by pagepath as well.
@@ -389,15 +454,20 @@ def merge_pagepaths_per_book(book_results: dict, pagepaths: list):
     return unique_book_results
 
 
-def get_reports(service: Resource, view_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> list:
+def get_reports(service: Resource, view_id: str, pagepath_prefix: str, start_date: pendulum.Pendulum,
+                end_date: pendulum.Pendulum) -> list:
     """ Get reports data from the Google Analytics Reporting API.
 
     :param service: The Google Analytics Reporting service.
+    :param view_id: The view id.
+    :param pagepath_prefix: The prefix of the pagepath for a book.
+    :param start_date: Start date of analytics period
+    :param end_date: End date of analytics period
     :return: List with google analytics data for each book
     """
 
     # list all books
-    book_entries, pagepaths = list_all_books(service, view_id, start_date, end_date)
+    book_entries, pagepaths = list_all_books(service, view_id, pagepath_prefix, start_date, end_date)
     # if no books in period return empty list and raise airflow skip exception
     if not book_entries:
         return []
@@ -439,7 +509,6 @@ def get_reports(service: Resource, view_id: str, start_date: pendulum.Pendulum, 
             prev_pagepath = pagepath
         else:
             add_to_book_result_dict(book_results, dimension, prev_pagepath, unique_views, sessions)
-
     # merge results of single book with different pagepaths (e.g. fbclid parameter)
     book_results = merge_pagepaths_per_book(book_results, pagepaths)
 
@@ -457,5 +526,6 @@ def get_reports(service: Resource, view_id: str, start_date: pendulum.Pendulum, 
                     book_results[book][field][nested_field] = values
 
     # convert dict to list of results
-    book_results = list(book_results.values())
+    book_results = [book_results[k] for k in book_results]
+
     return book_results
