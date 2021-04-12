@@ -30,7 +30,8 @@ version: '3.8'
 {%- set host_logs_path="${HOST_LOGS_PATH}" -%}
 {%- set host_dags_path="${HOST_DAGS_PATH}" -%}
 {%- set host_data_path="${HOST_DATA_PATH}" -%}
-{%- set host_package_path="${HOST_PACKAGE_PATH}" -%}
+{%- set host_platform_package_path="${HOST_PLATFORM_PACKAGE_PATH}" -%}
+{%- set host_api_package_path="${HOST_API_PACKAGE_PATH}" -%}
 {%- set host_postgres_path="${HOST_POSTGRES_PATH}" -%}
 {%- set google_application_credentials="${HOST_GOOGLE_APPLICATION_CREDENTIALS}" -%}
 
@@ -45,7 +46,8 @@ version: '3.8'
 {%- set host_logs_path="/opt/airflow/logs" -%}
 {%- set host_dags_path="/opt/observatory-platform/observatory/platform/dags" -%}
 {%- set host_data_path="/opt/observatory/data" -%}
-{%- set host_package_path="/opt/observatory-platform" -%}
+{%- set host_platform_package_path="/opt/observatory-platform" -%}
+{%- set host_api_package_path="/opt/observatory-api" -%}
 {%- set google_application_credentials="/opt/observatory/google_application_credentials.json" -%}
 
 {%- endif -%}
@@ -102,7 +104,8 @@ x-volumes: &volumes
   - "{{ host_logs_path }}:/opt/airflow/logs"
   - "{{ host_dags_path }}:/opt/airflow/dags"
   - "{{ host_data_path }}:/opt/observatory/data"
-  - "{{ host_package_path }}:/opt/observatory-platform"
+  - "{{ host_platform_package_path }}:/opt/observatory-platform"
+  - "{{ host_api_package_path }}:/opt/observatory-api"
   # Volume mappings for DAGs projects:
   {%- for project in config.dags_projects %}
   {%- if project.type == 'local' %}

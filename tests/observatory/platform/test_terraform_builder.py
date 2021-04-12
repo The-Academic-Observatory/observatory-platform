@@ -170,9 +170,16 @@ class TestTerraformBuilder(unittest.TestCase):
                 path = os.path.join(self.build_path, 'terraform', file_name)
                 self.assertTrue(os.path.isfile(path))
 
+            # Test that expected packages exists
+            packages = ['observatory-api', 'observatory-platform']
+            for package in packages:
+                path = os.path.join(self.build_path, 'packages', package)
+                self.assertTrue(os.path.exists(path))
+
             # Test that the expected Docker files have been written
             build_file_names = ['docker-compose.observatory.yml', 'Dockerfile.observatory', 'elasticsearch.yml',
-                                'entrypoint-airflow.sh', 'entrypoint-root.sh', 'requirements.txt']
+                                'entrypoint-airflow.sh', 'entrypoint-root.sh', 'requirements.observatory-platform.txt',
+                                'requirements.observatory-api.txt']
             for file_name in build_file_names:
                 path = os.path.join(self.build_path, 'docker', file_name)
                 self.assertTrue(os.path.isfile(path))
@@ -269,7 +276,8 @@ class TestTerraformBuilder(unittest.TestCase):
             args = ['docker', 'build', '.']
             print('Executing subprocess:')
 
-            proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cmd.api_package_path)
+            proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                           cwd=cmd.api_package_path)
             output, error = stream_process(proc, True)
 
             # Assert that the image built

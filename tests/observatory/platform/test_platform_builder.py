@@ -152,7 +152,8 @@ class TestPlatformBuilder(unittest.TestCase):
 
             # Test that the expected files have been written
             build_file_names = ['docker-compose.observatory.yml', 'Dockerfile.observatory', 'elasticsearch.yml',
-                                'entrypoint-airflow.sh', 'entrypoint-root.sh', 'requirements.txt']
+                                'entrypoint-airflow.sh', 'entrypoint-root.sh', 'requirements.observatory-platform.txt',
+                                'requirements.observatory-api.txt']
             for file_name in build_file_names:
                 path = os.path.join(self.build_path, 'docker', file_name)
                 self.assertTrue(os.path.isfile(path))
@@ -173,7 +174,8 @@ class TestPlatformBuilder(unittest.TestCase):
                 'HOST_DAGS_PATH': self.dags_path,
                 'HOST_DATA_PATH': self.data_path,
                 'HOST_POSTGRES_PATH': self.postgres_path,
-                'HOST_PACKAGE_PATH': module_file_path('observatory.platform', nav_back_steps=-3),
+                'HOST_PLATFORM_PACKAGE_PATH': module_file_path('observatory.platform', nav_back_steps=-3),
+                'HOST_API_PACKAGE_PATH': module_file_path('observatory.api', nav_back_steps=-3),
                 'HOST_REDIS_PORT': str(REDIS_PORT),
                 'HOST_FLOWER_UI_PORT': str(FLOWER_UI_PORT),
                 'HOST_AIRFLOW_UI_PORT': str(AIRFLOW_UI_PORT),
@@ -215,7 +217,8 @@ class TestPlatformBuilder(unittest.TestCase):
                 'HOST_DAGS_PATH': self.dags_path,
                 'HOST_DATA_PATH': self.data_path,
                 'HOST_POSTGRES_PATH': self.postgres_path,
-                'HOST_PACKAGE_PATH': module_file_path('observatory.platform', nav_back_steps=-3),
+                'HOST_PLATFORM_PACKAGE_PATH': module_file_path('observatory.platform', nav_back_steps=-3),
+                'HOST_API_PACKAGE_PATH': module_file_path('observatory.api', nav_back_steps=-3),
                 'HOST_REDIS_PORT': str(REDIS_PORT),
                 'HOST_FLOWER_UI_PORT': str(FLOWER_UI_PORT),
                 'HOST_AIRFLOW_UI_PORT': str(AIRFLOW_UI_PORT),

@@ -136,7 +136,8 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
                         csv_allow_quoted_newlines: bool = False, csv_skip_leading_rows: int = 0,
                         partition: bool = False, partition_field: Union[None, str] = None,
                         partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True,
-                        write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE, description: str = '') -> bool:
+                        write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE, description: str = '',
+                        project_id: str = None) -> bool:
     """ Load a BigQuery table from an object on Google Cloud Storage.
 
     :param uri: the uri of the object to load from Google Cloud Storage into BigQuery.
@@ -155,6 +156,7 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     :param require_partition_filter: whether the partition filter is required or not when querying the table.
     :param write_disposition: whether to append, overwrite or throw an error when data already exists in the table.
     :param description: the description of the table.
+    :param project_id: Google Cloud project id.
     Default is to overwrite.
     :return:
     """
@@ -167,7 +169,9 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     logging.info(f"{func_name}: load bigquery table {msg}")
 
     client = bigquery.Client()
-    dataset = client.dataset(dataset_id)
+    if project_id is None:
+        project_id = client.project
+    dataset = bigquery.Dataset(f'{project_id}.{dataset_id}')
 
     # Create load job
     job_config = LoadJobConfig()

@@ -88,11 +88,14 @@ class SnapshotTelescope(Telescope):
         :param kwargs:
         :return:
         """
+
         for release in releases:
             upload_files_from_list(release.transform_files, release.transform_bucket)
 
     def bq_load(self, releases: List[SnapshotRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.
+
+        The table_id is set to the file name without the extension.
 
         :param releases: a list of releases.
         :return: None.
