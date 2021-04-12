@@ -20,7 +20,7 @@ import re
 import shutil
 import subprocess
 from datetime import datetime
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 import pendulum
 from airflow.exceptions import AirflowException
@@ -30,17 +30,16 @@ from pendulum import Pendulum
 
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
-from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
+from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.config_utils import observatory_home
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.proc_utils import wait_for_process
-from observatory.platform.utils.telescope_utils import make_dag_id, make_sftp_connection
+from observatory.platform.utils.telescope_utils import SftpFolders, make_dag_id, make_org_id, make_sftp_connection
 from observatory.platform.utils.template_utils import (blob_name, bq_load_shard_v2, table_ids_from_path,
                                                        upload_files_from_list)
 
 
 class OnixRelease(SnapshotRelease):
-    RELEASE_INFO = 'releases'
     DOWNLOAD_FILES_REGEX = r"\d{8}[_A-Z]+\.xml"
     TRANSFORM_FILES_REGEX = "onix.jsonl"
     ONIX_PARSER_NAME = 'coki-onix-parser.jar'
@@ -58,60 +57,6 @@ class OnixRelease(SnapshotRelease):
         super().__init__(dag_id, release_date, self.DOWNLOAD_FILES_REGEX, None, self.TRANSFORM_FILES_REGEX)
         self.organisation = organisation
         self.file_name = file_name
-
-    @property
-    def sftp_home(self):
-        """ The organisation's SFTP home folder.
-
-        :return: path to folder.
-        """
-
-        return sftp_home(self.organisation.name)
-
-    @property
-    def sftp_in_progress_folder(self):
-        """ The organisation's SFTP in_progress folder.
-
-        :return: path to folder.
-        """
-
-        return os.path.join(self.sftp_home, 'in_progress')
-
-    @property
-    def sftp_finished_folder(self):
-        """ The organisation's SFTP finished folder.
-
-        :return: path to folder.
-        """
-
-        return os.path.join(self.sftp_home, 'finished')
-
-    @property
-    def sftp_upload_file(self):
-        """ The organisation's SFTP upload file.
-
-        :return: path to folder.
-        """
-
-        return os.path.join(self.sftp_home, 'upload', self.file_name)
-
-    @property
-    def sftp_in_progress_file(self):
-        """ The organisation's SFTP in_progress file.
-
-        :return: path to folder.
-        """
-
-        return os.path.join(self.sftp_in_progress_folder, self.file_name)
-
-    @property
-    def sftp_finished_file(self):
-        """ The organisation's SFTP finished file.
-
-        :return: path to folder.
-        """
-
-        return os.path.join(self.sftp_finished_folder, self.file_name)
 
     @property
     def download_file(self) -> str:
@@ -138,24 +83,15 @@ class OnixRelease(SnapshotRelease):
         """
         return self.organisation.gcp_transform_bucket
 
-    def move_files_to_in_progress(self):
-        """ Move ONIX file to in-progress folder
-
-        :return: None.
-        """
-
-        with make_sftp_connection() as sftp:
-            sftp.makedirs(self.sftp_in_progress_folder)
-            sftp.rename(self.sftp_upload_file, self.sftp_in_progress_file)
-
-    def download(self):
+    def download(self, in_progress_folder: str):
         """ Downloads an individual ONIX release from the SFTP server.
 
+        :param in_progress_folder: Sftp 'in_progress' folder
         :return: None.
         """
 
         with make_sftp_connection() as sftp:
-            sftp.get(self.sftp_in_progress_file, localpath=self.download_file)
+            sftp.get(os.path.join(in_progress_folder, self.file_name), localpath=self.download_file)
 
     def transform(self):
         """ Transform ONIX release.
@@ -172,7 +108,7 @@ class OnixRelease(SnapshotRelease):
 
         # Transform release
         cmd = f"java -jar {self.ONIX_PARSER_NAME} {self.download_folder} {self.transform_folder} " \
-              f"{org_id(self.organisation.name)}"
+              f"{make_org_id(self.organisation.name)}"
         p = subprocess.Popen(cmd,
                              shell=True,
                              stdout=subprocess.PIPE,
@@ -190,37 +126,6 @@ class OnixRelease(SnapshotRelease):
         # Rename file to onix.jsonl
         shutil.move(os.path.join(self.transform_folder, 'full.jsonl'),
                     os.path.join(self.transform_folder, self.TRANSFORM_FILES_REGEX))
-
-    def move_files_to_finished(self):
-        """ Move ONIX file to finished folder
-
-        :return: None.
-        """
-
-        with make_sftp_connection() as sftp:
-            sftp.makedirs(self.sftp_finished_folder)
-            sftp.rename(self.sftp_in_progress_file, self.sftp_finished_file)
-
-
-def org_id(organisation_name: str) -> str:
-    """ Make an organisation id from the organisation name. Converts the organisation name to lower case,
-    strips whitespace and replaces internal spaces with underscores.
-
-    :param organisation_name: the organisation name.
-    :return: the organisation id.
-    """
-
-    return organisation_name.strip().replace(' ', '_').lower()
-
-
-def sftp_home(organisation_name: str) -> str:
-    """ Make the SFTP home folder for an organisation.
-
-    :param organisation_name: the organisation name.
-    :return: the path to the folder.
-    """
-
-    return os.path.join('/telescopes', 'onix', org_id(organisation_name))
 
 
 def list_release_info(sftp_upload_folder: str) -> List[Dict]:
@@ -288,6 +193,7 @@ class OnixTelescope(SnapshotTelescope):
                          airflow_conns=airflow_conns)
 
         self.organisation = organisation
+        self.sftp_folders = SftpFolders(dag_id, organisation.name)
         self.add_setup_task(self.check_dependencies)
         self.add_setup_task(self.list_release_info)
         self.add_task(self.move_files_to_in_progress)
@@ -309,8 +215,7 @@ class OnixTelescope(SnapshotTelescope):
         """
 
         # List release dates
-        sftp_upload_folder = os.path.join(sftp_home(self.organisation.name), 'upload')
-        release_info = list_release_info(sftp_upload_folder)
+        release_info = list_release_info(self.sftp_folders.upload)
 
         # Publish XCom
         continue_dag = len(release_info)
@@ -331,7 +236,7 @@ class OnixTelescope(SnapshotTelescope):
         """
 
         ti: TaskInstance = kwargs['ti']
-        records = ti.xcom_pull(key=OnixRelease.RELEASE_INFO,
+        records = ti.xcom_pull(key=OnixTelescope.RELEASE_INFO,
                                task_ids=self.list_release_info.__name__,
                                include_prior_dates=False)
         releases = []
@@ -349,7 +254,7 @@ class OnixTelescope(SnapshotTelescope):
         """
 
         for release in releases:
-            release.move_files_to_in_progress()
+            self.sftp_folders.move_files_to_in_progress(release.file_name)
 
     def download(self, releases: List[OnixRelease], **kwargs):
         """ Task to download the ONIX releases.
@@ -359,7 +264,7 @@ class OnixTelescope(SnapshotTelescope):
         """
 
         for release in releases:
-            release.download()
+            release.download(self.sftp_folders.in_progress)
 
     def upload_downloaded(self, releases: List[OnixRelease], **kwargs):
         """ Task to upload the downloaded ONIX releases.
@@ -410,4 +315,4 @@ class OnixTelescope(SnapshotTelescope):
         """
 
         for release in releases:
-            release.move_files_to_finished()
+            self.sftp_folders.move_files_to_finished(release.file_name)
