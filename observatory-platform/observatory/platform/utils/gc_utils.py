@@ -560,7 +560,7 @@ def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_
         # Wait for completed tasks
         results = []
         for future in as_completed(futures):
-            success = future.result()
+            success, upload = future.result()
             results.append(success)
             msg = futures_msgs[future]
             if success:

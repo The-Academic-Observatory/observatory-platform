@@ -130,8 +130,12 @@ class OapenIrusUkRelease(SnapshotRelease):
         exists = cloud_function_exists(service, location, full_name)
         if not exists or upload is True:
             update = True if exists else False
-            success = create_cloud_function(service, location, full_name, source_bucket, source_blob_name, max_instances,
-                                           update)
+            success, msg = create_cloud_function(service, location, full_name, source_bucket, source_blob_name,
+                                                 max_instances, update)
+            if success:
+                logging.info(f'Creating or patching cloud function successful, response: {msg}')
+            else:
+                raise AirflowException(f'Creating or patching cloud function unsuccessful, error: {msg}')
         else:
             logging.info(f'Using existing cloud function, source code has not changed.')
 
@@ -167,13 +171,17 @@ class OapenIrusUkRelease(SnapshotRelease):
         :return: None.
         """
         success = copy_blob_from_cloud_storage(self.blob_name, oapen_bucket, self.download_bucket)
+        if not success:
+            raise AirflowException('Transfer blob unsuccessful')
 
-    def download(self):
+    def download_transform(self):
         """ Download blob with access stats to a local file.
 
         :return: None.
         """
         success = download_blob_from_cloud_storage(self.download_bucket, self.blob_name, self.transform_path)
+        if not success:
+            raise AirflowException('Download blob unsuccessful')
 
 
 class OapenIrusUkTelescope(SnapshotTelescope):
@@ -224,7 +232,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
                               task_concurrency=1))
         self.add_task(self.call_cloud_function)
         self.add_task(self.transfer)
-        self.add_task(self.download)
+        self.add_task(self.download_transform)
         self.add_task(self.upload_transformed)
         self.add_task(self.bq_load)
         self.add_task(self.cleanup)
@@ -270,14 +278,14 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         for release in releases:
             release.transfer(self.oapen_bucket)
 
-    def download(self, releases: List[OapenIrusUkRelease], **kwargs):
+    def download_transform(self, releases: List[OapenIrusUkRelease], **kwargs):
         """ Task to download the access stats to a local file for each release.
 
         :param releases: the list of OapenIrusUkRelease instances.
         :return: None.
         """
         for release in releases:
-            release.download()
+            release.download_transform()
 
 
 def get_publisher_uuid(organisation_id: str) -> str:
@@ -307,8 +315,8 @@ def upload_source_code_to_bucket(project_id: str, bucket_name: str, blob_name: s
     :param blob_name: The blob name
     :return: Whether task was successful and whether file was uploaded
     """
-    source_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'oapen_irus_uk_sc')
-    zip_filename = os.path.join(module_file_path('observatory.dags.telescopes'), 'oapen_irus_uk_sc')
+    source_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'oapen_cloud_function')
+    zip_filename = os.path.join(module_file_path('observatory.dags.telescopes'), 'oapen_cloud_function')
     zip_filepath = shutil.make_archive(zip_filename, 'zip', source_dir)
 
     # create storage bucket
@@ -336,7 +344,7 @@ def cloud_function_exists(service: Resource, location: str, full_name: str) -> b
 
 
 def create_cloud_function(service: Resource, location: str, full_name: str, source_bucket: str, blob_name: str,
-                          max_active_runs: int, update: bool) -> bool:
+                          max_active_runs: int, update: bool) -> Tuple[bool, dict]:
     """ Create cloud function.
 
     :param service: Cloud function service
@@ -346,7 +354,7 @@ def create_cloud_function(service: Resource, location: str, full_name: str, sour
     :param blob_name: Blob name of source code inside bucket
     :param max_active_runs: The limit on the maximum number of function instances that may coexist at a given time
     :param update: Whether a new function is created or an existing one is updated
-    :return: Status of the cloud function
+    :return: Status of the cloud function and error/success message
     """
     body = {
         "name": full_name,
@@ -381,13 +389,9 @@ def create_cloud_function(service: Resource, location: str, full_name: str, sour
     error = response.get('error')
     resp = response.get('response')
     success = True if resp else False
+    msg = resp if success else error
 
-    if success:
-        logging.info(f'Creating or patching cloud function successful, response: {resp}')
-    else:
-        raise AirflowException(f'Creating or patching cloud function unsuccessful, error: {error}')
-
-    return success
+    return success, msg
 
 
 def call_cloud_function(function_url: str, release_date: str, username: str, password: str, geoip_license_key: str,
@@ -403,7 +407,7 @@ def call_cloud_function(function_url: str, release_date: str, username: str, pas
     :param publisher_uuid: UUID of the publisher (used for new version, 'NA' for old version)
     :param bucket_name: Name of the bucket to store oapen access stats data
     :param blob_name: Blob name to store oapen access stats data
-    :return: Whether response code is 2000
+    :return: Whether response code is 200
     """
     creds = IDTokenCredentials.from_service_account_file(os.environ.get(environment_vars.CREDENTIALS),
                                                          target_audience=function_url)
