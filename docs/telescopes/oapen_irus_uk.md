@@ -58,4 +58,4 @@ To get the requestor_id/api_key, contact oapen irus uk.
 `geoip_license_key: mysql://user_id:license_key`  
 To get the user_id/license_key, first sign up for geolite2 at https://www.maxmind.com/en/geolite2/signup.  
 From your account, in the 'Services', click on 'Manage License Keys'. The user_id is displayed on this page.
-Then, click on 'Generate new license key', this can be used for the 'license_key'.
+Then, click on 'Generate new license key', this can be used for the 'license_key'. Answer *No* for the question: "Old versions of our GeoIP Update program use a different license key format. Will this key be used for GeoIP Update?"
