@@ -427,7 +427,15 @@ resource "google_sql_database" "airflow_db" {
   instance = google_sql_database_instance.observatory_db_instance.name
 }
 
+// Keep this for legacy reasons
 resource "google_sql_user" "users" {
+  name = "airflow"
+  instance = google_sql_database_instance.observatory_db_instance.name
+  password = var.cloud_sql_database.postgres_password
+}
+
+// New database user
+resource "google_sql_user" "observatory_user" {
   name = "observatory"
   instance = google_sql_database_instance.observatory_db_instance.name
   password = var.cloud_sql_database.postgres_password
