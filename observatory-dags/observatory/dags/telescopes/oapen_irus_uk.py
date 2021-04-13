@@ -21,7 +21,7 @@ import shutil
 import time
 from datetime import datetime
 from functools import partial
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from urllib.parse import quote
 
 import pendulum
@@ -34,6 +34,7 @@ from google.auth.transport.requests import AuthorizedSession
 from google.oauth2.service_account import IDTokenCredentials
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
+from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
@@ -42,19 +43,33 @@ from observatory.platform.utils.gc_utils import copy_blob_from_cloud_storage, \
     download_blob_from_cloud_storage, \
     upload_file_to_cloud_storage
 from observatory.platform.utils.template_utils import blob_name
+from observatory.platform.utils.telescope_utils import make_dag_id
+
+
+#TODO replace with make_org_id from telecope_utils
+def make_org_id(organisation_name: str) -> str:
+    """ Make an organisation id from the organisation name. Converts the organisation name to lower case,
+    strips whitespace and replaces internal spaces with underscores.
+    :param organisation_name: the organisation name.
+    :return: the organisation id.
+    """
+
+    return organisation_name.strip().replace(' ', '_').lower()
 
 
 class OapenIrusUkRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.Pendulum):
+    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, organisation: Organisation):
         """ Create a OapenIrusUkReleaes instance.
 
         :param dag_id: the DAG id.
         :param release_date: the date of the release.
+        :param organisation: the Organisation of which data is processed.
         """
 
-        transform_files_regex = f'{dag_id}.jsonl.gz'
+        transform_files_regex = f'{OapenIrusUkTelescope.DAG_ID_PREFIX}.jsonl.gz'
         super().__init__(dag_id, release_date, transform_files_regex=transform_files_regex)
-        self.publisher_name = 'UCL Press'
+        self.organisation = organisation
+        self.organisation_id = make_org_id(organisation.name)
 
     @property
     def blob_name(self) -> str:
@@ -63,8 +78,21 @@ class OapenIrusUkRelease(SnapshotRelease):
         :return: Blob name
         """
         return blob_name(os.path.join(self.download_folder,
-                                      f'{self.release_date.strftime("%Y_%m")}_'
-                                      f'{self.publisher_name.replace(" ", "_")}.jsonl.gz'))
+                                      f'{self.release_date.strftime("%Y_%m")}_{self.organisation_id}.jsonl.gz'))
+
+    @property
+    def download_bucket(self):
+        """ The download bucket name.
+        :return: the download bucket name.
+        """
+        return self.organisation.gcp_download_bucket
+
+    @property
+    def transform_bucket(self):
+        """ The transform bucket name.
+        :return: the transform bucket name.
+        """
+        return self.organisation.gcp_transform_bucket
 
     @property
     def transform_path(self) -> str:
@@ -72,7 +100,7 @@ class OapenIrusUkRelease(SnapshotRelease):
 
         :return: Full path to the download file
         """
-        return os.path.join(self.transform_folder, f'{self.dag_id}.jsonl.gz')
+        return os.path.join(self.transform_folder, f'{OapenIrusUkTelescope.DAG_ID_PREFIX}.jsonl.gz')
 
     def create_cloud_function(self, max_instances: int, oapen_project_id: str, source_bucket: str, function_name: str,
                               function_region: str):
@@ -89,7 +117,7 @@ class OapenIrusUkRelease(SnapshotRelease):
         full_name = f'{location}/functions/{function_name}'
 
         # zip source code and upload to bucket
-        source_blob_name = 'oapen_irus_uk_sc.zip'
+        source_blob_name = 'cloud_function_source_code.zip'
         success, upload = upload_source_code_to_bucket(oapen_project_id, source_bucket, source_blob_name)
         if not success:
             raise AirflowException('Could not upload source code of cloud function to bucket.')
@@ -118,18 +146,17 @@ class OapenIrusUkRelease(SnapshotRelease):
         """
         function_url = f'https://{function_region}-{oapen_project_id}.cloudfunctions.net/{function_name}'
         geoip_license_key = BaseHook.get_connection(AirflowConns.GEOIP_LICENSE_KEY).password
-        publisher_name = quote("UCL Press", safe='')
 
         if self.release_date >= datetime(2020, 4, 1):
-            publisher_uuid = get_publisher_uuid(publisher_name)
+            publisher_uuid = get_publisher_uuid(self.organisation_id)
             airflow_conn = AirflowConns.OAPEN_IRUS_UK_API
         else:
             publisher_uuid = "NA"
             airflow_conn = AirflowConns.OAPEN_IRUS_UK_LOGIN
         username = BaseHook.get_connection(airflow_conn).login
         password = BaseHook.get_connection(airflow_conn).password
-        success = call_function(function_url, self.release_date.strftime('%Y-%m'), username, password,
-                                geoip_license_key, publisher_name, publisher_uuid, source_bucket, self.blob_name)
+        success = call_cloud_function(function_url, self.release_date.strftime('%Y-%m'), username, password,
+                                      geoip_license_key, self.organisation_id, publisher_uuid, source_bucket, self.blob_name)
         if not success:
             raise AirflowException('Cloud function unsuccessful')
 
@@ -150,11 +177,14 @@ class OapenIrusUkRelease(SnapshotRelease):
 
 
 class OapenIrusUkTelescope(SnapshotTelescope):
-    DAG_ID = 'oapen_irus_uk'
+    DAG_ID_PREFIX = 'oapen_irus_uk'
+    #TODO add other publishers
+    ORG_MAPPING = {'ucl_press': quote("UCL Press", safe=''),
+                   'anu_press': ''}
 
-    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 2, 1),
+    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None, start_date: datetime = datetime(2020, 2, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'oapen',
-                 dataset_description: str = 'Oapen dataset', catchup: bool = True, airflow_vars: List = None,
+                 dataset_description: str = 'Oapen dataset', catchup: bool = True, airflow_vars: List = None, airflow_conns: List = None,
                  max_active_runs=5):
 
         """ The OAPEN irus uk telescope.
@@ -171,8 +201,16 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+
+        if airflow_conns is None:
+            airflow_conns = [AirflowConns.GEOIP_LICENSE_KEY, AirflowConns.OAPEN_IRUS_UK_API, AirflowConns.OAPEN_IRUS_UK_LOGIN]
+
+        if dag_id is None:
+            dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
+
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, dataset_description=dataset_description,
-                         catchup=catchup, airflow_vars=airflow_vars, max_active_runs=max_active_runs)
+                         catchup=catchup, airflow_vars=airflow_vars, airflow_conns=airflow_conns, max_active_runs=max_active_runs)
+        self.organisation = organisation
         self.oapen_project_id = 'oapen-usage-data-gdpr-proof'
         self.function_name = 'oapen_access_stats'
         self.function_region = 'europe-west1'
@@ -197,10 +235,10 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         :return: list of OapenIrusUkRelease instances
         """
         # Get release_date
-        release_date = pendulum.instance(kwargs['dag_run'].execution_date)
+        release_date = pendulum.instance(kwargs['execution_date'])
 
         logging.info(f'Release month: {release_date}')
-        releases = [OapenIrusUkRelease(self.dag_id, release_date)]
+        releases = [OapenIrusUkRelease(self.dag_id, release_date, self.organisation)]
         return releases
 
     def create_cloud_function(self, releases: List[OapenIrusUkRelease], **kwargs):
@@ -242,16 +280,16 @@ class OapenIrusUkTelescope(SnapshotTelescope):
             release.download()
 
 
-def get_publisher_uuid(publisher_name: str) -> str:
+def get_publisher_uuid(organisation_id: str) -> str:
     """ Get the publisher UUID from the OAPEN API using the publisher name.
 
-    :param publisher_name: The name of the publisher
+    :param organisation_id: The name of the publisher
     :return: The publisher UUID
     """
 
-    url = f'https://library.oapen.org/rest/search?query=publisher.name:{publisher_name}&expand=metadata'
+    url = f'https://library.oapen.org/rest/search?query=publisher.name:{organisation_id}&expand=metadata'
     response = requests.get(url)
-    logging.info(f'Getting publisher UUID for publisher: {publisher_name}, from: {url}')
+    logging.info(f'Getting publisher UUID for publisher: {organisation_id}, from: {url}')
     if response.status_code != 200:
         raise RuntimeError(
             f'Request to get publisher UUID unsuccessful, url: {url}, status code: {response.status_code}, response: {response.text}, reason: {response.reason}')
@@ -352,8 +390,8 @@ def create_cloud_function(service: Resource, location: str, full_name: str, sour
     return success
 
 
-def call_function(function_url: str, release_date: str, username: str, password: str, geoip_license_key: str,
-                  publisher_name: str, publisher_uuid: str, bucket_name: str, blob_name: str) -> bool:
+def call_cloud_function(function_url: str, release_date: str, username: str, password: str, geoip_license_key: str,
+                        publisher_name: str, publisher_uuid: str, bucket_name: str, blob_name: str) -> bool:
     """ Call cloud function
 
     :param function_url: Url of the cloud function

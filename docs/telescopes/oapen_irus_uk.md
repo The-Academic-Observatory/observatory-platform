@@ -49,13 +49,14 @@ In the 'permissions' tab, click 'Grant Access', add the airflow service account 
 Note that all values need to be urlencoded.
 In the config.yaml file, the following airflow connections are required:  
 
-`oapen_irus_uk_login: mysql://email_address:password`  
+`oapen_irus_uk_login: mysql://email_address:password@`  
 To get the email address/password combination, contact oapen irus uk.
 
-`oapen_irus_uk_api: mysql://requestor_id:api_key`  
+`oapen_irus_uk_api: mysql://requestor_id:api_key@`  
 To get the requestor_id/api_key, contact oapen irus uk.
 
-`geoip_license_key: mysql://user_id:license_key`  
+`geoip_license_key: mysql://user_id:license_key@`  
 To get the user_id/license_key, first sign up for geolite2 at https://www.maxmind.com/en/geolite2/signup.  
-From your account, in the 'Services', click on 'Manage License Keys'. The user_id is displayed on this page.
-Then, click on 'Generate new license key', this can be used for the 'license_key'. Answer *No* for the question: "Old versions of our GeoIP Update program use a different license key format. Will this key be used for GeoIP Update?"
+From your account, in the 'Services' section, click on 'Manage License Keys'. The user_id is displayed on this page.
+Then, click on 'Generate new license key', this can be used for the 'license_key'.  
+Answer *No* for the question: "Old versions of our GeoIP Update program use a different license key format. Will this key be used for GeoIP Update?"

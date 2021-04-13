@@ -366,14 +366,14 @@ def create_cloud_storage_bucket(bucket_name: str, location: str = None, project_
     return success
 
 
-def copy_blob_from_cloud_storage(blob_name: str, bucket_name: str, destination_bucket_name: str, new_name: str = None):
+def copy_blob_from_cloud_storage(blob_name: str, bucket_name: str, destination_bucket_name: str, new_name: str = None) -> bool:
     """ Copy a blob from one bucket to another
 
     :param blob_name: The name of the blob. This corresponds to the unique path of the object in the bucket.
     :param bucket_name: The bucket to which the blob belongs.
     :param destination_bucket_name: The bucket into which the blob should be copied.
     :param new_name:  (Optional) The new name for the copied file.
-    :return: None.
+    :return: Whether copy was successful.
     """
     func_name = copy_blob_from_cloud_storage.__name__
     logging.info(f"{func_name}: {os.path.join(bucket_name, blob_name)}")
@@ -388,7 +388,10 @@ def copy_blob_from_cloud_storage(blob_name: str, bucket_name: str, destination_b
     destination_bucket = storage.Bucket(client, name=destination_bucket_name)
 
     # copy
-    bucket.copy_blob(blob, destination_bucket=destination_bucket, new_name=new_name)
+    response = bucket.copy_blob(blob, destination_bucket=destination_bucket, new_name=new_name)
+    success = True if response else False
+
+    return success
 
 
 def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
