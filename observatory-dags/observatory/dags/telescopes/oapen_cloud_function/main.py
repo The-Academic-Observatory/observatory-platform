@@ -64,7 +64,7 @@ def download(request):
         download_access_stats_old(file_path, release_date, username, password, publisher_name, geoip_client)
 
     # upload oapen access stats to bucket
-    upload_file_to_storage_bucket(file_path, bucket_name, blob_name)
+    success = upload_file_to_storage_bucket(file_path, bucket_name, blob_name)
 
 
 def download_geoip(geoip_license_key: str, download_path: str, extract_path: str):
@@ -98,12 +98,12 @@ def download_access_stats_old(file_path: str, release_date: str, username: str, 
     """ Download the oapen irus uk access stats data and replace IP addresses with geographical information.
 
     :param file_path: Path to store the access stats results.
-    :param release_date: Release date
+    :param release_date: Release date ('YYYY-MM')
     :param username: Oapen username/email
     :param password: Oapen password
     :param publisher_name: Publisher name
     :param geoip_client: Geoip client
-    :return:
+    :return: None
     """
     # get last date of month
     year, month = release_date.split('-')
@@ -186,12 +186,12 @@ def download_access_stats_new(file_path: str, release_date: str, username: str, 
     """ Download the oapen irus uk access stats data and replace IP addresses with geographical information.
 
     :param file_path: Path to store the access stats results.
-    :param release_date: Release date
+    :param release_date: Release date ('YYYY-MM')
     :param username: Oapen username/email
     :param password: Oapen password
     :param publisher_uuid: UUID of publisher
     :param geoip_client: Geoip client
-    :return:
+    :return: None.
     """
     # create url
     requestor_id = username
@@ -292,13 +292,13 @@ def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
             jsonl_gzip_file.write(bytes_io.getvalue())
 
 
-def upload_file_to_storage_bucket(file_path: str, bucket_name: str, blob_name: str):
+def upload_file_to_storage_bucket(file_path: str, bucket_name: str, blob_name: str) -> bool:
     """ Upload a file to a google cloud storage bucket
 
     :param file_path: The local file path of the file that will be uploaded
     :param bucket_name: The storage bucket name
     :param blob_name: The blob name inside the storage bucket
-    :return: None.
+    :return: Whether blob exists.
     """
     storage_client = storage.Client()
     bucket = storage_client.bucket(bucket_name)
@@ -306,3 +306,5 @@ def upload_file_to_storage_bucket(file_path: str, bucket_name: str, blob_name: s
 
     logging.info(f'Uploading file "{file_path}". Blob: {blob_name}, bucket: {bucket_name}')
     blob.upload_from_filename(file_path)
+
+    return True if blob.exists() else False
