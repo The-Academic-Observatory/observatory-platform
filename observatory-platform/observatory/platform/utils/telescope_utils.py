@@ -30,7 +30,7 @@ from collections import deque
 from dataclasses import dataclass
 from math import ceil
 from pathlib import Path
-from typing import Any, List, Tuple, Type
+from typing import Any, List, Tuple, Type, Union
 
 import jsonlines
 import paramiko
@@ -69,6 +69,90 @@ def make_sftp_connection() -> pysftp.Connection:
     return pysftp.Connection(host, port=conn.port, username=conn.login, password=conn.password, cnopts=cnopts)
 
 
+class SftpFolders:
+    def __init__(self, dag_id: str, organisation_name: str, sftp_root: str = '/'):
+        """ Initialise SftpFolders.
+
+        :param dag_id: the dag id (namespace + organisation name)
+        :param organisation_name: the organisation name.
+        :param sftp_root: optional root to be added to sftp home path
+        """
+        self.dag_id = dag_id
+        self.organisation_name = organisation_name
+        self.sftp_root = sftp_root
+
+    @property
+    def sftp_home(self) -> str:
+        """ Make the SFTP home folder for an organisation.
+
+        :return: the path to the folder.
+        """
+
+        organisation_id = make_org_id(self.organisation_name)
+        dag_id_prefix = self.dag_id[:-len(organisation_id)-1]
+        return os.path.join(self.sftp_root, 'telescopes', dag_id_prefix, organisation_id)
+
+    @property
+    def upload(self) -> str:
+        """ The organisation's SFTP upload folder.
+
+        :return: path to folder.
+        """
+        return os.path.join(self.sftp_home, 'upload')
+
+    @property
+    def in_progress(self) -> str:
+        """ The organisation's SFTP in_progress folder.
+
+        :return: path to folder.
+        """
+        return os.path.join(self.sftp_home, 'in_progress')
+
+    @property
+    def finished(self) -> str:
+        """ The organisation's SFTP finished folder.
+
+        :return: path to folder.
+        """
+        return os.path.join(self.sftp_home, 'finished')
+
+    def move_files_to_in_progress(self, upload_files: Union[list, str]):
+        """ Move files in list from upload to in-progress folder.
+
+        :param upload_files: File name or list of file names that are in the upload folder and will be moved to the
+        in_progress folder (can be full path or just file name)
+        :return: None.
+        """
+        if isinstance(upload_files, str):
+            upload_files = [upload_files]
+
+        with make_sftp_connection() as sftp:
+            sftp.makedirs(self.in_progress)
+            for file in upload_files:
+                file_name = os.path.basename(file)
+                upload_file = os.path.join(self.upload, file_name)
+                in_progress_file = os.path.join(self.in_progress, file_name)
+                sftp.rename(upload_file, in_progress_file)
+
+    def move_files_to_finished(self, in_progress_files: Union[list, str]):
+        """ Move files in list from in_progress to finished folder.
+
+        :param in_progress_files: File name or list of file names that are in the in_progress folder and will be moved
+        to the finished folder (can be full path or just file name)
+        :return: None.
+        """
+        if isinstance(in_progress_files, str):
+            in_progress_files = [in_progress_files]
+
+        with make_sftp_connection() as sftp:
+            sftp.makedirs(self.finished)
+            for file in in_progress_files:
+                file_name = os.path.basename(file)
+                in_progress_file = os.path.join(self.in_progress, file_name)
+                finished_file = os.path.join(self.finished, file_name)
+                sftp.rename(in_progress_file, finished_file)
+
+
 def make_observatory_api() -> ObservatoryApi:
     """ Make the ObservatoryApi object, configuring it with a host and api_key.
 
@@ -103,6 +187,17 @@ def make_dag_id(namespace: str, organisation_name: str) -> str:
     """
 
     return f'{namespace}_{organisation_name.strip().lower().replace(" ", "_")}'
+
+
+def make_org_id(organisation_name: str) -> str:
+    """ Make an organisation id from the organisation name. Converts the organisation name to lower case,
+    strips whitespace and replaces internal spaces with underscores.
+
+    :param organisation_name: the organisation name.
+    :return: the organisation id.
+    """
+
+    return organisation_name.strip().replace(' ', '_').lower()
 
 
 def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
