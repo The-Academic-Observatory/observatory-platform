@@ -201,11 +201,12 @@ class GridTelescope(SnapshotTelescope):
     """
 
     DAG_ID = 'grid'
+    DATASET_ID = 'digital_science'
     GRID_FILE_URL = "https://api.figshare.com/v2/articles/{article_id}/files"
     GRID_DATASET_URL = "https://api.figshare.com/v2/collections/3812929/articles?page_size=1000"
 
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2015, 9, 1),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'digital_science',
+                 schedule_interval: str = '@weekly', dataset_id: str = DATASET_ID,
                  source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
                  dataset_description: str = 'Datasets provided by Digital Science: https://www.digital-science.com/',
                  catchup: bool = True, airflow_vars: List = None):
