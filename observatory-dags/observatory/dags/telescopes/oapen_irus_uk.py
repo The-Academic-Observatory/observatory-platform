@@ -70,6 +70,7 @@ class OapenIrusUkRelease(SnapshotRelease):
         super().__init__(dag_id, release_date, transform_files_regex=transform_files_regex)
         self.organisation = organisation
         self.organisation_id = make_org_id(organisation.name)
+        self.publisher_name = get_publisher_name(self.organisation_id)
 
     @property
     def blob_name(self) -> str:
@@ -152,15 +153,16 @@ class OapenIrusUkRelease(SnapshotRelease):
         geoip_license_key = BaseHook.get_connection(AirflowConns.GEOIP_LICENSE_KEY).password
 
         if self.release_date >= datetime(2020, 4, 1):
-            publisher_uuid = get_publisher_uuid(self.organisation_id)
+            publisher_uuid = get_publisher_uuid(self.publisher_name)
             airflow_conn = AirflowConns.OAPEN_IRUS_UK_API
         else:
             publisher_uuid = "NA"
             airflow_conn = AirflowConns.OAPEN_IRUS_UK_LOGIN
         username = BaseHook.get_connection(airflow_conn).login
         password = BaseHook.get_connection(airflow_conn).password
+
         success = call_cloud_function(function_url, self.release_date.strftime('%Y-%m'), username, password,
-                                      geoip_license_key, self.organisation_id, publisher_uuid, source_bucket, self.blob_name)
+                                      geoip_license_key, self.publisher_name, publisher_uuid, source_bucket, self.blob_name)
         if not success:
             raise AirflowException('Cloud function unsuccessful')
 
@@ -186,9 +188,9 @@ class OapenIrusUkRelease(SnapshotRelease):
 
 class OapenIrusUkTelescope(SnapshotTelescope):
     DAG_ID_PREFIX = 'oapen_irus_uk'
-    #TODO add other publishers
-    ORG_MAPPING = {'ucl_press': quote("UCL Press", safe=''),
-                   'anu_press': ''}
+    ORG_MAPPING = {'ucl_press': quote("UCL Press"),
+                   'anu_press': quote("ANU Press"),
+                   'wits_university_press': quote("Wits University Press")}
 
     def __init__(self, organisation: Organisation, dag_id: Optional[str] = None, start_date: datetime = datetime(2020, 2, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'oapen',
@@ -219,6 +221,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, dataset_description=dataset_description,
                          catchup=catchup, airflow_vars=airflow_vars, airflow_conns=airflow_conns, max_active_runs=max_active_runs)
         self.organisation = organisation
+        self.publisher_name = get_publisher_name(make_org_id(organisation.name))
         self.oapen_project_id = 'oapen-usage-data-gdpr-proof'
         self.function_name = 'oapen_access_stats'
         self.function_region = 'europe-west1'
@@ -248,6 +251,16 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         logging.info(f'Release month: {release_date}')
         releases = [OapenIrusUkRelease(self.dag_id, release_date, self.organisation)]
         return releases
+
+    def check_dependencies(self, **kwargs) -> bool:
+        """ Check dependencies of DAG. Add to parent method to additionally check for a view id
+        :return: True if dependencies are valid.
+        """
+        super().check_dependencies()
+
+        if self.publisher_name is None:
+            raise AirflowException(f"Can't find publisher name for organisation: {self.organisation.name}")
+        return True
 
     def create_cloud_function(self, releases: List[OapenIrusUkRelease], **kwargs):
         """ Task to create the cloud function for each release.
@@ -288,16 +301,21 @@ class OapenIrusUkTelescope(SnapshotTelescope):
             release.download_transform()
 
 
-def get_publisher_uuid(organisation_id: str) -> str:
+def get_publisher_name(organisation_id: str) -> str:
+    publisher_name = OapenIrusUkTelescope.ORG_MAPPING.get(organisation_id)
+    return publisher_name
+
+
+def get_publisher_uuid(publisher_name: str) -> str:
     """ Get the publisher UUID from the OAPEN API using the publisher name.
 
-    :param organisation_id: The name of the publisher
+    :param publisher_name: The name of the publisher
     :return: The publisher UUID
     """
 
-    url = f'https://library.oapen.org/rest/search?query=publisher.name:{organisation_id}&expand=metadata'
+    url = f'https://library.oapen.org/rest/search?query=publisher.name:{publisher_name}&expand=metadata'
     response = requests.get(url)
-    logging.info(f'Getting publisher UUID for publisher: {organisation_id}, from: {url}')
+    logging.info(f'Getting publisher UUID for publisher: {publisher_name}, from: {url}')
     if response.status_code != 200:
         raise RuntimeError(
             f'Request to get publisher UUID unsuccessful, url: {url}, status code: {response.status_code}, response: {response.text}, reason: {response.reason}')
