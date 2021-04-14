@@ -18,6 +18,7 @@ from datetime import datetime, timezone, timedelta
 from airflow.models.connection import Connection
 from airflow.sensors.time_delta_sensor import TimeDeltaSensor
 from observatory.platform.telescopes.telescope import Telescope
+from observatory.platform.telescopes.workflow_telescope import WorkflowTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
 from observatory.platform.utils.template_utils import telescope_path, SubFolder, blob_name
@@ -25,17 +26,8 @@ from observatory.platform.utils.test_utils import (ObservatoryEnvironment, Obser
                                                    test_fixtures_path, module_file_path)
 
 
-class MockTelescope(Telescope):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def make_release(self):
-        pass
-
-
-class TestTelescope(ObservatoryTestCase):
-    """ Tests for the telescope interface"""
+class TestWorfklowTelescope(ObservatoryTestCase):
+    """ Tests for the workflow telescope interface. Also tests the sensor interface. """
 
     def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
@@ -50,7 +42,7 @@ class TestTelescope(ObservatoryTestCase):
         pass
 
     def test_add_sensors(self):
-        mt = MockTelescope(dag_id='1', start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval='daily')
+        mt = WorkflowTelescope(dag_id='1', start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval='daily')
         mt.add_task(self.dummy_func)
         tds = TimeDeltaSensor(delta=timedelta(seconds=5), task_id='test', start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc))
         tds2 = TimeDeltaSensor(delta=timedelta(seconds=5), task_id='test2', start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc))
