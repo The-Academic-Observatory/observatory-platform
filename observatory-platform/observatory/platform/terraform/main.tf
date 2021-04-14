@@ -427,7 +427,15 @@ resource "google_sql_database" "airflow_db" {
   instance = google_sql_database_instance.observatory_db_instance.name
 }
 
+// Keep this for legacy reasons
 resource "google_sql_user" "users" {
+  name = "airflow"
+  instance = google_sql_database_instance.observatory_db_instance.name
+  password = var.cloud_sql_database.postgres_password
+}
+
+// New database user
+resource "google_sql_user" "observatory_user" {
   name = "observatory"
   instance = google_sql_database_instance.observatory_db_instance.name
   password = var.cloud_sql_database.postgres_password
@@ -489,8 +497,10 @@ locals {
     airflow_ui_user_password=var.airflow.ui_user_password,
     fernet_key=var.airflow.fernet_key,
     secret_key=var.airflow.secret_key,
-    google_application_credentials=var.google_cloud.credentials,
-    postgres_password=var.cloud_sql_database.postgres_password
+    postgres_password=var.cloud_sql_database.postgres_password,
+
+    # Important: this must be the generated service account, not the developer's service account used to deploy the system
+    google_application_credentials=base64decode(google_service_account_key.observatory_service_account_key.private_key)
   }
 }
 
