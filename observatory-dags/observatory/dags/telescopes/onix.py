@@ -94,7 +94,6 @@ class OnixRelease(SnapshotRelease):
     def download(self):
         """ Downloads an individual ONIX release from the SFTP server.
 
-        :param in_progress_folder: Sftp 'in_progress' folder
         :return: None.
         """
 
