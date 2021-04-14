@@ -27,9 +27,10 @@ from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
-from observatory.platform.utils.template_utils import telescope_path, SubFolder, blob_name
+from observatory.platform.utils.telescope_utils import SftpFolders
+from observatory.platform.utils.template_utils import SubFolder, blob_name, telescope_path
 from observatory.platform.utils.test_utils import (ObservatoryEnvironment, ObservatoryTestCase, SftpServer,
-                                                   test_fixtures_path, module_file_path)
+                                                   module_file_path, test_fixtures_path)
 
 
 class TestOnix(ObservatoryTestCase):
@@ -150,10 +151,10 @@ class TestOnix(ObservatoryTestCase):
                 # Add ONIX file to SFTP server
                 onix_file_name = '20210330_CURTINPRESS_ONIX.xml'
                 onix_test_file = os.path.join(test_fixtures_path('telescopes', 'onix'), onix_file_name)
-                org_path = os.path.join(sftp_root, 'telescopes', 'onix', self.organisation_folder)
-                upload_path = os.path.join(org_path, 'upload')
-                os.makedirs(upload_path, exist_ok=True)
-                onix_file_dst = os.path.join(upload_path, onix_file_name)
+                # Create SftpFolders instance with local sftp_root path as root
+                local_sftp_folders = SftpFolders(telescope.dag_id, self.organisation_name, sftp_root)
+                os.makedirs(local_sftp_folders.upload, exist_ok=True)
+                onix_file_dst = os.path.join(local_sftp_folders.upload, onix_file_name)
                 shutil.copy(onix_test_file, onix_file_dst)
 
                 # Get release info from SFTP server and check that the correct release info is returned via Xcom
@@ -171,7 +172,7 @@ class TestOnix(ObservatoryTestCase):
 
                 # Test move file to in progress
                 env.run_task(dag, telescope.move_files_to_in_progress.__name__, execution_date)
-                in_progress_path = os.path.join(org_path, 'in_progress', onix_file_name)
+                in_progress_path = os.path.join(local_sftp_folders.in_progress, onix_file_name)
                 self.assertFalse(os.path.isfile(onix_file_dst))
                 self.assertTrue(os.path.isfile(in_progress_path))
 
@@ -203,8 +204,8 @@ class TestOnix(ObservatoryTestCase):
 
                 # Test move files to finished
                 env.run_task(dag, telescope.move_files_to_finished.__name__, execution_date)
-                finished_path = os.path.join(org_path, 'finished', onix_file_name)
-                self.assertFalse(os.path.isfile(in_progress_path))
+                finished_path = os.path.join(local_sftp_folders.finished, onix_file_name)
+                self.assertFalse(os.path.isfile(local_sftp_folders.in_progress))
                 self.assertTrue(os.path.isfile(finished_path))
 
                 # Test cleanup
