@@ -38,13 +38,15 @@ import pendulum
 import pysftp
 from airflow.hooks.base_hook import BaseHook
 from airflow.models.taskinstance import TaskInstance
+from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from observatory.api.client.api.observatory_api import ObservatoryApi
 from observatory.api.client.api_client import ApiClient
 from observatory.api.client.configuration import Configuration
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
-from observatory.platform.utils.jinja2_utils import (make_jinja2_filename, render_template)
+from observatory.platform.utils.jinja2_utils import (
+    make_jinja2_filename, render_template)
 
 
 def make_sftp_connection() -> pysftp.Connection:
@@ -229,7 +231,8 @@ def write_boto_config(s3_host: str, aws_access_key_id: str, aws_secret_access_ke
     """
     logging.info(f'Writing boto config file to {boto_config_path}')
 
-    template_path = os.path.join(workflow_sql_templates_path(), make_jinja2_filename('boto'))
+    template_path = os.path.join(
+        workflow_sql_templates_path(), make_jinja2_filename('boto'))
     rendered = render_template(template_path, s3_host=s3_host, aws_access_key_id=aws_access_key_id,
                                aws_secret_access_key=aws_secret_access_key)
     with open(boto_config_path, 'w') as f:
@@ -393,7 +396,8 @@ def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institute
 
     with jsonlines.open(save_file, mode='w') as writer:
         for (file, harvest_date) in json_list:
-            logging.info(f'Parsing {file} into db format and writing to jsonlines')
+            logging.info(
+                f'Parsing {file} into db format and writing to jsonlines')
             with open(file, 'r') as f:
                 data = json.load(f)
 
@@ -401,7 +405,8 @@ def json_to_db(json_list: List[Tuple[Any]], release_date: str, parser, institute
             for entry in data:
                 if not isinstance(entry, dict):
                     continue
-                parsed_entry = parser(entry, harvest_date, release_date, institutes)
+                parsed_entry = parser(
+                    entry, harvest_date, release_date, institutes)
                 parsed_entries.append(parsed_entry)
 
             for entry in parsed_entries:
@@ -479,7 +484,8 @@ def write_xml_to_json(transform_path: str, release_date: str, inst_id: str, in_f
         # Save it in the transform bucket.
         filename = os.path.basename(file)
         json_file = f'{filename[:-3]}json'
-        json_path = os.path.join(transform_path, release_date, inst_id, json_file)
+        json_path = os.path.join(
+            transform_path, release_date, inst_id, json_file)
         json_file_list.append(json_path)
         json_record = json.dumps(parsed_list)
         write_to_file(json_record, json_path)
@@ -504,6 +510,22 @@ def zip_files(file_list: List[str]):
                 shutil.copyfileobj(f_in, f_out)
 
     return zip_list
+
+
+def make_telescope_sensor(telescope: Response, dag_prefix: str) -> ExternalTaskSensor:
+    """ Create an ExternalTaskSensor to monitor when a telescope has finished execution.
+
+    :param telescope: Telescope metadata from an observatory.api.get_telescopes call.
+    :param dag_prefix: DAG ID prefix.
+    :return: ExternalTaskSensor object that monitors a telescope.
+    """
+
+    dag_id = make_dag_id(dag_prefix, telescope.organisation.name)
+
+    return ExternalTaskSensor(
+        task_id=f'{dag_id}_sensor',
+        external_dag_id=dag_id,
+        mode='reschedule')
 
 
 @dataclass
@@ -545,7 +567,8 @@ class ScheduleOptimiser:
         j = len(moves) - 1
         while j >= 0:
             i = moves[j]
-            period = pendulum.Period(historic_counts[i].period.start, historic_counts[j].period.end)
+            period = pendulum.Period(
+                historic_counts[i].period.start, historic_counts[j].period.end)
             stack.append(period)
             j = i - 1
 
@@ -557,7 +580,7 @@ class ScheduleOptimiser:
 
     @staticmethod
     def optimise(max_per_call: int, max_per_query: int, historic_counts: List[Type[PeriodCount]]) -> Tuple[
-        List[Type[pendulum.Period]], int]:
+            List[Type[pendulum.Period]], int]:
         """ Calculate and return a schedule that minimises the number of API calls with the given constraints. Behaviour
             if there are 0 results in any of the periods is still to return 1 period covering the entire span, but the
             minimum number of calls reported will be 0.
@@ -579,11 +602,13 @@ class ScheduleOptimiser:
 
         min_calls = [sys.maxsize] * n
         moves = [0] * n
-        min_calls[0] = ScheduleOptimiser.get_num_calls(historic_counts[0].count, max_per_call)
+        min_calls[0] = ScheduleOptimiser.get_num_calls(
+            historic_counts[0].count, max_per_call)
 
         for i in range(1, n):
             result_count = 0
-            min_calls[i] = ScheduleOptimiser.get_num_calls(historic_counts[i].count, max_per_call) + min_calls[i - 1]
+            min_calls[i] = ScheduleOptimiser.get_num_calls(
+                historic_counts[i].count, max_per_call) + min_calls[i - 1]
 
             for j in range(i, -1, -1):
                 curr_count = historic_counts[j].count
@@ -591,7 +616,8 @@ class ScheduleOptimiser:
                 if result_count > max_per_query:
                     break
 
-                candidate = ScheduleOptimiser.get_num_calls(result_count, max_per_call)
+                candidate = ScheduleOptimiser.get_num_calls(
+                    result_count, max_per_call)
                 if j - 1 >= 0:
                     candidate += min_calls[j - 1]
 

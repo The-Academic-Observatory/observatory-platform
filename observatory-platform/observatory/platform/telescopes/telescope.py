@@ -47,7 +47,8 @@ class ReleaseFunction(Protocol):
 
 
 class ListReleaseFunction(Protocol):
-    def __call__(self, releases: List['AbstractRelease'], **kwargs: Any) -> Any: ...
+    def __call__(
+        self, releases: List['AbstractRelease'], **kwargs: Any) -> Any: ...
     """ 
     :param releases: A list of AbstractRelease instances
     :param kwargs: the context passed from the PythonOperator. See 
@@ -90,6 +91,15 @@ class AbstractTelescope(ABC):
         pass
 
     @abstractmethod
+    def add_sensor(self, sensor: BaseSensorOperator):
+        """ Add a sensor to monitor.  The telescope will wait until the monitored sensors all trigger before
+        running the tasks.
+
+        :param sensor: A sensor to monitor.
+        """
+        pass
+
+    @abstractmethod
     def add_sensors(self, sensors: List[BaseSensorOperator]):
         """ Add a list of sensors to monitor.  The telescope will wait until the monitored sensors all trigger before
         running the tasks.
@@ -97,7 +107,6 @@ class AbstractTelescope(ABC):
         :param sensors: List of sensors to monitor.
         """
         pass
-
 
     @abstractmethod
     def add_task(self, func: Callable):
@@ -222,6 +231,14 @@ class Telescope(AbstractTelescope):
         """
         self.setup_task_funcs += funcs
 
+    def add_sensor(self, sensor: BaseSensorOperator):
+        """ Add a sensor to monitor.  The telescope will wait until the monitored sensors all trigger before
+        running the tasks.
+
+        :param sensor: A sensor to monitor.
+        """
+        self.sensors.append(sensor)
+
     def add_sensors(self, sensors: List[BaseSensorOperator]):
         """ Add a list of sensors to monitor.  The telescope will wait until the monitored sensors all trigger before
         running the tasks.
@@ -312,7 +329,8 @@ class Telescope(AbstractTelescope):
             conns_valid = check_connections(*self.airflow_conns)
 
         if not vars_valid or not conns_valid:
-            raise AirflowException('Required variables or connections are missing')
+            raise AirflowException(
+                'Required variables or connections are missing')
 
         return True
 
