@@ -7,7 +7,7 @@ six==1.15.*
 Jinja2==2.11.*
 google-crc32c==1.1.*
 google-cloud-bigquery==1.28.*
-google-api-python-client==1.12.*
+google-api-python-client==2.0.*
 google-cloud-storage==1.35.*
 beautifulsoup4==4.9.*
 lxml==4.6.*
