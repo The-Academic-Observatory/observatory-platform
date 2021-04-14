@@ -497,8 +497,10 @@ locals {
     airflow_ui_user_password=var.airflow.ui_user_password,
     fernet_key=var.airflow.fernet_key,
     secret_key=var.airflow.secret_key,
-    google_application_credentials=var.google_cloud.credentials,
-    postgres_password=var.cloud_sql_database.postgres_password
+    postgres_password=var.cloud_sql_database.postgres_password,
+
+    # Important: this must be the generated service account, not the developer's service account used to deploy the system
+    google_application_credentials=google_service_account_key.observatory_service_account_key.private_key
   }
 }
 
