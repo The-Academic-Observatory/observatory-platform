@@ -293,7 +293,7 @@ class Telescope(AbstractTelescope):
             chain(*tasks)
 
             # Add sensors as a pre-requisite to the first task.
-            sensors >> tasks[0]
+            self.sensors >> tasks[0]
 
         return self.dag
 
