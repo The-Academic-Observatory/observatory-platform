@@ -27,6 +27,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.variable import Variable
 from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
+from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from airflow.utils.helpers import chain
 from observatory.platform.utils.airflow_utils import AirflowVars, check_connections, check_variables
 from observatory.platform.utils.file_utils import list_files
@@ -87,6 +88,16 @@ class AbstractTelescope(ABC):
         :return: None.
         """
         pass
+
+    @abstractmethod
+    def add_sensors(self, sensors: List[ExternalTaskSensor]):
+        """ Add a list of sensors to monitor.  The telescope will wait until the monitored sensors all trigger before
+        running the tasks.
+
+        :param sensors: List of sensors to monitor.
+        """
+        pass
+
 
     @abstractmethod
     def add_task(self, func: Callable):
@@ -174,6 +185,7 @@ class Telescope(AbstractTelescope):
         self.airflow_conns = airflow_conns
 
         self.setup_task_funcs = []
+        self.sensors = []
         self.task_funcs = []
         self.default_args = {
             "owner": "airflow",
@@ -209,6 +221,14 @@ class Telescope(AbstractTelescope):
         :return: None.
         """
         self.setup_task_funcs += funcs
+
+    def add_sensors(self, sensors: List[ExternalTaskSensor]):
+        """ Add a list of sensors to monitor.  The telescope will wait until the monitored sensors all trigger before
+        running the tasks.
+
+        :param sensors: List of sensors to monitor.
+        """
+        self.sensors = sensors
 
     def add_task(self, func: Callable):
         """ Add a task, which is used to process releases. A task has the following properties:
@@ -271,6 +291,9 @@ class Telescope(AbstractTelescope):
                                           queue=self.queue, default_args=self.default_args, provide_context=True)
                 tasks.append(task)
             chain(*tasks)
+
+            # Add sensors as a pre-requisite to the first task.
+            sensors >> tasks[0]
 
         return self.dag
 
