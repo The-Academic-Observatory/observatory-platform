@@ -34,6 +34,8 @@ import requests
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
+from pendulum import Pendulum
+
 from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
 from observatory.platform.utils.config_utils import (find_schema)
@@ -45,7 +47,6 @@ from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
 from observatory.platform.utils.proc_utils import wait_for_process
 from observatory.platform.utils.template_utils import SubFolder, blob_name, telescope_path, test_data_path
 from observatory.platform.utils.url_utils import retry_session
-from pendulum import Pendulum
 
 
 def list_releases(start_date: Pendulum, end_date: Pendulum) -> List[FundrefRelease]:
@@ -730,8 +731,10 @@ class FundrefTelescope:
             # Load BigQuery table
             uri = f"gs://{bucket_name}/{blob_name(release.filepath_transform)}"
             logging.info(f"URI: {uri}")
-            load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
-                                SourceFormat.NEWLINE_DELIMITED_JSON)
+            success = load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
+                                          SourceFormat.NEWLINE_DELIMITED_JSON)
+            if not success:
+                raise AirflowException("bq_load task: data failed to load data into BigQuery")
 
     @staticmethod
     def cleanup(**kwargs):
