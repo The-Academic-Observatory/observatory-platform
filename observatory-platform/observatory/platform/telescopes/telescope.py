@@ -27,7 +27,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.variable import Variable
 from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
-from airflow.sensors.external_task_sensor import ExternalTaskSensor
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.helpers import chain
 from observatory.platform.utils.airflow_utils import AirflowVars, check_connections, check_variables
 from observatory.platform.utils.file_utils import list_files
@@ -90,7 +90,7 @@ class AbstractTelescope(ABC):
         pass
 
     @abstractmethod
-    def add_sensors(self, sensors: List[ExternalTaskSensor]):
+    def add_sensors(self, sensors: List[BaseSensorOperator]):
         """ Add a list of sensors to monitor.  The telescope will wait until the monitored sensors all trigger before
         running the tasks.
 
@@ -222,7 +222,7 @@ class Telescope(AbstractTelescope):
         """
         self.setup_task_funcs += funcs
 
-    def add_sensors(self, sensors: List[ExternalTaskSensor]):
+    def add_sensors(self, sensors: List[BaseSensorOperator]):
         """ Add a list of sensors to monitor.  The telescope will wait until the monitored sensors all trigger before
         running the tasks.
 
