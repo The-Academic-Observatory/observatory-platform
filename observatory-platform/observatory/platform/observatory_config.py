@@ -28,6 +28,7 @@ import cerberus.validator
 import yaml
 from airflow.configuration import generate_fernet_key
 from cerberus import Validator
+
 from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
@@ -223,7 +224,7 @@ class GoogleCloud:
         buckets = CloudStorageBucket.parse_buckets(dict_.get('buckets', dict()))
 
         return GoogleCloud(project_id=project_id, credentials=credentials, region=region, zone=zone,
-            data_location=data_location, buckets=buckets)
+                           data_location=data_location, buckets=buckets)
 
 
 def parse_dict_to_list(dict_: Dict, cls: ClassVar) -> List[Any]:
@@ -599,7 +600,7 @@ class ObservatoryConfig:
 
         self.dags_projects = dags_projects
         if dags_projects is None:
-            self.airflow_connections = []
+            self.dags_projects = []
 
         self.validator = validator
 
@@ -821,6 +822,9 @@ class TerraformConfig(ObservatoryConfig):
         if self.terraform.organization is not None:
             variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
 
+        variables.append(AirflowVariable(AirflowVars.DAGS_MODULE_NAMES,
+                                         json.dumps([proj.dags_module for proj in self.dags_projects])))
+
         # Add user defined variables to list
         variables += self.airflow_variables
 
@@ -840,13 +844,11 @@ class TerraformConfig(ObservatoryConfig):
                                   hcl=True),
                 TerraformVariable('airflow_main_vm', self.airflow_main_vm.to_hcl(), hcl=True),
                 TerraformVariable('airflow_worker_vm', self.airflow_worker_vm.to_hcl(), hcl=True),
-                TerraformVariable('airflow_variables', list_to_hcl(self.airflow_variables), hcl=True, sensitive=False),
+                TerraformVariable('airflow_variables', list_to_hcl(self.make_airflow_variables()), hcl=True, sensitive=False),
                 TerraformVariable('airflow_connections', list_to_hcl(self.airflow_connections), hcl=True,
                                   sensitive=sensitive),
                 TerraformVariable('elasticsearch', self.elasticsearch.to_hcl(), sensitive=sensitive, hcl=True),
-                TerraformVariable('api', self.api.to_hcl(), hcl=True)
-                ]
-
+                TerraformVariable('api', self.api.to_hcl(), hcl=True)]
 
     @classmethod
     def from_dict(cls, dict_: Dict) -> TerraformConfig:

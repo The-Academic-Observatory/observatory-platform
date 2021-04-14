@@ -500,7 +500,7 @@ locals {
     postgres_password=var.cloud_sql_database.postgres_password,
 
     # Important: this must be the generated service account, not the developer's service account used to deploy the system
-    google_application_credentials=google_service_account_key.observatory_service_account_key.private_key
+    google_application_credentials=base64decode(google_service_account_key.observatory_service_account_key.private_key)
   }
 }
 
