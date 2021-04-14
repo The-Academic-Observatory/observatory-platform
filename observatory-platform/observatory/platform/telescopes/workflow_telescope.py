@@ -26,5 +26,6 @@ class WorkflowTelescope(Telescope):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def make_release(self):
-        pass
+    def make_release(self) -> None:
+        """ Not needed. """
+        return None

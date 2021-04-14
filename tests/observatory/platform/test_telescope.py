@@ -41,6 +41,10 @@ class TestWorfklowTelescope(ObservatoryTestCase):
     def dummy_func(self):
         pass
 
+    def test_make_release(self):
+        mt = WorkflowTelescope(dag_id='1', start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval='daily')
+        self.assertEqual(mt.make_release(), None)
+
     def test_add_sensors(self):
         mt = WorkflowTelescope(dag_id='1', start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval='daily')
         mt.add_task(self.dummy_func)
