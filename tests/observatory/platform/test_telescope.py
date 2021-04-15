@@ -53,6 +53,25 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
     def dummy_func(self):
         pass
 
+    def test_add_sensor(self):
+        mt = MockTelescope(dag_id='1', start_date=datetime(
+            1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval='daily')
+        mt.add_task(self.dummy_func)
+        tds = TimeDeltaSensor(delta=timedelta(seconds=5), task_id='test', start_date=datetime(
+            1970, 1, 1, 0, 0, tzinfo=timezone.utc))
+        tds2 = TimeDeltaSensor(delta=timedelta(seconds=5), task_id='test2', start_date=datetime(
+            1970, 1, 1, 0, 0, tzinfo=timezone.utc))
+        mt.add_sensor(tds)
+        mt.add_sensor(tds2)
+        dag = mt.make_dag()
+
+        self.assert_dag_structure(
+            {
+                'dummy_func': [],
+                'test': ['dummy_func'],
+                'test2': ['dummy_func']
+            }, dag)
+
     def test_add_sensors(self):
         mt = MockTelescope(dag_id='1', start_date=datetime(
             1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval='daily')
