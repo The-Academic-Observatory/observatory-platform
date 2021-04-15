@@ -14,15 +14,24 @@
 
 # Author: Tuan Chien
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from airflow.models.connection import Connection
 from airflow.sensors.time_delta_sensor import TimeDeltaSensor
 from observatory.platform.telescopes.telescope import Telescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
-from observatory.platform.utils.template_utils import telescope_path, SubFolder, blob_name
-from observatory.platform.utils.test_utils import (ObservatoryEnvironment, ObservatoryTestCase,
-                                                   test_fixtures_path, module_file_path)
+from observatory.platform.utils.template_utils import (
+    SubFolder,
+    blob_name,
+    telescope_path,
+)
+from observatory.platform.utils.test_utils import (
+    ObservatoryEnvironment,
+    ObservatoryTestCase,
+    module_file_path,
+    test_fixtures_path,
+)
 
 
 class MockTelescope(Telescope):
@@ -42,7 +51,7 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
     """ Tests the sensor interface. """
 
     def __init__(self, *args, **kwargs):
-        """ Constructor which sets up variables used by tests.
+        """Constructor which sets up variables used by tests.
 
         :param args: arguments.
         :param kwargs: keyword arguments.
@@ -54,50 +63,49 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
         pass
 
     def test_add_sensor(self):
-        mt = MockTelescope(dag_id='1', start_date=datetime(
-            1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval='daily')
+        mt = MockTelescope(
+            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily"
+        )
         mt.add_task(self.dummy_func)
-        tds = TimeDeltaSensor(delta=timedelta(seconds=5), task_id='test', start_date=datetime(
-            1970, 1, 1, 0, 0, tzinfo=timezone.utc))
-        tds2 = TimeDeltaSensor(delta=timedelta(seconds=5), task_id='test2', start_date=datetime(
-            1970, 1, 1, 0, 0, tzinfo=timezone.utc))
+        tds = TimeDeltaSensor(
+            delta=timedelta(seconds=5), task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
+        )
+        tds2 = TimeDeltaSensor(
+            delta=timedelta(seconds=5), task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
+        )
         mt.add_sensor(tds)
         mt.add_sensor(tds2)
         dag = mt.make_dag()
 
-        self.assert_dag_structure(
-            {
-                'dummy_func': [],
-                'test': ['dummy_func'],
-                'test2': ['dummy_func']
-            }, dag)
+        self.assert_dag_structure({"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag)
 
     def test_add_sensors(self):
-        mt = MockTelescope(dag_id='1', start_date=datetime(
-            1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval='daily')
+        mt = MockTelescope(
+            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily"
+        )
         mt.add_task(self.dummy_func)
-        tds = TimeDeltaSensor(delta=timedelta(seconds=5), task_id='test', start_date=datetime(
-            1970, 1, 1, 0, 0, tzinfo=timezone.utc))
-        tds2 = TimeDeltaSensor(delta=timedelta(seconds=5), task_id='test2', start_date=datetime(
-            1970, 1, 1, 0, 0, tzinfo=timezone.utc))
+        tds = TimeDeltaSensor(
+            delta=timedelta(seconds=5), task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
+        )
+        tds2 = TimeDeltaSensor(
+            delta=timedelta(seconds=5), task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
+        )
         mt.add_sensors([tds, tds2])
         dag = mt.make_dag()
 
-        self.assert_dag_structure(
-            {
-                'dummy_func': [],
-                'test': ['dummy_func'],
-                'test2': ['dummy_func']
-            }, dag)
+        self.assert_dag_structure({"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag)
 
     def test_add_sensors_empty(self):
-        mt = MockTelescope(dag_id='1', start_date=datetime(
-            1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval='daily')
+        mt = MockTelescope(
+            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily"
+        )
         mt.add_task(self.dummy_func)
         mt.add_sensors([])
         dag = mt.make_dag()
 
         self.assert_dag_structure(
             {
-                'dummy_func': [],
-            }, dag)
+                "dummy_func": [],
+            },
+            dag,
+        )
