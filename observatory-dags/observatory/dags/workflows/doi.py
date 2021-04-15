@@ -734,7 +734,7 @@ class DoiWorkflow:
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
         release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
-        table_names = ['country', 'doi', 'funder', 'group', 'institution', 'journal', 'publisher', 'region',
+        table_names = ['book', 'country', 'doi', 'funder', 'group', 'institution', 'journal', 'publisher', 'region',
                        'subregion']
 
         # Copy the latest data for display in the dashboards
