@@ -23,7 +23,7 @@ import pendulum
 import pysftp
 from airflow.models.connection import Connection
 from observatory.platform.utils.telescope_utils import (PeriodCount, ScheduleOptimiser, make_sftp_connection,
-                                                        make_dag_id, make_observatory_api)
+                                                        make_dag_id, make_observatory_api, make_telescope_sensor)
 
 
 class TestTelescopeUtils(unittest.TestCase):
@@ -42,7 +42,8 @@ class TestTelescopeUtils(unittest.TestCase):
         host_key = quote(paramiko.RSAKey.generate(512).get_base64(), safe='')
 
         # mock airflow sftp service conn
-        mock_airflow_conn.return_value = Connection(uri=f'ssh://{username}:{password}@{host}?host_key={host_key}')
+        mock_airflow_conn.return_value = Connection(
+            uri=f'ssh://{username}:{password}@{host}?host_key={host_key}')
 
         # run function
         sftp = make_sftp_connection()
@@ -75,47 +76,80 @@ class TestTelescopeUtils(unittest.TestCase):
         api_key = 'my_api_key'
 
         # No port
-        mock_get_connection.return_value = Connection(uri=f'{conn_type}://:{api_key}@{host}')
+        mock_get_connection.return_value = Connection(
+            uri=f'{conn_type}://:{api_key}@{host}')
         api = make_observatory_api()
         self.assertEqual(f'http://{host}', api.api_client.configuration.host)
-        self.assertEqual(api_key, api.api_client.configuration.api_key['api_key'])
+        self.assertEqual(
+            api_key, api.api_client.configuration.api_key['api_key'])
 
         # Port
         port = 8080
-        mock_get_connection.return_value = Connection(uri=f'{conn_type}://:{api_key}@{host}:{port}')
+        mock_get_connection.return_value = Connection(
+            uri=f'{conn_type}://:{api_key}@{host}:{port}')
         api = make_observatory_api()
-        self.assertEqual(f'http://{host}:{port}', api.api_client.configuration.host)
-        self.assertEqual(api_key, api.api_client.configuration.api_key['api_key'])
+        self.assertEqual(f'http://{host}:{port}',
+                         api.api_client.configuration.host)
+        self.assertEqual(
+            api_key, api.api_client.configuration.api_key['api_key'])
 
         # Assertion error: missing conn_type empty string
         with self.assertRaises(AssertionError):
-            mock_get_connection.return_value = Connection(uri=f'://:{api_key}@{host}')
+            mock_get_connection.return_value = Connection(
+                uri=f'://:{api_key}@{host}')
             make_observatory_api()
 
         # Assertion error: missing host empty string
         with self.assertRaises(AssertionError):
-            mock_get_connection.return_value = Connection(uri=f'{conn_type}://:{api_key}@')
+            mock_get_connection.return_value = Connection(
+                uri=f'{conn_type}://:{api_key}@')
             make_observatory_api()
 
         # Assertion error: missing password empty string
         with self.assertRaises(AssertionError):
-            mock_get_connection.return_value = Connection(uri=f'://:{api_key}@{host}')
+            mock_get_connection.return_value = Connection(
+                uri=f'://:{api_key}@{host}')
             make_observatory_api()
 
         # Assertion error: missing conn_type None
         with self.assertRaises(AssertionError):
-            mock_get_connection.return_value = Connection(password=api_key, host=host)
+            mock_get_connection.return_value = Connection(
+                password=api_key, host=host)
             make_observatory_api()
 
         # Assertion error: missing host None
         with self.assertRaises(AssertionError):
-            mock_get_connection.return_value = Connection(conn_type=conn_type, password=api_key)
+            mock_get_connection.return_value = Connection(
+                conn_type=conn_type, password=api_key)
             make_observatory_api()
 
         # Assertion error: missing password None
         with self.assertRaises(AssertionError):
-            mock_get_connection.return_value = Connection(host=host, password=api_key)
+            mock_get_connection.return_value = Connection(
+                host=host, password=api_key)
             make_observatory_api()
+
+
+class TestMakeTelescopeSensor(unittest.TestCase):
+    """ Test the external task sensor creation. """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    class Organisation:
+        def __init__(self):
+            self.name = 'test'
+
+    class Response:
+        def __init__(self):
+            self.organisation = TestMakeTelescopeSensor.Organisation()
+
+    def test_make_telescope_sensor(self):
+        telescope = TestMakeTelescopeSensor.Response()
+        sensor = make_telescope_sensor(telescope, "dag_prefix")
+        self.assertEqual(sensor.task_id, 'dag_prefix_test_sensor')
+        self.assertEqual(sensor.mode, 'reschedule')
+        self.assertEqual(sensor.external_dag_id, 'dag_prefix_test')
 
 
 class TestScheduleOptimiser(unittest.TestCase):
@@ -128,10 +162,14 @@ class TestScheduleOptimiser(unittest.TestCase):
         self.max_per_query = 10
 
         self.historic_counts_trivial = [
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 2, 1), end=pendulum.date(1000, 2, 1)), 1),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 3, 1), end=pendulum.date(1000, 3, 1)), 2),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 4, 1), end=pendulum.date(1000, 4, 1)), 3)
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 2, 1), end=pendulum.date(1000, 2, 1)), 1),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 3, 1), end=pendulum.date(1000, 3, 1)), 2),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 4, 1), end=pendulum.date(1000, 4, 1)), 3)
         ]
 
     def test_get_num_calls(self):
@@ -150,13 +188,15 @@ class TestScheduleOptimiser(unittest.TestCase):
         """ Test schedule extraction from solution. """
 
         moves = [0, 1, 2, 3]
-        schedule = ScheduleOptimiser.extract_schedule(self.historic_counts_trivial, moves)
+        schedule = ScheduleOptimiser.extract_schedule(
+            self.historic_counts_trivial, moves)
 
         for i in range(len(schedule), 0, -1):
             self.assertEqual(schedule[i - 1].start.month, i)
 
         moves = [0, 1, 2, 1]
-        schedule = ScheduleOptimiser.extract_schedule(self.historic_counts_trivial, moves)
+        schedule = ScheduleOptimiser.extract_schedule(
+            self.historic_counts_trivial, moves)
         self.assertEqual(len(schedule), 2)
         self.assertEqual(schedule[0].start.month, 1)
         self.assertEqual(schedule[0].end.month, 1)
@@ -165,13 +205,18 @@ class TestScheduleOptimiser(unittest.TestCase):
 
     def test_optimise_leading_zeros(self):
         historic_counts = [
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 4, 1), end=pendulum.date(1000, 4, 21)), 1)
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 4, 1), end=pendulum.date(1000, 4, 21)), 1)
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        schedule, min_calls = ScheduleOptimiser.optimise(
+            self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 1)
         self.assertEqual(schedule[0].start, pendulum.date(1000, 1, 1))
         self.assertEqual(schedule[0].end, pendulum.date(1000, 4, 21))
@@ -180,11 +225,14 @@ class TestScheduleOptimiser(unittest.TestCase):
 
     def test_optimise_leading_zeros2(self):
         historic_counts = [
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0)
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 1, 1), end=pendulum.date(1000, 1, 1)), 0)
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        schedule, min_calls = ScheduleOptimiser.optimise(
+            self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 1)
         self.assertEqual(min_calls, 0)
         self.assertEqual(schedule[0].start.month, 1)
@@ -200,13 +248,18 @@ class TestScheduleOptimiser(unittest.TestCase):
 
     def test_optimise_historic_counts_case1(self):
         historic_counts = [
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 10),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 2, 1), end=pendulum.date(1000, 2, 1)), 1),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 3, 1), end=pendulum.date(1000, 3, 1)), 2),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 4, 1), end=pendulum.date(1000, 4, 1)), 3)
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 1, 1), end=pendulum.date(1000, 1, 1)), 10),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 2, 1), end=pendulum.date(1000, 2, 1)), 1),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 3, 1), end=pendulum.date(1000, 3, 1)), 2),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 4, 1), end=pendulum.date(1000, 4, 1)), 3)
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        schedule, min_calls = ScheduleOptimiser.optimise(
+            self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 2)
         self.assertEqual(min_calls, 8)
         self.assertEqual(schedule[0].start.month, 1)
@@ -216,14 +269,20 @@ class TestScheduleOptimiser(unittest.TestCase):
 
     def test_optimise_historic_counts_case2(self):
         historic_counts = [
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 5),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 2, 1), end=pendulum.date(1000, 2, 1)), 6),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 3, 1), end=pendulum.date(1000, 3, 1)), 0),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 4, 1), end=pendulum.date(1000, 4, 1)), 10),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 5, 1), end=pendulum.date(1000, 5, 1)), 2)
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 1, 1), end=pendulum.date(1000, 1, 1)), 5),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 2, 1), end=pendulum.date(1000, 2, 1)), 6),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 3, 1), end=pendulum.date(1000, 3, 1)), 0),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 4, 1), end=pendulum.date(1000, 4, 1)), 10),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 5, 1), end=pendulum.date(1000, 5, 1)), 2)
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        schedule, min_calls = ScheduleOptimiser.optimise(
+            self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 4)  # Naive is 5
         self.assertEqual(min_calls, 12)  # Naive is 12
         self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
@@ -237,14 +296,20 @@ class TestScheduleOptimiser(unittest.TestCase):
 
     def test_optimise_historic_counts_case3(self):
         historic_counts = [
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 1),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 2, 1), end=pendulum.date(1000, 2, 1)), 1),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 3, 1), end=pendulum.date(1000, 3, 1)), 0),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 4, 1), end=pendulum.date(1000, 4, 1)), 1),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 5, 1), end=pendulum.date(1000, 5, 1)), 2)
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 1, 1), end=pendulum.date(1000, 1, 1)), 1),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 2, 1), end=pendulum.date(1000, 2, 1)), 1),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 3, 1), end=pendulum.date(1000, 3, 1)), 0),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 4, 1), end=pendulum.date(1000, 4, 1)), 1),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 5, 1), end=pendulum.date(1000, 5, 1)), 2)
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        schedule, min_calls = ScheduleOptimiser.optimise(
+            self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 1)  # Naive is 5
         self.assertEqual(min_calls, 3)  # Naive is 5
         self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
@@ -252,14 +317,20 @@ class TestScheduleOptimiser(unittest.TestCase):
 
     def test_optimise_historic_counts_case4(self):
         historic_counts = [
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 1, 1), end=pendulum.date(1000, 1, 1)), 3),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 2, 1), end=pendulum.date(1000, 2, 1)), 3),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 3, 1), end=pendulum.date(1000, 3, 1)), 3),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 4, 1), end=pendulum.date(1000, 4, 1)), 1),
-            PeriodCount(pendulum.Period(start=pendulum.date(1000, 5, 1), end=pendulum.date(1000, 5, 1)), 3)
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 1, 1), end=pendulum.date(1000, 1, 1)), 3),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 2, 1), end=pendulum.date(1000, 2, 1)), 3),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 3, 1), end=pendulum.date(1000, 3, 1)), 3),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 4, 1), end=pendulum.date(1000, 4, 1)), 1),
+            PeriodCount(pendulum.Period(start=pendulum.date(
+                1000, 5, 1), end=pendulum.date(1000, 5, 1)), 3)
         ]
 
-        schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
+        schedule, min_calls = ScheduleOptimiser.optimise(
+            self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 2)  # Naive is 5
         self.assertEqual(min_calls, 7)  # Naive is 13
         self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
