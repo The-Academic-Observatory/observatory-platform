@@ -30,11 +30,10 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.operators.python_operator import ShortCircuitOperator
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
-
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, make_dag_id
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, make_dag_id, make_org_id
 from observatory.platform.utils.template_utils import blob_name, bq_load_shard_v2, table_ids_from_path
 
 
@@ -90,7 +89,7 @@ class GoogleAnalyticsRelease(SnapshotRelease):
         """
 
         service = initialize_analyticsreporting()
-        results = get_reports(service, view_id, pagepath_regex, self.start_date, self.end_date)
+        results = get_reports(service, self.organisation.name, view_id, pagepath_regex, self.start_date, self.end_date)
         if results:
             list_to_jsonl_gz(self.transform_path, results)
             return True
@@ -102,7 +101,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
     """ Google Analytics Telescope."""
     DAG_ID_PREFIX = 'google_analytics'
     ORG_MAPPING = {'ucl_press': ('103373421', r'^/collections/open-access/products/.*$'),
-                   'anu_press': ('1422597', r'')}
+                   'anu_press': ('1422597', r'^/publications/.*$')}
 
     def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
                  start_date: datetime = datetime(2021, 1, 1),
@@ -200,16 +199,6 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
                                  prefix=self.schema_prefix, schema_version=self.schema_version,
                                  dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
 
-#TODO replace with make_org_id from telecope_utils
-def make_org_id(organisation_name: str) -> str:
-    """ Make an organisation id from the organisation name. Converts the organisation name to lower case,
-    strips whitespace and replaces internal spaces with underscores.
-    :param organisation_name: the organisation name.
-    :return: the organisation id.
-    """
-
-    return organisation_name.strip().replace(' ', '_').lower()
-
 
 def get_view_id(organisation_name: str) -> str:
     """ Get the google analytics view id based on the organisation name
@@ -247,11 +236,12 @@ def initialize_analyticsreporting() -> Resource:
     return service
 
 
-def list_all_books(service: Resource, view_id: str, pagepath_regex: str,
+def list_all_books(service: Resource, organisation_name: str, view_id: str, pagepath_regex: str,
                    start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Tuple[List[dict], list]:
     """ List all available books by getting all pagepaths of a view id in a given period.
 
     :param service: The Google Analytics Reporting service object.
+    :param organisation_name: Name of the organisation.
     :param view_id: The view id.
     :param pagepath_regex: The regex expression for the pagepath of a book.
     :param start_date: Start date of analytics period
@@ -271,14 +261,23 @@ def list_all_books(service: Resource, view_id: str, pagepath_regex: str,
             "metrics": [{'expression': 'ga:avgTimeOnPage'}],
             "dimensions": [{'name': 'ga:pagepath'}, {'name': 'ga:pageTitle'}],
             "dimensionFilterClauses": [{
-                "filters": [{
-                    "dimensionName": "ga:pagepath",
-                    "operator": "REGEXP",
-                    "expressions": [pagepath_regex]
-                }]
+                "operator": "AND",
+                "filters": [
+                    {
+                        "dimensionName": "ga:pagepath",
+                        "operator": "REGEXP",
+                        "expressions": [pagepath_regex]
+                    }
+                ]
             }]
         }]
     }
+    # filter on publication type for anu press
+    if organisation_name == 'anu_press':
+        body['reportRequests'][0]['dimensionFilterClauses'][0]['filters'].append({
+            'dimensionName': 'ga:dimension2',
+            "operator": "EXACT",
+            "expressions": ["book"]})
     reports = service.reports().batchGet(body=body).execute()
     all_book_entries = reports['reports'][0]['data'].get('rows')
     next_page_token = reports['reports'][0].get('nextPageToken')
@@ -454,11 +453,13 @@ def merge_pagepaths_per_book(book_results: dict, pagepaths: list):
     return unique_book_results
 
 
-def get_reports(service: Resource, view_id: str, pagepath_regex: str, start_date: pendulum.Pendulum,
+def get_reports(service: Resource, organisation_name: str, view_id: str, pagepath_regex: str,
+                start_date: pendulum.Pendulum,
                 end_date: pendulum.Pendulum) -> list:
     """ Get reports data from the Google Analytics Reporting API.
 
     :param service: The Google Analytics Reporting service.
+    :param organisation_name: Name of the organisation.
     :param view_id: The view id.
     :param pagepath_regex: The regex expression for the pagepath of a book.
     :param start_date: Start date of analytics period
@@ -467,7 +468,7 @@ def get_reports(service: Resource, view_id: str, pagepath_regex: str, start_date
     """
 
     # list all books
-    book_entries, pagepaths = list_all_books(service, view_id, pagepath_regex, start_date, end_date)
+    book_entries, pagepaths = list_all_books(service, organisation_name, view_id, pagepath_regex, start_date, end_date)
     # if no books in period return empty list and raise airflow skip exception
     if not book_entries:
         return []
