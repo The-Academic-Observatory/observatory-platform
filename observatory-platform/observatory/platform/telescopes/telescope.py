@@ -20,22 +20,32 @@ import logging
 import shutil
 from abc import ABC, abstractmethod
 from functools import partial
-from typing import Any, Callable, List
-from typing import Union
+from typing import Any, Callable, List, Union
 
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.variable import Variable
 from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.helpers import chain
-from observatory.platform.utils.airflow_utils import AirflowVars, check_connections, check_variables
+from observatory.platform.utils.airflow_utils import (
+    AirflowVars,
+    check_connections,
+    check_variables,
+)
 from observatory.platform.utils.file_utils import list_files
-from observatory.platform.utils.template_utils import SubFolder, on_failure_callback, telescope_path
+from observatory.platform.utils.template_utils import (
+    SubFolder,
+    on_failure_callback,
+    telescope_path,
+)
 from typing_extensions import Protocol
 
 
 class ReleaseFunction(Protocol):
-    def __call__(self, release: 'AbstractRelease', **kwargs: Any) -> Any: ...
+    def __call__(self, release: "AbstractRelease", **kwargs: Any) -> Any:
+        ...
+
     """ 
     :param release: A single instance of an AbstractRelease
     :param kwargs: the context passed from the PythonOperator. See 
@@ -46,7 +56,9 @@ class ReleaseFunction(Protocol):
 
 
 class ListReleaseFunction(Protocol):
-    def __call__(self, releases: List['AbstractRelease'], **kwargs: Any) -> Any: ...
+    def __call__(self, releases: List["AbstractRelease"], **kwargs: Any) -> Any:
+        ...
+
     """ 
     :param releases: A list of AbstractRelease instances
     :param kwargs: the context passed from the PythonOperator. See 
@@ -60,10 +72,9 @@ TelescopeFunction = Union[ReleaseFunction, ListReleaseFunction]
 
 
 class AbstractTelescope(ABC):
-
     @abstractmethod
     def add_setup_task(self, func: Callable):
-        """ Add a setup task, which is used to run tasks before 'Release' objects are created, e.g. checking
+        """Add a setup task, which is used to run tasks before 'Release' objects are created, e.g. checking
         dependencies, fetching available releases etc.
 
         A setup task has the following properties:
@@ -80,7 +91,7 @@ class AbstractTelescope(ABC):
 
     @abstractmethod
     def add_setup_task_chain(self, funcs: List[Callable]):
-        """ Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
+        """Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
         dependencies, fetching available releases etc. (See add_setup_task for more info.)
 
         :param funcs: The list of functions that will be called by the ShortCircuitOperator task.
@@ -89,8 +100,26 @@ class AbstractTelescope(ABC):
         pass
 
     @abstractmethod
+    def add_sensor(self, sensor: BaseSensorOperator):
+        """Add a sensor to monitor.  The telescope will wait until the monitored sensors all trigger before
+        running the tasks.
+
+        :param sensor: A sensor to monitor.
+        """
+        pass
+
+    @abstractmethod
+    def add_sensors(self, sensors: List[BaseSensorOperator]):
+        """Add a list of sensors to monitor.  The telescope will wait until the monitored sensors all trigger before
+        running the tasks.
+
+        :param sensors: List of sensors to monitor.
+        """
+        pass
+
+    @abstractmethod
     def add_task(self, func: Callable):
-        """ Add a task, which is used to process releases. A task has the following properties:
+        """Add a task, which is used to process releases. A task has the following properties:
 
         - Has one of the following signatures 'def func(self, release: Release, **kwargs)' or 'def func(self,
         releases: List[Release], **kwargs)'
@@ -104,7 +133,7 @@ class AbstractTelescope(ABC):
 
     @abstractmethod
     def add_task_chain(self, funcs: List[Callable]):
-        """ Add a list of tasks, which are used to process releases. (See add_task for more info.)
+        """Add a list of tasks, which are used to process releases. (See add_task for more info.)
 
         :param funcs: The list of functions that will be called by the PythonOperator task.
         :return: None.
@@ -113,7 +142,7 @@ class AbstractTelescope(ABC):
 
     @abstractmethod
     def task_callable(self, func: TelescopeFunction, **kwargs) -> Any:
-        """ Invoke a task callable. Creates a Release instance or Release instances and calls the given task method.
+        """Invoke a task callable. Creates a Release instance or Release instances and calls the given task method.
 
         :param func: the task method.
         :param kwargs: the context passed from the PythonOperator. See
@@ -124,8 +153,8 @@ class AbstractTelescope(ABC):
         pass
 
     @abstractmethod
-    def make_release(self, **kwargs) -> Union['AbstractRelease', List['AbstractRelease']]:
-        """ Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
+    def make_release(self, **kwargs) -> Union["AbstractRelease", List["AbstractRelease"]]:
+        """Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -137,7 +166,7 @@ class AbstractTelescope(ABC):
 
     @abstractmethod
     def make_dag(self) -> DAG:
-        """ Make an Airflow DAG for a telescope.
+        """Make an Airflow DAG for a telescope.
 
         :return: the DAG object.
         """
@@ -145,12 +174,21 @@ class AbstractTelescope(ABC):
 
 
 class Telescope(AbstractTelescope):
-    RELEASE_INFO = 'releases'
+    RELEASE_INFO = "releases"
 
-    def __init__(self, dag_id: str, start_date: datetime, schedule_interval: str, catchup: bool = False,
-                 queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1,
-                 airflow_vars: list = None, airflow_conns: list = None):
-        """ Construct a Telescope instance.
+    def __init__(
+        self,
+        dag_id: str,
+        start_date: datetime,
+        schedule_interval: str,
+        catchup: bool = False,
+        queue: str = "default",
+        max_retries: int = 3,
+        max_active_runs: int = 1,
+        airflow_vars: list = None,
+        airflow_conns: list = None,
+    ):
+        """Construct a Telescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -174,19 +212,26 @@ class Telescope(AbstractTelescope):
         self.airflow_conns = airflow_conns
 
         self.setup_task_funcs = []
+        self.sensors = []
         self.task_funcs = []
         self.default_args = {
             "owner": "airflow",
             "start_date": self.start_date,
-            'on_failure_callback': on_failure_callback,
-            'retries': self.max_retries
+            "on_failure_callback": on_failure_callback,
+            "retries": self.max_retries,
         }
         self.description = self.__doc__
-        self.dag = DAG(dag_id=self.dag_id, schedule_interval=self.schedule_interval, default_args=self.default_args,
-                       catchup=self.catchup, max_active_runs=self.max_active_runs, doc_md=self.__doc__)
+        self.dag = DAG(
+            dag_id=self.dag_id,
+            schedule_interval=self.schedule_interval,
+            default_args=self.default_args,
+            catchup=self.catchup,
+            max_active_runs=self.max_active_runs,
+            doc_md=self.__doc__,
+        )
 
     def add_setup_task(self, func: Callable):
-        """ Add a setup task, which is used to run tasks before 'Release' objects are created, e.g. checking
+        """Add a setup task, which is used to run tasks before 'Release' objects are created, e.g. checking
         dependencies, fetching available releases etc.
 
         A setup task has the following properties:
@@ -202,7 +247,7 @@ class Telescope(AbstractTelescope):
         self.setup_task_funcs.append(func)
 
     def add_setup_task_chain(self, funcs: List[Callable]):
-        """ Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
+        """Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
         dependencies, fetching available releases etc. (See add_setup_task for more info.)
 
         :param funcs: The list of functions that will be called by the ShortCircuitOperator task.
@@ -210,8 +255,24 @@ class Telescope(AbstractTelescope):
         """
         self.setup_task_funcs += funcs
 
+    def add_sensor(self, sensor: BaseSensorOperator):
+        """Add a sensor to monitor.  The telescope will wait until the monitored sensors all trigger before
+        running the tasks.
+
+        :param sensor: A sensor to monitor.
+        """
+        self.sensors.append(sensor)
+
+    def add_sensors(self, sensors: List[BaseSensorOperator]):
+        """Add a list of sensors to monitor.  The telescope will wait until the monitored sensors all trigger before
+        running the tasks.
+
+        :param sensors: List of sensors to monitor.
+        """
+        self.sensors = sensors
+
     def add_task(self, func: Callable):
-        """ Add a task, which is used to process releases. A task has the following properties:
+        """Add a task, which is used to process releases. A task has the following properties:
 
         - Has one of the following signatures 'def func(self, release: Release, **kwargs)' or 'def func(self,
         releases: List[Release], **kwargs)'
@@ -224,7 +285,7 @@ class Telescope(AbstractTelescope):
         self.task_funcs.append(func)
 
     def add_task_chain(self, funcs: List[Callable]):
-        """ Add a list of tasks, which are used to process releases. (See add_task for more info.)
+        """Add a list of tasks, which are used to process releases. (See add_task for more info.)
 
         :param funcs: The list of functions that will be called by the PythonOperator task.
         :return: None.
@@ -232,7 +293,7 @@ class Telescope(AbstractTelescope):
         self.task_funcs += funcs
 
     def task_callable(self, func: TelescopeFunction, **kwargs) -> Any:
-        """ Invoke a task callable. Creates a Release instance and calls the given task method. The result can be
+        """Invoke a task callable. Creates a Release instance and calls the given task method. The result can be
         pulled as an xcom in Airflow.
 
         :param func: the task method.
@@ -247,7 +308,7 @@ class Telescope(AbstractTelescope):
         return result
 
     def make_dag(self) -> DAG:
-        """ Make an Airflow DAG for a telescope.
+        """Make an Airflow DAG for a telescope.
 
         :return: the DAG object.
         """
@@ -258,8 +319,13 @@ class Telescope(AbstractTelescope):
                 if isinstance(func, functools.partial):
                     task = func()
                 else:
-                    task = ShortCircuitOperator(task_id=func.__name__, python_callable=func, queue=self.queue,
-                                                default_args=self.default_args, provide_context=True)
+                    task = ShortCircuitOperator(
+                        task_id=func.__name__,
+                        python_callable=func,
+                        queue=self.queue,
+                        default_args=self.default_args,
+                        provide_context=True,
+                    )
                 tasks.append(task)
 
             # Process all other tasks next, which are always PythonOperators
@@ -267,15 +333,23 @@ class Telescope(AbstractTelescope):
                 if isinstance(func, functools.partial):
                     task = func()
                 else:
-                    task = PythonOperator(task_id=func.__name__, python_callable=partial(self.task_callable, func),
-                                          queue=self.queue, default_args=self.default_args, provide_context=True)
+                    task = PythonOperator(
+                        task_id=func.__name__,
+                        python_callable=partial(self.task_callable, func),
+                        queue=self.queue,
+                        default_args=self.default_args,
+                        provide_context=True,
+                    )
                 tasks.append(task)
             chain(*tasks)
+
+            # Add sensors as a pre-requisite to the first task.
+            self.sensors >> tasks[0]
 
         return self.dag
 
     def check_dependencies(self, **kwargs) -> bool:
-        """ Checks the 'telescope' attributes, airflow variables & connections and possibly additional custom checks.
+        """Checks the 'telescope' attributes, airflow variables & connections and possibly additional custom checks.
 
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -289,7 +363,7 @@ class Telescope(AbstractTelescope):
             conns_valid = check_connections(*self.airflow_conns)
 
         if not vars_valid or not conns_valid:
-            raise AirflowException('Required variables or connections are missing')
+            raise AirflowException("Required variables or connections are missing")
 
         return True
 
@@ -300,7 +374,7 @@ class AbstractRelease(ABC):
     @property
     @abstractmethod
     def download_bucket(self):
-        """ The download bucket name.
+        """The download bucket name.
         :return: the download bucket name.
         """
         pass
@@ -308,7 +382,7 @@ class AbstractRelease(ABC):
     @property
     @abstractmethod
     def transform_bucket(self):
-        """ The transform bucket name.
+        """The transform bucket name.
         :return: the transform bucket name.
         """
         pass
@@ -316,7 +390,7 @@ class AbstractRelease(ABC):
     @property
     @abstractmethod
     def download_folder(self) -> str:
-        """ The download folder path for the release, e.g. /path/to/telescopes/download/{dag_id}/{release_id}/
+        """The download folder path for the release, e.g. /path/to/telescopes/download/{dag_id}/{release_id}/
         :return: the download folder path.
         """
         pass
@@ -324,7 +398,7 @@ class AbstractRelease(ABC):
     @property
     @abstractmethod
     def extract_folder(self) -> str:
-        """ The extract folder path for the release, e.g. /path/to/telescopes/extract/{dag_id}/{release_id}/
+        """The extract folder path for the release, e.g. /path/to/telescopes/extract/{dag_id}/{release_id}/
         :return: the extract folder path.
         """
         pass
@@ -332,7 +406,7 @@ class AbstractRelease(ABC):
     @property
     @abstractmethod
     def transform_folder(self) -> str:
-        """ The transform folder path for the release, e.g. /path/to/telescopes/transform/{dag_id}/{release_id}/
+        """The transform folder path for the release, e.g. /path/to/telescopes/transform/{dag_id}/{release_id}/
         :return: the transform folder path.
         """
         pass
@@ -340,7 +414,7 @@ class AbstractRelease(ABC):
     @property
     @abstractmethod
     def download_files(self) -> List[str]:
-        """ List all files downloaded as a part of this release.
+        """List all files downloaded as a part of this release.
         :return: list of downloaded files.
         """
         pass
@@ -348,7 +422,7 @@ class AbstractRelease(ABC):
     @property
     @abstractmethod
     def extract_files(self) -> List[str]:
-        """ List all files extracted as a part of this release.
+        """List all files extracted as a part of this release.
         :return: list of extracted files.
         """
         pass
@@ -356,14 +430,14 @@ class AbstractRelease(ABC):
     @property
     @abstractmethod
     def transform_files(self) -> List[str]:
-        """ List all files transformed as a part of this release.
+        """List all files transformed as a part of this release.
         :return: list of transformed files.
         """
         pass
 
     @abstractmethod
     def cleanup(self) -> None:
-        """ Delete all files and folders associated with this release.
+        """Delete all files and folders associated with this release.
         :return: None.
         """
 
@@ -373,9 +447,15 @@ class AbstractRelease(ABC):
 class Release(AbstractRelease):
     """ Used to store info on a given release"""
 
-    def __init__(self, dag_id: str, release_id: str, download_files_regex: str = None, extract_files_regex: str = None,
-                 transform_files_regex: str = None):
-        """ Construct a Release instance
+    def __init__(
+        self,
+        dag_id: str,
+        release_id: str,
+        download_files_regex: str = None,
+        extract_files_regex: str = None,
+        transform_files_regex: str = None,
+    ):
+        """Construct a Release instance
         :param dag_id: the id of the DAG.
         :param release_id: the id of the release.
         :param download_files_regex: regex pattern that is used to find files in download folder
@@ -390,62 +470,62 @@ class Release(AbstractRelease):
 
     @property
     def download_folder(self) -> str:
-        """ The download folder path for the release, e.g. /path/to/telescopes/download/{dag_id}/{release_id}/
+        """The download folder path for the release, e.g. /path/to/telescopes/download/{dag_id}/{release_id}/
         :return: the download folder path.
         """
         return telescope_path(SubFolder.downloaded.value, self.dag_id, self.release_id)
 
     @property
     def extract_folder(self) -> str:
-        """ The extract folder path for the release, e.g. /path/to/telescopes/extract/{dag_id}/{release_id}/
+        """The extract folder path for the release, e.g. /path/to/telescopes/extract/{dag_id}/{release_id}/
         :return: the extract folder path.
         """
         return telescope_path(SubFolder.extracted.value, self.dag_id, self.release_id)
 
     @property
     def transform_folder(self) -> str:
-        """ The transform folder path for the release, e.g. /path/to/telescopes/transform/{dag_id}/{release_id}/
+        """The transform folder path for the release, e.g. /path/to/telescopes/transform/{dag_id}/{release_id}/
         :return: the transform folder path.
         """
         return telescope_path(SubFolder.transformed.value, self.dag_id, self.release_id)
 
     @property
     def download_files(self) -> List[str]:
-        """ List all files downloaded as a part of this release.
+        """List all files downloaded as a part of this release.
         :return: list of downloaded files.
         """
         return list_files(self.download_folder, self.download_files_regex)
 
     @property
     def extract_files(self) -> List[str]:
-        """ List all files extracted as a part of this release.
+        """List all files extracted as a part of this release.
         :return: list of extracted files.
         """
         return list_files(self.extract_folder, self.extract_files_regex)
 
     @property
     def transform_files(self) -> List[str]:
-        """ List all files transformed as a part of this release.
+        """List all files transformed as a part of this release.
         :return: list of transformed files.
         """
         return list_files(self.transform_folder, self.transform_files_regex)
 
     @property
     def download_bucket(self):
-        """ The download bucket name.
+        """The download bucket name.
         :return: the download bucket name.
         """
         return Variable.get(AirflowVars.DOWNLOAD_BUCKET)
 
     @property
     def transform_bucket(self):
-        """ The transform bucket name.
+        """The transform bucket name.
         :return: the transform bucket name.
         """
         return Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
     def cleanup(self) -> None:
-        """ Delete all files and folders associated with this release.
+        """Delete all files and folders associated with this release.
         :return: None.
         """
         for path in [self.download_folder, self.extract_folder, self.transform_folder]:
