@@ -81,16 +81,16 @@ class GoogleAnalyticsRelease(SnapshotRelease):
         """
         return os.path.join(self.transform_folder, f'{self.dag_id_prefix}.jsonl.gz')
 
-    def download_transform(self, view_id: str, pagepath_prefix: str) -> bool:
+    def download_transform(self, view_id: str, pagepath_regex: str) -> bool:
         """ Downloads and transforms an individual Google Analytics release.
 
         :param view_id: The view id.
-        :param pagepath_prefix: The prefix of the pagepath for a book.
+        :param pagepath_regex: The regex expression for the pagepath of a book.
         :return: True when data available for period, False if no data is available
         """
 
         service = initialize_analyticsreporting()
-        results = get_reports(service, view_id, pagepath_prefix, self.start_date, self.end_date)
+        results = get_reports(service, view_id, pagepath_regex, self.start_date, self.end_date)
         if results:
             list_to_jsonl_gz(self.transform_path, results)
             return True
@@ -101,8 +101,8 @@ class GoogleAnalyticsRelease(SnapshotRelease):
 class GoogleAnalyticsTelescope(SnapshotTelescope):
     """ Google Analytics Telescope."""
     DAG_ID_PREFIX = 'google_analytics'
-    ORG_MAPPING = {'ucl_press': ('103373421', '/collections/open-access/products/'),
-                   'anu_press': ('1422597', '')}
+    ORG_MAPPING = {'ucl_press': ('103373421', r'^/collections/open-access/products/.*$'),
+                   'anu_press': ('1422597', r'')}
 
     def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
                  start_date: datetime = datetime(2021, 1, 1),
@@ -134,7 +134,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         self.project_id = organisation.gcp_project_id
         self.dataset_location = 'us'  # TODO: add to API
         self.view_id = get_view_id(self.organisation.name)
-        self.pagepath_prefix = get_pagepath_prefix(self.organisation.name)
+        self.pagepath_regex = get_pagepath_regex(self.organisation.name)
 
         self.add_setup_task_chain([self.check_dependencies])
         self.add_task(partial(ShortCircuitOperator, task_id=self.download_transform.__name__,
@@ -179,7 +179,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         :param releases: a list with one google analyics release.
         :return: None.
         """
-        success = releases[0].download_transform(self.view_id, self.pagepath_prefix)
+        success = releases[0].download_transform(self.view_id, self.pagepath_regex)
         return success
 
     def bq_load(self, releases: List[SnapshotRelease], **kwargs):
@@ -221,14 +221,14 @@ def get_view_id(organisation_name: str) -> str:
     return view_id
 
 
-def get_pagepath_prefix(organisation_name: str) -> str:
-    """ Get the pagepath prefix for books based on the organisation name
+def get_pagepath_regex(organisation_name: str) -> str:
+    """ Get the pagepath regex expression for books based on the organisation name
 
     :param organisation_name: Name of the organisation.
-    :return: The pagepath prefix
+    :return: The regex expression for the pagepath of a book.
     """
-    pagepath_prefix = GoogleAnalyticsTelescope.ORG_MAPPING.get(make_org_id(organisation_name))[1]
-    return pagepath_prefix
+    pagepath_regex = GoogleAnalyticsTelescope.ORG_MAPPING.get(make_org_id(organisation_name))[1]
+    return pagepath_regex
 
 
 def initialize_analyticsreporting() -> Resource:
@@ -247,13 +247,13 @@ def initialize_analyticsreporting() -> Resource:
     return service
 
 
-def list_all_books(service: Resource, view_id: str, pagepath_prefix: str,
+def list_all_books(service: Resource, view_id: str, pagepath_regex: str,
                    start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Tuple[List[dict], list]:
     """ List all available books by getting all pagepaths of a view id in a given period.
 
     :param service: The Google Analytics Reporting service object.
     :param view_id: The view id.
-    :param pagepath_prefix: The prefix of the pagepath for a book.
+    :param pagepath_regex: The regex expression for the pagepath of a book.
     :param start_date: Start date of analytics period
     :param end_date: End date of analytics period
     :return: A list with dictionaries, one for each book entry (the dict contains the pagepath, title and average time
@@ -273,8 +273,8 @@ def list_all_books(service: Resource, view_id: str, pagepath_prefix: str,
             "dimensionFilterClauses": [{
                 "filters": [{
                     "dimensionName": "ga:pagepath",
-                    "operator": "BEGINS_WITH",
-                    "expressions": [pagepath_prefix]
+                    "operator": "REGEXP",
+                    "expressions": [pagepath_regex]
                 }]
             }]
         }]
@@ -454,20 +454,20 @@ def merge_pagepaths_per_book(book_results: dict, pagepaths: list):
     return unique_book_results
 
 
-def get_reports(service: Resource, view_id: str, pagepath_prefix: str, start_date: pendulum.Pendulum,
+def get_reports(service: Resource, view_id: str, pagepath_regex: str, start_date: pendulum.Pendulum,
                 end_date: pendulum.Pendulum) -> list:
     """ Get reports data from the Google Analytics Reporting API.
 
     :param service: The Google Analytics Reporting service.
     :param view_id: The view id.
-    :param pagepath_prefix: The prefix of the pagepath for a book.
+    :param pagepath_regex: The regex expression for the pagepath of a book.
     :param start_date: Start date of analytics period
     :param end_date: End date of analytics period
     :return: List with google analytics data for each book
     """
 
     # list all books
-    book_entries, pagepaths = list_all_books(service, view_id, pagepath_prefix, start_date, end_date)
+    book_entries, pagepaths = list_all_books(service, view_id, pagepath_regex, start_date, end_date)
     # if no books in period return empty list and raise airflow skip exception
     if not book_entries:
         return []
