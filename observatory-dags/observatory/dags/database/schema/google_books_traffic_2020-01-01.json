@@ -3,7 +3,7 @@
     "description": "The primary identifier (e.g., ISBN) of the book. This column appears in the report if data is organized by book.",
     "mode": "NULLABLE",
     "name": "Primary_ISBN",
-    "type": "INTEGER"
+    "type": "STRING"
   },
     {
     "description": "The title of the book.",

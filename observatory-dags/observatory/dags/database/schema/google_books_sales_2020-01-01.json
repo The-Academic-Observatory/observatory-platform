@@ -39,7 +39,7 @@
     "description": "The primary ISBN or other identifier the book, prefixed by a single quotation mark so spreadsheet programs will display the entire ISBN.",
     "mode": "NULLABLE",
     "name": "Primary_ISBN",
-    "type": "INTEGER"
+    "type": "STRING"
   },
     {
     "description": "The template used for the book.",

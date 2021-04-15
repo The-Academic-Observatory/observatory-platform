@@ -24,7 +24,7 @@ from airflow.models.taskinstance import TaskInstance
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, convert, make_sftp_connection, SftpFolders, make_dag_id
-from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.template_utils import upload_files_from_list, blob_name, table_ids_from_path, bq_load_shard_v2
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns, AirflowVariable as Variable
 import pendulum
 import re
@@ -35,15 +35,17 @@ from typing import Optional
 class GoogleBooksRelease(SnapshotRelease):
     def __init__(self, dag_id: str, release_date: pendulum.Pendulum, sftp_files: List[str], organisation: Organisation):
         """ Construct a GoogleBooksRelease.
-        :param dag_id:
+
+        :param dag_id: the DAG id.
         :param release_date: the release date.
-        :param reports: which reports are part of the release (sales and/or traffic)
+        :param sftp_files: List of full filepaths to download from sftp service (incl. in_progress folder)
+        :param organisation: the Organisation.
         """
         self.dag_id = dag_id
         self.release_date = release_date
 
-        download_files_regex = f"^{self.dag_id}_(sales|traffic)\.csv$"
-        transform_files_regex = f"^{self.dag_id}_(sales|traffic)\.jsonl\.gz$"
+        download_files_regex = f"^{GoogleBooksTelescope.DAG_ID_PREFIX}_(sales|traffic)\.csv$"
+        transform_files_regex = f"^{GoogleBooksTelescope.DAG_ID_PREFIX}_(sales|traffic)\.jsonl\.gz$"
         super().__init__(self.dag_id, release_date, download_files_regex=download_files_regex,
                          transform_files_regex=transform_files_regex)
         self.organisation = organisation
@@ -54,6 +56,7 @@ class GoogleBooksRelease(SnapshotRelease):
     @property
     def download_bucket(self):
         """ The download bucket name.
+
         :return: the download bucket name.
         """
         return self.organisation.gcp_download_bucket
@@ -61,28 +64,32 @@ class GoogleBooksRelease(SnapshotRelease):
     @property
     def transform_bucket(self):
         """ The transform bucket name.
+
         :return: the transform bucket name.
         """
         return self.organisation.gcp_transform_bucket
 
     def download_path(self, remote_path: str) -> str:
         """ Creates full download path
+
         :param remote_path: filepath of remote sftp tile
         :return: Download path
         """
         report_type = 'sales' if 'Sales' in remote_path else 'traffic'
-        return os.path.join(self.download_folder, f'{self.dag_id}_{report_type}.csv')
+        return os.path.join(self.download_folder, f'{GoogleBooksTelescope.DAG_ID_PREFIX}_{report_type}.csv')
 
     def transform_path(self, path: str) -> str:
         """ Creates full transform path
+
         :param path: filepath of download file
         :return: Transform path
         """
         report_type = 'sales' if 'sales' in path else 'traffic'
-        return os.path.join(self.transform_folder, f"{self.dag_id}_{report_type}.jsonl.gz")
+        return os.path.join(self.transform_folder, f"{GoogleBooksTelescope.DAG_ID_PREFIX}_{report_type}.jsonl.gz")
 
     def download(self):
         """ Downloads Google Books reports.
+
         :return: the paths on the system of the downloaded files.
         """
         with make_sftp_connection() as sftp:
@@ -92,7 +99,8 @@ class GoogleBooksRelease(SnapshotRelease):
     def transform(self):
         """ Transforms sales and traffic report. For both reports it transforms the csv into a jsonl file and
         replaces spaces in the keys with underscores.
-        :return:
+
+        :return: None
         """
         for file in self.download_files:
             results = []
@@ -127,6 +135,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
                  schedule_interval: str = '@weekly', dataset_id: str = 'google', catchup: bool = False,
                  airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleBooksTelescope instance.
+
         :param organisation: the Organisation the DAG will process.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -146,6 +155,8 @@ class GoogleBooksTelescope(SnapshotTelescope):
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, catchup=catchup,
                          airflow_vars=airflow_vars, airflow_conns=airflow_conns)
         self.organisation = organisation
+        self.project_id = organisation.gcp_project_id
+        self.dataset_location = 'us'  # TODO: add to API
         self.sftp_folders = SftpFolders(dag_id, organisation.name)
         self.sftp_regex = r'^Google(SalesTransaction|BooksTraffic)Report_\d{4}_\d{2}.csv$'
 
@@ -179,6 +190,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
     def list_release_info(self, **kwargs):
         """ Lists all Google Books releases available on the SFTP server and publishes sftp file paths and
         release_date's as an XCom.
+
         :param kwargs: the context passed from the BranchPythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
@@ -193,7 +205,6 @@ class GoogleBooksTelescope(SnapshotTelescope):
                 if re.match(self.sftp_regex, file_name):
                     date_str = file_name[-11:].strip('.csv')
                     release_date = pendulum.strptime(date_str, '%Y_%m')
-                    # report_type = 'sales' if m.group(1) == 'SalesTransaction' else 'traffic'
                     sftp_file = os.path.join(self.sftp_folders.in_progress, file_name)
                     release_info[release_date].append(sftp_file)
 
@@ -207,7 +218,8 @@ class GoogleBooksTelescope(SnapshotTelescope):
 
     def move_files_to_in_progress(self, releases: List[GoogleBooksRelease], **kwargs):
         """ Move Google Books files to SFTP in-progress folder.
-        :param releases: a list of ONIX releases.
+
+        :param releases: a list of Google Books releases.
         :return: None.
         """
 
@@ -216,6 +228,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
 
     def download(self, releases: List[GoogleBooksRelease], **kwargs):
         """ Task to download the Google Books releases for a given month.
+
         :param releases: a list of Google Books releases.
         :return: None.
         """
@@ -225,6 +238,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
 
     def upload_downloaded(self, releases: List[GoogleBooksRelease], **kwargs):
         """ Task to upload the downloaded Google Books releases for a given month.
+
         :param releases: a list of Google Books releases.
         :return: None.
         """
@@ -234,6 +248,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
 
     def transform(self, releases: List[GoogleBooksRelease], **kwargs):
         """ Task to transform the Google Books releases for a given month.
+
         :param releases: a list of Google Books releases.
         :return: None.
         """
@@ -241,11 +256,30 @@ class GoogleBooksTelescope(SnapshotTelescope):
         for release in releases:
             release.transform()
 
+    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
+        """ Task to load each transformed release to BigQuery.
+        The table_id is set to the file name without the extension.
+        :param releases: a list of releases.
+        :return: None.
+        """
+
+        # Load each transformed release
+        for release in releases:
+            for transform_path in release.transform_files:
+                transform_blob = blob_name(transform_path)
+                table_id, _ = table_ids_from_path(transform_path)
+
+                bq_load_shard_v2(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                 self.dataset_location, table_id, release.release_date, self.source_format,
+                                 prefix=self.schema_prefix, schema_version=self.schema_version,
+                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+
     def move_files_to_finished(self, releases: List[GoogleBooksRelease], **kwargs):
         """ Move Google Books files to SFTP finished folder.
+
         :param releases: a list of Google Books releases.
         :return: None.
         """
 
         for release in releases:
-            self.sftp_folders.move_files_to_in_progress(release.sftp_files)
+            self.sftp_folders.move_files_to_finished(release.sftp_files)
