@@ -18,10 +18,11 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import time
 from datetime import datetime
 from functools import partial
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 from urllib.parse import quote
 
 import pendulum
@@ -42,19 +43,9 @@ from observatory.platform.utils.gc_utils import copy_blob_from_cloud_storage, \
     create_cloud_storage_bucket, \
     download_blob_from_cloud_storage, \
     upload_file_to_cloud_storage
-from observatory.platform.utils.template_utils import blob_name
-from observatory.platform.utils.telescope_utils import make_dag_id
-
-
-#TODO replace with make_org_id from telecope_utils
-def make_org_id(organisation_name: str) -> str:
-    """ Make an organisation id from the organisation name. Converts the organisation name to lower case,
-    strips whitespace and replaces internal spaces with underscores.
-    :param organisation_name: the organisation name.
-    :return: the organisation id.
-    """
-
-    return organisation_name.strip().replace(' ', '_').lower()
+from observatory.platform.utils.proc_utils import wait_for_process
+from observatory.platform.utils.telescope_utils import make_dag_id, make_org_id
+from observatory.platform.utils.template_utils import SubFolder, blob_name, telescope_path
 
 
 class OapenIrusUkRelease(SnapshotRelease):
@@ -111,6 +102,7 @@ class OapenIrusUkRelease(SnapshotRelease):
         :param oapen_project_id: The oapen project id.
         :param source_bucket: Storage bucket with the source code
         :param function_name: Name of the google cloud function
+        :param function_region: Region of the google cloud function
         :return: None.
         """
         # set up cloud function variables
@@ -162,7 +154,8 @@ class OapenIrusUkRelease(SnapshotRelease):
         password = BaseHook.get_connection(airflow_conn).password
 
         success = call_cloud_function(function_url, self.release_date.strftime('%Y-%m'), username, password,
-                                      geoip_license_key, self.publisher_name, publisher_uuid, source_bucket, self.blob_name)
+                                      geoip_license_key, self.publisher_name, publisher_uuid, source_bucket,
+                                      self.blob_name)
         if not success:
             raise AirflowException('Cloud function unsuccessful')
 
@@ -192,9 +185,11 @@ class OapenIrusUkTelescope(SnapshotTelescope):
                    'anu_press': quote("ANU Press"),
                    'wits_university_press': quote("Wits University Press")}
 
-    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None, start_date: datetime = datetime(2020, 2, 1),
+    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
+                 start_date: datetime = datetime(2020, 2, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'oapen',
-                 dataset_description: str = 'Oapen dataset', catchup: bool = True, airflow_vars: List = None, airflow_conns: List = None,
+                 dataset_description: str = 'Oapen dataset', catchup: bool = True, airflow_vars: List = None,
+                 airflow_conns: List = None,
                  max_active_runs=5):
 
         """ The OAPEN irus uk telescope.
@@ -213,13 +208,15 @@ class OapenIrusUkTelescope(SnapshotTelescope):
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
 
         if airflow_conns is None:
-            airflow_conns = [AirflowConns.GEOIP_LICENSE_KEY, AirflowConns.OAPEN_IRUS_UK_API, AirflowConns.OAPEN_IRUS_UK_LOGIN]
+            airflow_conns = [AirflowConns.GEOIP_LICENSE_KEY, AirflowConns.OAPEN_IRUS_UK_API,
+                             AirflowConns.OAPEN_IRUS_UK_LOGIN]
 
         if dag_id is None:
             dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
 
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, dataset_description=dataset_description,
-                         catchup=catchup, airflow_vars=airflow_vars, airflow_conns=airflow_conns, max_active_runs=max_active_runs)
+                         catchup=catchup, airflow_vars=airflow_vars, airflow_conns=airflow_conns,
+                         max_active_runs=max_active_runs)
         self.organisation = organisation
         self.publisher_name = get_publisher_name(make_org_id(organisation.name))
         self.oapen_project_id = 'oapen-usage-data-gdpr-proof'
@@ -318,7 +315,8 @@ def get_publisher_uuid(publisher_name: str) -> str:
     logging.info(f'Getting publisher UUID for publisher: {publisher_name}, from: {url}')
     if response.status_code != 200:
         raise RuntimeError(
-            f'Request to get publisher UUID unsuccessful, url: {url}, status code: {response.status_code}, response: {response.text}, reason: {response.reason}')
+            f'Request to get publisher UUID unsuccessful, url: {url}, status code: {response.status_code}, '
+            f'response: {response.text}, reason: {response.reason}')
     response_json = response.json()
     publisher_uuid = response_json[0]['uuid']
     logging.info(f'Found publisher UUID: {publisher_uuid}')
@@ -333,14 +331,34 @@ def upload_source_code_to_bucket(project_id: str, bucket_name: str, blob_name: s
     :param blob_name: The blob name
     :return: Whether task was successful and whether file was uploaded
     """
-    source_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'oapen_cloud_function')
+
+    # get source code from github repository
+    telescope_folder = telescope_path(SubFolder.downloaded.value, OapenIrusUkTelescope.DAG_ID_PREFIX)
+    git_folder = os.path.join(telescope_folder, 'oapen-irus-uk-cloud-function')
+    git_url = 'https://github.com/The-Academic-Observatory/oapen-irus-uk-cloud-function.git'
+    if os.path.isdir(git_folder):
+        cmd = f"git -C {git_folder} pull {git_url}"
+    else:
+        cmd = f"git -C {telescope_folder} clone {git_url}"
+
+    logging.info(f"Running command: {cmd}")
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         executable='/bin/bash')
+    stdout, stderr = wait_for_process(p)
+    logging.info(f"stdout: {stdout}")
+    logging.info(f"stderr: {stderr}")
+    if p.returncode != 0:
+        raise AirflowException(f"bash command failed")
+
+    # zip source code
+    source_dir = os.path.join(git_folder, 'source_code')
     zip_filename = os.path.join(module_file_path('observatory.dags.telescopes'), 'oapen_cloud_function')
     zip_filepath = shutil.make_archive(zip_filename, 'zip', source_dir)
 
     # create storage bucket
     create_cloud_storage_bucket(bucket_name, location='EU', project_id=project_id, lifecycle_delete_age=1)
 
-    # upload to cloud storage
+    # upload zip to cloud storage
     success, upload = upload_file_to_cloud_storage(bucket_name, blob_name, zip_filepath, project_id=project_id)
     return success, upload
 

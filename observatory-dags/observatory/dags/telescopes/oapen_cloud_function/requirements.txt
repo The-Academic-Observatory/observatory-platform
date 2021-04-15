@@ -1,4 +1,0 @@
-requests==2.20.*
-geoip2==4.1.*
-jsonlines==1.2.*
-google-cloud-storage==1.35.*
