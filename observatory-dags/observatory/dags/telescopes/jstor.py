@@ -23,11 +23,9 @@ import logging
 import os
 import os.path
 import os.path
-import time
 from collections import OrderedDict
 from datetime import datetime
-from typing import Dict
-from typing import List
+from typing import Dict, List, Optional
 
 import pendulum
 import requests
@@ -38,14 +36,13 @@ from bs4 import BeautifulSoup, SoupStrainer
 from google.cloud.bigquery import SourceFormat
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import Resource, build
+from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import convert, make_dag_id
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
+from observatory.platform.utils.telescope_utils import convert, list_to_jsonl_gz, make_dag_id, make_org_id
 from observatory.platform.utils.template_utils import upload_files_from_list
 from pendulum import Pendulum
-from observatory.api.client.model.organisation import Organisation
-from typing import Optional
+from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
 
 
 class JstorRelease(SnapshotRelease):
@@ -57,8 +54,8 @@ class JstorRelease(SnapshotRelease):
         """
 
         self.reports_info = reports_info
-        download_files_regex = f"^{dag_id}_(country|institution)\.tsv$"
-        transform_files_regex = f"^{dag_id}_(country|institution)\.jsonl.gz"
+        download_files_regex = f"^{JstorTelescope.DAG_ID_PREFIX}_(country|institution)\.tsv$"
+        transform_files_regex = f"^{JstorTelescope.DAG_ID_PREFIX}_(country|institution)\.jsonl.gz"
 
         super().__init__(dag_id, release_date, download_files_regex, transform_files_regex)
         self.organisation = organisation
@@ -83,7 +80,7 @@ class JstorRelease(SnapshotRelease):
         :param report_type: The report type (country or institution)
         :return: Download path
         """
-        return os.path.join(self.download_folder, f'{self.dag_id}_{report_type}.tsv')
+        return os.path.join(self.download_folder, f'{JstorTelescope.DAG_ID_PREFIX}_{report_type}.tsv')
 
     def transform_path(self, report_type: str) -> str:
         """ Creates full transform path
@@ -91,7 +88,7 @@ class JstorRelease(SnapshotRelease):
         :param report_type: The report type (country or institution)
         :return: Transform path
         """
-        return os.path.join(self.transform_folder, f"{self.dag_id}_{report_type}.jsonl.gz")
+        return os.path.join(self.transform_folder, f"{JstorTelescope.DAG_ID_PREFIX}_{report_type}.jsonl.gz")
 
     def download(self):
         """ Downloads Google Books reports.
@@ -99,16 +96,9 @@ class JstorRelease(SnapshotRelease):
         :return: the paths on the system of the downloaded files.
         """
         for report in self.reports_info:
-            headers = create_headers(report['url'])
-            time.sleep(20)
-            response = requests.get(report['url'], headers=headers)
-            if response.status_code != 200:
-                raise AirflowException(f'Could not get content from download url, reason: {response.reason}, '
-                                       f'status_code: {response.status_code}')
-
-            content = response.content.decode('utf-8')
-            with open(self.download_path(report['type']), 'w') as f:
-                f.write(content)
+            url = report['url']
+            download_path = self.download_path(report['type'])
+            success = download_report(url, download_path)
 
     def transform(self):
         """ Transform a Jstor release into json lines format and gzip the result.
@@ -141,7 +131,13 @@ class JstorRelease(SnapshotRelease):
             body = {
                 'addLabelIds': [label_id]
             }
-            service.users().messages().modify(userId='me', id=message_id, body=body).execute()
+            response = service.users().messages().modify(userId='me', id=message_id, body=body).execute()
+            try:
+                message_id = response['id']
+                logging.info(f"Added label '{JstorTelescope.PROCESSED_LABEL_NAME}' to GMAIL message, message_id: "
+                             f"{message_id}")
+            except KeyError:
+                raise AirflowException(f'Unsuccessful adding label to GMAIL message, message_id: {message_id}')
 
 
 class JstorTelescope(SnapshotTelescope):
@@ -154,8 +150,18 @@ class JstorTelescope(SnapshotTelescope):
 
     DAG_ID_PREFIX = 'jstor'
     PROCESSED_LABEL_NAME = 'processed_report'
+    ORG_MAPPING = {'anu_press': 'anupress',
+                   'ucl_press': 'uclpress'}
 
-    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None, start_date: datetime = datetime(2015, 9, 1),
+    # download settings
+    MAX_ATTEMPTS = 3
+    FIXED_WAIT = 20  # seconds
+    MAX_WAIT_TIME = 60 * 10  # seconds
+    EXP_BASE = 3
+    MULTIPLIER = 10
+
+    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
+                 start_date: datetime = datetime(2015, 9, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'jstor',
                  source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON, dataset_description: str = '',
                  catchup: bool = False, airflow_vars: List = None, airflow_conns: List = None):
@@ -223,7 +229,7 @@ class JstorTelescope(SnapshotTelescope):
 
         service = create_gmail_service()
         label_id = get_label_id(service, self.PROCESSED_LABEL_NAME)
-        available_releases = list_available_releases(service, self.organisation.name, label_id)
+        available_releases = list_available_releases(service, make_org_id(self.organisation.name), label_id)
 
         continue_dag = len(available_releases)
         if continue_dag:
@@ -267,23 +273,53 @@ class JstorTelescope(SnapshotTelescope):
             release.transform()
 
 
-def create_headers(url: str) -> dict:
-    """ Create a headers dict that can be used to make a request
+@retry(stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
+       reraise=True,
+       wait=wait_fixed(JstorTelescope.FIXED_WAIT) + wait_exponential(multiplier=JstorTelescope.MULTIPLIER,
+                                                                     exp_base=JstorTelescope.EXP_BASE,
+                                                                     max=JstorTelescope.MAX_WAIT_TIME),
+       )
+def download_report(url: str, download_path: str) -> bool:
+    """ Download report from url to a file.
 
-    :param url: the download url
-    :return: headers dictionary
+    :param url: Download url
+    :param download_path: Path to download data to
+    :return: Whether download was successful
     """
-    referer = f"https://www.google.com/url?q={url}" \
-              f"&amp;source=gmail&amp;ust={int(time.time())}000&amp;usg=AFQjCNFtACM-4Zqs3yA1AXl4GyEbfvCqwQ"
-    headers = {
-        'Referer': referer,
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) '
-                      'Chrome/89.0.4389.90 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
-                  'application/signed-exchange;v=b3;q=0.9'
+    logging.info(
+        f'Downloading report from url, attempt: {download_report.retry.statistics["attempt_number"]}, idle for:'
+        f'{download_report.retry.statistics["idle_for"]}')
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise AirflowException(f'Could not download content from report url, reason: {response.reason}, '
+                               f'status_code: {response.status_code}')
 
-    }
-    return headers
+    content = response.content.decode('utf-8')
+    with open(download_path, 'w') as f:
+        f.write(content)
+    return True
+
+
+@retry(stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
+       reraise=True,
+       wait=wait_fixed(JstorTelescope.FIXED_WAIT) + wait_exponential(multiplier=JstorTelescope.MULTIPLIER,
+                                                                     exp_base=JstorTelescope.EXP_BASE,
+                                                                     max=JstorTelescope.MAX_WAIT_TIME),
+       )
+def get_header_info(url: str) -> [str, str]:
+    """ Get header info from url and parse for filename and extension of file.
+
+    :param url: Download url
+    :return: Filename and file extension
+    """
+    logging.info(f'Getting HEAD of report download url, attempt: {get_header_info.retry.statistics["attempt_number"]}, '
+                 f'idle for: {get_header_info.retry.statistics["idle_for"]}')
+    response = requests.head(url, allow_redirects=True)
+    if response.status_code != 200:
+        raise AirflowException(f'Could not get HEAD of report download url, reason: {response.reason}, '
+                               f'status_code: {response.status_code}')
+    filename, extension = response.headers['Content-Disposition'].split('=')[1].split('.')
+    return filename, extension
 
 
 def create_gmail_service() -> Resource:
@@ -337,7 +373,8 @@ def message_has_label(message: dict, label_id: str) -> bool:
             return True
 
 
-def list_available_releases(service: Resource, publisher: str, processed_label_id: str) -> Dict[Pendulum, List[dict]]:
+def list_available_releases(service: Resource, publisher_id: str, processed_label_id: str) -> Dict[
+    Pendulum, List[dict]]:
     """ List the available releases by going through the messages of a gmail account and looking for a specific pattern.
 
     If a message has been processed previously it has a specific label, messages with this label will be skipped.
@@ -345,20 +382,21 @@ def list_available_releases(service: Resource, publisher: str, processed_label_i
     release date and publisher can be derived.
 
     :param service: Gmail service
-    :param publisher: Name of the publisher
+    :param publisher_id: Id of the publisher
     :param processed_label_id: Id of the 'processed_reports' label
     :return: Dictionary with release dates as key and reports info as value, where reports info is a list of country
     and/or institution reports.
     """
 
     available_releases = {}
-    # Call the Gmail API
-    results = service.users().messages().list(userId='me', q='subject:"JSTOR Publisher Report Available"').execute()
+    # list messages with specific query
+    results = service.users().messages().list(userId='me', q='subject:"JSTOR Publisher Report Available"',
+                                              labelIds=["INBOX"]).execute()
     for message_info in results['messages']:
         message_id = message_info['id']
         message = service.users().messages().get(userId='me', id=message_id).execute()
 
-        # check if message has label 'processed'
+        # check if message has processed label id
         if message_has_label(message, processed_label_id):
             continue
 
@@ -372,18 +410,12 @@ def list_available_releases(service: Resource, publisher: str, processed_label_i
         if download_url is None:
             raise AirflowException(f"Can't find download link for report in e-mail, message snippet: {message.snippet}")
 
-        # get filename from head
-        headers = create_headers(download_url)
-        time.sleep(20)
-        response = requests.head(download_url, headers=headers, allow_redirects=True)
-        if response.status_code != 200:
-            raise AirflowException(f'Could not get HEAD of report download url, reason: {response.reason}, '
-                                   f'status_code: {response.status_code}')
-        filename, extension = response.headers['Content-Disposition'].split('=')[1].split('.')
+        # get filename and extension from head
+        filename, extension = get_header_info(download_url)
 
         # get publisher
         report_publisher = filename.split('_')[1]
-        if report_publisher != publisher:
+        if report_publisher != JstorTelescope.ORG_MAPPING.get(publisher_id):
             continue
 
         # get report_type
