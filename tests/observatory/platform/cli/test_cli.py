@@ -271,8 +271,8 @@ class TestObservatoryPlatform(unittest.TestCase):
 
 
 class TestObservatoryTerraform(unittest.TestCase):
-    organisation = os.getenv('TESTS_TERRAFORM_ORGANISATION')
-    token = os.getenv('TESTS_TERRAFORM_TOKEN')
+    organisation = os.getenv('TEST_TERRAFORM_ORGANISATION')
+    token = os.getenv('TEST_TERRAFORM_TOKEN')
     terraform_api = TerraformApi(token)
     version = TerraformApi.TERRAFORM_WORKSPACE_VERSION
     description = 'test'
