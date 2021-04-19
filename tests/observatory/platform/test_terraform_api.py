@@ -100,9 +100,9 @@ class TestTerraformVariable(unittest.TestCase):
 
 
 class TestTerraformApi(unittest.TestCase):
-    organisation = os.getenv('TESTS_TERRAFORM_ORGANISATION')
+    organisation = os.getenv('TEST_TERRAFORM_ORGANISATION')
     workspace = random_id()
-    token = os.getenv('TESTS_TERRAFORM_TOKEN')
+    token = os.getenv('TEST_TERRAFORM_TOKEN')
     terraform_api = TerraformApi(token)
     version = TerraformApi.TERRAFORM_WORKSPACE_VERSION
     description = 'test'
