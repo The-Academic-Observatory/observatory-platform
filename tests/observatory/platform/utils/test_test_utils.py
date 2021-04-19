@@ -72,8 +72,8 @@ class TestObservatoryEnvironment(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestObservatoryEnvironment, self).__init__(*args, **kwargs)
-        self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        self.data_location = os.getenv('TESTS_DATA_LOCATION')
+        self.project_id = os.getenv('TEST_GCP_PROJECT_ID')
+        self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
 
     def test_add_bucket(self):
         """ Test the add_bucket method """
@@ -167,8 +167,8 @@ class TestObservatoryTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestObservatoryTestCase, self).__init__(*args, **kwargs)
-        self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        self.data_location = os.getenv('TESTS_DATA_LOCATION')
+        self.project_id = os.getenv('TEST_GCP_PROJECT_ID')
+        self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
 
     def test_assert_dag_structure(self):
         """ Test assert_dag_structure """

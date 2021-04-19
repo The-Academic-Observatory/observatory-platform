@@ -41,8 +41,8 @@ class TestGeonames(ObservatoryTestCase):
         """
 
         super(TestGeonames, self).__init__(*args, **kwargs)
-        self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        self.data_location = os.getenv('TESTS_DATA_LOCATION')
+        self.project_id = os.getenv('TEST_GCP_PROJECT_ID')
+        self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
         self.all_countries_path = test_fixtures_path('telescopes', 'geonames', 'allCountries.zip')
         self.fetch_release_date_path = test_fixtures_path('vcr_cassettes', 'geonames', 'fetch_release_date.yaml')
         self.list_releases_path = test_fixtures_path('vcr_cassettes', 'geonames', 'list_releases.yaml')
