@@ -35,7 +35,7 @@ This service account can then be used to login on this webpage and download each
 ## Setting up a service account
 * Create a service account from IAM & Admin - Service Accounts
 * Create a JSON key and download the file with key
-* For each organisation/publisher of interest, ask them to add this service account as a user for the correct view id
+* For each organisation/publisher of interest, ask them to add this service account for Google Books
 
 ## Downloading Reports Manually
 There is no API available to download the Google Books report and it is quite challenging to automate the Google login process through tools such as Selenium, because of Google's bot detection triggering a reCAPTCHA.  
