@@ -63,15 +63,15 @@ jobs:
           TESTS_AZURE_CONTAINER_SAS_TOKEN: ${{ secrets.TESTS_AZURE_CONTAINER_SAS_TOKEN }}
           TESTS_AZURE_STORAGE_ACCOUNT_KEY: ${{ secrets.TESTS_AZURE_STORAGE_ACCOUNT_KEY }}
           TESTS_AZURE_STORAGE_ACCOUNT_NAME: ${{ secrets.TESTS_AZURE_STORAGE_ACCOUNT_NAME }}
-          TESTS_GOOGLE_CLOUD_BUCKET_NAME: ${{ secrets.TESTS_GOOGLE_CLOUD_BUCKET_NAME }}
-          TESTS_GOOGLE_CLOUD_PROJECT_ID: ${{ secrets.TESTS_GOOGLE_CLOUD_PROJECT_ID }}
-          TESTS_GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${{ secrets.TESTS_GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}
+          TEST_GCP_DATA_LOCATION: ${{ secrets.TEST_GCP_DATA_LOCATION }}
+          TEST_GCP_BUCKET_NAME: ${{ secrets.TEST_GCP_BUCKET_NAME }}
+          TEST_GCP_PROJECT_ID: ${{ secrets.TEST_GCP_PROJECT_ID }}
+          TEST_GCP_SERVICE_KEY: ${{ secrets.TEST_GCP_SERVICE_KEY }}
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_application_credentials.json
-          TESTS_TERRAFORM_TOKEN: ${{ secrets.TESTS_TERRAFORM_TOKEN }}
-          TESTS_TERRAFORM_ORGANISATION: ${{ secrets.TESTS_TERRAFORM_ORGANISATION }}
-          TESTS_DATA_LOCATION: ${{ secrets.TESTS_DATA_LOCATION }}
+          TEST_TERRAFORM_TOKEN: ${{ secrets.TEST_TERRAFORM_TOKEN }}
+          TEST_TERRAFORM_ORGANISATION: ${{ secrets.TEST_TERRAFORM_ORGANISATION }}
         run: |
-          echo "${TESTS_GOOGLE_APPLICATION_CREDENTIALS_BASE64}" | base64 --decode > /tmp/google_application_credentials.json
+          echo "${TEST_GCP_SERVICE_KEY}" | base64 --decode > /tmp/google_application_credentials.json
           coverage run -m unittest discover
           coverage xml
 
