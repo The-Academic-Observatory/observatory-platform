@@ -136,7 +136,7 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
                         csv_allow_quoted_newlines: bool = False, csv_skip_leading_rows: int = 0,
                         partition: bool = False, partition_field: Union[None, str] = None,
                         partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True,
-                        write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE, description: str = '',
+                        write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE, table_description: str = '',
                         project_id: str = None) -> bool:
     """ Load a BigQuery table from an object on Google Cloud Storage.
 
@@ -155,7 +155,7 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     :param partition_type: the type of partitioning.
     :param require_partition_filter: whether the partition filter is required or not when querying the table.
     :param write_disposition: whether to append, overwrite or throw an error when data already exists in the table.
-    :param description: the description of the table.
+    :param table_description: the description of the table.
     :param project_id: Google Cloud project id.
     Default is to overwrite.
     :return:
@@ -180,7 +180,7 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     job_config.source_format = source_format
     job_config.schema = client.schema_from_json(schema_file_path)
     job_config.write_disposition = write_disposition
-    job_config.destination_table_description = description
+    job_config.destination_table_description = table_description
 
     # Set CSV options
     if source_format == SourceFormat.CSV:

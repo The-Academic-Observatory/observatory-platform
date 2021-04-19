@@ -18,7 +18,7 @@ import datetime
 import logging
 from datetime import timedelta
 from functools import partial
-from typing import Callable, List
+from typing import Callable, Dict, List
 
 import pendulum
 from airflow.exceptions import AirflowSkipException
@@ -59,7 +59,9 @@ class StreamTelescope(Telescope):
     def __init__(self, dag_id: str, start_date: datetime, schedule_interval: str, dataset_id: str,
                  merge_partition_field: str, updated_date_field: str, bq_merge_days: int, catchup: bool = False,
                  queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1, schema_prefix: str = '',
-                 schema_version: str = None, airflow_vars: list = None, airflow_conns: list = None):
+                 schema_version: str = None, load_bigquery_table_kwargs: Dict = None,
+                 dataset_description: str = '', table_descriptions: Dict[str, str] = None,
+                 airflow_vars: list = None, airflow_conns: list = None):
         """ Construct a StreamTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -75,6 +77,9 @@ class StreamTelescope(Telescope):
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
         :param schema_prefix: the prefix used to find the schema path
         :param schema_version: the version used to find the schema path
+        :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
+        :param dataset_description: description for the BigQuery dataset.
+        :param table_descriptions: a dictionary with table ids and corresponding table descriptions
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         """
@@ -93,6 +98,9 @@ class StreamTelescope(Telescope):
         self.merge_partition_field = merge_partition_field
         self.updated_date_field = updated_date_field
         self.bq_merge_days = bq_merge_days
+        self.load_bigquery_table_kwargs = load_bigquery_table_kwargs if load_bigquery_table_kwargs else dict()
+        self.dataset_description = dataset_description
+        self.table_descriptions = table_descriptions if table_descriptions else dict()
 
     def make_operator(self, func: Callable) -> Callable:
         """ Make a partial PythonOperator that can be attached to an airflow DAG. This PythonOperator differs from
@@ -162,8 +170,10 @@ class StreamTelescope(Telescope):
             transform_blob = blob_name(transform_path)
             main_table_id, partition_table_id = table_ids_from_path(transform_path)
             date_partition_table_id = partition_table_id + f'${pendulum.today().strftime("%Y%m%d")}'
+            table_description = self.table_descriptions.get(main_table_id, '')
             bq_load_partition(release.end_date, transform_blob, self.dataset_id, main_table_id, date_partition_table_id,
-                              self.schema_prefix, self.schema_version, self.description)
+                              self.schema_prefix, self.schema_version, self.dataset_description,
+                              table_description=table_description, **self.load_bigquery_table_kwargs)
 
     def bq_delete_old(self, release: StreamRelease, **kwargs):
         """ Delete old rows from the 'main' table, based on rows that are in a partition of the 'partitions' table.
@@ -202,8 +212,10 @@ class StreamTelescope(Telescope):
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                table_description = self.table_descriptions.get(main_table_id, '')
                 bq_append_from_file(release.end_date, transform_blob, self.dataset_id, main_table_id,
-                                    self.schema_prefix, self.schema_version, self.description)
+                                    self.schema_prefix, self.schema_version, self.dataset_description,
+                                    table_description=table_description, **self.load_bigquery_table_kwargs)
             return
 
         start_date = pendulum.instance(ti.previous_start_date_success)

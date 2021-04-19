@@ -148,7 +148,8 @@ class GeonamesTelescope(SnapshotTelescope):
                  schedule_interval: str = '@weekly', dataset_id: str = 'geonames',
                  source_format: str = SourceFormat.CSV,
                  dataset_description: str = 'The GeoNames geographical database: https://www.geonames.org/',
-                 load_bigquery_table_kwargs: Dict = None, catchup: bool = False, airflow_vars: List = None):
+                 load_bigquery_table_kwargs: Dict = None, table_descriptions: Dict = None,
+                 catchup: bool = False, airflow_vars: List = None):
 
         """ The Geonames telescope.
 
@@ -158,7 +159,8 @@ class GeonamesTelescope(SnapshotTelescope):
         :param dataset_id: the BigQuery dataset id.
         :param source_format: the format of the data to load into BigQuery.
         :param dataset_description: description for the BigQuery dataset.
-        :param load_bigquery_table_kwargs: the customisation parameters for loading data into BigQuery.
+        :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
+        :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
         :param catchup:  whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         """
@@ -166,13 +168,17 @@ class GeonamesTelescope(SnapshotTelescope):
         if load_bigquery_table_kwargs is None:
             load_bigquery_table_kwargs = {'csv_field_delimiter': '\t', 'csv_quote_character': ''}
 
+        if table_descriptions is None:
+            table_descriptions = {dag_id: 'The GeoNames table.'}
+
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id,
                          source_format=source_format,
-                         dataset_description=dataset_description,
                          load_bigquery_table_kwargs=load_bigquery_table_kwargs,
+                         dataset_description=dataset_description,
+                         table_descriptions=table_descriptions,
                          catchup=catchup,
                          airflow_vars=airflow_vars)
         self.add_setup_task(self.check_dependencies)

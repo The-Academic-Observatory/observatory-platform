@@ -43,12 +43,12 @@ class SnapshotRelease(Release):
 
 
 class SnapshotTelescope(Telescope):
-
     def __init__(self, dag_id: str, start_date: datetime, schedule_interval: str, dataset_id: str, catchup: bool = True,
                  queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1,
                  source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON, schema_prefix: str = '',
                  schema_version: str = None, load_bigquery_table_kwargs: Dict = None,
-                 dataset_description: str = '', airflow_vars: list = None, airflow_conns: list = None):
+                 dataset_description: str = '', table_descriptions: Dict[str, str] = None,
+                 airflow_vars: list = None, airflow_conns: list = None):
         """ Construct a SnapshotTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -62,7 +62,9 @@ class SnapshotTelescope(Telescope):
         :param source_format: the format of the data to load into BigQuery.
         :param schema_prefix: the prefix used to find the schema path.
         :param schema_version: the version used to find the schema path.
+        :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
         :param dataset_description: description for the BigQuery dataset.
+        :param table_descriptions: a dictionary with table ids and corresponding table descriptions
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         """
@@ -77,10 +79,9 @@ class SnapshotTelescope(Telescope):
         self.source_format = source_format
         self.schema_prefix = schema_prefix
         self.schema_version = schema_version
+        self.load_bigquery_table_kwargs = load_bigquery_table_kwargs if load_bigquery_table_kwargs else dict()
         self.dataset_description = dataset_description
-        if not load_bigquery_table_kwargs:
-            load_bigquery_table_kwargs = dict()
-        self.load_bigquery_table_kwargs = load_bigquery_table_kwargs
+        self.table_descriptions = table_descriptions if table_descriptions else dict()
 
     def upload_transformed(self, releases: List[SnapshotRelease], **kwargs):
         """ Task to upload each transformed release to a google cloud bucket
@@ -106,9 +107,11 @@ class SnapshotTelescope(Telescope):
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
+                table_description = self.table_descriptions.get(table_id, '')
                 bq_load_shard(release.release_date, transform_blob, self.dataset_id, table_id, self.source_format,
                               prefix=self.schema_prefix, schema_version=self.schema_version,
-                              dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+                              dataset_description=self.dataset_description, table_description=table_description,
+                              **self.load_bigquery_table_kwargs)
 
     def cleanup(self, releases: List[SnapshotRelease], **kwargs):
         """ Delete files of downloaded, extracted and transformed release.

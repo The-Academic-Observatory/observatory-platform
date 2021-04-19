@@ -33,9 +33,9 @@ class TestDoi(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestDoi, self).__init__(*args, **kwargs)
-        self.gc_project_id: str = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        self.gc_bucket_name: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_NAME')
-        self.gc_bucket_location: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_LOCATION')
+        self.gc_project_id: str = os.getenv('TEST_GCP_PROJECT_ID')
+        self.gc_bucket_name: str = os.getenv('TEST_GCP_BUCKET_NAME')
+        self.gc_bucket_location: str = os.getenv('TEST_GCP_DATA_LOCATION')
 
     def test_set_task_state(self):
         set_task_state(True, 'my-task-id')

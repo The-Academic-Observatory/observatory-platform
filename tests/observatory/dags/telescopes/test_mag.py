@@ -60,9 +60,9 @@ class TestMag(unittest.TestCase):
         """
 
         super(TestMag, self).__init__(*args, **kwargs)
-        self.gc_project_id: str = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        self.gc_bucket_name: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_NAME')
-        self.gc_data_location: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_LOCATION')
+        self.gc_project_id: str = os.getenv('TEST_GCP_PROJECT_ID')
+        self.gc_bucket_name: str = os.getenv('TEST_GCP_BUCKET_NAME')
+        self.gc_data_location: str = os.getenv('TEST_GCP_DATA_LOCATION')
 
         self.data_path = os.path.join(test_fixtures_path(), 'telescopes', 'mag-2020-05-21.zip')
         self.release_date = pendulum.datetime(year=2020, month=5, day=21)

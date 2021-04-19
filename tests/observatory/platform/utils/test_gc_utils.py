@@ -134,12 +134,12 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestGoogleCloudUtils, self).__init__(*args, **kwargs)
-        self.az_storage_account_name: str = os.getenv('TESTS_AZURE_STORAGE_ACCOUNT_NAME')
-        self.az_container_sas_token: str = os.getenv('TESTS_AZURE_CONTAINER_SAS_TOKEN')
-        self.az_container_name: str = os.getenv('TESTS_AZURE_CONTAINER_NAME')
-        self.gc_project_id: str = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        self.gc_bucket_name: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_NAME')
-        self.gc_bucket_location: str = os.getenv('TESTS_GOOGLE_CLOUD_BUCKET_LOCATION')
+        self.az_storage_account_name: str = os.getenv('TEST_AZURE_STORAGE_ACCOUNT_NAME')
+        self.az_container_sas_token: str = os.getenv('TEST_AZURE_CONTAINER_SAS_TOKEN')
+        self.az_container_name: str = os.getenv('TEST_AZURE_CONTAINER_NAME')
+        self.gc_project_id: str = os.getenv('TEST_GCP_PROJECT_ID')
+        self.gc_bucket_name: str = os.getenv('TEST_GCP_BUCKET_NAME')
+        self.gc_bucket_location: str = os.getenv('TEST_GCP_DATA_LOCATION')
         self.data = 'hello world'
         self.expected_crc32c = 'yZRlqg=='
 
