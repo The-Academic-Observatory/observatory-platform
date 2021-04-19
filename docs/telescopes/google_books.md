@@ -1,0 +1,62 @@
+# Google Books
+The Google Books Partner program enables selling books through the Google Play store and offering a preview on Google books.  
+The program makes books discoverable to Google users around the world on Google books. When readers find a book on Google Books, they can preview a limited number of pages to decide if they're interested in it. 
+Readers can also follow links to buy the book or borrow or download it when applicable.
+
+As a publisher you can download reports on Google Books data from https://play.google.com/books/publish/.  
+
+Currently there are 3 report types available:
+- Google Play sales summary report
+- Google Play sales transaction report
+- Google Books Traffic Report
+
+In this telescope we collect data from the last 2 reports.  
+The corresponding tables created in BigQuery are `google.google_books_salesYYYYMMDD` and `google.google_books_trafficYYYYMMDD`.
+
+| Summary                 |        |
+|-------------------------|--------|
+| Average runtime         |   ? min |
+| Average download size   |   ? mb |
+| Harvest Type            |  SFTP  |
+| Harvest Frequency       | Monthly|
+| Runs on remote worker   |  True  |
+| Catchup missed runs     |  True  |
+| Table Write Disposition |Truncate|
+| Update Frequency        |  Daily |
+| Credentials Required    |   Yes  |
+| Uses Telescope Template |Snapshot|
+| Each shard includes all data |   No    |
+
+
+## Authentication
+The reports are downloaded from https://play.google.com/books/publish/. To get access to the reports the publisher needs to give access to a google service account.  
+This service account can then be used to login on this webpage and download each report manually.
+
+## Setting up a service account
+* Create a service account from IAM & Admin - Service Accounts
+* Create a JSON key and download the file with key
+* For each organisation/publisher of interest, ask them to add this service account as a user for the correct view id
+
+## Downloading Reports Manually
+There is no API available to download the Google Books report and it is quite challenging to automate the Google login process through tools such as Selenium, because of Google's bot detection triggering a reCAPTCHA.  
+Until this step can be automated, the reports need to be downloaded manually, for each publisher and for both the sales transaction report and the traffic report: 
+*  A report should be created for exactly 1 month (e.g. starting 2021-01-01 and ending 2021-01-31). 
+*  All titles should be selected.
+*  All countries should be selected.
+*  It is important to save the file with the right name, this should be in the format:
+    *  `GoogleSalesTransactionReport_YYYY_MM.csv` or
+    *  `GoogleBooksTrafficReport_YYYY_MM.csv`
+*  Upload each report to the SFTP server at https://oaebu.exavault.com/
+    *   Add it to the folder `/telescopes/google_books/<publisher>/upload`
+    *   Files are automatically moved between folders, please do not move files between folders manually
+
+## Airflow connections
+
+### oaebu_service_account
+After creating the JSON key file as described above, open the JSON file and use the information to create the connection.  
+URL encode each of the fields 'private_key_id', 'private_key', 'client_email' and 'client_id'.
+
+```yaml
+oaebu_service_account: google-cloud-platform://?type=service_account&private_key_id=<private_key_id>&private_key=<private_key>&client_email=<client_email>&client_id=<client_id>
+```
+
