@@ -20,14 +20,16 @@ from unittest.mock import patch
 
 import httpretty
 import pendulum
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
+from click.testing import CliRunner
 from googleapiclient.discovery import build
 from googleapiclient.http import HttpMockSequence
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
 from observatory.dags.telescopes.oapen_irus_uk import OapenIrusUkRelease, OapenIrusUkTelescope, cloud_function_exists, \
-    create_cloud_function
+    create_cloud_function, upload_source_code_to_bucket
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
 from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
@@ -205,6 +207,28 @@ class TestOapenIrusUk(ObservatoryTestCase):
 
             # Delete oapen bucket
             env._delete_bucket(telescope.oapen_bucket)
+
+    @patch('observatory.dags.telescopes.oapen_irus_uk.upload_file_to_cloud_storage')
+    @patch('observatory.dags.telescopes.oapen_irus_uk.create_cloud_storage_bucket')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
+    def test_upload_source_code_to_bucket(self, mock_variable_get, mock_create_bucket, mock_upload_to_bucket):
+        """ Test getting source code from oapen irus uk release and uploading to storage bucket.
+        Test expected results both when md5 hashes match and when they don't.
+
+        :return: None.
+        """
+        mock_create_bucket.return_value = True
+        mock_upload_to_bucket.return_value = True, True
+        with CliRunner().isolated_filesystem():
+            mock_variable_get.return_value = os.getcwd()
+            success, upload = upload_source_code_to_bucket('oapen_project_id', 'bucket_name',
+                                                           'cloud_function_source_code.zip')
+            self.assertEqual(success, True)
+            self.assertEqual(upload, True)
+
+            OapenIrusUkTelescope.CLOUD_FUNCTION_MD5_HASH = 'different'
+            with self.assertRaises(AirflowException):
+                upload_source_code_to_bucket('oapen_project_id', 'bucket_name', 'cloud_function_source_code.zip')
 
     def test_cloud_function_exists(self):
         """ Test the function that checks whether the cloud function exists

@@ -17,8 +17,6 @@
 import json
 import logging
 import os
-import shutil
-import subprocess
 import time
 from datetime import datetime
 from functools import partial
@@ -35,15 +33,16 @@ from google.auth.transport.requests import AuthorizedSession
 from google.oauth2.service_account import IDTokenCredentials
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
+
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.data_utils import get_file
+from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import copy_blob_from_cloud_storage, \
     create_cloud_storage_bucket, \
     download_blob_from_cloud_storage, \
     upload_file_to_cloud_storage
-from observatory.platform.utils.proc_utils import wait_for_process
 from observatory.platform.utils.telescope_utils import make_dag_id, make_org_id
 from observatory.platform.utils.template_utils import SubFolder, blob_name, telescope_path
 
@@ -95,7 +94,7 @@ class OapenIrusUkRelease(SnapshotRelease):
         return os.path.join(self.transform_folder, f'{OapenIrusUkTelescope.DAG_ID_PREFIX}.jsonl.gz')
 
     def create_cloud_function(self, max_instances: int, oapen_project_id: str, source_bucket: str, function_name: str,
-                              function_region: str):
+                              function_region: str, function_source_url: str):
         """ Create/update the google cloud function that is inside the oapen project id if the source code has changed.
 
         :param max_instances: The limit on the maximum number of function instances that may coexist at a given time.
@@ -103,6 +102,7 @@ class OapenIrusUkRelease(SnapshotRelease):
         :param source_bucket: Storage bucket with the source code
         :param function_name: Name of the google cloud function
         :param function_region: Region of the google cloud function
+        :param function_source_url: URL to the zipped source code of the cloud function
         :return: None.
         """
         # set up cloud function variables
@@ -111,7 +111,8 @@ class OapenIrusUkRelease(SnapshotRelease):
 
         # zip source code and upload to bucket
         source_blob_name = 'cloud_function_source_code.zip'
-        success, upload = upload_source_code_to_bucket(oapen_project_id, source_bucket, source_blob_name)
+        success, upload = upload_source_code_to_bucket(function_source_url, oapen_project_id, source_bucket,
+                                                       source_blob_name)
         if not success:
             raise AirflowException('Could not upload source code of cloud function to bucket.')
 
@@ -184,6 +185,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
     ORG_MAPPING = {'ucl_press': quote("UCL Press"),
                    'anu_press': quote("ANU Press"),
                    'wits_university_press': quote("Wits University Press")}
+    CLOUD_FUNCTION_MD5_HASH = '61793f6e4864285088917b81186f125e'
 
     def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
                  start_date: datetime = datetime(2020, 2, 1),
@@ -222,6 +224,8 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         self.oapen_project_id = 'oapen-usage-data-gdpr-proof'
         self.function_name = 'oapen_access_stats'
         self.function_region = 'europe-west1'
+        self.function_source_url = 'https://github.com/The-Academic-Observatory/oapen-irus-uk-cloud-function/releases' \
+                                   '/latest/download/oapen-irus-uk-cloud-function.zip '
         self.oapen_bucket = f'{self.oapen_project_id}_cloud-function'
 
         self.add_setup_task(self.check_dependencies)
@@ -267,7 +271,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         """
         for release in releases:
             release.create_cloud_function(self.max_active_runs, self.oapen_project_id, self.oapen_bucket,
-                                          self.function_name, self.function_region)
+                                          self.function_name, self.function_region, self.function_source_url)
 
     def call_cloud_function(self, releases: List[OapenIrusUkRelease], **kwargs):
         """ Task to call the cloud function for each release.
@@ -323,43 +327,33 @@ def get_publisher_uuid(publisher_name: str) -> str:
     return publisher_uuid
 
 
-def upload_source_code_to_bucket(project_id: str, bucket_name: str, blob_name: str) -> Tuple[bool, bool]:
+def upload_source_code_to_bucket(source_url: str, project_id: str, bucket_name: str, blob_name: str) -> \
+        Tuple[bool, bool]:
     """ Upload source code of cloud function to storage bucket
 
+    :param source_url: The url to the zip file with source code
     :param project_id: The project id with the bucket
     :param bucket_name: The bucket name
     :param blob_name: The blob name
     :return: Whether task was successful and whether file was uploaded
     """
 
-    # get source code from github repository
+    # get zip file with source code from github release
     telescope_folder = telescope_path(SubFolder.downloaded.value, OapenIrusUkTelescope.DAG_ID_PREFIX)
-    git_folder = os.path.join(telescope_folder, 'oapen-irus-uk-cloud-function')
-    git_url = 'https://github.com/The-Academic-Observatory/oapen-irus-uk-cloud-function.git'
-    if os.path.isdir(git_folder):
-        cmd = f"git -C {git_folder} pull {git_url}"
-    else:
-        cmd = f"git -C {telescope_folder} clone {git_url}"
+    filepath = os.path.join(telescope_folder, 'oapen_cloud_function.zip')
+    expected_md5_hash = OapenIrusUkTelescope.CLOUD_FUNCTION_MD5_HASH
+    filepath, download = get_file(filepath, source_url, md5_hash=expected_md5_hash)
 
-    logging.info(f"Running command: {cmd}")
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                         executable='/bin/bash')
-    stdout, stderr = wait_for_process(p)
-    logging.info(f"stdout: {stdout}")
-    logging.info(f"stderr: {stderr}")
-    if p.returncode != 0:
-        raise AirflowException(f"bash command failed")
-
-    # zip source code
-    source_dir = os.path.join(git_folder, 'source_code')
-    zip_filename = os.path.join(module_file_path('observatory.dags.telescopes'), 'oapen_cloud_function')
-    zip_filepath = shutil.make_archive(zip_filename, 'zip', source_dir)
+    # check if current md5 hash matches expected md5 hash
+    actual_md5_hash = _hash_file(filepath, algorithm='md5')
+    if expected_md5_hash != actual_md5_hash:
+        raise AirflowException(f"md5 hashes do not match, expected: {expected_md5_hash}, actual: {actual_md5_hash}")
 
     # create storage bucket
     create_cloud_storage_bucket(bucket_name, location='EU', project_id=project_id, lifecycle_delete_age=1)
 
     # upload zip to cloud storage
-    success, upload = upload_file_to_cloud_storage(bucket_name, blob_name, zip_filepath, project_id=project_id)
+    success, upload = upload_file_to_cloud_storage(bucket_name, blob_name, filepath, project_id=project_id)
     return success, upload
 
 
