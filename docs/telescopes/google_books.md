@@ -51,12 +51,18 @@ Until this step can be automated, the reports need to be downloaded manually, fo
     *   Files are automatically moved between folders, please do not move files between folders manually
 
 ## Airflow connections
+Note that all values need to be urlencoded.  
+In the config.yaml file, the following airflow connection is required:  
 
-### oaebu_service_account
-After creating the JSON key file as described above, open the JSON file and use the information to create the connection.  
-URL encode each of the fields 'private_key_id', 'private_key', 'client_email' and 'client_id'.
+### sftp_service
+The sftp_service airflow connection is used to connect to the sftp_service and download the reports.  
+The username and password are created by the sftp service and the host is e.g. `oaebu.exavault.com`.  
+The host key is optional, you can get it by running ssh-keyscan, e.g.:
+```
+ssh-keyscan oaebu.exavault.com
+```
 
 ```yaml
-oaebu_service_account: google-cloud-platform://?type=service_account&private_key_id=<private_key_id>&private_key=<private_key>&client_email=<client_email>&client_id=<client_id>
+sftp_service: ssh://<username>:<password>@<host>?host_key=<host_key>
 ```
 

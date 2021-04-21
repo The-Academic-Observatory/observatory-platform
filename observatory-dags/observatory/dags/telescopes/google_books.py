@@ -16,20 +16,20 @@
 
 import csv
 import os
-from collections import OrderedDict
+import re
+from collections import OrderedDict, defaultdict
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
+import pendulum
 from airflow.models.taskinstance import TaskInstance
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, convert, make_sftp_connection, SftpFolders, make_dag_id
-from observatory.platform.utils.template_utils import upload_files_from_list, blob_name, table_ids_from_path, bq_load_shard_v2
-from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns, AirflowVariable as Variable
-import pendulum
-import re
-from collections import defaultdict
-from typing import Optional
+from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
+from observatory.platform.utils.telescope_utils import SftpFolders, convert, list_to_jsonl_gz, make_dag_id, \
+    make_sftp_connection
+from observatory.platform.utils.template_utils import blob_name, bq_load_shard_v2, table_ids_from_path, \
+    upload_files_from_list
 
 
 class GoogleBooksRelease(SnapshotRelease):
@@ -49,8 +49,6 @@ class GoogleBooksRelease(SnapshotRelease):
         super().__init__(self.dag_id, release_date, download_files_regex=download_files_regex,
                          transform_files_regex=transform_files_regex)
         self.organisation = organisation
-        self.project_id = Variable.get(AirflowVars.PROJECT_ID)
-        self.data_location = Variable.get(AirflowVars.DATA_LOCATION)
         self.sftp_files = sftp_files
 
     @property
@@ -110,7 +108,8 @@ class GoogleBooksRelease(SnapshotRelease):
                     transformed_row = OrderedDict((convert(k.replace('%', 'Perc')), v) for k, v in row.items())
                     if 'sales' in file:
                         # transform to valid date format
-                        transformed_row['Transaction_Date'] = pendulum.parse(transformed_row['Transaction_Date']).to_date_string()
+                        transformed_row['Transaction_Date'] = pendulum.parse(
+                            transformed_row['Transaction_Date']).to_date_string()
                         # remove percentage sign
                         transformed_row['Publisher_Revenue_Perc'] = transformed_row['Publisher_Revenue_Perc'].strip('%')
                         # this field is not present for some publishers (UCL Press), for ANU Press the field value is
@@ -131,8 +130,9 @@ class GoogleBooksTelescope(SnapshotTelescope):
     """ The Google Books telescope."""
     DAG_ID_PREFIX = 'google_books'
 
-    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None, start_date: datetime = datetime(2015, 9, 1),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'google', catchup: bool = False,
+    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
+                 start_date: datetime = datetime(2020, 1, 1),
+                 schedule_interval: str = '@monthly', dataset_id: str = 'google', catchup: bool = False,
                  airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleBooksTelescope instance.
 
@@ -142,6 +142,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
         :param schedule_interval: the schedule interval of the DAG.
         :param catchup: whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
+        :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         """
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
