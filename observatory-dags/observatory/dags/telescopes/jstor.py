@@ -23,6 +23,7 @@ import logging
 import os
 import os.path
 import os.path
+import time
 from collections import OrderedDict
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -39,8 +40,8 @@ from googleapiclient.discovery import Resource, build
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import convert, list_to_jsonl_gz, make_dag_id, make_org_id
-from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.telescope_utils import convert, list_to_jsonl_gz, make_dag_id
+from observatory.platform.utils.template_utils import upload_files_from_list, blob_name, table_ids_from_path, bq_load_shard_v2
 from pendulum import Pendulum
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
 
@@ -150,8 +151,6 @@ class JstorTelescope(SnapshotTelescope):
 
     DAG_ID_PREFIX = 'jstor'
     PROCESSED_LABEL_NAME = 'processed_report'
-    ORG_MAPPING = {'anu_press': 'anupress',
-                   'ucl_press': 'uclpress'}
 
     # download settings
     MAX_ATTEMPTS = 3
@@ -160,13 +159,14 @@ class JstorTelescope(SnapshotTelescope):
     EXP_BASE = 3
     MULTIPLIER = 10
 
-    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2015, 9, 1),
-                 schedule_interval: str = '@monthly', dataset_id: str = 'jstor',
-                 source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON, dataset_description: str = '',
-                 catchup: bool = False, airflow_vars: List = None, airflow_conns: List = None):
+    def __init__(self, organisation: Organisation, extra: dict, dag_id: Optional[str] = None,
+                 start_date: datetime = datetime(2015, 9, 1), schedule_interval: str = '@monthly',
+                 dataset_id: str = 'jstor', source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
+                 dataset_description: str = '', catchup: bool = False, airflow_vars: List = None,
+                 airflow_conns: List = None):
         """ Construct a JstorTelescope instance.
-
+        :param organisation: the Organisation of which data is processed.
+        :param extra: the 'extra' info from the API regarding the telescope.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
@@ -190,6 +190,11 @@ class JstorTelescope(SnapshotTelescope):
                          dataset_description=dataset_description, catchup=catchup, airflow_vars=airflow_vars,
                          airflow_conns=airflow_conns)
         self.organisation = organisation
+        self.project_id = organisation.gcp_project_id
+        self.dataset_location = 'us'  # TODO: add to API
+        self.extra = extra
+        self.publisher_id = extra.get('publisher_id')
+
         self.add_setup_task_chain([self.check_dependencies, self.list_releases])
         self.add_task_chain([self.download,
                              self.upload_downloaded,
@@ -217,6 +222,18 @@ class JstorTelescope(SnapshotTelescope):
             releases.append(JstorRelease(self.dag_id, release_date, reports_info, self.organisation))
         return releases
 
+    def check_dependencies(self, **kwargs) -> bool:
+        """ Check dependencies of DAG. Add to parent method to additionally check for a publisher id
+        :return: True if dependencies are valid.
+        """
+        super().check_dependencies()
+
+        if self.publisher_id is None:
+            expected_extra = {'publisher_id': 'jstor_publisher_id'}
+            raise AirflowException(f"Publisher ID is not set in 'extra' of telescope. "
+                                   f"Extra: {self.extra}, expected extra format: {expected_extra}")
+        return True
+
     def list_releases(self, **kwargs):
         """ Lists all Jstor releases for a given month and publishes their report_type, download_url and
         release_date's as an XCom.
@@ -229,7 +246,7 @@ class JstorTelescope(SnapshotTelescope):
 
         service = create_gmail_service()
         label_id = get_label_id(service, self.PROCESSED_LABEL_NAME)
-        available_releases = list_available_releases(service, make_org_id(self.organisation.name), label_id)
+        available_releases = list_available_releases(service, self.publisher_id, label_id)
 
         continue_dag = len(available_releases)
         if continue_dag:
@@ -272,6 +289,65 @@ class JstorTelescope(SnapshotTelescope):
         for release in releases:
             release.transform()
 
+    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
+        """ Task to load each transformed release to BigQuery.
+        The table_id is set to the file name without the extension.
+
+        :param releases: a list of releases.
+        :return: None.
+        """
+
+        # Load each transformed release
+        for release in releases:
+            for transform_path in release.transform_files:
+                transform_blob = blob_name(transform_path)
+                table_id, _ = table_ids_from_path(transform_path)
+
+                bq_load_shard_v2(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                 self.dataset_location, table_id, release.release_date, self.source_format,
+                                 prefix=self.schema_prefix, schema_version=self.schema_version,
+                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+
+def create_headers(url: str) -> dict:
+    """ Create a headers dict that can be used to make a request
+
+    :param url: the download url
+    :return: headers dictionary
+    """
+    referer = f"https://www.google.com/url?q={url}" \
+              f"&amp;source=gmail&amp;ust={int(time.time())}000&amp;usg=AFQjCNFtACM-4Zqs3yA1AXl4GyEbfvCqwQ"
+    headers = {
+        'Referer': referer,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/89.0.4389.90 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
+                  'application/signed-exchange;v=b3;q=0.9'
+
+    }
+    return headers
+
+
+@retry(stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
+       reraise=True,
+       wait=wait_fixed(JstorTelescope.FIXED_WAIT) + wait_exponential(multiplier=JstorTelescope.MULTIPLIER,
+                                                                     exp_base=JstorTelescope.EXP_BASE,
+                                                                     max=JstorTelescope.MAX_WAIT_TIME),
+       )
+def get_header_info(url: str) -> [str, str]:
+    """ Get header info from url and parse for filename and extension of file.
+
+    :param url: Download url
+    :return: Filename and file extension
+    """
+    logging.info(f'Getting HEAD of report download url, attempt: {get_header_info.retry.statistics["attempt_number"]}, '
+                 f'idle for: {get_header_info.retry.statistics["idle_for"]}')
+    response = requests.head(url, allow_redirects=True, headers=create_headers(url))
+    if response.status_code != 200:
+        raise AirflowException(f'Could not get HEAD of report download url, reason: {response.reason}, '
+                               f'status_code: {response.status_code}')
+    filename, extension = response.headers['Content-Disposition'].split('=')[1].split('.')
+    return filename, extension
+
 
 @retry(stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
        reraise=True,
@@ -289,7 +365,7 @@ def download_report(url: str, download_path: str) -> bool:
     logging.info(
         f'Downloading report from url, attempt: {download_report.retry.statistics["attempt_number"]}, idle for:'
         f'{download_report.retry.statistics["idle_for"]}')
-    response = requests.get(url)
+    response = requests.get(url, headers=create_headers(url))
     if response.status_code != 200:
         raise AirflowException(f'Could not download content from report url, reason: {response.reason}, '
                                f'status_code: {response.status_code}')
@@ -298,28 +374,6 @@ def download_report(url: str, download_path: str) -> bool:
     with open(download_path, 'w') as f:
         f.write(content)
     return True
-
-
-@retry(stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
-       reraise=True,
-       wait=wait_fixed(JstorTelescope.FIXED_WAIT) + wait_exponential(multiplier=JstorTelescope.MULTIPLIER,
-                                                                     exp_base=JstorTelescope.EXP_BASE,
-                                                                     max=JstorTelescope.MAX_WAIT_TIME),
-       )
-def get_header_info(url: str) -> [str, str]:
-    """ Get header info from url and parse for filename and extension of file.
-
-    :param url: Download url
-    :return: Filename and file extension
-    """
-    logging.info(f'Getting HEAD of report download url, attempt: {get_header_info.retry.statistics["attempt_number"]}, '
-                 f'idle for: {get_header_info.retry.statistics["idle_for"]}')
-    response = requests.head(url, allow_redirects=True)
-    if response.status_code != 200:
-        raise AirflowException(f'Could not get HEAD of report download url, reason: {response.reason}, '
-                               f'status_code: {response.status_code}')
-    filename, extension = response.headers['Content-Disposition'].split('=')[1].split('.')
-    return filename, extension
 
 
 def create_gmail_service() -> Resource:
@@ -415,7 +469,7 @@ def list_available_releases(service: Resource, publisher_id: str, processed_labe
 
         # get publisher
         report_publisher = filename.split('_')[1]
-        if report_publisher != JstorTelescope.ORG_MAPPING.get(publisher_id):
+        if report_publisher != publisher_id:
             continue
 
         # get report_type

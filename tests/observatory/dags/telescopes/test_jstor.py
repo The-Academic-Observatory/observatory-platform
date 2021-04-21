@@ -29,7 +29,6 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
 from observatory.dags.telescopes.jstor import (JstorRelease, JstorTelescope, get_label_id)
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.telescope_utils import make_org_id
 from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import (ObservatoryEnvironment, ObservatoryTestCase, module_file_path,
                                                    test_fixtures_path)
@@ -45,14 +44,15 @@ class TestJstor(ObservatoryTestCase):
         :param kwargs: keyword arguments.
         """
         super(TestJstor, self).__init__(*args, **kwargs)
-        self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        self.data_location = os.getenv('TESTS_DATA_LOCATION')
+        self.project_id = os.getenv('TEST_GCP_PROJECT_ID')
+        self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
         self.organisation_name = 'ANU Press'
+        self.extra = {'publisher_id': 'anupress'}
         self.host = "localhost"
         self.api_port = 5000
 
         self.release_date = pendulum.parse('20210301')
-        publisher_id = JstorTelescope.ORG_MAPPING.get(make_org_id(self.organisation_name))
+        publisher_id = self.extra.get('publisher_id')
         self.country_report = {'path': test_fixtures_path('telescopes', 'jstor', 'country_20210301.tsv'),
                                'url': 'https://www.jstor.org/admin/reports/download/249192019',
                                'headers': {'Content-Disposition': f'attachment; filename=PUB_{publisher_id}_PUBBCU_'
@@ -74,7 +74,7 @@ class TestJstor(ObservatoryTestCase):
         :return: None
         """
         organisation = Organisation(name=self.organisation_name)
-        dag = JstorTelescope(organisation).make_dag()
+        dag = JstorTelescope(organisation, self.extra).make_dag()
         self.assert_dag_structure({
             'check_dependencies': ['list_releases'],
             'list_releases': ['download'],
@@ -114,7 +114,8 @@ class TestJstor(ObservatoryTestCase):
                                       telescope_type=telescope_type,
                                       organisation=organisation,
                                       modified=dt,
-                                      created=dt)
+                                      created=dt,
+                                      extra=self.extra)
             env.api_session.add(telescope)
             env.api_session.commit()
 
@@ -144,7 +145,7 @@ class TestJstor(ObservatoryTestCase):
                                     gcp_project_id=self.project_id,
                                     gcp_download_bucket=env.download_bucket,
                                     gcp_transform_bucket=env.transform_bucket)
-        telescope = JstorTelescope(organisation=organisation, dataset_id=dataset_id)
+        telescope = JstorTelescope(organisation=organisation, extra=self.extra, dataset_id=dataset_id)
         dag = telescope.make_dag()
 
         # Create the Observatory environment and run tests
