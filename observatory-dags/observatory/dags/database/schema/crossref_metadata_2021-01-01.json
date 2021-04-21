@@ -56,7 +56,7 @@
   {
     "mode": "NULLABLE",
     "name": "prefix",
-    "type": "FLOAT",
+    "type": "STRING",
     "description": "DOI prefix identifier of the form http://id.crossref.org/prefix/DOI_PREFIX."
   },
   {
