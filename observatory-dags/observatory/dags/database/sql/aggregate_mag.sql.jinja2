@@ -24,7 +24,7 @@ WITH affiliations_processed as (
 )
 
 SELECT 
-  papers.* EXCEPT (journalId, ConferenceSeriesId,	ConferenceInstanceId, CreatedDate) REPLACE ( UPPER(TRIM(Doi)) AS Doi),
+  papers.* EXCEPT (journalId, ConferenceSeriesId, ConferenceInstanceId, CreatedDate) REPLACE ( UPPER(TRIM(Doi)) AS Doi),
   REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REGEXP_REPLACE(JSON_EXTRACT(IndexedAbstract, '$.InvertedIndex'), "[0-9]+", ""), ":", ""), ",", " "), '"', ""), "{", ""), "}", ""), "[", ""), "]", "") as abstract,
   fields.fields,
   mesh.mesh,
