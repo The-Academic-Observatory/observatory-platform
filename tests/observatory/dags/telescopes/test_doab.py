@@ -38,8 +38,8 @@ class TestDoab(ObservatoryTestCase):
         :param kwargs: keyword arguments.
         """
         super(TestDoab, self).__init__(*args, **kwargs)
-        self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        self.data_location = os.getenv('TESTS_DATA_LOCATION')
+        self.project_id = os.getenv('TEST_GCP_PROJECT_ID')
+        self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
 
         self.first_download_path = test_fixtures_path('telescopes', 'doab', 'doab1.csv')
         self.first_execution_date = pendulum.datetime(year=2021, month=2, day=1)
