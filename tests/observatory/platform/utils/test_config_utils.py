@@ -146,6 +146,18 @@ class TestConfigUtils(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
 
+        # Versioned example
+        expected_schema = "testschema_v1_2021-04-20.json"
+        release_date = pendulum.datetime(year=2021, month=4, day=20)
+        result = find_schema(schemas_path, "testschema", release_date, prefix="", ver="v1")
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # No schema paths
+        release_date = pendulum.datetime(year=2021, month=4, day=20)
+        result = find_schema(schemas_path, "testschema", release_date, prefix="", ver="v2")
+        self.assertIsNone(result)
+
     @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
     def test_telescope_path(self, mock_variable_get):
         runner = CliRunner()
