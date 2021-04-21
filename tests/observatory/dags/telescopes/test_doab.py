@@ -25,7 +25,8 @@ from freezegun import freeze_time
 from observatory.dags.telescopes.doab import (DoabRelease, DoabTelescope)
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, test_fixtures_path
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path, \
+    test_fixtures_path
 
 
 class TestDoab(ObservatoryTestCase):
@@ -73,7 +74,8 @@ class TestDoab(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            self.assert_dag_load('doab')
+            dag_file = os.path.join(module_file_path('observatory.dags.dags'), 'doab.py')
+            self.assert_dag_load('doab', dag_file)
 
     @patch('google.auth._helpers.utcnow')
     def test_telescope(self, mock_utcnow):
@@ -89,7 +91,6 @@ class TestDoab(ObservatoryTestCase):
 
         # Setup Telescope
         telescope = DoabTelescope(dataset_id=dataset_id)
-        telescope.sftp_folder = '/unittests/jstor'
         dag = telescope.make_dag()
 
         # Create the Observatory environment and run tests

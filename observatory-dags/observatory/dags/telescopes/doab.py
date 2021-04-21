@@ -35,8 +35,9 @@ class DoabRelease(StreamRelease):
     def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
 
         download_files_regex = "doab.csv"
-
-        super().__init__(dag_id, start_date, end_date, first_release, download_files_regex=download_files_regex)
+        transform_files_regex = "doab.jsonl.gz"
+        super().__init__(dag_id, start_date, end_date, first_release, download_files_regex=download_files_regex,
+                         transform_files_regex=transform_files_regex)
 
     @property
     def csv_path(self) -> str:
@@ -109,7 +110,7 @@ class DoabTelescope(StreamTelescope):
     CSV_URL = 'https://directory.doabooks.org/download-export?format=csv'
 
     def __init__(self, dag_id: str = 'doab', start_date: datetime = datetime(2018, 5, 14),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'doab', merge_partition_field: str = 'id',
+                 schedule_interval: str = '@monthly', dataset_id: str = 'doab', merge_partition_field: str = 'id',
                  updated_date_field: str = 'dc.date.accessioned', bq_merge_days: int = 7, airflow_vars: list = None):
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
@@ -117,10 +118,17 @@ class DoabTelescope(StreamTelescope):
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field, updated_date_field,
                          bq_merge_days, airflow_vars=airflow_vars)
 
-        self.add_setup_task_chain([self.check_dependencies, self.get_release_info])
+        self.add_setup_task_chain([self.check_dependencies,
+                                   self.get_release_info])
         self.add_task_chain(
-            [self.download, self.upload_downloaded, self.transform, self.upload_transformed, self.bq_load_partition])
-        self.add_task_chain(self.make_operators([self.bq_delete_old, self.bq_append_new, self.cleanup]))
+            [self.download,
+             self.upload_downloaded,
+             self.transform,
+             self.upload_transformed,
+             self.bq_load_partition])
+        self.add_task_chain(self.make_operators([self.bq_delete_old,
+                                                 self.bq_append_new,
+                                                 self.cleanup]))
 
     def make_release(self, **kwargs) -> 'DoabRelease':
         # Make Release instance
