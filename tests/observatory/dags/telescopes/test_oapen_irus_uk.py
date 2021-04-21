@@ -219,16 +219,19 @@ class TestOapenIrusUk(ObservatoryTestCase):
         """
         mock_create_bucket.return_value = True
         mock_upload_to_bucket.return_value = True, True
+        organisation = Organisation(name=self.organisation_name)
+        telescope = OapenIrusUkTelescope(organisation)
         with CliRunner().isolated_filesystem():
             mock_variable_get.return_value = os.getcwd()
-            success, upload = upload_source_code_to_bucket('oapen_project_id', 'bucket_name',
-                                                           'cloud_function_source_code.zip')
+            success, upload = upload_source_code_to_bucket(telescope.function_source_url, 'oapen_project_id',
+                                                           'bucket_name', 'cloud_function_source_code.zip')
             self.assertEqual(success, True)
             self.assertEqual(upload, True)
 
             OapenIrusUkTelescope.CLOUD_FUNCTION_MD5_HASH = 'different'
             with self.assertRaises(AirflowException):
-                upload_source_code_to_bucket('oapen_project_id', 'bucket_name', 'cloud_function_source_code.zip')
+                upload_source_code_to_bucket(telescope.function_source_url, 'oapen_project_id', 'bucket_name',
+                                             'cloud_function_source_code.zip')
 
     def test_cloud_function_exists(self):
         """ Test the function that checks whether the cloud function exists
