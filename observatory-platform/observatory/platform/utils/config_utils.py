@@ -31,7 +31,7 @@ from pendulum import Pendulum
 
 
 def module_file_path(module_path: str, nav_back_steps: int = -1) -> str:
-    """ Get the file path of a module, given the Python import path to the module.
+    """Get the file path of a module, given the Python import path to the module.
 
     :param module_path: the Python import path to the module, e.g. observatory.platform.dags
     :param nav_back_steps: the number of steps on the path to step back.
@@ -44,7 +44,7 @@ def module_file_path(module_path: str, nav_back_steps: int = -1) -> str:
 
 
 def observatory_home(*subdirs) -> str:
-    """ Get the .observatory Observatory Platform home directory or subdirectory on the host machine. The home
+    """Get the .observatory Observatory Platform home directory or subdirectory on the host machine. The home
     directory and subdirectories will be created if they do not exist.
 
     The default path: ~/.observatory can be overridden with the environment variable OBSERVATORY_HOME.
@@ -53,7 +53,7 @@ def observatory_home(*subdirs) -> str:
     :return: the path.
     """
 
-    obs_home = os.environ.get('OBSERVATORY_HOME', None)
+    obs_home = os.environ.get("OBSERVATORY_HOME", None)
     if obs_home is not None:
         path = os.path.join(os.path.expanduser(obs_home), *subdirs)
     else:
@@ -66,32 +66,33 @@ def observatory_home(*subdirs) -> str:
     return path
 
 
-
 def terraform_credentials_path() -> str:
-    """ Get the path to the terraform credentials file that is created with 'terraform login'.
+    """Get the path to the terraform credentials file that is created with 'terraform login'.
 
     :return: the path to the terraform credentials file
     """
 
-    return os.path.join(pathlib.Path.home(), '.terraform.d/credentials.tfrc.json')
+    return os.path.join(pathlib.Path.home(), ".terraform.d/credentials.tfrc.json")
 
 
-def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str = '', ver: str = None) -> Union[
-    str, None]:
-    """ Finds a schema file on a given path, with a particular table name, release date and optional prefix.
+def find_schema(
+    path: str, table_name: str, release_date: Pendulum, prefix: str = "", ver: str = None
+) -> Union[str, None]:
+    """Finds a schema file on a given path, with a particular table name, release date and optional prefix.
 
     If no version string is sepcified, the most recent schema with a date less than or equal to the release date of the
     dataset is returned. If a version string is specified, the most current (date) schema in that series is returned.
     Use the schema_path function to find the path to the folder containing the schemas.
     For example (grid schemas):
-     - grid2015-09-22.json
-     - grid2016-04-28.json
+     - grid_2015-09-22.json
+     - grid_2016-04-28.json
      - wos_wok5.4_2016-01-01.json  (versioned schema with version 'wok5.4')
 
     For GRID releases between 2015-09-22 and 2016-04-28 grid_2015-09-22.json is returned and for GRID releases or after
     2016-04-28 grid_2016-04-28.json is returned (until a new schema with a later date is added).
-    Unversioned schemas are named with the following pattern: prefix + table_name + YYYY-MM-DD + .json
-    Versioned schemas are named as: prefix + table_name + '_' + ver + '_' + YYYY-MM-DD + .json
+    Unversioned schemas are named with the following pattern: [prefix]table_name_YYYY-MM-DD.json
+    Versioned schemas are named as: [prefix]table_name_ver_YYYY-MM-DD.json
+    where the things in [] are optional.
     * prefix: an optional prefix for datasets with multiple tables, for instance the Microsoft Academic Graph (MAG)
     dataset schema file names are prefixed with Mag, e.g. MagAffiliations2020-05-21.json, MagAuthors2020-05-21.json.
     The GRID dataset only has one table, so there is no prefix, e.g. grid2015-09-22.json.
@@ -110,36 +111,47 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
     :return: the path to the schema or None if no schema was found.
     """
 
-    logging.info(f'Looking for schema with search parameters: analysis_schema_path={path}, '
-                  f'prefix={prefix}, table_name={table_name}, release_date={release_date}, '
-                  f'version={ver}')
+    logging.info(
+        f"Looking for schema with search parameters: analysis_schema_path={path}, "
+        f"prefix={prefix}, table_name={table_name}, release_date={release_date}, "
+        f"version={ver}"
+    )
 
     # Make search path for schemas
     if ver:
-        search_path = os.path.join(path, f'{prefix}{table_name}_{ver}_*.json')
+        search_path = os.path.join(path, f"{prefix}{table_name}_{ver}_*.json")
+        valid_length = len(prefix) + len(table_name) + len(ver) + 17  # 17 covers YYYY-MM-DD, _, .json
     else:
-        search_path = os.path.join(path, f'{prefix}{table_name}*.json')
+        search_path = os.path.join(path, f"{prefix}{table_name}_*.json")
+        valid_length = len(prefix) + len(table_name) + 16  # 16 covers YYYY-MM-DD, _, .json
 
     # Find potential schemas with a glob search and sort them naturally
     schema_paths = glob.glob(search_path)
-    schema_paths = natsorted(schema_paths)
+
+    # Filter out invalid file names
+    filtered_paths = list()
+    for path in schema_paths:
+        file_name = os.path.basename(path)
+        if len(file_name) == valid_length:
+            filtered_paths.append(path)
+
+    schema_paths = natsorted(filtered_paths)
 
     # No schemas were found
     if len(schema_paths) == 0:
-        logging.error('No schema found.')
+        logging.error("No schema found.")
         return None
 
-    # Deal with versioned schema first since it's simpler. Return most recent for versioned schema.
-    if ver:
-        return schema_paths[-1]
-
     # Get schemas with dates <= release date
-    prefix_len = len(prefix + table_name)
-    suffix_len = 5
+    suffix_len = 5  # .json
+    date_str_len = 10  # YYYY-MM-DD
     selected_paths = []
     for path in schema_paths:
         file_name = os.path.basename(path)
-        schema_date = pendulum.parse(file_name[prefix_len:-suffix_len].replace('_', ''))
+        date_str_start = -(date_str_len + suffix_len)
+        date_str_end = -suffix_len
+        datestr = file_name[date_str_start:date_str_end]
+        schema_date = pendulum.parse(datestr)
 
         if schema_date <= release_date:
             selected_paths.append(path)
@@ -151,5 +163,5 @@ def find_schema(path: str, table_name: str, release_date: Pendulum, prefix: str 
         return selected_paths[-1]
 
     # No schemas were found
-    logging.error('No schema found.')
+    logging.error("No schema found.")
     return None
