@@ -182,6 +182,8 @@ def load_bigquery_table(
     :param write_disposition: whether to append, overwrite or throw an error when data already exists in the table.
     :param table_description: the description of the table.
     :param project_id: Google Cloud project id.
+    :param cluster: whether to cluster the table or not.
+    :param clustering_fields: what fields to cluster on.
     Default is to overwrite.
     :return:
     """
