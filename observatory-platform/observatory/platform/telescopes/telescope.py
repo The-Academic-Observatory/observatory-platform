@@ -314,6 +314,7 @@ class Telescope(AbstractTelescope):
         :return: the DAG object.
         """
         tasks = []
+        tasks.extend(self.sensors)
         with self.dag:
             # Process setup tasks first, which are always ShortCircuitOperators
             for func, kwargs in self.setup_task_funcs:
@@ -339,9 +340,6 @@ class Telescope(AbstractTelescope):
                 )
                 tasks.append(task)
             chain(*tasks)
-
-            # Add sensors as a pre-requisite to the first task.
-            self.sensors >> tasks[0]
 
         return self.dag
 

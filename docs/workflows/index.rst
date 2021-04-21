@@ -5,4 +5,4 @@ Workflows
 
     doi
     aggregations
-
+    onix_workflow

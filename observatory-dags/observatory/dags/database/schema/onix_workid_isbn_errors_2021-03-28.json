@@ -1,0 +1,8 @@
+[
+    {
+        "mode": "NULLABLE",
+        "name": "Error",
+        "type": "STRING",
+        "description": "Error string"
+    }
+]

@@ -18,11 +18,12 @@
 class TelescopeTypes:
     """ The type_id's for known TelescopeTypes """
 
-    onix = 'onix'
-    jstor = 'jstor'
-    google_books = 'google_books'
-    google_analytics = 'google_analytics'
-    oapen_irus_uk = 'oapen_irus_uk'
-    scopus = 'scopus'
-    wos = 'wos'
-    fulcrum = 'fulcrum'
+    onix = "onix"
+    jstor = "jstor"
+    google_books = "google_books"
+    google_analytics = "google_analytics"
+    oapen_irus_uk = "oapen_irus_uk"
+    scopus = "scopus"
+    wos = "wos"
+    fulcrum = "fulcrum"
+    onix_workflow = "onix_workflow"

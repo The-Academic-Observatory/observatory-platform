@@ -17,6 +17,7 @@
 import os
 import unittest
 from typing import Optional
+from unittest.mock import patch
 
 import pendulum
 from azure.storage.blob import BlobClient, BlobServiceClient
@@ -24,125 +25,135 @@ from click.testing import CliRunner
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat
 from observatory.platform.utils.file_utils import crc32c_base64_hash, hex_to_base64_str
-from observatory.platform.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
-                                                 bigquery_partitioned_table_id,
-                                                 bigquery_table_exists,
-                                                 copy_bigquery_table, create_cloud_storage_bucket,
-                                                 copy_blob_from_cloud_storage,
-                                                 create_bigquery_dataset,
-                                                 create_bigquery_table_from_query,
-                                                 create_bigquery_view,
-                                                 download_blob_from_cloud_storage,
-                                                 download_blobs_from_cloud_storage,
-                                                 load_bigquery_table,
-                                                 run_bigquery_query,
-                                                 table_name_from_blob,
-                                                 upload_file_to_cloud_storage,
-                                                 upload_files_to_cloud_storage)
-
-from tests.observatory.test_utils import random_id
-from tests.observatory.test_utils import test_fixtures_path
+from observatory.platform.utils.gc_utils import (
+    azure_to_google_cloud_storage_transfer,
+    bigquery_partitioned_table_id,
+    bigquery_table_exists,
+    copy_bigquery_table,
+    copy_blob_from_cloud_storage,
+    create_bigquery_dataset,
+    create_bigquery_table_from_query,
+    create_bigquery_view,
+    create_cloud_storage_bucket,
+    download_blob_from_cloud_storage,
+    download_blobs_from_cloud_storage,
+    load_bigquery_table,
+    run_bigquery_query,
+    select_table_suffixes,
+    table_name_from_blob,
+    upload_file_to_cloud_storage,
+    upload_files_to_cloud_storage,
+)
+from tests.observatory.test_utils import random_id, test_fixtures_path
 
 
 def make_account_url(account_name: str) -> str:
-    """ Make an Azure Storage account URL from an account name.
+    """Make an Azure Storage account URL from an account name.
     TODO: delete once it can be imported from mag-archiver.
 
     :param account_name: Azure Storage account name.
     :return: the account URL.
     """
 
-    return f'https://{account_name}.blob.core.windows.net'
+    return f"https://{account_name}.blob.core.windows.net"
 
 
 class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         super(TestGoogleCloudUtilsNoAuth, self).__init__(*args, **kwargs)
-        self.data = 'hello world'
-        self.expected_crc32c = 'yZRlqg=='
+        self.data = "hello world"
+        self.expected_crc32c = "yZRlqg=="
 
     def test_table_name_from_blob(self):
         # .txt extension
-        file_extension = '.txt'
-        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/ConferenceInstances.txt'
-        expected_table_name = 'ConferenceInstances'
+        file_extension = ".txt"
+        blob_path = "408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/ConferenceInstances.txt"
+        expected_table_name = "ConferenceInstances"
         actual_table_name = table_name_from_blob(blob_path, file_extension)
         self.assertEqual(expected_table_name, actual_table_name)
 
         # txt.1 extension
-        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.1'
-        expected_table_name = 'PaperAbstractsInvertedIndex'
+        blob_path = "408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.1"
+        expected_table_name = "PaperAbstractsInvertedIndex"
         actual_table_name = table_name_from_blob(blob_path, file_extension)
         self.assertEqual(expected_table_name, actual_table_name)
 
         # txt.2 extension
-        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.2'
-        expected_table_name = 'PaperAbstractsInvertedIndex'
+        blob_path = "408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.2"
+        expected_table_name = "PaperAbstractsInvertedIndex"
         actual_table_name = table_name_from_blob(blob_path, file_extension)
         self.assertEqual(expected_table_name, actual_table_name)
 
         # txt.* extension
-        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.*'
-        expected_table_name = 'PaperAbstractsInvertedIndex'
+        blob_path = "408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.*"
+        expected_table_name = "PaperAbstractsInvertedIndex"
         actual_table_name = table_name_from_blob(blob_path, file_extension)
         self.assertEqual(expected_table_name, actual_table_name)
 
         # More than 1 digit
-        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.100'
-        expected_table_name = 'PaperAbstractsInvertedIndex'
+        blob_path = "408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/PaperAbstractsInvertedIndex.txt.100"
+        expected_table_name = "PaperAbstractsInvertedIndex"
         actual_table_name = table_name_from_blob(blob_path, file_extension)
         self.assertEqual(expected_table_name, actual_table_name)
 
         # No match
-        blob_path = '408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/ConferenceInstances.jsonl'
+        blob_path = "408fb41ff5b34388b2f7ccb0d6e3be32/mag-2020-05-21/ConferenceInstances.jsonl"
         with self.assertRaises(ValueError):
             table_name_from_blob(blob_path, file_extension)
 
         # Another extension
-        file_extension = '.jsonl'
-        expected_table_name = 'ConferenceInstances'
+        file_extension = ".jsonl"
+        expected_table_name = "ConferenceInstances"
         actual_table_name = table_name_from_blob(blob_path, file_extension)
         self.assertEqual(expected_table_name, actual_table_name)
 
         # Check that assertion raised when no . in file extension
         with self.assertRaises(AssertionError):
-            table_name_from_blob(blob_path, 'txt')
+            table_name_from_blob(blob_path, "txt")
 
     def test_hex_to_base64_str(self):
-        data = b'c99465aa'
+        data = b"c99465aa"
         actual = hex_to_base64_str(data)
         self.assertEqual(self.expected_crc32c, actual)
 
     def test_crc32c_base64_hash(self):
         runner = CliRunner()
-        file_name = 'test.txt'
+        file_name = "test.txt"
 
         with runner.isolated_filesystem():
-            with open(file_name, 'w') as f:
+            with open(file_name, "w") as f:
                 f.write(self.data)
 
             actual_crc32c = crc32c_base64_hash(file_name)
             self.assertEqual(self.expected_crc32c, actual_crc32c)
 
     def test_bigquery_partitioned_table_id(self):
-        expected = 'my_table20200315'
-        actual = bigquery_partitioned_table_id('my_table', pendulum.datetime(year=2020, month=3, day=15))
+        expected = "my_table20200315"
+        actual = bigquery_partitioned_table_id("my_table", pendulum.datetime(year=2020, month=3, day=15))
         self.assertEqual(expected, actual)
+
+    @patch("observatory.platform.utils.gc_utils.run_bigquery_query")
+    def test_select_table_suffixes(self, mock_run_bq_query):
+        end_date = pendulum.Pendulum(2021, 1, 1)
+        mock_run_bq_query.return_value = [{"suffix": end_date}]
+
+        results = select_table_suffixes(project_id="proj", dataset_id="ds", table_id="table", end_date=end_date)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], end_date)
 
 
 class TestGoogleCloudUtils(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         super(TestGoogleCloudUtils, self).__init__(*args, **kwargs)
-        self.az_storage_account_name: str = os.getenv('TEST_AZURE_STORAGE_ACCOUNT_NAME')
-        self.az_container_sas_token: str = os.getenv('TEST_AZURE_CONTAINER_SAS_TOKEN')
-        self.az_container_name: str = os.getenv('TEST_AZURE_CONTAINER_NAME')
-        self.gc_project_id: str = os.getenv('TEST_GCP_PROJECT_ID')
-        self.gc_bucket_name: str = os.getenv('TEST_GCP_BUCKET_NAME')
-        self.gc_bucket_location: str = os.getenv('TEST_GCP_DATA_LOCATION')
-        self.data = 'hello world'
-        self.expected_crc32c = 'yZRlqg=='
+        self.az_storage_account_name: str = os.getenv("TEST_AZURE_STORAGE_ACCOUNT_NAME")
+        self.az_container_sas_token: str = os.getenv("TEST_AZURE_CONTAINER_SAS_TOKEN")
+        self.az_container_name: str = os.getenv("TEST_AZURE_CONTAINER_NAME")
+        self.gc_project_id: str = os.getenv("TEST_GCP_PROJECT_ID")
+        self.gc_bucket_name: str = os.getenv("TEST_GCP_BUCKET_NAME")
+        self.gc_bucket_location: str = os.getenv("TEST_GCP_DATA_LOCATION")
+        self.data = "hello world"
+        self.expected_crc32c = "yZRlqg=="
 
     def test_create_bigquery_dataset(self):
         dataset_name = random_id()
@@ -156,19 +167,19 @@ class TestGoogleCloudUtils(unittest.TestCase):
             client.delete_dataset(dataset_name, not_found_ok=True)
 
     def test_load_bigquery_table(self):
-        schema_file_name = 'people_schema.json'
+        schema_file_name = "people_schema.json"
         dataset_id = random_id()
         client = bigquery.Client()
-        test_data_path = os.path.join(test_fixtures_path(), 'utils', 'gc_utils')
+        test_data_path = os.path.join(test_fixtures_path(), "utils", "gc_utils")
         schema_path = os.path.join(test_data_path, schema_file_name)
 
         # CSV file
-        csv_file_path = os.path.join(test_data_path, 'people.csv')
-        csv_blob_name = f'people_{random_id()}.csv'
+        csv_file_path = os.path.join(test_data_path, "people.csv")
+        csv_blob_name = f"people_{random_id()}.csv"
 
         # JSON file
-        json_file_path = os.path.join(test_data_path, 'people.jsonl')
-        json_blob_name = f'people_{random_id()}.jsonl'
+        json_file_path = os.path.join(test_data_path, "people.jsonl")
+        json_blob_name = f"people_{random_id()}.jsonl"
 
         try:
             # Create dataset
@@ -183,8 +194,14 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Test loading CSV table
             table_name = random_id()
             uri = f"gs://{self.gc_bucket_name}/{csv_blob_name}"
-            result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
-                                         schema_file_path=schema_path, source_format=SourceFormat.CSV)
+            result = load_bigquery_table(
+                uri,
+                dataset_id,
+                self.gc_bucket_location,
+                table_name,
+                schema_file_path=schema_path,
+                source_format=SourceFormat.CSV,
+            )
             self.assertTrue(result)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
 
@@ -195,18 +212,29 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Test loading JSON newline table
             table_name = random_id()
             uri = f"gs://{self.gc_bucket_name}/{json_blob_name}"
-            result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
-                                         schema_file_path=schema_path,
-                                         source_format=SourceFormat.NEWLINE_DELIMITED_JSON)
+            result = load_bigquery_table(
+                uri,
+                dataset_id,
+                self.gc_bucket_location,
+                table_name,
+                schema_file_path=schema_path,
+                source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+            )
             self.assertTrue(result)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
 
             # Test loading time partitioned table
             table_name = random_id()
-            result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
-                                         schema_file_path=schema_path,
-                                         source_format=SourceFormat.NEWLINE_DELIMITED_JSON, partition=True,
-                                         partition_field='dob')
+            result = load_bigquery_table(
+                uri,
+                dataset_id,
+                self.gc_bucket_location,
+                table_name,
+                schema_file_path=schema_path,
+                source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                partition=True,
+                partition_field="dob",
+            )
             self.assertTrue(result)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
         finally:
@@ -224,13 +252,39 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
     def test_run_bigquery_query(self):
         query = "SELECT * FROM `bigquery-public-data.labeled_patents.figures` LIMIT 3"
-        key = {'gcs_path': 0, 'x_relative_min': 1, 'y_relative_min': 2, 'x_relative_max': 3, 'y_relative_max': 4}
-        expected_results = [bigquery.Row(('gs://gcs-public-data--labeled-patents/espacenet_en66.pdf',
-                                          0.356321839, 0.745274914, 0.66969147, 0.93685567), key),
-                            bigquery.Row(('gs://gcs-public-data--labeled-patents/espacenet_en43.pdf',
-                                          0.395039322, 0.682130584, 0.640048397, 0.93556701), key),
-                            bigquery.Row(('gs://gcs-public-data--labeled-patents/espacenet_en98.pdf',
-                                          0.358136721, 0.637457045, 0.664246824, 0.93556701), key)]
+        key = {"gcs_path": 0, "x_relative_min": 1, "y_relative_min": 2, "x_relative_max": 3, "y_relative_max": 4}
+        expected_results = [
+            bigquery.Row(
+                (
+                    "gs://gcs-public-data--labeled-patents/espacenet_en66.pdf",
+                    0.356321839,
+                    0.745274914,
+                    0.66969147,
+                    0.93685567,
+                ),
+                key,
+            ),
+            bigquery.Row(
+                (
+                    "gs://gcs-public-data--labeled-patents/espacenet_en43.pdf",
+                    0.395039322,
+                    0.682130584,
+                    0.640048397,
+                    0.93556701,
+                ),
+                key,
+            ),
+            bigquery.Row(
+                (
+                    "gs://gcs-public-data--labeled-patents/espacenet_en98.pdf",
+                    0.358136721,
+                    0.637457045,
+                    0.664246824,
+                    0.93556701,
+                ),
+                key,
+            ),
+        ]
         results = run_bigquery_query(query)
         self.assertEqual(len(results), 3)
         for expected_row, actual_row in zip(expected_results, results):
@@ -240,9 +294,9 @@ class TestGoogleCloudUtils(unittest.TestCase):
         dataset_id = random_id()
         client = bigquery.Client()
 
-        table_name = 'figures'
-        source_table_id = 'bigquery-public-data.labeled_patents.figures'
-        destination_table_id = f'{self.gc_project_id}.{dataset_id}.{table_name}'
+        table_name = "figures"
+        source_table_id = "bigquery-public-data.labeled_patents.figures"
+        destination_table_id = f"{self.gc_project_id}.{dataset_id}.{table_name}"
         data_location = self.gc_bucket_location
 
         try:
@@ -260,7 +314,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
         client = bigquery.Client()
 
         data_location = self.gc_bucket_location
-        view_name = 'test_view'
+        view_name = "test_view"
         try:
             create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
 
@@ -275,7 +329,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
         dataset_id = random_id()
         client = bigquery.Client()
 
-        table_name = 'presidents'
+        table_name = "presidents"
         data_location = self.gc_bucket_location
         query = """
         WITH presidents AS
@@ -289,9 +343,17 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
         try:
             create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
-            success = create_bigquery_table_from_query(query, self.gc_project_id, dataset_id, table_name, data_location,
-                                                       partition=True, partition_field='date', cluster=True,
-                                                       clustering_fields=['date'])
+            success = create_bigquery_table_from_query(
+                query,
+                self.gc_project_id,
+                dataset_id,
+                table_name,
+                data_location,
+                partition=True,
+                partition_field="date",
+                cluster=True,
+                clustering_fields=["date"],
+            )
             self.assertTrue(success)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
         finally:
@@ -300,19 +362,21 @@ class TestGoogleCloudUtils(unittest.TestCase):
     def test_create_cloud_storage_bucket(self):
         """ Test that storage bucket is created """
         client = storage.Client()
-        bucket_name = 'a' + random_id() + 'a'
+        bucket_name = "a" + random_id() + "a"
         bucket = client.bucket(bucket_name)
 
         lifecycle_delete_age = 1
         try:
-            success = create_cloud_storage_bucket(bucket_name, self.gc_bucket_location, self.gc_project_id,
-                                                  lifecycle_delete_age)
+            success = create_cloud_storage_bucket(
+                bucket_name, self.gc_bucket_location, self.gc_project_id, lifecycle_delete_age
+            )
 
             self.assertTrue(success)
 
             # check success is false, because bucket already exists
-            success = create_cloud_storage_bucket(bucket_name, self.gc_bucket_location, self.gc_project_id,
-                                                  lifecycle_delete_age)
+            success = create_cloud_storage_bucket(
+                bucket_name, self.gc_bucket_location, self.gc_project_id, lifecycle_delete_age
+            )
             self.assertFalse(success)
         finally:
             bucket.delete()
@@ -322,9 +386,9 @@ class TestGoogleCloudUtils(unittest.TestCase):
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Create file
-            upload_file_name = f'{random_id()}.txt'
-            copy_file_name = f'{random_id()}.txt'
-            with open(upload_file_name, 'w') as f:
+            upload_file_name = f"{random_id()}.txt"
+            copy_file_name = f"{random_id()}.txt"
+            with open(upload_file_name, "w") as f:
                 f.write(self.data)
 
             # Create client for blob
@@ -338,8 +402,9 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 blob_original = bucket.blob(upload_file_name)
                 blob_copy = bucket.blob(copy_file_name)
 
-                copy_blob_from_cloud_storage(upload_file_name, self.gc_bucket_name, self.gc_bucket_name,
-                                             new_name=copy_file_name)
+                copy_blob_from_cloud_storage(
+                    upload_file_name, self.gc_bucket_name, self.gc_bucket_name, new_name=copy_file_name
+                )
                 self.assertTrue(blob_original.exists())
                 self.assertTrue(blob_copy.exists())
 
@@ -355,13 +420,13 @@ class TestGoogleCloudUtils(unittest.TestCase):
             num_files = 3
             upload_folder_name = random_id()
             os.makedirs(upload_folder_name)
-            upload_paths = [f'{upload_folder_name}/{random_id()}/{random_id()}.txt' for i in range(num_files)]
+            upload_paths = [f"{upload_folder_name}/{random_id()}/{random_id()}.txt" for i in range(num_files)]
             upload_file_paths = []
             for path in upload_paths:
                 os.makedirs(path)
-                upload_file_path = os.path.join(path, f'{random_id()}.txt')
+                upload_file_path = os.path.join(path, f"{random_id()}.txt")
                 upload_file_paths.append(upload_file_path)
-                with open(upload_file_path, 'w') as f:
+                with open(upload_file_path, "w") as f:
                     f.write(self.data)
 
             # Create client for blobs
@@ -383,14 +448,16 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 # Download blobs
                 download_folder_name = random_id()
                 os.makedirs(download_folder_name)
-                result = download_blobs_from_cloud_storage(self.gc_bucket_name, upload_folder_name,
-                                                           download_folder_name)
+                result = download_blobs_from_cloud_storage(
+                    self.gc_bucket_name, upload_folder_name, download_folder_name
+                )
                 self.assertTrue(result)
 
                 # Check that all files exist and have correct hashes
                 for file_path in upload_file_paths:
-                    download_file_path = os.path.join(download_folder_name,
-                                                      file_path.replace(f'{upload_folder_name}/', ''))
+                    download_file_path = os.path.join(
+                        download_folder_name, file_path.replace(f"{upload_folder_name}/", "")
+                    )
                     self.assertTrue(os.path.isfile(download_file_path))
                     actual_crc32c = crc32c_base64_hash(download_file_path)
                     self.assertEqual(self.expected_crc32c, actual_crc32c)
@@ -405,9 +472,9 @@ class TestGoogleCloudUtils(unittest.TestCase):
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Create file
-            upload_file_name = f'{random_id()}.txt'
-            download_file_name = f'{random_id()}.txt'
-            with open(upload_file_name, 'w') as f:
+            upload_file_name = f"{random_id()}.txt"
+            download_file_name = f"{random_id()}.txt"
+            with open(upload_file_name, "w") as f:
                 f.write(self.data)
 
             # Create client for blob
@@ -436,7 +503,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
                     blob.delete()
 
     def test_azure_to_google_cloud_storage_transfer(self):
-        blob_name = f'{random_id()}.txt'
+        blob_name = f"{random_id()}.txt"
         az_blob: Optional[BlobClient] = None
 
         # Create client for working with Google Cloud storage bucket
@@ -452,12 +519,16 @@ class TestGoogleCloudUtils(unittest.TestCase):
             az_blob.upload_blob(self.data)
 
             # Transfer data
-            transfer = azure_to_google_cloud_storage_transfer(self.az_storage_account_name, self.az_container_sas_token,
-                                                              self.az_container_name, include_prefixes=[blob_name],
-                                                              gc_project_id=self.gc_project_id,
-                                                              gc_bucket=self.gc_bucket_name,
-                                                              description=f'Test Azure to Google Cloud Storage Transfer '
-                                                                          f'{pendulum.datetime.utcnow().to_datetime_string()}')
+            transfer = azure_to_google_cloud_storage_transfer(
+                self.az_storage_account_name,
+                self.az_container_sas_token,
+                self.az_container_name,
+                include_prefixes=[blob_name],
+                gc_project_id=self.gc_project_id,
+                gc_bucket=self.gc_bucket_name,
+                description=f"Test Azure to Google Cloud Storage Transfer "
+                f"{pendulum.datetime.utcnow().to_datetime_string()}",
+            )
 
             # Check that transfer was successful
             self.assertTrue(transfer)
