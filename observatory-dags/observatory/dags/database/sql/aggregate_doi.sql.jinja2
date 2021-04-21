@@ -568,7 +568,7 @@ FROM(
                 dois.crossref.references_count as crossref,
                 dois.open_citations.citations_total as open_citations
               ) as citations,
-            FROM UNNEST(dois.mag.fields.fields.level_0)) as disciplines
+            FROM UNNEST(dois.mag.fields.level_0)) as disciplines
         FROM UNNEST(affiliations.{{ aggregation_field }}) as collab) 
       )
     ) as collaborations,
@@ -602,7 +602,7 @@ FROM(
             -- Domestic collaboration only or international collaboration or single institution only
             (SELECT COUNT(collab) > 0 FROM UNNEST(affiliations.countries) as collab WHERE collab.country <> aggregrate.country) as international_collab
 
-          FROM UNNEST(dois.mag.fields.fields.level_0) as fields)) )) as level0
+          FROM UNNEST(dois.mag.fields.level_0) as fields)) )) as level0
     ) as disciplines,
 
     -- Events
