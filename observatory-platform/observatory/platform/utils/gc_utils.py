@@ -34,12 +34,7 @@ from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat
 from google.cloud.exceptions import Conflict, NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
-from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash
-from observatory.platform.utils.jinja2_utils import (
-    make_sql_jinja2_filename,
-    render_template,
-)
 from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
 
@@ -165,6 +160,8 @@ def load_bigquery_table(
     write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE,
     table_description: str = "",
     project_id: str = None,
+    cluster: bool = False,
+    clustering_fields = None
 ) -> bool:
     """Load a BigQuery table from an object on Google Cloud Storage.
 
@@ -203,6 +200,10 @@ def load_bigquery_table(
         project_id = client.project
     dataset = bigquery.Dataset(f"{project_id}.{dataset_id}")
 
+    # Handle mutable default arguments
+    if clustering_fields is None:
+        clustering_fields = []
+
     # Create load job
     job_config = LoadJobConfig()
 
@@ -224,6 +225,9 @@ def load_bigquery_table(
         job_config.time_partitioning = bigquery.TimePartitioning(
             type_=partition_type, field=partition_field, require_partition_filter=require_partition_filter
         )
+    # Set clustering settings
+    if cluster:
+        job_config.clustering_fields = clustering_fields
 
     try:
         load_job: LoadJob = client.load_table_from_uri(

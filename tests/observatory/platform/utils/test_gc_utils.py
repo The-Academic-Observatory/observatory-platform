@@ -240,6 +240,15 @@ class TestGoogleCloudUtils(unittest.TestCase):
             )
             self.assertTrue(result)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
+
+            # Test loading time partitioned and clustered table
+            table_name = random_id()
+            result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
+                                         schema_file_path=schema_path,
+                                         source_format=SourceFormat.NEWLINE_DELIMITED_JSON, partition=True,
+                                         partition_field='dob', cluster=True, clustering_fields=['first_name'])
+            self.assertTrue(result)
+            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
         finally:
             # Delete dataset
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
