@@ -24,12 +24,27 @@ WITH affiliations_processed as (
 )
 
 SELECT 
-  papers.*,
+  papers.* EXCEPT (journalId, ConferenceSeriesId,	ConferenceInstanceId, CreatedDate) REPLACE ( UPPER(TRIM(Doi)) AS Doi),
   REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REGEXP_REPLACE(JSON_EXTRACT(IndexedAbstract, '$.InvertedIndex'), "[0-9]+", ""), ":", ""), ",", " "), '"', ""), "{", ""), "}", ""), "[", ""), "]", "") as abstract,
-  fields,
-  authors,
-  extended,
-  resources,
+  fields.fields,
+  mesh.mesh,
+  authors.authors,
+  STRUCT(journal.JournalId, journal.DisplayName, journal.Issn, journal.Publisher) as journal,
+  STRUCT(conferenceInstance.ConferenceInstanceId,
+         conferenceInstance.NormalizedName,
+         conferenceInstance.DisplayName,
+         conferenceInstance.Location,
+         conferenceInstance.OfficialUrl,
+         conferenceInstance.StartDate,
+         conferenceInstance.EndDate,
+         conferenceInstance.PaperCount,
+         conferenceInstance.Latitude,
+         conferenceInstance.Longitude
+  ) as conferenceInstance,
+  STRUCT(conferenceSeries.ConferenceSeriesId, conferenceSeries.NormalizedName, conferenceSeries.DisplayName) as conferenceSeries,
+  extended.attributes,
+  resources.resources,
+  urls.urls,
   ARRAY((SELECT GridId FROM authors.authors WHERE GridId IS NOT NULL GROUP BY GridID)) as grids
 FROM (SELECT UPPER(TRIM(doi)), ARRAY_AGG(Paperid ORDER BY CitationCount DESC)[offset(0)] as PaperId
       FROM `{{ project_id }}.mag.Papers{{ release_date.strftime('%Y%m%d') }}` as papers
@@ -40,6 +55,15 @@ LEFT JOIN `{{ project_id }}.mag.Papers{{ release_date.strftime('%Y%m%d') }}` as 
 
 -- Abstract
 LEFT JOIN `{{ project_id }}.mag.PaperAbstractsInvertedIndex{{ release_date.strftime('%Y%m%d') }}` as abstracts ON abstracts.PaperId = papers.PaperId
+
+-- Journal
+LEFT JOIN `{{ project_id }}.mag.Journals{{ release_date.strftime('%Y%m%d') }}` as journal ON journal.JournalId = papers.JournalId
+
+-- ConferenceInstance
+LEFT JOIN `{{ project_id }}.mag.ConferenceInstances{{ release_date.strftime('%Y%m%d') }}` as conferenceInstance ON conferenceInstance.ConferenceInstanceId = papers.ConferenceInstanceId
+
+-- ConferenceSeries
+LEFT JOIN `{{ project_id }}.mag.ConferenceSeries{{ release_date.strftime('%Y%m%d') }}` as conferenceSeries ON conferenceSeries.ConferenceSeriesId = papers.ConferenceSeriesId
 
 -- Fields of Study
 LEFT JOIN (SELECT 
@@ -81,3 +105,17 @@ LEFT JOIN (SELECT
               ARRAY_AGG(STRUCT( ResourceType , ResourceUrl )) as resources
             FROM `{{ project_id }}.mag.PaperResources{{ release_date.strftime('%Y%m%d') }}`
             GROUP BY PaperId) as resources ON resources.PaperId = papers.PaperId
+
+-- URLs
+LEFT JOIN (SELECT
+              PaperId,
+              ARRAY_AGG(STRUCT( SourceType , SourceUrl, LanguageCode )) as urls
+            FROM `{{ project_id }}.mag.PaperUrls{{ release_date.strftime('%Y%m%d') }}`
+            GROUP BY PaperId) as urls ON urls.PaperId = papers.PaperId
+
+-- PaperMESH
+LEFT JOIN (SELECT
+              PaperId,
+              ARRAY_AGG(STRUCT( DescriptorUI,	DescriptorName,	QualifierUI,	QualifierName,	IsMajorTopic )) as mesh
+            FROM `{{ project_id }}.mag.PaperMeSH{{ release_date.strftime('%Y%m%d') }}`
+            GROUP BY PaperId) as mesh ON mesh.PaperId = papers.PaperId
