@@ -44,9 +44,10 @@ class TestGoogleAnalytics(ObservatoryTestCase):
         :param kwargs: keyword arguments.
         """
         super(TestGoogleAnalytics, self).__init__(*args, **kwargs)
-        self.project_id = os.getenv('TESTS_GOOGLE_CLOUD_PROJECT_ID')
-        self.data_location = os.getenv('TESTS_DATA_LOCATION')
+        self.project_id = os.getenv('TEST_GCP_PROJECT_ID')
+        self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
         self.organisation_name = 'ucl_press'
+        self.extra = {'view_id': '103373421', 'pagepath_regex': r'^/collections/open-access/products/.*$'}
         self.host = "localhost"
         self.api_port = 5000
 
@@ -55,7 +56,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
         :return: None
         """
         organisation = Organisation(name=self.organisation_name)
-        dag = GoogleAnalyticsTelescope(organisation).make_dag()
+        dag = GoogleAnalyticsTelescope(organisation, self.extra).make_dag()
         self.assert_dag_structure({
             'check_dependencies': ['download_transform'],
             'download_transform': ['upload_transformed'],
@@ -91,7 +92,8 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                                       telescope_type=telescope_type,
                                       organisation=organisation,
                                       modified=dt,
-                                      created=dt)
+                                      created=dt,
+                                      extra=self.extra)
             env.api_session.add(telescope)
             env.api_session.commit()
 
@@ -120,7 +122,9 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                                     gcp_project_id=self.project_id,
                                     gcp_download_bucket=env.download_bucket,
                                     gcp_transform_bucket=env.transform_bucket)
-        telescope = GoogleAnalyticsTelescope(organisation=organisation, dataset_id=dataset_id)
+        telescope = GoogleAnalyticsTelescope(organisation=organisation,
+                                             extra=self.extra,
+                                             dataset_id=dataset_id)
         dag = telescope.make_dag()
 
         # Create the Observatory environment and run tests

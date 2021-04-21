@@ -33,7 +33,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, make_dag_id, make_org_id
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, make_dag_id
 from observatory.platform.utils.template_utils import blob_name, bq_load_shard_v2, table_ids_from_path
 
 
@@ -100,15 +100,14 @@ class GoogleAnalyticsRelease(SnapshotRelease):
 class GoogleAnalyticsTelescope(SnapshotTelescope):
     """ Google Analytics Telescope."""
     DAG_ID_PREFIX = 'google_analytics'
-    ORG_MAPPING = {'ucl_press': ('103373421', r'^/collections/open-access/products/.*$'),
-                   'anu_press': ('1422597', r'^/publications/.*$')}
 
-    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
+    def __init__(self, organisation: Organisation, extra: dict, dag_id: Optional[str] = None,
                  start_date: datetime = datetime(2021, 1, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'google', catchup: bool = True,
                  airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleAnalyticsTelescope instance.
         :param organisation: the Organisation of which data is processed.
+        :param extra: the 'extra' info from the API regarding the telescope.
         :param dag_id: the id of the DAG, by default this is automatically generated based on the DAG_ID_PREFIX and the
         organisation name.
         :param start_date: the start date of the DAG.
@@ -132,8 +131,9 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         self.organisation = organisation
         self.project_id = organisation.gcp_project_id
         self.dataset_location = 'us'  # TODO: add to API
-        self.view_id = get_view_id(self.organisation.name)
-        self.pagepath_regex = get_pagepath_regex(self.organisation.name)
+        self.extra = extra
+        self.view_id = extra.get('view_id')
+        self.pagepath_regex = extra.get('pagepath_regex')
 
         self.add_setup_task_chain([self.check_dependencies])
         self.add_task(partial(ShortCircuitOperator, task_id=self.download_transform.__name__,
@@ -162,14 +162,16 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         return releases
 
     def check_dependencies(self, **kwargs) -> bool:
-        """ Check dependencies of DAG. Add to parent method to additionally check for a view id
+        """ Check dependencies of DAG. Add to parent method to additionally check for a view id and pagepath regex
 
         :return: True if dependencies are valid.
         """
         super().check_dependencies()
 
-        if self.view_id is None:
-            raise AirflowException(f"Can't find view ID for organisation: {self.organisation.name}")
+        if self.view_id is None or self.pagepath_regex is None:
+            expected_extra = {'view_id': 'the_view_id', 'pagepath_regex': r'pagepath_regex'}
+            raise AirflowException(f"View ID and/or pagepath regex is not set in 'extra' of telescope. "
+                                   f"Extra: {self.extra}, expected extra format: {expected_extra}")
         return True
 
     def download_transform(self, releases: List[GoogleAnalyticsRelease], **kwargs):
@@ -184,6 +186,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
     def bq_load(self, releases: List[SnapshotRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
+
         :param releases: a list of releases.
         :return: None.
         """
@@ -198,26 +201,6 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
                                  self.dataset_location, table_id, release.release_date, self.source_format,
                                  prefix=self.schema_prefix, schema_version=self.schema_version,
                                  dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
-
-
-def get_view_id(organisation_name: str) -> str:
-    """ Get the google analytics view id based on the organisation name
-
-    :param organisation_name: Name of the organisation.
-    :return: The view id.
-    """
-    view_id = GoogleAnalyticsTelescope.ORG_MAPPING.get(make_org_id(organisation_name))[0]
-    return view_id
-
-
-def get_pagepath_regex(organisation_name: str) -> str:
-    """ Get the pagepath regex expression for books based on the organisation name
-
-    :param organisation_name: Name of the organisation.
-    :return: The regex expression for the pagepath of a book.
-    """
-    pagepath_regex = GoogleAnalyticsTelescope.ORG_MAPPING.get(make_org_id(organisation_name))[1]
-    return pagepath_regex
 
 
 def initialize_analyticsreporting() -> Resource:
