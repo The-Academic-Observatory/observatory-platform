@@ -620,7 +620,7 @@ FROM(
               ) as citations,
             FROM UNNEST(dois.mag.fields.fields.level_0)) as disciplines
         FROM UNNEST(affiliations.countries) as collab
-        WHERE collab.identifier <> aggregrate.country_code) 
+        WHERE collab.identifier <> aggregrate.country_code OR aggregrate.country_code IS NULL) 
       )
     ) as countries,
     {% endif %}
