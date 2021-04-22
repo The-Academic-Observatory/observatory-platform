@@ -297,11 +297,12 @@ CREATE TEMP FUNCTION group_disciplines(fields ARRAY<STRUCT<DisplayName STRING, S
   )
 );
 
-CREATE TEMP FUNCTION process_relations(relationships ANY TYPE, total INT64) as (
+CREATE TEMP FUNCTION process_relations(relationships ANY TYPE, total INT64, total_oa INT64) as (
   ARRAY(SELECT AS STRUCT
           relation.identifier as id,
           COUNT(relation.identifier) as total_outputs,
-          SAFE_DIVIDE(COUNT(relation.identifier), total) as percetenage_of_all_outputs,
+          SAFE_DIVIDE(COUNT(relation.identifier), total) as percentage_of_all_outputs,
+          SAFE_DIVIDE(COUNTIF(is_oa), total_oa) as percentage_of_all_oa,
           MAX(relation.name) as name,
           MAX(relation.country) as country,
           MAX(relation.country_code) as country_code,
@@ -367,17 +368,17 @@ SELECT
 
   {% if relate_to_institutions %}
   -- Institutions
-  process_relations(institutions, total_outputs) as institutions,
+  process_relations(institutions, total_outputs, access_types.oa.total_outputs) as institutions,
   {% endif %}
 
   {% if relate_to_countries %}
   -- Countries
-  process_relations(countries, total_outputs) as countries,
+  process_relations(countries, total_outputs, access_types.oa.total_outputs) as countries,
   {% endif %}
 
   {% if relate_to_groups %}
   -- Groups
-  process_relations(groupings, total_outputs) as groupings,
+  process_relations(groupings, total_outputs, access_types.oa.total_outputs) as groupings,
   {% endif %}
 
   -- Members
