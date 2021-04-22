@@ -475,7 +475,9 @@ def list_available_releases(service: Resource, publisher_id: str, processed_labe
             'PUBBCU': 'country',
             'PUBBIU': 'institution'
         }
-        report_type = report_mapping[filename.split('_')[2]]
+        report_type = report_mapping.get(filename.split('_')[2])
+        if report_type is None:
+            logging.info(f"Skipping unrecognized report type, filename {filename}")
 
         # get release date
         release_date = pendulum.parse(filename.split('_')[-1])
