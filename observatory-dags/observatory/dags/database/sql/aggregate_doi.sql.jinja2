@@ -360,7 +360,7 @@ SELECT
             ) as crossref
           ) as citations,
           group_disciplines(ARRAY_CONCAT_AGG(disciplines)) as disciplines
-      FROM UNNEST(collaborations) as collaborator WHERE collaborator.identifier <> id GROUP BY collaborator.identifier ) as collaborations,
+      FROM UNNEST(collaborations) as collaborator WHERE collaborator.identifier <> id GROUP BY collaborator.identifier ORDER BY total_outputs DESC ) as collaborations,
 
   -- Members
   ARRAY((
@@ -390,6 +390,7 @@ SELECT
     ) as citations
   FROM  UNNEST(members)
   GROUP BY member
+  ORDER BY total_outputs DESC
   )) as members,
 
   -- Funders
@@ -517,6 +518,7 @@ SELECT
     SUM( IF(green_only, count, 0) ) as num_green_only_outputs
   FROM  UNNEST(events)
   GROUP BY source
+  ORDER BY total_outputs DESC
   )) as events
 
   -- Diversity
