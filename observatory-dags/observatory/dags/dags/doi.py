@@ -18,6 +18,7 @@
 A DAG that produces the dois table and aggregated tables for the dashboards.
 
 Each release is saved to the following BigQuery tables:
+    <project_id>.observatory.bookYYYYMMDD
     <project_id>.observatory.countryYYYYMMDD
     <project_id>.observatory.doiYYYYMMDD
     <project_id>.observatory.funderYYYYMMDD
@@ -29,6 +30,7 @@ Each release is saved to the following BigQuery tables:
     <project_id>.observatory.subregionYYYYMMDD
 
 Every week the following tables are overwritten for visualisation in the Data Studio dashboards:
+    <project_id>.coki_dashboards.book
     <project_id>.coki_dashboards.country
     <project_id>.coki_dashboards.doi
     <project_id>.coki_dashboards.funder
@@ -170,6 +172,13 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         python_callable=DoiWorkflow.create_doi
     )
 
+    # Create Books snapshot
+    task_create_book = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_BOOK,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_book
+    )
+
     # Create aggregation tables
     task_create_country = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
@@ -249,7 +258,7 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
     sensors >> task_create_datasets >> tasks_preprocessing >> task_create_doi
 
     # After task_create_doi runs all of the post-processing tasks run
-    tasks_postprocessing = [task_create_country, task_create_funder, task_create_group, task_create_institution,
+    tasks_postprocessing = [task_create_book, task_create_country, task_create_funder, task_create_group, task_create_institution,
                             task_create_author,  task_create_journal, task_create_publisher, task_create_region, 
                             task_create_subregion]
     task_create_doi >> tasks_postprocessing >> task_copy_tables >> task_create_views

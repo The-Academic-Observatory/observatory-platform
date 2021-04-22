@@ -113,6 +113,7 @@ class DoiWorkflow:
     TASK_ID_AGGREGATE_WOS = "aggregate_wos"
     TASK_ID_AGGREGATE_SCOPUS = "aggregate_scopus"
     TASK_ID_CREATE_DOI = "create_doi"
+    TASK_ID_CREATE_BOOK = "create_book"
     TASK_ID_CREATE_COUNTRY = "create_country"
     TASK_ID_CREATE_FUNDER = "create_funder"
     TASK_ID_CREATE_GROUP = "create_group"
@@ -577,6 +578,33 @@ class DoiWorkflow:
         set_task_state(success, DoiWorkflow.TASK_ID_CREATE_DOI)
 
     @staticmethod
+    def create_book(**kwargs):
+        """ Create Books snapshot.
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Get variables
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
+        data_location = Variable.get(AirflowVars.DATA_LOCATION)
+        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+
+        # Create processed dataset
+        template_path = os.path.join(workflow_sql_templates_path(),
+                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_CREATE_BOOK))
+        sql = render_template(template_path, project_id=project_id, dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
+                              release_date=release_date)
+
+        processed_table_id = bigquery_partitioned_table_id('book', release_date)
+        success = create_bigquery_table_from_query(sql=sql, project_id=project_id,
+                                                   dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
+                                                   table_id=processed_table_id, location=data_location)
+
+        set_task_state(success, DoiWorkflow.TASK_ID_CREATE_BOOK)
+
+    @staticmethod
     def create_country(**kwargs):
         """Create country snapshot.
 
@@ -842,18 +870,9 @@ class DoiWorkflow:
         # Get variables
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        table_names = [
-            "country",
-            "doi",
-            "funder",
-            "group",
-            "institution",
-            "journal",
-            "publisher",
-            "region",
-            "subregion",
-        ]
+        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+        table_names = ['country', 'doi', 'funder', 'group', 'institution', 'journal', 'publisher', 'region',
+                       'subregion']
 
         # Copy the latest data for display in the dashboards
         results = []
