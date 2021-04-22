@@ -364,14 +364,20 @@ SELECT
   -- Disciplines
   disciplines,
 
+  {% if relate_to_institutions %}
   -- Institutions
   process_relations(institutions) as institutions,
+  {% endif %}
 
+  {% if relate_to_countries %}
   -- Countries
   process_relations(countries) as countries,
+  {% endif %}
 
+  {% if relate_to_groups %}
   -- Groups
   process_relations(groupings) as groupings,
+  {% endif %}
 
   -- Members
   ARRAY((
@@ -561,6 +567,7 @@ FROM(
     -- Citations
     compute_citations(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations))) as citations,
 
+    {% if relate_to_institutions %}
     -- Institutional Analysis
     ARRAY_CONCAT_AGG( 
       ARRAY(
@@ -587,7 +594,9 @@ FROM(
         WHERE collab.identifier <> aggregrate.identifier) 
       )
     ) as institutions,
+    {% endif %}
 
+    {% if relate_to_countries %}
     -- Country Analysis
     ARRAY_CONCAT_AGG( 
       ARRAY(
@@ -614,7 +623,9 @@ FROM(
         WHERE collab.identifier <> aggregrate.country_code) 
       )
     ) as countries,
+    {% endif %}
 
+    {% if relate_to_groups %}
     -- Group Analysis
     ARRAY_CONCAT_AGG( 
       ARRAY(
@@ -641,6 +652,7 @@ FROM(
         WHERE collab.identifier <> aggregrate.identifier) 
       )
     ) as groupings,
+    {% endif %}
 
     -- Members
     ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT member, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(aggregrate.members) as member))) as members,
