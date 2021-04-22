@@ -74,7 +74,7 @@ class TestJstor(ObservatoryTestCase):
         :return: None
         """
         organisation = Organisation(name=self.organisation_name)
-        dag = JstorTelescope(organisation, self.extra).make_dag()
+        dag = JstorTelescope(organisation, self.extra.get('publisher_id')).make_dag()
         self.assert_dag_structure({
             'check_dependencies': ['list_releases'],
             'list_releases': ['download'],
@@ -145,7 +145,8 @@ class TestJstor(ObservatoryTestCase):
                                     gcp_project_id=self.project_id,
                                     gcp_download_bucket=env.download_bucket,
                                     gcp_transform_bucket=env.transform_bucket)
-        telescope = JstorTelescope(organisation=organisation, extra=self.extra, dataset_id=dataset_id)
+        telescope = JstorTelescope(organisation=organisation, publisher_id=self.extra.get('publisher_id'),
+                                   dataset_id=dataset_id)
         dag = telescope.make_dag()
 
         # Create the Observatory environment and run tests

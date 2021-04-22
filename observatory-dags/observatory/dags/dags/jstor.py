@@ -28,5 +28,5 @@ telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
 
 # Make all telescopes
 for telescope in telescopes:
-    telescope_instance = JstorTelescope(telescope.organisation, telescope.extra)
+    telescope_instance = JstorTelescope(telescope.organisation, telescope.extra.get('publisher_id'))
     globals()[telescope_instance.dag_id] = telescope_instance.make_dag()

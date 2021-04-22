@@ -27,13 +27,13 @@
     "description": "ISBN of the book (13 digits).",
     "mode": "NULLABLE",
     "name": "ISBN",
-    "type": "INTEGER"
+    "type": "STRING"
   },
   {
     "description": "ISBN of the digital version of the book (13 digits).",
     "mode": "NULLABLE",
     "name": "eISBN",
-    "type": "INTEGER"
+    "type": "STRING"
   },
   {
     "description": "Publication year.",

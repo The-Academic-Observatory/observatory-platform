@@ -159,14 +159,14 @@ class JstorTelescope(SnapshotTelescope):
     EXP_BASE = 3
     MULTIPLIER = 10
 
-    def __init__(self, organisation: Organisation, extra: dict, dag_id: Optional[str] = None,
+    def __init__(self, organisation: Organisation, publisher_id: str, dag_id: Optional[str] = None,
                  start_date: datetime = datetime(2015, 9, 1), schedule_interval: str = '@monthly',
                  dataset_id: str = 'jstor', source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
                  dataset_description: str = '', catchup: bool = False, airflow_vars: List = None,
                  airflow_conns: List = None):
         """ Construct a JstorTelescope instance.
         :param organisation: the Organisation of which data is processed.
-        :param extra: the 'extra' info from the API regarding the telescope.
+        :param publisher_id: the publisher ID, obtained from the 'extra' info from the API regarding the telescope.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
@@ -192,8 +192,7 @@ class JstorTelescope(SnapshotTelescope):
         self.organisation = organisation
         self.project_id = organisation.gcp_project_id
         self.dataset_location = 'us'  # TODO: add to API
-        self.extra = extra
-        self.publisher_id = extra.get('publisher_id')
+        self.publisher_id = publisher_id
 
         self.add_setup_task_chain([self.check_dependencies, self.list_releases])
         self.add_task_chain([self.download,
@@ -230,8 +229,7 @@ class JstorTelescope(SnapshotTelescope):
 
         if self.publisher_id is None:
             expected_extra = {'publisher_id': 'jstor_publisher_id'}
-            raise AirflowException(f"Publisher ID is not set in 'extra' of telescope. "
-                                   f"Extra: {self.extra}, expected extra format: {expected_extra}")
+            raise AirflowException(f"Publisher ID is not set in 'extra' of telescope, extra example: {expected_extra}")
         return True
 
     def list_releases(self, **kwargs):
