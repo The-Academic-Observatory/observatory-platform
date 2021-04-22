@@ -53,6 +53,27 @@ def set_task_state(success: bool, task_id: str):
         raise AirflowException(msg_failed)
 
 
+def select_table_suffixes(project_id: str, dataset_id: str, table_id: str, end_date: pendulum.Date,
+                          limit: int = 1) -> List:
+    """ Returns a list of table suffix dates, sorted from the most recent to the oldest date. By default it returns
+    the first result.
+
+    :param project_id: the Google Cloud project id.
+    :param dataset_id: the BigQuery dataset id.
+    :param table_id: the table id (without the date suffix on the end).
+    :param end_date: the end date of the table suffixes to search for (most recent date).
+    :param limit: the number of results to return.
+    :return:
+    """
+
+    template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename('select_table_suffixes'))
+    query = render_template(template_path, project_id=project_id, dataset_id=dataset_id, table_id=table_id,
+                            end_date=end_date.strftime('%Y-%m-%d'), limit=limit)
+    rows = run_bigquery_query(query)
+    suffixes = [row['suffix'] for row in rows]
+    return suffixes
+
+
 def create_aggregate_table(
     project_id: str,
     release_date: Pendulum,
@@ -61,6 +82,9 @@ def create_aggregate_table(
     table_id: str,
     data_location: str,
     task_id: str,
+    relate_to_institutions: bool,
+    relate_to_countries: bool,
+    relate_to_groups: bool
 ):
     """Runs the aggregate table query.
 
@@ -72,6 +96,9 @@ def create_aggregate_table(
     :param table_id: the table id.
     :param data_location: the location for the table.
     :param task_id: the Airflow task id (for printing messages).
+    :param relate_to_institutions: whether to generate the institution relationship output for this query
+    :param relate_to_countries: whether to generate the countries relationship output for this query
+    :param relate_to_groups: whether to generate the groups relationship output for this query
     :return: None.
     """
 
@@ -83,6 +110,9 @@ def create_aggregate_table(
         release_date=release_date,
         aggregation_field=aggregation_field,
         group_by_time_field=group_by_time_field,
+        relate_to_institutions=relate_to_institutions,
+        relate_to_countries=relate_to_countries,
+        relate_to_groups=relate_to_groups
     )
 
     processed_table_id = bigquery_partitioned_table_id(table_id, release_date)
@@ -622,6 +652,11 @@ class DoiWorkflow:
         group_by_time_field = "published_year"
         table_id = "country"
 
+        # Optional Relationships
+        relate_to_institutions = True
+        relate_to_countries = True
+        relate_to_groups = False
+
         # Aggregate
         create_aggregate_table(
             project_id=project_id,
@@ -631,6 +666,9 @@ class DoiWorkflow:
             table_id=table_id,
             data_location=data_location,
             task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
+            relate_to_institutions = relate_to_institutions,
+            relate_to_countries = relate_to_countries,
+            relate_to_groups = relate_to_groups
         )
 
     @staticmethod
@@ -651,6 +689,11 @@ class DoiWorkflow:
         group_by_time_field = "published_year"
         table_id = "funder"
 
+        # Optional Relationships
+        relate_to_institutions = True
+        relate_to_countries = True
+        relate_to_groups = True
+
         # Aggregate
         create_aggregate_table(
             project_id=project_id,
@@ -660,6 +703,9 @@ class DoiWorkflow:
             table_id=table_id,
             data_location=data_location,
             task_id=DoiWorkflow.TASK_ID_CREATE_FUNDER,
+            relate_to_institutions = relate_to_institutions,
+            relate_to_countries = relate_to_countries,
+            relate_to_groups = relate_to_groups
         )
 
     @staticmethod
@@ -680,6 +726,11 @@ class DoiWorkflow:
         group_by_time_field = "published_year"
         table_id = "group"
 
+        # Optional Relationships
+        relate_to_institutions = True
+        relate_to_countries = False
+        relate_to_groups = False
+
         # Aggregate
         create_aggregate_table(
             project_id=project_id,
@@ -689,6 +740,9 @@ class DoiWorkflow:
             table_id=table_id,
             data_location=data_location,
             task_id=DoiWorkflow.TASK_ID_CREATE_GROUP,
+            relate_to_institutions = relate_to_institutions,
+            relate_to_countries = relate_to_countries,
+            relate_to_groups = relate_to_groups
         )
 
     @staticmethod
@@ -709,6 +763,11 @@ class DoiWorkflow:
         group_by_time_field = "published_year"
         table_id = "institution"
 
+        # Optional Relationships
+        relate_to_institutions = True
+        relate_to_countries = True
+        relate_to_groups = False
+
         # Aggregate
         create_aggregate_table(
             project_id=project_id,
@@ -718,6 +777,9 @@ class DoiWorkflow:
             table_id=table_id,
             data_location=data_location,
             task_id=DoiWorkflow.TASK_ID_CREATE_INSTITUTION,
+            relate_to_institutions = relate_to_institutions,
+            relate_to_countries = relate_to_countries,
+            relate_to_groups = relate_to_groups
         )
 
     @staticmethod
@@ -738,6 +800,11 @@ class DoiWorkflow:
         group_by_time_field = "published_year"
         table_id = "author"
 
+        # Optional Relationships
+        relate_to_institutions = True
+        relate_to_countries = True
+        relate_to_groups = True
+
         # Aggregate
         create_aggregate_table(
             project_id=project_id,
@@ -747,6 +814,9 @@ class DoiWorkflow:
             table_id=table_id,
             data_location=data_location,
             task_id=DoiWorkflow.TASK_ID_CREATE_AUTHOR,
+            relate_to_institutions = relate_to_institutions,
+            relate_to_countries = relate_to_countries,
+            relate_to_groups = relate_to_groups
         )
 
     @staticmethod
@@ -767,6 +837,11 @@ class DoiWorkflow:
         group_by_time_field = "published_year"
         table_id = "journal"
 
+        # Optional Relationships
+        relate_to_institutions = True
+        relate_to_countries = True
+        relate_to_groups = True
+
         # Aggregate
         create_aggregate_table(
             project_id=project_id,
@@ -776,6 +851,9 @@ class DoiWorkflow:
             table_id=table_id,
             data_location=data_location,
             task_id=DoiWorkflow.TASK_ID_CREATE_JOURNAL,
+            relate_to_institutions = relate_to_institutions,
+            relate_to_countries = relate_to_countries,
+            relate_to_groups = relate_to_groups
         )
 
     @staticmethod
@@ -796,6 +874,11 @@ class DoiWorkflow:
         group_by_time_field = "published_year"
         table_id = "publisher"
 
+        # Optional Relationships
+        relate_to_institutions = True
+        relate_to_countries = True
+        relate_to_groups = True
+
         # Aggregate
         create_aggregate_table(
             project_id=project_id,
@@ -805,6 +888,9 @@ class DoiWorkflow:
             table_id=table_id,
             data_location=data_location,
             task_id=DoiWorkflow.TASK_ID_CREATE_PUBLISHER,
+            relate_to_institutions = relate_to_institutions,
+            relate_to_countries = relate_to_countries,
+            relate_to_groups = relate_to_groups
         )
 
     @staticmethod
@@ -825,6 +911,11 @@ class DoiWorkflow:
         group_by_time_field = "published_year"
         table_id = "region"
 
+        # Optional Relationships
+        relate_to_institutions = False
+        relate_to_countries = False
+        relate_to_groups = False
+
         # Aggregate
         create_aggregate_table(
             project_id=project_id,
@@ -834,6 +925,9 @@ class DoiWorkflow:
             table_id=table_id,
             data_location=data_location,
             task_id=DoiWorkflow.TASK_ID_CREATE_REGION,
+            relate_to_institutions = relate_to_institutions,
+            relate_to_countries = relate_to_countries,
+            relate_to_groups = relate_to_groups
         )
 
     @staticmethod
@@ -854,6 +948,11 @@ class DoiWorkflow:
         group_by_time_field = "published_year"
         table_id = "subregion"
 
+        # Optional Relationships
+        relate_to_institutions = False
+        relate_to_countries = False
+        relate_to_groups = False
+
         # Aggregate
         create_aggregate_table(
             project_id=project_id,
@@ -863,6 +962,9 @@ class DoiWorkflow:
             table_id=table_id,
             data_location=data_location,
             task_id=DoiWorkflow.TASK_ID_CREATE_SUBREGION,
+            relate_to_institutions = relate_to_institutions,
+            relate_to_countries = relate_to_countries,
+            relate_to_groups = relate_to_groups
         )
 
     @staticmethod
