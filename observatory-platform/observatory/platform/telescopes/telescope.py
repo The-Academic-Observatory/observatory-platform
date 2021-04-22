@@ -15,7 +15,6 @@
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 
 import datetime
-import functools
 import logging
 import shutil
 from abc import ABC, abstractmethod
@@ -36,6 +35,7 @@ from observatory.platform.utils.airflow_utils import (
 from observatory.platform.utils.file_utils import list_files
 from observatory.platform.utils.template_utils import (
     SubFolder,
+    is_partial_operator,
     on_failure_callback,
     telescope_path,
 )
@@ -153,7 +153,9 @@ class AbstractTelescope(ABC):
         pass
 
     @abstractmethod
-    def make_release(self, **kwargs) -> Union["AbstractRelease", List["AbstractRelease"]]:
+    def make_release(
+        self, **kwargs
+    ) -> Union["AbstractRelease", List["AbstractRelease"]]:
         """Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'.
 
@@ -316,7 +318,7 @@ class Telescope(AbstractTelescope):
         with self.dag:
             # Process setup tasks first, which are always ShortCircuitOperators
             for func in self.setup_task_funcs:
-                if isinstance(func, functools.partial):
+                if is_partial_operator(func):
                     task = func()
                 else:
                     task = ShortCircuitOperator(
@@ -330,7 +332,7 @@ class Telescope(AbstractTelescope):
 
             # Process all other tasks next, which are always PythonOperators
             for func in self.task_funcs:
-                if isinstance(func, functools.partial):
+                if is_partial_operator(func):
                     task = func()
                 else:
                     task = PythonOperator(

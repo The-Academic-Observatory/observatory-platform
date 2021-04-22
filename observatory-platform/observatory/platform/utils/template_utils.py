@@ -22,15 +22,17 @@ import pathlib
 import traceback
 from datetime import timedelta
 from enum import Enum
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 
 import pendulum
 import six
 from airflow import AirflowException
+from airflow.models.baseoperator import BaseOperator
 from airflow.utils.dates import cron_presets
 from croniter import croniter
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
+import functools
 
 from observatory.dags.config import schema_path, workflow_sql_templates_path
 from observatory.platform.observatory_config import Environment
@@ -48,6 +50,21 @@ from observatory.platform.utils.jinja2_utils import make_sql_jinja2_filename, re
 # variable and only requested once
 data_path = None
 test_data_path_val_ = None
+
+
+def is_partial_operator(func: Callable) -> bool:
+    """ Check if the function passed to 'make_dag' is a partial airflow operator.
+
+    :param func: Callable function.
+    :return: Whether function is a partial airflow operator
+    """
+    result = False
+    if isinstance(func, functools.partial):
+        try:
+            result = issubclass(func.func, BaseOperator)
+        except TypeError:
+            return result
+    return result
 
 
 def reset_variables():
