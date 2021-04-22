@@ -198,7 +198,8 @@ class OapenIrusUkTelescope(SnapshotTelescope):
                  airflow_vars: List = None, airflow_conns: List = None, max_active_runs=5):
 
         """ The OAPEN irus uk telescope.
-
+        :param organisation: the Organisation the DAG will process.
+        :param publisher_id: the publisher ID, obtained from the 'extra' info from the API regarding the telescope.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
@@ -206,6 +207,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         :param dataset_description: description for the BigQuery dataset.
         :param catchup:  whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
+        :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         """
 
         if airflow_vars is None:
