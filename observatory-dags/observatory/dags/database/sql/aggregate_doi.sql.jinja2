@@ -280,11 +280,12 @@ CREATE TEMP FUNCTION compute_disciplines(fields ARRAY<STRUCT<DisplayName STRING,
   )
 );
 
-CREATE TEMP FUNCTION group_disciplines(fields ARRAY<STRUCT<DisplayName STRING, Score FLOAT64, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>>>) as (
+CREATE TEMP FUNCTION group_disciplines(fields ARRAY<STRUCT<DisplayName STRING, Score FLOAT64, is_oa BOOL, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>>>) as (
   ARRAY(
     (SELECT AS STRUCT
       DisplayName as field,
       COUNT(DisplayName) as total_outputs,
+      COUNTIF(is_oa) as num_oa_outputs,
       SUM(Score) as sum_of_scores,
       STRUCT(
           SUM(citations.mag) as mag,
@@ -294,6 +295,41 @@ CREATE TEMP FUNCTION group_disciplines(fields ARRAY<STRUCT<DisplayName STRING, S
     FROM UNNEST(fields)
     GROUP BY DisplayName)
   )
+);
+
+CREATE TEMP FUNCTION process_relations(relationships ANY TYPE) as (
+  ARRAY(SELECT AS STRUCT
+          relation.identifier as id,
+          COUNT(relation.identifier) as total_outputs,
+          MAX(relation.name) as name,
+          MAX(relation.country) as country,
+          MAX(relation.country_code) as country_code,
+          MAX(relation.region) as region,
+          MAX(relation.subregion) as subregion,
+          MAX(relation.coordinates) as coordinates,
+          COUNTIF(is_oa) as num_oa_outputs, 
+          COUNTIF(green) as num_green_outputs, 
+          COUNTIF(gold) as num_gold_outputs, 
+          COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
+          COUNTIF(hybrid) as num_hybrid_outputs, 
+          COUNTIF(bronze) as num_bronze_outputs, 
+          COUNTIF(green_only) as num_green_only_outputs,
+          STRUCT(
+            STRUCT(
+              SUM(citations.mag) as total_citations,
+              compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
+            ) as mag,
+            STRUCT(
+              SUM(citations.open_citations) as total_citations,
+              compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
+            ) as open_citations, 
+            STRUCT(
+              SUM(citations.crossref) as total_citations,
+              compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
+            ) as crossref
+          ) as citations,
+          group_disciplines(ARRAY_CONCAT_AGG(disciplines)) as disciplines
+      FROM UNNEST(relationships) as relation GROUP BY relation.identifier ORDER BY total_outputs DESC)
 );
 
 ----
@@ -328,39 +364,14 @@ SELECT
   -- Disciplines
   disciplines,
 
-  -- Collaborators
-  ARRAY(SELECT AS STRUCT
-          collaborator.identifier as id,
-          COUNT(collaborator.identifier) as total_outputs,
-          MAX(collaborator.name) as name,
-          MAX(collaborator.country) as country,
-          MAX(collaborator.country_code) as country_code,
-          MAX(collaborator.region) as region,
-          MAX(collaborator.subregion) as subregion,
-          MAX(collaborator.coordinates) as coordinates,
-          COUNTIF(is_oa) as num_oa_outputs, 
-          COUNTIF(green) as num_green_outputs, 
-          COUNTIF(gold) as num_gold_outputs, 
-          COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
-          COUNTIF(hybrid) as num_hybrid_outputs, 
-          COUNTIF(bronze) as num_bronze_outputs, 
-          COUNTIF(green_only) as num_green_only_outputs,
-          STRUCT(
-            STRUCT(
-              SUM(citations.mag) as total_citations,
-              compute_percentiles(ARRAY_AGG(citations.mag)) as percentiles
-            ) as mag,
-            STRUCT(
-              SUM(citations.open_citations) as total_citations,
-              compute_percentiles(ARRAY_AGG(citations.open_citations)) as percentiles
-            ) as open_citations, 
-            STRUCT(
-              SUM(citations.crossref) as total_citations,
-              compute_percentiles(ARRAY_AGG(citations.crossref)) as percentiles
-            ) as crossref
-          ) as citations,
-          group_disciplines(ARRAY_CONCAT_AGG(disciplines)) as disciplines
-      FROM UNNEST(collaborations) as collaborator WHERE collaborator.identifier <> id GROUP BY collaborator.identifier ORDER BY total_outputs DESC ) as collaborations,
+  -- Institutions
+  process_relations(institutions) as institutions,
+
+  -- Countries
+  process_relations(countries) as countries,
+
+  -- Groups
+  process_relations(groupings) as groupings,
 
   -- Members
   ARRAY((
@@ -550,7 +561,7 @@ FROM(
     -- Citations
     compute_citations(ARRAY_AGG(STRUCT(dois.doi, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations))) as citations,
 
-    -- Collaboration Analysis
+    -- Institutional Analysis
     ARRAY_CONCAT_AGG( 
       ARRAY(
         (SELECT as STRUCT 
@@ -565,15 +576,71 @@ FROM(
             SELECT as STRUCT
               DisplayName,
               Score,
+              unpaywall.is_oa as is_oa,
               STRUCT(
                 dois.mag.CitationCount as mag,
                 dois.crossref.references_count as crossref,
                 dois.open_citations.citations_total as open_citations
               ) as citations,
-            FROM UNNEST(dois.mag.fields.level_0)) as disciplines
-        FROM UNNEST(affiliations.{{ aggregation_field }}) as collab) 
+            FROM UNNEST(dois.mag.fields.fields.level_0)) as disciplines
+        FROM UNNEST(affiliations.institutions) as collab
+        WHERE collab.identifier <> aggregrate.identifier) 
       )
-    ) as collaborations,
+    ) as institutions,
+
+    -- Country Analysis
+    ARRAY_CONCAT_AGG( 
+      ARRAY(
+        (SELECT as STRUCT 
+          collab.*, 
+          unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only,
+          STRUCT(
+              dois.mag.CitationCount as mag,
+              dois.crossref.references_count as crossref,
+              dois.open_citations.citations_total as open_citations
+            ) as citations,
+          ARRAY(
+            SELECT as STRUCT
+              DisplayName,
+              Score,
+              unpaywall.is_oa as is_oa,
+              STRUCT(
+                dois.mag.CitationCount as mag,
+                dois.crossref.references_count as crossref,
+                dois.open_citations.citations_total as open_citations
+              ) as citations,
+            FROM UNNEST(dois.mag.fields.fields.level_0)) as disciplines
+        FROM UNNEST(affiliations.countries) as collab
+        WHERE collab.identifier <> aggregrate.country_code) 
+      )
+    ) as countries,
+
+    -- Group Analysis
+    ARRAY_CONCAT_AGG( 
+      ARRAY(
+        (SELECT as STRUCT 
+          collab.*, 
+          unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only,
+          STRUCT(
+              dois.mag.CitationCount as mag,
+              dois.crossref.references_count as crossref,
+              dois.open_citations.citations_total as open_citations
+            ) as citations,
+          ARRAY(
+            SELECT as STRUCT
+              DisplayName,
+              Score,
+              unpaywall.is_oa as is_oa,
+              STRUCT(
+                dois.mag.CitationCount as mag,
+                dois.crossref.references_count as crossref,
+                dois.open_citations.citations_total as open_citations
+              ) as citations,
+            FROM UNNEST(dois.mag.fields.fields.level_0)) as disciplines
+        FROM UNNEST(affiliations.groupings) as collab
+        WHERE collab.identifier <> aggregrate.identifier) 
+      )
+    ) as groupings,
 
     -- Members
     ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT member, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only from UNNEST(aggregrate.members) as member))) as members,
