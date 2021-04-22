@@ -1,0 +1,118 @@
+{
+  "mappings": {
+    "properties": {
+      "id": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "name": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "country": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "country_code": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "region": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "subregion": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "coordinates": {
+        "type": "geo_point"
+      },
+      "published_year": {
+        "type": "date",
+        "format": "yyyy-MM-dd"
+      },
+      "field": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "total_outputs": {
+        "type": "long"
+      },
+      "sum_of_scores": {
+        "type": "double"
+      },
+      "num_oa_outputs": {
+        "type": "long"
+      },
+      "num_green_outputs": {
+        "type": "long"
+      },
+      "num_gold_outputs": {
+        "type": "long"
+      },
+      "total_citations": {
+        "type": "long"
+      },
+      "median_citations_per_output": {
+        "type": "double"
+      },
+      "total_funded_outputs": {
+        "type": "long"
+      },
+      "num_international_funded_outputs": {
+        "type": "long"
+      },
+      "num_domestic_funded_outputs": {
+        "type": "long"
+      },
+      "num_international_and_domestic_funded_outputs": {
+        "type": "long"
+      },
+      "num_government_funded_outputs": {
+        "type": "long"
+      },
+      "num_private_funded_outputs": {
+        "type": "long"
+      },
+      "num_government_and_private_funded_outputs": {
+        "type": "long"
+      }
+    }
+  }
+}

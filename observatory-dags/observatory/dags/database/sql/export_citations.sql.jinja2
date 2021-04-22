@@ -1,0 +1,24 @@
+{#
+Copyright 2020 Curtin University.
+Authors: James Diprose, Richard Hosking
+#}
+
+SELECT
+  id,
+  name,
+  country,
+  country_code,
+  region,
+  subregion,
+  coordinates,
+  DATE(time_period, 12, 31) AS published_year,
+  access_type.access_type as access_type,
+  access_type.status as status,
+  access_type.label as label,
+  access_type.total_outputs,
+  access_type.outputs_with_citations,
+  access_type.outputs_without_citations,
+  access_type.citations.mag.total_citations,
+  access_type.citations.mag.percentiles.median as median_citations_per_output
+FROM `{{ project_id }}.{{ dataset_id }}.{{ table_name }}`, UNNEST( access_types.breakdown ) as access_type
+ORDER BY id, published_year ASC

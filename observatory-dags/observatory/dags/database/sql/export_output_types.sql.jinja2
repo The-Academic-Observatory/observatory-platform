@@ -1,0 +1,27 @@
+{#
+Copyright 2020 Curtin University.
+Authors: James Diprose, Richard Hosking
+#}
+
+SELECT
+  id,
+  name,
+  country,
+  country_code,
+  region,
+  subregion,
+  coordinates,
+  DATE(time_period, 12, 31) AS published_year,
+  output_types.output_type,
+  output_types.total_outputs,
+  output_types.num_oa_outputs,
+  output_types.num_green_outputs as num_green_outputs,
+  output_types.num_gold_outputs as num_gold_outputs,
+  output_types.num_gold_just_doaj_outputs as num_gold_just_doaj_outputs,
+  output_types.num_hybrid_outputs as num_hybrid_outputs,
+  output_types.num_bronze_outputs as num_bronze_outputs,
+  output_types.num_green_only_outputs as num_green_only_outputs
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}`,
+  UNNEST(output_types) as output_types
+ORDER BY id, published_year ASC
