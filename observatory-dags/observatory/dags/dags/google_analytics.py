@@ -27,5 +27,7 @@ telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
 
 # Make all telescopes
 for telescope in telescopes:
-    google_analytics_telescope = GoogleAnalyticsTelescope(telescope.organisation, telescope.extra)
+    view_id = telescope.extra.get('view_id')
+    pagepath_regex = telescope.extra.get('pagepath_regex')
+    google_analytics_telescope = GoogleAnalyticsTelescope(telescope.organisation, view_id, pagepath_regex)
     globals()[google_analytics_telescope.dag_id] = google_analytics_telescope.make_dag()

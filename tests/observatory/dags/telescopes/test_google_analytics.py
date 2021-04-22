@@ -25,7 +25,6 @@ from airflow.models.connection import Connection
 from croniter import croniter
 from googleapiclient.discovery import build
 from googleapiclient.http import HttpMockSequence
-
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
@@ -48,6 +47,8 @@ class TestGoogleAnalytics(ObservatoryTestCase):
         self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
         self.organisation_name = 'ucl_press'
         self.extra = {'view_id': '103373421', 'pagepath_regex': r'^/collections/open-access/products/.*$'}
+        self.view_id = self.extra.get('view_id')
+        self.pagepath_regex = self.extra.get('pagepath_regex')
         self.host = "localhost"
         self.api_port = 5000
 
@@ -56,7 +57,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
         :return: None
         """
         organisation = Organisation(name=self.organisation_name)
-        dag = GoogleAnalyticsTelescope(organisation, self.extra).make_dag()
+        dag = GoogleAnalyticsTelescope(organisation, self.view_id, self.pagepath_regex).make_dag()
         self.assert_dag_structure({
             'check_dependencies': ['download_transform'],
             'download_transform': ['upload_transformed'],
@@ -123,7 +124,8 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                                     gcp_download_bucket=env.download_bucket,
                                     gcp_transform_bucket=env.transform_bucket)
         telescope = GoogleAnalyticsTelescope(organisation=organisation,
-                                             extra=self.extra,
+                                             view_id=self.view_id,
+                                             pagepath_regex=self.pagepath_regex,
                                              dataset_id=dataset_id)
         dag = telescope.make_dag()
 

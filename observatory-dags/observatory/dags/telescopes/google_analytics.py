@@ -101,13 +101,15 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
     """ Google Analytics Telescope."""
     DAG_ID_PREFIX = 'google_analytics'
 
-    def __init__(self, organisation: Organisation, extra: dict, dag_id: Optional[str] = None,
+    def __init__(self, organisation: Organisation, view_id: str, pagepath_regex: str, dag_id: Optional[str] = None,
                  start_date: datetime = datetime(2021, 1, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'google', catchup: bool = True,
                  airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleAnalyticsTelescope instance.
         :param organisation: the Organisation of which data is processed.
-        :param extra: the 'extra' info from the API regarding the telescope.
+        :param view_id: the view ID, obtained from the 'extra' info from the API regarding the telescope.
+        :param pagepath_regex: the pagepath regex expression, obtained from the 'extra' info from the
+        API regarding the telescope.
         :param dag_id: the id of the DAG, by default this is automatically generated based on the DAG_ID_PREFIX and the
         organisation name.
         :param start_date: the start date of the DAG.
@@ -131,9 +133,8 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         self.organisation = organisation
         self.project_id = organisation.gcp_project_id
         self.dataset_location = 'us'  # TODO: add to API
-        self.extra = extra
-        self.view_id = extra.get('view_id')
-        self.pagepath_regex = extra.get('pagepath_regex')
+        self.view_id = view_id
+        self.pagepath_regex = pagepath_regex
 
         self.add_setup_task_chain([self.check_dependencies])
         self.add_task(partial(ShortCircuitOperator, task_id=self.download_transform.__name__,
@@ -170,8 +171,8 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
 
         if self.view_id is None or self.pagepath_regex is None:
             expected_extra = {'view_id': 'the_view_id', 'pagepath_regex': r'pagepath_regex'}
-            raise AirflowException(f"View ID and/or pagepath regex is not set in 'extra' of telescope. "
-                                   f"Extra: {self.extra}, expected extra format: {expected_extra}")
+            raise AirflowException(f"View ID and/or pagepath regex is not set in 'extra' of telescope, extra example: "
+                                   f"{expected_extra}")
         return True
 
     def download_transform(self, releases: List[GoogleAnalyticsRelease], **kwargs):
@@ -313,8 +314,7 @@ def create_book_result_dicts(book_entries: List[dict], start_date: pendulum.Pend
 
 
 def get_dimension_data(service: Resource, view_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
-                       metrics: list,
-                       dimension: dict, pagepaths: list) -> list:
+                       metrics: list, dimension: dict, pagepaths: list) -> list:
     """ Get reports data from the Google Analytics Reporting service for a single dimension and multiple metrics.
     The results are filtered by pagepaths of interest and ordered by pagepath as well.
 
