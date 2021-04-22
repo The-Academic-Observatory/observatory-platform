@@ -27,5 +27,5 @@ telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
 
 # Make all telescopes
 for telescope in telescopes:
-    google_analytics_telescope = OapenIrusUkTelescope(telescope.organisation)
+    google_analytics_telescope = OapenIrusUkTelescope(telescope.organisation, telescope.extra.get('publisher_id'))
     globals()[google_analytics_telescope.dag_id] = google_analytics_telescope.make_dag()

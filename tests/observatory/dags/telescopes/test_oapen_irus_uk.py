@@ -17,6 +17,7 @@
 import json
 import os
 from unittest.mock import patch
+from urllib.parse import quote
 
 import httpretty
 import pendulum
@@ -49,6 +50,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         self.project_id = os.getenv('TEST_GCP_PROJECT_ID')
         self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
         self.organisation_name = 'ucl_press'
+        self.extra = {'publisher_id': quote("UCL Press")}
         self.host = "localhost"
         self.api_port = 5000
         self.download_path = test_fixtures_path('telescopes', 'oapen_irus_uk', 'download_2021_02.jsonl.gz')
@@ -59,7 +61,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         :return: None
         """
         organisation = Organisation(name=self.organisation_name)
-        dag = OapenIrusUkTelescope(organisation).make_dag()
+        dag = OapenIrusUkTelescope(organisation, self.extra.get('publisher_id')).make_dag()
         self.assert_dag_structure({
             'check_dependencies': ['create_cloud_function'],
             'create_cloud_function': ['call_cloud_function'],
@@ -98,7 +100,8 @@ class TestOapenIrusUk(ObservatoryTestCase):
                                       telescope_type=telescope_type,
                                       organisation=organisation,
                                       modified=dt,
-                                      created=dt)
+                                      created=dt,
+                                      extra=self.extra)
             env.api_session.add(telescope)
             env.api_session.commit()
 
@@ -122,15 +125,17 @@ class TestOapenIrusUk(ObservatoryTestCase):
                                     gcp_project_id=self.project_id,
                                     gcp_download_bucket=env.download_bucket,
                                     gcp_transform_bucket=env.transform_bucket)
-        telescope = OapenIrusUkTelescope(organisation=organisation, dataset_id=dataset_id)
+        telescope = OapenIrusUkTelescope(organisation=organisation, publisher_id=self.extra.get('publisher_id'),
+                                         dataset_id=dataset_id)
         # Fake oapen project and bucket
-        telescope.oapen_project_id = env.project_id
-        telescope.oapen_bucket = random_id()
+        OapenIrusUkTelescope.OAPEN_PROJECT_ID = env.project_id
+        OapenIrusUkTelescope.OAPEN_BUCKET = random_id()
 
         # Mock the Google Cloud Functions API service
         mock_account_credentials.from_json_keyfile_dict.return_value = ''
         http = HttpMockSequence([({'status': '200'}, json.dumps({'functions': [{
-            'name': f'projects/{telescope.oapen_project_id}/locations/{telescope.function_region}/functions/{telescope.function_name}'}]})),
+            'name': f'projects/{OapenIrusUkTelescope.OAPEN_PROJECT_ID}/locations/{OapenIrusUkTelescope.FUNCTION_REGION}/functions/'
+                    f'{OapenIrusUkTelescope.FUNCTION_NAME}'}]})),
                                  ({'status': '200'}, json.dumps({
                                      'name': 'operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc',
                                      'done': True, 'response': {'message': 'response'}}))
@@ -170,13 +175,13 @@ class TestOapenIrusUk(ObservatoryTestCase):
                 # mock response of cloud function
                 mock_authorized_session.return_value.status_code = 200
                 mock_authorized_session.return_value.reason = 'unit test'
-                url = f'https://{telescope.function_region}-{telescope.oapen_project_id}.cloudfunctions.net/{telescope.function_name}'
+                url = f'https://{OapenIrusUkTelescope.FUNCTION_REGION}-{OapenIrusUkTelescope.OAPEN_PROJECT_ID}.cloudfunctions.net/{OapenIrusUkTelescope.FUNCTION_NAME}'
                 httpretty.register_uri(httpretty.POST, url,
                                        body="")
                 env.run_task(dag, telescope.call_cloud_function.__name__, execution_date)
 
             # Test transfer task
-            upload_file_to_cloud_storage(telescope.oapen_bucket, release.blob_name, self.download_path)
+            upload_file_to_cloud_storage(OapenIrusUkTelescope.OAPEN_BUCKET, release.blob_name, self.download_path)
             env.run_task(dag, telescope.transfer.__name__, execution_date)
             self.assert_blob_integrity(env.download_bucket, release.blob_name, self.download_path)
 
@@ -206,7 +211,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
             self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
             # Delete oapen bucket
-            env._delete_bucket(telescope.oapen_bucket)
+            env._delete_bucket(OapenIrusUkTelescope.OAPEN_BUCKET)
 
     @patch('observatory.dags.telescopes.oapen_irus_uk.upload_file_to_cloud_storage')
     @patch('observatory.dags.telescopes.oapen_irus_uk.create_cloud_storage_bucket')
@@ -220,18 +225,22 @@ class TestOapenIrusUk(ObservatoryTestCase):
         mock_create_bucket.return_value = True
         mock_upload_to_bucket.return_value = True, True
         organisation = Organisation(name=self.organisation_name)
-        telescope = OapenIrusUkTelescope(organisation)
+        telescope = OapenIrusUkTelescope(organisation, self.extra.get('publisher_id'))
         with CliRunner().isolated_filesystem():
             mock_variable_get.return_value = os.getcwd()
-            success, upload = upload_source_code_to_bucket(telescope.function_source_url, 'oapen_project_id',
-                                                           'bucket_name', 'cloud_function_source_code.zip')
+            success, upload = upload_source_code_to_bucket(OapenIrusUkTelescope.FUNCTION_SOURCE_URL,
+                                                           OapenIrusUkTelescope.OAPEN_PROJECT_ID,
+                                                           OapenIrusUkTelescope.OAPEN_BUCKET,
+                                                           OapenIrusUkTelescope.FUNCTION_BLOB_NAME)
             self.assertEqual(success, True)
             self.assertEqual(upload, True)
 
-            OapenIrusUkTelescope.CLOUD_FUNCTION_MD5_HASH = 'different'
+            OapenIrusUkTelescope.FUNCTION_MD5_HASH = 'different'
             with self.assertRaises(AirflowException):
-                upload_source_code_to_bucket(telescope.function_source_url, 'oapen_project_id', 'bucket_name',
-                                             'cloud_function_source_code.zip')
+                upload_source_code_to_bucket(OapenIrusUkTelescope.FUNCTION_SOURCE_URL,
+                                             OapenIrusUkTelescope.OAPEN_PROJECT_ID,
+                                             OapenIrusUkTelescope.OAPEN_BUCKET,
+                                             OapenIrusUkTelescope.FUNCTION_BLOB_NAME)
 
     def test_cloud_function_exists(self):
         """ Test the function that checks whether the cloud function exists
