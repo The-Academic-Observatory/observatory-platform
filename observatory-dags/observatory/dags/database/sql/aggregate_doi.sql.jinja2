@@ -23,6 +23,23 @@ CREATE TEMP FUNCTION compute_percentiles(counts ARRAY<INT64>) AS (
   FROM UNNEST(counts) as count LIMIT 1)
 );
 
+# Common Function for Counting Access Types
+CREATE TEMP FUNCTION count_access_types(unpaywall ANY TYPE) as (
+    (SELECT as STRUCT
+      COUNTIF(is_oa) as num_oa_outputs,
+      COUNTIF(is_in_doaj) as num_in_doaj,
+      COUNTIF(green) as num_green_outputs,
+      COUNTIF(gold) as num_gold_outputs,
+      COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs,
+      COUNTIF(hybrid) as num_hybrid_outputs,
+      COUNTIF(bronze) as num_bronze_outputs,
+      COUNTIF(green_only) as num_green_only_outputs,
+      COUNTIF(green_only_ignoring_bronze) as num_green_only_ignoring_bronze_outputs,
+      COUNTIF(has_license) as num_has_license,
+      COUNTIF(is_cclicensed) as num_is_cclicensed
+    FROM UNNEST(unpaywall))
+);
+
 CREATE TEMP FUNCTION count_single_output_type(output_type STRING, items ARRAY<STRUCT<type STRING, citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, oa BOOL, green BOOL, gold BOOL, gold_just_doaj BOOL, hybrid BOOL, bronze BOOL, green_only BOOL>>, measured_type STRING) AS (
   (SELECT as STRUCT
     output_type,
@@ -212,16 +229,6 @@ CREATE TEMP FUNCTION compute_access_types(items ARRAY<STRUCT<doi STRING, citatio
       COUNTIF(green_only) as total_outputs,
       ROUND(SAFE_DIVIDE( (COUNTIF(green_only is True)) * 100 , COUNT(doi)), 2) as percent
     ) as green_only,
-
-    --STRUCT(
-      --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as total_outputs,
-      --ROUND((COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100 / COUNT(doi), 2) as percent,
-    --) as green_in_home_repo,
-
-    --STRUCT(
-      --COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0) as total_outputs,
-      --ROUND(SAFE_DIVIDE((COUNTIF(STRPOS(ARRAY_TO_STRING(repository_locations, '--'), grids.home_repo) > 0)) * 100, COUNTIF(unpaywall.green is True)), 2) as percent_of_just_green_in_home_repo,
-    --) as green_in_just_home_repo,
 
     ARRAY_CONCAT(
       compute_conditional_citations(ARRAY_AGG(STRUCT(citations, IFNULL(is_oa, false) as is_x)), "oa", "Open Access", "Not Open Access"),
