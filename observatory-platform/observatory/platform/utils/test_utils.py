@@ -471,7 +471,8 @@ class ObservatoryTestCase(unittest.TestCase):
         self.assertFalse(os.path.exists(extract_folder))
         self.assertFalse(os.path.exists(transform_folder))
 
-    def setup_mock_file_download(self, uri: str, file_path: str, headers: Dict = None) -> None:
+    def setup_mock_file_download(self, uri: str, file_path: str, headers: Dict = None, method: str = httpretty.GET) -> \
+            None:
         """ Use httpretty to mock a file download.
 
         This function must be called from within an httpretty.enabled() block, for instance:
@@ -491,7 +492,7 @@ class ObservatoryTestCase(unittest.TestCase):
         with open(file_path, 'rb') as f:
             body = f.read()
 
-        httpretty.register_uri(httpretty.GET, uri,
+        httpretty.register_uri(method, uri,
                                adding_headers=headers,
                                body=body)
 
