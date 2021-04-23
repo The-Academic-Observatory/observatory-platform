@@ -287,15 +287,15 @@ CREATE TEMP FUNCTION group_disciplines(fields ARRAY<STRUCT<DisplayName STRING, S
 CREATE TEMP FUNCTION process_relations(relationships ANY TYPE, total INT64, total_oa INT64) as (
   ARRAY(SELECT AS STRUCT
           relation.identifier as id,
-          COUNT(relation.identifier) as total_outputs,
-          SAFE_DIVIDE(COUNT(relation.identifier), total) as percentage_of_all_outputs,
-          SAFE_DIVIDE(COUNTIF(is_oa), total_oa) as percentage_of_all_oa,
           MAX(relation.name) as name,
           MAX(relation.country) as country,
           MAX(relation.country_code) as country_code,
           MAX(relation.region) as region,
           MAX(relation.subregion) as subregion,
           MAX(relation.coordinates) as coordinates,
+          COUNT(relation.identifier) as total_outputs,
+          SAFE_DIVIDE(COUNT(relation.identifier), total) as percentage_of_all_outputs,
+          SAFE_DIVIDE(COUNTIF(is_oa), total_oa) as percentage_of_all_oa,
           COUNTIF(is_oa) as num_oa_outputs, 
           COUNTIF(green) as num_green_outputs, 
           COUNTIF(gold) as num_gold_outputs, 
@@ -684,9 +684,6 @@ FROM(
 
     -- Journals
     ARRAY_AGG(STRUCT(unpaywall.journal_name as journal, STRUCT(dois.mag.CitationCount as mag, dois.crossref.references_count as crossref, dois.open_citations.citations_total as open_citations) as citations, unpaywall.is_oa as is_oa, unpaywall.green as green, unpaywall.gold as gold, unpaywall.gold_just_doaj, unpaywall.hybrid, unpaywall.bronze, unpaywall.green_only)) as journals,
-
-    -- Unpaywall History
-    --ARRAY_CONCAT_AGG( ARRAY((SELECT AS STRUCT unpaywall.*from UNNEST(dois.unpaywall_history) as unpaywall))) as unpaywall_history
 
   FROM `{{ project_id }}.observatory.doi{{ release_date.strftime('%Y%m%d') }}` as dois, UNNEST(dois.affiliations.{{ aggregation_field }}) as aggregrate
   WHERE aggregrate.identifier IS NOT NULL
