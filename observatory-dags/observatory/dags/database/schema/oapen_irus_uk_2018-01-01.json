@@ -1,0 +1,92 @@
+[
+  {
+    "description": "Proprietary ID for the book.",
+    "mode": "NULLABLE",
+    "name": "proprietary_id",
+    "type": "STRING"
+  },
+  {
+    "description": "Title of the book",
+    "mode": "NULLABLE",
+    "name": "book_title",
+    "type": "STRING"
+  },
+  {
+    "description": "",
+    "mode": "NULLABLE",
+    "name": "grant",
+    "type": "STRING"
+  },
+  {
+    "description": "",
+    "mode": "NULLABLE",
+    "name": "grant_number",
+    "type": "STRING"
+  },
+  {
+    "description": "The book's DOI.",
+    "mode": "NULLABLE",
+    "name": "doi",
+    "type": "STRING"
+  },
+  {
+    "description": "The book's ISBN.",
+    "mode": "NULLABLE",
+    "name": "isbn",
+    "type": "STRING"
+  },
+  {
+    "description": "The latitude based on the client's ip address.",
+    "mode": "NULLABLE",
+    "name": "client_lat",
+    "type": "FLOAT"
+  },
+  {
+    "description": "The longitude based on the client's ip address.",
+    "mode": "NULLABLE",
+    "name": "client_lon",
+    "type": "FLOAT"
+  },
+  {
+    "description": "The city based on the client's ip address.",
+    "mode": "NULLABLE",
+    "name": "client_city",
+    "type": "STRING"
+  },
+  {
+    "description": "The country based on the client's ip address.",
+    "mode": "NULLABLE",
+    "name": "client_country",
+    "type": "STRING"
+  },
+  {
+    "description": "The country code based on the client's ip address.",
+    "mode": "NULLABLE",
+    "name": "client_country_code",
+    "type": "STRING"
+  },
+  {
+    "description": "The publisher",
+    "mode": "NULLABLE",
+    "name": "publisher",
+    "type": "STRING"
+  },
+  {
+    "description": "The begin date of the investigated period.",
+    "mode": "NULLABLE",
+    "name": "begin_date",
+    "type": "DATE"
+  },
+  {
+    "description": "The begin date of the investigated period.",
+    "mode": "NULLABLE",
+    "name": "end_date",
+    "type": "DATE"
+  },
+  {
+    "description": "The total number of title requests.",
+    "mode": "NULLABLE",
+    "name": "title_requests",
+    "type": "INTEGER"
+  }
+]
