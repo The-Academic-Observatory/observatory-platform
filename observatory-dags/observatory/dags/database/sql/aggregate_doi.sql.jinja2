@@ -112,26 +112,6 @@ CREATE TEMP FUNCTION count_output_types(items ARRAY<STRUCT<type STRING, citation
     ]
 );
 
--- Process Unpaywall Release
-CREATE TEMP FUNCTION process_unpaywall_release(unpaywall_history ANY TYPE) as (
-      ARRAY((
-        SELECT as STRUCT
-          unpaywall_release,
-          COUNT(*) as total_outputs,
-          COUNTIF(is_oa) as num_oa_outputs,
-          COUNTIF(green) as num_green_outputs,
-          COUNTIF(gold) as num_gold_outputs,
-          COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs,
-          COUNTIF(hybrid) as num_hybrid_outputs,
-          COUNTIF(bronze) as num_bronze_outputs,
-          COUNTIF(green_only) as num_green_only_outputs,
-
-          --count_output_types(ARRAY_AGG(STRUCT(output_type, is_oa, green, gold, gold_just_doaj, hybrid, bronze, green_only))) as output_types,
-        FROM UNNEST(unpaywall_history) as unpaywall
-        GROUP BY unpaywall.unpaywall_release
-      ))
-);
-
 -- Compute Citation Analysis
 CREATE TEMP FUNCTION compute_conditional_citations(items ARRAY<STRUCT<citations STRUCT<mag INT64, crossref INT64, open_citations INT64>, is_x BOOL>>, access_type STRING, positive_label STRING, negative_label STRING) as (
   ARRAY((
@@ -550,8 +530,6 @@ SELECT
   -- Diversity
   --NULL as diversity,
 
-  -- Unpaywall History
-  --process_unpaywall_release(unpaywall_history) as unpaywall_history
 FROM(
   SELECT
     aggregrate.identifier as id,
