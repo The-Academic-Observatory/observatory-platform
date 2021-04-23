@@ -1092,7 +1092,7 @@ def make_schema(backend_type: BackendType) -> Dict:
         },
         'valuesrules': {
             'type': 'string',
-            'regex': r'\S*:\/\/\S*:\S*@\S*$'
+            'regex': r'\S*:\/\/\S*:\S*@\S*$|google-cloud-platform:\/\/\S*$'
         }
     }
 
