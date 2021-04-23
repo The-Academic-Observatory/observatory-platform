@@ -77,49 +77,29 @@ class TestTelescope(ObservatoryTestCase):
         # Test adding tasks from partial Telescope methods
         telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
         for i in range(2):
-            task = partial(telescope.task, somearg="test")
-            task.__name__ = f"task_{i}"
-            telescope.add_task(task)
-        for i in range(2):
             setup_task = partial(telescope.task, somearg="test")
             setup_task.__name__ = f"setup_task_{i}"
             telescope.add_setup_task(setup_task)
+        for i in range(2):
+            task = partial(telescope.task, somearg="test")
+            task.__name__ = f"task_{i}"
+            telescope.add_task(task)
         dag = telescope.make_dag()
         self.assertIsInstance(dag, DAG)
         self.assertEqual(4, len(dag.tasks))
         for task in dag.tasks:
             self.assertIsInstance(task, BaseOperator)
 
-        # Test adding tasks from partial operators
+        # Test adding tasks with custom kwargs
         telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
-        func = telescope.setup_task
-        telescope.add_setup_task(
-            partial(
-                ShortCircuitOperator,
-                task_id=func.__name__,
-                python_callable=func,
-                queue=telescope.queue,
-                default_args=telescope.default_args,
-                provide_context=True,
-            )
-        )
-        func = telescope.task
-        telescope.add_task(
-            partial(
-                PythonOperator,
-                task_id=func.__name__,
-                python_callable=partial(telescope.task_callable, func),
-                queue=telescope.queue,
-                default_args=telescope.default_args,
-                provide_context=True,
-            )
-        )
-
+        telescope.add_setup_task(telescope.setup_task, trigger_rule='none_failed')
+        telescope.add_task(telescope.task, trigger_rule='none_failed')
         dag = telescope.make_dag()
         self.assertIsInstance(dag, DAG)
         self.assertEqual(2, len(dag.tasks))
         for task in dag.tasks:
             self.assertIsInstance(task, BaseOperator)
+            self.assertEqual('none_failed', task.trigger_rule)
 
 
 class TestAddSensorsTelescope(ObservatoryTestCase):

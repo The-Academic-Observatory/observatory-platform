@@ -52,21 +52,6 @@ data_path = None
 test_data_path_val_ = None
 
 
-def is_partial_operator(func: Callable) -> bool:
-    """ Check if the function passed to 'make_dag' is a partial airflow operator.
-
-    :param func: Callable function.
-    :return: Whether function is a partial airflow operator
-    """
-    result = False
-    if isinstance(func, functools.partial):
-        try:
-            result = issubclass(func.func, BaseOperator)
-        except TypeError:
-            return result
-    return result
-
-
 def reset_variables():
     """ Rest Airflow variables.
 

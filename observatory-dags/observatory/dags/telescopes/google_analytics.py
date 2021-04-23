@@ -21,13 +21,11 @@ import datetime
 import logging
 import os
 from datetime import datetime
-from functools import partial
 from typing import Dict, List, Optional, Tuple
 
 import pendulum
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.base_hook import BaseHook
-from airflow.operators.python_operator import ShortCircuitOperator
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
 from observatory.api.client.model.organisation import Organisation
@@ -137,11 +135,8 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         self.pagepath_regex = pagepath_regex
 
         self.add_setup_task_chain([self.check_dependencies])
-        self.add_task(partial(ShortCircuitOperator, task_id=self.download_transform.__name__,
-                              python_callable=partial(self.task_callable, self.download_transform),
-                              queue=self.queue, default_args=self.default_args,
-                              provide_context=True))
-        self.add_task_chain([self.upload_transformed,
+        self.add_task_chain([self.download_transform,
+                             self.upload_transformed,
                              self.bq_load,
                              self.cleanup])
 
@@ -181,8 +176,9 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         :param releases: a list with one google analyics release.
         :return: None.
         """
-        success = releases[0].download_transform(self.view_id, self.pagepath_regex)
-        return success
+        results = releases[0].download_transform(self.view_id, self.pagepath_regex)
+        if not results:
+            raise AirflowSkipException("No Google Analytics data available to download.")
 
     def bq_load(self, releases: List[SnapshotRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.

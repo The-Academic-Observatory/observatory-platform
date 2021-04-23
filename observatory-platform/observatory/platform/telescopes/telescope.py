@@ -35,7 +35,6 @@ from observatory.platform.utils.airflow_utils import (
 from observatory.platform.utils.file_utils import list_files
 from observatory.platform.utils.template_utils import (
     SubFolder,
-    is_partial_operator,
     on_failure_callback,
     telescope_path,
 )
@@ -213,8 +212,8 @@ class Telescope(AbstractTelescope):
         self.airflow_vars = airflow_vars
         self.airflow_conns = airflow_conns
 
-        self.setup_task_funcs = []
         self.sensors = []
+        self.setup_task_funcs = []
         self.task_funcs = []
         self.default_args = {
             "owner": "airflow",
@@ -232,31 +231,6 @@ class Telescope(AbstractTelescope):
             doc_md=self.__doc__,
         )
 
-    def add_setup_task(self, func: Callable):
-        """Add a setup task, which is used to run tasks before 'Release' objects are created, e.g. checking
-        dependencies, fetching available releases etc.
-
-        A setup task has the following properties:
-        - Has the signature 'def func(self, **kwargs) -> bool', where
-        kwargs is the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        - Run by a ShortCircuitOperator, meaning that a setup task can stop a DAG prematurely, e.g. if there is
-        nothing to process.
-        - func Needs to return a boolean
-        :param func: the function that will be called by the ShortCircuitOperator task.
-        :return: None.
-        """
-        self.setup_task_funcs.append(func)
-
-    def add_setup_task_chain(self, funcs: List[Callable]):
-        """Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
-        dependencies, fetching available releases etc. (See add_setup_task for more info.)
-
-        :param funcs: The list of functions that will be called by the ShortCircuitOperator task.
-        :return: None.
-        """
-        self.setup_task_funcs += funcs
-
     def add_sensor(self, sensor: BaseSensorOperator):
         """Add a sensor to monitor.  The telescope will wait until the monitored sensors all trigger before
         running the tasks.
@@ -273,7 +247,32 @@ class Telescope(AbstractTelescope):
         """
         self.sensors = sensors
 
-    def add_task(self, func: Callable):
+    def add_setup_task(self, func: Callable, **kwargs):
+        """Add a setup task, which is used to run tasks before 'Release' objects are created, e.g. checking
+        dependencies, fetching available releases etc.
+
+        A setup task has the following properties:
+        - Has the signature 'def func(self, **kwargs) -> bool', where
+        kwargs is the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        - Run by a ShortCircuitOperator, meaning that a setup task can stop a DAG prematurely, e.g. if there is
+        nothing to process.
+        - func Needs to return a boolean
+        :param func: the function that will be called by the ShortCircuitOperator task.
+        :return: None.
+        """
+        self.setup_task_funcs.append((func, kwargs))
+
+    def add_setup_task_chain(self, funcs: List[Callable], **kwargs):
+        """Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
+        dependencies, fetching available releases etc. (See add_setup_task for more info.)
+
+        :param funcs: The list of functions that will be called by the ShortCircuitOperator task.
+        :return: None.
+        """
+        self.setup_task_funcs += [(func, kwargs) for func in funcs]
+
+    def add_task(self, func: Callable, **kwargs):
         """Add a task, which is used to process releases. A task has the following properties:
 
         - Has one of the following signatures 'def func(self, release: Release, **kwargs)' or 'def func(self,
@@ -284,15 +283,15 @@ class Telescope(AbstractTelescope):
         :param func: the function that will be called by the PythonOperator task.
         :return: None.
         """
-        self.task_funcs.append(func)
+        self.task_funcs.append((func, kwargs))
 
-    def add_task_chain(self, funcs: List[Callable]):
+    def add_task_chain(self, funcs: List[Callable], **kwargs):
         """Add a list of tasks, which are used to process releases. (See add_task for more info.)
 
         :param funcs: The list of functions that will be called by the PythonOperator task.
         :return: None.
         """
-        self.task_funcs += funcs
+        self.task_funcs += [(func, kwargs) for func in funcs]
 
     def task_callable(self, func: TelescopeFunction, **kwargs) -> Any:
         """Invoke a task callable. Creates a Release instance and calls the given task method. The result can be
@@ -317,31 +316,27 @@ class Telescope(AbstractTelescope):
         tasks = []
         with self.dag:
             # Process setup tasks first, which are always ShortCircuitOperators
-            for func in self.setup_task_funcs:
-                if is_partial_operator(func):
-                    task = func()
-                else:
-                    task = ShortCircuitOperator(
-                        task_id=func.__name__,
-                        python_callable=func,
-                        queue=self.queue,
-                        default_args=self.default_args,
-                        provide_context=True,
-                    )
+            for func, kwargs in self.setup_task_funcs:
+                task = ShortCircuitOperator(
+                    task_id=func.__name__,
+                    python_callable=func,
+                    queue=self.queue,
+                    default_args=self.default_args,
+                    provide_context=True,
+                    **kwargs
+                )
                 tasks.append(task)
 
             # Process all other tasks next, which are always PythonOperators
-            for func in self.task_funcs:
-                if is_partial_operator(func):
-                    task = func()
-                else:
-                    task = PythonOperator(
-                        task_id=func.__name__,
-                        python_callable=partial(self.task_callable, func),
-                        queue=self.queue,
-                        default_args=self.default_args,
-                        provide_context=True,
-                    )
+            for func, kwargs in self.task_funcs:
+                task = PythonOperator(
+                    task_id=func.__name__,
+                    python_callable=partial(self.task_callable, func),
+                    queue=self.queue,
+                    default_args=self.default_args,
+                    provide_context=True,
+                    **kwargs
+                )
                 tasks.append(task)
             chain(*tasks)
 

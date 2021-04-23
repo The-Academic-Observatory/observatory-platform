@@ -135,9 +135,10 @@ class OapenMetadataTelescope(StreamTelescope):
                              self.transform,
                              self.upload_transformed,
                              self.bq_load_partition])
-        self.add_task_chain(self.make_operators([self.bq_delete_old,
-                                                 self.bq_append_new,
-                                                 self.cleanup]))
+        self.add_task_chain([self.bq_delete_old,
+                             self.bq_append_new,
+                             self.cleanup],
+                            trigger_rule='none_failed')
 
     def make_release(self, **kwargs) -> OapenMetadataRelease:
         # Make Release instance
