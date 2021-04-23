@@ -118,7 +118,7 @@ class StreamTelescope(Telescope):
         else:
             # set start date to end date of previous DAG run
             start_date = release_info[1]
-        end_date = pendulum.now('UTC') - timedelta(days=1)
+        end_date = pendulum.today('UTC') - timedelta(days=1)
         logging.info(f'Start date: {start_date}, end date: {end_date}, first release: {first_release}')
 
         ti.xcom_push(self.RELEASE_INFO, (start_date, end_date, first_release))

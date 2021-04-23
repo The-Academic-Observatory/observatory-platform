@@ -70,6 +70,8 @@ import uuid
 from functools import partial
 from typing import Dict
 
+import croniter
+import datetime
 import httpretty
 import paramiko
 import pendulum
@@ -77,26 +79,30 @@ from airflow import settings
 from airflow.models import DagBag
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.utils import db
+from airflow.utils.state import State
 from click.testing import CliRunner
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
+from unittest.mock import patch
 
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.file_utils import crc32c_base64_hash, gzip_file_crc, _hash_file
+from observatory.platform.utils.file_utils import _hash_file, crc32c_base64_hash, gzip_file_crc
 from observatory.platform.utils.template_utils import reset_variables
 
 
 def random_id():
-    """ Generate a random id for bucket name.
+    """Generate a random id for bucket name.
 
     :return: a random string id.
     """
@@ -104,21 +110,22 @@ def random_id():
 
 
 def test_fixtures_path(*subdirs) -> str:
-    """ Get the path to the Observatory Platform test data directory.
+    """Get the path to the Observatory Platform test data directory.
 
     :return: he Observatory Platform test data directory.
     """
 
-    base_path = module_file_path('tests.fixtures')
+    base_path = module_file_path("tests.fixtures")
     return os.path.join(base_path, *subdirs)
 
 
 class ObservatoryEnvironment:
-    OBSERVATORY_HOME_KEY = 'OBSERVATORY_HOME'
+    OBSERVATORY_HOME_KEY = "OBSERVATORY_HOME"
 
-    def __init__(self, project_id: str = None, data_location: str = None, api_host: str = "localhost",
-                 api_port: int = 5000):
-        """ Constructor for an Observatory environment.
+    def __init__(
+        self, project_id: str = None, data_location: str = None, api_host: str = "localhost", api_port: int = 5000
+    ):
+        """Constructor for an Observatory environment.
 
         To create an Observatory environment:
         env = ObservatoryEnvironment()
@@ -142,6 +149,7 @@ class ObservatoryEnvironment:
         self.temp_dir = None
         self.api_env = None
         self.api_session = None
+        self.dag_run: DagRun = None
 
         if self.create_gcp_env:
             self.download_bucket = self.add_bucket()
@@ -156,7 +164,7 @@ class ObservatoryEnvironment:
 
     @property
     def create_gcp_env(self) -> bool:
-        """ Whether to create the Google Cloud project environment.
+        """Whether to create the Google Cloud project environment.
 
         :return: whether to create Google Cloud project environ,ent
         """
@@ -164,7 +172,7 @@ class ObservatoryEnvironment:
         return self.project_id is not None and self.data_location is not None
 
     def assert_gcp_dependencies(self):
-        """ Assert that the Google Cloud project dependencies are met.
+        """Assert that the Google Cloud project dependencies are met.
 
         :return: None.
         """
@@ -172,7 +180,7 @@ class ObservatoryEnvironment:
         assert self.create_gcp_env, "Please specify the Google Cloud project_id and data_location"
 
     def add_bucket(self) -> str:
-        """ Add a Google Cloud Storage Bucket to the Observatory environment.
+        """Add a Google Cloud Storage Bucket to the Observatory environment.
 
         The bucket will be created when create() is called and deleted when the Observatory
         environment is closed.
@@ -186,7 +194,7 @@ class ObservatoryEnvironment:
         return bucket_name
 
     def _create_bucket(self, bucket_id: str) -> None:
-        """ Create a Google Cloud Storage Bucket.
+        """Create a Google Cloud Storage Bucket.
 
         :param bucket_id: the bucket identifier.
         :return: None.
@@ -196,7 +204,7 @@ class ObservatoryEnvironment:
         self.storage_client.create_bucket(bucket_id, location=self.data_location)
 
     def _delete_bucket(self, bucket_id: str) -> None:
-        """ Delete a Google Cloud Storage Bucket.
+        """Delete a Google Cloud Storage Bucket.
 
         :param bucket_id: the bucket identifier.
         :return: None.
@@ -207,7 +215,7 @@ class ObservatoryEnvironment:
         bucket.delete(force=True)
 
     def add_dataset(self) -> str:
-        """ Add a BigQuery dataset to the Observatory environment.
+        """Add a BigQuery dataset to the Observatory environment.
 
         The BigQuery dataset will be deleted when the Observatory environment is closed.
 
@@ -220,7 +228,7 @@ class ObservatoryEnvironment:
         return dataset_id
 
     def _delete_dataset(self, dataset_id: str) -> None:
-        """ Delete a BigQuery dataset.
+        """Delete a BigQuery dataset.
 
         :param dataset_id: the BigQuery dataset identifier.
         :return: None.
@@ -230,7 +238,7 @@ class ObservatoryEnvironment:
         self.bigquery_client.delete_dataset(dataset_id, not_found_ok=True, delete_contents=True)
 
     def add_variable(self, var: Variable) -> None:
-        """ Add an Airflow variable to the Observatory environment.
+        """Add an Airflow variable to the Observatory environment.
 
         :param var: the Airflow variable.
         :return: None.
@@ -240,7 +248,7 @@ class ObservatoryEnvironment:
         self.session.commit()
 
     def add_connection(self, conn: Connection):
-        """ Add an Airflow connection to the Observatory environment.
+        """Add an Airflow connection to the Observatory environment.
 
         :param conn: the Airflow connection.
         :return: None.
@@ -249,26 +257,61 @@ class ObservatoryEnvironment:
         self.session.add(conn)
         self.session.commit()
 
-    def run_task(self, dag: DAG, task_id: str, execution_date: pendulum.Pendulum) -> TaskInstance:
-        """ Run an Airflow task.
+    def run_task(self, task_id: str, dag: DAG = None, execution_date: pendulum.Pendulum = None) -> TaskInstance:
+        """Run an Airflow task.
 
         :param dag: the Airflow DAG instance.
         :param task_id: the Airflow task identifier.
         :param execution_date: the execution date of the DAG.
         :return: None.
         """
-
+        # If dag or execution date are not set, get corresponding values from dag run
+        if not (dag and execution_date):
+            if self.dag_run is None:
+                raise Exception(
+                    "Either dag and execution date should be set, or task should be run within a DagRun environment."
+                )
+            dag = self.dag_run.dag
+            execution_date = self.dag_run.execution_date
         task = dag.get_task(task_id=task_id)
         ti = TaskInstance(task, execution_date)
         ti.refresh_from_db()
         ti.init_run_context(raw=True)
-        ti._run_raw_task()
-
+        ti.run()
         return ti
 
     @contextlib.contextmanager
+    def create_dag_run(self, dag: DAG, execution_date: pendulum.Pendulum, freeze: bool = True):
+        """Create a DagRun that can be used when running tasks.
+        During cleanup the DAG run state is updated.
+
+        :param dag: the Airflow DAG instance.
+        :param execution_date: the execution date of the DAG.
+        :param freeze: whether to freeze time to the start date of the DAG run.
+        :return: None.
+        """
+        # Get start date, which is one schedule interval after execution date
+        start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(datetime.datetime)
+        frozen_time = freeze_time(start_date, tick=True)
+
+        run_id = "manual__{0}".format(execution_date.isoformat())
+
+        # Make sure google auth uses real datetime and not freezegun fake time
+        with patch("google.auth._helpers.utcnow", wraps=datetime.datetime.utcnow) as mock_utc_now:
+            try:
+                if freeze:
+                    frozen_time.start()
+                state = State.RUNNING
+                self.dag_run = dag.create_dagrun(run_id=run_id, state=state, execution_date=execution_date)
+                yield
+            finally:
+                self.dag_run.update_state()
+                if freeze:
+                    frozen_time.stop()
+
+    @contextlib.contextmanager
     def create(self):
-        """ Make and destroy an Observatory isolated environment, which involves:
+        """Make and destroy an Observatory isolated environment, which involves:
 
         * Creating a temporary directory.
         * Setting the OBSERVATORY_HOME environment variable.
@@ -289,9 +332,7 @@ class ObservatoryEnvironment:
             reset_variables()
 
             # Prepare environment
-            new_env = {
-                self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, '.observatory')
-            }
+            new_env = {self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, ".observatory")}
             prev_env = dict(os.environ)
 
             try:
@@ -299,11 +340,11 @@ class ObservatoryEnvironment:
                 os.environ.update(new_env)
 
                 # Create Airflow SQLite database
-                settings.DAGS_FOLDER = os.path.join(self.temp_dir, 'airflow', 'dags')
+                settings.DAGS_FOLDER = os.path.join(self.temp_dir, "airflow", "dags")
                 os.makedirs(settings.DAGS_FOLDER, exist_ok=True)
-                airflow_db_path = os.path.join(self.temp_dir, 'airflow.db')
+                airflow_db_path = os.path.join(self.temp_dir, "airflow.db")
                 settings.SQL_ALCHEMY_CONN = f"sqlite:///{airflow_db_path}"
-                logging.info(f'SQL_ALCHEMY_CONN: {settings.SQL_ALCHEMY_CONN}')
+                logging.info(f"SQL_ALCHEMY_CONN: {settings.SQL_ALCHEMY_CONN}")
                 settings.configure_orm(disable_connection_pool=True)
                 self.session = settings.Session
                 db.initdb()
@@ -314,7 +355,7 @@ class ObservatoryEnvironment:
                         self._create_bucket(bucket_id)
 
                 # Add default Airflow variables
-                self.data_path = os.path.join(self.temp_dir, 'data')
+                self.data_path = os.path.join(self.temp_dir, "data")
                 self.add_variable(Variable(key=AirflowVars.DATA_PATH, val=self.data_path))
 
                 # Add Google Cloud environment related Airflow variables
@@ -348,7 +389,7 @@ class ObservatoryTestCase(unittest.TestCase):
     """ Common test functions for testing Observatory Platform DAGs """
 
     def __init__(self, *args, **kwargs):
-        """ Constructor which sets up variables used by tests.
+        """Constructor which sets up variables used by tests.
 
         :param args: arguments.
         :param kwargs: keyword arguments.
@@ -363,7 +404,7 @@ class ObservatoryTestCase(unittest.TestCase):
         logging.getLogger().setLevel(logging.WARNING)
 
     def assert_dag_structure(self, expected: Dict, dag: DAG):
-        """ Assert the DAG structure.
+        """Assert the DAG structure.
 
         :param expected: a dictionary of DAG task ids as keys and values which should be a list of downstream task ids.
         :param dag: the DAG.
@@ -378,7 +419,7 @@ class ObservatoryTestCase(unittest.TestCase):
             self.assertEqual(set(downstream_list), task.downstream_task_ids)
 
     def assert_dag_load(self, dag_id: str, dag_file: str):
-        """ Assert that the given DAG loads from a DagBag.
+        """Assert that the given DAG loads from a DagBag.
 
         :param dag_id: the DAG id.
         :param dag_file: the path to the DAG file.
@@ -395,7 +436,7 @@ class ObservatoryTestCase(unittest.TestCase):
             self.assertGreaterEqual(len(dag.tasks), 1)
 
     def assert_blob_integrity(self, bucket_id: str, blob_name: str, local_file_path: str):
-        """ Assert whether the blob uploaded and that it has the expected hash.
+        """Assert whether the blob uploaded and that it has the expected hash.
 
         :param blob_name: the Google Cloud Blob name, i.e. the entire path to the blob on the Cloud Storage bucket.
         :param bucket_id: the Google Cloud Storage bucket id.
@@ -421,7 +462,7 @@ class ObservatoryTestCase(unittest.TestCase):
         self.assertTrue(result)
 
     def assert_table_integrity(self, table_id: str, expected_rows: int):
-        """ Assert whether a BigQuery table exists and has the expected number of rows.
+        """Assert whether a BigQuery table exists and has the expected number of rows.
 
         :param table_id: the BigQuery table id.
         :param expected_rows: the expected number of rows.
@@ -438,7 +479,7 @@ class ObservatoryTestCase(unittest.TestCase):
         self.assertTrue(result)
 
     def assert_file_integrity(self, file_path: str, expected_hash: str, algorithm: str):
-        """ Assert that a file exists and it has the correct hash.
+        """Assert that a file exists and it has the correct hash.
 
         :param file_path: the path to the file.
         :param expected_hash: the expected hash.
@@ -448,18 +489,18 @@ class ObservatoryTestCase(unittest.TestCase):
 
         self.assertTrue(os.path.isfile(file_path))
 
-        if algorithm == 'md5':
-            hash_func = partial(_hash_file, algorithm='md5')
-        elif algorithm == 'gzip_crc':
+        if algorithm == "md5":
+            hash_func = partial(_hash_file, algorithm="md5")
+        elif algorithm == "gzip_crc":
             hash_func = gzip_file_crc
         else:
-            raise ValueError(f'Unknown hash algorithm: {algorithm}')
+            raise ValueError(f"Unknown hash algorithm: {algorithm}")
 
         actual_hash = hash_func(file_path)
         self.assertEqual(expected_hash, actual_hash)
 
     def assert_cleanup(self, download_folder: str, extract_folder: str, transform_folder: str):
-        """ Assert that the download, extracted and transformed folders were cleaned up.
+        """Assert that the download, extracted and transformed folders were cleaned up.
 
         :param download_folder: the path to the DAGs download folder.
         :param extract_folder: the path to the DAGs extract folder.
@@ -489,7 +530,7 @@ class ObservatoryTestCase(unittest.TestCase):
         if headers is None:
             headers = {}
 
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             body = f.read()
 
         httpretty.register_uri(method, uri,
@@ -500,9 +541,16 @@ class ObservatoryTestCase(unittest.TestCase):
 class SftpServer:
     """ A Mock SFTP server for testing purposes """
 
-    def __init__(self, host: str = "localhost", port: int = 3373, level: str = 'INFO', backlog: int = 10,
-                 startup_wait_secs: int = 1, socket_timeout: int = 10):
-        """ Create a Mock SftpServer instance.
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 3373,
+        level: str = "INFO",
+        backlog: int = 10,
+        startup_wait_secs: int = 1,
+        socket_timeout: int = 10,
+    ):
+        """Create a Mock SftpServer instance.
 
         :param host: the host name.
         :param port: the port.
@@ -525,20 +573,22 @@ class SftpServer:
         self.socket_timeout = socket_timeout
 
     def _generate_key(self):
-        """ Generate a private key.
+        """Generate a private key.
 
         :return: the filepath to the private key.
         """
 
-        key = rsa.generate_private_key(public_exponent=65537,
-                                       key_size=2048,
-                                       backend=default_backend())
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
 
-        private_key_path = os.path.join(self.tmp_dir, 'test_rsa.key')
-        with open(private_key_path, 'wb') as f:
-            f.write(key.private_bytes(encoding=serialization.Encoding.PEM,
-                                      format=serialization.PrivateFormat.TraditionalOpenSSL,
-                                      encryption_algorithm=serialization.NoEncryption()))
+        private_key_path = os.path.join(self.tmp_dir, "test_rsa.key")
+        with open(private_key_path, "wb") as f:
+            f.write(
+                key.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.TraditionalOpenSSL,
+                    encryption_algorithm=serialization.NoEncryption(),
+                )
+            )
 
         return private_key_path
 
@@ -557,7 +607,7 @@ class SftpServer:
                 conn, addr = server_socket.accept()
                 transport = paramiko.Transport(conn)
                 transport.add_server_key(paramiko.RSAKey.from_private_key_file(self.private_key_path))
-                transport.set_subsystem_handler('sftp', paramiko.SFTPServer, StubSFTPServer)
+                transport.set_subsystem_handler("sftp", paramiko.SFTPServer, StubSFTPServer)
 
                 server = StubServer()
                 transport.start_server(server=server)
@@ -573,7 +623,7 @@ class SftpServer:
 
     @contextlib.contextmanager
     def create(self):
-        """ Make and destroy a test SFTP server.
+        """Make and destroy a test SFTP server.
 
         :yield: None.
         """
@@ -581,7 +631,7 @@ class SftpServer:
         with CliRunner().isolated_filesystem() as tmp_dir:
             # Override the root directory of the SFTP server, which is set as the cwd at import time
             self.tmp_dir = tmp_dir
-            self.root_dir = os.path.join(tmp_dir, 'home')
+            self.root_dir = os.path.join(tmp_dir, "home")
             os.makedirs(self.root_dir, exist_ok=True)
             StubSFTPServer.ROOT = self.root_dir
 
