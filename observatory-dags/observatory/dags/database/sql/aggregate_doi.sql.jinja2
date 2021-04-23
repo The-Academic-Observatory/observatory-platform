@@ -287,22 +287,16 @@ CREATE TEMP FUNCTION group_disciplines(fields ARRAY<STRUCT<DisplayName STRING, S
 CREATE TEMP FUNCTION process_relations(relationships ANY TYPE, total INT64, total_oa INT64) as (
   ARRAY(SELECT AS STRUCT
           relation.identifier as id,
+          COUNT(relation.identifier) as total_outputs,
+          SAFE_DIVIDE( COUNT(relation.identifier), total) as percentage_of_all_outputs,
+          SAFE_DIVIDE( COUNTIF(unpaywall.is_oa) , total_oa ) as percentage_of_all_oa,
           MAX(relation.name) as name,
           MAX(relation.country) as country,
           MAX(relation.country_code) as country_code,
           MAX(relation.region) as region,
           MAX(relation.subregion) as subregion,
           MAX(relation.coordinates) as coordinates,
-          COUNT(relation.identifier) as total_outputs,
-          SAFE_DIVIDE(COUNT(relation.identifier), total) as percentage_of_all_outputs,
-          SAFE_DIVIDE(COUNTIF(is_oa), total_oa) as percentage_of_all_oa,
-          COUNTIF(is_oa) as num_oa_outputs, 
-          COUNTIF(green) as num_green_outputs, 
-          COUNTIF(gold) as num_gold_outputs, 
-          COUNTIF(gold_just_doaj) as num_gold_just_doaj_outputs, 
-          COUNTIF(hybrid) as num_hybrid_outputs, 
-          COUNTIF(bronze) as num_bronze_outputs, 
-          COUNTIF(green_only) as num_green_only_outputs,
+          count_access_types(ARRAY_AGG(unpaywall)).*,
           STRUCT(
             STRUCT(
               SUM(citations.mag) as total_citations,
@@ -318,7 +312,7 @@ CREATE TEMP FUNCTION process_relations(relationships ANY TYPE, total INT64, tota
             ) as crossref
           ) as citations,
           group_disciplines(ARRAY_CONCAT_AGG(disciplines)) as disciplines
-      FROM UNNEST(relationships) as relation GROUP BY relation.identifier ORDER BY total_outputs DESC)
+      FROM UNNEST(relationships) as relations GROUP BY relation.identifier ORDER BY total_outputs DESC)
 );
 
 ----
