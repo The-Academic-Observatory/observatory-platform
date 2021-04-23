@@ -140,7 +140,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
             env.add_connection(conn)
 
             # Test that all dependencies are specified: no error should be thrown
-            env.run_task(dag, telescope.check_dependencies.__name__, execution_date)
+            env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
 
             # Use release to check tasks
             cron_schedule = dag.normalized_schedule_interval
@@ -149,7 +149,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
             release = GoogleAnalyticsRelease(telescope.dag_id, execution_date, end_date, organisation)
 
             # Test download_transform task
-            env.run_task(dag, telescope.download_transform.__name__, execution_date)
+            env.run_task(telescope.download_transform.__name__, dag, execution_date)
             for file in release.transform_files:
                 self.assertTrue(os.path.isfile(file))
                 # Use frozenset to test results are as expected, many dict transformations re-order items in dict
@@ -181,12 +181,12 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                 self.assertEqual(2, len(actual_list))
 
             # Test that transformed file uploaded
-            env.run_task(dag, telescope.upload_transformed.__name__, execution_date)
+            env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
             for file in release.transform_files:
                 self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
             # Test that data loaded into BigQuery
-            env.run_task(dag, telescope.bq_load.__name__, execution_date)
+            env.run_task(telescope.bq_load.__name__, dag, execution_date)
             for file in release.transform_files:
                 table_id, _ = table_ids_from_path(file)
                 table_id = f'{self.project_id}.{telescope.dataset_id}.' \
@@ -197,7 +197,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
             # Test that all telescope data deleted
             download_folder, extract_folder, transform_folder = release.download_folder, release.extract_folder, \
                                                                 release.transform_folder
-            env.run_task(dag, telescope.cleanup.__name__, execution_date)
+            env.run_task(telescope.cleanup.__name__, dag, execution_date)
             self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
 
