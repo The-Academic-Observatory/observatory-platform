@@ -84,7 +84,8 @@ def create_aggregate_table(
     task_id: str,
     relate_to_institutions: bool,
     relate_to_countries: bool,
-    relate_to_groups: bool
+    relate_to_groups: bool,
+    relate_to_members: bool,
 ):
     """Runs the aggregate table query.
 
@@ -99,6 +100,7 @@ def create_aggregate_table(
     :param relate_to_institutions: whether to generate the institution relationship output for this query
     :param relate_to_countries: whether to generate the countries relationship output for this query
     :param relate_to_groups: whether to generate the groups relationship output for this query
+    :param relate_to_members: whether to generate the members relationship output for this query
     :return: None.
     """
 
@@ -112,7 +114,8 @@ def create_aggregate_table(
         group_by_time_field=group_by_time_field,
         relate_to_institutions=relate_to_institutions,
         relate_to_countries=relate_to_countries,
-        relate_to_groups=relate_to_groups
+        relate_to_groups=relate_to_groups,
+        relate_to_members=relate_to_members
     )
 
     processed_table_id = bigquery_partitioned_table_id(table_id, release_date)
@@ -653,9 +656,10 @@ class DoiWorkflow:
         table_id = "country"
 
         # Optional Relationships
-        relate_to_institutions = True
-        relate_to_countries = True
+        relate_to_institutions = False
+        relate_to_countries = False
         relate_to_groups = False
+        relate_to_members = True
 
         # Aggregate
         create_aggregate_table(
@@ -668,7 +672,8 @@ class DoiWorkflow:
             task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups
+            relate_to_groups = relate_to_groups,
+            relate_to_members=relate_to_members
         )
 
     @staticmethod
@@ -693,6 +698,7 @@ class DoiWorkflow:
         relate_to_institutions = True
         relate_to_countries = True
         relate_to_groups = True
+        relate_to_members = False
 
         # Aggregate
         create_aggregate_table(
@@ -705,7 +711,8 @@ class DoiWorkflow:
             task_id=DoiWorkflow.TASK_ID_CREATE_FUNDER,
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups
+            relate_to_groups = relate_to_groups,
+            relate_to_members=relate_to_members
         )
 
     @staticmethod
@@ -730,6 +737,7 @@ class DoiWorkflow:
         relate_to_institutions = True
         relate_to_countries = False
         relate_to_groups = False
+        relate_to_members = True
 
         # Aggregate
         create_aggregate_table(
@@ -742,7 +750,8 @@ class DoiWorkflow:
             task_id=DoiWorkflow.TASK_ID_CREATE_GROUP,
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups
+            relate_to_groups = relate_to_groups,
+            relate_to_members=relate_to_members
         )
 
     @staticmethod
@@ -767,6 +776,7 @@ class DoiWorkflow:
         relate_to_institutions = True
         relate_to_countries = True
         relate_to_groups = False
+        relate_to_members = False
 
         # Aggregate
         create_aggregate_table(
@@ -779,7 +789,8 @@ class DoiWorkflow:
             task_id=DoiWorkflow.TASK_ID_CREATE_INSTITUTION,
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups
+            relate_to_groups = relate_to_groups,
+            relate_to_members=relate_to_members
         )
 
     @staticmethod
@@ -804,6 +815,7 @@ class DoiWorkflow:
         relate_to_institutions = True
         relate_to_countries = True
         relate_to_groups = True
+        relate_to_members = False
 
         # Aggregate
         create_aggregate_table(
@@ -816,7 +828,8 @@ class DoiWorkflow:
             task_id=DoiWorkflow.TASK_ID_CREATE_AUTHOR,
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups
+            relate_to_groups = relate_to_groups,
+            relate_to_members=relate_to_members
         )
 
     @staticmethod
@@ -841,6 +854,7 @@ class DoiWorkflow:
         relate_to_institutions = True
         relate_to_countries = True
         relate_to_groups = True
+        relate_to_members = False
 
         # Aggregate
         create_aggregate_table(
@@ -853,7 +867,8 @@ class DoiWorkflow:
             task_id=DoiWorkflow.TASK_ID_CREATE_JOURNAL,
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups
+            relate_to_groups = relate_to_groups,
+            relate_to_members=relate_to_members
         )
 
     @staticmethod
@@ -878,6 +893,7 @@ class DoiWorkflow:
         relate_to_institutions = True
         relate_to_countries = True
         relate_to_groups = True
+        relate_to_members = False
 
         # Aggregate
         create_aggregate_table(
@@ -890,7 +906,8 @@ class DoiWorkflow:
             task_id=DoiWorkflow.TASK_ID_CREATE_PUBLISHER,
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups
+            relate_to_groups = relate_to_groups,
+            relate_to_members=relate_to_members
         )
 
     @staticmethod
@@ -915,6 +932,7 @@ class DoiWorkflow:
         relate_to_institutions = False
         relate_to_countries = False
         relate_to_groups = False
+        relate_to_members = False
 
         # Aggregate
         create_aggregate_table(
@@ -927,7 +945,8 @@ class DoiWorkflow:
             task_id=DoiWorkflow.TASK_ID_CREATE_REGION,
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups
+            relate_to_groups = relate_to_groups,
+            relate_to_members=relate_to_members
         )
 
     @staticmethod
@@ -952,6 +971,7 @@ class DoiWorkflow:
         relate_to_institutions = False
         relate_to_countries = False
         relate_to_groups = False
+        relate_to_members = False
 
         # Aggregate
         create_aggregate_table(
@@ -964,7 +984,8 @@ class DoiWorkflow:
             task_id=DoiWorkflow.TASK_ID_CREATE_SUBREGION,
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups
+            relate_to_groups = relate_to_groups,
+            relate_to_members=relate_to_members
         )
 
     @staticmethod
