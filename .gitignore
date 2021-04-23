@@ -18,3 +18,5 @@ config_terraform.yaml
 AUTHORS
 ChangeLog
 .eggs/
+.DS_Store
+/observatory-dags/observatory/dags/telescopes/oapen_cloud_function.zip

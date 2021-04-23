@@ -215,8 +215,8 @@ class TestObservatoryTestCase(unittest.TestCase):
             # Upload file to download bucket and check gzip-crc
             file_name = 'people.csv'
             file_path = os.path.join(test_fixtures_path('utils', 'gc_utils'), file_name)
-            uploaded = upload_file_to_cloud_storage(env.download_bucket, file_name, file_path)
-            self.assertTrue(uploaded)
+            result, upload = upload_file_to_cloud_storage(env.download_bucket, file_name, file_path)
+            self.assertTrue(result)
 
             # Check that blob exists
             test_case = ObservatoryTestCase()
@@ -234,8 +234,8 @@ class TestObservatoryTestCase(unittest.TestCase):
             # Upload file to download bucket and check gzip-crc
             file_name = 'people.jsonl'
             file_path = os.path.join(test_fixtures_path('utils', 'gc_utils'), file_name)
-            uploaded = upload_file_to_cloud_storage(env.download_bucket, file_name, file_path)
-            self.assertTrue(uploaded)
+            result, upload = upload_file_to_cloud_storage(env.download_bucket, file_name, file_path)
+            self.assertTrue(result)
 
             # Create dataset
             dataset_id = env.add_dataset()

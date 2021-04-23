@@ -27,7 +27,8 @@ from observatory.platform.utils.file_utils import crc32c_base64_hash, hex_to_bas
 from observatory.platform.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
                                                  bigquery_partitioned_table_id,
                                                  bigquery_table_exists,
-                                                 copy_bigquery_table,
+                                                 copy_bigquery_table, create_cloud_storage_bucket,
+                                                 copy_blob_from_cloud_storage,
                                                  create_bigquery_dataset,
                                                  create_bigquery_table_from_query,
                                                  create_bigquery_view,
@@ -176,7 +177,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             self.assertEqual(dataset.dataset_id, dataset_id)
 
             # Upload CSV to storage bucket
-            result = upload_file_to_cloud_storage(self.gc_bucket_name, csv_blob_name, csv_file_path)
+            result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, csv_blob_name, csv_file_path)
             self.assertTrue(result)
 
             # Test loading CSV table
@@ -188,7 +189,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
 
             # Upload JSONL to storage bucket
-            result = upload_file_to_cloud_storage(self.gc_bucket_name, json_blob_name, json_file_path)
+            result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, json_blob_name, json_file_path)
             self.assertTrue(result)
 
             # Test loading JSON newline table
@@ -296,6 +297,57 @@ class TestGoogleCloudUtils(unittest.TestCase):
         finally:
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
+    def test_create_cloud_storage_bucket(self):
+        """ Test that storage bucket is created """
+        client = storage.Client()
+        bucket_name = 'a' + random_id() + 'a'
+        bucket = client.bucket(bucket_name)
+
+        lifecycle_delete_age = 1
+        try:
+            success = create_cloud_storage_bucket(bucket_name, self.gc_bucket_location, self.gc_project_id,
+                                                  lifecycle_delete_age)
+
+            self.assertTrue(success)
+
+            # check success is false, because bucket already exists
+            success = create_cloud_storage_bucket(bucket_name, self.gc_bucket_location, self.gc_project_id,
+                                                  lifecycle_delete_age)
+            self.assertFalse(success)
+        finally:
+            bucket.delete()
+
+    def test_copy_blob_from_cloud_storage(self):
+        """ Test that blob is copied from one bucket to another """
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Create file
+            upload_file_name = f'{random_id()}.txt'
+            copy_file_name = f'{random_id()}.txt'
+            with open(upload_file_name, 'w') as f:
+                f.write(self.data)
+
+            # Create client for blob
+            storage_client = storage.Client()
+            bucket = storage_client.get_bucket(self.gc_bucket_name)
+
+            try:
+                # Upload file
+                result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, upload_file_name, upload_file_name)
+
+                blob_original = bucket.blob(upload_file_name)
+                blob_copy = bucket.blob(copy_file_name)
+
+                copy_blob_from_cloud_storage(upload_file_name, self.gc_bucket_name, self.gc_bucket_name,
+                                             new_name=copy_file_name)
+                self.assertTrue(blob_original.exists())
+                self.assertTrue(blob_copy.exists())
+
+            finally:
+                for blob in [blob_original, blob_copy]:
+                    if blob.exists():
+                        blob.delete()
+
     def test_upload_download_blobs_from_cloud_storage(self):
         runner = CliRunner()
         with runner.isolated_filesystem():
@@ -365,7 +417,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
             try:
                 # Upload file
-                result = upload_file_to_cloud_storage(self.gc_bucket_name, upload_file_name, upload_file_name)
+                result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, upload_file_name, upload_file_name)
                 self.assertTrue(result)
 
                 # Check that blob exists and has correct hash

@@ -30,6 +30,11 @@ from observatory.platform.utils.telescope_utils import (
     make_sftp_connection,
     make_telescope_sensor,
 )
+from observatory.platform.utils.file_utils import gzip_file_crc
+from observatory.platform.utils.telescope_utils import (PeriodCount, ScheduleOptimiser, make_sftp_connection,
+                                                        make_dag_id, make_observatory_api, list_to_jsonl_gz)
+from click.testing import CliRunner
+import os
 
 
 class TestTelescopeUtils(unittest.TestCase):
@@ -122,6 +127,19 @@ class TestTelescopeUtils(unittest.TestCase):
         with self.assertRaises(AssertionError):
             mock_get_connection.return_value = Connection(host=host, password=api_key)
             make_observatory_api()
+
+    def test_list_to_jsonl_gz(self):
+        """ Test writing list of dicts to jsonl.gz file """
+        list_of_dicts = [{'k1a': 'v1a', 'k2a': 'v2a'},
+                         {'k1b': 'v1b', 'k2b': 'v2b'}
+                         ]
+        file_path = 'list.jsonl.gz'
+        expected_file_hash = 'e608cfeb'
+        with CliRunner().isolated_filesystem():
+            list_to_jsonl_gz(file_path, list_of_dicts)
+            self.assertTrue(os.path.isfile(file_path))
+            actual_file_hash = gzip_file_crc(file_path)
+            self.assertEqual(expected_file_hash, actual_file_hash)
 
 
 class TestMakeTelescopeSensor(unittest.TestCase):
