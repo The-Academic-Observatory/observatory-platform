@@ -753,9 +753,14 @@ class TestSchema(unittest.TestCase):
         ]
 
         expected_errors = [{'airflow_connections': [
-            {1: ['must be of string type', "value does not match regex '\\S*:\\/\\/\\S*:\\S*@\\S*$'"],
-             'key1': ['must be of string type'],
-             'terraform': ["value does not match regex '\\S*:\\/\\/\\S*:\\S*@\\S*$'"]}]}]
+            {
+                1: ['must be of string type', "value does not match regex "
+                                           "'\\S*:\\/\\/\\S*:\\S*@\\S*$|google-cloud-platform:\\/\\/\\S*$'"],
+                'key1': ['must be of string type'],
+                'terraform':
+                    ["value does not match regex '\\S*:\\/\\/\\S*:\\S*@\\S*$|google-cloud-platform:\\/\\/\\S*$'"]
+            }]
+        }]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
     def test_terraform_schema_backend(self):

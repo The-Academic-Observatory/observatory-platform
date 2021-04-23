@@ -59,6 +59,7 @@ class AirflowConns:
     GEOIP_LICENSE_KEY = "geoip_license_key"
     OAPEN_IRUS_UK_API = "oapen_irus_uk_api"
     OAPEN_IRUS_UK_LOGIN = "oapen_irus_uk_login"
+    OAEBU_SERVICE_ACCOUNT = "oaebu_service_account"
     SFTP_SERVICE = "sftp_service"
     OBSERVATORY_API = "observatory_api"
 
