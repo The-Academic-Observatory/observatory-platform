@@ -102,29 +102,6 @@ class StreamTelescope(Telescope):
         self.dataset_description = dataset_description
         self.table_descriptions = table_descriptions if table_descriptions else dict()
 
-    def make_operator(self, func: Callable) -> Callable:
-        """ Make a partial PythonOperator that can be attached to an airflow DAG. This PythonOperator differs from
-        the one used in the Telescope class in it's 'trigger_rule'.
-        :param func: A callable function
-        :return: The partial PythonOperator
-        """
-        operator = partial(PythonOperator, task_id=func.__name__, python_callable=partial(self.task_callable, func),
-                           queue=self.queue, trigger_rule='none_failed', default_args=self.default_args,
-                           provide_context=True)
-
-        return operator
-
-    def make_operators(self, funcs: List[Callable]) -> List[Callable]:
-        """ Make a partial PythonOperator for each function in the funcs list.
-        :param funcs: A list of callable functions
-        :return: A list of partial PythonOperators
-        """
-        operators = []
-        for func in funcs:
-            operator = self.make_operator(func)
-            operators.append(operator)
-        return operators
-
     def get_release_info(self, **kwargs) -> bool:
         """ Create a release instance and update the xcom value with the last start date.
         :param kwargs: The context passed from the PythonOperator.
