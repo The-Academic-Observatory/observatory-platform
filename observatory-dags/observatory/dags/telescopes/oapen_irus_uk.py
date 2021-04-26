@@ -229,10 +229,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
 
         self.add_setup_task(self.check_dependencies)
         # create PythonOperator with task concurrency of 1, so tasks to create cloud function never run in parallel
-        self.add_task(partial(PythonOperator, task_id=self.create_cloud_function.__name__,
-                              python_callable=partial(self.task_callable, self.create_cloud_function),
-                              queue=self.queue, default_args=self.default_args, provide_context=True,
-                              task_concurrency=1))
+        self.add_task(self.create_cloud_function, task_concurrency=1)
         self.add_task(self.call_cloud_function)
         self.add_task(self.transfer)
         self.add_task(self.download_transform)

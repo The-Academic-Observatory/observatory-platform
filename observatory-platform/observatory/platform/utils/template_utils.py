@@ -22,15 +22,17 @@ import pathlib
 import traceback
 from datetime import timedelta
 from enum import Enum
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 
 import pendulum
 import six
 from airflow import AirflowException
+from airflow.models.baseoperator import BaseOperator
 from airflow.utils.dates import cron_presets
 from croniter import croniter
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
+import functools
 
 from observatory.dags.config import schema_path, workflow_sql_templates_path
 from observatory.platform.observatory_config import Environment
