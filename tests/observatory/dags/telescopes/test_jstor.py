@@ -158,14 +158,14 @@ class TestJstor(ObservatoryTestCase):
             env.add_connection(conn)
 
             # Test that all dependencies are specified: no error should be thrown
-            env.run_task(dag, telescope.check_dependencies.__name__, execution_date)
+            env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
 
             # Test list releases task with files available
             with httpretty.enabled():
                 for report in [self.country_report, self.institution_report]:
                     self.setup_mock_file_download(report['url'], report['path'], headers=report['headers'],
                                                   method=httpretty.HEAD)
-                ti = env.run_task(dag, telescope.list_releases.__name__, execution_date)
+                ti = env.run_task(telescope.list_releases.__name__, dag, execution_date)
             available_releases = ti.xcom_pull(key=JstorTelescope.RELEASE_INFO,
                                               task_ids=telescope.list_releases.__name__, include_prior_dates=False)
             self.assertIsInstance(available_releases, dict)
@@ -187,7 +187,7 @@ class TestJstor(ObservatoryTestCase):
             with httpretty.enabled():
                 for report in [self.country_report, self.institution_report]:
                     self.setup_mock_file_download(report['url'], report['path'], headers=report['headers'])
-                env.run_task(dag, telescope.download.__name__, execution_date)
+                env.run_task(telescope.download.__name__, dag, execution_date)
             for release in releases:
                 self.assertEqual(2, len(release.download_files))
                 for file in release.download_files:
@@ -198,13 +198,13 @@ class TestJstor(ObservatoryTestCase):
                     self.assert_file_integrity(file, expected_file_hash, 'md5')
 
             # Test that file uploaded
-            env.run_task(dag, telescope.upload_downloaded.__name__, execution_date)
+            env.run_task(telescope.upload_downloaded.__name__, dag, execution_date)
             for release in releases:
                 for file in release.download_files:
                     self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
 
             # Test that file transformed
-            env.run_task(dag, telescope.transform.__name__, execution_date)
+            env.run_task(telescope.transform.__name__, dag, execution_date)
             for release in releases:
                 self.assertEqual(2, len(release.transform_files))
                 for file in release.transform_files:
@@ -215,13 +215,13 @@ class TestJstor(ObservatoryTestCase):
                     self.assert_file_integrity(file, expected_file_hash, 'gzip_crc')
 
             # Test that transformed file uploaded
-            env.run_task(dag, telescope.upload_transformed.__name__, execution_date)
+            env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
             for release in releases:
                 for file in release.transform_files:
                     self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
             # Test that data loaded into BigQuery
-            env.run_task(dag, telescope.bq_load.__name__, execution_date)
+            env.run_task(telescope.bq_load.__name__, dag, execution_date)
             for release in releases:
                 for file in release.transform_files:
                     table_id, _ = table_ids_from_path(file)
@@ -236,7 +236,7 @@ class TestJstor(ObservatoryTestCase):
             # Test that all telescope data deleted
             download_folder, extract_folder, transform_folder = release.download_folder, release.extract_folder, \
                                                                 release.transform_folder
-            env.run_task(dag, telescope.cleanup.__name__, execution_date)
+            env.run_task(telescope.cleanup.__name__, dag, execution_date)
             self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
     def test_get_label_id(self):
