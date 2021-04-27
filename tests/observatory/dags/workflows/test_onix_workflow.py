@@ -675,22 +675,22 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             workflow_dag = telescope.make_dag()
 
             # Check sensors ready
-            env.run_task(workflow_dag, telescope_sensor.task_id, self.timestamp)
+            env.run_task(telescope_sensor.task_id, workflow_dag, self.timestamp)
 
             # Aggregate works
-            env.run_task(workflow_dag, telescope.aggregate_works.__name__, self.timestamp)
+            env.run_task(telescope.aggregate_works.__name__, workflow_dag, self.timestamp)
 
             # Upload aggregation tables
-            env.run_task(workflow_dag, telescope.upload_aggregation_tables.__name__, self.timestamp)
+            env.run_task(telescope.upload_aggregation_tables.__name__, workflow_dag, self.timestamp)
 
             # Load work id table into bigquery
-            env.run_task(workflow_dag, telescope.bq_load_workid_lookup.__name__, self.timestamp)
+            env.run_task(telescope.bq_load_workid_lookup.__name__, workflow_dag, self.timestamp)
 
             # Load work id errors table into bigquery
-            env.run_task(workflow_dag, telescope.bq_load_workid_lookup_errors.__name__, self.timestamp)
+            env.run_task(telescope.bq_load_workid_lookup_errors.__name__, workflow_dag, self.timestamp)
 
             # Load work family id table into bigquery
-            env.run_task(workflow_dag, telescope.bq_load_workfamilyid_lookup.__name__, self.timestamp)
+            env.run_task(telescope.bq_load_workfamilyid_lookup.__name__, workflow_dag, self.timestamp)
 
             # Test conditions
             release_suffix = self.timestamp.strftime("%Y%m%d")
@@ -719,8 +719,8 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assert_table_integrity(table_id, 0)
 
             # Cleanup
-            env.run_task(workflow_dag, telescope.cleanup.__name__, self.timestamp)
+            env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
 
             # Test data teardown
-            # self.teardown_fake_onix_data_table()
+            self.teardown_fake_onix_data_table()
             self.delete_bucket_blobs()
