@@ -1,0 +1,185 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Richard Hosking #}
+
+WITH new_dois_table as (
+    SELECT
+        doi,
+        crossref.title[SAFE_OFFSET(0)] as title,
+        mag.abstract as abstract,
+        DATE(crossref.published_year, 12, 31) AS published_year,
+        unpaywall.output_type, 
+        crossref.publisher, 
+        unpaywall.journal_name as journal,
+        mag.CitationCount as citation_count,
+        unpaywall.is_oa, 
+        unpaywall.gold, 
+        unpaywall.green,
+        unpaywall.bronze,
+        unpaywall.hybrid, 
+        unpaywall.green_only
+    FROM `{{ project_id }}.observatory.doi{{ release_date_previous.strftime('%Y%m%d') }}`
+),
+
+old_dois_table as (
+    SELECT
+        doi,
+        crossref.title[SAFE_OFFSET(0)] as title,
+        mag.abstract as abstract,
+        DATE(crossref.published_year, 12, 31) AS published_year,
+        unpaywall.output_type, 
+        crossref.publisher, 
+        unpaywall.journal_name as journal,
+        mag.CitationCount as citation_count,
+        unpaywall.is_oa, 
+        unpaywall.gold, 
+        unpaywall.green,
+        unpaywall.bronze,
+        unpaywall.hybrid, 
+        unpaywall.green_only
+    FROM `{{ project_id }}.observatory.doi{{ release_date_current.strftime('%Y%m%d') }}`
+),
+
+created_dois as (
+    SELECT
+        new_doi.*
+    FROM new_dois_table as new_doi
+    LEFT JOIN old_dois_table as old_doi on new_doi.doi = old_doi.doi
+    WHERE old_doi.doi IS NULL
+),
+
+created_dois_ids as (
+SELECT
+    doi,
+    STRUCT("{{ es_index_id }}" as _index, doi as _id) as `create`,
+    null as fields
+FROM created_dois
+),
+
+created_dois_fields as (
+SELECT
+    doi,
+    null as `create`,
+    created_dois as fields
+FROM created_dois
+),
+
+deleted_dois as (
+    SELECT
+        old_doi.doi,
+        STRUCT("{{ es_index_id }}" as _index, old_doi.doi as _id) as delete,
+        null as fields
+    FROM old_dois_table as old_doi
+    LEFT JOIN new_dois_table as new_doi on new_doi.doi = old_doi.doi
+    WHERE new_doi.doi IS NULL
+),
+
+potentially_updated_dois as (
+    SELECT
+        new_doi.doi,
+        STRUCT(
+            IF(new_doi.doi = old_doi.doi, null, new_doi.doi) as doi,
+            IF(new_doi.title = old_doi.title, null, new_doi.title) as title,
+            IF(new_doi.abstract = old_doi.abstract, null, new_doi.abstract) as abstract,
+            IF(new_doi.published_year = old_doi.published_year, null, new_doi.published_year) as published_year,
+            IF(new_doi.output_type = old_doi.output_type, null, new_doi.output_type) as output_type,
+            IF(new_doi.publisher = old_doi.publisher, null, new_doi.publisher) as publisher,
+            IF(new_doi.journal = old_doi.journal, null, new_doi.journal) as journal,
+            IF(new_doi.citation_count = old_doi.citation_count, null, new_doi.citation_count) as citation_count,
+            IF(new_doi.is_oa = old_doi.is_oa, null, new_doi.is_oa) as is_oa,
+            IF(new_doi.gold = old_doi.gold, null, new_doi.gold) as gold,
+            IF(new_doi.green = old_doi.green, null, new_doi.green) as green,
+            IF(new_doi.bronze = old_doi.bronze, null, new_doi.bronze) as bronze,
+            IF(new_doi.hybrid = old_doi.hybrid, null, new_doi.hybrid) as hybrid,
+            IF(new_doi.green_only = old_doi.green_only, null, new_doi.green_only) as green_only
+        ) as fields
+    FROM new_dois_table as new_doi
+    INNER JOIN old_dois_table as old_doi on new_doi.doi = old_doi.doi
+    WHERE
+        new_doi.title != old_doi.title OR
+        new_doi.abstract != old_doi.abstract OR
+        new_doi.published_year != old_doi.published_year OR
+        new_doi.output_type != old_doi.output_type OR
+        new_doi.publisher != old_doi.publisher OR
+        new_doi.journal != old_doi.journal OR
+        new_doi.citation_count != old_doi.citation_count OR
+        new_doi.is_oa != old_doi.is_oa OR
+        new_doi.gold != old_doi.gold OR
+        new_doi.green != old_doi.green OR
+        new_doi.bronze != old_doi.bronze OR
+        new_doi.hybrid != old_doi.hybrid OR
+        new_doi.green_only != old_doi.green_only
+),
+
+updated_dois_ids as (
+SELECT
+    doi,
+    STRUCT("{{ es_index_id }}" as _index, doi as _id) as update,
+    null as fields
+FROM potentially_updated_dois as updated_dois
+),
+
+updated_dois_fields as (
+SELECT
+    doi,
+    null as update,
+    updated_dois.fields as fields
+FROM potentially_updated_dois as updated_dois
+),
+
+create_diffs as (
+SELECT
+    doi,
+    `create`,
+    fields
+FROM (
+SELECT
+    IF(created_dois_ids.doi is not null, created_dois_ids.doi, created_dois_fields.doi) as doi,
+    created_dois_ids.create,
+    created_dois_fields.fields
+FROM created_dois_ids
+FULL OUTER JOIN created_dois_fields on 1 = 0
+ORDER BY doi, `create`._id DESC)
+),
+
+update_diffs as (
+SELECT
+    doi,
+    update,
+    fields
+FROM (
+SELECT
+    IF(updated_dois_ids.doi is not null, updated_dois_ids.doi, updated_dois_fields.doi) as doi,
+    updated_dois_ids.update,
+    updated_dois_fields.fields
+FROM updated_dois_ids
+FULL OUTER JOIN updated_dois_fields on 1 = 0
+ORDER BY doi, `update`._id DESC)
+)
+
+SELECT
+    `create`,
+    delete,
+    update,
+    CASE
+        WHEN create_diffs.doi IS NOT NULL THEN create_diffs.fields
+        WHEN deleted_dois.doi IS NOT NULL THEN null
+        WHEN update_diffs.doi IS NOT NULL THEN update_diffs.fields
+        ELSE null
+    END as fields
+FROM create_diffs
+FULL OUTER JOIN deleted_dois on 1 = 0
+FULL OUTER JOIN update_diffs on 1 = 0
+ORDER BY create_diffs.doi, `create`._id DESC, deleted_dois.doi, `delete`._id DESC, update_diffs.doi, `update`._id DESC
