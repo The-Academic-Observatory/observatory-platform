@@ -268,7 +268,7 @@ class ObservatoryEnvironment:
         # If dag or execution date are not set, get corresponding values from dag run
         if not (dag and execution_date):
             if self.dag_run is None:
-                raise Exception(
+                raise TypeError(
                     "Either dag and execution date should be set, or task should be run within a DagRun environment."
                 )
             dag = self.dag_run.dag
