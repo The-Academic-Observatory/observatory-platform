@@ -252,6 +252,12 @@
             "mode": "REPEATED",
             "name": "ispartofseries",
             "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "isreplacedbydouble",
+            "type": "STRING"
           }
         ]
       },
@@ -645,6 +651,34 @@
           }
         ]
       },
+      {
+        "description": "Review",
+        "mode": "NULLABLE",
+        "name": "review",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "original",
+            "type": "STRING"
+          }
+        ]
+    },
+      {
+        "description": "Remark",
+        "mode": "NULLABLE",
+        "name": "remark",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "public",
+            "type": "STRING"
+          }
+        ]
+    },
       {
         "description": "",
         "mode": "NULLABLE",

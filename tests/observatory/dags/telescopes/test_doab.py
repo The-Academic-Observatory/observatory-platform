@@ -14,14 +14,11 @@
 
 # Author: Aniek Roelofs
 
-import datetime
 import os
 from datetime import timedelta
-from unittest.mock import patch
 
 import httpretty
 import pendulum
-from freezegun import freeze_time
 from observatory.dags.telescopes.doab import (DoabRelease, DoabTelescope)
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
@@ -43,11 +40,9 @@ class TestDoab(ObservatoryTestCase):
 
         self.first_download_path = test_fixtures_path('telescopes', 'doab', 'doab1.csv')
         self.first_execution_date = pendulum.datetime(year=2021, month=2, day=1)
-        self.first_run_date = freeze_time(self.first_execution_date, tick=True)
 
         self.second_download_path = test_fixtures_path('telescopes', 'doab', 'doab2.csv')
         self.second_execution_date = pendulum.datetime(year=2021, month=3, day=1)
-        self.second_run_date = freeze_time(self.second_execution_date, tick=True)
 
     def test_dag_structure(self):
         """ Test that the DOAB DAG has the correct structure.
@@ -77,14 +72,10 @@ class TestDoab(ObservatoryTestCase):
             dag_file = os.path.join(module_file_path('observatory.dags.dags'), 'doab.py')
             self.assert_dag_load('doab', dag_file)
 
-    @patch('google.auth._helpers.utcnow')
-    def test_telescope(self, mock_utcnow):
+    def test_telescope(self):
         """ Test the DOAB telescope end to end.
         :return: None.
         """
-        # make sure google auth uses real datetime and not freezegun fake time
-        mock_utcnow.return_value = datetime.datetime.utcnow()
-
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.project_id, self.data_location)
         dataset_id = env.add_dataset()
@@ -96,7 +87,6 @@ class TestDoab(ObservatoryTestCase):
         # Create the Observatory environment and run tests
         with env.create():
             # first run
-            self.first_run_date.start()
             with env.create_dag_run(dag, self.first_execution_date):
                 # Test that all dependencies are specified: no error should be thrown
                 env.run_task(telescope.check_dependencies.__name__)
@@ -159,10 +149,8 @@ class TestDoab(ObservatoryTestCase):
                                                                     release.transform_folder
                 env.run_task(telescope.cleanup.__name__)
                 self.assert_cleanup(download_folder, extract_folder, transform_folder)
-            self.first_run_date.stop()
 
             # second run
-            self.second_run_date.start()
             with env.create_dag_run(dag, self.second_execution_date):
                 # Test that all dependencies are specified: no error should be thrown
                 env.run_task(telescope.check_dependencies.__name__)
@@ -229,4 +217,3 @@ class TestDoab(ObservatoryTestCase):
                                                                     release.transform_folder
                 env.run_task(telescope.cleanup.__name__)
                 self.assert_cleanup(download_folder, extract_folder, transform_folder)
-            self.second_run_date.stop()

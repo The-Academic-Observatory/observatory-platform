@@ -75,7 +75,7 @@ class DoabRelease(StreamRelease):
         with open(self.csv_path, 'r') as f:
             csv_entries = [{k: v for k, v in row.items()} for row in csv.DictReader(f, skipinitialspace=True)]
 
-        nested_fields = get_nested_fieldnames(csv_entries)
+        nested_fields = get_nested_fieldnames(csv_entries[0])
         # values of these fields should be transformed to a list
         # list_fields = set()
         # for entry in csv_entries:
@@ -126,9 +126,9 @@ class DoabTelescope(StreamTelescope):
              self.transform,
              self.upload_transformed,
              self.bq_load_partition])
-        self.add_task_chain(self.make_operators([self.bq_delete_old,
-                                                 self.bq_append_new,
-                                                 self.cleanup]))
+        self.add_task_chain([self.bq_delete_old,
+                             self.bq_append_new,
+                             self.cleanup], trigger_rule='none_failed')
 
     def make_release(self, **kwargs) -> 'DoabRelease':
         # Make Release instance
@@ -172,7 +172,7 @@ def get_nested_fieldnames(csv_entries: dict) -> set:
     :param csv_entries: Dictionary with csv entries
     :return: Set of field names which should be converted to nested fields
     """
-    keys = csv_entries[0].keys()
+    keys = csv_entries.keys()
     nested_fields = set()
     for key in keys:
         # split string in two, starting from the right
