@@ -20,19 +20,21 @@ import copy
 import datetime
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 import pendulum
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.base_hook import BaseHook
+from google.cloud import bigquery
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, make_dag_id
-from observatory.platform.utils.template_utils import blob_name, bq_load_shard_v2, table_ids_from_path
+from observatory.platform.utils.template_utils import add_partition_date, blob_name, bq_load_partition, \
+    table_ids_from_path
 
 
 class GoogleAnalyticsRelease(SnapshotRelease):
@@ -88,6 +90,7 @@ class GoogleAnalyticsRelease(SnapshotRelease):
 
         service = initialize_analyticsreporting()
         results = get_reports(service, self.organisation.name, view_id, pagepath_regex, self.start_date, self.end_date)
+        results = add_partition_date(results, self.release_date, bigquery.TimePartitioningType.MONTH)
         if results:
             list_to_jsonl_gz(self.transform_path, results)
             return True
@@ -137,7 +140,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         self.add_setup_task_chain([self.check_dependencies])
         self.add_task_chain([self.download_transform,
                              self.upload_transformed,
-                             self.bq_load,
+                             self.bq_load_partition,
                              self.cleanup])
 
     def make_release(self, **kwargs) -> List[GoogleAnalyticsRelease]:
@@ -151,7 +154,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         """
         # Get start and end date (release_date)
         start_date = kwargs['execution_date']
-        end_date = kwargs['next_execution_date']
+        end_date = kwargs['next_execution_date'] - timedelta(days=1)
 
         logging.info(f'Start date: {start_date}, end date:{end_date}')
         releases = [GoogleAnalyticsRelease(self.dag_id, start_date, end_date, self.organisation)]
@@ -180,7 +183,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         if not results:
             raise AirflowSkipException("No Google Analytics data available to download.")
 
-    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
+    def bq_load_partition(self, releases: List[SnapshotRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
 
@@ -193,11 +196,15 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
+                table_description = self.table_descriptions.get(table_id, '')
 
-                bq_load_shard_v2(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
-                                 self.dataset_location, table_id, release.release_date, self.source_format,
-                                 prefix=self.schema_prefix, schema_version=self.schema_version,
-                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+                bq_load_partition(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                  self.dataset_location, table_id, release.release_date,
+                                  self.source_format,
+                                  bigquery.table.TimePartitioningType.MONTH, prefix=self.schema_prefix,
+                                  schema_version=self.schema_version, dataset_description=self.dataset_description,
+                                  table_description=table_description,
+                                  **self.load_bigquery_table_kwargs)
 
 
 def initialize_analyticsreporting() -> Resource:

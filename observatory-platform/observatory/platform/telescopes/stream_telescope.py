@@ -17,20 +17,18 @@
 import datetime
 import logging
 from datetime import timedelta
-from functools import partial
-from typing import Callable, Dict, List
+from typing import Dict
 
 import pendulum
 from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.python_operator import PythonOperator
 from observatory.platform.telescopes.telescope import Release, Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.template_utils import blob_name, \
     bq_append_from_file, \
     bq_append_from_partition, \
     bq_delete_old, \
-    bq_load_partition, \
+    bq_load_ingestion_partition, \
     table_ids_from_path, \
     upload_files_from_list
 
@@ -146,11 +144,11 @@ class StreamTelescope(Telescope):
         for transform_path in release.transform_files:
             transform_blob = blob_name(transform_path)
             main_table_id, partition_table_id = table_ids_from_path(transform_path)
-            date_partition_table_id = partition_table_id + f'${pendulum.today().strftime("%Y%m%d")}'
             table_description = self.table_descriptions.get(main_table_id, '')
-            bq_load_partition(release.end_date, transform_blob, self.dataset_id, main_table_id, date_partition_table_id,
-                              self.schema_prefix, self.schema_version, self.dataset_description,
-                              table_description=table_description, **self.load_bigquery_table_kwargs)
+            bq_load_ingestion_partition(release.end_date, transform_blob, self.dataset_id, main_table_id,
+                                        partition_table_id, self.schema_prefix, self.schema_version,
+                                        self.dataset_description, table_description=table_description,
+                                        **self.load_bigquery_table_kwargs)
 
     def bq_delete_old(self, release: StreamRelease, **kwargs):
         """ Delete old rows from the 'main' table, based on rows that are in a partition of the 'partitions' table.

@@ -20,20 +20,17 @@ import logging
 import os
 import pathlib
 import traceback
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum
-from typing import List, Tuple, Callable
+from typing import List, Tuple
 
 import pendulum
 import six
 from airflow import AirflowException
-from airflow.models.baseoperator import BaseOperator
 from airflow.utils.dates import cron_presets
 from croniter import croniter
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
-import functools
-
 from observatory.dags.config import schema_path, workflow_sql_templates_path
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars, create_slack_webhook
@@ -45,6 +42,8 @@ from observatory.platform.utils.gc_utils import (bigquery_sharded_table_id,
                                                  run_bigquery_query,
                                                  upload_files_to_cloud_storage)
 from observatory.platform.utils.jinja2_utils import make_sql_jinja2_filename, render_template
+
+partition_field = 'partition_date'
 
 # To avoid hitting the airflow database and the secret backend unnecessarily, some variables are stored as a global
 # variable and only requested once
@@ -125,6 +124,26 @@ def upload_files_from_list(files_list: List[str], bucket_name: str) -> bool:
     return success
 
 
+def add_partition_date(list_of_dicts: List[dict], partition_date: datetime,
+                       partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY):
+    """ Add a partition date key/value pair to each dictionary in the list of dicts.
+    Used to load data into a BigQuery partition.
+
+    :param list_of_dicts: List of dictionaries with original data
+    :param partition_date: The partition date
+    :param partition_type: The partition type
+    :return: Updated list of dicts with partition dates
+    """
+    if partition_type == bigquery.TimePartitioningType.HOUR:
+        partition_date = partition_date.isoformat()
+    else:
+        partition_date = partition_date.strftime('%Y-%m-%d')
+
+    for entry in list_of_dicts:
+        entry[partition_field] = partition_date
+    return list_of_dicts
+
+
 def table_ids_from_path(transform_path: str) -> Tuple[str, str]:
     """
     To create the table ids the basename of the transform path is taken and file extensions are stripped.
@@ -139,6 +158,27 @@ def table_ids_from_path(transform_path: str) -> Tuple[str, str]:
 
     logging.info(f'Table id: {main_table_id}, partition table id: {partition_table_id}')
     return main_table_id, partition_table_id
+
+
+def create_date_table_id(table_id: str, date: datetime, partition_type: bigquery.TimePartitioningType):
+    """ Create a table id string, which includes the date in the correct format corresponding to the partition type.
+
+    :param table_id: The table id
+    :param date: The date used for the partition identifier
+    :param partition_type: The partition type
+    :return: The updated table id
+    """
+    if partition_type == bigquery.TimePartitioningType.HOUR:
+        date_str = date.strftime("%Y%m%d%H")
+    elif partition_type == bigquery.TimePartitioningType.DAY:
+        date_str = date.strftime("%Y%m%d")
+    elif partition_type == bigquery.TimePartitioningType.MONTH:
+        date_str = date.strftime("%Y%m")
+    elif partition_type == bigquery.TimePartitioningType.YEAR:
+        date_str = date.strftime("%Y")
+    else:
+        return TypeError("Invalid partition type")
+    return f'{table_id}${date_str}'
 
 
 def prepare_bq_load(dataset_id: str, table_id: str, release_date: pendulum.Pendulum, prefix: str,
@@ -274,11 +314,13 @@ def bq_load_shard_v2(project_id: str, transform_bucket: str, transform_blob: str
         raise AirflowException()
 
 
-def bq_load_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
-                      partition_table_id: str, prefix: str = '', schema_version: str = None,
-                      dataset_description: str = '', **load_bigquery_table_kwargs):
+def bq_load_ingestion_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
+                                partition_table_id: str, prefix: str = '', schema_version: str = None,
+                                dataset_description: str = '', partition_type: bigquery.TimePartitioningType =
+                                bigquery.TimePartitioningType.DAY, **load_bigquery_table_kwargs):
     """ Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
     given it will automatically partition by ingestion datetime.
+
     :param end_date: End date.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
@@ -294,11 +336,55 @@ def bq_load_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_
 
     uri = f"gs://{bucket_name}/{transform_blob}"
 
+    # Include date in table id, so data in table is not overwritten
+    partition_table_id = create_date_table_id(partition_table_id, pendulum.today(), partition_type)
     success = load_bigquery_table(uri, dataset_id, data_location, partition_table_id, schema_file_path,
-                                  SourceFormat.NEWLINE_DELIMITED_JSON, partition=True,
+                                  SourceFormat.NEWLINE_DELIMITED_JSON, partition=True, partition_type=partition_type,
                                   require_partition_filter=False, **load_bigquery_table_kwargs)
     if not success:
-        raise AirflowException()
+        raise AirflowException("Unsuccessful creating BigQuery partition")
+
+
+def bq_load_partition(project_id: str, transform_bucket: str, transform_blob: str, dataset_id: str,
+                      dataset_location: str, table_id: str, release_date: \
+                pendulum.Pendulum,
+                      source_format:
+                      str,
+                      partition_type: bigquery.TimePartitioningType, prefix: str = '', schema_version: str = None,
+                      dataset_description: str = '', **load_bigquery_table_kwargs):
+    """ Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
+    given it will automatically partition by ingestion datetime.
+
+    :param project_id: project id.
+    :param transform_bucket: transform bucket name.
+    :param transform_blob: Name of the transform blob.
+    :param dataset_id: Dataset id.
+    :param dataset_location: location of dataset.
+    :param table_id: Table id.
+    :param release_date: Release date.
+    :param source_format: the format of the data to load into BigQuery.
+    :param partition_type: The partitioning type (hour, day, month or year)
+    :param prefix: The prefix for the schema.
+    :param schema_version: Schema version.
+    :param dataset_description: description of the BigQuery dataset.
+    :return: None.
+    """
+
+    schema_file_path = prepare_bq_load_v2(project_id, dataset_id, dataset_location, table_id, release_date,
+                                          prefix,
+                                          schema_version, dataset_description)
+
+    uri = f"gs://{transform_bucket}/{transform_blob}"
+
+    # Include date in table id, so data in table is not overwritten
+    table_id = create_date_table_id(table_id, release_date, partition_type)
+    success = load_bigquery_table(uri, dataset_id, dataset_location, table_id, schema_file_path,
+                                  source_format,
+                                  partition=True, partition_field=partition_field,
+                                  partition_type=partition_type, require_partition_filter=False,
+                                  **load_bigquery_table_kwargs)
+    if not success:
+        raise AirflowException("Unsuccessful creating BigQuery partition")
 
 
 def bq_delete_old(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, dataset_id: str, main_table_id: str,
@@ -376,7 +462,8 @@ def bq_append_from_file(end_date: pendulum.Pendulum, transform_blob: str, datase
     :return: None.
     """
     project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(dataset_id, main_table_id, end_date,
-                                                                               prefix, schema_version, dataset_description)
+                                                                               prefix, schema_version,
+                                                                               dataset_description)
 
     # Load BigQuery table
     uri = f"gs://{bucket_name}/{transform_blob}"
@@ -384,8 +471,10 @@ def bq_append_from_file(end_date: pendulum.Pendulum, transform_blob: str, datase
 
     # Append to table table
     table_id = main_table_id
-    success = load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path, SourceFormat.NEWLINE_DELIMITED_JSON,
-                                  write_disposition=bigquery.WriteDisposition.WRITE_APPEND, **load_bigquery_table_kwargs)
+    success = load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
+                                  SourceFormat.NEWLINE_DELIMITED_JSON,
+                                  write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+                                  **load_bigquery_table_kwargs)
     if not success:
         raise AirflowException()
 

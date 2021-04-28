@@ -160,7 +160,7 @@ def load_bigquery_table(
     csv_skip_leading_rows: int = 0,
     partition: bool = False,
     partition_field: Union[None, str] = None,
-    partition_type: str = bigquery.TimePartitioningType.DAY,
+    partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
     require_partition_filter=True,
     write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE,
     table_description: str = "",

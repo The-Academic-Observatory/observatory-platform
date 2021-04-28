@@ -144,5 +144,11 @@
         ]
       }
     ]
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "partition_date",
+    "type": "DATE",
+    "description": "Table is partitioned on this column."
   }
 ]
