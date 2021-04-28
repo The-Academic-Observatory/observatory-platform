@@ -50,34 +50,6 @@ class CrossrefEventsRelease(StreamRelease):
         super().__init__(dag_id, start_date, end_date, first_release, download_files_regex=download_files_regex,
                          transform_files_regex=transform_files_regex)
 
-        if CrossrefEventsTelescope.DOWNLOAD_MODE == 'parallel':
-            batches = self.batch_dates
-        elif CrossrefEventsTelescope.DOWNLOAD_MODE == 'sequential':
-            batches = [(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))]
-        else:
-            raise AirflowException(f'Download mode has to be either "sequential" or "parallel", '
-                                   f'not "{CrossrefEventsTelescope.DOWNLOAD_MODE}"')
-
-        self.urls = []
-        for batch in batches:
-            start_date = batch[0]
-            end_date = batch[1]
-
-            self.events_url = f'https://api.eventdata.crossref.org/v1/events?mailto={CrossrefEventsTelescope.MAILTO}' \
-                              f'&from-collected-date={start_date}&until-collected-date={end_date}&rows=1000'
-            self.edited_url = f'https://api.eventdata.crossref.org/v1/events/edited?' \
-                              f'mailto={CrossrefEventsTelescope.MAILTO}&from-updated-date={start_date}' \
-                              f'&until-updated-date={end_date}&rows=1000'
-            self.deleted_url = f'https://api.eventdata.crossref.org/v1/events/deleted?' \
-                               f'mailto={CrossrefEventsTelescope.MAILTO}&from-updated-date={start_date}' \
-                               f'&until-updated-date={end_date}&rows=1000'
-
-            event_type_urls = [self.events_url]
-            if not first_release:
-                event_type_urls.append(self.edited_url)
-                event_type_urls.append(self.deleted_url)
-            self.urls.append(event_type_urls)
-
     @property
     def download_path(self) -> str:
         """ Path to store the downloaded crossref events file"""
@@ -95,6 +67,14 @@ class CrossrefEventsRelease(StreamRelease):
         :return: List of batches, where each batch is a tuple of (start_date, end_date). Both dates are strings in
         format YYYY-MM-DD
         """
+        if CrossrefEventsTelescope.DOWNLOAD_MODE == 'sequential':
+            return [(self.start_date.strftime("%Y-%m-%d"), self.end_date.strftime("%Y-%m-%d"))]
+        elif CrossrefEventsTelescope.DOWNLOAD_MODE == 'parallel':
+            pass
+        else:
+            raise AirflowException(f'Download mode has to be either "sequential" or "parallel", '
+                                   f'not "{CrossrefEventsTelescope.DOWNLOAD_MODE}"')
+
         start_date = self.start_date.date()
         end_date = self.end_date.date()
         max_processes = CrossrefEventsTelescope.MAX_PROCESSES
@@ -121,6 +101,29 @@ class CrossrefEventsRelease(StreamRelease):
                 batches.append((batch_start_date, batch_end_date))
 
         return batches
+
+    @property
+    def urls(self):
+        urls = []
+        for batch in self.batch_dates:
+            start_date = batch[0]
+            end_date = batch[1]
+
+            self.events_url = f'https://api.eventdata.crossref.org/v1/events?mailto={CrossrefEventsTelescope.MAILTO}' \
+                              f'&from-collected-date={start_date}&until-collected-date={end_date}&rows=1000'
+            self.edited_url = f'https://api.eventdata.crossref.org/v1/events/edited?' \
+                              f'mailto={CrossrefEventsTelescope.MAILTO}&from-updated-date={start_date}' \
+                              f'&until-updated-date={end_date}&rows=1000'
+            self.deleted_url = f'https://api.eventdata.crossref.org/v1/events/deleted?' \
+                               f'mailto={CrossrefEventsTelescope.MAILTO}&from-updated-date={start_date}' \
+                               f'&until-updated-date={end_date}&rows=1000'
+
+            event_type_urls = [self.events_url]
+            if not self.first_release:
+                event_type_urls.append(self.edited_url)
+                event_type_urls.append(self.deleted_url)
+            urls.append(event_type_urls)
+        return urls
 
     def batch_path(self, url, cursor: bool = False) -> str:
         """ Gets the appropriate file path for a single batch, either for an events or cursor file.
@@ -382,8 +385,4 @@ def change_keys(obj, convert):
         new = obj.__class__()
         for k, v in obj.items():
             new[convert(k)] = change_keys(v, convert)
-    elif isinstance(obj, (list, set, tuple)):
-        new = obj.__class__(change_keys(v, convert) for v in obj)
-    else:
-        return obj
-    return new
+        return new
