@@ -55,6 +55,7 @@ from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
+    random_id,
     test_fixtures_path,
 )
 
@@ -554,15 +555,10 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         self.gcp_bucket_name = os.getenv("TEST_GCP_BUCKET_NAME")
         self.timestamp = pendulum.now()
 
-        self.test_onix_dataset_id = "onix_workflow_onix_table"
-        self.test_onix_table_id = "onix"
+        self.onix_table_id = "onix"
         self.test_onix_folder = "onix_workflow_test_onix_table"
         self.onix_release_date = pendulum.Pendulum(2021, 4, 1)
-
-        # Create fake data table. There's no guarantee the data was deleted so clean it again just in case.
-        self.delete_bucket_blobs()
-        self.teardown_fake_onix_data_table()
-        self.setup_fake_onix_data_table()
+        self.onix_dataset_id = ""
 
     def setup_observatory_env(self, env):
         # Add Observatory API connection
@@ -607,6 +603,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         env.api_session.add(telescope)
         env.api_session.commit()
 
+        # Add a dataset for onix telescope
+        self.onix_dataset_id = env.add_dataset()
+
     def delete_bucket_blobs(self):
         """ Delete test blob files"""
 
@@ -626,7 +625,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             project_id=self.gcp_project_id,
             transform_bucket=self.gcp_bucket_name,
             transform_blob=blobs[0],
-            dataset_id=self.test_onix_dataset_id,
+            dataset_id=self.onix_dataset_id,
             dataset_location=self.data_location,
             table_id=table_id,
             release_date=self.onix_release_date,
@@ -635,10 +634,15 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             **{},
         )
 
+        print("===========================================================")
+        print(
+            f"Creating fake data at proj: {self.gcp_project_id}, transform_bucket: {self.gcp_bucket_name}, blob: {blobs[0]}, dataset: {self.onix_dataset_id}, table: {table_id}, release: {self.onix_release_date}"
+        )
+        print("===========================================================")
+
     def teardown_fake_onix_data_table(self):
         """Delete the testing onix data table, and delete the dataset."""
 
-        delete_bigquery_dataset(self.gcp_project_id, self.test_onix_dataset_id)
         delete_bigquery_dataset(self.gcp_project_id, "onix_workflow")
 
     def test_telescope(self):
@@ -651,8 +655,15 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         with env.create():
             telescope_sensor = TestOnixWorkflowFunctional.DummySensor(task_id="dummy_sensor", start_date=self.timestamp)
 
-            # Pull info from Observatory API
+            # Set up environment
             self.setup_observatory_env(env)
+
+            # Create fake data table. There's no guarantee the data was deleted so clean it again just in case.
+            self.delete_bucket_blobs()
+            self.teardown_fake_onix_data_table()
+            self.setup_fake_onix_data_table()
+
+            # Pull info from Observatory API
             api = make_observatory_api()
             telescope_type = api.get_telescope_type(type_id=TelescopeTypes.onix)
             telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
@@ -669,8 +680,8 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 gcp_project_id=gcp_project_id,
                 gcp_bucket_name=gcp_bucket_name,
                 telescope_sensor=telescope_sensor,
-                onix_dataset_id=self.test_onix_dataset_id,
-                onix_table_id=self.test_onix_table_id,
+                onix_dataset_id=self.onix_dataset_id,
+                onix_table_id=self.onix_table_id,
             )
             workflow_dag = telescope.make_dag()
 
