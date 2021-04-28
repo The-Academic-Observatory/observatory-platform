@@ -594,3 +594,5 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
                 delete_bucket_dir(bucket_name=self.gc_bucket_name, prefix=testdir)
                 self.assertFalse(blob.exists())
+            finally:
+                pass
