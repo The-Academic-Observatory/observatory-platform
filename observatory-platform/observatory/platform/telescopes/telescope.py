@@ -152,9 +152,7 @@ class AbstractTelescope(ABC):
         pass
 
     @abstractmethod
-    def make_release(
-        self, **kwargs
-    ) -> Union["AbstractRelease", List["AbstractRelease"]]:
+    def make_release(self, **kwargs) -> Union["AbstractRelease", List["AbstractRelease"]]:
         """Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'.
 
@@ -314,7 +312,6 @@ class Telescope(AbstractTelescope):
         :return: the DAG object.
         """
         tasks = []
-        tasks.extend(self.sensors)
         with self.dag:
             # Process setup tasks first, which are always ShortCircuitOperators
             for func, kwargs in self.setup_task_funcs:
@@ -324,7 +321,7 @@ class Telescope(AbstractTelescope):
                     queue=self.queue,
                     default_args=self.default_args,
                     provide_context=True,
-                    **kwargs
+                    **kwargs,
                 )
                 tasks.append(task)
 
@@ -336,10 +333,14 @@ class Telescope(AbstractTelescope):
                     queue=self.queue,
                     default_args=self.default_args,
                     provide_context=True,
-                    **kwargs
+                    **kwargs,
                 )
                 tasks.append(task)
             chain(*tasks)
+
+            # Chain all sensors to the first task
+            for sensor in self.sensors:
+                sensor >> tasks[0]
 
         return self.dag
 
