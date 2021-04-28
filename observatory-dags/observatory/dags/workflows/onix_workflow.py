@@ -273,12 +273,6 @@ class OnixWorkflow(Telescope):
         :param kwargs: Unused.
         """
 
-        print("===========================================================")
-        print(
-            f"Attempting to fetch suffixes for proj: {self.gcp_project_id}, dataset: {self.onix_dataset_id}, table_id: {self.onix_table_id}, end_date: {release.release_date}"
-        )
-        print("===========================================================")
-
         onix_release_date = select_table_suffixes(
             project_id=self.gcp_project_id,
             dataset_id=self.onix_dataset_id,

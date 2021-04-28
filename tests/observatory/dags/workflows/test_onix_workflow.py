@@ -634,12 +634,6 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             **{},
         )
 
-        print("===========================================================")
-        print(
-            f"Creating fake data at proj: {self.gcp_project_id}, transform_bucket: {self.gcp_bucket_name}, blob: {blobs[0]}, dataset: {self.onix_dataset_id}, table: {table_id}, release: {self.onix_release_date}"
-        )
-        print("===========================================================")
-
     def teardown_fake_onix_data_table(self):
         """Delete the testing onix data table, and delete the dataset."""
 
