@@ -35,6 +35,8 @@ from observatory.platform.utils.gc_utils import (
     create_bigquery_table_from_query,
     create_bigquery_view,
     create_cloud_storage_bucket,
+    delete_bigquery_dataset,
+    delete_bucket_dir,
     download_blob_from_cloud_storage,
     download_blobs_from_cloud_storage,
     load_bigquery_table,
@@ -547,3 +549,48 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Delete file on Azure
             if az_blob is not None:
                 az_blob.delete_blob()
+
+    def test_delete_bigquery_dataset(self):
+        def dataset_exists(project_id, dataset_id):
+            client = bigquery.Client(project=project_id)
+            try:
+                client.get_dataset(dataset_id)
+                return True
+            except:
+                return False
+
+        project_id = self.gc_project_id
+        dataset_id = random_id()
+        create_bigquery_dataset(project_id=project_id, dataset_id=dataset_id, location=self.gc_bucket_location)
+
+        self.assertTrue(dataset_exists(project_id, dataset_id))
+        delete_bigquery_dataset(project_id, dataset_id)
+        self.assertFalse(dataset_exists(project_id, dataset_id))
+
+    def test_delete_bucket_dir(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            testdir = random_id()
+            # Create file
+            upload_file_name = f"{testdir}/{random_id()}.txt"
+            download_file_name = f"{testdir}/{random_id()}.txt"
+            with open(upload_file_name, "w") as f:
+                f.write(self.data)
+
+            # Create client for blob
+            storage_client = storage.Client()
+            bucket = storage_client.get_bucket(self.gc_bucket_name)
+            blob = bucket.blob(upload_file_name)
+
+            try:
+                # Upload file
+                result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, upload_file_name, upload_file_name)
+                self.assertTrue(result)
+
+                # Check that blob exists and has correct hash
+                self.assertTrue(blob.exists())
+                blob.reload()
+                self.assertEqual(self.expected_crc32c, blob.crc32c)
+
+                delete_bucket_dir(bucket_name=self.gc_bucket_name, prefix=testdir)
+                self.assertFalse(blob.exists())
