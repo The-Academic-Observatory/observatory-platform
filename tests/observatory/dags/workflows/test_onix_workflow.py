@@ -753,6 +753,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         """Delete the testing onix data table, and delete the dataset."""
 
         delete_bigquery_dataset(self.gcp_project_id, "onix_workflow")
+        print("========================================================== Deleting onix_workflow dataset")
 
     def teardown_intermediate_tables(self):
         delete_bigquery_dataset(self.gcp_project_id, "oaebu_intermediate")
