@@ -312,6 +312,11 @@ class Telescope(AbstractTelescope):
         :return: the DAG object.
         """
         tasks = []
+
+        for sensor in self.sensors:
+            sensor.start_date = self.start_date
+            sensor.dag = self.dag
+
         with self.dag:
             # Process setup tasks first, which are always ShortCircuitOperators
             for func, kwargs in self.setup_task_funcs:
