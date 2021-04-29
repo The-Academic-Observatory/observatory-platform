@@ -229,15 +229,13 @@ def load_bigquery_table(
         load_job: LoadJob = client.load_table_from_uri(
             uri, dataset.table(table), location=location, job_config=job_config
         )
+
         result = load_job.result()
         state = result.state == "DONE"
 
-        if load_job.state == "DONE" and load_job.error_result:
-            logging.error(load_job.errors)
-
         logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
     except BadRequest as e:
-        logging.error(f"{func_name}: load bigquery table failed: {e}")
+        logging.error(f"{func_name}: load bigquery table failed: {e}.\nError collection:\n{load_job.errors}")
         state = False
 
     return state
