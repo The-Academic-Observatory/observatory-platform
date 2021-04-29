@@ -361,7 +361,6 @@ class OnixWorkflow(Telescope):
             dataset_description=release.dataset_description,
             **{},
         )
-        print(f"=======================================  Creating {release.workflow_dataset_id}.{table_id}")
 
     def bq_load_workid_lookup_errors(self, release: OnixWorkflowRelease, **kwargs):
         """Load the WorkID lookup table errors into BigQuery.
@@ -388,7 +387,6 @@ class OnixWorkflow(Telescope):
             dataset_description=release.dataset_description,
             **{},
         )
-        print(f"=======================================  Creating {release.workflow_dataset_id}.{table_id}")
 
     def bq_load_workfamilyid_lookup(self, release: OnixWorkflowRelease, **kwargs):
         """Load the WorkFamilyID lookup table into BigQuery.
@@ -415,7 +413,6 @@ class OnixWorkflow(Telescope):
             dataset_description=release.dataset_description,
             **{},
         )
-        print(f"=======================================  Creating {release.workflow_dataset_id}.{table_id}")
 
     def cleanup(self, release: OnixWorkflowRelease, **kwargs):
         """Cleanup temporary files.
