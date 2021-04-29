@@ -203,7 +203,7 @@ class OnixWorkflow(Telescope):
         onix_dataset_id: str = "onix",
         onix_table_id: str = "onix",
         dag_id: Optional[str] = None,
-        start_date: Optional[penulum.Pendulum] = penulum.Pendulum(2021, 3, 28),
+        start_date: Optional[pendulum.Pendulum] = pendulum.Pendulum(2021, 3, 28),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
         data_partners: List[OaebuPartners] = list(),
