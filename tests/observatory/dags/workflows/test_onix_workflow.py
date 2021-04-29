@@ -35,11 +35,13 @@ from google.cloud.bigquery import SourceFormat
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.server.orm import Organisation
 from observatory.dags.telescopes.onix import OnixTelescope
+from observatory.dags.workflows.oaebu_partners import OaebuPartners
 from observatory.dags.workflows.onix_workflow import OnixWorkflow, OnixWorkflowRelease
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import (
     delete_bigquery_dataset,
     delete_bucket_dir,
+    run_bigquery_query,
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.telescope_utils import (
@@ -533,6 +535,85 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     call_args["transform_blob"], "onix_workflow_test/20210101/onix_workfamilyid_isbn.jsonl.gz"
                 )
 
+    @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
+    @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    def test_create_oaebu_intermediate_table_tasks(
+        self, mock_sel_table_suffixes, mock_create_bq_ds, mock_create_bq_table
+    ):
+        data_partners = [
+            OaebuPartners(
+                name="Test Partner",
+                gcp_project_id="test_project",
+                gcp_dataset_id="test_dataset",
+                gcp_table_id="test_table",
+                isbn_field_name="isbn",
+            ),
+            OaebuPartners(
+                name="Test Partner",
+                gcp_project_id="test_project",
+                gcp_dataset_id="test_dataset",
+                gcp_table_id="test_table2",
+                gcp_table_date=pendulum.Pendulum(2021, 1, 1),
+                isbn_field_name="isbn",
+            ),
+        ]
+
+        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+
+        self.assertEqual(data_partners[0].gcp_table_date, None)
+
+        with CliRunner().isolated_filesystem():
+            telescope_sensor = make_telescope_sensor(self.telescope.organisation.name, OnixTelescope.DAG_ID_PREFIX)
+            wf = OnixWorkflow(
+                org_name=self.telescope.organisation.name,
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+                telescope_sensor=telescope_sensor,
+                dag_id="dagid",
+                data_partners=data_partners,
+            )
+
+            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+
+            # Spin up tasks
+            oaebu_task1, _ = wf.task_funcs[-3]
+            self.assertEqual(oaebu_task1.__name__, "create_oaebu_intermediate_table.test_dataset.test_table")
+
+            oaebu_task2, _ = wf.task_funcs[-2]
+            self.assertEqual(oaebu_task2.__name__, "create_oaebu_intermediate_table.test_dataset.test_table2")
+
+            # Run tasks
+            oaebu_task1(release)
+            _, call_args = mock_create_bq_ds.call_args
+            self.assertEqual(call_args["project_id"], "project_id")
+            self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
+            self.assertEqual(call_args["location"], "us")
+
+            _, call_args = mock_create_bq_table.call_args
+            self.assertEqual(call_args["project_id"], "project_id")
+            self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
+            self.assertEqual(call_args["table_id"], "test_table_matched20210101")
+            self.assertEqual(call_args["location"], "us")
+
+            expected_sql = "\n\n\nWITH orig_wid AS (\nSELECT\n    orig.*, wid.work_id\nFROM\n    `test_project.test_dataset.test_table20210101` orig\nLEFT JOIN\n    `test_project.onix_workflow.onix_workid_isbn20210101` wid\nON\n    orig.isbn = wid.isbn13\n)\n\nSELECT\n    orig_wid.*, wfam.work_family_id\nFROM\n    orig_wid\nLEFT JOIN\n    `test_project.onix_workflow.onix_workfamilyid_isbn20210101` wfam\nON\n    orig_wid.isbn = wfam.isbn13"
+            self.assertEqual(call_args["sql"], expected_sql)
+
+            oaebu_task2(release)
+            _, call_args = mock_create_bq_ds.call_args
+            self.assertEqual(call_args["project_id"], "project_id")
+            self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
+            self.assertEqual(call_args["location"], "us")
+
+            _, call_args = mock_create_bq_table.call_args
+            self.assertEqual(call_args["project_id"], "project_id")
+            self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
+            self.assertEqual(call_args["table_id"], "test_table2_matched20210101")
+            self.assertEqual(call_args["location"], "us")
+
+            expected_sql = "\n\n\nWITH orig_wid AS (\nSELECT\n    orig.*, wid.work_id\nFROM\n    `test_project.test_dataset.test_table220210101` orig\nLEFT JOIN\n    `test_project.onix_workflow.onix_workid_isbn20210101` wid\nON\n    orig.isbn = wid.isbn13\n)\n\nSELECT\n    orig_wid.*, wfam.work_family_id\nFROM\n    orig_wid\nLEFT JOIN\n    `test_project.onix_workflow.onix_workfamilyid_isbn20210101` wfam\nON\n    orig_wid.isbn = wfam.isbn13"
+            self.assertEqual(call_args["sql"], expected_sql)
+
 
 class TestOnixWorkflowFunctional(ObservatoryTestCase):
     """ Functionally test the workflow"""
@@ -559,6 +640,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         self.test_onix_folder = "onix_workflow_test_onix_table"
         self.onix_release_date = pendulum.Pendulum(2021, 4, 1)
         self.onix_dataset_id = ""
+        self.fake_partner_dataset = ""
 
     def setup_observatory_env(self, env):
         # Add Observatory API connection
@@ -634,10 +716,46 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             **{},
         )
 
-    def teardown_fake_onix_data_table(self):
+    def setup_fake_partner_data(self, env):
+        self.fake_partner_dataset = env.add_dataset()
+
+        # Upload fixture to bucket
+        files = [os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_country.json")]
+        blobs = [os.path.join(self.test_onix_folder, os.path.basename(file)) for file in files]
+        upload_files_to_cloud_storage(bucket_name=self.gcp_bucket_name, blob_names=blobs, file_paths=files)
+
+        # Load into bigquery
+        table_id, _ = table_ids_from_path("jstor_country.json")
+        bq_load_shard_v2(
+            project_id=self.gcp_project_id,
+            transform_bucket=self.gcp_bucket_name,
+            transform_blob=blobs[0],
+            dataset_id=self.fake_partner_dataset,
+            dataset_location=self.data_location,
+            table_id=table_id,
+            release_date=self.onix_release_date,
+            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+            dataset_description="Test Onix data for the workflow",
+            **{},
+        )
+
+        return [
+            OaebuPartners(
+                name="Test partner",
+                gcp_project_id=self.gcp_project_id,
+                gcp_dataset_id=self.fake_partner_dataset,
+                gcp_table_id=table_id,
+                isbn_field_name="ISBN",
+            )
+        ]
+
+    def teardown_workflow(self):
         """Delete the testing onix data table, and delete the dataset."""
 
         delete_bigquery_dataset(self.gcp_project_id, "onix_workflow")
+
+    def teardown_intermediate_tables(self):
+        delete_bigquery_dataset(self.gcp_project_id, "oaebu_intermediate")
 
     def test_telescope(self):
         """ Functional test of the ONIX workflow"""
@@ -651,10 +769,12 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # Set up environment
             self.setup_observatory_env(env)
+            data_partners = self.setup_fake_partner_data(env)
 
             # Create fake data table. There's no guarantee the data was deleted so clean it again just in case.
             self.delete_bucket_blobs()
-            self.teardown_fake_onix_data_table()
+            self.teardown_workflow()
+            self.teardown_intermediate_tables()
             self.setup_fake_onix_data_table()
 
             # Pull info from Observatory API
@@ -676,6 +796,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 telescope_sensor=telescope_sensor,
                 onix_dataset_id=self.onix_dataset_id,
                 onix_table_id=self.onix_table_id,
+                data_partners=data_partners,
             )
             workflow_dag = telescope.make_dag()
 
@@ -696,6 +817,15 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # Load work family id table into bigquery
             env.run_task(telescope.bq_load_workfamilyid_lookup.__name__, workflow_dag, self.timestamp)
+
+            # Create oaebu intermediate tables
+            oaebu_dataset = data_partners[0].gcp_dataset_id
+            oaebu_table = data_partners[0].gcp_table_id
+            env.run_task(
+                f"{telescope.create_oaebu_intermediate_table.__name__}.{oaebu_dataset}.{oaebu_table}",
+                workflow_dag,
+                self.timestamp,
+            )
 
             # Test conditions
             release_suffix = self.timestamp.strftime("%Y%m%d")
@@ -721,11 +851,30 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assert_table_integrity(table_id, 3)
 
             table_id = f"{self.gcp_project_id}.onix_workflow.onix_workid_isbn_errors{release_suffix}"
-            self.assert_table_integrity(table_id, 0)
+            self.assert_table_integrity(table_id, 1)
+
+            # Validate the joins worked
+            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.oaebu_intermediate.jstor_country_matched{release_suffix}"
+            records = run_bigquery_query(sql)
+            oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
+            oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
+
+            self.assertTrue(
+                oaebu_works["111"] == oaebu_works["112"]
+                and oaebu_works["111"] != oaebu_works["211"]
+                and oaebu_works["113"] is None
+            )
+
+            self.assertTrue(
+                oaebu_wfam["111"] == oaebu_wfam["112"]
+                and oaebu_wfam["112"] == oaebu_wfam["211"]
+                and oaebu_wfam["113"] is None
+            )
 
             # Cleanup
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
 
             # Test data teardown
-            self.teardown_fake_onix_data_table()
+            self.teardown_workflow()
+            self.teardown_intermediate_tables()
             self.delete_bucket_blobs()

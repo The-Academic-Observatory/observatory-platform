@@ -19,6 +19,7 @@ import json
 import os
 import shutil
 from datetime import datetime
+from functools import partial, update_wrapper
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -27,7 +28,9 @@ import pendulum
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from google.cloud.bigquery import SourceFormat
 from jinja2 import Environment, PackageLoader
+from observatory.dags.config import workflow_sql_templates_path
 from observatory.dags.telescopes.onix import OnixTelescope
+from observatory.dags.workflows.oaebu_partners import OaebuPartners
 from observatory.dags.workflows.onix_work_aggregation import (
     BookWorkAggregator,
     BookWorkFamilyAggregator,
@@ -35,10 +38,14 @@ from observatory.dags.workflows.onix_work_aggregation import (
 from observatory.platform.telescopes.telescope import AbstractRelease, Telescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.gc_utils import (
+    bigquery_partitioned_table_id,
+    create_bigquery_dataset,
+    create_bigquery_table_from_query,
     run_bigquery_query,
     select_table_suffixes,
     upload_files_to_cloud_storage,
 )
+from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.telescope_utils import (
     list_to_jsonl_gz,
     make_dag_id,
@@ -100,6 +107,9 @@ class OnixWorkflowRelease(AbstractRelease):
         self.bucket_name = gcp_bucket_name
 
         Path(".", self.transform_folder).mkdir(exist_ok=True, parents=True)
+
+        # OAEBU intermediate tables
+        self.oaebu_intermediate_dataset = "oaebu_intermediate"
 
     @property
     def transform_bucket(self) -> str:
@@ -177,6 +187,9 @@ class OnixWorkflow(Telescope):
     3. Create an ISBN13 -> Work Family ID lookup table.  Clusters editions together.
       a. Aggregate Works into Work Families.
       b. Writes the lookup table to BigQuery.
+    4. Create OAEBU intermediate tables.
+      a. For each data partner, create new tables in oaebu_intermediate dataset where existing tables are augmented
+         with work_id and work_family_id columns.
     """
 
     DAG_ID_PREFIX = "onix_workflow"
@@ -194,6 +207,7 @@ class OnixWorkflow(Telescope):
         start_date: Optional[datetime] = datetime(2021, 3, 28),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
+        data_partners: List[OaebuPartners] = list(),
     ):
         """Initialises the workflow object.
         :param org_name: Organisation name.
@@ -206,6 +220,7 @@ class OnixWorkflow(Telescope):
         :param start_date: Start date of the DAG.
         :param schedule_interval: Scheduled interval for running the DAG.
         :param catchup: Whether to catch up missed DAG runs.
+        :param data_partners: OAEBU data sources.
         """
 
         self.dag_id = dag_id
@@ -233,12 +248,16 @@ class OnixWorkflow(Telescope):
         self.add_task(self.bq_load_workid_lookup_errors)
         self.add_task(self.bq_load_workfamilyid_lookup)
 
+        # Create OAEBU Intermediate tables
+        self.create_oaebu_intermediate_table_tasks(data_partners)
+
         # Cleanup tasks
         self.add_task(self.cleanup)
 
     def make_release(self, **kwargs) -> OnixWorkflowRelease:
         """Creates a release object.
         :param kwargs: From Airflow. Contains the execution_date.
+        :return: OnixWorkflowRelease object.
         """
 
         release_date = kwargs["execution_date"]
@@ -253,7 +272,7 @@ class OnixWorkflow(Telescope):
 
         return release
 
-    def get_onix_records(self, project_id: str, dataset_id, table_id) -> List[dict]:
+    def get_onix_records(self, project_id: str, dataset_id: str, table_id: str) -> List[dict]:
         """Fetch the latest onix snapshot from BigQuery.
         :param project_id: Project ID.
         :param dataset_id: Dataset ID.
@@ -263,7 +282,17 @@ class OnixWorkflow(Telescope):
 
         sql = f"SELECT * FROM {project_id}.{dataset_id}.{table_id}"
         records = run_bigquery_query(sql)
-        return records
+
+        products = [
+            {
+                "ISBN13": records[i]["ISBN13"],
+                "RelatedWorks": records[i]["RelatedWorks"],
+                "RelatedProducts": records[i]["RelatedProducts"],
+            }
+            for i in range(len(records))
+        ]
+
+        return products
 
     def aggregate_works(self, release: OnixWorkflowRelease, **kwargs):
         """Fetches the ONIX product records from our ONIX database, aggregates them into works, workfamilies,
@@ -296,7 +325,7 @@ class OnixWorkflow(Telescope):
 
         # Aggregate work families
         agg = BookWorkFamilyAggregator(works)
-        agg.aggregate()
+        works_families = agg.aggregate()
         lookup_table = agg.get_works_family_lookup_table()
         list_to_jsonl_gz(release.worksfamilylookup_filename, lookup_table)
 
@@ -309,7 +338,6 @@ class OnixWorkflow(Telescope):
 
         files = release.transform_files
         blobs = [os.path.join(release.transform_folder, os.path.basename(file)) for file in files]
-
         upload_files_to_cloud_storage(bucket_name=release.transform_bucket, blob_names=blobs, file_paths=files)
 
     def bq_load_workid_lookup(self, release: OnixWorkflowRelease, **kwargs):
@@ -394,3 +422,88 @@ class OnixWorkflow(Telescope):
         """
 
         release.cleanup()
+
+    def create_oaebu_intermediate_table(
+        self,
+        release: OnixWorkflowRelease,
+        *args,
+        orig_project_id: str,
+        orig_dataset: str,
+        orig_table: str,
+        orig_isbn: str,
+        table_date: Union[None, pendulum.Pendulum],
+        **kwargs,
+    ):
+        """Create an intermediate oaebu table.  They are of the form datasource_matched<date>
+        :param release: Onix workflow release information.
+        :param args: Catching any other positional args (unused).
+        :param orig_project_id: Project ID for the partner data.
+        :param orig_dataset: Dataset ID for the partner data.
+        :param orig_table: Table ID for the partner data.
+        :param orig_isbn: Name of the ISBN field in the partner data table.
+        :param table_date: Date of table
+        """
+
+        if table_date == None:
+            table_date = select_table_suffixes(
+                project_id=orig_project_id,
+                dataset_id=orig_dataset,
+                table_id=orig_table,
+                end_date=release.release_date,
+            )[0]
+
+        output_table = orig_table + "_matched"
+        output_dataset = release.oaebu_intermediate_dataset
+
+        data_location = release.dataset_location
+        release_date = release.release_date
+        table_joining_template_file = "assign_workid_workfamilyid.sql.jinja2"
+        template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+        table_id = bigquery_partitioned_table_id(output_table, release_date)
+        orig_table_suffix = table_date.strftime("%Y%m%d")
+        dst_table_suffix = release_date.strftime("%Y%m%d")
+
+        sql = render_template(
+            template_path,
+            project_id=orig_project_id,
+            orig_dataset=orig_dataset,
+            orig_table=f"{orig_table}{orig_table_suffix}",
+            orig_isbn=orig_isbn,
+            onix_workflow_dataset=release.workflow_dataset_id,
+            wid_table=release.worksid_table + dst_table_suffix,
+            wfam_table=release.workfamilyid_table + dst_table_suffix,
+        )
+
+        create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
+
+        status = create_bigquery_table_from_query(
+            sql=sql,
+            project_id=release.project_id,
+            dataset_id=output_dataset,
+            table_id=table_id,
+            location=release.dataset_location,
+        )
+
+        return status
+
+    def create_oaebu_intermediate_table_tasks(self, data_partners: List[OaebuPartners]):
+        """Create tasks for generating oaebu intermediate tables for each OAEBU data partner.
+        :param oaebu_data: List of oaebu partner data.
+        """
+
+        for data in data_partners:
+            fn = partial(
+                self.create_oaebu_intermediate_table,
+                orig_project_id=data.gcp_project_id,
+                orig_dataset=data.gcp_dataset_id,
+                orig_table=data.gcp_table_id,
+                orig_isbn=data.isbn_field_name,
+                table_date=data.gcp_table_date,
+            )
+
+            # Populate the __name__ attribute of the partial object (it lacks one by default).
+            # Scheme: create_oaebu_intermediate_table.dataset.table
+            update_wrapper(fn, self.create_oaebu_intermediate_table)
+            fn.__name__ += f".{data.gcp_dataset_id}.{data.gcp_table_id}"
+
+            self.add_task(fn)

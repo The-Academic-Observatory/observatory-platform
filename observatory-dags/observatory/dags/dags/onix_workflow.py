@@ -21,12 +21,72 @@
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.server.api import Response
 from observatory.dags.telescopes.onix import OnixTelescope
+from observatory.dags.workflows.oaebu_partners import OaebuPartners
 from observatory.dags.workflows.onix_workflow import OnixWorkflow
 from observatory.platform.utils.telescope_utils import (
     make_dag_id,
     make_observatory_api,
     make_telescope_sensor,
 )
+
+
+# Temporary function. Create oaebu partner metadata.
+# Get rid of this when we change the Observatory API.
+def get_oaebu_partner_data(project_id):
+    oaebu_data = [
+        # OaebuPartners(
+        #     name="Google Analytics",
+        #     gcp_project_id=project_id,
+        #     gcp_dataset_id="google",
+        #     gcp_table_id="google_book_sales",
+        #     isbn_field_name="Primary_ISBN",
+        # ),
+        # OaebuPartners(
+        #     name="Google Book Sales",
+        #     gcp_project_id=project_id,
+        #     gcp_dataset_id="google",
+        #     gcp_table_id="google_book_sales",
+        #     isbn_field_name="Primary_ISBN",
+        # ),
+        # OaebuPartners(
+        #     name="Google Book Traffic",
+        #     gcp_project_id=project_id,
+        #     gcp_dataset_id="google",
+        #     gcp_table_id="google_book_traffic",
+        #     isbn_field_name="Primary_ISBN",
+        # ),
+        # OaebuPartners(
+        #     name="JSTOR Country",
+        #     gcp_project_id=project_id,
+        #     gcp_dataset_id="jstor",
+        #     gcp_table_id="jstor_country",
+        #     isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
+        # ),
+        # OaebuPartners(
+        #     name="JSTOR Institution",
+        #     gcp_project_id=project_id,
+        #     gcp_dataset_id="jstor",
+        #     gcp_table_id="jstor_institution",
+        #     isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
+        # ),
+        # OaebuPartners(
+        #     name="OAPEN IRUS UK",
+        #     gcp_project_id=project_id,
+        #     gcp_dataset_id="oapen",
+        #     gcp_table_id="oapen_irus_uk",
+        #     isbn_field_name="isbn",  # Debate over whether this should be eISBN instead
+        # ),
+        # OaebuPartners(
+        #     name="Fake partner",
+        #     gcp_project_id=project_id,
+        #     gcp_dataset_id="fake_partner",
+        #     gcp_table_id="jstor_country",
+        #     isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
+        # ),
+    ]
+
+    return oaebu_data
+
 
 # Fetch all ONIX telescopes
 api = make_observatory_api()
@@ -40,11 +100,14 @@ for telescope in telescopes:
     gcp_bucket_name = telescope.organisation.gcp_transform_bucket
     telescope_sensor = make_telescope_sensor(org_name, OnixTelescope.DAG_ID_PREFIX)
 
+    data_partners = get_oaebu_partner_data(gcp_project_id)
+
     onix_workflow = OnixWorkflow(
         org_name=org_name,
         gcp_project_id=gcp_project_id,
         gcp_bucket_name=gcp_bucket_name,
         telescope_sensor=telescope_sensor,
+        data_partners=data_partners,
     )
 
     globals()[onix_workflow.dag_id] = onix_workflow.make_dag()
