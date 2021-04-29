@@ -18,7 +18,6 @@
 import json
 import os
 import shutil
-from datetime import datetime
 from functools import partial, update_wrapper
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
@@ -204,7 +203,7 @@ class OnixWorkflow(Telescope):
         onix_dataset_id: str = "onix",
         onix_table_id: str = "onix",
         dag_id: Optional[str] = None,
-        start_date: Optional[datetime] = datetime(2021, 3, 28),
+        start_date: Optional[penulum.Pendulum] = penulum.Pendulum(2021, 3, 28),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
         data_partners: List[OaebuPartners] = list(),
