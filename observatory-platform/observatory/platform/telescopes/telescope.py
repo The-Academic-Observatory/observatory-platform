@@ -339,8 +339,7 @@ class Telescope(AbstractTelescope):
             chain(*tasks)
 
             # Chain all sensors to the first task
-            for sensor in self.sensors:
-                sensor >> tasks[0]
+            self.sensors >> tasks[0]
 
         return self.dag
 
