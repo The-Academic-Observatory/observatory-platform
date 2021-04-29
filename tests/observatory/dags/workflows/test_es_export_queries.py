@@ -111,9 +111,7 @@ class TestElasticSearchExportQueries(unittest.TestCase):
 
             result_table_name = random_id()
 
-            success = create_bigquery_table_from_query(sql, self.gc_project_id, dataset_id, result_table_name, self.gc_bucket_location,
-                                                       partition=True, partition_field='date', cluster=True,
-                                                       clustering_fields=['date'])
+            success = create_bigquery_table_from_query(sql, self.gc_project_id, dataset_id, result_table_name, self.gc_bucket_location)
             self.assertTrue(success)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, result_table_name))
 
@@ -124,7 +122,7 @@ class TestElasticSearchExportQueries(unittest.TestCase):
                                   table_id=result_table_name)
             
             key = {'updated': 0, 'created': 1, 'deleted': 2}
-            expected_results = [bigquery.Row((100, 100, 100), key)]
+            expected_results = [bigquery.Row((13, 4, 3), key)]
 
             results = run_bigquery_query(sql)
             self.assertEqual(len(results), 1)
