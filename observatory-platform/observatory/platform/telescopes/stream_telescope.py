@@ -20,6 +20,8 @@ from datetime import timedelta
 from typing import Dict
 
 import pendulum
+from google.cloud.bigquery import SourceFormat
+
 from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
 from observatory.platform.telescopes.telescope import Release, Telescope
@@ -56,7 +58,8 @@ class StreamRelease(Release):
 class StreamTelescope(Telescope):
     def __init__(self, dag_id: str, start_date: datetime, schedule_interval: str, dataset_id: str,
                  merge_partition_field: str, updated_date_field: str, bq_merge_days: int, catchup: bool = False,
-                 queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1, schema_prefix: str = '',
+                 queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1, source_format: SourceFormat =
+                 SourceFormat.NEWLINE_DELIMITED_JSON, schema_prefix: str = '',
                  schema_version: str = None, load_bigquery_table_kwargs: Dict = None,
                  dataset_description: str = '', table_descriptions: Dict[str, str] = None,
                  airflow_vars: list = None, airflow_conns: list = None):
@@ -73,6 +76,7 @@ class StreamTelescope(Telescope):
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
+        :param source_format: the format of the data to load into BigQuery.
         :param schema_prefix: the prefix used to find the schema path
         :param schema_version: the version used to find the schema path
         :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
@@ -93,6 +97,7 @@ class StreamTelescope(Telescope):
         self.schema_prefix = schema_prefix
         self.schema_version = schema_version
         self.dataset_id = dataset_id
+        self.source_format = source_format
         self.merge_partition_field = merge_partition_field
         self.updated_date_field = updated_date_field
         self.bq_merge_days = bq_merge_days
@@ -146,7 +151,7 @@ class StreamTelescope(Telescope):
             main_table_id, partition_table_id = table_ids_from_path(transform_path)
             table_description = self.table_descriptions.get(main_table_id, '')
             bq_load_ingestion_partition(release.end_date, transform_blob, self.dataset_id, main_table_id,
-                                        partition_table_id, self.schema_prefix, self.schema_version,
+                                        partition_table_id, self.source_format, self.schema_prefix, self.schema_version,
                                         self.dataset_description, table_description=table_description,
                                         **self.load_bigquery_table_kwargs)
 
@@ -189,8 +194,9 @@ class StreamTelescope(Telescope):
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
                 table_description = self.table_descriptions.get(main_table_id, '')
                 bq_append_from_file(release.end_date, transform_blob, self.dataset_id, main_table_id,
-                                    self.schema_prefix, self.schema_version, self.dataset_description,
-                                    table_description=table_description, **self.load_bigquery_table_kwargs)
+                                    self.source_format, self.schema_prefix, self.schema_version,
+                                    self.dataset_description, table_description=table_description,
+                                    **self.load_bigquery_table_kwargs)
             return
 
         start_date = pendulum.instance(ti.previous_start_date_success)
