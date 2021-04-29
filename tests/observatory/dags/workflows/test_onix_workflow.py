@@ -776,7 +776,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             # self.delete_bucket_blobs()
             # self.teardown_workflow()
             # self.teardown_intermediate_tables()
-            # self.setup_fake_onix_data_table()
+            self.setup_fake_onix_data_table()
 
             # Pull info from Observatory API
             api = make_observatory_api()
