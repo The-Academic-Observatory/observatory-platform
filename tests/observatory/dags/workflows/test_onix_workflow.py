@@ -773,10 +773,10 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             data_partners = self.setup_fake_partner_data(env)
 
             # Create fake data table. There's no guarantee the data was deleted so clean it again just in case.
-            self.delete_bucket_blobs()
-            self.teardown_workflow()
-            self.teardown_intermediate_tables()
-            self.setup_fake_onix_data_table()
+            # self.delete_bucket_blobs()
+            # self.teardown_workflow()
+            # self.teardown_intermediate_tables()
+            # self.setup_fake_onix_data_table()
 
             # Pull info from Observatory API
             api = make_observatory_api()
@@ -876,6 +876,6 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
 
             # Test data teardown
-            self.teardown_workflow()
-            self.teardown_intermediate_tables()
-            self.delete_bucket_blobs()
+            # self.teardown_workflow()
+            # self.teardown_intermediate_tables()
+            # self.delete_bucket_blobs()
