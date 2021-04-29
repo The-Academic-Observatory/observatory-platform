@@ -218,6 +218,11 @@ class TestTemplateUtils(unittest.TestCase):
                                                                  data_location,
                                                                  telescope.dataset_description)
 
+            mock_find_schema.return_value = None
+            with self.assertRaises(SystemExit):
+                prepare_bq_load(telescope.dataset_id, table_id, release.release_date, telescope.schema_prefix,
+                                telescope.schema_version, telescope.dataset_description)
+
     @patch('observatory.platform.utils.template_utils.find_schema')
     @patch('observatory.platform.utils.template_utils.create_bigquery_dataset')
     @patch("airflow.models.variable.Variable.get")
@@ -244,6 +249,12 @@ class TestTemplateUtils(unittest.TestCase):
                                                                  telescope.dataset_location,
                                                                  telescope.dataset_description)
 
+            mock_find_schema.return_value = None
+            with self.assertRaises(SystemExit):
+                prepare_bq_load_v2(telescope.project_id, telescope.dataset_id, telescope.dataset_location, table_id,
+                                   release.release_date, telescope.schema_prefix, telescope.schema_version,
+                                   telescope.dataset_description)
+
     @patch('observatory.platform.utils.template_utils.load_bigquery_table')
     @patch('observatory.platform.utils.template_utils.prepare_bq_load')
     @patch("airflow.models.variable.Variable.get")
@@ -266,15 +277,23 @@ class TestTemplateUtils(unittest.TestCase):
                               dataset_description=telescope.dataset_description, table_description=table_description,
                               **telescope.load_bigquery_table_kwargs)
 
-            mock_prepare_bq_load.assert_called_once_with(telescope.dataset_id, table_id, release.release_date,
-                                                         telescope.schema_prefix, telescope.schema_version,
-                                                         telescope.dataset_description)
-            mock_load_bigquery_table.assert_called_once_with(
-                'gs://bucket_name/telescopes/dag_id/dag_id_2021_03_01/file.txt',
-                telescope.dataset_id,
-                'data_location', 'file20210301', 'schema.json',
-                telescope.source_format,
-                table_description=table_description)
+                mock_prepare_bq_load.assert_called_once_with(telescope.dataset_id, table_id, release.release_date,
+                                                             telescope.schema_prefix, telescope.schema_version,
+                                                             telescope.dataset_description)
+                mock_load_bigquery_table.assert_called_once_with(
+                    'gs://bucket_name/telescopes/dag_id/dag_id_2021_03_01/file.txt',
+                    telescope.dataset_id,
+                    'data_location', 'file20210301', 'schema.json',
+                    telescope.source_format,
+                    table_description=table_description)
+
+                mock_load_bigquery_table.return_value = False
+                with self.assertRaises(AirflowException):
+                    bq_load_shard(release.release_date, transform_blob, telescope.dataset_id, table_id,
+                                  telescope.source_format,
+                                  prefix=telescope.schema_prefix, schema_version=telescope.schema_version,
+                                  dataset_description=telescope.dataset_description, table_description=table_description,
+                                  **telescope.load_bigquery_table_kwargs)
 
     @patch('observatory.platform.utils.template_utils.load_bigquery_table')
     @patch('observatory.platform.utils.template_utils.prepare_bq_load_v2')
@@ -299,16 +318,24 @@ class TestTemplateUtils(unittest.TestCase):
                                  dataset_description=telescope.dataset_description,
                                  **telescope.load_bigquery_table_kwargs)
 
-            mock_prepare_bq_load.assert_called_once_with(telescope.project_id, telescope.dataset_id,
-                                                         telescope.dataset_location, table_id, release.release_date,
-                                                         telescope.schema_prefix,
-                                                         telescope.schema_version, telescope.dataset_description)
-            mock_load_bigquery_table.assert_called_once_with(
-                'gs://transform-bucket/telescopes/dag_id/dag_id_2021_03_01/file.txt',
-                telescope.dataset_id,
-                telescope.dataset_location, 'file20210301', 'schema.json',
-                telescope.source_format,
-                project_id=telescope.project_id)
+                mock_prepare_bq_load.assert_called_once_with(telescope.project_id, telescope.dataset_id,
+                                                             telescope.dataset_location, table_id, release.release_date,
+                                                             telescope.schema_prefix,
+                                                             telescope.schema_version, telescope.dataset_description)
+                mock_load_bigquery_table.assert_called_once_with(
+                    'gs://transform-bucket/telescopes/dag_id/dag_id_2021_03_01/file.txt',
+                    telescope.dataset_id,
+                    telescope.dataset_location, 'file20210301', 'schema.json',
+                    telescope.source_format,
+                    project_id=telescope.project_id)
+
+                mock_load_bigquery_table.return_value = False
+                with self.assertRaises(AirflowException):
+                    bq_load_shard_v2(telescope.project_id, release.transform_bucket, transform_blob, telescope.dataset_id,
+                                     telescope.dataset_location, table_id, release.release_date, telescope.source_format,
+                                     prefix=telescope.schema_prefix, schema_version=telescope.schema_version,
+                                     dataset_description=telescope.dataset_description,
+                                     **telescope.load_bigquery_table_kwargs)
 
     @patch('observatory.platform.utils.template_utils.load_bigquery_table')
     @patch('observatory.platform.utils.template_utils.prepare_bq_load')
@@ -331,16 +358,24 @@ class TestTemplateUtils(unittest.TestCase):
                                             telescope.dataset_description, table_description=table_description,
                                             **telescope.load_bigquery_table_kwargs)
 
-            mock_prepare_bq_load.assert_called_once_with(telescope.dataset_id, main_table_id, release.end_date,
-                                                         telescope.schema_prefix, telescope.schema_version,
-                                                         telescope.dataset_description)
-            mock_load_bigquery_table.assert_called_once_with(
-                'gs://bucket_name/telescopes/dag_id/2021_02_01-2021_03_01/file.txt',
-                telescope.dataset_id,
-                'data_location', 'file_partitions$20210429', 'schema.json',
-                telescope.source_format,
-                partition=True, partition_type=bigquery.table.TimePartitioningType.DAY,
-                require_partition_filter=False, table_description=table_description)
+                mock_prepare_bq_load.assert_called_once_with(telescope.dataset_id, main_table_id, release.end_date,
+                                                             telescope.schema_prefix, telescope.schema_version,
+                                                             telescope.dataset_description)
+                mock_load_bigquery_table.assert_called_once_with(
+                    'gs://bucket_name/telescopes/dag_id/2021_02_01-2021_03_01/file.txt',
+                    telescope.dataset_id,
+                    'data_location', 'file_partitions$20210429', 'schema.json',
+                    telescope.source_format,
+                    partition=True, partition_type=bigquery.table.TimePartitioningType.DAY,
+                    require_partition_filter=False, table_description=table_description)
+
+                mock_load_bigquery_table.return_value = False
+                with self.assertRaises(AirflowException):
+                    bq_load_ingestion_partition(release.end_date, transform_blob, telescope.dataset_id, main_table_id,
+                                                partition_table_id, telescope.source_format, telescope.schema_prefix,
+                                                telescope.schema_version,
+                                                telescope.dataset_description, table_description=table_description,
+                                                **telescope.load_bigquery_table_kwargs)
 
     @patch('observatory.platform.utils.template_utils.load_bigquery_table')
     @patch('observatory.platform.utils.template_utils.prepare_bq_load_v2')
@@ -369,18 +404,29 @@ class TestTemplateUtils(unittest.TestCase):
                                   table_description=table_description,
                                   **telescope.load_bigquery_table_kwargs)
 
-            mock_prepare_bq_load.assert_called_once_with(telescope.project_id, telescope.dataset_id,
-                                                         telescope.dataset_location, table_id, release.release_date,
-                                                         telescope.schema_prefix,
-                                                         telescope.schema_version, telescope.dataset_description)
-            mock_load_bigquery_table.assert_called_once_with(
-                'gs://transform-bucket/telescopes/dag_id/dag_id_2021_03_01/file.txt',
-                telescope.dataset_id,
-                telescope.dataset_location, 'file$202103', 'schema.json',
-                telescope.source_format,
-                partition=True, partition_field=partition_field,
-                partition_type=bigquery.table.TimePartitioningType.MONTH,
-                require_partition_filter=False, table_description=table_description)
+                mock_prepare_bq_load.assert_called_once_with(telescope.project_id, telescope.dataset_id,
+                                                             telescope.dataset_location, table_id, release.release_date,
+                                                             telescope.schema_prefix,
+                                                             telescope.schema_version, telescope.dataset_description)
+                mock_load_bigquery_table.assert_called_once_with(
+                    'gs://transform-bucket/telescopes/dag_id/dag_id_2021_03_01/file.txt',
+                    telescope.dataset_id,
+                    telescope.dataset_location, 'file$202103', 'schema.json',
+                    telescope.source_format,
+                    partition=True, partition_field=partition_field,
+                    partition_type=bigquery.table.TimePartitioningType.MONTH,
+                    require_partition_filter=False, table_description=table_description)
+
+                mock_load_bigquery_table.return_value = False
+                with self.assertRaises(AirflowException):
+                    bq_load_partition(telescope.project_id, release.transform_bucket, transform_blob, telescope.dataset_id,
+                                      telescope.dataset_location, table_id, release.release_date,
+                                      telescope.source_format,
+                                      bigquery.table.TimePartitioningType.MONTH, prefix=telescope.schema_prefix,
+                                      schema_version=telescope.schema_version,
+                                      dataset_description=telescope.dataset_description,
+                                      table_description=table_description,
+                                      **telescope.load_bigquery_table_kwargs)
 
     @patch('observatory.platform.utils.template_utils.run_bigquery_query')
     @patch("airflow.models.variable.Variable.get")
@@ -397,20 +443,21 @@ class TestTemplateUtils(unittest.TestCase):
                 bq_delete_old(release.start_date, release.end_date, telescope.dataset_id, main_table_id,
                               partition_table_id,
                               telescope.merge_partition_field, telescope.updated_date_field)
-            expected_query = "\n\nMERGE\n" \
-                             "  {dataset_id}.{main_table} M\n" \
-                             "USING\n" \
-                             "  (SELECT {merge_partition_field} AS id, {updated_date_field} AS date FROM {dataset_id}.{partition_table} WHERE _PARTITIONDATE >= '{start_date}' AND _PARTITIONDATE < '{end_date}') P\n" \
-                             "ON\n" \
-                             "  M.{merge_partition_field} = P.id\n" \
-                             "WHEN MATCHED AND M.{updated_date_field} <= P.date OR M.{updated_date_field} is null THEN\n" \
-                             "  DELETE".format(dataset_id=telescope.dataset_id, main_table=main_table_id,
-                                               partition_table=partition_table_id,
-                                               merge_partition_field=telescope.merge_partition_field,
-                                               updated_date_field=telescope.updated_date_field,
-                                               start_date=start_date_str,
-                                               end_date=end_date_str)
-            mock_run_bigquery_query.assert_called_once_with(expected_query)
+
+                expected_query = "\n\nMERGE\n" \
+                                 "  {dataset_id}.{main_table} M\n" \
+                                 "USING\n" \
+                                 "  (SELECT {merge_partition_field} AS id, {updated_date_field} AS date FROM {dataset_id}.{partition_table} WHERE _PARTITIONDATE >= '{start_date}' AND _PARTITIONDATE < '{end_date}') P\n" \
+                                 "ON\n" \
+                                 "  M.{merge_partition_field} = P.id\n" \
+                                 "WHEN MATCHED AND M.{updated_date_field} <= P.date OR M.{updated_date_field} is null THEN\n" \
+                                 "  DELETE".format(dataset_id=telescope.dataset_id, main_table=main_table_id,
+                                                   partition_table=partition_table_id,
+                                                   merge_partition_field=telescope.merge_partition_field,
+                                                   updated_date_field=telescope.updated_date_field,
+                                                   start_date=start_date_str,
+                                                   end_date=end_date_str)
+                mock_run_bigquery_query.assert_called_once_with(expected_query)
 
     @patch('observatory.platform.utils.template_utils.copy_bigquery_table')
     @patch('observatory.platform.utils.template_utils.prepare_bq_load')
@@ -431,16 +478,22 @@ class TestTemplateUtils(unittest.TestCase):
                                          partition_table_id,
                                          telescope.schema_prefix, telescope.schema_version)
 
-            mock_prepare_bq_load.assert_called_once_with(telescope.dataset_id, main_table_id, end_date,
-                                                         telescope.schema_prefix, telescope.schema_version)
-            source_table_ids = [f'project_id.{telescope.dataset_id}.{partition_table_id}$20200201',
-                                f'project_id.{telescope.dataset_id}.{partition_table_id}$20200202',
-                                f'project_id.{telescope.dataset_id}.{partition_table_id}$20200203',
-                                ]
-            mock_copy_bigquery_table.assert_called_once_with(source_table_ids, f'project_id.{telescope.dataset_id}.'
-                                                                               f'{main_table_id}',
-                                                             'data_location',
-                                                             bigquery.WriteDisposition.WRITE_APPEND)
+                mock_prepare_bq_load.assert_called_once_with(telescope.dataset_id, main_table_id, end_date,
+                                                             telescope.schema_prefix, telescope.schema_version)
+                source_table_ids = [f'project_id.{telescope.dataset_id}.{partition_table_id}$20200201',
+                                    f'project_id.{telescope.dataset_id}.{partition_table_id}$20200202',
+                                    f'project_id.{telescope.dataset_id}.{partition_table_id}$20200203',
+                                    ]
+                mock_copy_bigquery_table.assert_called_once_with(source_table_ids, f'project_id.{telescope.dataset_id}.'
+                                                                                   f'{main_table_id}',
+                                                                 'data_location',
+                                                                 bigquery.WriteDisposition.WRITE_APPEND)
+
+                mock_copy_bigquery_table.return_value = False
+                with self.assertRaises(AirflowException):
+                    bq_append_from_partition(start_date, end_date, telescope.dataset_id, main_table_id,
+                                             partition_table_id,
+                                             telescope.schema_prefix, telescope.schema_version)
 
     @patch('observatory.platform.utils.template_utils.load_bigquery_table')
     @patch('observatory.platform.utils.template_utils.prepare_bq_load')
@@ -464,15 +517,22 @@ class TestTemplateUtils(unittest.TestCase):
                                     telescope.dataset_description, table_description=table_description,
                                     **telescope.load_bigquery_table_kwargs)
 
-            mock_prepare_bq_load.assert_called_once_with(telescope.dataset_id, main_table_id, release.end_date,
-                                                         telescope.schema_prefix, telescope.schema_version,
-                                                         telescope.dataset_description)
-            mock_load_bigquery_table.assert_called_once_with(
-                'gs://bucket_name/telescopes/dag_id/2021_02_01-2021_03_01/file.txt',
-                telescope.dataset_id,
-                'data_location', 'file', 'schema.json',
-                telescope.source_format,
-                write_disposition='WRITE_APPEND', table_description=table_description)
+                mock_prepare_bq_load.assert_called_once_with(telescope.dataset_id, main_table_id, release.end_date,
+                                                             telescope.schema_prefix, telescope.schema_version,
+                                                             telescope.dataset_description)
+                mock_load_bigquery_table.assert_called_once_with(
+                    'gs://bucket_name/telescopes/dag_id/2021_02_01-2021_03_01/file.txt',
+                    telescope.dataset_id,
+                    'data_location', 'file', 'schema.json',
+                    telescope.source_format,
+                    write_disposition='WRITE_APPEND', table_description=table_description)
+
+                mock_load_bigquery_table.return_value = False
+                with self.assertRaises(AirflowException):
+                    bq_append_from_file(release.end_date, transform_blob, telescope.dataset_id, main_table_id,
+                                        telescope.source_format, telescope.schema_prefix, telescope.schema_version,
+                                        telescope.dataset_description, table_description=table_description,
+                                        **telescope.load_bigquery_table_kwargs)
 
     @patch("observatory.platform.utils.template_utils.create_slack_webhook")
     @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
