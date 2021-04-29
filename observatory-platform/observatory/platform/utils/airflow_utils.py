@@ -44,6 +44,7 @@ class AirflowVars:
     DAGS_MODULE_NAMES = "dags_module_names"
     KIBANA_SPACES = "kibana_spaces"
     OBSERVATORY_API = "observatory_api"
+    UPDATE_DATASETS_PROJECT_IDS = "update_datasets_project_ids"
 
 
 class AirflowConns:

@@ -94,7 +94,7 @@ x-environment: &environment
   {%- endif %}
   {%- for var in config.make_airflow_variables() %}
   {%- if config.backend.type.value == 'local' %}
-  {{ var.env_var_name }}: {{ var.value }}
+  {{ var.env_var_name }}: '{{ var.value }}'
   {%- else %}
   {{ var.env_var_name }}: {{ '${' + var.env_var_name + '}' }}
   {%- endif %}

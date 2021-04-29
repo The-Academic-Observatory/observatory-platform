@@ -197,7 +197,7 @@ def make_dag_id(namespace: str, organisation_name: str) -> str:
     :return: the DAG id.
     """
 
-    return f'{namespace}_{organisation_name.strip().lower().replace(" ", "_")}'
+    return f'{namespace}_{organisation_name.strip().lower().replace(" ", "_").replace("-", "_")}'
 
 
 def make_org_id(organisation_name: str) -> str:
