@@ -31,7 +31,7 @@ jobs:
           cp ../README.md .
           python3 setup.py sdist
 
-          cd observatory-platform
+          cd ../observatory-platform
           cp ../README.md .
           python3 setup.py sdist
 
