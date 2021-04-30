@@ -83,16 +83,21 @@ class DoabRelease(StreamRelease):
         #         if '||' in v:
         #             list_fields.add(k)
         list_fields = {'BITSTREAM Download URL', 'BITSTREAM License', 'BITSTREAM Webshop URL', 'dc.contributor',
-                       'dc.contributor.author', 'dc.contributor.editor', 'dc.contributor.other', 'dc.date.available', 'dc.date.issued',
+                       'dc.contributor.author', 'dc.contributor.editor', 'dc.date.available', 'dc.date.issued',
                        'dc.date.submitted', 'dc.dateSubmitted', 'dc.description.abstract', 'dc.description.provenance',
-                       'dc.grantproject', 'dc.identifier', 'dc.language', 'dc.notes', 'dc.number', 'dc.redirect',
-                       'dc.relation.ispartofseries', 'dc.relationisFundedBy', 'dc.subject', 'dc.subject.classification',
-                       'dc.subject.other', 'dc.title', 'dc.type', 'oapen.collection', 'oapen.grant.number',
-                       'oapen.grant.program', 'oapen.imprint', 'oapen.relation.hasChapter_dc.title',
-                       'oapen.relation.isFundedBy', 'oapen.relation.isFundedBy_grantor.name',
-                       'oapen.relation.isPartOfBook', 'oapen.relation.isPublishedBy_publisher.name',
-                       'oapen.relation.isPublisherOf', 'oapen.relation.isbn', 'peerreview.publish.responsibility',
-                       'peerreview.review.type', 'peerreview.reviewer.type'}
+                       'dc.grantproject', 'dc.identifier', 'dc.identifier.pr', 'dc.language', 'dc.notes', 'dc.number',
+                       'dc.redirect', 'dc.relation.ispartofseries', 'dc.relationisFundedBy', 'dc.subject',
+                       'dc.subject.classification', 'dc.subject.other', 'dc.title', 'dc.title.alternative', 'dc.type',
+                       'oapen.collection', 'oapen.grant.number', 'oapen.grant.program', 'oapen.imprint',
+                       'oapen.relation.hasChapter', 'oapen.relation.hasChapter_dc.title', 'oapen.relation.isFundedBy',
+                       'oapen.relation.isFundedBy_grantor.name', 'oapen.relation.isPartOfBook',
+                       'oapen.relation.isPartOfBook_dc.title', 'oapen.relation.isPublishedBy_publisher.name',
+                       'oapen.relation.isPublisherOf', 'oapen.relation.isbn', 'oapen.remark.public',
+                       'peerreview.anonymity', 'peerreview.id', 'peerreview.open.review',
+                       'peerreview.publish.responsibility', 'peerreview.review.decision',
+                       'peerreview.review.stage', 'peerreview.review.type', 'peerreview.reviewer.type'}
+        # add custom 'dc.subject.classification_code'
+        list_fields.add('dc.subject.classification_code')
         entries = transform_dict(csv_entries, convert, nested_fields, list_fields)
 
         # Transform release into JSON Lines format saving in memory buffer

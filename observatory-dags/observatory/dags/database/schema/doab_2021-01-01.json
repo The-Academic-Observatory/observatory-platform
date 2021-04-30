@@ -19,7 +19,7 @@
   },
   {
     "description": "ISBN of the book. Can have multiple isbn separated with ||.",
-    "mode": "REPEATED",
+    "mode": "NULLABLE",
     "name": "BITSTREAM_ISBN",
     "type": "STRING"
   },
@@ -79,7 +79,7 @@
           },
           {
             "description": "",
-            "mode": "REPEATED",
+            "mode": "NULLABLE",
             "name": "other",
             "type": "STRING"
           }
@@ -113,12 +113,6 @@
             "description": "",
             "mode": "REPEATED",
             "name": "submitted",
-            "type": "TIMESTAMP"
-          },
-          {
-            "description": "",
-            "mode": "REPEATED",
-            "name": "dateSubmitted",
             "type": "TIMESTAMP"
           }
         ]
@@ -199,7 +193,7 @@
           },
           {
             "description": "",
-            "mode": "NULLABLE",
+            "mode": "REPEATED",
             "name": "pr",
             "type": "STRING"
           },
@@ -255,7 +249,7 @@
           },
           {
             "description": "",
-            "mode": "REPEATED",
+            "mode": "NULLABLE",
             "name": "isreplacedbydouble",
             "type": "STRING"
           }
@@ -330,7 +324,7 @@
             "type": "STRING"
           },
           {
-            "description": "BIC subject category code.",
+            "description": "CUSTOM ADDED. BIC subject category code.",
             "mode": "REPEATED",
             "name": "classification_code",
             "type": "STRING"
@@ -357,7 +351,7 @@
           },
           {
             "description": "Alternative.",
-            "mode": "NULLABLE",
+            "mode": "REPEATED",
             "name": "alternative",
             "type": "STRING"
           }
@@ -493,7 +487,7 @@
           },
           {
             "description": "Grant project name.",
-            "mode": "REPEATED",
+            "mode": "NULLABLE",
             "name": "project",
             "type": "STRING"
           }
@@ -559,7 +553,7 @@
           },
           {
             "description": "[ID of chapter - part of book record",
-            "mode": "NULLABLE",
+            "mode": "REPEATED",
             "name": "hasChapter",
             "type": "STRING"
           },
@@ -611,7 +605,7 @@
             "fields": [
               {
                 "description": "Chapter's book title.",
-                "mode": "NULLABLE",
+                "mode": "REPEATED",
                 "name": "title",
                 "type": "STRING"
               }
@@ -673,7 +667,7 @@
         "fields": [
           {
             "description": "",
-            "mode": "NULLABLE",
+            "mode": "REPEATED",
             "name": "public",
             "type": "STRING"
           }
@@ -709,13 +703,13 @@
     "fields": [
       {
         "description": "",
-        "mode": "NULLABLE",
+        "mode": "REPEATED",
         "name": "anonymity",
         "type": "STRING"
       },
       {
         "description": "",
-        "mode": "NULLABLE",
+        "mode": "REPEATED",
         "name": "id",
         "type": "STRING"
       },
@@ -727,7 +721,7 @@
         "fields": [
           {
             "description": "",
-            "mode": "NULLABLE",
+            "mode": "REPEATED",
             "name": "review",
             "type": "STRING"
           }
@@ -755,13 +749,13 @@
         "fields": [
           {
             "description": "",
-            "mode": "NULLABLE",
+            "mode": "REPEATED",
             "name": "decision",
             "type": "STRING"
           },
           {
             "description": "",
-            "mode": "NULLABLE",
+            "mode": "REPEATED",
             "name": "stage",
             "type": "STRING"
           },
