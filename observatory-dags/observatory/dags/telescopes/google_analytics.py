@@ -199,8 +199,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
                 table_description = self.table_descriptions.get(table_id, '')
 
                 bq_load_partition(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
-                                  self.dataset_location, table_id, release.release_date,
-                                  self.source_format,
+                                  self.dataset_location, table_id, release.release_date, self.source_format,
                                   bigquery.table.TimePartitioningType.MONTH, prefix=self.schema_prefix,
                                   schema_version=self.schema_version, dataset_description=self.dataset_description,
                                   table_description=table_description,

@@ -25,10 +25,7 @@ from enum import Enum
 from typing import List, Tuple
 
 import pendulum
-import six
 from airflow import AirflowException
-from airflow.utils.dates import cron_presets
-from croniter import croniter
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 from observatory.dags.config import schema_path, workflow_sql_templates_path
@@ -259,7 +256,8 @@ def prepare_bq_load_v2(project_id: str, dataset_id: str, dataset_location: str, 
 
 
 def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, table_id: str,
-                  source_format: str, prefix: str = '', schema_version: str = None, dataset_description: str = '',
+                  source_format: SourceFormat, prefix: str = '', schema_version: str = None,
+                  dataset_description: str = '',
                   **load_bigquery_table_kwargs):
     """ Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
     :param release_date: Release date.
@@ -289,7 +287,7 @@ def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_
 
 
 def bq_load_shard_v2(project_id: str, transform_bucket: str, transform_blob: str, dataset_id: str,
-                     dataset_location: str, table_id: str, release_date: pendulum.Pendulum, source_format: str,
+                     dataset_location: str, table_id: str, release_date: pendulum.Pendulum, source_format: SourceFormat,
                      prefix: str = '', schema_version: str = None, dataset_description: str = '',
                      **load_bigquery_table_kwargs):
     """ Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
@@ -325,7 +323,8 @@ def bq_load_shard_v2(project_id: str, transform_bucket: str, transform_blob: str
 
 
 def bq_load_ingestion_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
-                                partition_table_id: str, source_format: str, prefix: str = '', schema_version: str =
+                                partition_table_id: str, source_format: SourceFormat, prefix: str = '',
+                                schema_version: str =
                                 None, dataset_description: str = '', partition_type: bigquery.TimePartitioningType =
                                 bigquery.TimePartitioningType.DAY, **load_bigquery_table_kwargs):
     """ Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
@@ -358,11 +357,11 @@ def bq_load_ingestion_partition(end_date: pendulum.Pendulum, transform_blob: str
 
 
 def bq_load_partition(project_id: str, transform_bucket: str, transform_blob: str, dataset_id: str,
-                      dataset_location: str, table_id: str, release_date: pendulum.Pendulum, source_format: str,
+                      dataset_location: str, table_id: str, release_date: pendulum.Pendulum,
+                      source_format: SourceFormat,
                       partition_type: bigquery.TimePartitioningType, prefix: str = '', schema_version: str = None,
                       dataset_description: str = '', **load_bigquery_table_kwargs):
-    """ Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
-    given it will automatically partition by ingestion datetime.
+    """ Load data from a specific file (blob) in the transform bucket to a partition.
 
     :param project_id: project id.
     :param transform_bucket: transform bucket name.
@@ -458,7 +457,8 @@ def bq_append_from_partition(start_date: pendulum.Pendulum, end_date: pendulum.P
 
 
 def bq_append_from_file(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
-                        source_format: str, prefix: str = '', schema_version: str = None, dataset_description: str = '',
+                        source_format: SourceFormat, prefix: str = '', schema_version: str = None,
+                        dataset_description: str = '',
                         **load_bigquery_table_kwargs):
     """ Appends rows to the main table by loading data from a specific file (blob) in the transform bucket.
     :param end_date: End date.

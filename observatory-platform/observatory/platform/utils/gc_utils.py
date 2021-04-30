@@ -153,7 +153,7 @@ def load_bigquery_table(
     location: str,
     table: str,
     schema_file_path: str,
-    source_format: str,
+    source_format: SourceFormat,
     csv_field_delimiter: str = ",",
     csv_quote_character: str = '"',
     csv_allow_quoted_newlines: bool = False,
