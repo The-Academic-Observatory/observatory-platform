@@ -18,13 +18,14 @@ import os
 import unittest
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import observatory.api.server.orm as orm
 import pandas as pd
 import pendulum
 from airflow import DAG
 from airflow.models.connection import Connection
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
@@ -44,10 +45,7 @@ from observatory.platform.utils.gc_utils import (
     run_bigquery_query,
     upload_files_to_cloud_storage,
 )
-from observatory.platform.utils.telescope_utils import (
-    make_observatory_api,
-    make_telescope_sensor,
-)
+from observatory.platform.utils.telescope_utils import make_observatory_api
 from observatory.platform.utils.template_utils import (
     blob_name,
     bq_load_shard_v2,
@@ -213,19 +211,29 @@ class TestOnixWorkflow(ObservatoryTestCase):
         env.api_session.add(telescope)
         env.api_session.commit()
 
+    @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
-    def test_ctor_gen_dag_id(self, mock_sel_table_suffixes):
+    def test_ctor_gen_dag_id(self, mock_sel_table_suffixes, mock_mr):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
-            telescope_sensor = make_telescope_sensor(self.telescope.organisation.name, OnixTelescope.DAG_ID_PREFIX)
+            mock_mr.return_value = [
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="",
+                    onix_table_id="onix",
+                )
+            ]
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
-                telescope_sensor=telescope_sensor,
             )
 
-            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            releases = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            release = releases[0]
             self.assertEqual(wf.dag_id, "onix_workflow_test")
             self.assertEqual(release.workslookup_filename, "onix_workflow_test/20210101/onix_workid_isbn.jsonl.gz")
             self.assertEqual(
@@ -241,20 +249,31 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(release.transform_bucket, "bucket_name")
             self.assertTrue(wf.sensors[0] != None)
 
+    @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
-    def test_ctor_gen_assign_dag_id(self, mock_sel_table_suffixes):
+    def test_ctor_gen_assign_dag_id(self, mock_sel_table_suffixes, mock_mr):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
-            telescope_sensor = make_telescope_sensor(self.telescope.organisation.name, OnixTelescope.DAG_ID_PREFIX)
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
-                telescope_sensor=telescope_sensor,
                 dag_id="dagid",
             )
 
-            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            mock_mr.return_value = [
+                OnixWorkflowRelease(
+                    dag_id="dagid",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="",
+                    onix_table_id="onix",
+                )
+            ]
+
+            releases = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            release = releases[0]
 
             self.assertEqual(release.dag_id, "dagid")
             self.assertEqual(release.workslookup_filename, "dagid/20210101/onix_workid_isbn.jsonl.gz")
@@ -267,19 +286,30 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(release.transform_bucket, "bucket_name")
             self.assertTrue(wf.sensors[0] != None)
 
+    @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
-    def test_ctor(self, mock_sel_table_suffixes):
+    def test_ctor(self, mock_sel_table_suffixes, mock_mr):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
-            telescope_sensor = make_telescope_sensor(self.telescope.organisation.name, OnixTelescope.DAG_ID_PREFIX)
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
-                telescope_sensor=telescope_sensor,
             )
 
-            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            mock_mr.return_value = [
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                )
+            ]
+
+            releases = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            release = releases[0]
 
             self.assertEqual(wf.dag_id, "onix_workflow_test")
             self.assertEqual(wf.org_name, "test")
@@ -314,44 +344,51 @@ class TestOnixWorkflow(ObservatoryTestCase):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         mock_bq_query.return_value = TestOnixWorkflow.onix_data
         with CliRunner().isolated_filesystem():
-            telescope_sensor = make_telescope_sensor(self.telescope.organisation.name, OnixTelescope.DAG_ID_PREFIX)
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
-                telescope_sensor=telescope_sensor,
             )
             records = wf.get_onix_records("project_id", "ds_id", "table_id")
             self.assertEqual(len(records), 3)
             self.assertEqual(records[0]["ISBN13"], "111")
 
+    @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
-    def test_cleanup(self, mock_sel_table_suffixes):
+    def test_cleanup(self, mock_sel_table_suffixes, mock_mr):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
-            telescope_sensor = make_telescope_sensor(self.telescope.organisation.name, OnixTelescope.DAG_ID_PREFIX)
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
-                telescope_sensor=telescope_sensor,
             )
 
-            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            mock_mr.return_value = [
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                )
+            ]
+
+            releases = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            release = releases[0]
             self.assertTrue(os.path.isdir(release.transform_folder))
-            wf.cleanup(release)
+            wf.cleanup(releases)
             self.assertFalse(os.path.isdir(release.transform_folder))
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
     def test_dag_structure(self, mock_sel_table_suffixes):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
-            telescope_sensor = make_telescope_sensor(self.telescope.organisation.name, OnixTelescope.DAG_ID_PREFIX)
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
-                telescope_sensor=telescope_sensor,
             )
             dag = wf.make_dag()
             self.assert_dag_structure(
@@ -379,6 +416,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 dag_file = os.path.join(module_file_path("observatory.dags.dags"), "onix_workflow.py")
                 self.assert_dag_load("onix_workflow_curtin_press", dag_file)
 
+    @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.run_bigquery_query")
     @patch("observatory.dags.workflows.onix_workflow.bq_load_shard_v2")
     @patch("observatory.dags.workflows.onix_workflow.upload_files_to_cloud_storage")
@@ -391,24 +429,35 @@ class TestOnixWorkflow(ObservatoryTestCase):
         mock_upload_files_from_list,
         mock_bq_load_lookup,
         mock_bq_query,
+        mock_mr,
     ):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         mock_bq_query.return_value = TestOnixWorkflow.onix_data
         env = ObservatoryEnvironment(self.project_id, self.data_location)
         with env.create():
             with CliRunner().isolated_filesystem():
-                telescope_sensor = make_telescope_sensor(self.telescope.organisation.name, OnixTelescope.DAG_ID_PREFIX)
                 wf = OnixWorkflow(
                     org_name=self.telescope.organisation.name,
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
-                    telescope_sensor=telescope_sensor,
                 )
 
-                release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+                mock_mr.return_value = [
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_test",
+                        release_date=pendulum.Pendulum(2021, 1, 1),
+                        gcp_project_id=self.telescope.organisation.gcp_project_id,
+                        gcp_bucket_name=self.bucket_name,
+                        onix_dataset_id="onix",
+                        onix_table_id="onix",
+                    )
+                ]
+
+                releases = wf.make_release()
+                release = releases[0]
 
                 # Test works aggregation
-                wf.aggregate_works(release)
+                wf.aggregate_works(releases)
                 self.assertEqual(mock_write_to_file.call_count, 3)
                 call_args = mock_write_to_file.call_args_list
                 self.assertEqual(len(call_args[0][0][1]), 3)
@@ -431,7 +480,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 self.assertEqual(call_args[1][0][0], "onix_workflow_test/20210101/onix_workid_isbn_errors.jsonl.gz")
 
                 # Test upload_aggregation_tables
-                wf.upload_aggregation_tables(release)
+                wf.upload_aggregation_tables(releases)
                 self.assertEqual(mock_upload_files_from_list.call_count, 1)
                 _, call_args = mock_upload_files_from_list.call_args
                 self.assertEqual(call_args["bucket_name"], "bucket_name")
@@ -453,7 +502,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 )
 
                 # Test bq_load_workid_lookup
-                wf.bq_load_workid_lookup(release)
+                wf.bq_load_workid_lookup(releases)
                 self.assertEqual(mock_bq_load_lookup.call_count, 1)
                 _, call_args = mock_bq_load_lookup.call_args
                 self.assertEqual(call_args["project_id"], "project_id")
@@ -467,7 +516,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 self.assertEqual(call_args["dataset_description"], "ONIX workflow tables")
 
                 # Test bq_load_workid_lookup_errors
-                wf.bq_load_workid_lookup_errors(release)
+                wf.bq_load_workid_lookup_errors(releases)
                 self.assertEqual(mock_bq_load_lookup.call_count, 2)
                 _, call_args = mock_bq_load_lookup.call_args
                 self.assertEqual(call_args["project_id"], "project_id")
@@ -484,6 +533,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 self.assertEqual(call_args["schema_version"], "")
                 self.assertEqual(call_args["dataset_description"], "ONIX workflow tables")
 
+    @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.run_bigquery_query")
     @patch("observatory.dags.workflows.onix_workflow.bq_load_shard_v2")
     @patch("observatory.dags.workflows.onix_workflow.upload_files_to_cloud_storage")
@@ -496,6 +546,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         mock_upload_files_from_list,
         mock_bq_load_lookup,
         mock_bq_query,
+        mock_mr,
     ):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         mock_bq_query.return_value = TestOnixWorkflow.onix_data
@@ -503,18 +554,27 @@ class TestOnixWorkflow(ObservatoryTestCase):
         env = ObservatoryEnvironment(self.project_id, self.data_location)
         with env.create():
             with CliRunner().isolated_filesystem():
-                telescope_sensor = make_telescope_sensor(self.telescope.organisation.name, OnixTelescope.DAG_ID_PREFIX)
                 wf = OnixWorkflow(
                     org_name=self.telescope.organisation.name,
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
-                    telescope_sensor=telescope_sensor,
                 )
 
-                release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+                mock_mr.return_value = [
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_test",
+                        release_date=pendulum.Pendulum(2021, 1, 1),
+                        gcp_project_id=self.telescope.organisation.gcp_project_id,
+                        gcp_bucket_name=self.bucket_name,
+                        onix_dataset_id="onix",
+                        onix_table_id="onix",
+                    )
+                ]
+                releases = wf.make_release()
+                release = releases[0]
 
                 # Test works family aggregation
-                wf.aggregate_works(release)
+                wf.aggregate_works(releases)
                 self.assertEqual(mock_write_to_file.call_count, 3)
                 call_args = mock_write_to_file.call_args_list
                 lookup_table = {arg["isbn13"]: arg["work_family_id"] for arg in call_args[2][0][1]}
@@ -525,8 +585,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 self.assertEqual(call_args[0][0][0], "onix_workflow_test/20210101/onix_workid_isbn.jsonl.gz")
 
                 # Test bq_load_workfamilyid_lookup
-                wf.upload_aggregation_tables(release)
-                wf.bq_load_workfamilyid_lookup(release)
+                wf.upload_aggregation_tables(releases)
+                wf.bq_load_workfamilyid_lookup(releases)
                 self.assertEqual(mock_bq_load_lookup.call_count, 1)
                 _, call_args = mock_bq_load_lookup.call_args
                 self.assertEqual(call_args["project_id"], "project_id")
@@ -535,11 +595,12 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     call_args["transform_blob"], "onix_workflow_test/20210101/onix_workfamilyid_isbn.jsonl.gz"
                 )
 
+    @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
     @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
     def test_create_oaebu_intermediate_table_tasks(
-        self, mock_sel_table_suffixes, mock_create_bq_ds, mock_create_bq_table
+        self, mock_sel_table_suffixes, mock_create_bq_ds, mock_create_bq_table, mock_mr
     ):
         data_partners = [
             OaebuPartners(
@@ -560,21 +621,31 @@ class TestOnixWorkflow(ObservatoryTestCase):
         ]
 
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
-
+        mock_create_bq_table.return_value = True
         self.assertEqual(data_partners[0].gcp_table_date, None)
 
         with CliRunner().isolated_filesystem():
-            telescope_sensor = make_telescope_sensor(self.telescope.organisation.name, OnixTelescope.DAG_ID_PREFIX)
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
-                telescope_sensor=telescope_sensor,
                 dag_id="dagid",
                 data_partners=data_partners,
             )
 
-            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            mock_mr.return_value = [
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                )
+            ]
+
+            releases = wf.make_release()
+            release = releases[0]
 
             # Spin up tasks
             oaebu_task1, _ = wf.task_funcs[-3]
@@ -584,7 +655,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(oaebu_task2.__name__, "create_oaebu_intermediate_table.test_dataset.test_table2")
 
             # Run tasks
-            oaebu_task1(release)
+            oaebu_task1(releases)
             _, call_args = mock_create_bq_ds.call_args
             self.assertEqual(call_args["project_id"], "project_id")
             self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
@@ -599,7 +670,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             expected_sql = "\n\n\nWITH orig_wid AS (\nSELECT\n    orig.*, wid.work_id\nFROM\n    `test_project.test_dataset.test_table20210101` orig\nLEFT JOIN\n    `test_project.onix_workflow.onix_workid_isbn20210101` wid\nON\n    orig.isbn = wid.isbn13\n)\n\nSELECT\n    orig_wid.*, wfam.work_family_id\nFROM\n    orig_wid\nLEFT JOIN\n    `test_project.onix_workflow.onix_workfamilyid_isbn20210101` wfam\nON\n    orig_wid.isbn = wfam.isbn13"
             self.assertEqual(call_args["sql"], expected_sql)
 
-            oaebu_task2(release)
+            oaebu_task2(releases)
             _, call_args = mock_create_bq_ds.call_args
             self.assertEqual(call_args["project_id"], "project_id")
             self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
@@ -749,32 +820,15 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             )
         ]
 
-    def teardown_workflow(self):
-        """Delete the testing onix data table, and delete the dataset."""
-
-        delete_bigquery_dataset(self.gcp_project_id, "onix_workflow")
-
-    def teardown_intermediate_tables(self):
-        delete_bigquery_dataset(self.gcp_project_id, "oaebu_intermediate")
-
-    def test_telescope(self):
-        """ Functional test of the ONIX workflow"""
-
+    def test_sensors(self):
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.gcp_project_id, self.data_location)
-
-        # Create the Observatory environment and run tests
         with env.create():
-            telescope_sensor = TestOnixWorkflowFunctional.DummySensor(task_id="dummy_sensor", start_date=self.timestamp)
-
             # Set up environment
             self.setup_observatory_env(env)
             data_partners = self.setup_fake_partner_data(env)
 
             # Create fake data table. There's no guarantee the data was deleted so clean it again just in case.
-            # self.delete_bucket_blobs()
-            # self.teardown_workflow()
-            # self.teardown_intermediate_tables()
             self.setup_fake_onix_data_table()
 
             # Pull info from Observatory API
@@ -793,14 +847,84 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 org_name=org_name,
                 gcp_project_id=gcp_project_id,
                 gcp_bucket_name=gcp_bucket_name,
-                telescope_sensor=telescope_sensor,
                 onix_dataset_id=self.onix_dataset_id,
                 onix_table_id=self.onix_table_id,
                 data_partners=data_partners,
             )
+
+            telescope.make_release = MagicMock(
+                return_value=[
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_curtin_press",
+                        release_date=self.onix_release_date,
+                        gcp_project_id=self.gcp_project_id,
+                        gcp_bucket_name=self.gcp_bucket_name,
+                        onix_dataset_id=self.onix_dataset_id,
+                        onix_table_id=self.onix_table_id,
+                    )
+                ]
+            )
             workflow_dag = telescope.make_dag()
 
-            # Check sensors ready
+            expected_state = "up_for_reschedule"
+            with env.create_dag_run(workflow_dag, self.timestamp):
+                ti = env.run_task("onix_curtin_press_sensor", workflow_dag, self.timestamp)
+                self.assertEqual(expected_state, ti.state)
+
+    def test_telescope(self):
+        """ Functional test of the ONIX workflow"""
+
+        # Setup Observatory environment
+        env = ObservatoryEnvironment(self.gcp_project_id, self.data_location)
+
+        # Create the Observatory environment and run tests
+        with env.create():
+            # Set up environment
+            self.setup_observatory_env(env)
+            data_partners = self.setup_fake_partner_data(env)
+
+            # Create fake data table. There's no guarantee the data was deleted so clean it again just in case.
+            self.setup_fake_onix_data_table()
+
+            # Pull info from Observatory API
+            api = make_observatory_api()
+            telescope_type = api.get_telescope_type(type_id=TelescopeTypes.onix)
+            telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
+
+            # Get the parameters
+            self.assertEqual(len(telescopes), 1)
+            org_name = telescopes[0].organisation.name
+            gcp_bucket_name = telescopes[0].organisation.gcp_transform_bucket
+            gcp_project_id = telescopes[0].organisation.gcp_project_id
+
+            # Setup telescope
+            telescope = OnixWorkflow(
+                org_name=org_name,
+                gcp_project_id=gcp_project_id,
+                gcp_bucket_name=gcp_bucket_name,
+                onix_dataset_id=self.onix_dataset_id,
+                onix_table_id=self.onix_table_id,
+                data_partners=data_partners,
+            )
+            telescope.make_release = MagicMock(
+                return_value=[
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_curtin_press",
+                        release_date=self.onix_release_date,
+                        gcp_project_id=self.gcp_project_id,
+                        gcp_bucket_name=self.gcp_bucket_name,
+                        onix_dataset_id=self.onix_dataset_id,
+                        onix_table_id=self.onix_table_id,
+                    )
+                ]
+            )
+
+            # Override sensor for testing
+            telescope_sensor = TestOnixWorkflowFunctional.DummySensor(task_id="dummy_sensor", start_date=self.timestamp)
+            telescope.sensors = [telescope_sensor]
+            workflow_dag = telescope.make_dag()
+
+            # Trigger sensor
             env.run_task(telescope_sensor.task_id, workflow_dag, self.timestamp)
 
             # Aggregate works
@@ -828,7 +952,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             )
 
             # Test conditions
-            release_suffix = self.timestamp.strftime("%Y%m%d")
+            release_suffix = self.onix_release_date.strftime("%Y%m%d")
 
             transform_path = os.path.join("onix_workflow_curtin_press", release_suffix, "onix_workid_isbn.jsonl.gz")
             self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
@@ -873,8 +997,3 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # Cleanup
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
-
-            # Test data teardown
-            # self.teardown_workflow()
-            # self.teardown_intermediate_tables()
-            # self.delete_bucket_blobs()

@@ -24,6 +24,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pendulum
+from airflow.exceptions import AirflowException
+from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from google.cloud.bigquery import SourceFormat
 from jinja2 import Environment, PackageLoader
@@ -48,6 +50,7 @@ from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.telescope_utils import (
     list_to_jsonl_gz,
     make_dag_id,
+    make_telescope_sensor,
     write_to_file,
 )
 from observatory.platform.utils.template_utils import (
@@ -199,7 +202,6 @@ class OnixWorkflow(Telescope):
         org_name: str,
         gcp_project_id: str,
         gcp_bucket_name: str,
-        telescope_sensor: ExternalTaskSensor,
         onix_dataset_id: str = "onix",
         onix_table_id: str = "onix",
         dag_id: Optional[str] = None,
@@ -212,7 +214,6 @@ class OnixWorkflow(Telescope):
         :param org_name: Organisation name.
         :param gcp_project_id: Project ID in GCP.
         :param gcp_bucket_name: GCP bucket name to store files.
-        :param telescope_sensor: Telescope sensor to monitor.
         :param onix_dataset_id: GCP dataset ID of the onix data.
         :param onix_table_id: GCP table ID of the onix data.
         :param dag_id: DAG ID.
@@ -238,6 +239,7 @@ class OnixWorkflow(Telescope):
         )
 
         # Wait on ONIX telescope to finish
+        telescope_sensor = make_telescope_sensor(org_name, OnixTelescope.DAG_ID_PREFIX)
         self.add_sensor(telescope_sensor)
 
         # Aggregate Works
@@ -253,23 +255,36 @@ class OnixWorkflow(Telescope):
         # Cleanup tasks
         self.add_task(self.cleanup)
 
-    def make_release(self, **kwargs) -> OnixWorkflowRelease:
+    def make_release(self, **kwargs) -> List[OnixWorkflowRelease]:
         """Creates a release object.
         :param kwargs: From Airflow. Contains the execution_date.
-        :return: OnixWorkflowRelease object.
+        :return: List of OnixWorkflowRelease objects.
         """
 
-        release_date = kwargs["execution_date"]
-        release = OnixWorkflowRelease(
-            dag_id=self.dag_id,
-            release_date=release_date,
-            gcp_project_id=self.gcp_project_id,
-            gcp_bucket_name=self.gcp_bucket_name,
-            onix_dataset_id=self.onix_dataset_id,
-            onix_table_id=self.onix_table_id,
+        releases = list()
+
+        ti: TaskInstance = kwargs["ti"]
+        records = ti.xcom_pull(
+            dag_id=f"onix_{self.org_name}",  # replace with real name
+            key=OnixTelescope.RELEASE_INFO,
+            task_ids="list_release_info",
+            include_prior_dates=False,
         )
 
-        return release
+        # release_date = kwargs["execution_date"]
+        for record in records:
+            release_date = record["release_date"]
+            release = OnixWorkflowRelease(
+                dag_id=self.dag_id,
+                release_date=release_date,
+                gcp_project_id=self.gcp_project_id,
+                gcp_bucket_name=self.gcp_bucket_name,
+                onix_dataset_id=self.onix_dataset_id,
+                onix_table_id=self.onix_table_id,
+            )
+            releases.append(release)
+
+        return releases
 
     def get_onix_records(self, project_id: str, dataset_id: str, table_id: str) -> List[dict]:
         """Fetch the latest onix snapshot from BigQuery.
@@ -293,138 +308,133 @@ class OnixWorkflow(Telescope):
 
         return products
 
-    def aggregate_works(self, release: OnixWorkflowRelease, **kwargs):
+    def aggregate_works(self, releases: List[OnixWorkflowRelease], **kwargs):
         """Fetches the ONIX product records from our ONIX database, aggregates them into works, workfamilies,
         and outputs it into jsonl files.
 
-        :param release: Workflow release object.
+        :param releases: Workflow release objects.
         :param kwargs: Unused.
         """
 
-        onix_release_date = select_table_suffixes(
-            project_id=self.gcp_project_id,
-            dataset_id=self.onix_dataset_id,
-            table_id=self.onix_table_id,
-            end_date=release.release_date,
-        )[0]
+        for release in releases:
+            # Fetch ONIX data
+            table_id = release.onix_table_id + release.release_date.strftime("%Y%m%d")
+            products = self.get_onix_records(release.project_id, release.onix_dataset_id, table_id)
 
-        # Fetch ONIX data
-        table_id = release.onix_table_id + onix_release_date.strftime("%Y%m%d")
-        products = self.get_onix_records(release.project_id, release.onix_dataset_id, table_id)
+            # Aggregate into works
+            agg = BookWorkAggregator(products)
+            works = agg.aggregate()
+            lookup_table = agg.get_works_lookup_table()
+            list_to_jsonl_gz(release.workslookup_filename, lookup_table)
 
-        # Aggregate into works
-        agg = BookWorkAggregator(products)
-        works = agg.aggregate()
-        lookup_table = agg.get_works_lookup_table()
-        list_to_jsonl_gz(release.workslookup_filename, lookup_table)
+            # Save errors from aggregation
+            error_table = [{"Error": error} for error in agg.errors]
+            list_to_jsonl_gz(release.workslookup_errors_filename, error_table)
 
-        # Save errors from aggregation
-        error_table = [{"Error": error} for error in agg.errors]
-        list_to_jsonl_gz(release.workslookup_errors_filename, error_table)
+            # Aggregate work families
+            agg = BookWorkFamilyAggregator(works)
+            works_families = agg.aggregate()
+            lookup_table = agg.get_works_family_lookup_table()
+            list_to_jsonl_gz(release.worksfamilylookup_filename, lookup_table)
 
-        # Aggregate work families
-        agg = BookWorkFamilyAggregator(works)
-        works_families = agg.aggregate()
-        lookup_table = agg.get_works_family_lookup_table()
-        list_to_jsonl_gz(release.worksfamilylookup_filename, lookup_table)
-
-    def upload_aggregation_tables(self, release: OnixWorkflowRelease, **kwargs):
+    def upload_aggregation_tables(self, releases: List[OnixWorkflowRelease], **kwargs):
         """Upload the aggregation tables and error tables to a GCP bucket in preparation for BQ loading.
 
-        :param release: Workflow release object.
+        :param releases: Workflow release objects.
         :param kwargs: Unused.
         """
 
-        files = release.transform_files
-        blobs = [os.path.join(release.transform_folder, os.path.basename(file)) for file in files]
-        upload_files_to_cloud_storage(bucket_name=release.transform_bucket, blob_names=blobs, file_paths=files)
+        for release in releases:
+            files = release.transform_files
+            blobs = [os.path.join(release.transform_folder, os.path.basename(file)) for file in files]
+            upload_files_to_cloud_storage(bucket_name=release.transform_bucket, blob_names=blobs, file_paths=files)
 
-    def bq_load_workid_lookup(self, release: OnixWorkflowRelease, **kwargs):
+    def bq_load_workid_lookup(self, releases: List[OnixWorkflowRelease], **kwargs):
         """Load the WorkID lookup table into BigQuery.
 
-        :param release: Workflow release object.
+        :param releases: Workflow release objects.
         :param kwargs: Unused.
         """
 
-        blob = os.path.join(release.transform_folder, os.path.basename(release.workslookup_filename))
-        table_id, _ = table_ids_from_path(release.workslookup_filename)
-        bq_load_shard_v2(
-            project_id=release.project_id,
-            transform_bucket=release.transform_bucket,
-            transform_blob=blob,
-            dataset_id=release.workflow_dataset_id,
-            dataset_location=release.dataset_location,
-            table_id=table_id,
-            release_date=release.release_date,
-            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-            dataset_description=release.dataset_description,
-            **{},
-        )
+        for release in releases:
+            blob = os.path.join(release.transform_folder, os.path.basename(release.workslookup_filename))
+            table_id, _ = table_ids_from_path(release.workslookup_filename)
+            bq_load_shard_v2(
+                project_id=release.project_id,
+                transform_bucket=release.transform_bucket,
+                transform_blob=blob,
+                dataset_id=release.workflow_dataset_id,
+                dataset_location=release.dataset_location,
+                table_id=table_id,
+                release_date=release.release_date,
+                source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                dataset_description=release.dataset_description,
+                **{},
+            )
 
-    def bq_load_workid_lookup_errors(self, release: OnixWorkflowRelease, **kwargs):
+    def bq_load_workid_lookup_errors(self, releases: List[OnixWorkflowRelease], **kwargs):
         """Load the WorkID lookup table errors into BigQuery.
 
-        :param release: Workflow release object.
+        :param releases: Workflow release objects.
         :param kwargs: Unused.
         """
 
-        blob = os.path.join(release.transform_folder, os.path.basename(release.workslookup_errors_filename))
+        for release in releases:
+            blob = os.path.join(release.transform_folder, os.path.basename(release.workslookup_errors_filename))
+            table_id, _ = table_ids_from_path(release.workslookup_errors_filename)
+            bq_load_shard_v2(
+                project_id=release.project_id,
+                transform_bucket=release.transform_bucket,
+                transform_blob=blob,
+                dataset_id=release.workflow_dataset_id,
+                dataset_location=release.dataset_location,
+                table_id=table_id,
+                release_date=release.release_date,
+                source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                prefix="",
+                schema_version="",
+                dataset_description=release.dataset_description,
+                **{},
+            )
 
-        table_id, _ = table_ids_from_path(release.workslookup_errors_filename)
-
-        bq_load_shard_v2(
-            project_id=release.project_id,
-            transform_bucket=release.transform_bucket,
-            transform_blob=blob,
-            dataset_id=release.workflow_dataset_id,
-            dataset_location=release.dataset_location,
-            table_id=table_id,
-            release_date=release.release_date,
-            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-            prefix="",
-            schema_version="",
-            dataset_description=release.dataset_description,
-            **{},
-        )
-
-    def bq_load_workfamilyid_lookup(self, release: OnixWorkflowRelease, **kwargs):
+    def bq_load_workfamilyid_lookup(self, releases: List[OnixWorkflowRelease], **kwargs):
         """Load the WorkFamilyID lookup table into BigQuery.
 
-        :param release: Workflow release object.
+        :param releases: Workflow release objects.
         :param kwargs: Unused.
         """
 
-        blob = os.path.join(release.transform_folder, os.path.basename(release.worksfamilylookup_filename))
+        for release in releases:
+            blob = os.path.join(release.transform_folder, os.path.basename(release.worksfamilylookup_filename))
+            table_id, _ = table_ids_from_path(release.worksfamilylookup_filename)
+            bq_load_shard_v2(
+                project_id=release.project_id,
+                transform_bucket=release.transform_bucket,
+                transform_blob=blob,
+                dataset_id=release.workflow_dataset_id,
+                dataset_location=release.dataset_location,
+                table_id=table_id,
+                release_date=release.release_date,
+                source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                prefix="",
+                schema_version="",
+                dataset_description=release.dataset_description,
+                **{},
+            )
 
-        table_id, _ = table_ids_from_path(release.worksfamilylookup_filename)
-
-        bq_load_shard_v2(
-            project_id=release.project_id,
-            transform_bucket=release.transform_bucket,
-            transform_blob=blob,
-            dataset_id=release.workflow_dataset_id,
-            dataset_location=release.dataset_location,
-            table_id=table_id,
-            release_date=release.release_date,
-            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-            prefix="",
-            schema_version="",
-            dataset_description=release.dataset_description,
-            **{},
-        )
-
-    def cleanup(self, release: OnixWorkflowRelease, **kwargs):
+    def cleanup(self, releases: List[OnixWorkflowRelease], **kwargs):
         """Cleanup temporary files.
 
-        :param release: Workflow release object.
+        :param release: Workflow release objects.
         :param kwargs: Unused.
         """
 
-        release.cleanup()
+        for release in releases:
+            release.cleanup()
 
     def create_oaebu_intermediate_table(
         self,
-        release: OnixWorkflowRelease,
+        releases: List[OnixWorkflowRelease],
         *args,
         orig_project_id: str,
         orig_dataset: str,
@@ -434,7 +444,7 @@ class OnixWorkflow(Telescope):
         **kwargs,
     ):
         """Create an intermediate oaebu table.  They are of the form datasource_matched<date>
-        :param release: Onix workflow release information.
+        :param releases: Onix workflow release information.
         :param args: Catching any other positional args (unused).
         :param orig_project_id: Project ID for the partner data.
         :param orig_dataset: Dataset ID for the partner data.
@@ -443,47 +453,51 @@ class OnixWorkflow(Telescope):
         :param table_date: Date of table
         """
 
-        if table_date == None:
-            table_date = select_table_suffixes(
+        for release in releases:
+            if table_date == None:
+                table_date = select_table_suffixes(
+                    project_id=orig_project_id,
+                    dataset_id=orig_dataset,
+                    table_id=orig_table,
+                    end_date=release.release_date,
+                )[0]
+
+            output_table = orig_table + "_matched"
+            output_dataset = release.oaebu_intermediate_dataset
+
+            data_location = release.dataset_location
+            release_date = release.release_date
+            table_joining_template_file = "assign_workid_workfamilyid.sql.jinja2"
+            template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+            table_id = bigquery_partitioned_table_id(output_table, release_date)
+            orig_table_suffix = table_date.strftime("%Y%m%d")
+            dst_table_suffix = release_date.strftime("%Y%m%d")
+
+            sql = render_template(
+                template_path,
                 project_id=orig_project_id,
-                dataset_id=orig_dataset,
-                table_id=orig_table,
-                end_date=release.release_date,
-            )[0]
+                orig_dataset=orig_dataset,
+                orig_table=f"{orig_table}{orig_table_suffix}",
+                orig_isbn=orig_isbn,
+                onix_workflow_dataset=release.workflow_dataset_id,
+                wid_table=release.worksid_table + dst_table_suffix,
+                wfam_table=release.workfamilyid_table + dst_table_suffix,
+            )
 
-        output_table = orig_table + "_matched"
-        output_dataset = release.oaebu_intermediate_dataset
+            create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
 
-        data_location = release.dataset_location
-        release_date = release.release_date
-        table_joining_template_file = "assign_workid_workfamilyid.sql.jinja2"
-        template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
-        table_id = bigquery_partitioned_table_id(output_table, release_date)
-        orig_table_suffix = table_date.strftime("%Y%m%d")
-        dst_table_suffix = release_date.strftime("%Y%m%d")
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=output_dataset,
+                table_id=table_id,
+                location=release.dataset_location,
+            )
 
-        sql = render_template(
-            template_path,
-            project_id=orig_project_id,
-            orig_dataset=orig_dataset,
-            orig_table=f"{orig_table}{orig_table_suffix}",
-            orig_isbn=orig_isbn,
-            onix_workflow_dataset=release.workflow_dataset_id,
-            wid_table=release.worksid_table + dst_table_suffix,
-            wfam_table=release.workfamilyid_table + dst_table_suffix,
-        )
-
-        create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
-
-        status = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=release.project_id,
-            dataset_id=output_dataset,
-            table_id=table_id,
-            location=release.dataset_location,
-        )
-
-        return status
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
+                )
 
     def create_oaebu_intermediate_table_tasks(self, data_partners: List[OaebuPartners]):
         """Create tasks for generating oaebu intermediate tables for each OAEBU data partner.

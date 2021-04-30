@@ -23,11 +23,7 @@ from observatory.api.server.api import Response
 from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.dags.workflows.oaebu_partners import OaebuPartners
 from observatory.dags.workflows.onix_workflow import OnixWorkflow
-from observatory.platform.utils.telescope_utils import (
-    make_dag_id,
-    make_observatory_api,
-    make_telescope_sensor,
-)
+from observatory.platform.utils.telescope_utils import make_dag_id, make_observatory_api
 
 
 # Temporary function. Create oaebu partner metadata.
@@ -98,7 +94,6 @@ for telescope in telescopes:
     org_name = telescope.organisation.name
     gcp_project_id = telescope.organisation.gcp_project_id
     gcp_bucket_name = telescope.organisation.gcp_transform_bucket
-    telescope_sensor = make_telescope_sensor(org_name, OnixTelescope.DAG_ID_PREFIX)
 
     data_partners = get_oaebu_partner_data(gcp_project_id)
 
@@ -106,7 +101,6 @@ for telescope in telescopes:
         org_name=org_name,
         gcp_project_id=gcp_project_id,
         gcp_bucket_name=gcp_bucket_name,
-        telescope_sensor=telescope_sensor,
         data_partners=data_partners,
     )
 
