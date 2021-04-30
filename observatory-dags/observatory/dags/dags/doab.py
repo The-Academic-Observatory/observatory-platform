@@ -1,4 +1,4 @@
-{# Copyright 2020 Curtin University
+# Copyright 2020 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,13 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Author: Aniek Roelofs#}
 
-MERGE
-  `{{ dataset }}.{{ main_table }}` M
-USING
-  (SELECT {{ merge_condition_field }} AS id, {{ updated_date_field }} AS date FROM `{{ dataset }}.{{ partitioned_table }}` WHERE _PARTITIONDATE >= '{{ start_date }}' AND _PARTITIONDATE < '{{ end_date }}') P
-ON
-  M.{{ merge_condition_field }} = P.id
-WHEN MATCHED AND M.{{ updated_date_field }} <= P.date OR M.{{ updated_date_field }} is null THEN
-  DELETE
+# Author: Aniek Roelofs
+
+# The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
+# https://airflow.apache.org/docs/stable/faq.html
+
+from observatory.dags.telescopes.doab import DoabTelescope
+
+telescope = DoabTelescope()
+globals()[telescope.dag_id] = telescope.make_dag()
