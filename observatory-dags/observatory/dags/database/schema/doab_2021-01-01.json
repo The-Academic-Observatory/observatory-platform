@@ -1,0 +1,974 @@
+[
+  {
+    "description": "ID for the book.",
+    "mode": "NULLABLE",
+    "name": "id",
+    "type": "STRING"
+  },
+  {
+    "description": "Collections, see library.oapen.org. Example: https://library.oapen.org/discover?filtertype=collection&filter_relational_operator=equals&filter=Knowledge+Unlatched+%28KU%29",
+    "mode": "NULLABLE",
+    "name": "collection",
+    "type": "STRING"
+  },
+  {
+    "description": "URL of the book's PDF file on OAPEN repository.",
+    "mode": "REPEATED",
+    "name": "BITSTREAM_Download_URL",
+    "type": "STRING"
+  },
+  {
+    "description": "ISBN of the book. Can have multiple isbn separated with ||.",
+    "mode": "NULLABLE",
+    "name": "BITSTREAM_ISBN",
+    "type": "STRING"
+  },
+  {
+    "description": "Text describing the licence.",
+    "mode": "REPEATED",
+    "name": "BITSTREAM_License",
+    "type": "STRING"
+  },
+  {
+    "description": "URL of the book's web page on publisher site.",
+    "mode": "REPEATED",
+    "name": "BITSTREAM_Webshop_URL",
+    "type": "STRING"
+  },
+  {
+    "description": "dc",
+    "mode": "REQUIRED",
+    "name": "dc",
+    "type": "RECORD",
+    "fields":[
+      {
+        "description": "The abstract in another language.",
+        "mode": "NULLABLE",
+        "name": "abstractotherlanguage",
+        "type": "STRING"
+      },
+      {
+        "description": "The chapter number.",
+        "mode": "NULLABLE",
+        "name": "chapternumber",
+        "type": "INTEGER"
+      },
+      {
+        "description": "contributor",
+        "mode": "NULLABLE",
+        "name": "contributor",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "value",
+            "type": "STRING"
+          },
+          {
+            "description": "Author name.",
+            "mode": "REPEATED",
+            "name": "author",
+            "type": "STRING"
+          },
+          {
+            "description": "Editor name.",
+            "mode": "REPEATED",
+            "name": "editor",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "other",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "date",
+        "mode": "REQUIRED",
+        "name": "date",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "Date made available in OAPEN. Starts from June 2010",
+            "mode": "NULLABLE",
+            "name": "accessioned",
+            "type": "TIMESTAMP"
+          },
+          {
+            "description": "Date of upload to the new DSPACE platform. Starts from April of 2020.",
+            "mode": "REPEATED",
+            "name": "available",
+            "type": "TIMESTAMP"
+          },
+          {
+            "description": "Year of publication of the book.",
+            "mode": "REPEATED",
+            "name": "issued",
+            "type": "DATE"
+          },
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "submitted",
+            "type": "TIMESTAMP"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "REPEATED",
+        "name": "dateSubmitted",
+        "type": "TIMESTAMP"
+      },
+      {
+        "description": "description",
+        "mode": "NULLABLE",
+        "name": "description",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "description",
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "STRING"
+          },
+          {
+            "description": "Abstract of the book.",
+            "mode": "REPEATED",
+            "name": "abstract",
+            "type": "STRING"
+          },
+          {
+            "description": "Upload information, on who created the record, when it is uploaded to DSPACE.",
+            "mode": "REPEATED",
+            "name": "provenance",
+            "type": "STRING"
+          },
+          {
+            "description": "?",
+            "mode": "NULLABLE",
+            "name": "version",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "fundingReference",
+            "type": "STRING"
+          },
+      {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "grantproject",
+            "type": "STRING"
+          },
+      {
+        "description": "identifier",
+        "mode": "NULLABLE",
+        "name": "identifier",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "'Old' OAPEN ID or ONIX import ID. It can be a number or can be in the form of a string (\"ONIX.20200714.9789811555732.9\")",
+            "mode": "REPEATED",
+            "name": "value",
+            "type": "STRING"
+          },
+          {
+            "description": "ISSN number.",
+            "mode": "NULLABLE",
+            "name": "issn",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "namewebshop",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "pr",
+            "type": "STRING"
+          },
+          {
+            "description": "Web page of the book on OAPEN (HANDLE = unique ID).",
+            "mode": "NULLABLE",
+            "name": "uri",
+            "type": "STRING"
+          },
+          {
+            "description": "[Blank]",
+            "mode": "NULLABLE",
+            "name": "urlwebshop",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "Language of the book.",
+        "mode": "REPEATED",
+        "name": "language",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "REPEATED",
+        "name": "notes",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "REPEATED",
+        "name": "number",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "REPEATED",
+        "name": "redirect",
+        "type": "STRING"
+      },
+      {
+        "description": "relation",
+        "mode": "NULLABLE",
+        "name": "relation",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "Name of the book series.",
+            "mode": "REPEATED",
+            "name": "ispartofseries",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "isreplacedbydouble",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "REPEATED",
+        "name": "relationisFundedBy",
+        "type": "STRING"
+      },
+      {
+        "description": "rights",
+        "mode": "NULLABLE",
+        "name": "rights",
+        "type": "RECORD",
+        "fields": [
+          {
+              "description": "",
+              "mode": "NULLABLE",
+              "name": "value",
+              "type": "STRING"
+            },
+          {
+              "description": "",
+              "mode": "NULLABLE",
+              "name": "license",
+              "type": "STRING"
+            },
+          {
+            "description": "[Blank]",
+            "mode": "NULLABLE",
+            "name": "licenseurl",
+            "type": "STRING"
+          },
+          {
+              "description": "[Blank]",
+              "mode": "NULLABLE",
+              "name": "uri",
+              "type": "STRING"
+            }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "seriesnumber",
+        "type": "STRING"
+      },
+      {
+        "description": "[Blank]",
+        "mode": "NULLABLE",
+        "name": "source",
+        "type": "STRING"
+      },
+      {
+        "description": "subject",
+        "mode": "NULLABLE",
+        "name": "subject",
+        "type": "RECORD",
+        "fields": [
+           {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "value",
+            "type": "STRING"
+          },
+          {
+            "description": "BIC subject category.",
+            "mode": "REPEATED",
+            "name": "classification",
+            "type": "STRING"
+          },
+          {
+            "description": "CUSTOM ADDED. BIC subject category code.",
+            "mode": "REPEATED",
+            "name": "classification_code",
+            "type": "STRING"
+          },
+          {
+            "description": "Keywords.",
+            "mode": "REPEATED",
+            "name": "other",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "title",
+        "mode": "NULLABLE",
+        "name": "title",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "Title of the book.",
+            "mode": "REPEATED",
+            "name": "value",
+            "type": "STRING"
+          },
+          {
+            "description": "Alternative.",
+            "mode": "REPEATED",
+            "name": "alternative",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "Can be 'book',  'chapter', 'book||book'.",
+        "mode": "REPEATED",
+        "name": "type",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "website",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "description": "[Blank]",
+    "mode": "NULLABLE",
+    "name": "eperson",
+    "type": "RECORD",
+    "fields": [
+      {
+        "description": "[Blank]",
+        "mode": "NULLABLE",
+        "name": "firstname",
+        "type": "STRING"
+      },
+      {
+        "description": "[Blank]",
+        "mode": "NULLABLE",
+        "name": "language",
+        "type": "STRING"
+      },
+      {
+        "description": "[Blank]",
+        "mode": "NULLABLE",
+        "name": "lastname",
+        "type": "STRING"
+      },
+      {
+        "description": "[Blank]",
+        "mode": "NULLABLE",
+        "name": "phone",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "publisher",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "description": "[Blank]",
+    "mode": "NULLABLE",
+    "name": "grantor",
+    "type": "RECORD",
+    "fields": [
+      {
+        "description": "[Blank]",
+        "mode": "NULLABLE",
+        "name": "acronym",
+        "type": "STRING"
+      },
+      {
+        "description": "[Blank]",
+        "mode": "NULLABLE",
+        "name": "doi",
+        "type": "STRING"
+      },
+      {
+        "description": "[Blank]",
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "description": "oapen",
+    "mode": "NULLABLE",
+    "name": "oapen",
+    "type": "RECORD",
+    "fields": [
+      {
+        "description": "abstract",
+        "mode": "NULLABLE",
+        "name": "abstract",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "Abstract in other language.",
+            "mode": "NULLABLE",
+            "name": "otherlanguage",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "OAPEN Collection.",
+        "mode": "REPEATED",
+        "name": "collection",
+        "type": "STRING"
+      },
+      {
+        "description": "OAPEN Edition.",
+        "mode": "NULLABLE",
+        "name": "edition",
+        "type": "STRING"
+      },
+      {
+        "description": "Grant.",
+        "mode": "NULLABLE",
+        "name": "grant",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "Grant number, can include strings.",
+            "mode": "REPEATED",
+            "name": "number",
+            "type": "STRING"
+          },
+          {
+            "description": "Grant program name.",
+            "mode": "REPEATED",
+            "name": "program",
+            "type": "STRING"
+          },
+          {
+            "description": "Grant project name.",
+            "mode": "NULLABLE",
+            "name": "project",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "Identifier",
+        "mode": "NULLABLE",
+        "name": "identifier",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "DOI of the book. Can also include full URL.",
+            "mode": "NULLABLE",
+            "name": "doi",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "downloadUrl",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "Imprint of the book.",
+        "mode": "REPEATED",
+        "name": "imprint",
+        "type": "STRING"
+      },
+      {
+        "description": "Number of pages. Can include arabic page notation, as well as strings.",
+        "mode": "NULLABLE",
+        "name": "pages",
+        "type": "STRING"
+      },
+      {
+        "description": "Place",
+        "mode": "NULLABLE",
+        "name": "place",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "City of publisher.",
+            "mode": "NULLABLE",
+            "name": "publication",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "Relation",
+        "mode": "NULLABLE",
+        "name": "relation",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "ID of book - part of funder record",
+            "mode": "NULLABLE",
+            "name": "funds",
+            "type": "STRING"
+          },
+          {
+            "description": "[ID of chapter - part of book record",
+            "mode": "REPEATED",
+            "name": "hasChapter",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "hasChapter_dc",
+            "type": "RECORD",
+            "fields": [
+              {
+                "description": "Chapter name of chapter records.",
+                "mode": "REPEATED",
+                "name": "title",
+                "type": "STRING"
+              }
+            ]
+          },
+          {
+            "description": "ID of funder - part of book or chapter record",
+            "mode": "REPEATED",
+            "name": "isFundedBy",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "isFundedBy_grantor",
+            "type": "RECORD",
+            "fields": [
+              {
+                "description": "Funder name.",
+                "mode": "REPEATED",
+                "name": "name",
+                "type": "STRING"
+              }
+            ]
+          },
+          {
+            "description": "ID of book - part of chapter record",
+            "mode": "REPEATED",
+            "name": "isPartOfBook",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "isPartOfBook_dc",
+            "type": "RECORD",
+            "fields": [
+              {
+                "description": "Chapter's book title.",
+                "mode": "REPEATED",
+                "name": "title",
+                "type": "STRING"
+              }
+            ]
+          },
+          {
+            "description": "Publisher name",
+            "mode": "NULLABLE",
+            "name": "isPublishedBy",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "isPublishedBy_publisher",
+            "type": "RECORD",
+            "fields": [
+              {
+                "description": "",
+                "mode": "REPEATED",
+                "name": "name",
+                "type": "STRING"
+              }
+            ]
+          },
+          {
+            "description": "ID of book - part of publisher record",
+            "mode": "REPEATED",
+            "name": "isPublisherOf",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "isbn",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "Review",
+        "mode": "NULLABLE",
+        "name": "review",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "original",
+            "type": "STRING"
+          }
+        ]
+    },
+      {
+        "description": "Remark",
+        "mode": "NULLABLE",
+        "name": "remark",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "public",
+            "type": "STRING"
+          }
+        ]
+    },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "series",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "number",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "volume",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "description": "",
+    "mode": "NULLABLE",
+    "name": "peerreview",
+    "type": "RECORD",
+    "fields": [
+      {
+        "description": "",
+        "mode": "REPEATED",
+        "name": "anonymity",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "REPEATED",
+        "name": "id",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "open",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "review",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "publish",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "responsibility",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "review",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "decision",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "stage",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "type",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "reviewer",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "REPEATED",
+            "name": "type",
+            "type": "STRING"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "description": "Publisher",
+    "mode": "NULLABLE",
+    "name": "publisher",
+    "type": "RECORD",
+    "fields": [
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "address",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "authorinstructions",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "url",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "chargeauthors",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "url",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "contact",
+        "type": "STRING"
+      },
+      {
+        "description": "[Blank]",
+        "mode": "NULLABLE",
+        "name": "country",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "description",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "email",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "identifier",
+        "type": "STRING"
+      },
+      {
+        "description": "[Blank]",
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "oabooks",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "exampleUrl",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "number",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "oalicense",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "peerreview",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "info",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "Text describing policy",
+        "mode": "NULLABLE",
+        "name": "peerreviewpolicy",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "phone",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "program",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "register",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "STRING"
+          },
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "url",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "status",
+        "type": "RECORD",
+        "fields": [
+          {
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "active",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "website",
+        "type": "STRING"
+      }
+    ]
+  }
+]
