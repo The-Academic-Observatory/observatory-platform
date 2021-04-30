@@ -51,7 +51,7 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
-          packages_dir: observatory-platform/dist/
+          packages_dir: observatory-api/dist/
 
       - name: Publish observatory-platform
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
