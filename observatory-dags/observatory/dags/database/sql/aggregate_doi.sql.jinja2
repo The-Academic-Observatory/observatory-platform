@@ -474,6 +474,7 @@ SELECT
     ), COUNT(dois.doi), COUNTIF(unpaywall.is_oa = True)
   ) as publishers,
 
+  {% if relate_to_journals %}
   -- Journals
   process_relations(
     ARRAY_CONCAT_AGG( 
@@ -488,6 +489,7 @@ SELECT
       )
     ), COUNT(dois.doi), COUNTIF(unpaywall.is_oa = True)
   ) as journals,
+  {% endif %}
 
   -- Events
   process_events(

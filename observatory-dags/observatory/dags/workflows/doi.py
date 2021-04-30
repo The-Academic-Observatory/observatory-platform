@@ -86,6 +86,7 @@ def create_aggregate_table(
     relate_to_countries: bool,
     relate_to_groups: bool,
     relate_to_members: bool,
+    relate_to_journals: bool,
 ):
     """Runs the aggregate table query.
 
@@ -101,6 +102,7 @@ def create_aggregate_table(
     :param relate_to_countries: whether to generate the countries relationship output for this query
     :param relate_to_groups: whether to generate the groups relationship output for this query
     :param relate_to_members: whether to generate the members relationship output for this query
+    :param relate_to_journals: whether to generate the journals relationship output for this query
     :return: None.
     """
 
@@ -115,7 +117,8 @@ def create_aggregate_table(
         relate_to_institutions=relate_to_institutions,
         relate_to_countries=relate_to_countries,
         relate_to_groups=relate_to_groups,
-        relate_to_members=relate_to_members
+        relate_to_members=relate_to_members,
+        relate_to_journals=relate_to_journals
     )
 
     processed_table_id = bigquery_partitioned_table_id(table_id, release_date)
@@ -660,6 +663,7 @@ class DoiWorkflow:
         relate_to_countries = False
         relate_to_groups = False
         relate_to_members = True
+        relate_to_journals = True
 
         # Aggregate
         create_aggregate_table(
@@ -699,6 +703,7 @@ class DoiWorkflow:
         relate_to_countries = True
         relate_to_groups = True
         relate_to_members = False
+        relate_to_journals = True
 
         # Aggregate
         create_aggregate_table(
@@ -738,6 +743,7 @@ class DoiWorkflow:
         relate_to_countries = False
         relate_to_groups = False
         relate_to_members = True
+        relate_to_journals = True
 
         # Aggregate
         create_aggregate_table(
@@ -777,6 +783,7 @@ class DoiWorkflow:
         relate_to_countries = True
         relate_to_groups = False
         relate_to_members = False
+        relate_to_journals = True
 
         # Aggregate
         create_aggregate_table(
@@ -816,6 +823,7 @@ class DoiWorkflow:
         relate_to_countries = True
         relate_to_groups = True
         relate_to_members = False
+        relate_to_journals = True
 
         # Aggregate
         create_aggregate_table(
@@ -855,6 +863,7 @@ class DoiWorkflow:
         relate_to_countries = True
         relate_to_groups = True
         relate_to_members = False
+        relate_to_journals = True
 
         # Aggregate
         create_aggregate_table(
@@ -894,6 +903,7 @@ class DoiWorkflow:
         relate_to_countries = True
         relate_to_groups = True
         relate_to_members = False
+        relate_to_journals = True
 
         # Aggregate
         create_aggregate_table(
@@ -933,6 +943,7 @@ class DoiWorkflow:
         relate_to_countries = False
         relate_to_groups = False
         relate_to_members = False
+        relate_to_journals = False
 
         # Aggregate
         create_aggregate_table(
@@ -972,6 +983,7 @@ class DoiWorkflow:
         relate_to_countries = False
         relate_to_groups = False
         relate_to_members = False
+        relate_to_journals = True
 
         # Aggregate
         create_aggregate_table(
