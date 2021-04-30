@@ -677,7 +677,8 @@ class DoiWorkflow:
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
             relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals
         )
 
     @staticmethod
@@ -717,7 +718,8 @@ class DoiWorkflow:
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
             relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals
         )
 
     @staticmethod
@@ -757,7 +759,8 @@ class DoiWorkflow:
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
             relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals
         )
 
     @staticmethod
@@ -797,7 +800,8 @@ class DoiWorkflow:
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
             relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals
         )
 
     @staticmethod
@@ -837,7 +841,8 @@ class DoiWorkflow:
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
             relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals
         )
 
     @staticmethod
@@ -877,7 +882,8 @@ class DoiWorkflow:
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
             relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals
         )
 
     @staticmethod
@@ -917,7 +923,8 @@ class DoiWorkflow:
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
             relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals
         )
 
     @staticmethod
@@ -957,7 +964,8 @@ class DoiWorkflow:
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
             relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals
         )
 
     @staticmethod
@@ -997,7 +1005,8 @@ class DoiWorkflow:
             relate_to_institutions = relate_to_institutions,
             relate_to_countries = relate_to_countries,
             relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals
         )
 
     @staticmethod
