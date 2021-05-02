@@ -726,7 +726,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             name="Curtin Press",
             created=dt,
             modified=dt,
-            gcp_transform_bucket=self.gcp_bucket_name,
+            gcp_transform_bucket=env.transform_bucket,
             gcp_project_id=self.gcp_project_id,
         )
         env.api_session.add(organisation)
