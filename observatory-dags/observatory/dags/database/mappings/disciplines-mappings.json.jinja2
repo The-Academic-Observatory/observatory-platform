@@ -1,7 +1,7 @@
 {
   "mappings": {
     "properties": {
-      "id": {
+      "{{ aggregate }}_id": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -10,7 +10,7 @@
           }
         }
       },
-      "name": {
+      "{{ aggregate }}_name": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -19,7 +19,7 @@
           }
         }
       },
-      "country": {
+      "{{ aggregate }}_country": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -28,7 +28,7 @@
           }
         }
       },
-      "country_code": {
+      "{{ aggregate }}_country_code": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -37,7 +37,7 @@
           }
         }
       },
-      "region": {
+      "{{ aggregate }}_region": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -46,7 +46,7 @@
           }
         }
       },
-      "subregion": {
+      "{{ aggregate }}_subregion": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -55,14 +55,14 @@
           }
         }
       },
-      "coordinates": {
+      "{{ aggregate }}_coordinates": {
         "type": "geo_point"
       },
       "published_year": {
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "source": {
+      "field": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -71,16 +71,46 @@
           }
         }
       },
-      "total_outputs": {
+      "disciplines_total_outputs": {
         "type": "long"
       },
-      "num_oa_outputs": {
+      "disciplines_sum_of_scores": {
+        "type": "double"
+      },
+      "disciplines_num_oa_outputs": {
         "type": "long"
       },
-      "num_green_outputs": {
+      "disciplines_num_green_outputs": {
         "type": "long"
       },
-      "num_gold_outputs": {
+      "disciplines_num_gold_outputs": {
+        "type": "long"
+      },
+      "disciplines_total_citations": {
+        "type": "long"
+      },
+      "disciplines_median_citations_per_output": {
+        "type": "double"
+      },
+      "disciplines_total_funded_outputs": {
+        "type": "long"
+      },
+      "disciplines_num_international_funded_outputs": {
+        "type": "long"
+      },
+      "disciplines_num_domestic_funded_outputs": {
+        "type": "long"
+      },
+      "disciplines_num_international_and_domestic_funded_outputs": {
+        "type": "long"
+      },
+      "disciplines_num_government_funded_outputs": {
+        "type": "long"
+      },
+      "disciplines_num_private_funded_outputs": {
+        "type": "long"
+      },
+      "disciplines_num_government_and_private_funded_outputs": {
         "type": "long"
       }
     }

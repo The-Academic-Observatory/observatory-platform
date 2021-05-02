@@ -1,0 +1,31 @@
+{#
+Copyright 2020 Curtin University.
+Authors: Richard Hosking
+#}
+
+SELECT
+  entity.id as {{ aggregate }}_id,
+  entity.name as {{ aggregate }}_name,
+  entity.country as {{ aggregate }}_country,
+  entity.country_code as {{ aggregate }}_country_code,
+  entity.region as {{ aggregate }}_region,
+  entity.subregion as {{ aggregate }}_subregion,
+  entity.coordinates as {{ aggregate }}_coordinates,
+  DATE(entity.time_period, 12, 31) AS published_year,
+  relation.id as {{ relations }}_id,
+  relation.name as {{ relations }}_name,
+  relation.country as {{ relations }}_country,
+  relation.country_code as {{ relations }}r_country_code,
+  relation.region as {{ relations }}_region,
+  relation.subregion as {{ relations }}_subregion,
+  relation.coordinates as {{ relations }}_coordinates,
+  relation.total_outputs as {{ relations }}_total_outputs,
+  relation.num_oa_outputs as {{ relations }}_num_oa_outputs,
+  relation.num_green_outputs as {{ relations }}_num_green_outputs,
+  relation.num_gold_outputs as {{ relations }}_num_gold_outputs,
+  relation.citations.mag.total_citations as {{ relations }}_total_citations,
+  relation.citations.mag.percentiles.median as {{ relations }}_median_citations_per_output
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}` as entity,
+  UNNEST({{ relations }}) as relation
+ORDER BY entity.id, published_year ASC

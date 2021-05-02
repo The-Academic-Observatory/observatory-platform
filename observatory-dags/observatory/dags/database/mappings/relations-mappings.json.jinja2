@@ -1,7 +1,7 @@
 {
   "mappings": {
     "properties": {
-      "id": {
+      "{{ aggregate }}_id": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -10,7 +10,7 @@
           }
         }
       },
-      "name": {
+      "{{ aggregate }}_name": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -19,7 +19,7 @@
           }
         }
       },
-      "country": {
+      "{{ aggregate }}_country": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -28,7 +28,7 @@
           }
         }
       },
-      "country_code": {
+      "{{ aggregate }}_country_code": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -37,7 +37,7 @@
           }
         }
       },
-      "region": {
+      "{{ aggregate }}_region": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -46,7 +46,7 @@
           }
         }
       },
-      "subregion": {
+      "{{ aggregate }}_subregion": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -55,14 +55,14 @@
           }
         }
       },
-      "coordinates": {
+      "{{ aggregate }}_coordinates": {
         "type": "geo_point"
       },
       "published_year": {
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "funder_name": {
+      "{{ relations }}_id": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -71,7 +71,7 @@
           }
         }
       },
-      "funder_country": {
+      "{{ relations }}_name": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -80,7 +80,7 @@
           }
         }
       },
-      "funder_country_code": {
+      "{{ relations }}_country": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -89,7 +89,7 @@
           }
         }
       },
-      "funder_type": {
+      "{{ relations }}_country_code": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -98,7 +98,7 @@
           }
         }
       },
-      "funder_subtype": {
+      "{{ relations }}_region": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -107,16 +107,34 @@
           }
         }
       },
-      "total_outputs": {
+      "{{ relations }}_subregion": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ relations }}_coordinates": {
+        "type": "geo_point"
+      },
+      "{{ relations }}_total_outputs": {
         "type": "long"
       },
-      "num_oa_outputs": {
+      "{{ relations }}_num_oa_outputs": {
         "type": "long"
       },
-      "num_green_outputs": {
+      "{{ relations }}_num_green_outputs": {
         "type": "long"
       },
-      "num_gold_outputs": {
+      "{{ relations }}_num_gold_outputs": {
+        "type": "long"
+      },
+      "{{ relations }}_total_citations": {
+        "type": "long"
+      },
+      "{{ relations }}_median_citations_per_output": {
         "type": "long"
       }
     }

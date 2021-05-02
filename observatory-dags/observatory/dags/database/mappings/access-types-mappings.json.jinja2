@@ -1,7 +1,7 @@
 {
   "mappings": {
     "properties": {
-      "id": {
+      "{{ aggregate }}_id": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -10,7 +10,7 @@
           }
         }
       },
-      "name": {
+      "{{ aggregate }}_name": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -19,7 +19,7 @@
           }
         }
       },
-      "country": {
+      "{{ aggregate }}_country": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -28,7 +28,7 @@
           }
         }
       },
-      "country_code": {
+      "{{ aggregate }}_country_code": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -37,7 +37,7 @@
           }
         }
       },
-      "region": {
+      "{{ aggregate }}_region": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -46,7 +46,7 @@
           }
         }
       },
-      "subregion": {
+      "{{ aggregate }}_subregion": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -55,14 +55,14 @@
           }
         }
       },
-      "coordinates": {
+      "{{ aggregate }}_coordinates": {
         "type": "geo_point"
       },
       "published_year": {
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "output_type": {
+      "access_types_access_type": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -71,29 +71,32 @@
           }
         }
       },
-      "total_outputs": {
+      "access_types_status": {
+        "type": "boolean"
+      },
+      "access_types_label": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "access_types_total_outputs": {
         "type": "long"
       },
-      "num_oa_outputs": {
+      "access_types_outputs_with_citations": {
         "type": "long"
       },
-      "num_green_outputs": {
+      "access_types_outputs_without_citations": {
         "type": "long"
       },
-      "num_gold_outputs": {
+      "access_types_total_citations": {
         "type": "long"
       },
-      "num_gold_just_doaj_outputs": {
-        "type": "long"
-      },
-      "num_hybrid_outputs": {
-        "type": "long"
-      },
-      "num_bronze_outputs": {
-        "type": "long"
-      },
-      "num_green_only_outputs": {
-        "type": "long"
+      "access_types_median_citations_per_output": {
+        "type": "double"
       }
     }
   }

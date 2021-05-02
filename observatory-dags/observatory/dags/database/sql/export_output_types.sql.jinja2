@@ -4,23 +4,23 @@ Authors: James Diprose, Richard Hosking
 #}
 
 SELECT
-  id,
-  name,
-  country,
-  country_code,
-  region,
-  subregion,
-  coordinates,
+  id as {{ aggregate }}_id,
+  name as {{ aggregate }}_name,
+  country as {{ aggregate }}_country,
+  country_code as {{ aggregate }}_country_code,
+  region as {{ aggregate }}_region,
+  subregion as {{ aggregate }}_subregion,
+  coordinates as {{ aggregate }}_coordinates,
   DATE(time_period, 12, 31) AS published_year,
-  output_types.output_type,
-  output_types.total_outputs,
-  output_types.num_oa_outputs,
-  output_types.num_green_outputs as num_green_outputs,
-  output_types.num_gold_outputs as num_gold_outputs,
-  output_types.num_gold_just_doaj_outputs as num_gold_just_doaj_outputs,
-  output_types.num_hybrid_outputs as num_hybrid_outputs,
-  output_types.num_bronze_outputs as num_bronze_outputs,
-  output_types.num_green_only_outputs as num_green_only_outputs
+  output_types.output_type as output_types_output_type,
+  output_types.total_outputs as output_types_total_outputs,
+  output_types.num_oa_outputs as output_types_num_oa_outputs,
+  output_types.num_green_outputs as output_types_num_green_outputs,
+  output_types.num_gold_outputs as output_types_num_gold_outputs,
+  output_types.num_gold_just_doaj_outputs as output_types_num_gold_just_doaj_outputs,
+  output_types.num_hybrid_outputs as output_types_num_hybrid_outputs,
+  output_types.num_bronze_outputs as output_types_num_bronze_outputs,
+  output_types.num_green_only_outputs as output_types_num_green_only_outputs
 FROM
   `{{ project_id }}.{{ dataset_id }}.{{ table_name }}`,
   UNNEST(output_types) as output_types

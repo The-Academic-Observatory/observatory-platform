@@ -1,7 +1,7 @@
 {
   "mappings": {
     "properties": {
-      "id": {
+      "{{ aggregate }}_id": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -10,7 +10,7 @@
           }
         }
       },
-      "name": {
+      "{{ aggregate }}_name": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -19,7 +19,7 @@
           }
         }
       },
-      "country": {
+      "{{ aggregate }}_country": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -28,7 +28,7 @@
           }
         }
       },
-      "country_code": {
+      "{{ aggregate }}_country_code": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -37,7 +37,7 @@
           }
         }
       },
-      "region": {
+      "{{ aggregate }}_region": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -46,7 +46,7 @@
           }
         }
       },
-      "subregion": {
+      "{{ aggregate }}_subregion": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -55,14 +55,14 @@
           }
         }
       },
-      "coordinates": {
+      "{{ aggregate }}_coordinates": {
         "type": "geo_point"
       },
       "published_year": {
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "access_type": {
+      "events_source": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -71,32 +71,17 @@
           }
         }
       },
-      "status": {
-        "type": "boolean"
-      },
-      "label": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "total_outputs": {
+      "events_total_outputs": {
         "type": "long"
       },
-      "outputs_with_citations": {
+      "events_num_oa_outputs": {
         "type": "long"
       },
-      "outputs_without_citations": {
+      "events_num_green_outputs": {
         "type": "long"
       },
-      "total_citations": {
+      "events_num_gold_outputs": {
         "type": "long"
-      },
-      "median_citations_per_output": {
-        "type": "double"
       }
     }
   }

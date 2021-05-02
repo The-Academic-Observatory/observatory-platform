@@ -1,7 +1,7 @@
 {
   "mappings": {
     "properties": {
-      "id": {
+      "{{ aggregate }}_id": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -10,7 +10,7 @@
           }
         }
       },
-      "name": {
+      "{{ aggregate }}_name": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -19,7 +19,7 @@
           }
         }
       },
-      "country": {
+      "{{ aggregate }}_country": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -28,7 +28,7 @@
           }
         }
       },
-      "country_code": {
+      "{{ aggregate }}_country_code": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -37,7 +37,7 @@
           }
         }
       },
-      "region": {
+      "{{ aggregate }}_region": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -46,7 +46,7 @@
           }
         }
       },
-      "subregion": {
+      "{{ aggregate }}_subregion": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -55,14 +55,14 @@
           }
         }
       },
-      "coordinates": {
+      "{{ aggregate }}_coordinates": {
         "type": "geo_point"
       },
       "published_year": {
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "collaborator_id": {
+      "output_types_output_type": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -71,70 +71,28 @@
           }
         }
       },
-      "collaborator_name": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "collaborator_country": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "collaborator_country_code": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "collaborator_region": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "collaborator_subregion": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "collaborator_coordinates": {
-        "type": "geo_point"
-      },
-      "collaborator_total_outputs": {
+      "output_types_total_outputs": {
         "type": "long"
       },
-      "collaborator_num_oa_outputs": {
+      "output_types_num_oa_outputs": {
         "type": "long"
       },
-      "collaborator_num_green_outputs": {
+      "output_types_num_green_outputs": {
         "type": "long"
       },
-      "collaborator_num_gold_outputs": {
+      "output_types_num_gold_outputs": {
         "type": "long"
       },
-      "collaborator_total_citations": {
+      "output_types_num_gold_just_doaj_outputs": {
         "type": "long"
       },
-      "collaborator_median_citations_per_output": {
+      "output_types_num_hybrid_outputs": {
+        "type": "long"
+      },
+      "output_types_num_bronze_outputs": {
+        "type": "long"
+      },
+      "output_types_num_green_only_outputs": {
         "type": "long"
       }
     }
