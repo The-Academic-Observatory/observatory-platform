@@ -183,55 +183,64 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
     task_create_country = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
         provide_context=True,
-        python_callable=DoiWorkflow.create_country
+        op_kwargs=DoiWorkflow.AGGREGATIONS_COUNTRY,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_funder = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_FUNDER,
         provide_context=True,
-        python_callable=DoiWorkflow.create_funder
+        op_kwargs=DoiWorkflow.AGGREGATIONS_FUNDER,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_group = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_GROUP,
         provide_context=True,
-        python_callable=DoiWorkflow.create_group
+        op_kwargs=DoiWorkflow.AGGREGATIONS_GROUP,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_institution = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_INSTITUTION,
         provide_context=True,
-        python_callable=DoiWorkflow.create_institution
+        op_kwargs=DoiWorkflow.AGGREGATIONS_INSTITUTION,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_author = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_AUTHOR,
         provide_context=True,
-        python_callable=DoiWorkflow.create_author
+        op_kwargs=DoiWorkflow.AGGREGATIONS_AUTHOR,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_journal = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_JOURNAL,
         provide_context=True,
-        python_callable=DoiWorkflow.create_journal
+        op_kwargs=DoiWorkflow.AGGREGATIONS_JOURNAL,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_publisher = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_PUBLISHER,
         provide_context=True,
-        python_callable=DoiWorkflow.create_publisher
+        op_kwargs=DoiWorkflow.AGGREGATIONS_PUBLISHER,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_region = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_REGION,
         provide_context=True,
-        python_callable=DoiWorkflow.create_region
+        op_kwargs=DoiWorkflow.AGGREGATIONS_REGION,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_subregion = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_SUBREGION,
         provide_context=True,
-        python_callable=DoiWorkflow.create_subregion
+        op_kwargs=DoiWorkflow.AGGREGATIONS_SUBREGION,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_copy_tables = PythonOperator(

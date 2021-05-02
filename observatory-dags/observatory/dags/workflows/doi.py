@@ -171,6 +171,78 @@ class DoiWorkflow:
     AGGREGATE_DOI_FILENAME = make_sql_jinja2_filename("aggregate_doi")
     TOPIC_NAME = "message"
 
+    AGGREGATIONS_COUNTRY = {"aggregation_field": "countries",
+                            "table_id": "country",
+                            "relate_to_institutions": False,
+                            "relate_to_countries": False,
+                            "relate_to_groups": False,
+                            "relate_to_members": True,
+                            "relate_to_journals": True}
+
+    AGGREGATIONS_FUNDER = { "aggregation_field": "funders",
+                            "table_id": "funder",
+                            "relate_to_institutions": True,
+                            "relate_to_countries": True,
+                            "relate_to_groups": True,
+                            "relate_to_members": True,
+                            "relate_to_journals": False}
+
+    AGGREGATIONS_GROUP = {"aggregation_field": "groupings",
+                          "table_id": "group",
+                          "relate_to_institutions": True,
+                          "relate_to_countries": False,
+                          "relate_to_groups": False,
+                          "relate_to_members": True,
+                          "relate_to_journals": True}
+
+    AGGREGATIONS_INSTITUTION = {"aggregation_field": "institutions",
+                                "table_id": "institution",
+                                "relate_to_institutions": True,
+                                "relate_to_countries": True,
+                                "relate_to_groups": False,
+                                "relate_to_members": False,
+                                "relate_to_journals": True}
+
+    AGGREGATIONS_AUTHOR = { "aggregation_field": "authors",
+                            "table_id": "author",
+                            "relate_to_institutions": True,
+                            "relate_to_countries": True,
+                            "relate_to_groups": True,
+                            "relate_to_members": False,
+                            "relate_to_journals": True}
+
+    AGGREGATIONS_JOURNAL = {"aggregation_field": "journals",
+                            "table_id": "journal",
+                            "relate_to_institutions": True,
+                            "relate_to_countries": True,
+                            "relate_to_groups": True,
+                            "relate_to_members": False,
+                            "relate_to_journals": True}
+
+    AGGREGATIONS_PUBLISHER = {"aggregation_field": "publishers",
+                              "table_id": "publisher",
+                              "relate_to_institutions": True,
+                              "relate_to_countries": True,
+                              "relate_to_groups": True,
+                              "relate_to_members": False,
+                              "relate_to_journals": True}
+
+    AGGREGATIONS_REGION = { "aggregation_field": "regions",
+                            "table_id": "region",
+                            "relate_to_institutions": False,
+                            "relate_to_countries": False,
+                            "relate_to_groups": False,
+                            "relate_to_members": False,
+                            "relate_to_journals": False}
+
+    AGGREGATIONS_SUBREGION = {"aggregation_field": "subregions",
+                              "table_id": "subregion",
+                              "relate_to_institutions": False,
+                              "relate_to_countries": False,
+                              "relate_to_groups": False,
+                              "relate_to_members": False,
+                              "relate_to_journals": False}
+
     @staticmethod
     def check_dependencies(**kwargs):
         """Check that all variables and connections exist that are required to run the DAG.
@@ -641,8 +713,8 @@ class DoiWorkflow:
         set_task_state(success, DoiWorkflow.TASK_ID_CREATE_BOOK)
 
     @staticmethod
-    def create_country(**kwargs):
-        """Create country snapshot.
+    def create_aggregation(**kwargs):
+        """ Create aggregation snapshot.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -653,361 +725,25 @@ class DoiWorkflow:
         # Get variables
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = "countries"
+        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+        aggregation_field = kwargs['aggregation_field']
         group_by_time_field = "published_year"
-        table_id = "country"
+        table_id = kwargs['table_id']
 
         # Optional Relationships
-        relate_to_institutions = False
-        relate_to_countries = False
-        relate_to_groups = False
-        relate_to_members = True
-        relate_to_journals = True
+        relate_to_institutions = kwargs['relate_to_institutions']
+        relate_to_countries = kwargs['relate_to_countries']
+        relate_to_groups = kwargs['relate_to_groups']
+        relate_to_members = kwargs['relate_to_members']
+        relate_to_journals = kwargs['relate_to_journals']
 
         # Aggregate
-        create_aggregate_table(
-            project_id=project_id,
-            release_date=release_date,
-            aggregation_field=aggregation_field,
-            group_by_time_field=group_by_time_field,
-            table_id=table_id,
-            data_location=data_location,
-            task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
-            relate_to_institutions = relate_to_institutions,
-            relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members,
-            relate_to_journals=relate_to_journals
-        )
-
-    @staticmethod
-    def create_funder(**kwargs):
-        """Create funder snapshot.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = "funders"
-        group_by_time_field = "published_year"
-        table_id = "funder"
-
-        # Optional Relationships
-        relate_to_institutions = True
-        relate_to_countries = True
-        relate_to_groups = True
-        relate_to_members = False
-        relate_to_journals = True
-
-        # Aggregate
-        create_aggregate_table(
-            project_id=project_id,
-            release_date=release_date,
-            aggregation_field=aggregation_field,
-            group_by_time_field=group_by_time_field,
-            table_id=table_id,
-            data_location=data_location,
-            task_id=DoiWorkflow.TASK_ID_CREATE_FUNDER,
-            relate_to_institutions = relate_to_institutions,
-            relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members,
-            relate_to_journals=relate_to_journals
-        )
-
-    @staticmethod
-    def create_group(**kwargs):
-        """Create group snapshot.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = "groupings"
-        group_by_time_field = "published_year"
-        table_id = "group"
-
-        # Optional Relationships
-        relate_to_institutions = True
-        relate_to_countries = False
-        relate_to_groups = False
-        relate_to_members = True
-        relate_to_journals = True
-
-        # Aggregate
-        create_aggregate_table(
-            project_id=project_id,
-            release_date=release_date,
-            aggregation_field=aggregation_field,
-            group_by_time_field=group_by_time_field,
-            table_id=table_id,
-            data_location=data_location,
-            task_id=DoiWorkflow.TASK_ID_CREATE_GROUP,
-            relate_to_institutions = relate_to_institutions,
-            relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members,
-            relate_to_journals=relate_to_journals
-        )
-
-    @staticmethod
-    def create_institution(**kwargs):
-        """Create institution snapshot.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = "institutions"
-        group_by_time_field = "published_year"
-        table_id = "institution"
-
-        # Optional Relationships
-        relate_to_institutions = True
-        relate_to_countries = True
-        relate_to_groups = False
-        relate_to_members = False
-        relate_to_journals = True
-
-        # Aggregate
-        create_aggregate_table(
-            project_id=project_id,
-            release_date=release_date,
-            aggregation_field=aggregation_field,
-            group_by_time_field=group_by_time_field,
-            table_id=table_id,
-            data_location=data_location,
-            task_id=DoiWorkflow.TASK_ID_CREATE_INSTITUTION,
-            relate_to_institutions = relate_to_institutions,
-            relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members,
-            relate_to_journals=relate_to_journals
-        )
-
-    @staticmethod
-    def create_author(**kwargs):
-        """Create author snapshot.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = "authors"
-        group_by_time_field = "published_year"
-        table_id = "author"
-
-        # Optional Relationships
-        relate_to_institutions = True
-        relate_to_countries = True
-        relate_to_groups = True
-        relate_to_members = False
-        relate_to_journals = True
-
-        # Aggregate
-        create_aggregate_table(
-            project_id=project_id,
-            release_date=release_date,
-            aggregation_field=aggregation_field,
-            group_by_time_field=group_by_time_field,
-            table_id=table_id,
-            data_location=data_location,
-            task_id=DoiWorkflow.TASK_ID_CREATE_AUTHOR,
-            relate_to_institutions = relate_to_institutions,
-            relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members,
-            relate_to_journals=relate_to_journals
-        )
-
-    @staticmethod
-    def create_journal(**kwargs):
-        """Create journal snapshot.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = "journals"
-        group_by_time_field = "published_year"
-        table_id = "journal"
-
-        # Optional Relationships
-        relate_to_institutions = True
-        relate_to_countries = True
-        relate_to_groups = True
-        relate_to_members = False
-        relate_to_journals = True
-
-        # Aggregate
-        create_aggregate_table(
-            project_id=project_id,
-            release_date=release_date,
-            aggregation_field=aggregation_field,
-            group_by_time_field=group_by_time_field,
-            table_id=table_id,
-            data_location=data_location,
-            task_id=DoiWorkflow.TASK_ID_CREATE_JOURNAL,
-            relate_to_institutions = relate_to_institutions,
-            relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members,
-            relate_to_journals=relate_to_journals
-        )
-
-    @staticmethod
-    def create_publisher(**kwargs):
-        """Create publisher snapshot.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = "publishers"
-        group_by_time_field = "published_year"
-        table_id = "publisher"
-
-        # Optional Relationships
-        relate_to_institutions = True
-        relate_to_countries = True
-        relate_to_groups = True
-        relate_to_members = False
-        relate_to_journals = True
-
-        # Aggregate
-        create_aggregate_table(
-            project_id=project_id,
-            release_date=release_date,
-            aggregation_field=aggregation_field,
-            group_by_time_field=group_by_time_field,
-            table_id=table_id,
-            data_location=data_location,
-            task_id=DoiWorkflow.TASK_ID_CREATE_PUBLISHER,
-            relate_to_institutions = relate_to_institutions,
-            relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members,
-            relate_to_journals=relate_to_journals
-        )
-
-    @staticmethod
-    def create_region(**kwargs):
-        """Create region snapshot.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = "regions"
-        group_by_time_field = "published_year"
-        table_id = "region"
-
-        # Optional Relationships
-        relate_to_institutions = False
-        relate_to_countries = False
-        relate_to_groups = False
-        relate_to_members = False
-        relate_to_journals = False
-
-        # Aggregate
-        create_aggregate_table(
-            project_id=project_id,
-            release_date=release_date,
-            aggregation_field=aggregation_field,
-            group_by_time_field=group_by_time_field,
-            table_id=table_id,
-            data_location=data_location,
-            task_id=DoiWorkflow.TASK_ID_CREATE_REGION,
-            relate_to_institutions = relate_to_institutions,
-            relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members,
-            relate_to_journals=relate_to_journals
-        )
-
-    @staticmethod
-    def create_subregion(**kwargs):
-        """Create subregion snapshot.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = "subregions"
-        group_by_time_field = "published_year"
-        table_id = "subregion"
-
-        # Optional Relationships
-        relate_to_institutions = False
-        relate_to_countries = False
-        relate_to_groups = False
-        relate_to_members = False
-        relate_to_journals = True
-
-        # Aggregate
-        create_aggregate_table(
-            project_id=project_id,
-            release_date=release_date,
-            aggregation_field=aggregation_field,
-            group_by_time_field=group_by_time_field,
-            table_id=table_id,
-            data_location=data_location,
-            task_id=DoiWorkflow.TASK_ID_CREATE_SUBREGION,
-            relate_to_institutions = relate_to_institutions,
-            relate_to_countries = relate_to_countries,
-            relate_to_groups = relate_to_groups,
-            relate_to_members=relate_to_members,
-            relate_to_journals=relate_to_journals
-        )
+        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field,
+                               group_by_time_field=group_by_time_field, table_id=table_id, data_location=data_location,
+                               task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
+                               relate_to_institutions=relate_to_institutions,
+                               relate_to_countries=relate_to_countries, relate_to_groups=relate_to_groups,
+                               relate_to_members=relate_to_members, relate_to_journals=relate_to_journals)
 
     @staticmethod
     def copy_tables(**kwargs):
