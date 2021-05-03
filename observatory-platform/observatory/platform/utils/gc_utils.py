@@ -25,8 +25,7 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
-from typing import List, Union
-from typing import Tuple
+from typing import List, Tuple, Union
 
 import pendulum
 from google.api_core.exceptions import BadRequest, Conflict
@@ -35,7 +34,12 @@ from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat
 from google.cloud.exceptions import Conflict, NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
+from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash
+from observatory.platform.utils.jinja2_utils import (
+    make_sql_jinja2_filename,
+    render_template,
+)
 from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
 
@@ -44,32 +48,32 @@ DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
 
 
 def table_name_from_blob(blob_name: str, file_extension: str):
-    """ Make a BigQuery table name from a blob name.
+    """Make a BigQuery table name from a blob name.
 
     :param blob_name: the blob name.
     :param file_extension: the file extension of the blob.
     :return: the table name.
     """
 
-    assert '.' in file_extension, 'file_extension must contain a .'
+    assert "." in file_extension, "file_extension must contain a ."
     file_name = os.path.basename(blob_name)
-    match = re.match(fr'.+?(?={file_extension})', file_name)
+    match = re.match(fr".+?(?={file_extension})", file_name)
     if match is None:
-        raise ValueError(f'Could not find table name from blob_name={blob_name}')
+        raise ValueError(f"Could not find table name from blob_name={blob_name}")
     return match.group(0)
 
 
 class TransferStatus(Enum):
     """ The status of the Google Cloud Data Transfer operation """
 
-    in_progress = 'IN_PROGRESS'
-    success = 'SUCCESS'
-    aborted = 'ABORTED'
-    failed = 'FAILED'
+    in_progress = "IN_PROGRESS"
+    success = "SUCCESS"
+    aborted = "ABORTED"
+    failed = "FAILED"
 
 
 def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str) -> bool:
-    """ Checks whether a BigQuery table exists or not.
+    """Checks whether a BigQuery table exists or not.
 
     :param project_id: the Google Cloud project id.
     :param dataset_id: the BigQuery dataset id.
@@ -78,7 +82,7 @@ def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str) -> 
     """
 
     client = bigquery.Client(project_id)
-    dataset = bigquery.Dataset(f'{project_id}.{dataset_id}')
+    dataset = bigquery.Dataset(f"{project_id}.{dataset_id}")
     table = dataset.table(table_name)
     table_exists = True
 
@@ -91,7 +95,7 @@ def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str) -> 
 
 
 def bigquery_partitioned_table_id(table_name, datetime: Pendulum) -> str:
-    """ Create a partitioned table identifier for a BigQuery table.
+    """Create a partitioned table identifier for a BigQuery table.
 
     :param table_name: the name of the table.
     :param datetime: the date to append as a partition suffix.
@@ -100,8 +104,8 @@ def bigquery_partitioned_table_id(table_name, datetime: Pendulum) -> str:
     return f"{table_name}{datetime.strftime('%Y%m%d')}"
 
 
-def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, description: str = '') -> None:
-    """ Create a BigQuery dataset.
+def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, description: str = "") -> None:
+    """Create a BigQuery dataset.
 
     :param project_id: the Google Cloud project id.
     :param dataset_id: the BigQuery dataset id.
@@ -114,7 +118,7 @@ def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, des
     func_name = create_bigquery_dataset.__name__
 
     # Make the dataset reference
-    dataset_ref = f'{project_id}.{dataset_id}'
+    dataset_ref = f"{project_id}.{dataset_id}"
 
     # Make dataset handle
     client = bigquery.Client()
@@ -132,14 +136,37 @@ def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, des
         logging.warning(f"{func_name}: dataset already exists dataset_ref={dataset_ref}, exception={e}")
 
 
-def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, schema_file_path: str, source_format: str,
-                        csv_field_delimiter: str = ',', csv_quote_character: str = '"',
-                        csv_allow_quoted_newlines: bool = False, csv_skip_leading_rows: int = 0,
-                        partition: bool = False, partition_field: Union[None, str] = None,
-                        partition_type: str = bigquery.TimePartitioningType.DAY, require_partition_filter=True,
-                        write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE, table_description: str = '',
-                        project_id: str = None) -> bool:
-    """ Load a BigQuery table from an object on Google Cloud Storage.
+def delete_bigquery_dataset(project_id: str, dataset_id: str):
+    """Delete a bigquery dataset and all its tables.
+    :param project_id: GCP Project ID.
+    :param dataset_id: GCP Dataset ID.
+    """
+
+    client = bigquery.Client()
+    dataset_ref = f"{project_id}.{dataset_id}"
+    client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+
+
+def load_bigquery_table(
+    uri: str,
+    dataset_id: str,
+    location: str,
+    table: str,
+    schema_file_path: str,
+    source_format: str,
+    csv_field_delimiter: str = ",",
+    csv_quote_character: str = '"',
+    csv_allow_quoted_newlines: bool = False,
+    csv_skip_leading_rows: int = 0,
+    partition: bool = False,
+    partition_field: Union[None, str] = None,
+    partition_type: str = bigquery.TimePartitioningType.DAY,
+    require_partition_filter=True,
+    write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE,
+    table_description: str = "",
+    project_id: str = None,
+) -> bool:
+    """Load a BigQuery table from an object on Google Cloud Storage.
 
     :param uri: the uri of the object to load from Google Cloud Storage into BigQuery.
     :param dataset_id: BigQuery dataset id.
@@ -165,14 +192,16 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
     assert uri.startswith("gs://"), "load_big_query_table: 'uri' must begin with 'gs://'"
 
     func_name = load_bigquery_table.__name__
-    msg = f'uri={uri}, dataset_id={dataset_id}, location={location}, table={table}, ' \
-          f'schema_file_path={schema_file_path}, source_format={source_format}'
+    msg = (
+        f"uri={uri}, dataset_id={dataset_id}, location={location}, table={table}, "
+        f"schema_file_path={schema_file_path}, source_format={source_format}"
+    )
     logging.info(f"{func_name}: load bigquery table {msg}")
 
     client = bigquery.Client()
     if project_id is None:
         project_id = client.project
-    dataset = bigquery.Dataset(f'{project_id}.{dataset_id}')
+    dataset = bigquery.Dataset(f"{project_id}.{dataset_id}")
 
     # Create load job
     job_config = LoadJobConfig()
@@ -192,28 +221,28 @@ def load_bigquery_table(uri: str, dataset_id: str, location: str, table: str, sc
 
     # Set partitioning settings
     if partition:
-        job_config.time_partitioning = bigquery.TimePartitioning(type_=partition_type, field=partition_field,
-                                                                 require_partition_filter=require_partition_filter)
+        job_config.time_partitioning = bigquery.TimePartitioning(
+            type_=partition_type, field=partition_field, require_partition_filter=require_partition_filter
+        )
 
     try:
-        load_job: LoadJob = client.load_table_from_uri(uri, dataset.table(table), location=location,
-                                                       job_config=job_config)
-        result = load_job.result()
-        state = result.state == 'DONE'
+        load_job: LoadJob = client.load_table_from_uri(
+            uri, dataset.table(table), location=location, job_config=job_config
+        )
 
-        if load_job.state == 'DONE' and load_job.error_result:
-            logging.error(load_job.errors)
+        result = load_job.result()
+        state = result.state == "DONE"
 
         logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
     except BadRequest as e:
-        logging.error(f"{func_name}: load bigquery table failed: {e}")
+        logging.error(f"{func_name}: load bigquery table failed: {e}.\nError collection:\n{load_job.errors}")
         state = False
 
     return state
 
 
 def run_bigquery_query(query: str) -> List:
-    """ Run a BigQuery query.
+    """Run a BigQuery query.
 
     :param query: the query to run.
     :return: the results.
@@ -225,10 +254,13 @@ def run_bigquery_query(query: str) -> List:
     return list(rows)
 
 
-def copy_bigquery_table(source_table_id: Union[str, list], destination_table_id: str, data_location: str,
-                        write_disposition: bigquery.WriteDisposition = bigquery.WriteDisposition.WRITE_TRUNCATE) -> \
-        bool:
-    """ Copy a BigQuery table.
+def copy_bigquery_table(
+    source_table_id: Union[str, list],
+    destination_table_id: str,
+    data_location: str,
+    write_disposition: bigquery.WriteDisposition = bigquery.WriteDisposition.WRITE_TRUNCATE,
+) -> bool:
+    """Copy a BigQuery table.
 
     :param source_table_id: the id of the source table, including the project name and dataset id.
     :param destination_table_id: the id of the destination table, including the project name and dataset id.
@@ -237,7 +269,7 @@ def copy_bigquery_table(source_table_id: Union[str, list], destination_table_id:
     :return: whether the table was copied successfully or not.
     """
     func_name = copy_bigquery_table.__name__
-    msg = f'source_table_ids={source_table_id}, destination_table_id={destination_table_id}, location={data_location}'
+    msg = f"source_table_ids={source_table_id}, destination_table_id={destination_table_id}, location={data_location}"
     logging.info(f"{func_name}: copying bigquery table {msg}")
 
     client = bigquery.Client()
@@ -251,7 +283,7 @@ def copy_bigquery_table(source_table_id: Union[str, list], destination_table_id:
 
 
 def create_bigquery_view(project_id: str, dataset_id: str, view_name: str, query: str) -> None:
-    """ Create a BigQuery view.
+    """Create a BigQuery view.
 
     :param project_id: the Google Cloud project id.
     :param dataset_id: the BigQuery dataset id.
@@ -268,13 +300,23 @@ def create_bigquery_view(project_id: str, dataset_id: str, view_name: str, query
     view = client.create_table(view, exists_ok=True)
 
 
-def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str, table_id: str, location: str,
-                                     description: str = '', labels=None, query_parameters=None, partition: bool = False,
-                                     partition_field: Union[None, str] = None,
-                                     partition_type: str = bigquery.TimePartitioningType.DAY,
-                                     require_partition_filter=True, cluster: bool = False,
-                                     clustering_fields=None) -> bool:
-    """ Create a BigQuery dataset from a provided query.
+def create_bigquery_table_from_query(
+    sql: str,
+    project_id: str,
+    dataset_id: str,
+    table_id: str,
+    location: str,
+    description: str = "",
+    labels=None,
+    query_parameters=None,
+    partition: bool = False,
+    partition_field: Union[None, str] = None,
+    partition_type: str = bigquery.TimePartitioningType.DAY,
+    require_partition_filter=True,
+    cluster: bool = False,
+    clustering_fields=None,
+) -> bool:
+    """Create a BigQuery dataset from a provided query.
 
     :param sql: the sql query to be executed
     :param labels: labels to place on the new table
@@ -303,11 +345,11 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
         clustering_fields = []
 
     func_name = create_bigquery_dataset.__name__
-    msg = f'project_id={project_id}, dataset_id={dataset_id}, location={location}, table={table_id}'
+    msg = f"project_id={project_id}, dataset_id={dataset_id}, location={location}, table={table_id}"
     logging.info(f"{func_name}: create bigquery table from query, {msg}")
 
     # Make the dataset reference
-    dataset_ref = f'{project_id}.{dataset_id}'
+    dataset_ref = f"{project_id}.{dataset_id}"
 
     # Make dataset handle
     client = bigquery.Client()
@@ -317,15 +359,23 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
     dataset.location = location
     dataset.description = description
 
-    job_config = bigquery.QueryJobConfig(allow_large_results=True, destination=dataset.table(table_id),
-                                         description=description, labels=labels, use_legacy_sql=False,
-                                         query_parameters=query_parameters,
-                                         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE)
+    job_config = bigquery.QueryJobConfig(
+        allow_large_results=True,
+        destination=dataset.table(table_id),
+        description=description,
+        labels=labels,
+        use_legacy_sql=False,
+        query_parameters=query_parameters,
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+    )
 
     # Set partitioning settings
     if partition:
-        job_config.time_partitioning = bigquery.TimePartitioning(type_=partition_type, field=partition_field,
-                                                                 require_partition_filter=require_partition_filter, )
+        job_config.time_partitioning = bigquery.TimePartitioning(
+            type_=partition_type,
+            field=partition_field,
+            require_partition_filter=require_partition_filter,
+        )
 
     if cluster:
         job_config.clustering_fields = clustering_fields
@@ -337,13 +387,14 @@ def create_bigquery_table_from_query(sql: str, project_id: str, dataset_id: str,
     return success
 
 
-def create_cloud_storage_bucket(bucket_name: str, location: str = None, project_id: str = None,
-                                lifecycle_delete_age: int = None) -> bool:
-    """ Create a cloud storage bucket
-    
+def create_cloud_storage_bucket(
+    bucket_name: str, location: str = None, project_id: str = None, lifecycle_delete_age: int = None
+) -> bool:
+    """Create a cloud storage bucket
+
     :param bucket_name: The name of the bucket. Bucket names must start and end with a number or letter.
     :param location: (Optional) The location of the bucket. If not passed, the default location, US, will be used.
-    :param project_id: The project which the client acts on behalf of. Will be passed when creating a topic. If not 
+    :param project_id: The project which the client acts on behalf of. Will be passed when creating a topic. If not
     passed, falls back to the default inferred from the environment.
     :param lifecycle_delete_age: Days until files in bucket are deleted
     :return: Whether creating bucket was successful or not.
@@ -361,13 +412,17 @@ def create_cloud_storage_bucket(bucket_name: str, location: str = None, project_
         client.create_bucket(bucket, location=location)
         success = True
     except Conflict:
-        logging.info(f'{func_name}: bucket already exists, name: {bucket.name}, project: {bucket.project_number}, '
-                     f'location: {bucket.location}')
+        logging.info(
+            f"{func_name}: bucket already exists, name: {bucket.name}, project: {bucket.project_number}, "
+            f"location: {bucket.location}"
+        )
     return success
 
 
-def copy_blob_from_cloud_storage(blob_name: str, bucket_name: str, destination_bucket_name: str, new_name: str = None) -> bool:
-    """ Copy a blob from one bucket to another
+def copy_blob_from_cloud_storage(
+    blob_name: str, bucket_name: str, destination_bucket_name: str, new_name: str = None
+) -> bool:
+    """Copy a blob from one bucket to another
 
     :param blob_name: The name of the blob. This corresponds to the unique path of the object in the bucket.
     :param bucket_name: The bucket to which the blob belongs.
@@ -394,10 +449,15 @@ def copy_blob_from_cloud_storage(blob_name: str, bucket_name: str, destination_b
     return success
 
 
-def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
-                                     connection_sem: BoundedSemaphore = None,
-                                     chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
-    """ Download a blob to a file.
+def download_blob_from_cloud_storage(
+    bucket_name: str,
+    blob_name: str,
+    file_path: str,
+    retries: int = 3,
+    connection_sem: BoundedSemaphore = None,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+) -> bool:
+    """Download a blob to a file.
 
     :param bucket_name: the name of the Google Cloud storage bucket.
     :param blob_name: the path to the blob.
@@ -427,16 +487,19 @@ def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path
     # Check if file exists and check hash
     if os.path.exists(file_path):
         # Check file's hash
-        logging.info(f'{func_name}: file exists, checking hash {file_path}')
+        logging.info(f"{func_name}: file exists, checking hash {file_path}")
         actual_hash = crc32c_base64_hash(file_path)
 
         # Compare hashes
         files_match = expected_hash == actual_hash
-        logging.info(f'{func_name}: files_match={files_match}, expected_hash={expected_hash}, '
-                     f'actual_hash={actual_hash}')
+        logging.info(
+            f"{func_name}: files_match={files_match}, expected_hash={expected_hash}, " f"actual_hash={actual_hash}"
+        )
         if files_match:
-            logging.info(f'{func_name}: skipping download as files match bucket_name={bucket_name}, '
-                         f'blob_name={blob_name}, file_path={file_path}')
+            logging.info(
+                f"{func_name}: skipping download as files match bucket_name={bucket_name}, "
+                f"blob_name={blob_name}, file_path={file_path}"
+            )
             download = False
             success = True
 
@@ -452,7 +515,7 @@ def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path
                 success = True
                 break
             except ChunkedEncodingError as e:
-                logging.error(f'{func_name}: exception downloading file: try={i}, file_path={file_path}, exception={e}')
+                logging.error(f"{func_name}: exception downloading file: try={i}, file_path={file_path}, exception={e}")
 
         # Release connection semaphore
         if connection_sem is not None:
@@ -461,10 +524,16 @@ def download_blob_from_cloud_storage(bucket_name: str, blob_name: str, file_path
     return success
 
 
-def download_blobs_from_cloud_storage(bucket_name: str, prefix: str, destination_path: str,
-                                      max_processes: int = cpu_count(), max_connections: int = cpu_count(),
-                                      retries: int = 3, chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
-    """ Download all blobs on a Google Cloud Storage bucket that are within a prefixed path, to a destination on the
+def download_blobs_from_cloud_storage(
+    bucket_name: str,
+    prefix: str,
+    destination_path: str,
+    max_processes: int = cpu_count(),
+    max_connections: int = cpu_count(),
+    retries: int = 3,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+) -> bool:
+    """Download all blobs on a Google Cloud Storage bucket that are within a prefixed path, to a destination on the
     local file system.
 
     :param bucket_name: the name of the Google Cloud storage bucket.
@@ -497,15 +566,22 @@ def download_blobs_from_cloud_storage(bucket_name: str, prefix: str, destination
         for blob in blobs:
             # Save files to destination path, remove blobs_path from blob name
             filename = f'{os.path.normpath(destination_path)}{blob.name.replace(prefix, "")}'
-            msg = f'bucket_name={bucket_name}, blob_name={blob.name}, filename={filename}'
-            logging.info(f'{func_name}: {msg}')
+            msg = f"bucket_name={bucket_name}, blob_name={blob.name}, filename={filename}"
+            logging.info(f"{func_name}: {msg}")
 
             # Create directory
             dirname = os.path.dirname(filename)
             os.makedirs(dirname, exist_ok=True)
 
-            future = executor.submit(download_blob_from_cloud_storage, bucket_name, blob.name, filename,
-                                     retries=retries, connection_sem=connection_sem, chunk_size=chunk_size)
+            future = executor.submit(
+                download_blob_from_cloud_storage,
+                bucket_name,
+                blob.name,
+                filename,
+                retries=retries,
+                connection_sem=connection_sem,
+                chunk_size=chunk_size,
+            )
             futures.append(future)
             futures_msgs[future] = msg
 
@@ -517,17 +593,23 @@ def download_blobs_from_cloud_storage(bucket_name: str, prefix: str, destination
             msg = futures_msgs[future]
 
             if success:
-                logging.info(f'{func_name}: success, {msg}')
+                logging.info(f"{func_name}: success, {msg}")
             else:
-                logging.info(f'{func_name}: failed, {msg}')
+                logging.info(f"{func_name}: failed, {msg}")
 
     return all(results)
 
 
-def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_paths: List[str],
-                                  max_processes: int = cpu_count(), max_connections: int = cpu_count(),
-                                  retries: int = 3, chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
-    """ Upload a list of files to Google Cloud storage.
+def upload_files_to_cloud_storage(
+    bucket_name: str,
+    blob_names: List[str],
+    file_paths: List[str],
+    max_processes: int = cpu_count(),
+    max_connections: int = cpu_count(),
+    retries: int = 3,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+) -> bool:
+    """Upload a list of files to Google Cloud storage.
 
     :param bucket_name: the name of the Google Cloud storage bucket.
     :param blob_names: the destination paths of blobs where the files will be uploaded.
@@ -540,7 +622,7 @@ def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_
     """
 
     func_name = upload_files_to_cloud_storage.__name__
-    logging.info(f'{func_name}: uploading files')
+    logging.info(f"{func_name}: uploading files")
 
     # Upload each file in parallel
     manager = multiprocessing.Manager()
@@ -550,10 +632,17 @@ def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_
         futures = []
         futures_msgs = {}
         for blob_name, file_path in zip(blob_names, file_paths):
-            msg = f'{func_name}: bucket_name={bucket_name}, blob_name={blob_name}, file_path={str(file_path)}'
+            msg = f"{func_name}: bucket_name={bucket_name}, blob_name={blob_name}, file_path={str(file_path)}"
             logging.info(f"{func_name}: {msg}")
-            future = executor.submit(upload_file_to_cloud_storage, bucket_name, blob_name, file_path=str(file_path),
-                                     retries=retries, connection_sem=connection_sem, chunk_size=chunk_size)
+            future = executor.submit(
+                upload_file_to_cloud_storage,
+                bucket_name,
+                blob_name,
+                file_path=str(file_path),
+                retries=retries,
+                connection_sem=connection_sem,
+                chunk_size=chunk_size,
+            )
             futures.append(future)
             futures_msgs[future] = msg
 
@@ -564,17 +653,23 @@ def upload_files_to_cloud_storage(bucket_name: str, blob_names: List[str], file_
             results.append(success)
             msg = futures_msgs[future]
             if success:
-                logging.info(f'{func_name}: success, {msg}')
+                logging.info(f"{func_name}: success, {msg}")
             else:
-                logging.info(f'{func_name}: failed, {msg}')
+                logging.info(f"{func_name}: failed, {msg}")
 
     return all(results)
 
 
-def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: str, retries: int = 3,
-                                 connection_sem: BoundedSemaphore = None, chunk_size: int = DEFAULT_CHUNK_SIZE,
-                                 project_id: str = None) -> Tuple[bool, bool]:
-    """ Upload a file to Google Cloud Storage.
+def upload_file_to_cloud_storage(
+    bucket_name: str,
+    blob_name: str,
+    file_path: str,
+    retries: int = 3,
+    connection_sem: BoundedSemaphore = None,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    project_id: str = None,
+) -> Tuple[bool, bool]:
+    """Upload a file to Google Cloud Storage.
 
     :param bucket_name: the name of the Google Cloud Storage bucket.
     :param blob_name: the name of the blob to save.
@@ -608,12 +703,14 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
 
         # Compare hashes
         files_match = expected_hash == actual_hash
-        logging.info(f'{func_name}: files_match={files_match}, expected_hash={expected_hash}, '
-                     f'actual_hash={actual_hash}')
+        logging.info(
+            f"{func_name}: files_match={files_match}, expected_hash={expected_hash}, " f"actual_hash={actual_hash}"
+        )
         if files_match:
             logging.info(
-                f'{func_name}: skipping upload as files match. bucket_name={bucket_name}, blob_name={blob_name}, '
-                f'file_path={file_path}')
+                f"{func_name}: skipping upload as files match. bucket_name={bucket_name}, blob_name={blob_name}, "
+                f"file_path={file_path}"
+            )
             upload = False
             success = True
 
@@ -630,7 +727,7 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
                 success = True
                 break
             except ChunkedEncodingError as e:
-                logging.error(f'{func_name}: exception uploading file: try={i}, exception={e}')
+                logging.error(f"{func_name}: exception uploading file: try={i}, exception={e}")
 
         # Release connection semaphore
         if connection_sem is not None:
@@ -639,10 +736,17 @@ def upload_file_to_cloud_storage(bucket_name: str, blob_name: str, file_path: st
     return success, upload
 
 
-def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azure_sas_token: str, azure_container: str,
-                                           include_prefixes: List[str], gc_project_id: str, gc_bucket: str,
-                                           description: str, start_date: Pendulum = pendulum.utcnow()) -> bool:
-    """ Transfer files from an Azure blob container to a Google Cloud Storage bucket.
+def azure_to_google_cloud_storage_transfer(
+    azure_storage_account_name: str,
+    azure_sas_token: str,
+    azure_container: str,
+    include_prefixes: List[str],
+    gc_project_id: str,
+    gc_bucket: str,
+    description: str,
+    start_date: Pendulum = pendulum.utcnow(),
+) -> bool:
+    """Transfer files from an Azure blob container to a Google Cloud Storage bucket.
 
     :param azure_storage_account_name: the name of the Azure Storage account that holds the Azure blob container.
     :param azure_sas_token: the shared access signature (SAS) for the Azure blob container.
@@ -660,56 +764,40 @@ def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azur
     func_name = azure_to_google_cloud_storage_transfer.__name__
 
     job = {
-        'description': description,
-        'status': 'ENABLED',
-        'projectId': gc_project_id,
-        'schedule': {
-            'scheduleStartDate': {
-                'day': start_date.day,
-                'month': start_date.month,
-                'year': start_date.year
-            },
-            'scheduleEndDate': {
-                'day': start_date.day,
-                'month': start_date.month,
-                'year': start_date.year
-            },
+        "description": description,
+        "status": "ENABLED",
+        "projectId": gc_project_id,
+        "schedule": {
+            "scheduleStartDate": {"day": start_date.day, "month": start_date.month, "year": start_date.year},
+            "scheduleEndDate": {"day": start_date.day, "month": start_date.month, "year": start_date.year},
         },
-        'transferSpec': {
-            'azureBlobStorageDataSource': {
-                'storageAccount': azure_storage_account_name,
-                'azureCredentials': {
-                    'sasToken': azure_sas_token,
+        "transferSpec": {
+            "azureBlobStorageDataSource": {
+                "storageAccount": azure_storage_account_name,
+                "azureCredentials": {
+                    "sasToken": azure_sas_token,
                 },
-                'container': azure_container,
-
+                "container": azure_container,
             },
-            'objectConditions': {
-                'includePrefixes': include_prefixes
-            },
-            'gcsDataSink': {
-                'bucketName': gc_bucket
-            }
-        }
+            "objectConditions": {"includePrefixes": include_prefixes},
+            "gcsDataSink": {"bucketName": gc_bucket},
+        },
     }
 
-    client = gcp_api.build('storagetransfer', 'v1')
+    client = gcp_api.build("storagetransfer", "v1")
     create_result = client.transferJobs().create(body=job).execute()
-    transfer_job_name = create_result['name']
+    transfer_job_name = create_result["name"]
 
-    transfer_job_filter = json.dumps({
-        'project_id': gc_project_id,
-        'job_names': [transfer_job_name]
-    })
+    transfer_job_filter = json.dumps({"project_id": gc_project_id, "job_names": [transfer_job_name]})
     wait_time = 60
     while True:
-        response = client.transferOperations().list(name='transferOperations', filter=transfer_job_filter).execute()
-        if 'operations' in response:
-            operations = response['operations']
+        response = client.transferOperations().list(name="transferOperations", filter=transfer_job_filter).execute()
+        if "operations" in response:
+            operations = response["operations"]
 
             in_progress_count, success_count, failed_count, aborted_count = 0, 0, 0, 0
             for op in operations:
-                status = op['metadata']['status']
+                status = op["metadata"]["status"]
                 if status == TransferStatus.success.value:
                     success_count += 1
                 elif status == TransferStatus.failed.value:
@@ -720,8 +808,10 @@ def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azur
                     in_progress_count += 1
 
             num_operations = len(operations)
-            logging.info(f"{func_name}: transfer job {transfer_job_name} operations success={success_count}, "
-                         f"failed={failed_count}, aborted={aborted_count}, in_progress_count={in_progress_count}")
+            logging.info(
+                f"{func_name}: transfer job {transfer_job_name} operations success={success_count}, "
+                f"failed={failed_count}, aborted={aborted_count}, in_progress_count={in_progress_count}"
+            )
 
             if success_count >= num_operations:
                 status = TransferStatus.success
@@ -736,3 +826,45 @@ def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azur
         time.sleep(wait_time)
 
     return status == TransferStatus.success
+
+
+def select_table_suffixes(
+    project_id: str, dataset_id: str, table_id: str, end_date: pendulum.Date, limit: int = 1
+) -> List:
+    """Returns a list of table suffix dates, sorted from the most recent to the oldest date. By default it returns
+    the first result.
+    :param project_id: the Google Cloud project id.
+    :param dataset_id: the BigQuery dataset id.
+    :param table_id: the table id (without the date suffix on the end).
+    :param end_date: the end date of the table suffixes to search for (most recent date).
+    :param limit: the number of results to return.
+    :return:
+    """
+
+    template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("select_table_suffixes"))
+    query = render_template(
+        template_path,
+        project_id=project_id,
+        dataset_id=dataset_id,
+        table_id=table_id,
+        end_date=end_date.strftime("%Y-%m-%d"),
+        limit=limit,
+    )
+    rows = run_bigquery_query(query)
+    suffixes = [row["suffix"] for row in rows]
+    return suffixes
+
+
+def delete_bucket_dir(*, bucket_name: str, prefix: str):
+    """Recursively delete blobs from a GCS bucket with a folder prefix.
+
+    :param bucket_name: Bucket name.
+    :param prefix: Directory prefix.
+    """
+
+    client = storage.Client()
+    bucket = client.get_bucket(bucket_name)
+    blobs = bucket.list_blobs(prefix=prefix)
+
+    for blob in blobs:
+        blob.delete()

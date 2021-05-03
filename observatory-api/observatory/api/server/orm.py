@@ -19,23 +19,31 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import ClassVar, Dict, Union, Any
+from typing import Any, ClassVar, Dict, Union
 
 import pendulum
+from observatory.api.client.identifiers import TelescopeTypes
 from pendulum import Pendulum
-from sqlalchemy import String, create_engine, Integer, ForeignKey, Column, DateTime, JSON
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    create_engine,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
-
-from observatory.api.client.identifiers import TelescopeTypes
 
 Base = declarative_base()
 session_ = None  # Global session
 
 
-def create_session(uri: str = os.environ.get('OBSERVATORY_DB_URI'), connect_args=None, poolclass=None,
-                   seed_db: bool = False):
-    """ Create an SQLAlchemy session.
+def create_session(
+    uri: str = os.environ.get("OBSERVATORY_DB_URI"), connect_args=None, poolclass=None, seed_db: bool = False
+):
+    """Create an SQLAlchemy session.
 
     :param uri: the database URI.
     :param connect_args: connect arguments for SQLAlchemy.
@@ -45,16 +53,15 @@ def create_session(uri: str = os.environ.get('OBSERVATORY_DB_URI'), connect_args
     """
 
     if uri is None:
-        raise ValueError('observatory.api.orm.create_session: please set the create_session `uri` parameter '
-                         'or the environment variable OBSERVATORY_DB_URI with a valid PostgreSQL connection string')
+        raise ValueError(
+            "observatory.api.orm.create_session: please set the create_session `uri` parameter "
+            "or the environment variable OBSERVATORY_DB_URI with a valid PostgreSQL connection string"
+        )
 
     if connect_args is None:
         connect_args = dict()
 
-    engine = create_engine(uri,
-                           convert_unicode=True,
-                           connect_args=connect_args,
-                           poolclass=poolclass)
+    engine = create_engine(uri, convert_unicode=True, connect_args=connect_args, poolclass=poolclass)
     s = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
     Base.query = s.query_property()
     Base.metadata.create_all(bind=engine)  # create all tables.
@@ -67,7 +74,7 @@ def create_session(uri: str = os.environ.get('OBSERVATORY_DB_URI'), connect_args
 
 
 def init_db(session: scoped_session):
-    """ Initialise the database with initial values.
+    """Initialise the database with initial values.
 
     :param session: the SQLAlchemy session.
     :return: None.
@@ -75,14 +82,15 @@ def init_db(session: scoped_session):
 
     # Add default TelescopeTypes
     telescope_types = [
-        (TelescopeTypes.onix, 'ONIX Telescope'),
-        (TelescopeTypes.jstor, 'JSTOR Telescope'),
-        (TelescopeTypes.google_books, 'Google Books Telescope'),
-        (TelescopeTypes.google_analytics, 'Google Analytics Telescope'),
-        (TelescopeTypes.oapen_irus_uk, 'OAPEN IRUS-UK Telescope'),
-        (TelescopeTypes.scopus, 'Scopus Telescope'),
-        (TelescopeTypes.wos, 'Web of Science Telescope'),
-        (TelescopeTypes.fulcrum, 'Fulcrum Telescope'),
+        (TelescopeTypes.onix, "ONIX Telescope"),
+        (TelescopeTypes.jstor, "JSTOR Telescope"),
+        (TelescopeTypes.google_books, "Google Books Telescope"),
+        (TelescopeTypes.google_analytics, "Google Analytics Telescope"),
+        (TelescopeTypes.oapen_irus_uk, "OAPEN IRUS-UK Telescope"),
+        (TelescopeTypes.scopus, "Scopus Telescope"),
+        (TelescopeTypes.wos, "Web of Science Telescope"),
+        (TelescopeTypes.fulcrum, "Fulcrum Telescope"),
+        (TelescopeTypes.onix_workflow, "ONIX Workflow Telescope"),
     ]
 
     for type_id, name in telescope_types:
@@ -96,7 +104,7 @@ def init_db(session: scoped_session):
 
 
 def set_session(session):
-    """ Set the SQLAlchemy session globally, within the orm module and the api module.
+    """Set the SQLAlchemy session globally, within the orm module and the api module.
 
     :param session: the session to use.
     :return: None.
@@ -105,11 +113,12 @@ def set_session(session):
     global session_
     session_ = session
     import observatory.api.server.api as api
+
     api.session_ = session
 
 
 def fetch_db_object(cls: ClassVar, body: Any):
-    """ Fetch a database object via SQLAlchemy.
+    """Fetch a database object via SQLAlchemy.
 
     :param cls: the class of object to fetch.
     :param body: the body of the object. If the body is None then None is returned (for the case where no object
@@ -123,37 +132,37 @@ def fetch_db_object(cls: ClassVar, body: Any):
     elif isinstance(body, cls):
         item = body
     elif isinstance(body, Dict):
-        if 'id' not in body:
-            raise AttributeError(f'id not found in {body}')
+        if "id" not in body:
+            raise AttributeError(f"id not found in {body}")
 
-        id = body['id']
+        id = body["id"]
         item = session_.query(cls).filter(cls.id == id).one_or_none()
         if item is None:
-            raise ValueError(f'{item} with id {id} not found')
+            raise ValueError(f"{item} with id {id} not found")
     else:
-        raise ValueError(f'Unknown item type {body}')
+        raise ValueError(f"Unknown item type {body}")
 
     return item
 
 
 def to_datetime_utc(obj: Union[None, Pendulum]) -> Union[Pendulum, None]:
-    """ Converts Pendulum into UTC object.
+    """Converts Pendulum into UTC object.
 
     :param obj: a Pendulum object (which will just be converted to UTC) or None which will be returned.
     :return: a datetime object.
     """
 
     if isinstance(obj, Pendulum):
-        return obj.in_tz(tz='UTC')
+        return obj.in_tz(tz="UTC")
     elif obj is None:
         return None
 
-    raise ValueError('body should be None or Pendulum')
+    raise ValueError("body should be None or Pendulum")
 
 
 @dataclass
 class Organisation(Base):
-    __tablename__ = 'organisation'
+    __tablename__ = "organisation"
 
     id: int
     name: str
@@ -170,11 +179,19 @@ class Organisation(Base):
     gcp_transform_bucket = Column(String(222))
     created = Column(DateTime())
     modified = Column(DateTime())
-    telescopes = relationship("Telescope", backref='organisation')
+    telescopes = relationship("Telescope", backref="organisation")
 
-    def __init__(self, id: int = None, name: str = None, gcp_project_id: str = None, gcp_download_bucket: str = None,
-                 gcp_transform_bucket: str = None, created: Pendulum = None, modified: Pendulum = None):
-        """ Construct an Organisation object, which contains information about what Google Cloud project an
+    def __init__(
+        self,
+        id: int = None,
+        name: str = None,
+        gcp_project_id: str = None,
+        gcp_download_bucket: str = None,
+        gcp_transform_bucket: str = None,
+        created: Pendulum = None,
+        modified: Pendulum = None,
+    ):
+        """Construct an Organisation object, which contains information about what Google Cloud project an
         organisation uses, what are it's download and transform buckets and what telescopes does it have.
 
         The maximum lengths of the gcp_project_id, gcp_download_bucket and gcp_transform_bucket come from the following
@@ -200,9 +217,15 @@ class Organisation(Base):
         self.created = to_datetime_utc(created)
         self.modified = to_datetime_utc(modified)
 
-    def update(self, name: str = None, gcp_project_id: str = None, gcp_download_bucket: str = None,
-               gcp_transform_bucket: str = None, modified: Pendulum = None):
-        """ Update the properties of an existing Organisation object. This method is handy when you want to update
+    def update(
+        self,
+        name: str = None,
+        gcp_project_id: str = None,
+        gcp_download_bucket: str = None,
+        gcp_transform_bucket: str = None,
+        modified: Pendulum = None,
+    ):
+        """Update the properties of an existing Organisation object. This method is handy when you want to update
         the Organisation from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
 
         :param name: the name.
@@ -231,7 +254,7 @@ class Organisation(Base):
 
 @dataclass
 class Telescope(Base):
-    __tablename__ = 'connection'
+    __tablename__ = "connection"
 
     # Only include should be serialized to JSON as dataclass attributes
     id: int
@@ -247,13 +270,20 @@ class Telescope(Base):
     extra = Column(JSON())
     created = Column(DateTime())
     modified = Column(DateTime())
-    organisation_id = Column(Integer, ForeignKey('organisation.id'), nullable=False)
-    telescope_type_id = Column(Integer, ForeignKey('telescope_type.id'), nullable=False)
+    organisation_id = Column(Integer, ForeignKey("organisation.id"), nullable=False)
+    telescope_type_id = Column(Integer, ForeignKey("telescope_type.id"), nullable=False)
 
-    def __init__(self, id: int = None, name: str = None, extra: Dict = None, created: Pendulum = None,
-                 modified: Pendulum = None, organisation: Union[Organisation, Dict] = None,
-                 telescope_type: Union[TelescopeType, Dict] = None):
-        """ Construct a Telescope object.
+    def __init__(
+        self,
+        id: int = None,
+        name: str = None,
+        extra: Dict = None,
+        created: Pendulum = None,
+        modified: Pendulum = None,
+        organisation: Union[Organisation, Dict] = None,
+        telescope_type: Union[TelescopeType, Dict] = None,
+    ):
+        """Construct a Telescope object.
 
         :param id: unique id.
         :param name: the telescope name.
@@ -274,9 +304,15 @@ class Telescope(Base):
         self.organisation = fetch_db_object(Organisation, organisation)
         self.telescope_type = fetch_db_object(TelescopeType, telescope_type)
 
-    def update(self, name: str = None, extra: Dict = None, modified: Pendulum = None,
-               organisation: Union[Organisation, Dict] = None, telescope_type: Union[TelescopeType, Dict] = None):
-        """ Update the properties of an existing Telescope object. This method is handy when you want to update
+    def update(
+        self,
+        name: str = None,
+        extra: Dict = None,
+        modified: Pendulum = None,
+        organisation: Union[Organisation, Dict] = None,
+        telescope_type: Union[TelescopeType, Dict] = None,
+    ):
+        """Update the properties of an existing Telescope object. This method is handy when you want to update
         the Telescope from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
 
         :param name: the telescope name.
@@ -305,7 +341,7 @@ class Telescope(Base):
 
 @dataclass
 class TelescopeType(Base):
-    __tablename__ = 'telescope_type'
+    __tablename__ = "telescope_type"
 
     id: int
     type_id: str
@@ -318,11 +354,12 @@ class TelescopeType(Base):
     name = Column(String(250))
     created = Column(DateTime())
     modified = Column(DateTime())
-    telescopes = relationship("Telescope", backref='telescope_type')
+    telescopes = relationship("Telescope", backref="telescope_type")
 
-    def __init__(self, id: int = None, type_id: str = None, name: str = None, created: Pendulum = None,
-                 modified: Pendulum = None):
-        """ Construct a TelescopeType object.
+    def __init__(
+        self, id: int = None, type_id: str = None, name: str = None, created: Pendulum = None, modified: Pendulum = None
+    ):
+        """Construct a TelescopeType object.
 
         :param id: unique id.
         :param type_id: a unique string id for the telescope type.
@@ -338,7 +375,7 @@ class TelescopeType(Base):
         self.modified = to_datetime_utc(modified)
 
     def update(self, type_id: str = None, name: str = None, modified: Pendulum = None):
-        """ Update the properties of an existing TelescopeType object. This method is handy when you want to update
+        """Update the properties of an existing TelescopeType object. This method is handy when you want to update
         the TelescopeType from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
 
         :param name: the name of the TelescopeType.

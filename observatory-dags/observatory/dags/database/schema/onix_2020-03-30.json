@@ -114,7 +114,7 @@
       {
         "mode": "NULLABLE",
         "name": "ISBN13",
-        "type": "INTEGER"
+        "type": "STRING"
       },
       {
         "mode": "NULLABLE",
@@ -124,7 +124,7 @@
       {
         "mode": "NULLABLE",
         "name": "GTIN_13",
-        "type": "INTEGER"
+        "type": "STRING"
       },
       {
         "mode": "REPEATED",
@@ -188,7 +188,7 @@
   {
     "mode": "NULLABLE",
     "name": "ISBN13",
-    "type": "INTEGER"
+    "type": "STRING"
   },
   {
     "fields": [
@@ -408,7 +408,7 @@
   {
     "mode": "NULLABLE",
     "name": "GTIN_13",
-    "type": "INTEGER"
+    "type": "STRING"
   },
   {
     "mode": "NULLABLE",

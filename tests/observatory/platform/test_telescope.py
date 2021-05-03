@@ -20,11 +20,9 @@ from functools import partial
 from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
-from airflow.sensors.time_delta_sensor import TimeDeltaSensor
+from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from observatory.platform.telescopes.telescope import Release, Telescope
-from observatory.platform.utils.test_utils import (
-    ObservatoryTestCase,
-)
+from observatory.platform.utils.test_utils import ObservatoryTestCase
 
 
 class MockTelescope(Telescope):
@@ -92,14 +90,14 @@ class TestTelescope(ObservatoryTestCase):
 
         # Test adding tasks with custom kwargs
         telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
-        telescope.add_setup_task(telescope.setup_task, trigger_rule='none_failed')
-        telescope.add_task(telescope.task, trigger_rule='none_failed')
+        telescope.add_setup_task(telescope.setup_task, trigger_rule="none_failed")
+        telescope.add_task(telescope.task, trigger_rule="none_failed")
         dag = telescope.make_dag()
         self.assertIsInstance(dag, DAG)
         self.assertEqual(2, len(dag.tasks))
         for task in dag.tasks:
             self.assertIsInstance(task, BaseOperator)
-            self.assertEqual('none_failed', task.trigger_rule)
+            self.assertEqual("none_failed", task.trigger_rule)
 
 
 class TestAddSensorsTelescope(ObservatoryTestCase):
@@ -124,23 +122,23 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
             schedule_interval="daily",
         )
         mt.add_task(self.dummy_func)
-        tds = TimeDeltaSensor(
-            delta=timedelta(seconds=5),
+        tds = ExternalTaskSensor(
+            external_dag_id="1",
             task_id="test",
             start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
-        tds2 = TimeDeltaSensor(
-            delta=timedelta(seconds=5),
+
+        tds2 = ExternalTaskSensor(
+            external_dag_id="1",
             task_id="test2",
             start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
+
         mt.add_sensor(tds)
         mt.add_sensor(tds2)
         dag = mt.make_dag()
 
-        self.assert_dag_structure(
-            {"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag
-        )
+        self.assert_dag_structure({"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag)
 
     def test_add_sensors(self):
         mt = MockTelescope(
@@ -149,22 +147,22 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
             schedule_interval="daily",
         )
         mt.add_task(self.dummy_func)
-        tds = TimeDeltaSensor(
-            delta=timedelta(seconds=5),
+        tds = ExternalTaskSensor(
+            external_dag_id="1",
             task_id="test",
             start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
-        tds2 = TimeDeltaSensor(
-            delta=timedelta(seconds=5),
+
+        tds2 = ExternalTaskSensor(
+            external_dag_id="1",
             task_id="test2",
             start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
+
         mt.add_sensors([tds, tds2])
         dag = mt.make_dag()
 
-        self.assert_dag_structure(
-            {"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag
-        )
+        self.assert_dag_structure({"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag)
 
     def test_add_sensors_empty(self):
         mt = MockTelescope(
