@@ -28,6 +28,7 @@ import sys
 from base64 import b64decode
 from collections import deque
 from dataclasses import dataclass
+from datetime import datetime
 from math import ceil
 from pathlib import Path
 from typing import Any, List, Tuple, Type, Union
@@ -519,17 +520,19 @@ def zip_files(file_list: List[str]):
     return zip_list
 
 
-def make_telescope_sensor(telescope: Response, dag_prefix: str) -> ExternalTaskSensor:
+def make_telescope_sensor(telescope_name: str, dag_prefix: str) -> ExternalTaskSensor:
     """Create an ExternalTaskSensor to monitor when a telescope has finished execution.
 
-    :param telescope: Telescope metadata from an observatory.api.get_telescopes call.
+    :param telescope_name: Name of the telescope.
     :param dag_prefix: DAG ID prefix.
     :return: ExternalTaskSensor object that monitors a telescope.
     """
 
-    dag_id = make_dag_id(dag_prefix, telescope.organisation.name)
+    dag_id = make_dag_id(dag_prefix, telescope_name)
 
-    return ExternalTaskSensor(task_id=f"{dag_id}_sensor", external_dag_id=dag_id, mode="reschedule")
+    return ExternalTaskSensor(
+        task_id=f"{dag_id}_sensor", external_dag_id=dag_id, mode="reschedule", start_date=datetime(2021, 3, 28)
+    )
 
 
 @dataclass

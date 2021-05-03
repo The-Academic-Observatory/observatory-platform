@@ -1,0 +1,14 @@
+[
+    {
+        "mode": "NULLABLE",
+        "name": "isbn13",
+        "type": "STRING",
+        "description": "ISBN13"
+    },
+    {
+        "mode": "NULLABLE",
+        "name": "work_id",
+        "type": "STRING",
+        "description": "The WorkID. Likely to be an ISBN."
+    }
+]

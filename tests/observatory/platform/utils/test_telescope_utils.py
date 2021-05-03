@@ -158,7 +158,7 @@ class TestMakeTelescopeSensor(unittest.TestCase):
 
     def test_make_telescope_sensor(self):
         telescope = TestMakeTelescopeSensor.Response()
-        sensor = make_telescope_sensor(telescope, "dag_prefix")
+        sensor = make_telescope_sensor(telescope.organisation.name, "dag_prefix")
         self.assertEqual(sensor.task_id, "dag_prefix_test_sensor")
         self.assertEqual(sensor.mode, "reschedule")
         self.assertEqual(sensor.external_dag_id, "dag_prefix_test")
