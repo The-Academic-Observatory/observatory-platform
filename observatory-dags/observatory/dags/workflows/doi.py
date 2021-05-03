@@ -820,26 +820,26 @@ class DoiWorkflow:
         table_id = kwargs['table_id']
 
         # Always export
-        tables = [{'file_name': EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME, 'aggregate': table_id, 'relations': None},
-                  {'file_name': EXPORT_AGGREGATE_DISCIPLINES_FILENAME, 'aggregate': table_id, 'relations': None},
-                  {'file_name': EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME, 'aggregate': table_id, 'relations': None},
-                  {'file_name': EXPORT_AGGREGATE_EVENTS_FILENAME, 'aggregate': table_id, 'relations': None},
-                  {'file_name': EXPORT_AGGREGATE_METRICS_FILENAME, 'aggregate': table_id, 'relations': None}]
+        tables = [{'file_name': DoiWorkflow.EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME, 'aggregate': table_id, 'relations': None},
+                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_DISCIPLINES_FILENAME, 'aggregate': table_id, 'relations': None},
+                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME, 'aggregate': table_id, 'relations': None},
+                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_EVENTS_FILENAME, 'aggregate': table_id, 'relations': None},
+                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_METRICS_FILENAME, 'aggregate': table_id, 'relations': None}]
 
         # Optional Relationships
         if kwargs['relate_to_institutions']:
-            tables.append({'file_name': EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'institutions'})
+            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'institutions'})
         if kwargs['relate_to_countries']:
-            tables.append({'file_name': EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'countries'})
+            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'countries'})
         if kwargs['relate_to_groups']:
-            tables.append({'file_name': EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'groupings'})
+            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'groupings'})
         if kwargs['relate_to_members']:
-            tables.append({'file_name': EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'members'})
+            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'members'})
         if kwargs['relate_to_journals']:
-            tables.append({'file_name': EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'journals'})
+            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'journals'})
 
-        tables.append({'file_name': EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'funders'})
-        tables.append({'file_name': EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'publishers'})
+        tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'funders'})
+        tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'publishers'})
 
         results = []
 
