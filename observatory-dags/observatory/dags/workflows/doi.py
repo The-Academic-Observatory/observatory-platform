@@ -26,7 +26,7 @@ from observatory.dags.config import workflow_sql_templates_path
 from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataTelescope
 from observatory.dags.telescopes.fundref import FundrefTelescope
 from observatory.dags.telescopes.grid import GridTelescope
-from observatory.dags.telescopes.mag import MagTelescopes
+from observatory.dags.telescopes.mag import MagTelescope
 from observatory.dags.telescopes.unpaywall import UnpaywallTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.gc_utils import (
