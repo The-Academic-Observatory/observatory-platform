@@ -20,5 +20,5 @@ SELECT
   access_type.outputs_without_citations as access_types_outputs_without_citations,
   access_type.citations.mag.total_citations as access_types_total_citations,
   access_type.citations.mag.percentiles.median as access_types_median_citations_per_output
-FROM `{{ project_id }}.{{ dataset_id }}.{{ table_name }}`, UNNEST( access_types.breakdown ) as access_type
+FROM `{{ project_id }}.{{ dataset_id }}.{{ table_name }}{{ release_date.strftime('%Y%m%d') }}`, UNNEST( access_types.breakdown ) as access_type
 ORDER BY id, published_year ASC

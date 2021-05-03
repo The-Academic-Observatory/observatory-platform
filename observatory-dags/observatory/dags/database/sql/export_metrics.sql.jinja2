@@ -34,5 +34,5 @@ SELECT
   citations.mag.outputs_without_citations as metrics_outputs_without_citations,
   citations.mag.citations_per_cited_output as metrics_citations_per_cited_output
 FROM
-  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}`
+  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}{{ release_date.strftime('%Y%m%d') }}`
 ORDER BY id, published_year ASC

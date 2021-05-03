@@ -18,6 +18,6 @@ SELECT
   events.num_green_outputs as events_num_green_outputs,
   events.num_gold_outputs as events_num_gold_outputs
 FROM
-  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}`,
+  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}{{ release_date.strftime('%Y%m%d') }}`,
   UNNEST(events) as events
 ORDER BY id, published_year ASC

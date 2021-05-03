@@ -25,6 +25,6 @@ SELECT
   relation.num_gold_outputs as {{ relations }}_num_gold_outputs,
   relation.citations.mag as {{ relations }}_total_citations
 FROM
-  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}` as entity,
+  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}{{ release_date.strftime('%Y%m%d') }}` as entity,
   UNNEST({{ relations }}) as relation
 ORDER BY entity.id, published_year ASC
