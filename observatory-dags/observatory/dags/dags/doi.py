@@ -243,6 +243,70 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         python_callable=DoiWorkflow.create_aggregation
     )
 
+    # Export aggregation tables
+    task_export_country = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_COUNTRY,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_COUNTRY,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_funder = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_FUNDER,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_FUNDER,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_group = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_GROUP,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_GROUP,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_institution = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_INSTITUTION,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_INSTITUTION,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_author = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_AUTHOR,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_AUTHOR,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_journal = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_JOURNAL,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_JOURNAL,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_publisher = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_PUBLISHER,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_PUBLISHER,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_region = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_REGION,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_REGION,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_subregion = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_SUBREGION,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_SUBREGION,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
     task_copy_tables = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_COPY_TABLES,
         provide_context=True,
@@ -270,4 +334,8 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
     tasks_postprocessing = [task_create_book, task_create_country, task_create_funder, task_create_group, task_create_institution,
                             task_create_author,  task_create_journal, task_create_publisher, task_create_region, 
                             task_create_subregion]
-    task_create_doi >> tasks_postprocessing >> task_copy_tables >> task_create_views
+
+    # Preparing Data for Elasticsearch Export
+    tasks_elastic_exporting = []
+
+    task_create_doi >> tasks_postprocessing >> tasks_elastic_exporting >> task_copy_tables >> task_create_views

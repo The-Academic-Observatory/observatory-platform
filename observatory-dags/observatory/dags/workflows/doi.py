@@ -16,6 +16,7 @@
 
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 
 import pendulum
@@ -135,6 +136,23 @@ def create_aggregate_table(
     set_task_state(success, task_id)
 
 
+def export_aggregate_table(project_id: str, release_date: Pendulum, dataset_id: str,
+                          table_id: str, data_location: str, sql_path: str, aggregate: str, relations: str,):
+
+    template_path = os.path.join(workflow_sql_templates_path(), DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME)
+    sql = render_template(template_path, project_id=project_id, dataset_id=dataset_id, table_id=table_id,
+                          release_date=release_date, aggregate=aggregate, relations=relations)
+
+    export_table_id = f'observatory_aggregation_{aggregate}_relations'
+    processed_table_id = bigquery_partitioned_table_id(export_table_id, release_date)
+
+    success = create_bigquery_table_from_query(sql=sql, project_id=project_id,
+                                               dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
+                                               table_id=processed_table_id, location=data_location)
+
+    return success
+
+
 class DoiWorkflow:
     DAG_ID = "doi"
     DESCRIPTION = "Combining all raw data sources into a linked DOIs dataset"
@@ -159,6 +177,15 @@ class DoiWorkflow:
     TASK_ID_CREATE_PUBLISHER = "create_publisher"
     TASK_ID_CREATE_REGION = "create_region"
     TASK_ID_CREATE_SUBREGION = "create_subregion"
+    TASK_ID_EXPORT_COUNTRY = 'export_country'
+    TASK_ID_EXPORT_FUNDER = 'export_funder'
+    TASK_ID_EXPORT_GROUP = 'export_group'
+    TASK_ID_EXPORT_INSTITUTION = 'export_institution'
+    TASK_ID_EXPORT_AUTHOR = 'export_author'
+    TASK_ID_EXPORT_JOURNAL = 'export_journal'
+    TASK_ID_EXPORT_PUBLISHER = 'export_publisher'
+    TASK_ID_EXPORT_REGION = 'export_region'
+    TASK_ID_EXPORT_SUBREGION = 'export_subregion'
     TASK_ID_COPY_TABLES = "copy_tables"
     TASK_ID_CREATE_VIEWS = "create_views"
 
@@ -168,7 +195,16 @@ class DoiWorkflow:
     DASHBOARDS_DATASET_DESCRIPTION = "The latest data for display in the COKI dashboards."
     OBSERVATORY_DATASET_ID = "observatory"
     OBSERVATORY_DATASET_ID_DATASET_DESCRIPTION = "The Academic Observatory dataset."
+
     AGGREGATE_DOI_FILENAME = make_sql_jinja2_filename("aggregate_doi")
+
+    EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME = make_sql_jinja2_filename('export_access_types')
+    EXPORT_AGGREGATE_DISCIPLINES_FILENAME = make_sql_jinja2_filename('export_disciplines')
+    EXPORT_AGGREGATE_EVENTS_FILENAME = make_sql_jinja2_filename('export_events')
+    EXPORT_AGGREGATE_METRICS_FILENAME = make_sql_jinja2_filename('export_metrics')
+    EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME = make_sql_jinja2_filename('export_output_types')
+    EXPORT_AGGREGATE_RELATIONS_FILENAME = make_sql_jinja2_filename('export_relations')
+
     TOPIC_NAME = "message"
 
     AGGREGATIONS_COUNTRY = {"aggregation_field": "countries",
@@ -330,6 +366,8 @@ class DoiWorkflow:
             dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
             table_id=processed_table_id,
             location=data_location,
+            cluster=True,
+            clustering_fields=['id']
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_EXTEND_GRID)
@@ -363,6 +401,8 @@ class DoiWorkflow:
             dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
             table_id=processed_table_id,
             location=data_location,
+            cluster=True,
+            clustering_fields=['doi']
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS)
@@ -395,6 +435,8 @@ class DoiWorkflow:
             dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
             table_id=processed_table_id,
             location=data_location,
+            cluster=True,
+            clustering_fields=['doi']
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_ORCID)
@@ -435,6 +477,8 @@ class DoiWorkflow:
             dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
             table_id=processed_table_id,
             location=data_location,
+            cluster=True,
+            clustering_fields=['doi']
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_MAG)
@@ -476,6 +520,8 @@ class DoiWorkflow:
             dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
             table_id=processed_table_id,
             location=data_location,
+            cluster=True,
+            clustering_fields=['doi']
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL)
@@ -528,6 +574,8 @@ class DoiWorkflow:
             dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
             table_id=processed_table_id,
             location=data_location,
+            cluster=True,
+            clustering_fields=['doi']
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS)
@@ -569,6 +617,8 @@ class DoiWorkflow:
             dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
             table_id=processed_table_id,
             location=data_location,
+            cluster=True,
+            clustering_fields=['doi']
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS)
@@ -681,6 +731,8 @@ class DoiWorkflow:
             dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
             table_id=processed_table_id,
             location=data_location,
+            cluster=True,
+            clustering_fields=['doi']
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_CREATE_DOI)
@@ -708,7 +760,8 @@ class DoiWorkflow:
         processed_table_id = bigquery_partitioned_table_id('book', release_date)
         success = create_bigquery_table_from_query(sql=sql, project_id=project_id,
                                                    dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
-                                                   table_id=processed_table_id, location=data_location)
+                                                   table_id=processed_table_id, location=data_location,
+                                                   cluster=True, clustering_fields=['isbn'])
 
         set_task_state(success, DoiWorkflow.TASK_ID_CREATE_BOOK)
 
@@ -744,6 +797,71 @@ class DoiWorkflow:
                                relate_to_institutions=relate_to_institutions,
                                relate_to_countries=relate_to_countries, relate_to_groups=relate_to_groups,
                                relate_to_members=relate_to_members, relate_to_journals=relate_to_journals)
+
+    @staticmethod
+    def export_aggregation(**kwargs):
+        """ Export aggregation snapshot.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: None.
+        """
+
+        # Get variables
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
+        data_location = Variable.get(AirflowVars.DATA_LOCATION)
+        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+        aggregation_field = kwargs['aggregation_field']
+        group_by_time_field = "published_year"
+        table_id = kwargs['table_id']
+
+        # Optional Relationships
+        relate_to_institutions = kwargs['relate_to_institutions']
+        relate_to_countries = kwargs['relate_to_countries']
+        relate_to_groups = kwargs['relate_to_groups']
+        relate_to_members = kwargs['relate_to_members']
+        relate_to_journals = kwargs['relate_to_journals']
+
+
+        results = []
+
+        # Calculate the number of parallel queries. Since all of the real work is done on BigQuery run each export task
+        # in a separate thread so that they can be done in parallel.
+        num_queries = num_parallel_queries(feeds)
+
+        # TODO - expand out all the statis and dynamic exported tables here
+        export_tables = []
+
+        with ThreadPoolExecutor(max_workers=num_queries) as executor:
+            futures = list()
+            futures_msgs = {}
+            for table in export_tables:
+                msg = f'Exporting feed={feed.name}, table={table_name} to: {destination_uri}'
+                logging.info(msg)
+                future = executor.submit(export_aggregate_table,
+                                         project_id,
+                                         dataset_id,
+                                         release_date,
+                                         data_location,
+                                         template_file_name,
+                                         aggregate,
+                                         relations)
+                futures.append(future)
+                futures_msgs[future] = msg
+
+            # Wait for completed tasks
+            for future in as_completed(futures):
+                success = future.result()
+                msg = futures_msgs[future]
+                results.append(success)
+                if success:
+                    logging.info(f'Exporting feed success: {msg}')
+                else:
+                    logging.error(f'Exporting feed failed: {msg}')
+
+            return all(results)
+
 
     @staticmethod
     def copy_tables(**kwargs):
