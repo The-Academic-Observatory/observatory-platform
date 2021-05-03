@@ -851,8 +851,8 @@ class DoiWorkflow:
             futures = list()
             futures_msgs = {}
             for table in tables:
-                #msg = f'Exporting feed={feed.name}, table={table_name} to: {destination_uri}'
-                #logging.info(msg)
+                msg = f'Exporting feed={table.table_id}, aggregate={table_id} to: {destination_uri}'
+                logging.info(msg)
                 future = executor.submit(export_aggregate_table,
                                          project_id,
                                          release_date,
