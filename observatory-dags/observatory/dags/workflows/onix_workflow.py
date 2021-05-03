@@ -208,7 +208,7 @@ class OnixWorkflow(Telescope):
         start_date: Optional[pendulum.Pendulum] = pendulum.Pendulum(2021, 3, 28),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
-        data_partners: List[OaebuPartners] = list(),
+        data_partners: List[OaebuPartners] = None,
     ):
         """Initialises the workflow object.
         :param org_name: Organisation name.
@@ -226,6 +226,9 @@ class OnixWorkflow(Telescope):
         self.dag_id = dag_id
         if dag_id is None:
             self.dag_id = make_dag_id(self.DAG_ID_PREFIX, org_name)
+
+        if data_partners is None:
+            data_partners = list()
 
         self.org_name = org_name
         self.gcp_project_id = gcp_project_id
@@ -265,7 +268,7 @@ class OnixWorkflow(Telescope):
 
         ti: TaskInstance = kwargs["ti"]
         records = ti.xcom_pull(
-            dag_id=f"onix_{self.org_name}",  # replace with real name
+            dag_id=make_dag_id("onix", self.org_name),
             key=OnixTelescope.RELEASE_INFO,
             task_ids="list_release_info",
             include_prior_dates=False,
