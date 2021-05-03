@@ -138,7 +138,7 @@ def create_aggregate_table(
 
 
 def export_aggregate_table(project_id: str, release_date: Pendulum, data_location: str,
-                          table_id: str,  template_file_name: str, aggregate: str, relations: str,):
+                          table_id: str,  template_file_name: str, aggregate: str, relations: str):
 
     template_path = os.path.join(workflow_sql_templates_path(), template_file_name)
     sql = render_template(template_path, project_id=project_id, dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID, table_id=table_id,
