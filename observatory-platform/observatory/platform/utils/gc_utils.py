@@ -34,7 +34,12 @@ from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat
 from google.cloud.exceptions import Conflict, NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
+from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash
+from observatory.platform.utils.jinja2_utils import (
+    make_sql_jinja2_filename,
+    render_template,
+)
 from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
 
