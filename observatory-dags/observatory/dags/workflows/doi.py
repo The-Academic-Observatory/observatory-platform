@@ -137,16 +137,13 @@ def create_aggregate_table(
 
 
 def export_aggregate_table(project_id: str, release_date: Pendulum, data_location: str,
-                          table_id: str, template_file_name: str, aggregate: str, relations: str):
+                          table_id: str, template_file_name: str, aggregate: str, facet: str):
 
     template_path = os.path.join(workflow_sql_templates_path(), template_file_name)
     sql = render_template(template_path, project_id=project_id, dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID, table_id=table_id,
-                          release_date=release_date, aggregate=aggregate, relations=relations)
+                          release_date=release_date, aggregate=aggregate, facet=facet)
 
-    if relations is not None:
-        export_table_id = f'{aggregate}_{relations}'
-    else:
-        export_table_id = aggregate
+    export_table_id = f'{aggregate}_{facet}'
 
     processed_table_id = bigquery_partitioned_table_id(export_table_id, release_date)
 
@@ -831,26 +828,26 @@ class DoiWorkflow:
         table_id = kwargs['table_id']
 
         # Always export
-        tables = [{'file_name': DoiWorkflow.EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME, 'aggregate': table_id, 'relations': None},
-                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_DISCIPLINES_FILENAME, 'aggregate': table_id, 'relations': None},
-                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME, 'aggregate': table_id, 'relations': None},
-                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_EVENTS_FILENAME, 'aggregate': table_id, 'relations': None},
-                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_METRICS_FILENAME, 'aggregate': table_id, 'relations': None}]
+        tables = [{'file_name': DoiWorkflow.EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME, 'aggregate': table_id, 'facet': "access_types"},
+                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_DISCIPLINES_FILENAME, 'aggregate': table_id, 'facet': "disciplines"},
+                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME, 'aggregate': table_id, 'facet': "output_types"},
+                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_EVENTS_FILENAME, 'aggregate': table_id, 'facet': "events"},
+                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_METRICS_FILENAME, 'aggregate': table_id, 'facet': "metrics"}]
 
         # Optional Relationships
         if kwargs['relate_to_institutions']:
-            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'institutions'})
+            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'institutions'})
         if kwargs['relate_to_countries']:
-            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'countries'})
+            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'countries'})
         if kwargs['relate_to_groups']:
-            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'groupings'})
+            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'groupings'})
         if kwargs['relate_to_members']:
-            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'members'})
+            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'members'})
         if kwargs['relate_to_journals']:
-            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'journals'})
+            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'journals'})
 
-        tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'funders'})
-        tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'relations': 'publishers'})
+        tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'funders'})
+        tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'publishers'})
 
         results = []
 
@@ -864,9 +861,9 @@ class DoiWorkflow:
             for table in tables:
                 template_file_name = table['file_name']
                 aggregate = table['aggregate']
-                relations = table['relations']
+                facet = table['facet']
 
-                msg = f"Exporting file_name={template_file_name}, aggregate={aggregate}, relations={relations}"
+                msg = f"Exporting file_name={template_file_name}, aggregate={aggregate}, facet={facet}"
                 logging.info(msg)
 
                 future = executor.submit(export_aggregate_table,
@@ -876,7 +873,7 @@ class DoiWorkflow:
                                          table_id,
                                          template_file_name,
                                          aggregate,
-                                         relations)
+                                         facet)
                 futures.append(future)
                 futures_msgs[future] = msg
 
