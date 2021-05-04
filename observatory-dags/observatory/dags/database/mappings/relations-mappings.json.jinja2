@@ -62,7 +62,7 @@
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "{{ relations }}_id": {
+      "{{ facet }}_id": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -71,7 +71,7 @@
           }
         }
       },
-      "{{ relations }}_name": {
+      "{{ facet }}_name": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -80,7 +80,7 @@
           }
         }
       },
-      "{{ relations }}_country": {
+      "{{ facet }}_country": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -89,7 +89,7 @@
           }
         }
       },
-      "{{ relations }}_country_code": {
+      "{{ facet }}_country_code": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -98,7 +98,7 @@
           }
         }
       },
-      "{{ relations }}_region": {
+      "{{ facet }}_region": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -107,7 +107,7 @@
           }
         }
       },
-      "{{ relations }}_subregion": {
+      "{{ facet }}_subregion": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -116,25 +116,25 @@
           }
         }
       },
-      "{{ relations }}_coordinates": {
+      "{{ facet }}_coordinates": {
         "type": "geo_point"
       },
-      "{{ relations }}_total_outputs": {
+      "{{ facet }}_total_outputs": {
         "type": "long"
       },
-      "{{ relations }}_num_oa_outputs": {
+      "{{ facet }}_num_oa_outputs": {
         "type": "long"
       },
-      "{{ relations }}_num_green_outputs": {
+      "{{ facet }}_num_green_outputs": {
         "type": "long"
       },
-      "{{ relations }}_num_gold_outputs": {
+      "{{ facet }}_num_gold_outputs": {
         "type": "long"
       },
-      "{{ relations }}_total_citations": {
+      "{{ facet }}_total_citations": {
         "type": "long"
       },
-      "{{ relations }}_median_citations_per_output": {
+      "{{ facet }}_median_citations_per_output": {
         "type": "long"
       }
     }
