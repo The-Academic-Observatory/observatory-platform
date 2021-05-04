@@ -136,15 +136,18 @@ def create_aggregate_table(
     set_task_state(success, task_id)
 
 
-
 def export_aggregate_table(project_id: str, release_date: Pendulum, data_location: str,
-                          table_id: str,  template_file_name: str, aggregate: str, relations: str):
+                          table_id: str, template_file_name: str, aggregate: str, relations: str):
 
     template_path = os.path.join(workflow_sql_templates_path(), template_file_name)
     sql = render_template(template_path, project_id=project_id, dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID, table_id=table_id,
                           release_date=release_date, aggregate=aggregate, relations=relations)
 
-    export_table_id = f'observatory_aggregation_{aggregate}_relations'
+    if relations is not None:
+        export_table_id = f'{aggregate}_{relations}'
+    else:
+        export_table_id = aggregate
+
     processed_table_id = bigquery_partitioned_table_id(export_table_id, release_date)
 
     success = create_bigquery_table_from_query(sql=sql, project_id=project_id,
@@ -331,6 +334,14 @@ class DoiWorkflow:
             DoiWorkflow.OBSERVATORY_DATASET_ID,
             data_location,
             DoiWorkflow.OBSERVATORY_DATASET_ID_DATASET_DESCRIPTION,
+        )
+
+        # Create elastic dataset
+        create_bigquery_dataset(
+            project_id,
+            DoiWorkflow.ELASTIC_DATASET_ID,
+            data_location,
+            DoiWorkflow.ELASTIC_DATASET_ID_DATASET_DESCRIPTION,
         )
 
     @staticmethod
@@ -851,16 +862,21 @@ class DoiWorkflow:
             futures = list()
             futures_msgs = {}
             for table in tables:
-                msg = f'Exporting feed={table.table_id}, aggregate={table_id}'
+                template_file_name = table['file_name']
+                aggregate = table['aggregate']
+                relations = table['relations']
+
+                msg = f"Exporting file_name={template_file_name}, aggregate={aggregate}, relations={relations}"
                 logging.info(msg)
+
                 future = executor.submit(export_aggregate_table,
                                          project_id,
                                          release_date,
                                          data_location,
-                                         table.file_name,
                                          table_id,
-                                         table.aggregate,
-                                         table.relations)
+                                         template_file_name,
+                                         aggregate,
+                                         relations)
                 futures.append(future)
                 futures_msgs[future] = msg
 
@@ -875,7 +891,6 @@ class DoiWorkflow:
                     logging.error(f'Exporting feed failed: {msg}')
 
             return all(results)
-
 
     @staticmethod
     def copy_tables(**kwargs):

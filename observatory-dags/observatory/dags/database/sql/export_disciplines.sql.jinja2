@@ -28,6 +28,6 @@ SELECT
   discipline.funding.num_private_outputs as disciplines_num_private_funded_outputs,
   discipline.funding.num_government_and_private_outputs as disciplines_num_government_and_private_funded_outputs
 FROM
-  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}{{ release_date.strftime('%Y%m%d') }}`,
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}{{ release_date.strftime('%Y%m%d') }}`,
   UNNEST(disciplines.level0) as discipline
 ORDER BY id, published_year ASC

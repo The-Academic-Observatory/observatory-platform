@@ -22,6 +22,6 @@ SELECT
   output_types.num_bronze_outputs as output_types_num_bronze_outputs,
   output_types.num_green_only_outputs as output_types_num_green_only_outputs
 FROM
-  `{{ project_id }}.{{ dataset_id }}.{{ table_name }}{{ release_date.strftime('%Y%m%d') }}`,
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}{{ release_date.strftime('%Y%m%d') }}`,
   UNNEST(output_types) as output_types
 ORDER BY id, published_year ASC

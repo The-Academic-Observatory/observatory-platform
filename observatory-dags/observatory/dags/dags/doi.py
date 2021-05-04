@@ -243,6 +243,18 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         python_callable=DoiWorkflow.create_aggregation
     )
 
+    task_copy_tables = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_COPY_TABLES,
+        provide_context=True,
+        python_callable=DoiWorkflow.copy_tables
+    )
+
+    task_create_views = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_VIEWS,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_views
+    )
+
     # Export aggregation tables
     task_export_country = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_EXPORT_COUNTRY,
@@ -307,18 +319,6 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         python_callable=DoiWorkflow.export_aggregation
     )
 
-    task_copy_tables = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_COPY_TABLES,
-        provide_context=True,
-        python_callable=DoiWorkflow.copy_tables
-    )
-
-    task_create_views = PythonOperator(
-        task_id=DoiWorkflow.TASK_ID_CREATE_VIEWS,
-        provide_context=True,
-        python_callable=DoiWorkflow.create_views
-    )
-
     # Sensors
     sensors = [crossref_metadata_sensor, fundref_sensor, geonames_sensor, grid_sensor, mag_sensor,
                open_citations_sensor,
@@ -336,6 +336,8 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
                             task_create_subregion]
 
     # Preparing Data for Elasticsearch Export
-    tasks_elastic_exporting = []
+    tasks_bigquery_exporting = [task_export_country, task_export_funder, task_export_group, task_export_institution,
+                                task_export_author, task_export_journal, task_export_publisher, task_export_region,
+                                task_export_subregion]
 
-    task_create_doi >> tasks_postprocessing >> tasks_elastic_exporting >> task_copy_tables >> task_create_views
+    task_create_doi >> tasks_postprocessing >> task_copy_tables >> task_create_views >> tasks_bigquery_exporting
