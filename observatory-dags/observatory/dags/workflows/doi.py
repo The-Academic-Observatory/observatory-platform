@@ -17,11 +17,11 @@
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List
 
-import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models import Variable
+from pendulum import Pendulum
+
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataTelescope
 from observatory.dags.telescopes.fundref import FundrefTelescope
@@ -35,14 +35,12 @@ from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
     create_bigquery_table_from_query,
     create_bigquery_view,
-    run_bigquery_query,
     select_table_suffixes,
 )
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
 )
-from pendulum import Pendulum
 
 
 def set_task_state(success: bool, task_id: str):
@@ -52,27 +50,6 @@ def set_task_state(success: bool, task_id: str):
         msg_failed = f"{task_id} failed"
         logging.error(msg_failed)
         raise AirflowException(msg_failed)
-
-
-def select_table_suffixes(project_id: str, dataset_id: str, table_id: str, end_date: pendulum.Date,
-                          limit: int = 1) -> List:
-    """ Returns a list of table suffix dates, sorted from the most recent to the oldest date. By default it returns
-    the first result.
-
-    :param project_id: the Google Cloud project id.
-    :param dataset_id: the BigQuery dataset id.
-    :param table_id: the table id (without the date suffix on the end).
-    :param end_date: the end date of the table suffixes to search for (most recent date).
-    :param limit: the number of results to return.
-    :return:
-    """
-
-    template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename('select_table_suffixes'))
-    query = render_template(template_path, project_id=project_id, dataset_id=dataset_id, table_id=table_id,
-                            end_date=end_date.strftime('%Y-%m-%d'), limit=limit)
-    rows = run_bigquery_query(query)
-    suffixes = [row['suffix'] for row in rows]
-    return suffixes
 
 
 def create_aggregate_table(
@@ -119,7 +96,7 @@ def create_aggregate_table(
         relate_to_countries=relate_to_countries,
         relate_to_groups=relate_to_groups,
         relate_to_members=relate_to_members,
-        relate_to_journals=relate_to_journals
+        relate_to_journals=relate_to_journals,
     )
 
     processed_table_id = bigquery_partitioned_table_id(table_id, release_date)
@@ -136,20 +113,37 @@ def create_aggregate_table(
     set_task_state(success, task_id)
 
 
-def export_aggregate_table(project_id: str, release_date: Pendulum, data_location: str,
-                          table_id: str, template_file_name: str, aggregate: str, facet: str):
-
+def export_aggregate_table(
+    project_id: str,
+    release_date: Pendulum,
+    data_location: str,
+    table_id: str,
+    template_file_name: str,
+    aggregate: str,
+    facet: str,
+):
     template_path = os.path.join(workflow_sql_templates_path(), template_file_name)
-    sql = render_template(template_path, project_id=project_id, dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID, table_id=table_id,
-                          release_date=release_date, aggregate=aggregate, facet=facet)
+    sql = render_template(
+        template_path,
+        project_id=project_id,
+        dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
+        table_id=table_id,
+        release_date=release_date,
+        aggregate=aggregate,
+        facet=facet,
+    )
 
-    export_table_id = f'{aggregate}_{facet}'
+    export_table_id = f"{aggregate}_{facet}"
 
     processed_table_id = bigquery_partitioned_table_id(export_table_id, release_date)
 
-    success = create_bigquery_table_from_query(sql=sql, project_id=project_id,
-                                               dataset_id=DoiWorkflow.ELASTIC_DATASET_ID,
-                                               table_id=processed_table_id, location=data_location)
+    success = create_bigquery_table_from_query(
+        sql=sql,
+        project_id=project_id,
+        dataset_id=DoiWorkflow.ELASTIC_DATASET_ID,
+        table_id=processed_table_id,
+        location=data_location,
+    )
 
     return success
 
@@ -178,15 +172,15 @@ class DoiWorkflow:
     TASK_ID_CREATE_PUBLISHER = "create_publisher"
     TASK_ID_CREATE_REGION = "create_region"
     TASK_ID_CREATE_SUBREGION = "create_subregion"
-    TASK_ID_EXPORT_COUNTRY = 'export_country'
-    TASK_ID_EXPORT_FUNDER = 'export_funder'
-    TASK_ID_EXPORT_GROUP = 'export_group'
-    TASK_ID_EXPORT_INSTITUTION = 'export_institution'
-    TASK_ID_EXPORT_AUTHOR = 'export_author'
-    TASK_ID_EXPORT_JOURNAL = 'export_journal'
-    TASK_ID_EXPORT_PUBLISHER = 'export_publisher'
-    TASK_ID_EXPORT_REGION = 'export_region'
-    TASK_ID_EXPORT_SUBREGION = 'export_subregion'
+    TASK_ID_EXPORT_COUNTRY = "export_country"
+    TASK_ID_EXPORT_FUNDER = "export_funder"
+    TASK_ID_EXPORT_GROUP = "export_group"
+    TASK_ID_EXPORT_INSTITUTION = "export_institution"
+    TASK_ID_EXPORT_AUTHOR = "export_author"
+    TASK_ID_EXPORT_JOURNAL = "export_journal"
+    TASK_ID_EXPORT_PUBLISHER = "export_publisher"
+    TASK_ID_EXPORT_REGION = "export_region"
+    TASK_ID_EXPORT_SUBREGION = "export_subregion"
     TASK_ID_COPY_TABLES = "copy_tables"
     TASK_ID_CREATE_VIEWS = "create_views"
 
@@ -201,86 +195,104 @@ class DoiWorkflow:
 
     AGGREGATE_DOI_FILENAME = make_sql_jinja2_filename("aggregate_doi")
 
-    EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME = make_sql_jinja2_filename('export_access_types')
-    EXPORT_AGGREGATE_DISCIPLINES_FILENAME = make_sql_jinja2_filename('export_disciplines')
-    EXPORT_AGGREGATE_EVENTS_FILENAME = make_sql_jinja2_filename('export_events')
-    EXPORT_AGGREGATE_METRICS_FILENAME = make_sql_jinja2_filename('export_metrics')
-    EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME = make_sql_jinja2_filename('export_output_types')
-    EXPORT_AGGREGATE_RELATIONS_FILENAME = make_sql_jinja2_filename('export_relations')
+    EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME = make_sql_jinja2_filename("export_access_types")
+    EXPORT_AGGREGATE_DISCIPLINES_FILENAME = make_sql_jinja2_filename("export_disciplines")
+    EXPORT_AGGREGATE_EVENTS_FILENAME = make_sql_jinja2_filename("export_events")
+    EXPORT_AGGREGATE_METRICS_FILENAME = make_sql_jinja2_filename("export_metrics")
+    EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME = make_sql_jinja2_filename("export_output_types")
+    EXPORT_AGGREGATE_RELATIONS_FILENAME = make_sql_jinja2_filename("export_relations")
 
     TOPIC_NAME = "message"
 
-    AGGREGATIONS_COUNTRY = {"aggregation_field": "countries",
-                            "table_id": "country",
-                            "relate_to_institutions": False,
-                            "relate_to_countries": False,
-                            "relate_to_groups": False,
-                            "relate_to_members": True,
-                            "relate_to_journals": True}
+    AGGREGATIONS_COUNTRY = {
+        "aggregation_field": "countries",
+        "table_id": "country",
+        "relate_to_institutions": False,
+        "relate_to_countries": False,
+        "relate_to_groups": False,
+        "relate_to_members": True,
+        "relate_to_journals": True,
+    }
 
-    AGGREGATIONS_FUNDER = { "aggregation_field": "funders",
-                            "table_id": "funder",
-                            "relate_to_institutions": True,
-                            "relate_to_countries": True,
-                            "relate_to_groups": True,
-                            "relate_to_members": True,
-                            "relate_to_journals": False}
+    AGGREGATIONS_FUNDER = {
+        "aggregation_field": "funders",
+        "table_id": "funder",
+        "relate_to_institutions": True,
+        "relate_to_countries": True,
+        "relate_to_groups": True,
+        "relate_to_members": True,
+        "relate_to_journals": False,
+    }
 
-    AGGREGATIONS_GROUP = {"aggregation_field": "groupings",
-                          "table_id": "group",
-                          "relate_to_institutions": True,
-                          "relate_to_countries": False,
-                          "relate_to_groups": False,
-                          "relate_to_members": True,
-                          "relate_to_journals": True}
+    AGGREGATIONS_GROUP = {
+        "aggregation_field": "groupings",
+        "table_id": "group",
+        "relate_to_institutions": True,
+        "relate_to_countries": False,
+        "relate_to_groups": False,
+        "relate_to_members": True,
+        "relate_to_journals": True,
+    }
 
-    AGGREGATIONS_INSTITUTION = {"aggregation_field": "institutions",
-                                "table_id": "institution",
-                                "relate_to_institutions": True,
-                                "relate_to_countries": True,
-                                "relate_to_groups": False,
-                                "relate_to_members": False,
-                                "relate_to_journals": True}
+    AGGREGATIONS_INSTITUTION = {
+        "aggregation_field": "institutions",
+        "table_id": "institution",
+        "relate_to_institutions": True,
+        "relate_to_countries": True,
+        "relate_to_groups": False,
+        "relate_to_members": False,
+        "relate_to_journals": True,
+    }
 
-    AGGREGATIONS_AUTHOR = { "aggregation_field": "authors",
-                            "table_id": "author",
-                            "relate_to_institutions": True,
-                            "relate_to_countries": True,
-                            "relate_to_groups": True,
-                            "relate_to_members": False,
-                            "relate_to_journals": True}
+    AGGREGATIONS_AUTHOR = {
+        "aggregation_field": "authors",
+        "table_id": "author",
+        "relate_to_institutions": True,
+        "relate_to_countries": True,
+        "relate_to_groups": True,
+        "relate_to_members": False,
+        "relate_to_journals": True,
+    }
 
-    AGGREGATIONS_JOURNAL = {"aggregation_field": "journals",
-                            "table_id": "journal",
-                            "relate_to_institutions": True,
-                            "relate_to_countries": True,
-                            "relate_to_groups": True,
-                            "relate_to_members": False,
-                            "relate_to_journals": True}
+    AGGREGATIONS_JOURNAL = {
+        "aggregation_field": "journals",
+        "table_id": "journal",
+        "relate_to_institutions": True,
+        "relate_to_countries": True,
+        "relate_to_groups": True,
+        "relate_to_members": False,
+        "relate_to_journals": True,
+    }
 
-    AGGREGATIONS_PUBLISHER = {"aggregation_field": "publishers",
-                              "table_id": "publisher",
-                              "relate_to_institutions": True,
-                              "relate_to_countries": True,
-                              "relate_to_groups": True,
-                              "relate_to_members": False,
-                              "relate_to_journals": True}
+    AGGREGATIONS_PUBLISHER = {
+        "aggregation_field": "publishers",
+        "table_id": "publisher",
+        "relate_to_institutions": True,
+        "relate_to_countries": True,
+        "relate_to_groups": True,
+        "relate_to_members": False,
+        "relate_to_journals": True,
+    }
 
-    AGGREGATIONS_REGION = { "aggregation_field": "regions",
-                            "table_id": "region",
-                            "relate_to_institutions": False,
-                            "relate_to_countries": False,
-                            "relate_to_groups": False,
-                            "relate_to_members": False,
-                            "relate_to_journals": False}
+    AGGREGATIONS_REGION = {
+        "aggregation_field": "regions",
+        "table_id": "region",
+        "relate_to_institutions": False,
+        "relate_to_countries": False,
+        "relate_to_groups": False,
+        "relate_to_members": False,
+        "relate_to_journals": False,
+    }
 
-    AGGREGATIONS_SUBREGION = {"aggregation_field": "subregions",
-                              "table_id": "subregion",
-                              "relate_to_institutions": False,
-                              "relate_to_countries": False,
-                              "relate_to_groups": False,
-                              "relate_to_members": False,
-                              "relate_to_journals": False}
+    AGGREGATIONS_SUBREGION = {
+        "aggregation_field": "subregions",
+        "table_id": "subregion",
+        "relate_to_institutions": False,
+        "relate_to_countries": False,
+        "relate_to_groups": False,
+        "relate_to_members": False,
+        "relate_to_journals": False,
+    }
 
     @staticmethod
     def check_dependencies(**kwargs):
@@ -378,7 +390,7 @@ class DoiWorkflow:
             table_id=processed_table_id,
             location=data_location,
             cluster=True,
-            clustering_fields=['id']
+            clustering_fields=["id"],
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_EXTEND_GRID)
@@ -413,7 +425,7 @@ class DoiWorkflow:
             table_id=processed_table_id,
             location=data_location,
             cluster=True,
-            clustering_fields=['doi']
+            clustering_fields=["doi"],
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS)
@@ -447,7 +459,7 @@ class DoiWorkflow:
             table_id=processed_table_id,
             location=data_location,
             cluster=True,
-            clustering_fields=['doi']
+            clustering_fields=["doi"],
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_ORCID)
@@ -489,7 +501,7 @@ class DoiWorkflow:
             table_id=processed_table_id,
             location=data_location,
             cluster=True,
-            clustering_fields=['doi']
+            clustering_fields=["doi"],
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_MAG)
@@ -532,7 +544,7 @@ class DoiWorkflow:
             table_id=processed_table_id,
             location=data_location,
             cluster=True,
-            clustering_fields=['doi']
+            clustering_fields=["doi"],
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL)
@@ -586,7 +598,7 @@ class DoiWorkflow:
             table_id=processed_table_id,
             location=data_location,
             cluster=True,
-            clustering_fields=['doi']
+            clustering_fields=["doi"],
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS)
@@ -629,7 +641,7 @@ class DoiWorkflow:
             table_id=processed_table_id,
             location=data_location,
             cluster=True,
-            clustering_fields=['doi']
+            clustering_fields=["doi"],
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS)
@@ -743,7 +755,7 @@ class DoiWorkflow:
             table_id=processed_table_id,
             location=data_location,
             cluster=True,
-            clustering_fields=['doi']
+            clustering_fields=["doi"],
         )
 
         set_task_state(success, DoiWorkflow.TASK_ID_CREATE_DOI)
@@ -760,19 +772,26 @@ class DoiWorkflow:
         # Get variables
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
+        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
 
         # Create processed dataset
-        template_path = os.path.join(workflow_sql_templates_path(),
-                                     make_sql_jinja2_filename(DoiWorkflow.TASK_ID_CREATE_BOOK))
-        sql = render_template(template_path, project_id=project_id, dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-                              release_date=release_date)
+        template_path = os.path.join(
+            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_CREATE_BOOK)
+        )
+        sql = render_template(
+            template_path, project_id=project_id, dataset_id=DoiWorkflow.PROCESSED_DATASET_ID, release_date=release_date
+        )
 
-        processed_table_id = bigquery_partitioned_table_id('book', release_date)
-        success = create_bigquery_table_from_query(sql=sql, project_id=project_id,
-                                                   dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
-                                                   table_id=processed_table_id, location=data_location,
-                                                   cluster=True, clustering_fields=['isbn'])
+        processed_table_id = bigquery_partitioned_table_id("book", release_date)
+        success = create_bigquery_table_from_query(
+            sql=sql,
+            project_id=project_id,
+            dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
+            table_id=processed_table_id,
+            location=data_location,
+            cluster=True,
+            clustering_fields=["isbn"],
+        )
 
         set_task_state(success, DoiWorkflow.TASK_ID_CREATE_BOOK)
 
@@ -789,25 +808,33 @@ class DoiWorkflow:
         # Get variables
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
-        aggregation_field = kwargs['aggregation_field']
+        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
+        aggregation_field = kwargs["aggregation_field"]
         group_by_time_field = "published_year"
-        table_id = kwargs['table_id']
+        table_id = kwargs["table_id"]
 
         # Optional Relationships
-        relate_to_institutions = kwargs['relate_to_institutions']
-        relate_to_countries = kwargs['relate_to_countries']
-        relate_to_groups = kwargs['relate_to_groups']
-        relate_to_members = kwargs['relate_to_members']
-        relate_to_journals = kwargs['relate_to_journals']
+        relate_to_institutions = kwargs["relate_to_institutions"]
+        relate_to_countries = kwargs["relate_to_countries"]
+        relate_to_groups = kwargs["relate_to_groups"]
+        relate_to_members = kwargs["relate_to_members"]
+        relate_to_journals = kwargs["relate_to_journals"]
 
         # Aggregate
-        create_aggregate_table(project_id=project_id, release_date=release_date, aggregation_field=aggregation_field,
-                               group_by_time_field=group_by_time_field, table_id=table_id, data_location=data_location,
-                               task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
-                               relate_to_institutions=relate_to_institutions,
-                               relate_to_countries=relate_to_countries, relate_to_groups=relate_to_groups,
-                               relate_to_members=relate_to_members, relate_to_journals=relate_to_journals)
+        create_aggregate_table(
+            project_id=project_id,
+            release_date=release_date,
+            aggregation_field=aggregation_field,
+            group_by_time_field=group_by_time_field,
+            table_id=table_id,
+            data_location=data_location,
+            task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
+            relate_to_institutions=relate_to_institutions,
+            relate_to_countries=relate_to_countries,
+            relate_to_groups=relate_to_groups,
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals,
+        )
 
     @staticmethod
     def export_aggregation(**kwargs):
@@ -822,32 +849,80 @@ class DoiWorkflow:
         # Get variables
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
-        aggregation_field = kwargs['aggregation_field']
+        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
+        aggregation_field = kwargs["aggregation_field"]
         group_by_time_field = "published_year"
-        table_id = kwargs['table_id']
+        table_id = kwargs["table_id"]
 
         # Always export
-        tables = [{'file_name': DoiWorkflow.EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME, 'aggregate': table_id, 'facet': "access_types"},
-                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_DISCIPLINES_FILENAME, 'aggregate': table_id, 'facet': "disciplines"},
-                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME, 'aggregate': table_id, 'facet': "output_types"},
-                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_EVENTS_FILENAME, 'aggregate': table_id, 'facet': "events"},
-                  {'file_name': DoiWorkflow.EXPORT_AGGREGATE_METRICS_FILENAME, 'aggregate': table_id, 'facet': "metrics"}]
+        tables = [
+            {
+                "file_name": DoiWorkflow.EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME,
+                "aggregate": table_id,
+                "facet": "access_types",
+            },
+            {
+                "file_name": DoiWorkflow.EXPORT_AGGREGATE_DISCIPLINES_FILENAME,
+                "aggregate": table_id,
+                "facet": "disciplines",
+            },
+            {
+                "file_name": DoiWorkflow.EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME,
+                "aggregate": table_id,
+                "facet": "output_types",
+            },
+            {"file_name": DoiWorkflow.EXPORT_AGGREGATE_EVENTS_FILENAME, "aggregate": table_id, "facet": "events"},
+            {"file_name": DoiWorkflow.EXPORT_AGGREGATE_METRICS_FILENAME, "aggregate": table_id, "facet": "metrics"},
+        ]
 
         # Optional Relationships
-        if kwargs['relate_to_institutions']:
-            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'institutions'})
-        if kwargs['relate_to_countries']:
-            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'countries'})
-        if kwargs['relate_to_groups']:
-            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'groupings'})
-        if kwargs['relate_to_members']:
-            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'members'})
-        if kwargs['relate_to_journals']:
-            tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'journals'})
+        if kwargs["relate_to_institutions"]:
+            tables.append(
+                {
+                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
+                    "aggregate": table_id,
+                    "facet": "institutions",
+                }
+            )
+        if kwargs["relate_to_countries"]:
+            tables.append(
+                {
+                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
+                    "aggregate": table_id,
+                    "facet": "countries",
+                }
+            )
+        if kwargs["relate_to_groups"]:
+            tables.append(
+                {
+                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
+                    "aggregate": table_id,
+                    "facet": "groupings",
+                }
+            )
+        if kwargs["relate_to_members"]:
+            tables.append(
+                {
+                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
+                    "aggregate": table_id,
+                    "facet": "members",
+                }
+            )
+        if kwargs["relate_to_journals"]:
+            tables.append(
+                {
+                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
+                    "aggregate": table_id,
+                    "facet": "journals",
+                }
+            )
 
-        tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'funders'})
-        tables.append({'file_name': DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, 'aggregate': table_id, 'facet': 'publishers'})
+        tables.append(
+            {"file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, "aggregate": table_id, "facet": "funders"}
+        )
+        tables.append(
+            {"file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, "aggregate": table_id, "facet": "publishers"}
+        )
 
         results = []
 
@@ -859,21 +934,23 @@ class DoiWorkflow:
             futures = list()
             futures_msgs = {}
             for table in tables:
-                template_file_name = table['file_name']
-                aggregate = table['aggregate']
-                facet = table['facet']
+                template_file_name = table["file_name"]
+                aggregate = table["aggregate"]
+                facet = table["facet"]
 
                 msg = f"Exporting file_name={template_file_name}, aggregate={aggregate}, facet={facet}"
                 logging.info(msg)
 
-                future = executor.submit(export_aggregate_table,
-                                         project_id,
-                                         release_date,
-                                         data_location,
-                                         table_id,
-                                         template_file_name,
-                                         aggregate,
-                                         facet)
+                future = executor.submit(
+                    export_aggregate_table,
+                    project_id,
+                    release_date,
+                    data_location,
+                    table_id,
+                    template_file_name,
+                    aggregate,
+                    facet,
+                )
                 futures.append(future)
                 futures_msgs[future] = msg
 
@@ -883,9 +960,9 @@ class DoiWorkflow:
                 msg = futures_msgs[future]
                 results.append(success)
                 if success:
-                    logging.info(f'Exporting feed success: {msg}')
+                    logging.info(f"Exporting feed success: {msg}")
                 else:
-                    logging.error(f'Exporting feed failed: {msg}')
+                    logging.error(f"Exporting feed failed: {msg}")
 
             return all(results)
 
@@ -894,9 +971,18 @@ class DoiWorkflow:
         # Get variables
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs['next_execution_date'].subtract(microseconds=1).date()
-        table_names = ['country', 'doi', 'funder', 'group', 'institution', 'journal', 'publisher', 'region',
-                       'subregion']
+        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
+        table_names = [
+            "country",
+            "doi",
+            "funder",
+            "group",
+            "institution",
+            "journal",
+            "publisher",
+            "region",
+            "subregion",
+        ]
 
         # Copy the latest data for display in the dashboards
         results = []
