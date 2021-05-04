@@ -255,6 +255,9 @@ class OnixWorkflow(Telescope):
         # Create OAEBU Intermediate tables
         self.create_oaebu_intermediate_table_tasks(data_partners)
 
+        # Create metrics tables and additional warning / error tables
+        #
+
         # Cleanup tasks
         self.add_task(self.cleanup)
 
@@ -476,6 +479,12 @@ class OnixWorkflow(Telescope):
             orig_table_suffix = table_date.strftime("%Y%m%d")
             dst_table_suffix = release_date.strftime("%Y%m%d")
 
+            # Load the ISBN utils
+            isbn_utils_file = "isbn_utils.sql"
+            isbn_utils_path = os.path.join(workflow_sql_templates_path(), isbn_utils_file)
+            with open(isbn_utils_path, "r") as f:
+                isbn_utils_sql = f.read()
+
             sql = render_template(
                 template_path,
                 project_id=orig_project_id,
@@ -486,6 +495,8 @@ class OnixWorkflow(Telescope):
                 wid_table=release.worksid_table + dst_table_suffix,
                 wfam_table=release.workfamilyid_table + dst_table_suffix,
             )
+
+            sql = isbn_utils_sql + sql
 
             create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
 

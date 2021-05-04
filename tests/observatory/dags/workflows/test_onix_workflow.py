@@ -14,6 +14,7 @@
 
 # Author: Tuan Chien
 
+import hashlib
 import os
 import unittest
 from datetime import datetime
@@ -39,6 +40,7 @@ from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.dags.workflows.oaebu_partners import OaebuPartners
 from observatory.dags.workflows.onix_workflow import OnixWorkflow, OnixWorkflowRelease
 from observatory.platform.utils.airflow_utils import AirflowConns
+from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import (
     delete_bigquery_dataset,
     delete_bucket_dir,
@@ -667,8 +669,10 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(call_args["table_id"], "test_table_matched20210101")
             self.assertEqual(call_args["location"], "us")
 
-            expected_sql = "\n\n\nWITH orig_wid AS (\nSELECT\n    orig.*, wid.work_id\nFROM\n    `test_project.test_dataset.test_table20210101` orig\nLEFT JOIN\n    `test_project.onix_workflow.onix_workid_isbn20210101` wid\nON\n    orig.isbn = wid.isbn13\n)\n\nSELECT\n    orig_wid.*, wfam.work_family_id\nFROM\n    orig_wid\nLEFT JOIN\n    `test_project.onix_workflow.onix_workfamilyid_isbn20210101` wfam\nON\n    orig_wid.isbn = wfam.isbn13"
-            self.assertEqual(call_args["sql"], expected_sql)
+            sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
+            sql_hash = sql_hash.hexdigest()
+            expected_hash = "85c9f19cae225b24e866628e374b89aa"
+            self.assertEqual(sql_hash, expected_hash)
 
             oaebu_task2(releases)
             _, call_args = mock_create_bq_ds.call_args
@@ -682,8 +686,10 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(call_args["table_id"], "test_table2_matched20210101")
             self.assertEqual(call_args["location"], "us")
 
-            expected_sql = "\n\n\nWITH orig_wid AS (\nSELECT\n    orig.*, wid.work_id\nFROM\n    `test_project.test_dataset.test_table220210101` orig\nLEFT JOIN\n    `test_project.onix_workflow.onix_workid_isbn20210101` wid\nON\n    orig.isbn = wid.isbn13\n)\n\nSELECT\n    orig_wid.*, wfam.work_family_id\nFROM\n    orig_wid\nLEFT JOIN\n    `test_project.onix_workflow.onix_workfamilyid_isbn20210101` wfam\nON\n    orig_wid.isbn = wfam.isbn13"
-            self.assertEqual(call_args["sql"], expected_sql)
+            sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
+            sql_hash = sql_hash.hexdigest()
+            expected_hash = "69c544a50c36c0298a20d5f4a5aecd48"
+            self.assertEqual(sql_hash, expected_hash)
 
 
 class TestOnixWorkflowFunctional(ObservatoryTestCase):
@@ -978,10 +984,11 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
-            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.oaebu_intermediate.jstor_country_matched{release_suffix}"
+            sql = f"SELECT ISBN, work_id, work_family_id, normalised_isbn from {self.gcp_project_id}.oaebu_intermediate.jstor_country_matched{release_suffix}"
             records = run_bigquery_query(sql)
             oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
             oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
+            oaebu_normalised_isbn = {record["ISBN"]: record["normalised_isbn"] for record in records}
 
             self.assertTrue(
                 oaebu_works["111"] == oaebu_works["112"]
@@ -993,6 +1000,14 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 oaebu_wfam["111"] == oaebu_wfam["112"]
                 and oaebu_wfam["112"] == oaebu_wfam["211"]
                 and oaebu_wfam["113"] is None
+            )
+
+            self.assertTrue(
+                oaebu_normalised_isbn["9781111111113"] == "9781111111113"
+                and oaebu_normalised_isbn["111"] is None
+                and oaebu_normalised_isbn["112"] is None
+                and oaebu_normalised_isbn["113"] is None
+                and oaebu_normalised_isbn["211"] is None
             )
 
             # Cleanup
