@@ -428,6 +428,7 @@ SELECT
   ) as groupings,
   {% endif %}
 
+  {% if relate_to_funders %}
   -- Funders
   process_relations(
     ARRAY_CONCAT_AGG( 
@@ -442,6 +443,7 @@ SELECT
       )
     ), COUNT(dois.doi), COUNTIF(unpaywall.is_oa = True)
   ) as funders,
+  {% endif %}
 
   {% if relate_to_members %}
   -- Members
@@ -459,6 +461,7 @@ SELECT
   ) as members,
   {% endif %}
 
+  {% if relate_to_publishers %}
   -- Publishers
   process_relations(
     ARRAY_CONCAT_AGG( 
@@ -473,6 +476,7 @@ SELECT
       )
     ), COUNT(dois.doi), COUNTIF(unpaywall.is_oa = True)
   ) as publishers,
+  {% endif %}
 
   {% if relate_to_journals %}
   -- Journals

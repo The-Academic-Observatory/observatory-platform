@@ -65,6 +65,8 @@ def create_aggregate_table(
     relate_to_groups: bool,
     relate_to_members: bool,
     relate_to_journals: bool,
+    relate_to_funders: bool,
+    relate_to_publishers: bool,
 ):
     """Runs the aggregate table query.
 
@@ -81,6 +83,8 @@ def create_aggregate_table(
     :param relate_to_groups: whether to generate the groups relationship output for this query
     :param relate_to_members: whether to generate the members relationship output for this query
     :param relate_to_journals: whether to generate the journals relationship output for this query
+    :param relate_to_funders: whether to generate the funders relationship output for this query
+    :param relate_to_publishers: whether to generate the publish relationship output for this query
     :return: None.
     """
 
@@ -97,6 +101,8 @@ def create_aggregate_table(
         relate_to_groups=relate_to_groups,
         relate_to_members=relate_to_members,
         relate_to_journals=relate_to_journals,
+        relate_to_funders=relate_to_funders,
+        relate_to_publishers=relate_to_publishers,
     )
 
     processed_table_id = bigquery_partitioned_table_id(table_id, release_date)
@@ -212,6 +218,8 @@ class DoiWorkflow:
         "relate_to_groups": False,
         "relate_to_members": True,
         "relate_to_journals": True,
+        "relate_to_funders": True,
+        "relate_to_publishers": True
     }
 
     AGGREGATIONS_FUNDER = {
@@ -222,6 +230,8 @@ class DoiWorkflow:
         "relate_to_groups": True,
         "relate_to_members": True,
         "relate_to_journals": False,
+        "relate_to_funders": True,
+        "relate_to_publishers": True
     }
 
     AGGREGATIONS_GROUP = {
@@ -232,6 +242,8 @@ class DoiWorkflow:
         "relate_to_groups": False,
         "relate_to_members": True,
         "relate_to_journals": True,
+        "relate_to_funders": True,
+        "relate_to_publishers": True
     }
 
     AGGREGATIONS_INSTITUTION = {
@@ -242,6 +254,8 @@ class DoiWorkflow:
         "relate_to_groups": False,
         "relate_to_members": False,
         "relate_to_journals": True,
+        "relate_to_funders": True,
+        "relate_to_publishers": True
     }
 
     AGGREGATIONS_AUTHOR = {
@@ -252,6 +266,8 @@ class DoiWorkflow:
         "relate_to_groups": True,
         "relate_to_members": False,
         "relate_to_journals": True,
+        "relate_to_funders": True,
+        "relate_to_publishers": True
     }
 
     AGGREGATIONS_JOURNAL = {
@@ -262,6 +278,8 @@ class DoiWorkflow:
         "relate_to_groups": True,
         "relate_to_members": False,
         "relate_to_journals": True,
+        "relate_to_funders": True,
+        "relate_to_publishers": False
     }
 
     AGGREGATIONS_PUBLISHER = {
@@ -271,7 +289,9 @@ class DoiWorkflow:
         "relate_to_countries": True,
         "relate_to_groups": True,
         "relate_to_members": False,
-        "relate_to_journals": True,
+        "relate_to_journals": False,
+        "relate_to_funders": True,
+        "relate_to_publishers": False
     }
 
     AGGREGATIONS_REGION = {
@@ -282,6 +302,8 @@ class DoiWorkflow:
         "relate_to_groups": False,
         "relate_to_members": False,
         "relate_to_journals": False,
+        "relate_to_funders": True,
+        "relate_to_publishers": True
     }
 
     AGGREGATIONS_SUBREGION = {
@@ -292,6 +314,8 @@ class DoiWorkflow:
         "relate_to_groups": False,
         "relate_to_members": False,
         "relate_to_journals": False,
+        "relate_to_funders": True,
+        "relate_to_publishers": True
     }
 
     @staticmethod
@@ -917,12 +941,21 @@ class DoiWorkflow:
                 }
             )
 
-        tables.append(
-            {"file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, "aggregate": table_id, "facet": "funders"}
-        )
-        tables.append(
-            {"file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME, "aggregate": table_id, "facet": "publishers"}
-        )
+        if kwargs["relate_to_funders"]:
+            tables.append(
+                {
+                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
+                    "aggregate": table_id,
+                    "facet": "funders"}
+            )
+
+        if kwargs["relate_to_publishers"]:
+            tables.append(
+                {
+                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
+                    "aggregate": table_id,
+                    "facet": "publishers"}
+            )
 
         results = []
 
