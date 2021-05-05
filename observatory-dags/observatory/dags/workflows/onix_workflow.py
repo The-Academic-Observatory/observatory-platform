@@ -112,6 +112,7 @@ class OnixWorkflowRelease(AbstractRelease):
 
         # OAEBU intermediate tables
         self.oaebu_intermediate_dataset = "oaebu_intermediate"
+        self.oaebu_data_qa_dataset = "oaebu_data_qa"
 
     @property
     def transform_bucket(self) -> str:
@@ -192,6 +193,7 @@ class OnixWorkflow(Telescope):
     4. Create OAEBU intermediate tables.
       a. For each data partner, create new tables in oaebu_intermediate dataset where existing tables are augmented
          with work_id and work_family_id columns.
+    5. Create OAEBU QA tables for looking at metrics and problems arising from the data sets (and for eventual automatic reporting).
     """
 
     DAG_ID_PREFIX = "onix_workflow"
@@ -255,8 +257,8 @@ class OnixWorkflow(Telescope):
         # Create OAEBU Intermediate tables
         self.create_oaebu_intermediate_table_tasks(data_partners)
 
-        # Create metrics tables and additional warning / error tables
-        #
+        # Create QA metrics tables
+        self.create_oaebu_data_qa(data_partners)
 
         # Cleanup tasks
         self.add_task(self.cleanup)
@@ -534,3 +536,39 @@ class OnixWorkflow(Telescope):
             fn.__name__ += f".{data.gcp_dataset_id}.{data.gcp_table_id}"
 
             self.add_task(fn)
+
+    def create_oaebu_data_qa(self, data_partners: List[OaebuPartners]):
+        """Create tasks for outputing QA metrics from our OAEBU data.  It will create output tables in the oaebu_data_qa dataset.
+        :param oaebu_data: List of oaebu partner data.
+        """
+        pass
+
+    def create_oaebu_data_qa_onix(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
+        """Create ONIX quality assurance metrics.
+        :param oaebu_data: List of oaebu partner data.
+        """
+        pass
+
+    def create_oaebu_data_qa_jstor(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
+        """Create JSTOR quality assurance metrics.
+        :param oaebu_data: List of oaebu partner data.
+        """
+        pass
+
+    def create_oaebu_data_qa_oapen_irus_uk(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
+        """Create OAPEN IRUS UK quality assurance metrics.
+        :param oaebu_data: List of oaebu partner data.
+        """
+        pass
+
+    def create_oaebu_data_qa_google_books(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
+        """Create Google Books quality assurance metrics.
+        :param oaebu_data: List of oaebu partner data.
+        """
+        pass
+
+    def create_oaebu_data_qa_intermediate(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
+        """Create quality assurance metrics for the OAEBU intermediate tables.
+        :param oaebu_data: List of oaebu partner data.
+        """
+        pass
