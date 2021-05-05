@@ -7,3 +7,4 @@ wos==0.2.*
 vcrpy==4.0.*
 Faker==8.1.*
 pandas==1.2.*
+boto3
