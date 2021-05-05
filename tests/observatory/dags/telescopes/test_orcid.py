@@ -14,6 +14,7 @@
 
 # Author: Aniek Roelofs
 
+import gzip
 import io
 import os
 from datetime import timedelta
@@ -165,7 +166,11 @@ class TestOrcid(ObservatoryTestCase):
                 env.run_task(telescope.transform.__name__)
                 self.assertEqual(1, len(release.transform_files))
                 transform_path = release.transform_files[0]
-                expected_file_hash = '5f8c7477'
+                with gzip.open(transform_path, "rb") as f_in:
+                    lines = sorted(f_in.readlines())
+                with gzip.open(transform_path, "wb") as f_out:
+                    f_out.writelines(lines)
+                expected_file_hash = '57068d40'
                 self.assert_file_integrity(transform_path, expected_file_hash, 'gzip_crc')
 
                 # Test that transformed file uploaded
@@ -249,7 +254,11 @@ class TestOrcid(ObservatoryTestCase):
                 env.run_task(telescope.transform.__name__)
                 self.assertEqual(1, len(release.transform_files))
                 transform_path = release.transform_files[0]
-                expected_file_hash = 'a6e04bc3'
+                with gzip.open(transform_path, "rb") as f_in:
+                    lines = sorted(f_in.readlines())
+                with gzip.open(transform_path, "wb") as f_out:
+                    f_out.writelines(lines)
+                expected_file_hash = 'aab89332'
                 self.assert_file_integrity(transform_path, expected_file_hash, 'gzip_crc')
 
                 # Test that transformed file uploaded
