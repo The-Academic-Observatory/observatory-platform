@@ -545,16 +545,14 @@ class OnixWorkflow(Telescope):
         :param oaebu_data: List of oaebu partner data.
         """
 
-        self.create_oaebu_data_qa_onix(data_partners)
+        self.create_oaebu_data_qa_onix()
         self.create_oaebu_data_qa_jstor(data_partners)
         self.create_oaebu_data_qa_oapen_irus_uk(data_partners)
         self.create_oaebu_data_qa_google_books(data_partners)
         self.create_oaebu_data_qa_intermediate(data_partners)
 
-    def create_oaebu_data_qa_onix(self, data_partners: List[OaebuPartners], *args, **kwargs):
-        """Create ONIX quality assurance metrics.
-        :param oaebu_data: List of oaebu partner data.
-        """
+    def create_oaebu_data_qa_onix(self, *args, **kwargs):
+        """Create ONIX quality assurance metrics."""
 
         # isbn validation
         self.add_task(self.create_oaebu_data_qa_onix_isbn)
@@ -563,7 +561,49 @@ class OnixWorkflow(Telescope):
         self.add_task(self.create_oaebu_data_qa_onix_aggregate)
 
     def create_oaebu_data_qa_onix_aggregate(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
-        pass
+        """Create a bq table of some aggregate metrics for the ONIX data set.
+        :param releases: List of workflow releases.
+        """
+
+        template_file = "onix_aggregate_metrics.sql.jinja2"
+        template_path = os.path.join(workflow_sql_templates_path(), template_file)
+
+        for release in releases:
+            onix_project_id = release.project_id
+            onix_dataset_id = release.onix_dataset_id
+            onix_table_id = release.onix_table_id + release.release_date.strftime("%Y%m%d")
+            output_dataset = release.oaebu_data_qa_dataset
+            output_table = "onix_aggregate_metrics"
+            release_date = release.release_date
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+
+            sql = render_template(
+                template_path,
+                project_id=onix_project_id,
+                dataset_id=onix_dataset_id,
+                table_id=onix_table_id,
+                isbn="ISBN13",
+            )
+
+            create_bigquery_dataset(
+                project_id=release.project_id,
+                dataset_id=release.oaebu_data_qa_dataset,
+                location=release.dataset_location,
+            )
+
+            # Fix
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_data_qa_dataset,
+                table_id=output_table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{output_table_id}"
+                )
 
     def create_oaebu_data_qa_onix_isbn(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
         """Create a BQ table of invalid ISBNs for the ONIX feed that can be fed back to publishers.

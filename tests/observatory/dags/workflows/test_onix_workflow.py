@@ -768,10 +768,77 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 ]
             )
 
+            _, call_args = mock_bq_ds.call_args
+            self.assertEqual(call_args["dataset_id"], "oaebu_data_qa")
+
+            _, call_args = mock_bq_table_query.call_args
+            self.assertEqual(call_args["project_id"], "project_id")
+            self.assertEqual(call_args["dataset_id"], "oaebu_data_qa")
+            self.assertEqual(call_args["table_id"], "onix_invalid_isbn20210101")
+            self.assertEqual(call_args["location"], "us")
+
+            sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
+            sql_hash = sql_hash.hexdigest()
+            expected_hash = "8a5bef18d6292696bceba13bfa63eb2d"
+            self.assertEqual(sql_hash, expected_hash)
+
             mock_bq_table_query.return_value = False
             self.assertRaises(
                 AirflowException,
                 wf.create_oaebu_data_qa_onix_isbn,
+                [
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_test",
+                        release_date=pendulum.Pendulum(2021, 1, 1),
+                        gcp_project_id=self.telescope.organisation.gcp_project_id,
+                        gcp_bucket_name=self.bucket_name,
+                        onix_dataset_id="onix",
+                        onix_table_id="onix",
+                    )
+                ],
+            )
+
+    @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
+    @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
+    def test_create_oaebu_data_qa_onix_aggregate(self, mock_bq_ds, mock_bq_table_query):
+        with CliRunner().isolated_filesystem():
+            wf = OnixWorkflow(
+                org_name=self.telescope.organisation.name,
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+            )
+            mock_bq_table_query.return_value = True
+            wf.create_oaebu_data_qa_onix_aggregate(
+                [
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_test",
+                        release_date=pendulum.Pendulum(2021, 1, 1),
+                        gcp_project_id=self.telescope.organisation.gcp_project_id,
+                        gcp_bucket_name=self.bucket_name,
+                        onix_dataset_id="onix",
+                        onix_table_id="onix",
+                    )
+                ]
+            )
+
+            _, call_args = mock_bq_ds.call_args
+            self.assertEqual(call_args["dataset_id"], "oaebu_data_qa")
+
+            _, call_args = mock_bq_table_query.call_args
+            self.assertEqual(call_args["project_id"], "project_id")
+            self.assertEqual(call_args["dataset_id"], "oaebu_data_qa")
+            self.assertEqual(call_args["table_id"], "onix_aggregate_metrics20210101")
+            self.assertEqual(call_args["location"], "us")
+
+            sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
+            sql_hash = sql_hash.hexdigest()
+            expected_hash = "e457bc4d32a3bbb75ef215009da917b3"
+            self.assertEqual(sql_hash, expected_hash)
+
+            mock_bq_table_query.return_value = False
+            self.assertRaises(
+                AirflowException,
+                wf.create_oaebu_data_qa_onix_aggregate,
                 [
                     OnixWorkflowRelease(
                         dag_id="onix_workflow_test",
@@ -1050,10 +1117,18 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 self.timestamp,
             )
 
-            # Create oaebu qa tables
+            # ONIX isbn check
             oaebu_table = data_partners[0].gcp_table_id
             env.run_task(
                 telescope.create_oaebu_data_qa_onix_isbn.__name__,
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # ONIX aggregate metrics
+            oaebu_table = data_partners[0].gcp_table_id
+            env.run_task(
+                telescope.create_oaebu_data_qa_onix_aggregate.__name__,
                 workflow_dag,
                 self.timestamp,
             )
@@ -1110,6 +1185,20 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("211" in isbns)
             self.assertTrue("112" in isbns)
             self.assertTrue("111" in isbns)
+
+            # Check ONIX aggregate metrics are correct
+            sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.onix_aggregate_metrics{release_suffix}"
+            records = run_bigquery_query(sql)
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0]["table_size"], 3)
+            self.assertEqual(records[0]["no_isbns"], 0)
+            self.assertEqual(records[0]["no_relatedworks"], 0)
+            self.assertEqual(records[0]["no_relatedproducts"], 2)
+            self.assertEqual(records[0]["no_doi"], 3)
+            self.assertEqual(records[0]["no_productform"], 3)
+            self.assertEqual(records[0]["no_contributors"], 3)
+            self.assertEqual(records[0]["no_titledetails"], 3)
+            self.assertEqual(records[0]["no_publisher_urls"], 3)
 
             # Cleanup
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
