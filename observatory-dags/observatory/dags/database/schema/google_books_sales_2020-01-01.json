@@ -129,5 +129,11 @@
     "mode": "NULLABLE",
     "name": "Line_of_Business",
     "type": "STRING"
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "partition_date",
+    "type": "DATE",
+    "description": "Table is partitioned on this column."
   }
 ]

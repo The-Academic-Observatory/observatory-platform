@@ -25,7 +25,7 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.dags.telescopes.google_books import GoogleBooksRelease, GoogleBooksTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.telescope_utils import SftpFolders
-from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -64,9 +64,9 @@ class TestGoogleBooks(ObservatoryTestCase):
             ),
         }
         self.traffic_download_hash = "db4dca44d5231e0c4e2ad95db41b79b6"
-        self.traffic_transform_hash = "63d7f678"
+        self.traffic_transform_hash = "6dd7d820"
         self.sales_download_hash = "9d1981aaffcb0249ee9a625a879d2f95"
-        self.sales_transform_hash = "dc177c5a"
+        self.sales_transform_hash = "ac04c390"
 
     def test_dag_structure(self):
         """Test that the Google Books DAG has the correct structure.
@@ -83,8 +83,8 @@ class TestGoogleBooks(ObservatoryTestCase):
                 "download": ["upload_downloaded"],
                 "upload_downloaded": ["transform"],
                 "transform": ["upload_transformed"],
-                "upload_transformed": ["bq_load"],
-                "bq_load": ["move_files_to_finished"],
+                "upload_transformed": ["bq_load_partition"],
+                "bq_load_partition": ["move_files_to_finished"],
                 "move_files_to_finished": ["cleanup"],
                 "cleanup": [],
             },
@@ -230,11 +230,11 @@ class TestGoogleBooks(ObservatoryTestCase):
                         self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
                 # Test that data loaded into BigQuery
-                env.run_task(telescope.bq_load.__name__, dag, execution_date)
+                env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
                 for release in releases:
                     for file in release.transform_files:
                         table_id, _ = table_ids_from_path(file)
-                        table_id = f"{self.project_id}.{telescope.dataset_id}.{bigquery_sharded_table_id(table_id, release.release_date)}"
+                        table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
                         expected_rows = 4
                         self.assert_table_integrity(table_id, expected_rows)
 

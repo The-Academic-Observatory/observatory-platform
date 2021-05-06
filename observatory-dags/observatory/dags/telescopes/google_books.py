@@ -23,13 +23,15 @@ from typing import List, Optional
 
 import pendulum
 from airflow.models.taskinstance import TaskInstance
+from google.cloud import bigquery
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.telescope_utils import SftpFolders, convert, list_to_jsonl_gz, make_dag_id, \
     make_sftp_connection
-from observatory.platform.utils.template_utils import blob_name, bq_load_shard_v2, table_ids_from_path, \
-    upload_files_from_list
+from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.template_utils import add_partition_date, blob_name, bq_load_partition, \
+    table_ids_from_path
 
 
 class GoogleBooksRelease(SnapshotRelease):
@@ -123,6 +125,7 @@ class GoogleBooksRelease(SnapshotRelease):
                         transformed_row['Buy_Link_CTR'] = transformed_row['Buy_Link_CTR'].strip('%')
 
                     results.append(transformed_row)
+            results = add_partition_date(results, self.release_date, bigquery.TimePartitioningType.MONTH)
             list_to_jsonl_gz(self.transform_path(file), results)
 
 
@@ -167,7 +170,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
                              self.upload_downloaded,
                              self.transform,
                              self.upload_transformed,
-                             self.bq_load,
+                             self.bq_load_partition,
                              self.move_files_to_finished,
                              self.cleanup])
 
@@ -257,7 +260,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
         for release in releases:
             release.transform()
 
-    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
+    def bq_load_partition(self, releases: List[SnapshotRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
         :param releases: a list of releases.
@@ -269,11 +272,13 @@ class GoogleBooksTelescope(SnapshotTelescope):
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
+                table_description = self.table_descriptions.get(table_id, '')
 
-                bq_load_shard_v2(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
-                                 self.dataset_location, table_id, release.release_date, self.source_format,
-                                 prefix=self.schema_prefix, schema_version=self.schema_version,
-                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+                bq_load_partition(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                  self.dataset_location, table_id, release.release_date, self.source_format,
+                                  bigquery.table.TimePartitioningType.MONTH, prefix=self.schema_prefix,
+                                  schema_version=self.schema_version, dataset_description=self.dataset_description,
+                                  table_description=table_description, **self.load_bigquery_table_kwargs)
 
     def move_files_to_finished(self, releases: List[GoogleBooksRelease], **kwargs):
         """ Move Google Books files to SFTP finished folder.
