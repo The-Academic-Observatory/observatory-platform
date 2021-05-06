@@ -39,8 +39,8 @@ from airflow.models.taskinstance import TaskInstance
 from observatory.platform.telescopes.stream_telescope import (StreamRelease, StreamTelescope)
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVariable as Variable, AirflowVars
 from observatory.platform.utils.gc_utils import (aws_to_google_cloud_storage_transfer, storage_bucket_exists)
-# from observatory.platform.utils.telescope_utils import write_boto_config
 from observatory.platform.utils.proc_utils import wait_for_process
+
 
 class OrcidRelease(StreamRelease):
     def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
@@ -59,14 +59,6 @@ class OrcidRelease(StreamRelease):
     def transform_path(self) -> str:
         """ Path to store the transformed orcid file"""
         return os.path.join(self.transform_folder, 'orcid.jsonl.gz')
-
-    @property
-    def boto_config_path(self) -> str:
-        return os.path.join(self.download_folder, 'config.boto')
-
-    @property
-    def lambda_file_path(self) -> str:
-        return os.path.join(self.download_folder, 'last_modified.csv.tar')
 
     @property
     def modified_records_path(self) -> str:
@@ -123,47 +115,33 @@ class OrcidRelease(StreamRelease):
         if proc.returncode != 0:
             raise AirflowException(f"bash command failed `{args}`: {err}")
 
-        # write_boto_config(OrcidTelescope.S3_HOST, aws_access_key_id, aws_secret_access_key, self.boto_config_path)
-        # old_environ = dict(os.environ)
-        # os.environ.update(BOTO_PATH=self.boto_config_path)
         logging.info(f"Downloading transferred files from Google Cloud bucket: {gc_download_bucket}")
         if self.first_release:
-            args = args_list(["gsutil", "-m", "cp", "-r", f"gs://{gc_download_bucket}",
-                                     self.download_folder])
-            proc: Popen = subprocess.Popen(args, env=os.environ)
+            args = ["gsutil", "-m", "cp", "-r", f"gs://{gc_download_bucket}", self.download_folder]
+            proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
             write_modified_record_prefixes(self.start_date, self.end_date,
                                            aws_access_key_id,
                                            aws_secret_access_key,
                                            gc_download_bucket, self.modified_records_path)
-            args = args_list(["gsutil", "-m", "cp", "-I", self.download_folder])
+            args = ["gsutil", "-m", "cp", "-I", self.download_folder]
             proc: Popen = subprocess.Popen(args, stdin=open(self.modified_records_path),
-                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ)
-        try:
-            out, err = proc.communicate(timeout=15)
-        except subprocess.TimeoutExpired:
-            out, err = proc.communicate()
-
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = wait_for_process(proc)
         if err:
             logging.info(err)
         if proc.returncode != 0:
             raise AirflowException(f"bash command failed `{args}`: {err}")
-
-        # finally:
-        #     os.environ.clear()
-            # os.environ.update(old_environ)
 
     def transform(self):
         # Delete transform file if it exists already
         if os.path.exists(self.transform_path):
             pathlib.Path(self.transform_path).unlink()
 
-        # transform_single_file_partial = partial(transform_single_file, s_root)
         pool = multiprocessing.Pool()
-
+        # Transform file
         for orcid_dict in pool.imap(transform_single_file, self.download_files):
-            if not orcid_dict:
-                continue
+            # Write transformed data to jsonl.gz file
             with io.BytesIO() as bytes_io:
                 with gzip.GzipFile(fileobj=bytes_io, mode="a") as gzip_file:
                     with jsonlines.Writer(gzip_file) as writer:
@@ -232,6 +210,11 @@ class OrcidTelescope(StreamTelescope):
         return release
 
     def check_dependencies(self, **kwargs) -> bool:
+        """
+
+        :param kwargs:
+        :return:
+        """
         super().check_dependencies()
 
         orcid_bucket_name = Variable.get(AirflowVars.ORCID_BUCKET)
@@ -262,10 +245,6 @@ class OrcidTelescope(StreamTelescope):
         """
         # Transfer release
         release.transform()
-
-
-def args_list(args) -> list:
-    return args
 
 
 def get_aws_conn_info():
@@ -318,11 +297,14 @@ def write_modified_record_prefixes(start_date: datetime, end_date: datetime, aws
     return modified_records_count
 
 
-def transform_single_file(summary_file: str):
-    if not summary_file.endswith('.xml'):
-        return
+def transform_single_file(record_file_path: str) -> dict:
+    """
+
+    :param record_file_path:
+    :return:
+    """
     # create dict of data from summary xml file
-    with open(summary_file, 'r') as f:
+    with open(record_file_path, 'r') as f:
         orcid_dict = xmltodict.parse(f.read())
 
     orcid_record = orcid_dict.get('record:record')
@@ -330,7 +312,7 @@ def transform_single_file(summary_file: str):
         orcid_record = orcid_dict.get('error:error')
 
     if not orcid_record:
-        raise AirflowException(f'Key error for file: {summary_file}')
+        raise AirflowException(f'Key error for file: {record_file_path}')
 
     orcid_record = change_keys(orcid_record, convert)
     return orcid_record
