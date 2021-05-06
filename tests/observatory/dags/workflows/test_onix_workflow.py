@@ -19,12 +19,13 @@ import os
 import unittest
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import observatory.api.server.orm as orm
 import pandas as pd
 import pendulum
 from airflow import DAG
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
@@ -355,6 +356,27 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(len(records), 3)
             self.assertEqual(records[0]["ISBN13"], "111")
 
+    def test_make_release(self):
+        ti_mock = Mock()
+        ti_mock.xcom_pull = MagicMock(return_value=[{"release_date": pendulum.Pendulum(2021, 1, 1)}])
+
+        with CliRunner().isolated_filesystem():
+            wf = OnixWorkflow(
+                org_name=self.telescope.organisation.name,
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+            )
+
+            kwargs = {"ti": ti_mock}
+            releases = wf.make_release(**kwargs)
+            self.assertEqual(len(releases), 1)
+            self.assertEqual(releases[0].dag_id, "onix_workflow_test")
+            self.assertEqual(releases[0].release_date, pendulum.Pendulum(2021, 1, 1))
+            self.assertEqual(releases[0].project_id, "project_id")
+            self.assertEqual(releases[0].onix_dataset_id, "onix")
+            self.assertEqual(releases[0].onix_table_id, "onix")
+            self.assertEqual(releases[0].bucket_name, "bucket_name")
+
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
     def test_cleanup(self, mock_sel_table_suffixes, mock_mr):
@@ -400,7 +422,9 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "upload_aggregation_tables": ["bq_load_workid_lookup"],
                     "bq_load_workid_lookup": ["bq_load_workid_lookup_errors"],
                     "bq_load_workid_lookup_errors": ["bq_load_workfamilyid_lookup"],
-                    "bq_load_workfamilyid_lookup": ["cleanup"],
+                    "bq_load_workfamilyid_lookup": ["create_oaebu_data_qa_onix_isbn"],
+                    "create_oaebu_data_qa_onix_isbn": ["create_oaebu_data_qa_onix_aggregate"],
+                    "create_oaebu_data_qa_onix_aggregate": ["cleanup"],
                     "cleanup": [],
                 },
                 dag,
@@ -597,6 +621,37 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     call_args["transform_blob"], "onix_workflow_test/20210101/onix_workfamilyid_isbn.jsonl.gz"
                 )
 
+    def test_create_oaebu_intermediate_table(self):
+        with CliRunner().isolated_filesystem():
+            wf = OnixWorkflow(
+                org_name=self.telescope.organisation.name,
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+            )
+            with patch(
+                "observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query", return_value=False
+            ) as _:
+                with patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset") as _:
+                    self.assertRaises(
+                        AirflowException,
+                        wf.create_oaebu_intermediate_table,
+                        releases=[
+                            OnixWorkflowRelease(
+                                dag_id="onix_workflow_test",
+                                release_date=pendulum.Pendulum(2021, 1, 1),
+                                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                                gcp_bucket_name=self.bucket_name,
+                                onix_dataset_id="onix",
+                                onix_table_id="onix",
+                            )
+                        ],
+                        orig_project_id="project",
+                        orig_dataset="dataset",
+                        orig_table="table",
+                        orig_isbn="isbn",
+                        table_date=pendulum.Pendulum(2021, 1, 1),
+                    )
+
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
@@ -650,10 +705,10 @@ class TestOnixWorkflow(ObservatoryTestCase):
             release = releases[0]
 
             # Spin up tasks
-            oaebu_task1, _ = wf.task_funcs[-3]
+            oaebu_task1, _ = wf.task_funcs[5]
             self.assertEqual(oaebu_task1.__name__, "create_oaebu_intermediate_table.test_dataset.test_table")
 
-            oaebu_task2, _ = wf.task_funcs[-2]
+            oaebu_task2, _ = wf.task_funcs[6]
             self.assertEqual(oaebu_task2.__name__, "create_oaebu_intermediate_table.test_dataset.test_table2")
 
             # Run tasks
@@ -668,10 +723,9 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
             self.assertEqual(call_args["table_id"], "test_table_matched20210101")
             self.assertEqual(call_args["location"], "us")
-
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "85c9f19cae225b24e866628e374b89aa"
+            expected_hash = "a37ea9dcd3c47ac07bab3002079e579d"
             self.assertEqual(sql_hash, expected_hash)
 
             oaebu_task2(releases)
@@ -688,8 +742,47 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "69c544a50c36c0298a20d5f4a5aecd48"
+            expected_hash = "467e8e917276d042eef8b132083e1e87"
             self.assertEqual(sql_hash, expected_hash)
+
+    @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
+    @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
+    def test_create_oaebu_data_qa_onix_isbn(self, mock_bq_ds, mock_bq_table_query):
+        with CliRunner().isolated_filesystem():
+            wf = OnixWorkflow(
+                org_name=self.telescope.organisation.name,
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+            )
+            mock_bq_table_query.return_value = True
+            wf.create_oaebu_data_qa_onix_isbn(
+                [
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_test",
+                        release_date=pendulum.Pendulum(2021, 1, 1),
+                        gcp_project_id=self.telescope.organisation.gcp_project_id,
+                        gcp_bucket_name=self.bucket_name,
+                        onix_dataset_id="onix",
+                        onix_table_id="onix",
+                    )
+                ]
+            )
+
+            mock_bq_table_query.return_value = False
+            self.assertRaises(
+                AirflowException,
+                wf.create_oaebu_data_qa_onix_isbn,
+                [
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_test",
+                        release_date=pendulum.Pendulum(2021, 1, 1),
+                        gcp_project_id=self.telescope.organisation.gcp_project_id,
+                        gcp_bucket_name=self.bucket_name,
+                        onix_dataset_id="onix",
+                        onix_table_id="onix",
+                    )
+                ],
+            )
 
 
 class TestOnixWorkflowFunctional(ObservatoryTestCase):
@@ -957,6 +1050,14 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 self.timestamp,
             )
 
+            # Create oaebu qa tables
+            oaebu_table = data_partners[0].gcp_table_id
+            env.run_task(
+                telescope.create_oaebu_data_qa_onix_isbn.__name__,
+                workflow_dag,
+                self.timestamp,
+            )
+
             # Test conditions
             release_suffix = self.onix_release_date.strftime("%Y%m%d")
 
@@ -1009,6 +1110,15 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 and oaebu_normalised_isbn["113"] is None
                 and oaebu_normalised_isbn["211"] is None
             )
+
+            # Check invalid ISBN13s picked up in ONIX
+            sql = f"SELECT ISBN13 from {self.gcp_project_id}.oaebu_data_qa.onix_invalid_isbn{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN13"] for record in records])
+            self.assertEqual(len(isbns), 3)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("112" in isbns)
+            self.assertTrue("111" in isbns)
 
             # Cleanup
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)

@@ -16,6 +16,39 @@ distributed under the License is distributed on an "AS IS" BASIS,
  Author: Tuan Chien
 */
 
+CREATE TEMP FUNCTION is_isbn13(input STRING)
+RETURNS BOOLEAN
+LANGUAGE js
+AS r"""
+function calc_isbn13_check_digit(isbn13) {
+    var mask = [1,3,1,3,1,3,1,3,1,3,1,3];
+
+    var prefix = [];
+    for(let i = 0; i < 12; i++) {
+        prefix.push(Number(isbn13[i]));
+    }
+
+    let check_digit = 0;
+    for(let i = 0; i < 12; i++) {
+        check_digit += mask[i]*prefix[i];
+    }
+
+    return (10-(check_digit % 10)) % 10;
+}
+
+if(input.length != 13) {
+    return false;
+}
+
+if(isNaN(Number(input))) {
+    return false;
+}
+
+let check_digit = String(calc_isbn13_check_digit(input));
+return check_digit == input[12];
+""";
+
+
 CREATE TEMP FUNCTION normalised_isbn(input STRING)
 RETURNS STRING
 LANGUAGE js
