@@ -351,7 +351,7 @@ def bq_load_ingestion_partition(end_date: pendulum.Pendulum, transform_blob: str
     partition_table_id = create_date_table_id(partition_table_id, pendulum.today(), partition_type)
     success = load_bigquery_table(uri, dataset_id, data_location, partition_table_id, schema_file_path,
                                   source_format, partition=True, partition_type=partition_type,
-                                  require_partition_filter=False, **load_bigquery_table_kwargs)
+                                  **load_bigquery_table_kwargs)
     if not success:
         raise AirflowException()
 
@@ -387,10 +387,8 @@ def bq_load_partition(project_id: str, transform_bucket: str, transform_blob: st
     # Include date in table id, so data in table is not overwritten
     table_id = create_date_table_id(table_id, release_date, partition_type)
     success = load_bigquery_table(uri, dataset_id, dataset_location, table_id, schema_file_path,
-                                  source_format,
-                                  partition=True, partition_field=partition_field,
-                                  partition_type=partition_type, require_partition_filter=False,
-                                  **load_bigquery_table_kwargs)
+                                  source_format, partition=True, partition_field=partition_field,
+                                  partition_type=partition_type, **load_bigquery_table_kwargs)
     if not success:
         raise AirflowException()
 

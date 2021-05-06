@@ -161,7 +161,7 @@ def load_bigquery_table(
     partition: bool = False,
     partition_field: Union[None, str] = None,
     partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
-    require_partition_filter=True,
+    require_partition_filter=False,
     write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE,
     table_description: str = "",
     project_id: str = None,

@@ -370,7 +370,7 @@ class TestTemplateUtils(unittest.TestCase):
                     'data_location', date_table_id, 'schema.json',
                     telescope.source_format,
                     partition=True, partition_type=bigquery.table.TimePartitioningType.DAY,
-                    require_partition_filter=False, table_description=table_description)
+                    table_description=table_description)
 
                 mock_load_bigquery_table.return_value = False
                 with self.assertRaises(AirflowException):
@@ -418,7 +418,7 @@ class TestTemplateUtils(unittest.TestCase):
                     telescope.source_format,
                     partition=True, partition_field=partition_field,
                     partition_type=bigquery.table.TimePartitioningType.MONTH,
-                    require_partition_filter=False, table_description=table_description)
+                    table_description=table_description)
 
                 mock_load_bigquery_table.return_value = False
                 with self.assertRaises(AirflowException):
