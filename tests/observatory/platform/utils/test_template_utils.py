@@ -18,6 +18,7 @@ import os
 import unittest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
+import pendulum
 
 from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.exceptions import AirflowException
@@ -354,17 +355,19 @@ class TestTemplateUtils(unittest.TestCase):
                 table_description = telescope.table_descriptions.get(main_table_id, '')
                 bq_load_ingestion_partition(release.end_date, transform_blob, telescope.dataset_id, main_table_id,
                                             partition_table_id, telescope.source_format, telescope.schema_prefix,
-                                            telescope.schema_version,
-                                            telescope.dataset_description, table_description=table_description,
+                                            telescope.schema_version, telescope.dataset_description,
+                                            table_description=table_description,
                                             **telescope.load_bigquery_table_kwargs)
 
                 mock_prepare_bq_load.assert_called_once_with(telescope.dataset_id, main_table_id, release.end_date,
                                                              telescope.schema_prefix, telescope.schema_version,
                                                              telescope.dataset_description)
+                date_table_id = create_date_table_id(partition_table_id, pendulum.today(),
+                                                     bigquery.TimePartitioningType.DAY)
                 mock_load_bigquery_table.assert_called_once_with(
                     'gs://bucket_name/telescopes/dag_id/2021_02_01-2021_03_01/file.txt',
                     telescope.dataset_id,
-                    'data_location', 'file_partitions$20210429', 'schema.json',
+                    'data_location', date_table_id, 'schema.json',
                     telescope.source_format,
                     partition=True, partition_type=bigquery.table.TimePartitioningType.DAY,
                     require_partition_filter=False, table_description=table_description)
@@ -445,9 +448,9 @@ class TestTemplateUtils(unittest.TestCase):
                               telescope.merge_partition_field, telescope.updated_date_field)
 
                 expected_query = "\n\nMERGE\n" \
-                                 "  {dataset_id}.{main_table} M\n" \
+                                 "  `{dataset_id}.{main_table}` M\n" \
                                  "USING\n" \
-                                 "  (SELECT {merge_partition_field} AS id, {updated_date_field} AS date FROM {dataset_id}.{partition_table} WHERE _PARTITIONDATE >= '{start_date}' AND _PARTITIONDATE < '{end_date}') P\n" \
+                                 "  (SELECT {merge_partition_field} AS id, {updated_date_field} AS date FROM `{dataset_id}.{partition_table}` WHERE _PARTITIONDATE >= '{start_date}' AND _PARTITIONDATE < '{end_date}') P\n" \
                                  "ON\n" \
                                  "  M.{merge_partition_field} = P.id\n" \
                                  "WHEN MATCHED AND M.{updated_date_field} <= P.date OR M.{updated_date_field} is null THEN\n" \
