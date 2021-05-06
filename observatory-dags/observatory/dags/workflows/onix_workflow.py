@@ -492,9 +492,6 @@ class OnixWorkflow(Telescope):
             orig_table_suffix = table_date.strftime("%Y%m%d")
             dst_table_suffix = release_date.strftime("%Y%m%d")
 
-            # Load the ISBN utils
-            isbn_utils_sql = self.get_isbn_utils_sql_string()
-
             sql = render_template(
                 template_path,
                 project_id=orig_project_id,
@@ -505,8 +502,6 @@ class OnixWorkflow(Telescope):
                 wid_table=release.worksid_table + dst_table_suffix,
                 wfam_table=release.workfamilyid_table + dst_table_suffix,
             )
-
-            sql = isbn_utils_sql + sql
 
             create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
 

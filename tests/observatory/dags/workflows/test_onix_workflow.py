@@ -725,7 +725,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(call_args["location"], "us")
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "a37ea9dcd3c47ac07bab3002079e579d"
+            expected_hash = "1dabe0b435be583fdbae6ad4421f579b"
             self.assertEqual(sql_hash, expected_hash)
 
             oaebu_task2(releases)
@@ -742,7 +742,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "467e8e917276d042eef8b132083e1e87"
+            expected_hash = "200d285a02bdc14b3229874f50d8a30d"
             self.assertEqual(sql_hash, expected_hash)
 
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
@@ -1085,11 +1085,10 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
-            sql = f"SELECT ISBN, work_id, work_family_id, normalised_isbn from {self.gcp_project_id}.oaebu_intermediate.jstor_country_matched{release_suffix}"
+            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.oaebu_intermediate.jstor_country_matched{release_suffix}"
             records = run_bigquery_query(sql)
             oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
             oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
-            oaebu_normalised_isbn = {record["ISBN"]: record["normalised_isbn"] for record in records}
 
             self.assertTrue(
                 oaebu_works["111"] == oaebu_works["112"]
@@ -1101,14 +1100,6 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 oaebu_wfam["111"] == oaebu_wfam["112"]
                 and oaebu_wfam["112"] == oaebu_wfam["211"]
                 and oaebu_wfam["113"] is None
-            )
-
-            self.assertTrue(
-                oaebu_normalised_isbn["9781111111113"] == "9781111111113"
-                and oaebu_normalised_isbn["111"] is None
-                and oaebu_normalised_isbn["112"] is None
-                and oaebu_normalised_isbn["113"] is None
-                and oaebu_normalised_isbn["211"] is None
             )
 
             # Check invalid ISBN13s picked up in ONIX

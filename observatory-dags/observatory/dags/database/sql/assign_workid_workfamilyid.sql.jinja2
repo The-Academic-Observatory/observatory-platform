@@ -17,7 +17,7 @@
 
 WITH orig_wid AS (
 SELECT
-    orig.*, normalised_isbn(orig.{{ orig_isbn }}) AS normalised_isbn, wid.work_id
+    orig.*, wid.work_id
 FROM
     `{{ project_id }}.{{ orig_dataset }}.{{ orig_table }}` orig
 LEFT JOIN
