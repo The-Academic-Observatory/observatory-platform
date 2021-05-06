@@ -18,6 +18,7 @@
 A DAG that produces the dois table and aggregated tables for the dashboards.
 
 Each release is saved to the following BigQuery tables:
+    <project_id>.observatory.bookYYYYMMDD
     <project_id>.observatory.countryYYYYMMDD
     <project_id>.observatory.doiYYYYMMDD
     <project_id>.observatory.funderYYYYMMDD
@@ -29,6 +30,7 @@ Each release is saved to the following BigQuery tables:
     <project_id>.observatory.subregionYYYYMMDD
 
 Every week the following tables are overwritten for visualisation in the Data Studio dashboards:
+    <project_id>.coki_dashboards.book
     <project_id>.coki_dashboards.country
     <project_id>.coki_dashboards.doi
     <project_id>.coki_dashboards.funder
@@ -170,59 +172,75 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         python_callable=DoiWorkflow.create_doi
     )
 
+    # Create Books snapshot
+    task_create_book = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_CREATE_BOOK,
+        provide_context=True,
+        python_callable=DoiWorkflow.create_book
+    )
+
     # Create aggregation tables
     task_create_country = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
         provide_context=True,
-        python_callable=DoiWorkflow.create_country
+        op_kwargs=DoiWorkflow.AGGREGATIONS_COUNTRY,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_funder = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_FUNDER,
         provide_context=True,
-        python_callable=DoiWorkflow.create_funder
+        op_kwargs=DoiWorkflow.AGGREGATIONS_FUNDER,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_group = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_GROUP,
         provide_context=True,
-        python_callable=DoiWorkflow.create_group
+        op_kwargs=DoiWorkflow.AGGREGATIONS_GROUP,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_institution = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_INSTITUTION,
         provide_context=True,
-        python_callable=DoiWorkflow.create_institution
+        op_kwargs=DoiWorkflow.AGGREGATIONS_INSTITUTION,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_author = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_AUTHOR,
         provide_context=True,
-        python_callable=DoiWorkflow.create_author
+        op_kwargs=DoiWorkflow.AGGREGATIONS_AUTHOR,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_journal = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_JOURNAL,
         provide_context=True,
-        python_callable=DoiWorkflow.create_journal
+        op_kwargs=DoiWorkflow.AGGREGATIONS_JOURNAL,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_publisher = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_PUBLISHER,
         provide_context=True,
-        python_callable=DoiWorkflow.create_publisher
+        op_kwargs=DoiWorkflow.AGGREGATIONS_PUBLISHER,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_region = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_REGION,
         provide_context=True,
-        python_callable=DoiWorkflow.create_region
+        op_kwargs=DoiWorkflow.AGGREGATIONS_REGION,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_create_subregion = PythonOperator(
         task_id=DoiWorkflow.TASK_ID_CREATE_SUBREGION,
         provide_context=True,
-        python_callable=DoiWorkflow.create_subregion
+        op_kwargs=DoiWorkflow.AGGREGATIONS_SUBREGION,
+        python_callable=DoiWorkflow.create_aggregation
     )
 
     task_copy_tables = PythonOperator(
@@ -237,6 +255,70 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
         python_callable=DoiWorkflow.create_views
     )
 
+    # Export aggregation tables
+    task_export_country = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_COUNTRY,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_COUNTRY,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_funder = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_FUNDER,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_FUNDER,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_group = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_GROUP,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_GROUP,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_institution = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_INSTITUTION,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_INSTITUTION,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_author = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_AUTHOR,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_AUTHOR,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_journal = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_JOURNAL,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_JOURNAL,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_publisher = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_PUBLISHER,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_PUBLISHER,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_region = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_REGION,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_REGION,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
+    task_export_subregion = PythonOperator(
+        task_id=DoiWorkflow.TASK_ID_EXPORT_SUBREGION,
+        provide_context=True,
+        op_kwargs=DoiWorkflow.AGGREGATIONS_SUBREGION,
+        python_callable=DoiWorkflow.export_aggregation
+    )
+
     # Sensors
     sensors = [crossref_metadata_sensor, fundref_sensor, geonames_sensor, grid_sensor, mag_sensor,
                open_citations_sensor,
@@ -249,7 +331,13 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
     sensors >> task_create_datasets >> tasks_preprocessing >> task_create_doi
 
     # After task_create_doi runs all of the post-processing tasks run
-    tasks_postprocessing = [task_create_country, task_create_funder, task_create_group, task_create_institution,
+    tasks_postprocessing = [task_create_book, task_create_country, task_create_funder, task_create_group, task_create_institution,
                             task_create_author,  task_create_journal, task_create_publisher, task_create_region, 
                             task_create_subregion]
-    task_create_doi >> tasks_postprocessing >> task_copy_tables >> task_create_views
+
+    # Preparing Data for Elasticsearch Export
+    tasks_bigquery_exporting = [task_export_country, task_export_funder, task_export_group, task_export_institution,
+                                task_export_author, task_export_journal, task_export_publisher, task_export_region,
+                                task_export_subregion]
+
+    task_create_doi >> tasks_postprocessing >> task_copy_tables >> task_create_views >> tasks_bigquery_exporting

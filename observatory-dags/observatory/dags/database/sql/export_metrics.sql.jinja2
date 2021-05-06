@@ -1,0 +1,38 @@
+{#
+Copyright 2020 Curtin University.
+Authors: James Diprose, Richard Hosking
+#}
+
+SELECT
+  id as {{ aggregate }}_id,
+  name as {{ aggregate }}_name,
+  country as {{ aggregate }}_country,
+  country_code as {{ aggregate }}_country_code,
+  region as {{ aggregate }}_region,
+  subregion as {{ aggregate }}_subregion,
+  coordinates as {{ aggregate }}_coordinates,
+  DATE(time_period, 12, 31) AS published_year,
+  total_outputs as metrics_total_outputs,
+  access_types.oa.total_outputs as metrics_num_oa_outputs,
+  total_outputs - access_types.oa.total_outputs AS metrics_num_not_oa_outputs,
+  access_types.green.total_outputs as metrics_num_green_outputs,
+  access_types.gold.total_outputs as metrics_num_gold_outputs,
+  access_types.hybrid.total_outputs as metrics_num_hybrid_outputs,
+  access_types.bronze.total_outputs as metrics_num_bronze_outputs,
+  access_types.green_only.total_outputs as metrics_num_green_only_outputs,
+  access_types.gold_doaj.total_outputs as metrics_num_gold_doaj_outputs,
+  access_types.oa.percent AS metrics_percent_oa,
+  access_types.green.percent as metrics_percent_green,
+  access_types.green_only.percent as metrics_green_only,
+  access_types.gold.percent as metrics_percent_gold,
+  access_types.gold_doaj.percent as metrics_percent_gold_doaj,
+  access_types.hybrid.percent as metrics_percent_hybrid,
+  access_types.bronze.percent as metrics_percent_bronze,
+  citations.mag.total_citations as metrics_total_citations,
+  citations.mag.citations_per_output as metrics_citations_per_output,
+  citations.mag.outputs_with_citations as metrics_outputs_with_citations,
+  citations.mag.outputs_without_citations as metrics_outputs_without_citations,
+  citations.mag.citations_per_cited_output as metrics_citations_per_cited_output
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}{{ release_date.strftime('%Y%m%d') }}`
+ORDER BY id, published_year ASC
