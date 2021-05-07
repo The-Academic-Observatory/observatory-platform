@@ -113,6 +113,7 @@ class OnixWorkflowRelease(AbstractRelease):
         # OAEBU intermediate tables
         self.oaebu_intermediate_dataset = "oaebu_intermediate"
         self.oaebu_data_qa_dataset = "oaebu_data_qa"
+        self.oaebu_intermediate_match_suffix = "_matched"
 
     @property
     def transform_bucket(self) -> str:
@@ -481,7 +482,7 @@ class OnixWorkflow(Telescope):
                     end_date=release.release_date,
                 )[0]
 
-            output_table = orig_table + "_matched"
+            output_table = orig_table + release.oaebu_intermediate_match_suffix
             output_dataset = release.oaebu_intermediate_dataset
 
             data_location = release.dataset_location
@@ -555,7 +556,7 @@ class OnixWorkflow(Telescope):
             # elif data_partner.name == "Google Books":
             #     self.create_oaebu_data_qa_google_books_tasks(data_partner)
 
-        # self.add_task(self.create_oaebu_data_qa_intermediate)
+            self.create_oaebu_data_qa_intermediate_tasks(data_partner)
 
     def create_oaebu_data_qa_onix(self, *args, **kwargs):
         """Create ONIX quality assurance metrics."""
@@ -785,8 +786,83 @@ class OnixWorkflow(Telescope):
     #     """
     #     pass
 
-    # def create_oaebu_data_qa_intermediate(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
-    #     """Create quality assurance metrics for the OAEBU intermediate tables.
-    #     :param oaebu_data: List of oaebu partner data.
-    #     """
-    #     pass
+    def create_oaebu_data_qa_intermediate_tasks(self, data_partner: OaebuPartners):
+        """Create tasks for generating oaebu intermediate metrics for each OAEBU data partner.
+        :param oaebu_data: List of oaebu partner data.
+        """
+
+        # Record unmatched work_id. This is indicative of invalid ISBN or missing ONIX product records.
+
+        fn = partial(
+            self.create_oaebu_data_qa_intermediate_unmatched_workid,
+            project_id=data_partner.gcp_project_id,
+            orig_table=data_partner.gcp_table_id,
+            orig_isbn=data_partner.isbn_field_name,
+        )
+
+        # Populate the __name__ attribute of the partial object (it lacks one by default).
+        # Scheme: create_oaebu_intermediate_table.dataset.table
+        update_wrapper(fn, self.create_oaebu_data_qa_intermediate_unmatched_workid)
+        fn.__name__ += f".{data_partner.gcp_dataset_id}.{data_partner.gcp_table_id}"
+
+        self.add_task(fn)
+
+        # Other tasks
+
+    def create_oaebu_data_qa_intermediate_unmatched_workid(
+        self,
+        releases: List[OnixWorkflowRelease],
+        project_id: str,
+        orig_table: str,
+        orig_isbn: str,
+        *args,
+        **kwargs,
+    ):
+        """Create quality assurance metrics for the OAEBU intermediate tables.
+        :param oaebu_data: List of oaebu partner data.
+        """
+
+        template_file = "oaebu_intermediate_metrics.sql.jinja2"
+        template_path = os.path.join(workflow_sql_templates_path(), template_file)
+
+        for release in releases:
+            intermediate_table = orig_table + release.oaebu_intermediate_match_suffix
+            release_date = select_table_suffixes(
+                project_id=project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                table_id=intermediate_table,
+                end_date=release.release_date,
+            )[0]
+
+            intermediate_table_id = intermediate_table + release_date.strftime("%Y%m%d")
+
+            output_dataset = release.oaebu_data_qa_dataset
+            output_table = f"{orig_table}_unmatched_{orig_isbn}"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+
+            sql = render_template(
+                template_path,
+                project_id=project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                table_id=intermediate_table_id,
+                isbn=orig_isbn,
+            )
+
+            create_bigquery_dataset(
+                project_id=release.project_id,
+                dataset_id=release.oaebu_data_qa_dataset,
+                location=release.dataset_location,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_data_qa_dataset,
+                table_id=output_table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{output_table_id}"
+                )
