@@ -14,7 +14,6 @@
 
 # Author: Aniek Roelofs
 
-import json
 import os
 from datetime import timedelta
 from unittest.mock import patch
@@ -23,8 +22,7 @@ import pendulum
 import vcr
 from airflow.exceptions import AirflowException
 from click.testing import CliRunner
-from observatory.dags.telescopes.crossref_events import CrossrefEventsRelease, CrossrefEventsTelescope, \
-    download_events_batch, extract_events
+from observatory.dags.telescopes.crossref_events import CrossrefEventsRelease, CrossrefEventsTelescope, download_events
 from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path, \
     test_fixtures_path
@@ -57,7 +55,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
         self.start_date = pendulum.Pendulum(2020, 1, 1)
         self.end_date = pendulum.Pendulum(2020, 2, 1)
         self.release = CrossrefEventsRelease(CrossrefEventsTelescope.DAG_ID, self.start_date, self.end_date,
-                                             first_release=False)
+                                             False, 'mailto', 'parallel', 21)
 
     def test_dag_structure(self):
         """ Test that the Crossref Events DAG has the correct structure.
@@ -97,7 +95,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
 
         # Setup Telescope
         telescope = CrossrefEventsTelescope(dataset_id=dataset_id)
-        CrossrefEventsTelescope.DOWNLOAD_MODE = 'sequential'
+        telescope.download_mode = 'sequential'
         dag = telescope.make_dag()
 
         # Create the Observatory environment and run tests
@@ -117,7 +115,8 @@ class TestCrossrefEvents(ObservatoryTestCase):
                 self.assertTrue(first_release)
 
                 # use release info for other tasks
-                release = CrossrefEventsRelease(telescope.dag_id, start_date, end_date, first_release)
+                release = CrossrefEventsRelease(telescope.dag_id, start_date, end_date, first_release,
+                                                telescope.mailto, telescope.download_mode, telescope.max_processes)
 
                 # Test download task
                 with vcr.use_cassette(self.first_cassette):
@@ -178,7 +177,8 @@ class TestCrossrefEvents(ObservatoryTestCase):
                 self.assertFalse(first_release)
 
                 # use release info for other tasks
-                release = CrossrefEventsRelease(telescope.dag_id, start_date, end_date, first_release)
+                release = CrossrefEventsRelease(telescope.dag_id, start_date, end_date, first_release,
+                                                telescope.mailto, telescope.download_mode, telescope.max_processes)
 
                 # Test download task
                 with vcr.use_cassette(self.second_cassette):
@@ -233,32 +233,32 @@ class TestCrossrefEvents(ObservatoryTestCase):
         :return: None.
         """
         # Test different download modes
-        CrossrefEventsTelescope.MAX_PROCESSES = 2
-        CrossrefEventsTelescope.DOWNLOAD_MODE = 'sequential'
+        self.release.max_processes = 2
+        self.release.download_mode = 'sequential'
         batches = self.release.batch_dates
         self.assertEqual(self.start_date.strftime("%Y-%m-%d"), batches[0][0])
         self.assertEqual(self.end_date.strftime("%Y-%m-%d"), batches[-1][1])
         self.assertListEqual([('2020-01-01', '2020-02-01')], batches)
 
-        CrossrefEventsTelescope.DOWNLOAD_MODE = 'error'
+        self.release.download_mode = 'error'
         with self.assertRaises(AirflowException):
             batches = self.release.batch_dates
 
         # Test different number of max processes with parallel download mode
-        CrossrefEventsTelescope.DOWNLOAD_MODE = 'parallel'
-        CrossrefEventsTelescope.MAX_PROCESSES = 1
+        self.release.download_mode = 'parallel'
+        self.release.max_processes = 1
         batches = self.release.batch_dates
         self.assertEqual(self.start_date.strftime("%Y-%m-%d"), batches[0][0])
         self.assertEqual(self.end_date.strftime("%Y-%m-%d"), batches[-1][1])
         self.assertListEqual([('2020-01-01', '2020-02-01')], batches)
 
-        CrossrefEventsTelescope.MAX_PROCESSES = 2
+        self.release.max_processes = 2
         batches = self.release.batch_dates
         self.assertEqual(self.start_date.strftime("%Y-%m-%d"), batches[0][0])
         self.assertEqual(self.end_date.strftime("%Y-%m-%d"), batches[-1][1])
         self.assertListEqual([('2020-01-01', '2020-01-16'), ('2020-01-17', '2020-02-01')], batches)
 
-        CrossrefEventsTelescope.MAX_PROCESSES = 8
+        self.release.max_processes = 8
         batches = self.release.batch_dates
         self.assertEqual(self.start_date.strftime("%Y-%m-%d"), batches[0][0])
         self.assertEqual(self.end_date.strftime("%Y-%m-%d"), batches[-1][1])
@@ -279,14 +279,13 @@ class TestCrossrefEvents(ObservatoryTestCase):
                       'mailto={mail_to}&from-updated-date={start_date}' \
                       '&until-updated-date={end_date}&rows=1000'
 
-        CrossrefEventsTelescope.DOWNLOAD_MODE = 'parallel'
+        self.release.download_mode = 'parallel'
         self.release.first_release = True
         urls = self.release.urls
         for i, url_batch in enumerate(urls):
             start_date = self.release.batch_dates[i][0]
             end_date = self.release.batch_dates[i][1]
-            expected_list = [events_url.format(mail_to=CrossrefEventsTelescope.MAILTO, start_date=start_date,
-                                               end_date=end_date)]
+            expected_list = [events_url.format(mail_to=self.release.mailto, start_date=start_date, end_date=end_date)]
             self.assertEqual(expected_list, url_batch)
 
         self.release.first_release = False
@@ -294,23 +293,20 @@ class TestCrossrefEvents(ObservatoryTestCase):
         for i, url_batch in enumerate(urls):
             start_date = self.release.batch_dates[i][0]
             end_date = self.release.batch_dates[i][1]
-            expected_list = [events_url.format(mail_to=CrossrefEventsTelescope.MAILTO, start_date=start_date,
-                                               end_date=end_date),
-                             edited_url.format(mail_to=CrossrefEventsTelescope.MAILTO, start_date=start_date,
-                                               end_date=end_date),
-                             deleted_url.format(mail_to=CrossrefEventsTelescope.MAILTO, start_date=start_date,
-                                                end_date=end_date)]
+            expected_list = [events_url.format(mail_to=self.release.mailto, start_date=start_date, end_date=end_date),
+                             edited_url.format(mail_to=self.release.mailto, start_date=start_date, end_date=end_date),
+                             deleted_url.format(mail_to=self.release.mailto, start_date=start_date, end_date=end_date)]
             self.assertEqual(expected_list, url_batch)
 
-    @patch('observatory.dags.telescopes.crossref_events.download_events_batch')
+    @patch.object(CrossrefEventsRelease, 'download_events_batch')
     @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
     def test_download(self, mock_variable_get, mock_download_batch):
         """ Test the download method of the release
         :return: None.
         """
         mock_variable_get.return_value = "data"
-        CrossrefEventsTelescope.DOWNLOAD_MODE = 'parallel'
-        no_workers = min(CrossrefEventsTelescope.MAX_PROCESSES, len(self.release.urls))
+        self.release.download_mode = 'parallel'
+        no_workers = min(self.release.max_processes, len(self.release.urls))
 
         with CliRunner().isolated_filesystem():
             events_path = 'events.json'
@@ -354,22 +350,22 @@ class TestCrossrefEvents(ObservatoryTestCase):
             # Test unsuccesful status code
             mock_retry_session().get.return_value.status_code = 400
             with self.assertRaises(ConnectionError):
-                extract_events('url', events_path)
+                download_events('url', events_path)
 
             # Test retry error
             mock_retry_session.side_effect = RetryError()
-            success, next_cursor, total_events = extract_events('url', events_path)
+            success, next_cursor, total_events = download_events('url', events_path)
             self.assertFalse(success)
             self.assertIsNone(next_cursor)
             self.assertIsNone(total_events)
 
-    @patch('observatory.dags.telescopes.crossref_events.extract_events')
+    @patch('observatory.dags.telescopes.crossref_events.download_events')
     @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
-    def test_download_events_batch(self, mock_variable_get, mock_extract_events):
+    def test_download_events_batch(self, mock_variable_get, mock_download_events):
         """ Test download_events_batch function
         :return: None.
         """
-        mock_variable_get.return_value = "data"
+        mock_variable_get.return_value = os.path.join(os.getcwd(), "data")
         self.release.first_release = True
         batch_number = 0
         url = self.release.urls[batch_number][0]
@@ -379,33 +375,33 @@ class TestCrossrefEvents(ObservatoryTestCase):
 
             # Test with existing cursor path
             with open(cursor_path, 'w') as f:
-                json.dump('cursor', f)
-            mock_extract_events.return_value = (True, None, 10)
-            results = download_events_batch(self.release, batch_number)
+                f.write('cursor')
+            mock_download_events.return_value = (True, None, 10)
+            results = self.release.download_events_batch(batch_number)
             self.assertEqual([(events_path, True)], results)
             self.assertFalse(os.path.exists(cursor_path))
-            mock_extract_events.assert_called_once_with(url, events_path, 'cursor')
+            mock_download_events.assert_called_once_with(url, events_path, 'cursor')
 
             # Test with no existing previous files
-            mock_extract_events.reset_mock()
-            mock_extract_events.return_value = (True, None, 10)
-            results = download_events_batch(self.release, batch_number)
+            mock_download_events.reset_mock()
+            mock_download_events.return_value = (True, None, 10)
+            results = self.release.download_events_batch(batch_number)
             self.assertEqual([(events_path, True)], results)
-            mock_extract_events.assert_called_once_with(url, events_path)
+            mock_download_events.assert_called_once_with(url, events_path)
 
             # Test with events path from previous successful attempt
-            mock_extract_events.reset_mock()
+            mock_download_events.reset_mock()
             with open(events_path, 'w') as f:
                 f.write('events')
-            results = download_events_batch(self.release, batch_number)
+            results = self.release.download_events_batch(batch_number)
             self.assertEqual([(events_path, True)], results)
-            mock_extract_events.assert_not_called()
+            mock_download_events.assert_not_called()
             os.remove(events_path)
 
-            # Test unsuccesful extract_events
-            mock_extract_events.reset_mock()
-            mock_extract_events.return_value = (False, 'next_cursor', None)
-            results = download_events_batch(self.release, batch_number)
-            expected_hash = 'aa316de4950885c4bc3619f33b4bb4a4'
+            # Test unsuccesful download_events
+            mock_download_events.reset_mock()
+            mock_download_events.return_value = (False, 'next_cursor', None)
+            results = self.release.download_events_batch(batch_number)
+            expected_hash = 'be9a53c4476102bd3576ba96c20542c9'
             self.assertEqual([(events_path, False)], results)
             self.assert_file_integrity(cursor_path, expected_hash, 'md5')

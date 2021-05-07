@@ -32,23 +32,30 @@ from observatory.platform.telescopes.stream_telescope import (StreamRelease, Str
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.telescope_utils import convert, list_to_jsonl_gz
 from observatory.platform.utils.template_utils import upload_files_from_list
-from observatory.platform.utils.url_utils import retry_session
+from observatory.platform.utils.url_utils import retry_session, get_ao_user_agent
 from requests.exceptions import RetryError
 
 
 class CrossrefEventsRelease(StreamRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
+    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool,
+                 mailto: str, download_mode: str, max_processes: int):
         """ Construct a CrossrefEventsRelease instance
 
         :param dag_id: the id of the DAG.
         :param start_date: the start_date of the release.
         :param end_date: the end_date of the release.
         :param first_release: whether this is the first release that is processed for this DAG
+        :param mailto: Email address used in the download url
+        :param download_mode: Whether the events are downloaded in parallel, valid options: 'sequential' and 'parallel'
+        :param max_processes: Max processes used for parallel downloading, default is based on 7 days x 3 url categories
         """
         download_files_regex = r'crossref_events.json'
         transform_files_regex = r'crossref_events.jsonl.gz'
         super().__init__(dag_id, start_date, end_date, first_release, download_files_regex=download_files_regex,
                          transform_files_regex=transform_files_regex)
+        self.mailto = mailto
+        self.download_mode = download_mode
+        self.max_processes = max_processes
 
     @property
     def download_path(self) -> str:
@@ -67,30 +74,29 @@ class CrossrefEventsRelease(StreamRelease):
         :return: List of batches, where each batch is a tuple of (start_date, end_date). Both dates are strings in
         format YYYY-MM-DD
         """
-        if CrossrefEventsTelescope.DOWNLOAD_MODE == 'sequential':
+        if self.download_mode == 'sequential':
             return [(self.start_date.strftime("%Y-%m-%d"), self.end_date.strftime("%Y-%m-%d"))]
-        elif CrossrefEventsTelescope.DOWNLOAD_MODE == 'parallel':
+        elif self.download_mode == 'parallel':
             pass
         else:
             raise AirflowException(f'Download mode has to be either "sequential" or "parallel", '
-                                   f'not "{CrossrefEventsTelescope.DOWNLOAD_MODE}"')
+                                   f'not "{self.download_mode}"')
 
         start_date = self.start_date.date()
         end_date = self.end_date.date()
-        max_processes = CrossrefEventsTelescope.MAX_PROCESSES
 
         # number of days between start and end, add 1, because end date is included
         total_no_days = (end_date - start_date).days + 1
 
         # number of days in each batch, rounded to nearest integer, minimal is 1
-        batch_no_days = max(1, round(total_no_days / max_processes))
+        batch_no_days = max(1, round(total_no_days / self.max_processes))
 
         batches = []
         period = pendulum.period(start_date, end_date)
         for i, dt in enumerate(period.range('days', batch_no_days)):
             batch_start_date = dt.strftime("%Y-%m-%d")
             # if final batch or end date is reached before end of period, use end date of release instead
-            if i == (max_processes - 1) or dt == end_date:
+            if i == (self.max_processes - 1) or dt == end_date:
                 batch_end_date = end_date.strftime("%Y-%m-%d")
                 batches.append((batch_start_date, batch_end_date))
                 break
@@ -103,25 +109,25 @@ class CrossrefEventsRelease(StreamRelease):
         return batches
 
     @property
-    def urls(self):
+    def urls(self) -> list:
         urls = []
         for batch in self.batch_dates:
             start_date = batch[0]
             end_date = batch[1]
 
-            self.events_url = f'https://api.eventdata.crossref.org/v1/events?mailto={CrossrefEventsTelescope.MAILTO}' \
-                              f'&from-collected-date={start_date}&until-collected-date={end_date}&rows=1000'
-            self.edited_url = f'https://api.eventdata.crossref.org/v1/events/edited?' \
-                              f'mailto={CrossrefEventsTelescope.MAILTO}&from-updated-date={start_date}' \
-                              f'&until-updated-date={end_date}&rows=1000'
-            self.deleted_url = f'https://api.eventdata.crossref.org/v1/events/deleted?' \
-                               f'mailto={CrossrefEventsTelescope.MAILTO}&from-updated-date={start_date}' \
-                               f'&until-updated-date={end_date}&rows=1000'
+            events_url = f'https://api.eventdata.crossref.org/v1/events?mailto={self.mailto}' \
+                         f'&from-collected-date={start_date}&until-collected-date={end_date}&rows=1000'
+            edited_url = f'https://api.eventdata.crossref.org/v1/events/edited?' \
+                         f'mailto={self.mailto}&from-updated-date={start_date}' \
+                         f'&until-updated-date={end_date}&rows=1000'
+            deleted_url = f'https://api.eventdata.crossref.org/v1/events/deleted?' \
+                          f'mailto={self.mailto}&from-updated-date={start_date}' \
+                          f'&until-updated-date={end_date}&rows=1000'
 
-            event_type_urls = [self.events_url]
+            event_type_urls = [events_url]
             if not self.first_release:
-                event_type_urls.append(self.edited_url)
-                event_type_urls.append(self.deleted_url)
+                event_type_urls.append(edited_url)
+                event_type_urls.append(deleted_url)
             urls.append(event_type_urls)
         return urls
 
@@ -154,8 +160,8 @@ class CrossrefEventsRelease(StreamRelease):
         """
         all_results = []
 
-        if CrossrefEventsTelescope.DOWNLOAD_MODE == 'parallel':
-            no_workers = CrossrefEventsTelescope.MAX_PROCESSES
+        if self.download_mode == 'parallel':
+            no_workers = self.max_processes
             logging.info(f'Downloading events with parallel method, no. workers: {no_workers}')
 
         else:
@@ -166,7 +172,7 @@ class CrossrefEventsRelease(StreamRelease):
             futures = []
             # select minimum, either no of batches or no of workers
             for i in range(min(no_workers, len(self.urls))):
-                futures.append(executor.submit(download_events_batch, self, i))
+                futures.append(executor.submit(self.download_events_batch, i))
             for future in as_completed(futures):
                 batch_result = future.result()
                 all_results += batch_result
@@ -189,12 +195,54 @@ class CrossrefEventsRelease(StreamRelease):
         # only continue if file is not empty
         return continue_dag
 
+    def download_events_batch(self, i: int) -> list:
+        """ Download one batch (time period) of events.
+
+        :param i: The batch number
+        :return: A list of batch results with a tuple of (events_path, success). These describe the path to the events
+        file and whether the events were extracted successfully
+        """
+        batch_results = []
+        # Extract all new, edited and deleted events
+        for j, url in enumerate(self.urls[i]):
+            logging.info(f"{i + 1}.{j + 1} Downloading from url: {url}")
+            events_path = self.batch_path(url)
+            cursor_path = self.batch_path(url, cursor=True)
+            # check if cursor files exist from a previous failed request
+            if os.path.isfile(cursor_path):
+                # retrieve cursor
+                with open(cursor_path, 'r') as f:
+                    next_cursor = f.read()
+                # delete file
+                pathlib.Path(cursor_path).unlink()
+                # extract events
+                success, next_cursor, total_events = download_events(url, events_path, next_cursor)
+            # if events path exists but no cursor file previous request has finished & successful
+            elif os.path.isfile(events_path):
+                success = True
+                next_cursor = None
+                total_events = 'See previous successful attempt'
+            # first time request
+            else:
+                # extract events
+                success, next_cursor, total_events = download_events(url, events_path)
+
+            if not success:
+                with open(cursor_path, 'w') as f:
+                    f.write(next_cursor)
+            batch_results.append((events_path, success))
+            logging.info(f'{i + 1}.{j + 1} successful: {success}, number of events: {total_events}')
+
+        return batch_results
+
     def transform(self):
-        """ Transforms the crossref events release. The download file contains multiple lists, one for each request,
-            and each list contains multiple events. Each event is transformed so that the field names do not contain
-            '-' and have a valid timestamp at 'occurred_at'. The events are written out individually and separated by a newline.
-            :return: None
-            """
+        """
+        Transforms the crossref events release. The download file contains multiple lists, one for each request,
+        and each list contains multiple events. Each event is transformed so that the field names do not contain '-'
+        and have a valid timestamp at 'occurred_at'. The events are written out individually and separated by a newline.
+
+        :return: None
+        """
         # load and transform events
         events = []
         with open(self.download_path, 'r') as f:
@@ -215,25 +263,26 @@ class CrossrefEventsTelescope(StreamTelescope):
 
     DAG_ID = 'crossref_events'
 
-    MAILTO = 'aniek.roelofs@curtin.edu.au'
-    DOWNLOAD_MODE = 'parallel'  # Valid options: ['sequential', 'parallel']
-    MAX_PROCESSES = 21  # <ax processes based on 7 days x 3 url categories
-
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2018, 5, 14),
                  schedule_interval: str = '@weekly', dataset_id: str = 'crossref',
                  dataset_description: str = 'The Crossref Events dataset: https://www.eventdata.crossref.org/guide/',
                  merge_partition_field: str = 'id', updated_date_field: str = 'timestamp',
-                 bq_merge_days: int = 7, airflow_vars: List = None):
+                 bq_merge_days: int = 7, airflow_vars: List = None, mailto: str = 'aniek.roelofs@curtin.edu.au',
+                 download_mode: str = 'parallel', max_processes: int = 21):
         """ Construct a CrossrefEventsTelescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the dataset id.
+        :param dataset_description: the dataset description.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param updated_date_field: the BigQuery field used to determine newest entry for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
+        :param mailto: Email address used in the download url
+        :param download_mode: Whether the events are downloaded in parallel, valid options: 'sequential' and 'parallel'
+        :param max_processes: Max processes used for parallel downloading, default is based on 7 days x 3 url categories
         """
 
         if airflow_vars is None:
@@ -242,6 +291,9 @@ class CrossrefEventsTelescope(StreamTelescope):
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
                          updated_date_field, bq_merge_days, dataset_description=dataset_description,
                          airflow_vars=airflow_vars)
+        self.mailto = mailto
+        self.download_mode = download_mode
+        self.max_processes = max_processes
 
         self.add_setup_task_chain([self.check_dependencies,
                                    self.get_release_info])
@@ -260,7 +312,8 @@ class CrossrefEventsTelescope(StreamTelescope):
         start_date, end_date, first_release = ti.xcom_pull(key=CrossrefEventsTelescope.RELEASE_INFO,
                                                            include_prior_dates=True)
 
-        release = CrossrefEventsRelease(self.dag_id, start_date, end_date, first_release)
+        release = CrossrefEventsRelease(self.dag_id, start_date, end_date, first_release, self.mailto,
+                                        self.download_mode, self.max_processes)
         return release
 
     def download(self, release: CrossrefEventsRelease, **kwargs):
@@ -291,7 +344,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         release.transform()
 
 
-def extract_events(url: str, events_path: str, next_cursor: str = None, success: bool = True) -> \
+def download_events(url: str, events_path: str, next_cursor: str = None, success: bool = True) -> \
         Tuple[bool, Union[str, None], Union[int, None]]:
     """
     Extract the events from the given url until no new cursor is returned or a RetryError occurs. The extracted events
@@ -304,13 +357,12 @@ def extract_events(url: str, events_path: str, next_cursor: str = None, success:
     :return: success, next_cursor and number of total events
     """
     headers = {
-        'User-Agent': 'Observatory Platform (+https://github.com/The-Academic-Observatory/observatory-platform; '
-                      f'mailto:{CrossrefEventsTelescope.MAILTO})'
+        'User-Agent': get_ao_user_agent()
     }
     tmp_url = url + f'&cursor={next_cursor}' if next_cursor else url
     try:
-        response = retry_session(num_retries=15, backoff_factor=0.5, status_forcelist=(500, 400)).get(tmp_url,
-                                                                                                      headers=headers)
+        response = retry_session(num_retries=15, backoff_factor=0.5,
+                                 status_forcelist=(500, 400)).get(tmp_url, headers=headers)
     except RetryError:
         return False, next_cursor, None
     if response.status_code == 200:
@@ -322,54 +374,12 @@ def extract_events(url: str, events_path: str, next_cursor: str = None, success:
         with open(events_path, 'a') as f:
             f.write(json.dumps(events) + '\n')
         if next_cursor:
-            success, next_cursor, total_events = extract_events(url, events_path, next_cursor, success)
+            success, next_cursor, total_events = download_events(url, events_path, next_cursor, success)
             return success, next_cursor, total_events
         else:
             return True, None, total_events
     else:
         raise ConnectionError(f"Error requesting url: {tmp_url}, response: {response.text}")
-
-
-def download_events_batch(release: CrossrefEventsRelease, i: int) -> list:
-    """ Download one batch (time period) of events.
-
-    :param release: The crossref events release
-    :param i: The batch number
-    :return: A list of batch results with a tuple of (events_path, success). These describe the path to the events
-    file and whether the events were extracted successfully
-    """
-    batch_results = []
-    # Extract all new, edited and deleted events
-    for j, url in enumerate(release.urls[i]):
-        logging.info(f"{i + 1}.{j + 1} Downloading from url: {url}")
-        events_path = release.batch_path(url)
-        cursor_path = release.batch_path(url, cursor=True)
-        # check if cursor files exist from a previous failed request
-        if os.path.isfile(cursor_path):
-            # retrieve cursor
-            with open(cursor_path, 'r') as f:
-                next_cursor = json.load(f)
-            # delete file
-            pathlib.Path(cursor_path).unlink()
-            # extract events
-            success, next_cursor, total_events = extract_events(url, events_path, next_cursor)
-        # if events path exists but no cursor file previous request has finished & successful
-        elif os.path.isfile(events_path):
-            success = True
-            next_cursor = None
-            total_events = 'See previous successful attempt'
-        # first time request
-        else:
-            # extract events
-            success, next_cursor, total_events = extract_events(url, events_path)
-
-        if not success:
-            with open(cursor_path, 'w') as f:
-                json.dump(next_cursor, f)
-        batch_results.append((events_path, success))
-        logging.info(f'{i + 1}.{j + 1} successful: {success}, number of events: {total_events}')
-
-    return batch_results
 
 
 def change_keys(obj, convert):
