@@ -36,6 +36,10 @@ function calc_isbn13_check_digit(isbn13) {
     return (10-(check_digit % 10)) % 10;
 }
 
+if(input == null) {
+    return false;
+}
+
 if(input.length != 13) {
     return false;
 }
@@ -127,6 +131,10 @@ function convert_isbn10_to_isbn13(isbn10) {
 function strip_isbn_string(isbn) {
     var regexp = /[^0-9X]/gi;
     return isbn.replace(regexp, "");
+}
+
+if(input == null) {
+    return null;
 }
 
 // Check if valid ISBN10 or ISBN13

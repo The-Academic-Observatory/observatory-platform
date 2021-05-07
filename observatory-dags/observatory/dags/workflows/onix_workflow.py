@@ -550,10 +550,10 @@ class OnixWorkflow(Telescope):
         for data_partner in data_partners:
             if data_partner.name == "JSTOR":
                 self.create_oaebu_data_qa_jstor_tasks(data_partner)
-            elif data_partner.name == "OAPEN IRUS UK":
-                self.create_oaebu_data_qa_oapen_irus_uk_tasks(data_partner)
-            elif data_partner.name == "Google Books":
-                self.create_oaebu_data_qa_google_books_tasks(data_partner)
+            # elif data_partner.name == "OAPEN IRUS UK":
+            #     self.create_oaebu_data_qa_oapen_irus_uk_tasks(data_partner)
+            # elif data_partner.name == "Google Books":
+            #     self.create_oaebu_data_qa_google_books_tasks(data_partner)
 
         # self.add_task(self.create_oaebu_data_qa_intermediate)
 
@@ -619,11 +619,11 @@ class OnixWorkflow(Telescope):
         """
 
         for release in releases:
+            release_date = release.release_date
             project_id = release.project_id
             orig_dataset_id = release.onix_dataset_id
-            orig_table_id = release.onix_table_id + release.release_date.strftime("%Y%m%d")
+            orig_table_id = release.onix_table_id + release_date.strftime("%Y%m%d")
             output_dataset_id = release.oaebu_data_qa_dataset
-            release_date = release.release_date
             output_table = "onix_invalid_isbn"
             output_table_id = bigquery_partitioned_table_id(output_table, release_date)
             dataset_location = release.dataset_location
@@ -696,26 +696,97 @@ class OnixWorkflow(Telescope):
                 f"create_bigquery_table_from_query failed on {project_id}.{output_dataset_id}.{output_table_id}"
             )
 
-    def create_oaebu_data_qa_jstor(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
+    def create_oaebu_data_qa_jstor_tasks(self, data_partner: OaebuPartners):
         """Create JSTOR quality assurance metrics.
-        :param oaebu_data: List of oaebu partner data.
+        :param data_partner: OaebuPartner metadata.
         """
-        pass
 
-    def create_oaebu_data_qa_oapen_irus_uk(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
-        """Create OAPEN IRUS UK quality assurance metrics.
-        :param oaebu_data: List of oaebu partner data.
-        """
-        pass
+        # isbn validation
+        fn = partial(
+            self.create_oaebu_data_qa_jstor_isbn,
+            project_id=data_partner.gcp_project_id,
+            orig_dataset_id=data_partner.gcp_dataset_id,
+            orig_table=data_partner.gcp_table_id,
+            table_date=data_partner.gcp_table_date,
+        )
+        update_wrapper(fn, self.create_oaebu_data_qa_jstor_isbn)
+        self.add_task(fn)
 
-    def create_oaebu_data_qa_google_books(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
-        """Create Google Books quality assurance metrics.
-        :param oaebu_data: List of oaebu partner data.
-        """
-        pass
+    def create_oaebu_data_qa_jstor_isbn(
+        self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        project_id: str,
+        orig_dataset_id: str,
+        orig_table: str,
+        table_date: Union[None, pendulum.Pendulum],
+        **kwargs,
+    ):
+        """Create a BQ table of invalid ISBNs for the JSTOR feed.
+        No attempt is made to normalise the string so we catch as many string issues as we can.
 
-    def create_oaebu_data_qa_intermediate(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
-        """Create quality assurance metrics for the OAEBU intermediate tables.
-        :param oaebu_data: List of oaebu partner data.
+        :param releases: List of workflow release objects.
+        :param project_id: GCP project ID.
+        :param orig_dataset_id: Dataset ID for jstor data.
+        :param orig_table: Table ID for the jstor data.
+        :table_date: Table suffix of jstor release if it exists.
         """
-        pass
+
+        for release in releases:
+            release_date = table_date
+            if release_date is None:
+                release_date = select_table_suffixes(
+                    project_id=project_id,
+                    dataset_id=orig_dataset_id,
+                    table_id=orig_table,
+                    end_date=release.release_date,
+                )[0]
+
+            # select table suffixes to get table suffix
+            output_dataset_id = release.oaebu_data_qa_dataset
+            orig_table_id = orig_table + release_date.strftime("%Y%m%d")
+
+            # Validate the ISBN field
+            output_table = "jstor_invalid_isbn"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            dataset_location = release.dataset_location
+            self.oaebu_data_qa_validate_isbn(
+                project_id=project_id,
+                orig_dataset_id=orig_dataset_id,
+                orig_table_id=orig_table_id,
+                output_dataset_id=output_dataset_id,
+                output_table_id=output_table_id,
+                dataset_location=dataset_location,
+                isbn="ISBN",
+            )
+
+            # Validate the eISBN field
+            output_table = "jstor_invalid_eisbn"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            self.oaebu_data_qa_validate_isbn(
+                project_id=project_id,
+                orig_dataset_id=orig_dataset_id,
+                orig_table_id=orig_table_id,
+                output_dataset_id=output_dataset_id,
+                output_table_id=output_table_id,
+                dataset_location=dataset_location,
+                isbn="eISBN",
+            )
+
+    # def create_oaebu_data_qa_oapen_irus_uk_tasks(self, data_partner: OaebuPartners):
+    #     """Create OAPEN IRUS UK quality assurance metrics.
+    #     :param data_partner: OaebuPartner metadata.
+    #     """
+    #     pass
+
+    # def create_oaebu_data_qa_google_books_tasks(self, data_partner: OaebuPartners):
+    #     """Create Google Books quality assurance metrics.
+    #     :param data_partner: OaebuPartner metadata.
+    #     """
+    #     pass
+
+    # def create_oaebu_data_qa_intermediate(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
+    #     """Create quality assurance metrics for the OAEBU intermediate tables.
+    #     :param oaebu_data: List of oaebu partner data.
+    #     """
+    #     pass
