@@ -654,13 +654,13 @@ class OnixWorkflow(Telescope):
         No attempt is made to normalise the string so we catch as many string issues as we can.
 
         :param output_table: Name of the output table.
-        :param isbn: Name of the isbn field in source table.
         :param project_id: GCP Project ID of the data.
         :param orig_dataset_id: GCP Dataset ID of the source data.
         :param orig_table_id: Table ID of the source data (excluding date).
         :param output_dataset_id: Dataset ID for the output data.
         :param output_table_id: Table ID for the output data.
         :apram dataset_location: Location of GCP servers.
+        :param isbn: Name of the isbn field in source table.
         """
 
         isbn_utils_sql = self.get_isbn_utils_sql_string()
@@ -821,7 +821,11 @@ class OnixWorkflow(Telescope):
         **kwargs,
     ):
         """Create quality assurance metrics for the OAEBU intermediate tables.
-        :param oaebu_data: List of oaebu partner data.
+        :param oaebu_data: List of workflow release objects.
+        :param project_id: GCP Project ID for the data.
+        :param orig_dataset_id: Dataset ID of the original partner data.
+        :param orig_table: Original table name for the partner data.
+        :param orig_isbn: Name of the ISBN field we're checking.
         """
 
         template_file = "oaebu_intermediate_metrics.sql.jinja2"
