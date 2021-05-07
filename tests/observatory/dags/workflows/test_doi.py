@@ -15,66 +15,152 @@
 # Author: James Diprose
 
 import os
-import unittest
+from datetime import datetime
 
 import pendulum
-from airflow.exceptions import AirflowException
-from google.cloud import bigquery
+from airflow import DAG
+from airflow.operators.dummy_operator import DummyOperator
 
-from observatory.dags.workflows.doi import (select_table_shard_dates,
-                                            set_task_state)
-from observatory.platform.utils.gc_utils import (create_bigquery_dataset, bigquery_sharded_table_id,
-                                                 create_bigquery_table_from_query)
-from tests.observatory.test_utils import random_id
+from observatory.dags.workflows.doi import DoiWorkflow
+from observatory.platform.utils.test_utils import (
+    ObservatoryEnvironment,
+    ObservatoryTestCase,
+    module_file_path,
+)
 
 
-class TestDoi(unittest.TestCase):
+def make_dummy_dag(dag_id: str, execution_date: datetime):
+    with DAG(
+            dag_id=dag_id,
+            schedule_interval="@weekly",
+            default_args={"owner": "airflow", "start_date": execution_date},
+            catchup=False,
+    ) as dag:
+        task1 = DummyOperator(task_id="dummy_task")
+
+    return dag
+
+
+class TestDoi(ObservatoryTestCase):
     """ Tests for the functions used by the Doi workflow """
 
     def __init__(self, *args, **kwargs):
         super(TestDoi, self).__init__(*args, **kwargs)
-        self.gc_project_id: str = os.getenv('TEST_GCP_PROJECT_ID')
-        self.gc_bucket_name: str = os.getenv('TEST_GCP_BUCKET_NAME')
-        self.gc_bucket_location: str = os.getenv('TEST_GCP_DATA_LOCATION')
+        self.gcp_project_id: str = os.getenv("TEST_GCP_PROJECT_ID")
+        self.gcp_bucket_name: str = os.getenv("TEST_GCP_BUCKET_NAME")
+        self.gcp_data_location: str = os.getenv("TEST_GCP_DATA_LOCATION")
 
     def test_set_task_state(self):
         set_task_state(True, 'my-task-id')
         with self.assertRaises(AirflowException):
             set_task_state(False, 'my-task-id')
 
-    def test_select_table_shard_dates(self):
-        client = bigquery.Client()
-        dataset_id = random_id()
-        table_id = 'fundref'
-        # end_date = pendulum.date(year=2019, month=5, day=1)
-        release_1 = pendulum.datetime(year=2019, month=5, day=1)
-        release_2 = pendulum.datetime(year=2019, month=6, day=1)
-        release_3 = pendulum.datetime(year=2019, month=7, day=1)
-        query = "SELECT * FROM `bigquery-public-data.labeled_patents.figures` LIMIT 1"
+    def test_dag_structure(self):
+        """Test that the DOI DAG has the correct structure.
 
-        try:
-            create_bigquery_dataset(self.gc_project_id, dataset_id, self.gc_bucket_location)
-            create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
-                                             bigquery_sharded_table_id(table_id, release_1),
-                                             self.gc_bucket_location)
-            create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
-                                             bigquery_sharded_table_id(table_id, release_2),
-                                             self.gc_bucket_location)
-            create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
-                                             bigquery_sharded_table_id(table_id, release_3),
-                                             self.gc_bucket_location)
+        :return: None
+        """
 
-            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_1)
-            self.assertTrue(len(suffixes), 1)
-            self.assertEqual(release_1, suffixes[0])
+        dag = DoiWorkflow().make_dag()
+        self.assert_dag_structure(
+            {
+                "crossref_metadata_sensor": ["check_dependencies"],
+                "fundref_sensor": ["check_dependencies"],
+                "geonames_sensor": ["check_dependencies"],
+                "grid_sensor": ["check_dependencies"],
+                "mag_sensor": ["check_dependencies"],
+                "open_citations_sensor": ["check_dependencies"],
+                "unpaywall_sensor": ["check_dependencies"],
+                "check_dependencies": ["create_datasets"],
+                "create_datasets": [
+                    "extend_grid",
+                    "aggregate_crossref_events",
+                    "aggregate_orcid",
+                    "aggregate_mag",
+                    "aggregate_unpaywall",
+                    "extend_crossref_funders",
+                    "aggregate_open_citations",
+                    "aggregate_wos",
+                    "aggregate_scopus",
+                ],
+                "extend_grid": ["create_doi"],
+                "aggregate_crossref_events": ["create_doi"],
+                "aggregate_orcid": ["create_doi"],
+                "aggregate_mag": ["create_doi"],
+                "aggregate_unpaywall": ["create_doi"],
+                "extend_crossref_funders": ["create_doi"],
+                "aggregate_open_citations": ["create_doi"],
+                "aggregate_wos": ["create_doi"],
+                "aggregate_scopus": ["create_doi"],
+                "create_doi": [
+                    "create_country",
+                    "create_funder",
+                    "create_group",
+                    "create_institution",
+                    "create_author",
+                    "create_journal",
+                    "create_publisher",
+                    "create_region",
+                    "create_subregion",
+                ],
+                "create_country": ["copy_to_dashboards"],
+                "create_funder": ["copy_to_dashboards"],
+                "create_group": ["copy_to_dashboards"],
+                "create_institution": ["copy_to_dashboards"],
+                "create_author": ["copy_to_dashboards"],
+                "create_journal": ["copy_to_dashboards"],
+                "create_publisher": ["copy_to_dashboards"],
+                "create_region": ["copy_to_dashboards"],
+                "create_subregion": ["copy_to_dashboards"],
+                "copy_to_dashboards": ["create_dashboard_views"],
+                "create_dashboard_views": [],
+            },
+            dag,
+        )
 
-            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_2)
-            self.assertTrue(len(suffixes), 1)
-            self.assertEqual(release_2, suffixes[0])
+    def test_dag_load(self):
+        """Test that the DOI can be loaded from a DAG bag.
 
-            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_3)
-            self.assertTrue(len(suffixes), 1)
-            self.assertEqual(release_3, suffixes[0])
+        :return: None
+        """
 
-        finally:
-            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+        env = ObservatoryEnvironment(self.gcp_project_id, self.gcp_data_location)
+        with env.create():
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "doi.py")
+            self.assert_dag_load("doi", dag_file)
+
+    def test_telescope(self):
+        """Test the DOI telescope end to end.
+
+        :return: None.
+        """
+
+        env = ObservatoryEnvironment(self.gcp_project_id, self.gcp_data_location)
+
+        with env.create():
+            # Make dag
+            doi_dag = DoiWorkflow().make_dag()
+
+            # Test that sensors do go into the 'up_for_reschedule' state as the DAGs that they wait for haven't run
+            execution_date = pendulum.datetime(year=2020, month=11, day=1)
+            expected_state = 'up_for_reschedule'
+            with env.create_dag_run(doi_dag, execution_date):
+                for task_id in DoiWorkflow.SENSOR_DAG_IDS:
+                    ti = env.run_task(f'{task_id}_sensor', doi_dag, execution_date=execution_date)
+                    self.assertEqual(expected_state, ti.state)
+
+            # Run Dummy Dags
+            execution_date = pendulum.datetime(year=2020, month=11, day=2)
+            expected_state = 'success'
+            for dag_id in DoiWorkflow.SENSOR_DAG_IDS:
+                dag = make_dummy_dag(dag_id, execution_date)
+                with env.create_dag_run(dag, execution_date):
+                    # Running all of a DAGs tasks sets the DAG to finished
+                    ti = env.run_task('dummy_task', dag, execution_date=execution_date)
+                    self.assertEqual(expected_state, ti.state)
+
+            # Test that sensors go into 'success' state as the DAGs that they are waiting for have finished
+            with env.create_dag_run(doi_dag, execution_date):
+                for task_id in DoiWorkflow.SENSOR_DAG_IDS:
+                    ti = env.run_task(f'{task_id}_sensor', doi_dag, execution_date=execution_date)
+                    self.assertEqual(expected_state, ti.state)

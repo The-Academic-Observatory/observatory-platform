@@ -607,3 +607,40 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 self.assertFalse(blob.exists())
             finally:
                 pass
+
+    def test_select_table_shard_dates(self):
+        client = bigquery.Client()
+        dataset_id = random_id()
+        table_id = 'fundref'
+        # end_date = pendulum.date(year=2019, month=5, day=1)
+        release_1 = pendulum.datetime(year=2019, month=5, day=1)
+        release_2 = pendulum.datetime(year=2019, month=6, day=1)
+        release_3 = pendulum.datetime(year=2019, month=7, day=1)
+        query = "SELECT * FROM `bigquery-public-data.labeled_patents.figures` LIMIT 1"
+
+        try:
+            create_bigquery_dataset(self.gc_project_id, dataset_id, self.gc_bucket_location)
+            create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
+                                             bigquery_sharded_table_id(table_id, release_1),
+                                             self.gc_bucket_location)
+            create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
+                                             bigquery_sharded_table_id(table_id, release_2),
+                                             self.gc_bucket_location)
+            create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
+                                             bigquery_sharded_table_id(table_id, release_3),
+                                             self.gc_bucket_location)
+
+            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_1)
+            self.assertTrue(len(suffixes), 1)
+            self.assertEqual(release_1, suffixes[0])
+
+            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_2)
+            self.assertTrue(len(suffixes), 1)
+            self.assertEqual(release_2, suffixes[0])
+
+            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_3)
+            self.assertTrue(len(suffixes), 1)
+            self.assertEqual(release_3, suffixes[0])
+
+        finally:
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)

@@ -98,7 +98,7 @@ def bigquery_sharded_table_id(table_name, datetime: Pendulum) -> str:
     """Create a sharded table identifier for a BigQuery table.
 
     :param table_name: the name of the table.
-    :param datetime: the date to append as a partition suffix.
+    :param datetime: the date to append as a shard suffix.
     :return: the table id.
     """
     return f"{table_name}{datetime.strftime('%Y%m%d')}"
@@ -845,7 +845,7 @@ def azure_to_google_cloud_storage_transfer(
 def select_table_shard_dates(
     project_id: str, dataset_id: str, table_id: str, end_date: pendulum.Date, limit: int = 1
 ) -> List:
-    """Returns a list of table suffix dates, sorted from the most recent to the oldest date. By default it returns
+    """Returns a list of table shard dates, sorted from the most recent to the oldest date. By default it returns
     the first result.
     :param project_id: the Google Cloud project id.
     :param dataset_id: the BigQuery dataset id.

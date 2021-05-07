@@ -1,4 +1,4 @@
-# Copyright 2020 Curtin University
+# Copyright 2020-2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,21 +14,24 @@
 
 # Author: Richard Hosking, James Diprose
 
+from __future__ import annotations
+
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from datetime import datetime
+from typing import List
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import Variable
+from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from pendulum import Pendulum
 
 from observatory.dags.config import workflow_sql_templates_path
-from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataTelescope
-from observatory.dags.telescopes.crossref_fundref import CrossrefFundrefTelescope
-from observatory.dags.telescopes.grid import GridTelescope
-from observatory.dags.telescopes.mag import MagTelescope
-from observatory.dags.telescopes.unpaywall import UnpaywallTelescope
-from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
+from observatory.platform.telescopes.telescope import Telescope
+from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     copy_bigquery_table,
@@ -43,7 +46,343 @@ from observatory.platform.utils.jinja2_utils import (
 )
 
 
+MAX_QUERIES = 100
+
+@dataclass
+class IntAgg:
+    input_dataset_id: str
+    input_table_id: str
+    input_sharded: bool
+    output_dataset_id: str
+    output_table_id: str
+    cluster: bool = False
+    clustering_fields: List = None
+
+
+@dataclass
+class Aggregation:
+    table_id: str
+    aggregation_field: str
+    group_by_time_field: str = "published_year"
+    relate_to_institutions: bool = False
+    relate_to_countries: bool = False
+    relate_to_groups: bool = False
+    relate_to_members: bool = False
+    relate_to_journals: bool = False
+    relate_to_funders: bool = False
+    relate_to_publishers: bool = False
+
+
+class DoiWorkflow(Telescope):
+    INT_DATASET_ID = "observatory_intermediate"
+    INT_DATASET_DESCRIPTION = "Intermediate processing dataset for the Academic Observatory."
+    DASHBOARDS_DATASET_ID = "coki_dashboards"
+    DASHBOARDS_DATASET_DESCRIPTION = "The latest data for display in the COKI dashboards."
+    FINAL_DATASET_ID = "observatory"
+    FINAL_DATASET_DESCRIPTION = "The Academic Observatory dataset."
+    ELASTIC_DATASET_ID = "observatory_elastic"
+    ELASTIC_DATASET_ID_DATASET_DESCRIPTION = "The Academic Observatory dataset for Elasticsearch."
+
+    AGGREGATE_DOI_FILENAME = make_sql_jinja2_filename("aggregate_doi")
+    EXPORT_ACCESS_TYPES_FILENAME = make_sql_jinja2_filename("export_access_types")
+    EXPORT_DISCIPLINES_FILENAME = make_sql_jinja2_filename("export_disciplines")
+    EXPORT_EVENTS_FILENAME = make_sql_jinja2_filename("export_events")
+    EXPORT_METRICS_FILENAME = make_sql_jinja2_filename("export_metrics")
+    EXPORT_OUTPUT_TYPES_FILENAME = make_sql_jinja2_filename("export_output_types")
+    EXPORT_RELATIONS_FILENAME = make_sql_jinja2_filename("export_relations")
+
+    SENSOR_DAG_IDS = ["crossref_metadata", "fundref", "geonames", "grid", "mag", "open_citations", "unpaywall"]
+    INT_AGGS = [
+        IntAgg("extend_grid", "digital_science", "grid", True, INT_DATASET_ID, "grid_extended"),
+        IntAgg("aggregate_crossref_events", "crossref", "crossref_events", False, INT_DATASET_ID, "crossref_events",),
+        IntAgg("aggregate_orcid", "orcid", "orcid", False, INT_DATASET_ID, "orcid"),
+        IntAgg("aggregate_mag", "mag", "Affiliations", True, INT_DATASET_ID, "mag"),
+        IntAgg("aggregate_unpaywall", "our_research", "unpaywall", True, INT_DATASET_ID, "unpaywall"),
+        IntAgg("extend_crossref_funders", "crossref", "fundref", True, INT_DATASET_ID, "fundref"),
+        IntAgg("aggregate_open_citations", "open_citations", "open_citations", True, INT_DATASET_ID, "open_citations",),
+        IntAgg("aggregate_wos", "clarivate", "wos", False, INT_DATASET_ID, "wos"),
+        IntAgg("aggregate_scopus", "elsevier", "scopus", False, INT_DATASET_ID, "scopus"),
+        IntAgg("aggregate_scopus", "elsevier", "scopus", False, INT_DATASET_ID, "scopus"),
+    ]
+    DOI_AGG = IntAgg(
+        "create_doi",
+        "crossref",
+        "crossref_metadata",
+        True,
+        FINAL_DATASET_ID,
+        "doi",
+        cluster=True,
+        clustering_fields=["doi"],
+    )
+    BOOK_AGG = IntAgg(
+        "create_book", None, None, None, FINAL_DATASET_ID, "book", cluster=True, clustering_fields=["isbn"]
+    )
+    AGGREGATIONS = [
+        Aggregation(
+            "country",
+            "countries",
+            relate_to_members=True,
+            relate_to_journals=True,
+            relate_to_funders=True,
+            relate_to_publishers=True,
+        ),
+        Aggregation(
+            "funder",
+            "funders",
+            relate_to_institutions=True,
+            relate_to_countries=True,
+            relate_to_groups=True,
+            relate_to_members=True,
+            relate_to_funders=True,
+            relate_to_publishers=True,
+        ),
+        Aggregation(
+            "group",
+            "groupings",
+            relate_to_institutions=True,
+            relate_to_members=True,
+            relate_to_journals=True,
+            relate_to_funders=True,
+            relate_to_publishers=True,
+        ),
+        Aggregation(
+            "institution",
+            "institutions",
+            relate_to_institutions=True,
+            relate_to_countries=True,
+            relate_to_journals=True,
+            relate_to_funders=True,
+            relate_to_publishers=True,
+        ),
+        Aggregation(
+            "author",
+            "authors",
+            relate_to_institutions=True,
+            relate_to_countries=True,
+            relate_to_groups=True,
+            relate_to_journals=True,
+            relate_to_funders=True,
+            relate_to_publishers=True,
+        ),
+        Aggregation(
+            "journal",
+            "journals",
+            relate_to_institutions=True,
+            relate_to_countries=True,
+            relate_to_groups=True,
+            relate_to_journals=True,
+            relate_to_funders=True,
+        ),
+        Aggregation(
+            "publisher",
+            "publishers",
+            relate_to_institutions=True,
+            relate_to_countries=True,
+            relate_to_groups=True,
+            relate_to_funders=True,
+        ),
+        Aggregation("region", "regions", relate_to_funders=True, relate_to_publishers=True),
+        Aggregation("subregion", "subregions", relate_to_funders=True, relate_to_publishers=True),
+    ]
+
+    def __init__(
+        self,
+        *,
+        dag_id: Optional[str] = "doi",
+        start_date: Optional[Pendulum] = datetime(2020, 8, 30),
+        schedule_interval: Optional[str] = "@weekly",
+        catchup: Optional[bool] = False,
+        airflow_vars: List = None,
+    ):
+        """ Create the DoiWorkflow.
+        :param dag_id: the DAG id.
+        :param start_date: the start date.
+        :param schedule_interval: the schedule interval.
+        :param catchup: whether to catchup.
+        :param airflow_vars: the required Airflow Variables.
+        """
+
+        if airflow_vars is None:
+            airflow_vars = [
+                AirflowVars.DATA_PATH,
+                AirflowVars.PROJECT_ID,
+                AirflowVars.DATA_LOCATION,
+                AirflowVars.DOWNLOAD_BUCKET,
+                AirflowVars.TRANSFORM_BUCKET,
+            ]
+
+        # Initialise Telesecope base class
+        super().__init__(
+            dag_id=dag_id,
+            start_date=start_date,
+            schedule_interval=schedule_interval,
+            catchup=catchup,
+            airflow_vars=airflow_vars,
+        )
+
+        # Add sensors
+        for ext_dag_id in self.SENSOR_DAG_IDS:
+            sensor = ExternalTaskSensor(task_id=f"{ext_dag_id}_sensor", external_dag_id=ext_dag_id, mode="reschedule")
+            self.add_sensor(sensor)
+
+        # Setup tasks
+        self.add_setup_task(self.check_dependencies)
+
+        # Create datasets
+        self.add_task(self.create_datasets)
+
+        # Create tasks for processing intermediate tables
+        funcs = []
+        kwargs = []
+        for agg in self.INT_AGGS:
+            funcs.append(self.create_intermediate_table)
+            kwargs.append({"aggregation": agg, "task_id": agg.task_id})
+        self.add_parallel_tasks(funcs, kwargs)
+
+        # Create DOI Table
+        self.add_task(self.create_intermediate_table, agg=self.DOI_AGG, task_id=self.DOI_AGG.task_id)
+
+        # Create Book Table
+        self.add_task(self.create_intermediate_table, agg=self.BOOK_AGG, task_id=self.BOOK_AGG.task_id)
+
+        # Create final tables
+        with self.parallel_tasks():
+            for agg in self.AGGREGATIONS:
+                self.add_task(self.create_final_table, **{"aggregation": agg, "task_id": f"create_{agg.table_id}"})
+
+        # Copy tables and create views
+        self.add_task(self.copy_to_dashboards)
+        self.add_task(self.create_dashboard_views)
+
+        # Export for Elastic
+        with self.parallel_tasks():
+            for agg in self.AGGREGATIONS:
+                self.add_task(self.export_for_elastic, **{"aggregation": agg, "task_id": f"export_{agg.table_id}"})
+
+    def make_release(self, **kwargs) -> ObservatoryRelease:
+        """Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
+        called in 'task_callable'.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
+        to this argument.
+        :return: A release instance or list of release instances
+        """
+
+        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
+        data_location = Variable.get(AirflowVars.DATA_LOCATION)
+
+        return ObservatoryRelease(project_id, data_location, release_date)
+
+    def create_datasets(self, release: ObservatoryRelease, **kwargs):
+        """ Create required BigQuery datasets.
+
+        :param release: the ObservatoryRelease.
+        :param kwargs: the context passed from the Airflow Operator.
+        See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
+        to this argument.
+        :return: None.
+        """
+
+        release.create_datasets()
+
+    def create_intermediate_table(self, release: ObservatoryRelease, **kwargs):
+        """ Create an intermediate table.
+
+        :param release: the ObservatoryRelease.
+        :param kwargs: the context passed from the Airflow Operator.
+        See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
+        to this argument.
+        :return: None.
+        """
+
+        agg: IntAgg = kwargs["aggregation"]
+        release.cre.create__table(
+            input_dataset_id=agg.input_dataset_id,
+            input_table_id=agg.input_table_id,
+            input_sharded=agg.input_sharded,
+            output_dataset_id=agg.output_dataset_id,
+            output_table_id=agg.output_table_id,
+        )
+
+    def create_aggregate_table(self, release: ObservatoryRelease, **kwargs):
+        """ Runs the aggregate table query.
+
+        :param release: the ObservatoryRelease.
+        :param kwargs: the context passed from the Airflow Operator.
+        See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
+        to this argument.
+        :return: None.
+        """
+
+        agg = kwargs["aggregation"]
+        success = release.create_aggregate_table(
+            aggregation_field=agg.aggregation_field,
+            table_id=agg.table_id,
+            group_by_time_field=agg.group_by_time_field,
+            relate_to_institutions=agg.relate_to_institutions,
+            relate_to_countries=agg.relate_to_countries,
+            relate_to_groups=agg.relate_to_groups,
+            relate_to_members=agg.relate_to_members,
+            relate_to_journals=agg.relate_to_journals,
+        )
+        set_task_state(success, kwargs["task_id"])
+
+    def copy_to_dashboards(self, release: ObservatoryRelease, **kwargs):
+        """ Copy tables to dashboards dataset.
+
+        :param release: the ObservatoryRelease.
+        :param kwargs: the context passed from the Airflow Operator.
+        See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
+        to this argument.
+        :return: None.
+        """
+
+        success = release.copy_to_dashboards()
+        set_task_state(success, kwargs["task_id"])
+
+    def create_dashboard_views(self, release: ObservatoryRelease, **kwargs):
+        """ Create views for dashboards dataset.
+
+        :param release: the ObservatoryRelease.
+        :param kwargs: the context passed from the Airflow Operator.
+        See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
+        to this argument.
+        :return: None.
+        """
+
+        release.create_dashboard_views()
+
+    def export_for_elastic(self, release: ObservatoryRelease, **kwargs):
+        """ Export data in a de-nested form for Elasticsearch.
+
+        :param release: the ObservatoryRelease.
+        :param kwargs: the context passed from the Airflow Operator.
+        See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
+        to this argument.
+        :return: None.
+        """
+
+        agg = kwargs["aggregation"]
+        success = release.export_for_elastic(
+            table_id=agg.table_id,
+            relate_to_institutions=agg.relate_to_institutions,
+            relate_to_countries=agg.relate_to_countries,
+            relate_to_groups=agg.relate_to_groups,
+            relate_to_members=agg.relate_to_members,
+            relate_to_journals=agg.relate_to_journals,
+        )
+        set_task_state(success, kwargs["task_id"])
+
+
 def set_task_state(success: bool, task_id: str):
+    """Update the state of the Airflow task.
+    :param success: whether the task was successful or not.
+    :param task_id: the task id.
+    :return: None.
+    """
+
     if success:
         logging.info(f"{task_id} success")
     else:
@@ -52,922 +391,245 @@ def set_task_state(success: bool, task_id: str):
         raise AirflowException(msg_failed)
 
 
-def create_aggregate_table(
-    project_id: str,
-    release_date: Pendulum,
-    aggregation_field: str,
-    group_by_time_field: str,
-    table_id: str,
-    data_location: str,
-    task_id: str,
-    relate_to_institutions: bool,
-    relate_to_countries: bool,
-    relate_to_groups: bool,
-    relate_to_members: bool,
-    relate_to_journals: bool,
-    relate_to_funders: bool,
-    relate_to_publishers: bool,
-):
-    """Runs the aggregate table query.
+class ObservatoryRelease:
+    def __init__(self, *, project_id: str, data_location: str, release_date: Pendulum):
+        """ Construct an ObservatoryRelease.
+        :param project_id: the Google Cloud project id.
+        :param data_location: the location for BigQuery datasets.
+        :param release_date: the release date.
+        """
 
-    :param project_id: the Google Cloud project id.
-    :param release_date: the release date of the release.
-    :param aggregation_field: the field to aggregate on, e.g. institution, publisher etc.
-    :group_by_time_field: either published_year or published_year_month depending on the granularity required for the
-    time dimension
-    :param table_id: the table id.
-    :param data_location: the location for the table.
-    :param task_id: the Airflow task id (for printing messages).
-    :param relate_to_institutions: whether to generate the institution relationship output for this query
-    :param relate_to_countries: whether to generate the countries relationship output for this query
-    :param relate_to_groups: whether to generate the groups relationship output for this query
-    :param relate_to_members: whether to generate the members relationship output for this query
-    :param relate_to_journals: whether to generate the journals relationship output for this query
-    :param relate_to_funders: whether to generate the funders relationship output for this query
-    :param relate_to_publishers: whether to generate the publish relationship output for this query
-    :return: None.
-    """
+        self.project_id = project_id
+        self.data_location = data_location
+        self.release_date = release_date
 
-    # Create processed dataset
-    template_path = os.path.join(workflow_sql_templates_path(), DoiWorkflow.AGGREGATE_DOI_FILENAME)
-    sql = render_template(
-        template_path,
-        project_id=project_id,
-        release_date=release_date,
-        aggregation_field=aggregation_field,
-        group_by_time_field=group_by_time_field,
-        relate_to_institutions=relate_to_institutions,
-        relate_to_countries=relate_to_countries,
-        relate_to_groups=relate_to_groups,
-        relate_to_members=relate_to_members,
-        relate_to_journals=relate_to_journals,
-        relate_to_funders=relate_to_funders,
-        relate_to_publishers=relate_to_publishers,
-    )
-
-    processed_table_id = bigquery_sharded_table_id(table_id, release_date)
-    success = create_bigquery_table_from_query(
-        sql=sql,
-        project_id=project_id,
-        dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
-        table_id=processed_table_id,
-        location=data_location,
-        cluster=True,
-        clustering_fields=["id"],
-    )
-
-    set_task_state(success, task_id)
-
-
-def export_aggregate_table(
-    project_id: str,
-    release_date: Pendulum,
-    data_location: str,
-    table_id: str,
-    template_file_name: str,
-    aggregate: str,
-    facet: str,
-):
-    template_path = os.path.join(workflow_sql_templates_path(), template_file_name)
-    sql = render_template(
-        template_path,
-        project_id=project_id,
-        dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
-        table_id=table_id,
-        release_date=release_date,
-        aggregate=aggregate,
-        facet=facet,
-    )
-
-    export_table_id = f"{aggregate}_{facet}"
-
-    processed_table_id = bigquery_sharded_table_id(export_table_id, release_date)
-
-    success = create_bigquery_table_from_query(
-        sql=sql,
-        project_id=project_id,
-        dataset_id=DoiWorkflow.ELASTIC_DATASET_ID,
-        table_id=processed_table_id,
-        location=data_location,
-    )
-
-    return success
-
-
-class DoiWorkflow:
-    DAG_ID = "doi"
-    DESCRIPTION = "Combining all raw data sources into a linked DOIs dataset"
-    TASK_ID_CREATE_DATASETS = "create_datasets"
-    TASK_ID_EXTEND_GRID = "extend_grid"
-    TASK_ID_AGGREGATE_CROSSREF_EVENTS = "aggregate_crossref_events"
-    TASK_ID_AGGREGATE_ORCID = "aggregate_orcid"
-    TASK_ID_AGGREGATE_MAG = "aggregate_mag"
-    TASK_ID_AGGREGATE_UNPAYWALL = "aggregate_unpaywall"
-    TASK_ID_EXTEND_CROSSREF_FUNDERS = "extend_crossref_funders"
-    TASK_ID_AGGREGATE_OPEN_CITATIONS = "aggregate_open_citations"
-    TASK_ID_AGGREGATE_WOS = "aggregate_wos"
-    TASK_ID_AGGREGATE_SCOPUS = "aggregate_scopus"
-    TASK_ID_CREATE_DOI = "create_doi"
-    TASK_ID_CREATE_BOOK = "create_book"
-    TASK_ID_CREATE_COUNTRY = "create_country"
-    TASK_ID_CREATE_FUNDER = "create_funder"
-    TASK_ID_CREATE_GROUP = "create_group"
-    TASK_ID_CREATE_INSTITUTION = "create_institution"
-    TASK_ID_CREATE_AUTHOR = "create_author"
-    TASK_ID_CREATE_JOURNAL = "create_journal"
-    TASK_ID_CREATE_PUBLISHER = "create_publisher"
-    TASK_ID_CREATE_REGION = "create_region"
-    TASK_ID_CREATE_SUBREGION = "create_subregion"
-    TASK_ID_EXPORT_COUNTRY = "export_country"
-    TASK_ID_EXPORT_FUNDER = "export_funder"
-    TASK_ID_EXPORT_GROUP = "export_group"
-    TASK_ID_EXPORT_INSTITUTION = "export_institution"
-    TASK_ID_EXPORT_AUTHOR = "export_author"
-    TASK_ID_EXPORT_JOURNAL = "export_journal"
-    TASK_ID_EXPORT_PUBLISHER = "export_publisher"
-    TASK_ID_EXPORT_REGION = "export_region"
-    TASK_ID_EXPORT_SUBREGION = "export_subregion"
-    TASK_ID_COPY_TABLES = "copy_tables"
-    TASK_ID_CREATE_VIEWS = "create_views"
-
-    PROCESSED_DATASET_ID = "observatory_intermediate"
-    PROCESSED_DATASET_DESCRIPTION = "Intermediate processing dataset for the Academic Observatory."
-    DASHBOARDS_DATASET_ID = "coki_dashboards"
-    DASHBOARDS_DATASET_DESCRIPTION = "The latest data for display in the COKI dashboards."
-    OBSERVATORY_DATASET_ID = "observatory"
-    OBSERVATORY_DATASET_ID_DATASET_DESCRIPTION = "The Academic Observatory dataset."
-    ELASTIC_DATASET_ID = "observatory_elastic"
-    ELASTIC_DATASET_ID_DATASET_DESCRIPTION = "The Academic Observatory dataset for Elasticsearch."
-
-    AGGREGATE_DOI_FILENAME = make_sql_jinja2_filename("aggregate_doi")
-
-    EXPORT_UNIQUE_LIST_FILENAME = make_sql_jinja2_filename("export_unique_list")
-    EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME = make_sql_jinja2_filename("export_access_types")
-    EXPORT_AGGREGATE_DISCIPLINES_FILENAME = make_sql_jinja2_filename("export_disciplines")
-    EXPORT_AGGREGATE_EVENTS_FILENAME = make_sql_jinja2_filename("export_events")
-    EXPORT_AGGREGATE_METRICS_FILENAME = make_sql_jinja2_filename("export_metrics")
-    EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME = make_sql_jinja2_filename("export_output_types")
-    EXPORT_AGGREGATE_RELATIONS_FILENAME = make_sql_jinja2_filename("export_relations")
-
-    TOPIC_NAME = "message"
-
-    AGGREGATIONS_COUNTRY = {
-        "aggregation_field": "countries",
-        "table_id": "country",
-        "relate_to_institutions": False,
-        "relate_to_countries": False,
-        "relate_to_groups": False,
-        "relate_to_members": True,
-        "relate_to_journals": True,
-        "relate_to_funders": True,
-        "relate_to_publishers": True
-    }
-
-    AGGREGATIONS_FUNDER = {
-        "aggregation_field": "funders",
-        "table_id": "funder",
-        "relate_to_institutions": True,
-        "relate_to_countries": True,
-        "relate_to_groups": True,
-        "relate_to_members": True,
-        "relate_to_journals": False,
-        "relate_to_funders": True,
-        "relate_to_publishers": True
-    }
-
-    AGGREGATIONS_GROUP = {
-        "aggregation_field": "groupings",
-        "table_id": "group",
-        "relate_to_institutions": True,
-        "relate_to_countries": False,
-        "relate_to_groups": False,
-        "relate_to_members": True,
-        "relate_to_journals": True,
-        "relate_to_funders": True,
-        "relate_to_publishers": True
-    }
-
-    AGGREGATIONS_INSTITUTION = {
-        "aggregation_field": "institutions",
-        "table_id": "institution",
-        "relate_to_institutions": True,
-        "relate_to_countries": True,
-        "relate_to_groups": False,
-        "relate_to_members": False,
-        "relate_to_journals": True,
-        "relate_to_funders": True,
-        "relate_to_publishers": True
-    }
-
-    AGGREGATIONS_AUTHOR = {
-        "aggregation_field": "authors",
-        "table_id": "author",
-        "relate_to_institutions": True,
-        "relate_to_countries": True,
-        "relate_to_groups": True,
-        "relate_to_members": False,
-        "relate_to_journals": True,
-        "relate_to_funders": True,
-        "relate_to_publishers": True
-    }
-
-    AGGREGATIONS_JOURNAL = {
-        "aggregation_field": "journals",
-        "table_id": "journal",
-        "relate_to_institutions": True,
-        "relate_to_countries": True,
-        "relate_to_groups": True,
-        "relate_to_members": False,
-        "relate_to_journals": True,
-        "relate_to_funders": True,
-        "relate_to_publishers": False
-    }
-
-    AGGREGATIONS_PUBLISHER = {
-        "aggregation_field": "publishers",
-        "table_id": "publisher",
-        "relate_to_institutions": True,
-        "relate_to_countries": True,
-        "relate_to_groups": True,
-        "relate_to_members": False,
-        "relate_to_journals": False,
-        "relate_to_funders": True,
-        "relate_to_publishers": False
-    }
-
-    AGGREGATIONS_REGION = {
-        "aggregation_field": "regions",
-        "table_id": "region",
-        "relate_to_institutions": False,
-        "relate_to_countries": False,
-        "relate_to_groups": False,
-        "relate_to_members": False,
-        "relate_to_journals": False,
-        "relate_to_funders": True,
-        "relate_to_publishers": True
-    }
-
-    AGGREGATIONS_SUBREGION = {
-        "aggregation_field": "subregions",
-        "table_id": "subregion",
-        "relate_to_institutions": False,
-        "relate_to_countries": False,
-        "relate_to_groups": False,
-        "relate_to_members": False,
-        "relate_to_journals": False,
-        "relate_to_funders": True,
-        "relate_to_publishers": True
-    }
-
-    @staticmethod
-    def check_dependencies(**kwargs):
-        """Check that all variables and connections exist that are required to run the DAG.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+    def create_datasets(self):
+        """ Create the BigQuery datasets where data will be saved.
         :return: None.
         """
 
-        vars_valid = check_variables(
-            AirflowVars.DATA_PATH,
-            AirflowVars.PROJECT_ID,
-            AirflowVars.DATA_LOCATION,
-            AirflowVars.DOWNLOAD_BUCKET,
-            AirflowVars.TRANSFORM_BUCKET,
-        )
+        datasets = [
+            (DoiWorkflow.INT_DATASET_ID, DoiWorkflow.INT_DATASET_DESCRIPTION),
+            (DoiWorkflow.DASHBOARDS_DATASET_ID, DoiWorkflow.DASHBOARDS_DATASET_DESCRIPTION),
+            (DoiWorkflow.FINAL_DATASET_ID, DoiWorkflow.FINAL_DATASET_DESCRIPTION),
+            (DoiWorkflow.ELASTIC_DATASET_ID, DoiWorkflow.ELASTIC_DATASET_ID_DATASET_DESCRIPTION),
+        ]
 
-        if not vars_valid:
-            raise AirflowException("Required variables are missing")
-
-    @staticmethod
-    def create_datasets(**kwargs):
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-
-        # Create intermediate dataset
-        create_bigquery_dataset(
-            project_id,
-            DoiWorkflow.PROCESSED_DATASET_ID,
-            data_location,
-            description=DoiWorkflow.PROCESSED_DATASET_DESCRIPTION,
-        )
-
-        # Create dashboards dataset
-        create_bigquery_dataset(
-            project_id,
-            DoiWorkflow.DASHBOARDS_DATASET_ID,
-            data_location,
-            description=DoiWorkflow.DASHBOARDS_DATASET_DESCRIPTION,
-        )
-
-        # Create observatory dataset
-        create_bigquery_dataset(
-            project_id,
-            DoiWorkflow.OBSERVATORY_DATASET_ID,
-            data_location,
-            DoiWorkflow.OBSERVATORY_DATASET_ID_DATASET_DESCRIPTION,
-        )
-
-        # Create elastic dataset
-        create_bigquery_dataset(
-            project_id,
-            DoiWorkflow.ELASTIC_DATASET_ID,
-            data_location,
-            DoiWorkflow.ELASTIC_DATASET_ID_DATASET_DESCRIPTION,
-        )
-
-    @staticmethod
-    def extend_grid(**kwargs):
-        """Extend a GRID Release with a list of home_repos and iso3166 information.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        grid_release_date = select_table_shard_dates(
-            project_id, GridTelescope.DATASET_ID, GridTelescope.DAG_ID, release_date
-        )
-        if len(grid_release_date):
-            grid_release_date = grid_release_date[0]
-        else:
-            raise AirflowException(f"No GRID release with a table suffix <= {release_date} found")
-
-        # Create processed table
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_EXTEND_GRID)
-        )
-        sql = render_template(template_path, project_id=project_id, grid_release_date=grid_release_date)
-
-        processed_table_id = bigquery_sharded_table_id("grid_extended", release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-            cluster=True,
-            clustering_fields=["id"],
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_EXTEND_GRID)
-
-    @staticmethod
-    def aggregate_crossref_events(**kwargs):
-        """Aggregate the current state of Crossref Events into a single table grouped by DOI.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-
-        # Create processed table
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS)
-        )
-        sql = render_template(template_path, project_id=project_id)
-        # TODO: perhaps only include records up until the end date of this query?
-
-        processed_table_id = bigquery_sharded_table_id("crossref_events", release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-            cluster=True,
-            clustering_fields=["doi"],
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_CROSSREF_EVENTS)
-
-    @staticmethod
-    def aggregate_orcid(**kwargs):
-        """Aggregate the current state of ORCID into a single table with authors linked to the DOI's of their work.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-
-        # Create processed table
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_ORCID)
-        )
-        sql = render_template(template_path, project_id=project_id)
-
-        processed_table_id = bigquery_sharded_table_id("orcid", release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-            cluster=True,
-            clustering_fields=["doi"],
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_ORCID)
-
-    @staticmethod
-    def aggregate_mag(**kwargs):
-        """Aggregate MAG.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-
-        # Get last MAG release date before current end date
-        table_id = "Affiliations"
-        mag_release_date = select_table_shard_dates(project_id, MagTelescope.DATASET_ID, table_id, release_date)
-        if len(mag_release_date):
-            mag_release_date = mag_release_date[0]
-        else:
-            raise AirflowException(f"No MAG release with a table suffix <= {release_date} found")
-
-        # Create processed table
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_MAG)
-        )
-        sql = render_template(template_path, project_id=project_id, release_date=mag_release_date)
-
-        processed_table_id = bigquery_sharded_table_id(MagTelescope.DAG_ID, release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-            cluster=True,
-            clustering_fields=["doi"],
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_MAG)
-
-    @staticmethod
-    def aggregate_unpaywall(**kwargs):
-        """Compute the Open Access colours from Unpaywall.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-
-        # Get last Unpaywall release date before current end date
-        unpaywall_release_date = select_table_shard_dates(
-            project_id, UnpaywallTelescope.DATASET_ID, UnpaywallTelescope.DAG_ID, release_date
-        )
-        if len(unpaywall_release_date):
-            unpaywall_release_date = unpaywall_release_date[0]
-        else:
-            raise AirflowException(f"Unpaywall release with a table suffix <= {release_date} not found")
-
-        # Create processed table
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL)
-        )
-        sql = render_template(template_path, project_id=project_id, release_date=unpaywall_release_date)
-
-        processed_table_id = bigquery_sharded_table_id(UnpaywallTelescope.DAG_ID, release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-            cluster=True,
-            clustering_fields=["doi"],
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_UNPAYWALL)
-
-    @staticmethod
-    def extend_crossref_funders(**kwargs):
-        """Extend Crossref Funders with Crossref Funders information.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-
-        # Get last Funref and Crossref Metadata release dates before current end date
-        fundref_release_date = select_table_shard_dates(
-            project_id, CrossrefFundrefTelescope.DATASET_ID, CrossrefFundrefTelescope.DAG_ID, release_date
-        )
-        crossref_metadata_release_date = select_table_shard_dates(
-            project_id, CrossrefMetadataTelescope.DATASET_ID, CrossrefMetadataTelescope.DAG_ID, release_date
-        )
-        if len(fundref_release_date) and len(crossref_metadata_release_date):
-            fundref_release_date = fundref_release_date[0]
-            crossref_metadata_release_date = crossref_metadata_release_date[0]
-        else:
-            raise AirflowException(
-                f"Fundref and Crossref Metadata release with a table suffix <= {release_date} not found"
+        for dataset_id, description in datasets:
+            create_bigquery_dataset(
+                self.project_id, dataset_id, self.data_location, description=description,
             )
 
+    def create_intermediate_table(
+        self,
+        *,
+        input_dataset_id: str,
+        input_table_id: str,
+        input_sharded: bool,
+        output_dataset_id: str,
+        output_table_id: str,
+    ):
+        """ Create an intermediate table.
+        :param input_dataset_id: the input dataset id.
+        :param input_table_id: the input table id.
+        :param input_sharded: whether the input table is sharded or not. The most recent sharded table will be
+        selected, up until the release date..
+        :param output_dataset_id: the output dataset id.
+        :param output_table_id: the output table id.
+        :return: None.
+        """
+
+        shard_date = None
+        if input_sharded:
+            # Get last table shard date before current end date
+            table_shard_dates = select_table_shard_dates(
+                self.project_id, input_dataset_id, input_table_id, self.release_date
+            )
+            if len(table_shard_dates):
+                shard_date = table_shard_dates[0]
+            else:
+                raise AirflowException(
+                    f"{self.project_id}.{input_dataset_id}.{input_table_id} "
+                    f"with a table shard date <= {self.release_date} not found"
+                )
+
         # Create processed table
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS)
+        template_path = os.path.join(workflow_sql_templates_path(),
+                                     make_sql_jinja2_filename(f"create_{output_table_id}"))
+        sql = render_template(template_path, project_id=self.project_id, release_date=shard_date)
+
+        output_table_id_sharded = bigquery_sharded_table_id(output_table_id, self.release_date)
+        success = create_bigquery_table_from_query(
+            sql=sql,
+            project_id=self.project_id,
+            dataset_id=output_dataset_id,
+            table_id=output_table_id_sharded,
+            location=self.data_location,
         )
+
+        set_task_state(success, task_id)
+
+    def create_aggregate_table(
+        self,
+        *,
+        aggregation_field: str,
+        table_id: str,
+        group_by_time_field: str = "published_year",
+        relate_to_institutions: bool = False,
+        relate_to_countries: bool = False,
+        relate_to_groups: bool = False,
+        relate_to_members: bool = False,
+        relate_to_journals: bool = False,
+        relate_to_funders: bool = False,
+        relate_to_publishers: bool = False,
+    ) -> bool:
+        """Runs the aggregate table query.
+        :param aggregation_field: the field to aggregate on, e.g. institution, publisher etc.
+        :param group_by_time_field: either published_year or published_year_month depending on the granularity required for
+        the time dimension
+        :param table_id: the table id.
+        :param relate_to_institutions: whether to generate the institution relationship output for this query
+        :param relate_to_countries: whether to generate the countries relationship output for this query
+        :param relate_to_groups: whether to generate the groups relationship output for this query
+        :param relate_to_members: whether to generate the members relationship output for this query
+        :param relate_to_journals: whether to generate the journals relationship output for this query
+        :param relate_to_funders: whether to generate the funders relationship output for this query
+        :param relate_to_publishers: whether to generate the publish relationship output for this query
+        :return: None.
+        """
+
+        template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("create_aggregate.sql"))
         sql = render_template(
             template_path,
-            project_id=project_id,
-            crossref_metadata_release_date=crossref_metadata_release_date,
-            fundref_release_date=fundref_release_date,
-        )
-
-        processed_table_id = bigquery_sharded_table_id("crossref_funders_extended", release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-            cluster=True,
-            clustering_fields=["doi"],
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_EXTEND_CROSSREF_FUNDERS)
-
-    @staticmethod
-    def aggregate_open_citations(**kwargs):
-        """Aggregate Open Citations.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-
-        # Get last Open Citations release date before current end date
-        open_citations_release_date = select_table_shard_dates(
-            project_id, "open_citations", "open_citations", release_date
-        )
-        if len(open_citations_release_date):
-            open_citations_release_date = open_citations_release_date[0]
-        else:
-            raise AirflowException(f"Open citations release with a table suffix <= {release_date} not found")
-
-        # Create processed dataset
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS)
-        )
-        sql = render_template(template_path, project_id=project_id, release_date=open_citations_release_date)
-
-        processed_table_id = bigquery_sharded_table_id("open_citations", release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-            cluster=True,
-            clustering_fields=["doi"],
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_OPEN_CITATIONS)
-
-    @staticmethod
-    def aggregate_wos(**kwargs):
-        """Aggregate Web of Science.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-
-        # Create
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_WOS)
-        )
-        sql = render_template(template_path, project_id=project_id)
-        # TODO: only include records up until the end date
-
-        processed_table_id = bigquery_sharded_table_id("wos", release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_WOS)
-
-    @staticmethod
-    def aggregate_scopus(**kwargs):
-        """Aggregate Scopus.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-
-        # Create processed dataset
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS)
-        )
-        sql = render_template(template_path, project_id=project_id)
-
-        processed_table_id = bigquery_sharded_table_id("scopus", release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_AGGREGATE_SCOPUS)
-
-    @staticmethod
-    def create_doi(**kwargs):
-        """Create DOIs snapshot.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-
-        # Get last Crossref Metadata release date before current end date
-        crossref_metadata_release_date = select_table_shard_dates(
-            project_id, CrossrefMetadataTelescope.DATASET_ID, CrossrefMetadataTelescope.DAG_ID, release_date
-        )
-        if len(crossref_metadata_release_date):
-            crossref_metadata_release_date = crossref_metadata_release_date[0]
-        else:
-            raise AirflowException(f"Crossref Metadata release with a table suffix <= {release_date} not found")
-
-        # Create processed dataset
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_CREATE_DOI)
-        )
-        sql = render_template(
-            template_path,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.PROCESSED_DATASET_ID,
-            release_date=release_date,
-            crossref_metadata_release_date=crossref_metadata_release_date,
-        )
-
-        processed_table_id = bigquery_sharded_table_id("doi", release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-            cluster=True,
-            clustering_fields=["doi"],
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_CREATE_DOI)
-
-    @staticmethod
-    def create_book(**kwargs):
-        """ Create Books snapshot.
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-
-        # Create processed dataset
-        template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(DoiWorkflow.TASK_ID_CREATE_BOOK)
-        )
-        sql = render_template(
-            template_path, project_id=project_id, dataset_id=DoiWorkflow.PROCESSED_DATASET_ID, release_date=release_date
-        )
-
-        processed_table_id = bigquery_sharded_table_id("book", release_date)
-        success = create_bigquery_table_from_query(
-            sql=sql,
-            project_id=project_id,
-            dataset_id=DoiWorkflow.OBSERVATORY_DATASET_ID,
-            table_id=processed_table_id,
-            location=data_location,
-            cluster=True,
-            clustering_fields=["isbn"],
-        )
-
-        set_task_state(success, DoiWorkflow.TASK_ID_CREATE_BOOK)
-
-    @staticmethod
-    def create_aggregation(**kwargs):
-        """ Create aggregation snapshot.
-
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
-        :return: None.
-        """
-
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = kwargs["aggregation_field"]
-        group_by_time_field = "published_year"
-        table_id = kwargs["table_id"]
-
-        # Optional Relationships
-        relate_to_institutions = kwargs["relate_to_institutions"]
-        relate_to_countries = kwargs["relate_to_countries"]
-        relate_to_groups = kwargs["relate_to_groups"]
-        relate_to_members = kwargs["relate_to_members"]
-        relate_to_journals = kwargs["relate_to_journals"]
-        relate_to_funders = kwargs["relate_to_funders"]
-        relate_to_publishers = kwargs["relate_to_publishers"]
-
-        # Aggregate
-        create_aggregate_table(
-            project_id=project_id,
-            release_date=release_date,
+            project_id=self.project_id,
+            release_date=self.release_date,
             aggregation_field=aggregation_field,
             group_by_time_field=group_by_time_field,
-            table_id=table_id,
-            data_location=data_location,
-            task_id=DoiWorkflow.TASK_ID_CREATE_COUNTRY,
             relate_to_institutions=relate_to_institutions,
             relate_to_countries=relate_to_countries,
             relate_to_groups=relate_to_groups,
             relate_to_members=relate_to_members,
             relate_to_journals=relate_to_journals,
             relate_to_funders=relate_to_funders,
-            relate_to_publishers=relate_to_publishers
+            relate_to_publishers=relate_to_publishers,
         )
 
-    @staticmethod
-    def export_aggregation(**kwargs):
-        """ Export aggregation snapshot.
+        sharded_table_id = bigquery_sharded_table_id(table_id, self.release_date)
+        success = create_bigquery_table_from_query(
+            sql=sql,
+            project_id=self.project_id,
+            dataset_id=dataset_id,
+            table_id=sharded_table_id,
+            location=self.data_location,
+            cluster=True,
+            clustering_fields=["id"],
+        )
 
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+        return success
+
+    def copy_to_dashboards(self) -> bool:
+        """ Copy all tables in the observatory dataset to the dashboards dataset.
+        :return: whether successful or not.
+        """
+
+        results = []
+        table_ids = [agg.table_id for agg in DoiWorkflow.FINAL_AGGS] + ["doi"]
+        for table_id in table_ids:
+            source_table_id = f"{self.project_id}.{DoiWorkflow.FINAL_DATASET_ID}.{bigquery_sharded_table_id(table_id, self.release_date)}"
+            destination_table_id = f"{self.project_id}.{DoiWorkflow.DASHBOARDS_DATASET_ID}.{table_id}"
+            success = copy_bigquery_table(source_table_id, destination_table_id, self.data_location)
+            if not success:
+                logging.error(f"Issue copying table: {source_table_id} to {destination_table_id}")
+
+            results.append(success)
+
+        return all(results)
+
+    def create_dashboard_views(self):
+        """ Create views.
         :return: None.
         """
 
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        aggregation_field = kwargs["aggregation_field"]
-        group_by_time_field = "published_year"
-        table_id = kwargs["table_id"]
+        # Create processed dataset
+        dataset_id = DoiWorkflow.DASHBOARDS_DATASET_ID
+        template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("comparison_view"))
+
+        # Create views
+        table_ids = ["country", "funder", "group", "institution", "publisher", "subregion"]
+        for table_id in table_ids:
+            view_name = f"{table_id}_comparison"
+            query = render_template(template_path, project_id=self.project_id, dataset_id=dataset_id, table_id=table_id)
+            create_bigquery_view(self.project_id, dataset_id, view_name, query)
+
+    def export_for_elastic(
+        self,
+        *,
+        table_id: str,
+        relate_to_institutions: bool = False,
+        relate_to_countries: bool = False,
+        relate_to_groups: bool = False,
+        relate_to_members: bool = False,
+        relate_to_journals: bool = False,
+        relate_to_funders: bool = False,
+        relate_to_publishers: bool = False,
+    ) -> bool:
+        """Export data in in a de-nested form for elastic
+        :param table_id:
+        :param relate_to_institutions:
+        :param relate_to_countries:
+        :param relate_to_groups:
+        :param relate_to_members:
+        :param relate_to_journals:
+        :param relate_to_funders:
+        :param relate_to_publishers:
+        :return: whether successful or not.
+        """
 
         # Always export
         tables = [
-            {"file_name": DoiWorkflow.EXPORT_UNIQUE_LIST_FILENAME, "aggregate": table_id, "facet": "unique_list"},
-            {
-                "file_name": DoiWorkflow.EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME,
-                "aggregate": table_id,
-                "facet": "access_types",
-            },
-            {
-                "file_name": DoiWorkflow.EXPORT_AGGREGATE_DISCIPLINES_FILENAME,
-                "aggregate": table_id,
-                "facet": "disciplines",
-            },
-            {
-                "file_name": DoiWorkflow.EXPORT_AGGREGATE_OUTPUT_TYPES_FILENAME,
-                "aggregate": table_id,
-                "facet": "output_types",
-            },
-            {"file_name": DoiWorkflow.EXPORT_AGGREGATE_EVENTS_FILENAME, "aggregate": table_id, "facet": "events"},
-            {"file_name": DoiWorkflow.EXPORT_AGGREGATE_METRICS_FILENAME, "aggregate": table_id, "facet": "metrics"},
+            {"file_name": DoiWorkflow.EXPORT_ACCESS_TYPES_FILENAME, "aggregate": table_id, "facet": "access_types",},
+            {"file_name": DoiWorkflow.EXPORT_DISCIPLINES_FILENAME, "aggregate": table_id, "facet": "disciplines",},
+            {"file_name": DoiWorkflow.EXPORT_OUTPUT_TYPES_FILENAME, "aggregate": table_id, "facet": "output_types",},
+            {"file_name": DoiWorkflow.EXPORT_EVENTS_FILENAME, "aggregate": table_id, "facet": "events"},
+            {"file_name": DoiWorkflow.EXPORT_METRICS_FILENAME, "aggregate": table_id, "facet": "metrics"},
         ]
 
         # Optional Relationships
-        if kwargs["relate_to_institutions"]:
+        if relate_to_institutions:
             tables.append(
-                {
-                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
-                    "aggregate": table_id,
-                    "facet": "institutions",
-                }
+                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "institutions",}
             )
-        if kwargs["relate_to_countries"]:
+        if relate_to_countries:
             tables.append(
-                {
-                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
-                    "aggregate": table_id,
-                    "facet": "countries",
-                }
+                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "countries",}
             )
-        if kwargs["relate_to_groups"]:
+        if relate_to_groups:
             tables.append(
-                {
-                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
-                    "aggregate": table_id,
-                    "facet": "groupings",
-                }
+                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "groupings",}
             )
-        if kwargs["relate_to_members"]:
+        if relate_to_members:
             tables.append(
-                {
-                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
-                    "aggregate": table_id,
-                    "facet": "members",
-                }
+                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "members",}
             )
-        if kwargs["relate_to_journals"]:
+        if relate_to_journals:
             tables.append(
-                {
-                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
-                    "aggregate": table_id,
-                    "facet": "journals",
-                }
+                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "journals",}
             )
 
-        if kwargs["relate_to_funders"]:
+        if relate_to_funders:
             tables.append(
-                {
-                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
-                    "aggregate": table_id,
-                    "facet": "funders"}
+                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "funders",}
             )
 
-        if kwargs["relate_to_publishers"]:
+        if relate_to_publishers:
             tables.append(
-                {
-                    "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
-                    "aggregate": table_id,
-                    "facet": "publishers"}
+                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "publishers",}
             )
-
-        results = []
 
         # Calculate the number of parallel queries. Since all of the real work is done on BigQuery run each export task
         # in a separate thread so that they can be done in parallel.
-        num_queries = len(tables)
+        num_queries = min(len(tables), MAX_QUERIES)
+        results = []
 
         with ThreadPoolExecutor(max_workers=num_queries) as executor:
             futures = list()
@@ -982,9 +644,6 @@ class DoiWorkflow:
 
                 future = executor.submit(
                     export_aggregate_table,
-                    project_id,
-                    release_date,
-                    data_location,
                     table_id,
                     template_file_name,
                     aggregate,
@@ -1003,52 +662,51 @@ class DoiWorkflow:
                 else:
                     logging.error(f"Exporting feed failed: {msg}")
 
-            return all(results)
+        return all(results)
 
-    @staticmethod
-    def copy_tables(**kwargs):
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
-        release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        table_names = [
-            "country",
-            "doi",
-            "funder",
-            "group",
-            "institution",
-            "journal",
-            "publisher",
-            "region",
-            "subregion",
-        ]
+    def export_aggregate_table(
+        self,
+        *,
+        src_dataset_id: str,
+        table_id: str,
+        template_file_name: str,
+        aggregate: str,
+        facet: str,
+        dst_dataset_id: str,
+    ):
+        """Export an aggregate table.
+        :param project_id:
+        :param dataset_id:
+        :param release_date:
+        :param data_location:
+        :param table_id:
+        :param template_file_name:
+        :param aggregate:
+        :param facet:
+        :param dst_dataset_id:
+        :return:
+        """
 
-        # Copy the latest data for display in the dashboards
-        results = []
-        for table_name in table_names:
-            source_table_id = f"{project_id}.observatory.{bigquery_sharded_table_id(table_name, release_date)}"
-            destination_table_id = f"{project_id}.{DoiWorkflow.DASHBOARDS_DATASET_ID}.{table_name}"
-            success = copy_bigquery_table(source_table_id, destination_table_id, data_location)
-            if not success:
-                logging.error(f"Issue copying table: {source_table_id} to {destination_table_id}")
+        template_path = os.path.join(workflow_sql_templates_path(), template_file_name)
+        sql = render_template(
+            template_path,
+            project_id=self.project_id,
+            dataset_id=src_dataset_id,  # DoiWorkflow.OBSERVATORY_DATASET_ID,
+            table_id=table_id,
+            release_date=self.release_date,
+            aggregate=aggregate,
+            facet=facet,
+        )
 
-            results.append(success)
+        export_table_id = f"{aggregate}_{facet}"
+        processed_table_id = bigquery_sharded_table_id(export_table_id, self.release_date)
 
-        if not all(results):
-            raise ValueError("Problem copying tables")
+        success = create_bigquery_table_from_query(
+            sql=sql,
+            project_id=self.project_id,
+            dataset_id=dst_dataset_id,  # DoiWorkflow.ELASTIC_DATASET_ID,
+            table_id=processed_table_id,
+            location=data_location,
+        )
 
-    @staticmethod
-    def create_views(**kwargs):
-        # Get variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        table_names = ["country", "funder", "group", "institution", "publisher", "subregion"]
-
-        # Create processed dataset
-        dataset_id = DoiWorkflow.DASHBOARDS_DATASET_ID
-        template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("comparison_view"))
-
-        # Create views
-        for table_name in table_names:
-            view_name = f"{table_name}_comparison"
-            query = render_template(template_path, project_id=project_id, dataset_id=dataset_id, table_id=table_name)
-            create_bigquery_view(project_id, dataset_id, view_name, query)
+        return success
