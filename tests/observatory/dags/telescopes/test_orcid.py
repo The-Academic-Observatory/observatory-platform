@@ -301,6 +301,13 @@ class TestOrcid(ObservatoryTestCase):
     @patch('observatory.dags.telescopes.orcid.get_aws_conn_info')
     @patch('observatory.dags.telescopes.orcid.Variable.get')
     def test_transfer(self, mock_variable_get, mock_aws_info, mock_transfer):
+        """ Test transfer method of the ORCID release.
+
+        :param mock_variable_get: Mock Airflow Variable get() method
+        :param mock_aws_info: Mock getting AWS info
+        :param mock_transfer: Mock the transfer function called inside release.transfer()
+        :return: None.
+        """
         mock_variable_get.side_effect = lambda x: {'orcid_bucket': 'bucket', 'project_id': 'project_id'}[x]
         mock_aws_info.return_value = 'key_id', 'secret_key'
         max_retries = 3
@@ -342,9 +349,17 @@ class TestOrcid(ObservatoryTestCase):
 
     @patch('observatory.dags.telescopes.orcid.subprocess.Popen')
     @patch('observatory.dags.telescopes.orcid.get_aws_conn_info')
-    @patch('observatory.dags.telescopes.orcid.write_modified_record_prefixes')
+    @patch('observatory.dags.telescopes.orcid.write_modified_record_blobs')
     @patch('observatory.dags.telescopes.orcid.Variable.get')
-    def test_download_transferred(self, mock_variable_get, mock_write_prefixes, mock_aws_info, mock_subprocess):
+    def test_download_transferred(self, mock_variable_get, mock_write_blobs, mock_aws_info, mock_subprocess):
+        """ Test the download_transferred method of the ORCID release.
+
+        :param mock_variable_get: Mock Airflow Variable get() method
+        :param mock_write_blobs: Mock the function that writes modified record blobs
+        :param mock_aws_info: Mock getting AWS info
+        :param mock_subprocess: Mock the subprocess returncode and communicate method
+        :return: None.
+        """
         mock_variable_get.return_value = 'orcid_bucket'
         mock_aws_info.return_value = 'key_id', 'secret_key'
 
@@ -354,7 +369,7 @@ class TestOrcid(ObservatoryTestCase):
         # Test download in case of first release
         self.release.first_release = True
         self.release.download_transferred()
-        mock_write_prefixes.assert_not_called()
+        mock_write_blobs.assert_not_called()
         self.assertEqual(2, mock_subprocess.call_count)
         mock_subprocess.assert_any_call(['gcloud', 'auth', 'activate-service-account',
                                          f'--key-file={os.environ["GOOGLE_APPLICATION_CREDENTIALS"]}'],
@@ -363,16 +378,16 @@ class TestOrcid(ObservatoryTestCase):
                                             'orcid_bucket/telescopes/download/orcid/2020_01_01-2020_02_01'],
                                            stdout=-1, stderr=-1)
 
-        # Test download in case of second release
+        # Test download in case of second release, using modified records file
         self.release.first_release = False
         mock_subprocess.reset_mock()
         with CliRunner().isolated_filesystem():
             with open(self.release.modified_records_path, 'w') as f:
                 f.write('unit test')
             self.release.download_transferred()
-            mock_write_prefixes.assert_called_once_with(self.release.start_date, self.release.end_date, 'key_id',
+            mock_write_blobs.assert_called_once_with(self.release.start_date, self.release.end_date, 'key_id',
                                                         'secret_key', 'orcid_bucket',
-                                                        self.release.modified_records_path)
+                                                     self.release.modified_records_path)
             self.assertEqual(2, mock_subprocess.call_count)
             mock_subprocess.assert_any_call(['gcloud', 'auth', 'activate-service-account',
                                              f'--key-file={os.environ["GOOGLE_APPLICATION_CREDENTIALS"]}'],
@@ -399,6 +414,12 @@ class TestOrcid(ObservatoryTestCase):
     @patch.object(orcid.multiprocessing.pool.Pool, 'imap')
     @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
     def test_transform(self, mock_variable_get, mock_pool_imap):
+        """ Test the transform method of the ORCID release.
+
+        :param mock_variable_get: Mock Airflow Variable get() method
+        :param mock_pool_imap: Mock the imap method used in multiprocessing.
+        :return: None.
+        """
         expected_file_hash = '272ecdc1'
 
         with CliRunner().isolated_filesystem():
@@ -425,6 +446,10 @@ class TestOrcid(ObservatoryTestCase):
             self.assert_file_integrity(self.release.transform_files[0], expected_file_hash, 'gzip_crc')
 
     def test_transform_single_file(self):
+        """ Test the transform_single_file function.
+
+        :return: None.
+        """
         with CliRunner().isolated_filesystem():
             record_file_path = 'record.xml'
 
@@ -466,6 +491,13 @@ class TestOrcid(ObservatoryTestCase):
     @patch.object(BaseHook, 'get_connection')
     @patch('observatory.dags.telescopes.orcid.storage_bucket_exists')
     def test_check_dependencies(self, mock_bucket_exists, mock_conn_get, mock_variable_get):
+        """ Test the check_dependencies task
+
+        :param mock_bucket_exists: Mock output of storage_bucket_exists function
+        :param mock_conn_get: Mock Airflow get_connection method
+        :param mock_variable_get: Mock Airflow Variable get() method
+        :return:
+        """
         mock_variable_get.return_value = 'orcid_bucket'
         mock_conn_get.return_value = 'orcid'
 
