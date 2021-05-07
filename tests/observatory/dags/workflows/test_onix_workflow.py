@@ -739,7 +739,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             _, call_args = mock_create_bq_table.call_args
             self.assertEqual(call_args["project_id"], "project_id")
             self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
-            self.assertEqual(call_args["table_id"], "test_table_matched20210101")
+            self.assertEqual(call_args["table_id"], "test_dataset_test_table_matched20210101")
             self.assertEqual(call_args["location"], "us")
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
@@ -755,7 +755,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             _, call_args = mock_create_bq_table.call_args
             self.assertEqual(call_args["project_id"], "project_id")
             self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
-            self.assertEqual(call_args["table_id"], "test_table2_matched20210101")
+            self.assertEqual(call_args["table_id"], "test_dataset_test_table2_matched20210101")
             self.assertEqual(call_args["location"], "us")
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
@@ -992,7 +992,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "a0567ab96fd447949d86280bbadeb580"
+            expected_hash = "4ae11853bcbb43ec48d77341ba2a0fa8"
             self.assertEqual(sql_hash, expected_hash)
 
             mock_bq_table_query.return_value = False
@@ -1340,7 +1340,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
-            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.oaebu_intermediate.jstor_country_matched{release_suffix}"
+            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.oaebu_intermediate.{self.fake_partner_dataset}_jstor_country_matched{release_suffix}"
             records = run_bigquery_query(sql)
             oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
             oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}

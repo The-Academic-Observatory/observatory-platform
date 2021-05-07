@@ -482,7 +482,7 @@ class OnixWorkflow(Telescope):
                     end_date=release.release_date,
                 )[0]
 
-            output_table = orig_table + release.oaebu_intermediate_match_suffix
+            output_table = f"{orig_dataset}_{orig_table}{release.oaebu_intermediate_match_suffix}"
             output_dataset = release.oaebu_intermediate_dataset
 
             data_location = release.dataset_location
@@ -796,6 +796,7 @@ class OnixWorkflow(Telescope):
         fn = partial(
             self.create_oaebu_data_qa_intermediate_unmatched_workid,
             project_id=data_partner.gcp_project_id,
+            orig_dataset_id=data_partner.gcp_dataset_id,
             orig_table=data_partner.gcp_table_id,
             orig_isbn=data_partner.isbn_field_name,
         )
@@ -813,6 +814,7 @@ class OnixWorkflow(Telescope):
         self,
         releases: List[OnixWorkflowRelease],
         project_id: str,
+        orig_dataset_id: str,
         orig_table: str,
         orig_isbn: str,
         *args,
@@ -826,7 +828,7 @@ class OnixWorkflow(Telescope):
         template_path = os.path.join(workflow_sql_templates_path(), template_file)
 
         for release in releases:
-            intermediate_table = orig_table + release.oaebu_intermediate_match_suffix
+            intermediate_table = f"{orig_dataset_id}_{orig_table}{release.oaebu_intermediate_match_suffix}"
             release_date = select_table_suffixes(
                 project_id=project_id,
                 dataset_id=release.oaebu_intermediate_dataset,
