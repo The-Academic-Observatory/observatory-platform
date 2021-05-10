@@ -24,6 +24,7 @@ from typing import Any, List, Optional, Union
 
 import airflow.secrets
 from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection, TaskInstance, Variable
 from airflow.utils.db import create_session
@@ -190,3 +191,18 @@ def create_slack_webhook(comments: str = "", project_id: str = "?", **kwargs) ->
     slack_conn = BaseHook.get_connection(AirflowConns.SLACK)
     slack_hook = SlackWebhookHook(http_conn_id=slack_conn.conn_id, webhook_token=slack_conn.password, message=message)
     return slack_hook
+
+
+def set_task_state(success: bool, task_id: str):
+    """Update the state of the Airflow task.
+    :param success: whether the task was successful or not.
+    :param task_id: the task id.
+    :return: None.
+    """
+
+    if success:
+        logging.info(f"{task_id} success")
+    else:
+        msg_failed = f"{task_id} failed"
+        logging.error(msg_failed)
+        raise AirflowException(msg_failed)

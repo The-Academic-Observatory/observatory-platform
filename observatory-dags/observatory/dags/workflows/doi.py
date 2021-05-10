@@ -31,7 +31,7 @@ from pendulum import Pendulum
 
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.telescopes.telescope import Telescope
-from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.airflow_utils import AirflowVars, set_task_state
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     copy_bigquery_table,
@@ -45,16 +45,15 @@ from observatory.platform.utils.jinja2_utils import (
     render_template,
 )
 
-
 MAX_QUERIES = 100
 
+
 @dataclass
-class IntAgg:
-    input_dataset_id: str
-    input_table_id: str
-    input_sharded: bool
-    output_dataset_id: str
+class Transform:
     output_table_id: str
+    input_dataset_id: str = None
+    input_table_id: str = None
+    input_sharded: bool = False
     cluster: bool = False
     clustering_fields: List = None
 
@@ -92,31 +91,28 @@ class DoiWorkflow(Telescope):
     EXPORT_RELATIONS_FILENAME = make_sql_jinja2_filename("export_relations")
 
     SENSOR_DAG_IDS = ["crossref_metadata", "fundref", "geonames", "grid", "mag", "open_citations", "unpaywall"]
-    INT_AGGS = [
-        IntAgg("extend_grid", "digital_science", "grid", True, INT_DATASET_ID, "grid_extended"),
-        IntAgg("aggregate_crossref_events", "crossref", "crossref_events", False, INT_DATASET_ID, "crossref_events",),
-        IntAgg("aggregate_orcid", "orcid", "orcid", False, INT_DATASET_ID, "orcid"),
-        IntAgg("aggregate_mag", "mag", "Affiliations", True, INT_DATASET_ID, "mag"),
-        IntAgg("aggregate_unpaywall", "our_research", "unpaywall", True, INT_DATASET_ID, "unpaywall"),
-        IntAgg("extend_crossref_funders", "crossref", "fundref", True, INT_DATASET_ID, "fundref"),
-        IntAgg("aggregate_open_citations", "open_citations", "open_citations", True, INT_DATASET_ID, "open_citations",),
-        IntAgg("aggregate_wos", "clarivate", "wos", False, INT_DATASET_ID, "wos"),
-        IntAgg("aggregate_scopus", "elsevier", "scopus", False, INT_DATASET_ID, "scopus"),
-        IntAgg("aggregate_scopus", "elsevier", "scopus", False, INT_DATASET_ID, "scopus"),
+    TRANSFORMS = [
+        Transform("wos"),
+        Transform("crossref_events"),
+        Transform("fundref", input_dataset_id="crossref", input_table_id="fundref", input_sharded=True),
+        Transform("grid", input_dataset_id="digital_science", input_table_id="grid", input_sharded=True),
+        Transform("scopus"),
+        Transform("mag", input_dataset_id="mag", input_table_id="Affiliations", input_sharded=True),
+        Transform("orcid"),
+        Transform(
+            "open_citations", input_dataset_id="open_citations", input_table_id="open_citations", input_sharded=True
+        ),
+        Transform("unpaywall", input_dataset_id="our_research", input_table_id="unpaywall", input_sharded=True),
     ]
-    DOI_AGG = IntAgg(
-        "create_doi",
-        "crossref",
-        "crossref_metadata",
-        True,
-        FINAL_DATASET_ID,
+    DOI_TRANSFORM = Transform(
         "doi",
+        input_dataset_id="crossref",
+        input_table_id="crossref_metadata",
+        input_sharded=True,
         cluster=True,
         clustering_fields=["doi"],
     )
-    BOOK_AGG = IntAgg(
-        "create_book", None, None, None, FINAL_DATASET_ID, "book", cluster=True, clustering_fields=["isbn"]
-    )
+    BOOK_TRANSFORM = Transform("book", cluster=True, clustering_fields=["isbn"])
     AGGREGATIONS = [
         Aggregation(
             "country",
@@ -188,6 +184,10 @@ class DoiWorkflow(Telescope):
     def __init__(
         self,
         *,
+        intermediate_dataset_id: str = INT_DATASET_ID,
+        dashboards_dataset_id: str = DASHBOARDS_DATASET_ID,
+        observatory_dataset_id: str = FINAL_DATASET_ID,
+        elastic_dataset_id: str = ELASTIC_DATASET_ID,
         dag_id: Optional[str] = "doi",
         start_date: Optional[Pendulum] = datetime(2020, 8, 30),
         schedule_interval: Optional[str] = "@weekly",
@@ -195,6 +195,10 @@ class DoiWorkflow(Telescope):
         airflow_vars: List = None,
     ):
         """ Create the DoiWorkflow.
+        :param intermediate_dataset_id: the BigQuery intermediate dataset id.
+        :param dashboards_dataset_id: the BigQuery dashboards dataset id.
+        :param observatory_dataset_id: the BigQuery observatory dataset id.
+        :param elastic_dataset_id: the BigQuery elastic dataset id.
         :param dag_id: the DAG id.
         :param start_date: the start date.
         :param schedule_interval: the schedule interval.
@@ -220,6 +224,11 @@ class DoiWorkflow(Telescope):
             airflow_vars=airflow_vars,
         )
 
+        self.intermediate_dataset_id = intermediate_dataset_id
+        self.dashboards_dataset_id = dashboards_dataset_id
+        self.observatory_dataset_id = observatory_dataset_id
+        self.elastic_dataset_id = elastic_dataset_id
+
         # Add sensors
         for ext_dag_id in self.SENSOR_DAG_IDS:
             sensor = ExternalTaskSensor(task_id=f"{ext_dag_id}_sensor", external_dag_id=ext_dag_id, mode="reschedule")
@@ -232,23 +241,22 @@ class DoiWorkflow(Telescope):
         self.add_task(self.create_datasets)
 
         # Create tasks for processing intermediate tables
-        funcs = []
-        kwargs = []
-        for agg in self.INT_AGGS:
-            funcs.append(self.create_intermediate_table)
-            kwargs.append({"aggregation": agg, "task_id": agg.task_id})
-        self.add_parallel_tasks(funcs, kwargs)
+        with self.parallel_tasks():
+            for transform in self.TRANSFORMS:
+                task_id = f"create_{transform.input_table_id}"
+                self.add_task(self.create_intermediate_table, **{"transform": transform, "task_id": task_id})
 
         # Create DOI Table
-        self.add_task(self.create_intermediate_table, agg=self.DOI_AGG, task_id=self.DOI_AGG.task_id)
+        self.add_task(self.create_intermediate_table, agg=self.DOI_TRANSFORM, task_id="create_doi")
 
         # Create Book Table
-        self.add_task(self.create_intermediate_table, agg=self.BOOK_AGG, task_id=self.BOOK_AGG.task_id)
+        self.add_task(self.create_intermediate_table, agg=self.BOOK_TRANSFORM, task_id="create_book")
 
         # Create final tables
         with self.parallel_tasks():
             for agg in self.AGGREGATIONS:
-                self.add_task(self.create_final_table, **{"aggregation": agg, "task_id": f"create_{agg.table_id}"})
+                task_id = f"create_{agg.table_id}"
+                self.add_task(self.create_aggregate_table, **{"aggregation": agg, "task_id": task_id})
 
         # Copy tables and create views
         self.add_task(self.copy_to_dashboards)
@@ -257,7 +265,8 @@ class DoiWorkflow(Telescope):
         # Export for Elastic
         with self.parallel_tasks():
             for agg in self.AGGREGATIONS:
-                self.add_task(self.export_for_elastic, **{"aggregation": agg, "task_id": f"export_{agg.table_id}"})
+                task_id = f"export_{agg.table_id}"
+                self.add_task(self.export_for_elastic, **{"aggregation": agg, "task_id": task_id})
 
     def make_release(self, **kwargs) -> ObservatoryRelease:
         """Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
@@ -273,7 +282,15 @@ class DoiWorkflow(Telescope):
         project_id = Variable.get(AirflowVars.PROJECT_ID)
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
 
-        return ObservatoryRelease(project_id, data_location, release_date)
+        return ObservatoryRelease(
+            project_id=project_id,
+            data_location=data_location,
+            release_date=release_date,
+            intermediate_dataset_id=self.intermediate_dataset_id,
+            observatory_dataset_id=self.observatory_dataset_id,
+            dashboards_dataset_id=self.dashboards_dataset_id,
+            elastic_dataset_id=self.elastic_dataset_id,
+        )
 
     def create_datasets(self, release: ObservatoryRelease, **kwargs):
         """ Create required BigQuery datasets.
@@ -297,13 +314,12 @@ class DoiWorkflow(Telescope):
         :return: None.
         """
 
-        agg: IntAgg = kwargs["aggregation"]
-        release.cre.create__table(
-            input_dataset_id=agg.input_dataset_id,
-            input_table_id=agg.input_table_id,
-            input_sharded=agg.input_sharded,
-            output_dataset_id=agg.output_dataset_id,
-            output_table_id=agg.output_table_id,
+        transform: Transform = kwargs["transform"]
+        release.create_intermediate_table(
+            input_dataset_id=transform.input_dataset_id,
+            input_table_id=transform.input_table_id,
+            input_sharded=transform.input_sharded,
+            output_table_id=transform.output_table_id,
         )
 
     def create_aggregate_table(self, release: ObservatoryRelease, **kwargs):
@@ -316,7 +332,7 @@ class DoiWorkflow(Telescope):
         :return: None.
         """
 
-        agg = kwargs["aggregation"]
+        agg: Aggregation = kwargs["aggregation"]
         success = release.create_aggregate_table(
             aggregation_field=agg.aggregation_field,
             table_id=agg.table_id,
@@ -376,32 +392,36 @@ class DoiWorkflow(Telescope):
         set_task_state(success, kwargs["task_id"])
 
 
-def set_task_state(success: bool, task_id: str):
-    """Update the state of the Airflow task.
-    :param success: whether the task was successful or not.
-    :param task_id: the task id.
-    :return: None.
-    """
-
-    if success:
-        logging.info(f"{task_id} success")
-    else:
-        msg_failed = f"{task_id} failed"
-        logging.error(msg_failed)
-        raise AirflowException(msg_failed)
-
-
 class ObservatoryRelease:
-    def __init__(self, *, project_id: str, data_location: str, release_date: Pendulum):
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        data_location: str,
+        release_date: Pendulum,
+        intermediate_dataset_id: str,
+        dashboards_dataset_id: str,
+        observatory_dataset_id: str,
+        elastic_dataset_id: str,
+    ):
         """ Construct an ObservatoryRelease.
+
         :param project_id: the Google Cloud project id.
         :param data_location: the location for BigQuery datasets.
         :param release_date: the release date.
+        :param intermediate_dataset_id: the BigQuery intermediate dataset id.
+        :param dashboards_dataset_id: the BigQuery dashboards dataset id.
+        :param observatory_dataset_id: the BigQuery observatory dataset id.
+        :param elastic_dataset_id: the BigQuery elastic dataset id.
         """
 
         self.project_id = project_id
         self.data_location = data_location
         self.release_date = release_date
+        self.intermediate_dataset_id = intermediate_dataset_id
+        self.dashboards_dataset_id = dashboards_dataset_id
+        self.observatory_dataset_id = observatory_dataset_id
+        self.elastic_dataset_id = elastic_dataset_id
 
     def create_datasets(self):
         """ Create the BigQuery datasets where data will be saved.
@@ -409,10 +429,10 @@ class ObservatoryRelease:
         """
 
         datasets = [
-            (DoiWorkflow.INT_DATASET_ID, DoiWorkflow.INT_DATASET_DESCRIPTION),
-            (DoiWorkflow.DASHBOARDS_DATASET_ID, DoiWorkflow.DASHBOARDS_DATASET_DESCRIPTION),
-            (DoiWorkflow.FINAL_DATASET_ID, DoiWorkflow.FINAL_DATASET_DESCRIPTION),
-            (DoiWorkflow.ELASTIC_DATASET_ID, DoiWorkflow.ELASTIC_DATASET_ID_DATASET_DESCRIPTION),
+            (self.intermediate_dataset_id, DoiWorkflow.INT_DATASET_DESCRIPTION),
+            (self.dashboards_dataset_id, DoiWorkflow.DASHBOARDS_DATASET_DESCRIPTION),
+            (self.observatory_dataset_id, DoiWorkflow.FINAL_DATASET_DESCRIPTION),
+            (self.elastic_dataset_id, DoiWorkflow.ELASTIC_DATASET_ID_DATASET_DESCRIPTION),
         ]
 
         for dataset_id, description in datasets:
@@ -421,20 +441,13 @@ class ObservatoryRelease:
             )
 
     def create_intermediate_table(
-        self,
-        *,
-        input_dataset_id: str,
-        input_table_id: str,
-        input_sharded: bool,
-        output_dataset_id: str,
-        output_table_id: str,
+        self, *, input_dataset_id: str, input_table_id: str, input_sharded: bool, output_table_id: str,
     ):
         """ Create an intermediate table.
         :param input_dataset_id: the input dataset id.
         :param input_table_id: the input table id.
         :param input_sharded: whether the input table is sharded or not. The most recent sharded table will be
-        selected, up until the release date..
-        :param output_dataset_id: the output dataset id.
+        selected, up until the release date.
         :param output_table_id: the output table id.
         :return: None.
         """
@@ -454,20 +467,21 @@ class ObservatoryRelease:
                 )
 
         # Create processed table
-        template_path = os.path.join(workflow_sql_templates_path(),
-                                     make_sql_jinja2_filename(f"create_{output_table_id}"))
+        template_path = os.path.join(
+            workflow_sql_templates_path(), make_sql_jinja2_filename(f"create_{output_table_id}")
+        )
         sql = render_template(template_path, project_id=self.project_id, release_date=shard_date)
 
         output_table_id_sharded = bigquery_sharded_table_id(output_table_id, self.release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=self.project_id,
-            dataset_id=output_dataset_id,
+            dataset_id=self.intermediate_dataset_id,
             table_id=output_table_id_sharded,
             location=self.data_location,
         )
 
-        set_task_state(success, task_id)
+        return success
 
     def create_aggregate_table(
         self,
@@ -518,7 +532,7 @@ class ObservatoryRelease:
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=self.project_id,
-            dataset_id=dataset_id,
+            dataset_id=self.observatory_dataset_id,
             table_id=sharded_table_id,
             location=self.data_location,
             cluster=True,
@@ -533,10 +547,10 @@ class ObservatoryRelease:
         """
 
         results = []
-        table_ids = [agg.table_id for agg in DoiWorkflow.FINAL_AGGS] + ["doi"]
+        table_ids = [agg.table_id for agg in DoiWorkflow.AGGREGATIONS] + ["doi"]
         for table_id in table_ids:
-            source_table_id = f"{self.project_id}.{DoiWorkflow.FINAL_DATASET_ID}.{bigquery_sharded_table_id(table_id, self.release_date)}"
-            destination_table_id = f"{self.project_id}.{DoiWorkflow.DASHBOARDS_DATASET_ID}.{table_id}"
+            source_table_id = f"{self.project_id}.{self.observatory_dataset_id}.{bigquery_sharded_table_id(table_id, self.release_date)}"
+            destination_table_id = f"{self.project_id}.{self.dashboards_dataset_id}.{table_id}"
             success = copy_bigquery_table(source_table_id, destination_table_id, self.data_location)
             if not success:
                 logging.error(f"Issue copying table: {source_table_id} to {destination_table_id}")
@@ -551,15 +565,16 @@ class ObservatoryRelease:
         """
 
         # Create processed dataset
-        dataset_id = DoiWorkflow.DASHBOARDS_DATASET_ID
         template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("comparison_view"))
 
         # Create views
         table_ids = ["country", "funder", "group", "institution", "publisher", "subregion"]
         for table_id in table_ids:
             view_name = f"{table_id}_comparison"
-            query = render_template(template_path, project_id=self.project_id, dataset_id=dataset_id, table_id=table_id)
-            create_bigquery_view(self.project_id, dataset_id, view_name, query)
+            query = render_template(
+                template_path, project_id=self.project_id, dataset_id=self.dashboards_dataset_id, table_id=table_id
+            )
+            create_bigquery_view(self.project_id, self.dashboards_dataset_id, view_name, query)
 
     def export_for_elastic(
         self,
@@ -642,13 +657,7 @@ class ObservatoryRelease:
                 msg = f"Exporting file_name={template_file_name}, aggregate={aggregate}, facet={facet}"
                 logging.info(msg)
 
-                future = executor.submit(
-                    export_aggregate_table,
-                    table_id,
-                    template_file_name,
-                    aggregate,
-                    facet,
-                )
+                future = executor.submit(self.export_aggregate_table, table_id, template_file_name, aggregate, facet,)
                 futures.append(future)
                 futures_msgs[future] = msg
 
@@ -664,26 +673,12 @@ class ObservatoryRelease:
 
         return all(results)
 
-    def export_aggregate_table(
-        self,
-        *,
-        src_dataset_id: str,
-        table_id: str,
-        template_file_name: str,
-        aggregate: str,
-        facet: str,
-        dst_dataset_id: str,
-    ):
+    def export_aggregate_table(self, *, table_id: str, template_file_name: str, aggregate: str, facet: str):
         """Export an aggregate table.
-        :param project_id:
-        :param dataset_id:
-        :param release_date:
-        :param data_location:
         :param table_id:
         :param template_file_name:
         :param aggregate:
         :param facet:
-        :param dst_dataset_id:
         :return:
         """
 
@@ -691,7 +686,7 @@ class ObservatoryRelease:
         sql = render_template(
             template_path,
             project_id=self.project_id,
-            dataset_id=src_dataset_id,  # DoiWorkflow.OBSERVATORY_DATASET_ID,
+            dataset_id=self.observatory_dataset_id,
             table_id=table_id,
             release_date=self.release_date,
             aggregate=aggregate,
@@ -704,9 +699,9 @@ class ObservatoryRelease:
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=self.project_id,
-            dataset_id=dst_dataset_id,  # DoiWorkflow.ELASTIC_DATASET_ID,
+            dataset_id=self.elastic_dataset_id,
             table_id=processed_table_id,
-            location=data_location,
+            location=self.data_location,
         )
 
         return success
