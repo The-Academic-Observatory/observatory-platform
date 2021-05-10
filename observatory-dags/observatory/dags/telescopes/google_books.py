@@ -110,8 +110,8 @@ class GoogleBooksRelease(SnapshotRelease):
                     transformed_row = OrderedDict((convert(k.replace('%', 'Perc')), v) for k, v in row.items())
                     if 'sales' in file:
                         # transform to valid date format
-                        transformed_row['Transaction_Date'] = pendulum.parse(
-                            transformed_row['Transaction_Date']).to_date_string()
+                        transformed_row['Transaction_Date'] = datetime.strptime(transformed_row['Transaction_Date'],
+                                                                                '%d/%m/%Y').strftime('%Y-%m-%d')
                         # remove percentage sign
                         transformed_row['Publisher_Revenue_Perc'] = transformed_row['Publisher_Revenue_Perc'].strip('%')
                         # this field is not present for some publishers (UCL Press), for ANU Press the field value is

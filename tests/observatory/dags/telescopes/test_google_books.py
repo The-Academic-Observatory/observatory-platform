@@ -66,7 +66,7 @@ class TestGoogleBooks(ObservatoryTestCase):
         self.traffic_download_hash = "db4dca44d5231e0c4e2ad95db41b79b6"
         self.traffic_transform_hash = "6dd7d820"
         self.sales_download_hash = "9d1981aaffcb0249ee9a625a879d2f95"
-        self.sales_transform_hash = "ac04c390"
+        self.sales_transform_hash = "d0f102ce"
 
     def test_dag_structure(self):
         """Test that the Google Books DAG has the correct structure.
