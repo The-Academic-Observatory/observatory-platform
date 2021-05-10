@@ -417,7 +417,23 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_table_id="jstor_country",
                 isbn_field_name="isbn",
                 gcp_table_date=None,
-            )
+            ),
+            OaebuPartners(
+                name="Google Books Sales",
+                gcp_project_id="project",
+                gcp_dataset_id="dataset",
+                gcp_table_id="google_books_sales",
+                isbn_field_name="Primary_ISBN",
+                gcp_table_date=None,
+            ),
+            OaebuPartners(
+                name="Google Books Traffic",
+                gcp_project_id="project",
+                gcp_dataset_id="dataset",
+                gcp_table_id="google_books_traffic",
+                isbn_field_name="Primary_ISBN",
+                gcp_table_date=None,
+            ),
         ]
 
         with CliRunner().isolated_filesystem():
@@ -436,13 +452,31 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "bq_load_workid_lookup": ["bq_load_workid_lookup_errors"],
                     "bq_load_workid_lookup_errors": ["bq_load_workfamilyid_lookup"],
                     "bq_load_workfamilyid_lookup": ["create_oaebu_intermediate_table.dataset.jstor_country"],
-                    "create_oaebu_intermediate_table.dataset.jstor_country": ["create_oaebu_data_qa_onix_isbn"],
+                    "create_oaebu_intermediate_table.dataset.jstor_country": [
+                        "create_oaebu_intermediate_table.dataset.google_books_sales"
+                    ],
+                    "create_oaebu_intermediate_table.dataset.google_books_sales": [
+                        "create_oaebu_intermediate_table.dataset.google_books_traffic"
+                    ],
+                    "create_oaebu_intermediate_table.dataset.google_books_traffic": ["create_oaebu_data_qa_onix_isbn"],
                     "create_oaebu_data_qa_onix_isbn": ["create_oaebu_data_qa_onix_aggregate"],
                     "create_oaebu_data_qa_onix_aggregate": ["create_oaebu_data_qa_jstor_isbn"],
                     "create_oaebu_data_qa_jstor_isbn": [
                         "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.jstor_country"
                     ],
-                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.jstor_country": ["cleanup"],
+                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.jstor_country": [
+                        "create_oaebu_data_qa_google_books_sales_isbn"
+                    ],
+                    "create_oaebu_data_qa_google_books_sales_isbn": [
+                        "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_books_sales"
+                    ],
+                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_books_sales": [
+                        "create_oaebu_data_qa_google_books_traffic_isbn"
+                    ],
+                    "create_oaebu_data_qa_google_books_traffic_isbn": [
+                        "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_books_traffic"
+                    ],
+                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_books_traffic": ["cleanup"],
                     "cleanup": [],
                 },
                 dag,
@@ -943,6 +977,152 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
+    def test_create_oaebu_data_qa_google_books_sales_isbn(
+        self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes
+    ):
+        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+
+        data_partners = [
+            OaebuPartners(
+                name="Google Books Sales",
+                gcp_project_id="project",
+                gcp_dataset_id="google_books",
+                gcp_table_id="sales",
+                isbn_field_name="Primary_ISBN",
+            )
+        ]
+        with CliRunner().isolated_filesystem():
+            wf = OnixWorkflow(
+                org_name=self.telescope.organisation.name,
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+                data_partners=data_partners,
+            )
+            mock_bq_table_query.return_value = True
+            wf.create_oaebu_data_qa_google_books_sales_isbn(
+                releases=[
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_test",
+                        release_date=pendulum.Pendulum(2021, 1, 1),
+                        gcp_project_id=self.telescope.organisation.gcp_project_id,
+                        gcp_bucket_name=self.bucket_name,
+                        onix_dataset_id="onix",
+                        onix_table_id="onix",
+                    )
+                ],
+                project_id="project",
+                orig_dataset_id="google_books",
+                orig_table="sales",
+                table_date=None,
+            )
+
+            self.assertEqual(mock_sel_table_suffixes.call_count, 1)
+
+            wf.create_oaebu_data_qa_google_books_sales_isbn(
+                releases=[
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_test",
+                        release_date=pendulum.Pendulum(2021, 1, 1),
+                        gcp_project_id=self.telescope.organisation.gcp_project_id,
+                        gcp_bucket_name=self.bucket_name,
+                        onix_dataset_id="onix",
+                        onix_table_id="onix",
+                    )
+                ],
+                project_id="project",
+                orig_dataset_id="google_books",
+                orig_table="sales",
+                table_date=pendulum.Pendulum(2021, 1, 1),
+            )
+            self.assertEqual(mock_sel_table_suffixes.call_count, 1)
+
+            _, call_args = mock_bq_table_query.call_args
+            self.assertEqual(call_args["project_id"], "project")
+            self.assertEqual(call_args["dataset_id"], "oaebu_data_qa")
+            self.assertEqual(call_args["table_id"], "google_books_sales_invalid_isbn20210101")
+            self.assertEqual(call_args["location"], "us")
+
+            sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
+            sql_hash = sql_hash.hexdigest()
+            expected_hash = "3e84231b474ee952cc104afc5308caed"
+            self.assertEqual(sql_hash, expected_hash)
+
+    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
+    @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
+    def test_create_oaebu_data_qa_google_books_traffic_isbn(
+        self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes
+    ):
+        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+
+        data_partners = [
+            OaebuPartners(
+                name="Google Books Traffic",
+                gcp_project_id="project",
+                gcp_dataset_id="google_books",
+                gcp_table_id="traffic",
+                isbn_field_name="Primary_ISBN",
+            )
+        ]
+        with CliRunner().isolated_filesystem():
+            wf = OnixWorkflow(
+                org_name=self.telescope.organisation.name,
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+                data_partners=data_partners,
+            )
+            mock_bq_table_query.return_value = True
+            wf.create_oaebu_data_qa_google_books_traffic_isbn(
+                releases=[
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_test",
+                        release_date=pendulum.Pendulum(2021, 1, 1),
+                        gcp_project_id=self.telescope.organisation.gcp_project_id,
+                        gcp_bucket_name=self.bucket_name,
+                        onix_dataset_id="onix",
+                        onix_table_id="onix",
+                    )
+                ],
+                project_id="project",
+                orig_dataset_id="google_books",
+                orig_table="traffic",
+                table_date=None,
+            )
+
+            self.assertEqual(mock_sel_table_suffixes.call_count, 1)
+
+            wf.create_oaebu_data_qa_google_books_traffic_isbn(
+                releases=[
+                    OnixWorkflowRelease(
+                        dag_id="onix_workflow_test",
+                        release_date=pendulum.Pendulum(2021, 1, 1),
+                        gcp_project_id=self.telescope.organisation.gcp_project_id,
+                        gcp_bucket_name=self.bucket_name,
+                        onix_dataset_id="onix",
+                        onix_table_id="onix",
+                    )
+                ],
+                project_id="project",
+                orig_dataset_id="google_books",
+                orig_table="sales",
+                table_date=pendulum.Pendulum(2021, 1, 1),
+            )
+            self.assertEqual(mock_sel_table_suffixes.call_count, 1)
+
+            _, call_args = mock_bq_table_query.call_args
+            self.assertEqual(call_args["project_id"], "project")
+            self.assertEqual(call_args["dataset_id"], "oaebu_data_qa")
+            self.assertEqual(call_args["table_id"], "google_books_traffic_invalid_isbn20210101")
+            self.assertEqual(call_args["location"], "us")
+
+            sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
+            sql_hash = sql_hash.hexdigest()
+            expected_hash = "3e84231b474ee952cc104afc5308caed"
+            self.assertEqual(sql_hash, expected_hash)
+
+    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
+    @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
     def test_create_oaebu_data_qa_intermediate_unmatched_workid(
         self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes
     ):
@@ -1121,19 +1301,51 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         self.fake_partner_dataset = env.add_dataset()
 
         # Upload fixture to bucket
-        files = [os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_country.json")]
+        files = [
+            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_country.json"),
+            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_sales.json"),
+            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_traffic.json"),
+        ]
         blobs = [os.path.join(self.test_onix_folder, os.path.basename(file)) for file in files]
         upload_files_to_cloud_storage(bucket_name=self.gcp_bucket_name, blob_names=blobs, file_paths=files)
 
         # Load into bigquery
-        table_id, _ = table_ids_from_path("jstor_country.json")
+        jstor_table_id, _ = table_ids_from_path("jstor_country.json")
         bq_load_shard_v2(
             project_id=self.gcp_project_id,
             transform_bucket=self.gcp_bucket_name,
             transform_blob=blobs[0],
             dataset_id=self.fake_partner_dataset,
             dataset_location=self.data_location,
-            table_id=table_id,
+            table_id=jstor_table_id,
+            release_date=self.onix_release_date,
+            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+            dataset_description="Test Onix data for the workflow",
+            **{},
+        )
+
+        google_books_sales_table_id, _ = table_ids_from_path("google_books_sales.json")
+        bq_load_shard_v2(
+            project_id=self.gcp_project_id,
+            transform_bucket=self.gcp_bucket_name,
+            transform_blob=blobs[1],
+            dataset_id=self.fake_partner_dataset,
+            dataset_location=self.data_location,
+            table_id=google_books_sales_table_id,
+            release_date=self.onix_release_date,
+            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+            dataset_description="Test Onix data for the workflow",
+            **{},
+        )
+
+        google_books_traffic_table_id, _ = table_ids_from_path("google_books_traffic.json")
+        bq_load_shard_v2(
+            project_id=self.gcp_project_id,
+            transform_bucket=self.gcp_bucket_name,
+            transform_blob=blobs[2],
+            dataset_id=self.fake_partner_dataset,
+            dataset_location=self.data_location,
+            table_id=google_books_traffic_table_id,
             release_date=self.onix_release_date,
             source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
             dataset_description="Test Onix data for the workflow",
@@ -1145,9 +1357,23 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 name="JSTOR",
                 gcp_project_id=self.gcp_project_id,
                 gcp_dataset_id=self.fake_partner_dataset,
-                gcp_table_id=table_id,
+                gcp_table_id=jstor_table_id,
                 isbn_field_name="ISBN",
-            )
+            ),
+            OaebuPartners(
+                name="Google Books Sales",
+                gcp_project_id=self.gcp_project_id,
+                gcp_dataset_id=self.fake_partner_dataset,
+                gcp_table_id=google_books_sales_table_id,
+                isbn_field_name="Primary_ISBN",
+            ),
+            OaebuPartners(
+                name="Google Books Traffic",
+                gcp_project_id=self.gcp_project_id,
+                gcp_dataset_id=self.fake_partner_dataset,
+                gcp_table_id=google_books_traffic_table_id,
+                isbn_field_name="Primary_ISBN",
+            ),
         ]
 
     def test_sensors(self):
@@ -1281,6 +1507,22 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 self.timestamp,
             )
 
+            oaebu_dataset = data_partners[1].gcp_dataset_id
+            oaebu_table = data_partners[1].gcp_table_id
+            env.run_task(
+                f"{telescope.create_oaebu_intermediate_table.__name__}.{oaebu_dataset}.{oaebu_table}",
+                workflow_dag,
+                self.timestamp,
+            )
+
+            oaebu_dataset = data_partners[2].gcp_dataset_id
+            oaebu_table = data_partners[2].gcp_table_id
+            env.run_task(
+                f"{telescope.create_oaebu_intermediate_table.__name__}.{oaebu_dataset}.{oaebu_table}",
+                workflow_dag,
+                self.timestamp,
+            )
+
             # ONIX isbn check
             oaebu_table = data_partners[0].gcp_table_id
             env.run_task(
@@ -1309,6 +1551,38 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             oaebu_table = data_partners[0].gcp_table_id
             env.run_task(
                 f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[0].gcp_dataset_id}.{data_partners[0].gcp_table_id}",
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # Google Books Sales isbn check
+            oaebu_table = data_partners[1].gcp_table_id
+            env.run_task(
+                telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__,
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # Google Books Sales intermediate unmatched isbns
+            oaebu_table = data_partners[1].gcp_table_id
+            env.run_task(
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # Google Books Traffic isbn check
+            oaebu_table = data_partners[2].gcp_table_id
+            env.run_task(
+                telescope.create_oaebu_data_qa_google_books_traffic_isbn.__name__,
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # Google Books Traffic intermediate unmatched isbns
+            oaebu_table = data_partners[2].gcp_table_id
+            env.run_task(
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[2].gcp_dataset_id}.{data_partners[2].gcp_table_id}",
                 workflow_dag,
                 self.timestamp,
             )
@@ -1408,5 +1682,47 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("9781111111113" in isbns)
             self.assertTrue("113" in isbns)
 
+            # Check Google Books Sales ISBN are valid
+            sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.google_books_sales_invalid_isbn{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["Primary_ISBN"] for record in records])
+            self.assertEqual(len(isbns), 4)
+            self.assertTrue("111" in isbns)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("113" in isbns)
+            self.assertTrue("112" in isbns)
+
+            # Check Google Books Sales unmatched ISBN picked up
+            sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.oaebu_data_qa.google_books_sales_unmatched_Primary_ISBN{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["Primary_ISBN"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("9781111111113" in isbns)
+            self.assertTrue("113" in isbns)
+
+            # Check Google Books Traffic ISBN are valid
+            sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.google_books_traffic_invalid_isbn{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["Primary_ISBN"] for record in records])
+            self.assertEqual(len(isbns), 4)
+            self.assertTrue("111" in isbns)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("113" in isbns)
+            self.assertTrue("112" in isbns)
+
+            # Check Google Books Traffic unmatched ISBN picked up
+            sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.oaebu_data_qa.google_books_traffic_unmatched_Primary_ISBN{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["Primary_ISBN"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("9781111111113" in isbns)
+            self.assertTrue("113" in isbns)
+
             # Cleanup
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
+
+            # Environment cleanup
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="oaebu_data_qa")
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="oaebu_intermediate")
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="onix_workflow")
+            delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix=self.test_onix_folder)
