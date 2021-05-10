@@ -551,8 +551,8 @@ class OnixWorkflow(Telescope):
         for data_partner in data_partners:
             if data_partner.name == "JSTOR":
                 self.create_oaebu_data_qa_jstor_tasks(data_partner)
-            # elif data_partner.name == "OAPEN IRUS UK":
-            #     self.create_oaebu_data_qa_oapen_irus_uk_tasks(data_partner)
+            elif data_partner.name == "OAPEN IRUS UK":
+                self.create_oaebu_data_qa_oapen_irus_uk_tasks(data_partner)
             elif data_partner.name == "Google Books Sales":
                 self.create_oaebu_data_qa_google_books_sales_tasks(data_partner)
             elif data_partner.name == "Google Books Traffic":
@@ -774,6 +774,69 @@ class OnixWorkflow(Telescope):
                 output_table_id=output_table_id,
                 dataset_location=dataset_location,
                 isbn="eISBN",
+            )
+
+    def create_oaebu_data_qa_oapen_irus_uk_tasks(self, data_partner: OaebuPartners):
+        """Create OAPEN IRUS UK quality assurance metrics.
+        :param data_partner: OaebuPartner metadata.
+        """
+
+        # isbn validation
+        fn = partial(
+            self.create_oaebu_data_qa_oapen_irus_uk_isbn,
+            project_id=data_partner.gcp_project_id,
+            orig_dataset_id=data_partner.gcp_dataset_id,
+            orig_table=data_partner.gcp_table_id,
+            table_date=data_partner.gcp_table_date,
+        )
+        update_wrapper(fn, self.create_oaebu_data_qa_oapen_irus_uk_isbn)
+        self.add_task(fn)
+
+    def create_oaebu_data_qa_oapen_irus_uk_isbn(
+        self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        project_id: str,
+        orig_dataset_id: str,
+        orig_table: str,
+        table_date: Union[None, pendulum.Pendulum],
+        **kwargs,
+    ):
+        """Create a BQ table of invalid ISBNs for the OAPEN IRUS UK feed.
+        No attempt is made to normalise the string so we catch as many string issues as we can.
+
+        :param releases: List of workflow release objects.
+        :param project_id: GCP project ID.
+        :param orig_dataset_id: Dataset ID for jstor data.
+        :param orig_table: Table ID for the jstor data.
+        :table_date: Table suffix of jstor release if it exists.
+        """
+        for release in releases:
+            release_date = table_date
+            if release_date is None:
+                release_date = select_table_suffixes(
+                    project_id=project_id,
+                    dataset_id=orig_dataset_id,
+                    table_id=orig_table,
+                    end_date=release.release_date,
+                )[0]
+
+            # select table suffixes to get table suffix
+            output_dataset_id = release.oaebu_data_qa_dataset
+            orig_table_id = orig_table + release_date.strftime("%Y%m%d")
+
+            # Validate the ISBN field
+            output_table = "oapen_irus_uk_invalid_isbn"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            dataset_location = release.dataset_location
+            self.oaebu_data_qa_validate_isbn(
+                project_id=project_id,
+                orig_dataset_id=orig_dataset_id,
+                orig_table_id=orig_table_id,
+                output_dataset_id=output_dataset_id,
+                output_table_id=output_table_id,
+                dataset_location=dataset_location,
+                isbn="ISBN",
             )
 
     def create_oaebu_data_qa_google_books_sales_tasks(self, data_partner: OaebuPartners):
