@@ -50,7 +50,7 @@ for profile in profiles:
 Note that all values need to be urlencoded.
 In the config.yaml file, the following airflow connections are required:  
 
-## oaebu_service_account
+### oaebu_service_account
 After creating the JSON key file as described above, open the JSON file and use the information to create the connection.  
 URL encode each of the fields 'private_key_id', 'private_key', 'client_email' and 'client_id'.
 ```yaml
