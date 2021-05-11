@@ -1,4 +1,4 @@
-#JSTOR
+# JSTOR
 
 JSTOR provides publisher usage reports, the reports offer details about the use of journal or book content by title, institution, and country. 
 Journal reports also include usage by issue and article. 
@@ -11,7 +11,7 @@ To get the right publisher id, the 'publisher_id' needs to be set in the 'extra'
 To get access to the analytics data a publisher needs to grant access to e.g. a Gmail account. 
 This account can then be used to login and set-up the scheduled reports (see below). 
 
-The corresponding table created in BigQuery is `jstor.jstorYYYYMMDD`.
+The corresponding tables created in BigQuery are `jstor_countryYYYYMMDD` and `jstor_institutionYYYYMMDD`.
 
 | Summary                 |        |
 |-------------------------|--------|
