@@ -441,6 +441,76 @@ class TestBookWorkAggregator(unittest.TestCase):
         self.assertEqual(len(work3.products), 1)
         self.assertTrue("222" in work3.isbns)
 
+    def test_agg_relworks_pid_proprietary(self):
+        agg = BookWorkAggregator(
+            [
+                {
+                    "ISBN13": "123",
+                    "GTIN_13": "123",
+                    "PID_Proprietary": "123",
+                    "RelatedWorks": [
+                        {
+                            "WorkRelationCode": "Manifestation of",
+                            "WorkIdentifiers": [{"WorkIDType": "PID_Proprietary", "IDValue": "246"}],
+                        },
+                    ],
+                },
+                {
+                    "ISBN13": "246",
+                    "GTIN_13": "246",
+                    "PID_Proprietary": "246",
+                    "RelatedWorks": [
+                        {
+                            "WorkRelationCode": "Manifestation of",
+                            "WorkIdentifiers": [{"WorkIDType": "PID_Proprietary", "IDValue": "246"}],
+                        },
+                    ],
+                },
+                {
+                    "ISBN13": "111",
+                    "GTIN_13": "111",
+                    "PID_Proprietary": "111",
+                    "RelatedWorks": [
+                        {
+                            "WorkRelationCode": "Manifestation of",
+                            "WorkIdentifiers": [{"WorkIDType": "PID_Proprietary", "IDValue": "111"}],
+                        },
+                        {
+                            "WorkRelationCode": "something unknown",
+                            "WorkIdentifiers": [{"WorkIDType": "PID_Proprietary", "IDValue": "246"}],
+                        },
+                    ],
+                },
+                {
+                    "ISBN13": "222",
+                    "GTIN_13": "222",
+                    "PID_Proprietary": "222",
+                    "RelatedWorks": [
+                        {
+                            "WorkRelationCode": "Manifestation of",
+                            "WorkIdentifiers": [{"WorkIDType": "PID_Proprietary", "IDValue": "222"}],
+                        },
+                    ],
+                },
+            ]
+        )
+        agg.agg_relworks()
+        works = agg.get_works_from_partition(agg.uf.get_partition())
+        self.assertEqual(len(works), 3)
+
+        work1 = works[0]
+        self.assertEqual(len(work1.products), 2)
+        self.assertTrue("123" in work1.isbns)
+        self.assertTrue("246" in work1.isbns)
+
+        work2 = works[1]
+        self.assertEqual(len(work2.products), 1)
+        self.assertTrue("111" in work2.isbns)
+
+        work3 = works[2]
+        self.assertEqual(len(work3.products), 1)
+        self.assertTrue("222" in work3.isbns)
+
     def test_agg_products(self):
         agg = BookWorkAggregator(
             [
@@ -582,7 +652,27 @@ class TestBookWorkAggregator(unittest.TestCase):
                     "RelatedWorks": [
                         {
                             "WorkRelationCode": "Manifestation of",
-                            "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "222"}],
+                            "WorkIdentifiers": [{"WorkIDType": "Proprietary", "IDValue": "222"}],
+                        },
+                    ],
+                },
+                {
+                    "ISBN13": "1010",
+                    "PID_Proprietary": "1010",
+                    "RelatedWorks": [
+                        {
+                            "WorkRelationCode": "Manifestation of",
+                            "WorkIdentifiers": [{"WorkIDType": "Proprietary", "IDValue": "1011"}],
+                        },
+                    ],
+                },
+                {
+                    "ISBN13": "1011",
+                    "PID_Proprietary": "1011",
+                    "RelatedWorks": [
+                        {
+                            "WorkRelationCode": "Manifestation of",
+                            "WorkIdentifiers": [{"WorkIDType": "Proprietary", "IDValue": "1010"}],
                         },
                     ],
                 },
@@ -590,7 +680,7 @@ class TestBookWorkAggregator(unittest.TestCase):
         )
 
         works = agg.aggregate()
-        self.assertEqual(len(works), 3)
+        self.assertEqual(len(works), 4)
 
         work1 = works[0]
         self.assertEqual(len(work1.products), 2)
@@ -604,6 +694,11 @@ class TestBookWorkAggregator(unittest.TestCase):
         work3 = works[2]
         self.assertEqual(len(work3.products), 1)
         self.assertTrue("222" in work3.isbns)
+
+        work4 = works[3]
+        self.assertEqual(len(work4.products), 2)
+        self.assertTrue("1010" in work4.isbns)
+        self.assertTrue("1011" in work4.isbns)
 
     def test_aggregate2(self):
         agg = BookWorkAggregator(
@@ -630,11 +725,25 @@ class TestBookWorkAggregator(unittest.TestCase):
                         {"ProductRelationCodes": ["Alternative format", "something random"], "ISBN13": "123"}
                     ],
                 },
+                {
+                    "ISBN13": "1010",
+                    "PID_Proprietary": "1010",
+                    "RelatedProducts": [
+                        {"ProductRelationCodes": ["Alternative format", "something random"], "PID_Proprietary": "1011"}
+                    ],
+                },
+                {
+                    "ISBN13": "1011",
+                    "PID_Proprietary": "1011",
+                    "RelatedProducts": [
+                        {"ProductRelationCodes": ["Alternative format", "something random"], "PID_Proprietary": "1010"}
+                    ],
+                },
             ]
         )
 
         works = agg.aggregate()
-        self.assertEqual(len(works), 2)
+        self.assertEqual(len(works), 3)
 
         work1 = works[0]
         self.assertEqual(len(work1.isbns), 3)
@@ -645,6 +754,11 @@ class TestBookWorkAggregator(unittest.TestCase):
         work2 = works[1]
         self.assertEqual(len(work2.isbns), 1)
         self.assertTrue("456" in work2.isbns)
+
+        work3 = works[2]
+        self.assertEqual(len(work3.isbns), 2)
+        self.assertTrue("1010" in work3.isbns)
+        self.assertTrue("1011" in work3.isbns)
 
     def test_aggregate3(self):
         agg = BookWorkAggregator([])
@@ -691,6 +805,12 @@ class TestBookWorkAggregator(unittest.TestCase):
         isbn13_to_index = {}
         gtin13_to_product = {}
 
+        self.assertEqual(agg.get_pid_idx(pid_type, pid), None)
+
+        pid_type = "GTIN_13"
+        self.assertEqual(agg.get_pid_idx(pid_type, pid), None)
+
+        pid_type = "PID_Proprietary"
         self.assertEqual(agg.get_pid_idx(pid_type, pid), None)
 
     def test_get_pid_idx_unknown(self):
@@ -1088,6 +1208,76 @@ class TestBookWorkFamilyAggregator(unittest.TestCase):
         self.assertEqual(wfam[1].work_family_id, "3")
         self.assertEqual(wfam[1].works[0].work_id, "3")
 
+    def test_aggregate_products_pid_proprietary(self):
+        products1 = [
+            {
+                "ISBN13": "123",
+                "GTIN_13": "123",
+                "PID_Proprietary": "123",
+                "RelatedProducts": [
+                    {"ProductRelationCodes": ["Replaces", "something random"], "PID_Proprietary": "456"},
+                    {"ProductRelationCodes": ["Replaces", "something random"], "PID_Proprietary": "789"},
+                ],
+            },
+            {"ISBN13": "456", "GTIN_13": "456", "PID_Proprietary": "456", "RelatedProducts": []},
+            {"ISBN13": "147", "GTIN_13": "147", "PID_Proprietary": "147", "RelatedProducts": []},
+        ]
+
+        products2 = [
+            {
+                "ISBN13": "258",
+                "GTIN_13": "258",
+                "PID_Proprietary": "258",
+                "RelatedProducts": [
+                    {
+                        "ProductRelationCodes": ["Is later edition of first edition", "something random"],
+                        "PID_Proprietary": "147",
+                    },
+                ],
+            },
+        ]
+
+        products3 = [
+            {
+                "ISBN13": "369",
+                "GTIN_13": "369",
+                "PID_Proprietary": "369",
+                "RelatedProducts": [
+                    {"ProductRelationCodes": ["something random"], "PID_Proprietary": "123"},
+                ],
+            },
+        ]
+
+        products4 = [
+            {
+                "ISBN13": "789",
+                "GTIN_13": "789",
+                "PID_Proprietary": "789",
+                "RelatedProducts": [
+                    {"ProductRelationCodes": ["Replaced by", "something random"], "PID_Proprietary": "456"},
+                ],
+            },
+        ]
+
+        works = [
+            BookWork(work_id="1", work_id_type="test", products=products1),
+            BookWork(work_id="2", work_id_type="test", products=products2),
+            BookWork(work_id="3", work_id_type="test", products=products3),
+            BookWork(work_id="4", work_id_type="test", products=products4),
+        ]
+
+        agg = BookWorkFamilyAggregator(works)
+        wfam = agg.aggregate()
+        self.assertEqual(len(wfam), 2)
+
+        self.assertEqual(wfam[0].work_family_id, "1")
+        self.assertEqual(wfam[0].works[0].work_id, "1")
+        self.assertEqual(wfam[0].works[1].work_id, "2")
+        self.assertEqual(wfam[0].works[2].work_id, "4")
+
+        self.assertEqual(wfam[1].work_family_id, "3")
+        self.assertEqual(wfam[1].works[0].work_id, "3")
+
     def test_get_wid_unsupported(self):
         products1 = [
             {
@@ -1106,7 +1296,7 @@ class TestBookWorkFamilyAggregator(unittest.TestCase):
     def test_get_wid_idx_unsupported(self):
         works = [BookWork(work_id="1", work_id_type="test", products=[])]
         agg = BookWorkFamilyAggregator(works)
-        self.assertRaises(Exception, agg.get_wid_idx, "unknown", "123", {}, {})
+        self.assertRaises(Exception, agg.get_wid_idx, "unknown", "123", {}, {}, {})
 
     def test_get_wid_idx_missing_isbn(self):
         works = [BookWork(work_id="1", work_id_type="test", products=[])]
@@ -1115,7 +1305,8 @@ class TestBookWorkFamilyAggregator(unittest.TestCase):
         pid = "123"
         isbn_table = {}
         gtin_table = {}
-        self.assertEqual(agg.get_wid_idx(pid_type, pid, isbn_table, gtin_table), None)
+        proprietary_table = {}
+        self.assertEqual(agg.get_wid_idx(pid_type, pid, isbn_table, gtin_table, proprietary_table), None)
 
     def test_get_wid_idx_missing_gtin(self):
         works = [BookWork(work_id="1", work_id_type="test", products=[])]
@@ -1124,7 +1315,18 @@ class TestBookWorkFamilyAggregator(unittest.TestCase):
         pid = "123"
         isbn_table = {}
         gtin_table = {}
-        self.assertEqual(agg.get_wid_idx(pid_type, pid, isbn_table, gtin_table), None)
+        proprietary_table = {}
+        self.assertEqual(agg.get_wid_idx(pid_type, pid, isbn_table, gtin_table, proprietary_table), None)
+
+    def test_get_wid_idx_missing_pid_proprietary(self):
+        works = [BookWork(work_id="1", work_id_type="test", products=[])]
+        agg = BookWorkFamilyAggregator(works)
+        pid_type = "PID_Proprietary"
+        pid = "123"
+        isbn_table = {}
+        gtin_table = {}
+        proprietary_table = {}
+        self.assertEqual(agg.get_wid_idx(pid_type, pid, isbn_table, gtin_table, proprietary_table), None)
 
     def test_get_works_family_lookup_table(self):
         products1 = [
