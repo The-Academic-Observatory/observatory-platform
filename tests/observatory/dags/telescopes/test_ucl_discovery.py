@@ -252,10 +252,10 @@ class TestUclDiscovery(ObservatoryTestCase):
         """
         countries_url = 'https://discovery.ucl.ac.uk/cgi/stats/get?from=20210401&to=20210501&irs2report=eprint' \
                         '&datatype=countries&top=countries&view=Table&limit=all&set_name=eprint&export=CSV&set_value' \
-                        '=10124354 '
+                        '=10124354'
         countries_url_empty = 'https://discovery.ucl.ac.uk/cgi/stats/get?from=20210401&to=20210501&irs2report=eprint' \
                               '&datatype=countries&top=countries&view=Table&limit=all&set_name=eprint&export=CSV' \
-                              '&set_value=10127557 '
+                              '&set_value=10127557'
         with vcr.use_cassette(self.country_cassette):
             results, total_downloads = get_downloads_per_country(countries_url)
             self.assertListEqual([{'country_code': 'MX', 'country_name': 'Mexico', 'download_count': 116},
