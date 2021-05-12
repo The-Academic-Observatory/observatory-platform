@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import List, Tuple, Optional
 
 import pendulum
+from airflow.exceptions import AirflowException
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars
@@ -107,7 +108,8 @@ class UclDiscoveryRelease(SnapshotRelease):
                 f.write(response_content)
             return True
         else:
-            return False
+            raise AirflowException(f'Could not download metadata, response status code: {response.status_code} '
+                                   f'reason: {response.reason}')
 
     def transform(self):
         """ Parse the csv file and for each eprint id store the relevant metadata in a dictionary and get the downloads

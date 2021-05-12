@@ -14,40 +14,25 @@
 
 # Author: Aniek Roelofs
 
-import logging
-import os
-import unittest
-from types import SimpleNamespace
-from unittest.mock import patch
-
-import pendulum
 import vcr
-from click.testing import CliRunner
-from observatory.dags.telescopes.ucl_discovery import UclDiscoveryRelease, UclDiscoveryTelescope
-from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
-
-from tests.observatory.test_utils import test_fixtures_path
-
-
-
-import gzip
-import json
 import os
 from datetime import datetime
 from unittest.mock import patch
 
 import pendulum
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from croniter import croniter
-from googleapiclient.discovery import build
-from googleapiclient.http import HttpMockSequence
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
-from observatory.dags.telescopes.google_analytics import GoogleAnalyticsRelease, GoogleAnalyticsTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
+from observatory.dags.telescopes.ucl_discovery import UclDiscoveryRelease, UclDiscoveryTelescope, get_downloads_per_country
+from tests.observatory.test_utils import test_fixtures_path
+from click.testing import CliRunner
+from requests.exceptions import RetryError
 
 
 class TestUclDiscovery(ObservatoryTestCase):
@@ -217,139 +202,107 @@ class TestUclDiscovery(ObservatoryTestCase):
             env.run_task(telescope.cleanup.__name__, dag, execution_date)
             self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
+    @patch('observatory.dags.telescopes.ucl_discovery.retry_session')
+    @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
+    def test_download(self, mock_variable_get, mock_retry_session):
+        """ Test download method of UCL Discovery release
 
-def mock_airflow_variable(arg):
-    values = {
-        'project_id': 'project',
-        'download_bucket_name': 'download-bucket',
-        'transform_bucket_name': 'transform-bucket',
-        'data_path': 'data',
-        'data_location': 'US'
-    }
-    return values[arg]
+        :param mock_variable_get: Mock AirflowVariable get
+        :param mock_retry_session: Mock retry_session
+        :return: None.
+        """
+        organisation = Organisation(
+            name=self.organisation_name,
+            gcp_project_id=self.project_id,
+            gcp_download_bucket='download_bucket',
+            gcp_transform_bucket='transform_bucket'
+        )
+        telescope = UclDiscoveryTelescope(organisation=organisation, dataset_id='dataset_id')
+        release = UclDiscoveryRelease(telescope.dag_id, datetime(2020, 1, 1), datetime(2020, 1, 1), organisation)
 
+        with CliRunner().isolated_filesystem():
+            mock_variable_get.return_value = "data"
 
-def mocked_requests_get(*args, **kwargs):
-    class MockResponse:
-        def __init__(self, content, status_code):
-            self.content = content
-            self.status_code = status_code
+            # test status code is not 200
+            mock_retry_session().get.return_value.status_code = 400
+            with self.assertRaises(AirflowException):
+                release.download()
 
-    if args[0] == 'test_status_code':
-        return MockResponse(b'no content', 404)
-    elif args[0] == 'test_empty_csv':
-        return MockResponse(b'"eprintid","rev_number","eprint_status","userid","importid","source"', 200)
+            # test status code 200, but empty csv file
+            mock_retry_session().get.return_value.status_code = 200
+            mock_retry_session().get.return_value.content = ''.encode()
+            result = release.download()
+            self.assertFalse(result)
 
-#
-# @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-# class TestUclDiscovery(unittest.TestCase):
-#     """ Tests for the functions used by the UclDiscovery telescope """
-#
-#     def __init__(self, *args, **kwargs, ):
-#         """ Constructor which sets up variables used by tests.
-#
-#         :param args: arguments.
-#         :param kwargs: keyword arguments.
-#         """
-#
-#         super(TestUclDiscovery, self).__init__(*args, **kwargs)
-#
-#         # Paths
-#         self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
-#         self.download_path = os.path.join(self.vcr_cassettes_path, 'ucl_discovery_2008-02-01.yaml')
-#         self.country_report_path = os.path.join(self.vcr_cassettes_path,
-#                                                 'ucl_discovery_country_2008-02-01.yaml')
-#
-#         # Telescope instance
-#         self.ucl_discovery = UclDiscoveryTelescope()
-#
-#         # Dag run info
-#         self.start_date = pendulum.parse('2021-01-01')
-#         self.end_date = pendulum.parse('2021-02-01')
-#         self.download_hash = 'ed054db8c4221b7e8055507c4718b7f2'
-#         self.transform_crc = '12444a7d'
-#
-#         # Create release instance that is used to test download/transform
-#         with patch('observatory.platform.utils.template_utils.AirflowVariable.get') as mock_variable_get:
-#             mock_variable_get.side_effect = mock_airflow_variable
-#             self.release = UclDiscoveryRelease(self.ucl_discovery.dag_id, self.start_date, self.end_date)
-#
-#         # Turn logging to warning because vcr prints too much at info level
-#         logging.basicConfig()
-#         logging.getLogger().setLevel(logging.WARNING)
-#
-#     def test_make_release(self, mock_variable_get):
-#         """ Check that make_release returns a list with one UclDiscoveryRelease instance.
-#
-#         :param mock_variable_get: Mock result of airflow's Variable.get() function
-#         :return: None.
-#         """
-#         mock_variable_get.side_effect = mock_airflow_variable
-#
-#         schedule_interval = '0 0 1 * *'
-#         execution_date = self.start_date
-#         releases = self.ucl_discovery.make_release(dag=SimpleNamespace(normalized_schedule_interval=schedule_interval),
-#                                                    dag_run=SimpleNamespace(execution_date=execution_date))
-#         self.assertEqual(1, len(releases))
-#         self.assertIsInstance(releases, list)
-#         self.assertIsInstance(releases[0], UclDiscoveryRelease)
-#
-#     def test_download_release(self, mock_variable_get):
-#         """ Download release to check it has the expected md5 sum and test unsuccessful mocked responses.
-#
-#         :param mock_variable_get: Mock result of airflow's Variable.get() function
-#         :return:
-#         """
-#         mock_variable_get.side_effect = mock_airflow_variable
-#
-#         with CliRunner().isolated_filesystem():
-#             with vcr.use_cassette(self.download_path):
-#                 success = self.release.download()
-#
-#                 # Check that download is successful
-#                 self.assertTrue(success)
-#
-#                 # Check that file has expected hash
-#                 self.assertEqual(1, len(self.release.download_files))
-#                 self.assertEqual(self.release.download_path, self.release.download_files[0])
-#                 self.assertTrue(os.path.exists(self.release.download_path))
-#                 self.assertEqual(self.download_hash, _hash_file(self.release.download_path, algorithm='md5'))
-#
-#             with patch('observatory.platform.utils.url_utils.requests.Session.get') as mock_requests_get:
-#                 # mock response status code is not 200
-#                 mock_requests_get.side_effect = mocked_requests_get
-#                 self.release.eprint_metadata_url = 'test_status_code'
-#                 success = self.release.download()
-#                 self.assertFalse(success)
-#
-#                 # mock response content is empty CSV file (only headers)
-#                 self.release.eprint_metadata_url = 'test_empty_csv'
-#                 success = self.release.download()
-#                 self.assertFalse(success)
-#
-#     def test_transform_release(self, mock_variable_get):
-#         """ Test that the release is transformed as expected.
-#
-#         :param mock_variable_get: Mock result of airflow's Variable.get() function
-#         :return: None.
-#         """
-#         mock_variable_get.side_effect = mock_airflow_variable
-#
-#         with CliRunner().isolated_filesystem():
-#             with vcr.use_cassette(self.download_path):
-#                 self.release.download()
-#
-#             # use three eprintids for transform test, for first one the country downloads is empty
-#             with open(self.release.download_path, 'r') as f_in:
-#                 lines = f_in.readlines()
-#             with open(self.release.download_path, 'w') as f_out:
-#                 f_out.writelines(lines[0:1] + lines[23:36] + lines[36:61] + lines[61:88])
-#
-#             with vcr.use_cassette(self.country_report_path):
-#                 self.release.transform()
-#
-#             # Check that file has expected crc
-#             self.assertEqual(1, len(self.release.transform_files))
-#             self.assertEqual(self.release.transform_path, self.release.transform_files[0])
-#             self.assertTrue(os.path.exists(self.release.transform_path))
-#             self.assertEqual(self.transform_crc, gzip_file_crc(self.release.transform_path))
+            # test status code 200 and valid csv file
+            mock_retry_session().get.return_value.content = '"eprintid","userid"\n"1234","1234"'.encode()
+            result = release.download()
+            self.assertTrue(result)
+            self.assert_file_integrity(release.download_path, '13cc3a5087bbd37bf12221727bd1d93f', 'md5')
+
+            # test retry error
+            mock_retry_session.side_effect = RetryError()
+            with self.assertRaises(RetryError):
+               release.download()
+
+    def test_get_downloads_per_country(self):
+        """ Test get_downloads_per_country function.
+
+        :return: None.
+        """
+        countries_url = 'https://discovery.ucl.ac.uk/cgi/stats/get?from=20210401&to=20210501&irs2report=eprint' \
+                        '&datatype=countries&top=countries&view=Table&limit=all&set_name=eprint&export=CSV&set_value' \
+                        '=10124354 '
+        countries_url_empty = 'https://discovery.ucl.ac.uk/cgi/stats/get?from=20210401&to=20210501&irs2report=eprint' \
+                              '&datatype=countries&top=countries&view=Table&limit=all&set_name=eprint&export=CSV' \
+                              '&set_value=10127557 '
+        with vcr.use_cassette(self.country_cassette):
+            results, total_downloads = get_downloads_per_country(countries_url)
+            self.assertListEqual([{'country_code': 'MX', 'country_name': 'Mexico', 'download_count': 116},
+                                  {'country_code': 'US', 'country_name': 'United States', 'download_count': 100},
+                                  {'country_code': 'GB', 'country_name': 'United Kingdom', 'download_count': 80},
+                                  {'country_code': 'BR', 'country_name': 'Brazil', 'download_count': 64},
+                                  {'country_code': 'CO', 'country_name': 'Colombia', 'download_count': 56},
+                                  {'country_code': 'AR', 'country_name': 'Argentina', 'download_count': 44},
+                                  {'country_code': 'DE', 'country_name': 'Germany', 'download_count': 35},
+                                  {'country_code': 'CL', 'country_name': 'Chile', 'download_count': 27},
+                                  {'country_code': 'EC', 'country_name': 'Ecuador', 'download_count': 26},
+                                  {'country_code': 'CA', 'country_name': 'Canada', 'download_count': 16},
+                                  {'country_code': 'NL', 'country_name': 'Netherlands', 'download_count': 15},
+                                  {'country_code': 'FR', 'country_name': 'France', 'download_count': 15},
+                                  {'country_code': 'ES', 'country_name': 'Spain', 'download_count': 11},
+                                  {'country_code': 'IT', 'country_name': 'Italy', 'download_count': 8},
+                                  {'country_code': 'PT', 'country_name': 'Portugal', 'download_count': 6},
+                                  {'country_code': 'TW', 'country_name': 'Taiwan', 'download_count': 6},
+                                  {'country_code': 'SE', 'country_name': 'Sweden', 'download_count': 6},
+                                  {'country_code': 'PE', 'country_name': 'Peru', 'download_count': 5},
+                                  {'country_code': 'NO', 'country_name': 'Norway', 'download_count': 5},
+                                  {'country_code': 'CH', 'country_name': 'Switzerland', 'download_count': 4},
+                                  {'country_code': 'CR', 'country_name': 'Costa Rica', 'download_count': 4},
+                                  {'country_code': 'GR', 'country_name': 'Greece', 'download_count': 4},
+                                  {'country_code': 'AT', 'country_name': 'Austria', 'download_count': 4},
+                                  {'country_code': 'CZ', 'country_name': 'Czech Republic', 'download_count': 3},
+                                  {'country_code': 'AU', 'country_name': 'Australia', 'download_count': 3},
+                                  {'country_code': 'IE', 'country_name': 'Ireland', 'download_count': 3},
+                                  {'country_code': 'PH', 'country_name': 'Philippines', 'download_count': 3},
+                                  {'country_code': 'IN', 'country_name': 'India', 'download_count': 2},
+                                  {'country_code': 'NZ', 'country_name': 'New Zealand', 'download_count': 2},
+                                  {'country_code': 'PR', 'country_name': 'Puerto Rico', 'download_count': 2},
+                                  {'country_code': 'FI', 'country_name': 'Finland', 'download_count': 2},
+                                  {'country_code': 'ZA', 'country_name': 'South Africa', 'download_count': 2},
+                                  {'country_code': 'RO', 'country_name': 'Romania', 'download_count': 2},
+                                  {'country_code': 'VE', 'country_name': 'Venezuela', 'download_count': 1},
+                                  {'country_code': 'EU', 'country_name': 'Europe', 'download_count': 1},
+                                  {'country_code': 'RS', 'country_name': 'Serbia', 'download_count': 1},
+                                  {'country_code': 'NG', 'country_name': 'Nigeria', 'download_count': 1},
+                                  {'country_code': 'HR', 'country_name': 'Croatia', 'download_count': 1},
+                                  {'country_code': 'BE', 'country_name': 'Belgium', 'download_count': 1},
+                                  {'country_code': 'MM', 'country_name': 'Myanmar', 'download_count': 1},
+                                  {'country_code': 'DK', 'country_name': 'Denmark', 'download_count': 1},
+                                  {'country_code': 'ID', 'country_name': 'Indonesia', 'download_count': 1},
+                                  {'country_code': 'JP', 'country_name': 'Japan', 'download_count': 1},
+                                  {'country_code': 'SK', 'country_name': 'Slovakia', 'download_count': 1}], results)
+            self.assertEqual(692, total_downloads)
+            results, total_downloads = get_downloads_per_country(countries_url_empty)
+            self.assertEqual([], results)
+            self.assertEqual(0, total_downloads)
