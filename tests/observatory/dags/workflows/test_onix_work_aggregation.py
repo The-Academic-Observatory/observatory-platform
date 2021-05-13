@@ -243,10 +243,10 @@ class TestGetPrefWorkId(unittest.TestCase):
         self.assertEqual(wid, "value")
 
     def test_pid_proprietary(self):
-        ids = [{"WorkIDType": "unknown", "IDValue": "value"}, {"WorkIDType": "PID_Proprietary", "IDValue": "pidpro"}]
+        ids = [{"WorkIDType": "unknown", "IDValue": "value"}, {"WorkIDType": "Proprietary", "IDValue": "pidpro"}]
 
         wtype, wid = self.agg.get_pref_work_id(ids)
-        self.assertEqual(wtype, "PID_Proprietary")
+        self.assertEqual(wtype, "Proprietary")
         self.assertEqual(wid, "pidpro")
 
     def test_doi(self):
@@ -909,7 +909,7 @@ class TestBookWorkAggregator(unittest.TestCase):
         agg.aggregate()
         self.assertEqual(
             agg.errors[0],
-            "Product record 123 is a manifestation of 246, but we cannot find a product record with identifier ISBN13:246.",
+            "Product ISBN13:123 is a manifestation of ISBN13:246, which is not given as a product identifier in any ONIX product record.",
         )
 
     def test_log_agg_relworks_errors_miss_gtin(self):
@@ -931,7 +931,7 @@ class TestBookWorkAggregator(unittest.TestCase):
         agg.aggregate()
         self.assertEqual(
             agg.errors[0],
-            "Product record 123 is a manifestation of 246, but we cannot find a product record with identifier GTIN_13:246.",
+            "Product ISBN13:123 is a manifestation of GTIN_13:246, which is not given as a product identifier in any ONIX product record.",
         )
 
     def test_log_get_works_lookup_table_errors(self):
