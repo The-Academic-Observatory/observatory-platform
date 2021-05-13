@@ -204,8 +204,9 @@ class BookWorkAggregator:
 
         self.proprietary_to_product = {}
         for record in self.records:
-            if "PID_Proprietary" in record:
-                self.proprietary_to_product[record["PID_Proprietary"]] = record
+            if "PID_Proprietary" in record and record["PID_Proprietary"] is not None:
+                pid_proprietary = record["PID_Proprietary"]
+                self.proprietary_to_product[pid_proprietary] = record
 
         self.uf = UnionFind(self.n)
 
@@ -216,7 +217,7 @@ class BookWorkAggregator:
         :return: Preferred work id type and the work id. None represents unknoown work_id type.
         """
 
-        id_pref = {"ISBN-13": 0, "GTIN_13": 1, "DOI": 2, "PID_Proprietary": 3}
+        id_pref = {"ISBN-13": 0, "GTIN_13": 1, "DOI": 2, "Proprietary": 3}
 
         work_id = None
         work_id_type = None
@@ -240,8 +241,8 @@ class BookWorkAggregator:
             product = self.gtin13_to_product[work_id]
             return "ISBN13", product["ISBN13"]
 
-        if work_id_type == "PID_Proprietary" and work_id in self.proprietary_to_product:
-            product = self.gtin13_to_product[work_id]
+        if work_id_type == "Proprietary" and work_id in self.proprietary_to_product:
+            product = self.proprietary_to_product[work_id]
             return "ISBN13", product["ISBN13"]
 
         return work_id_type, work_id
