@@ -278,7 +278,7 @@ class BookWorkAggregator:
         """
 
         if wid not in self.isbn13_to_index:
-            error_msg = f"Product record {pisbn} is a manifestation of {wid}, but we cannot find a product record with identifier {wtype}:{wid}."
+            error_msg = f"Product record {pisbn} is a manifestation of {wtype}:{wid}, which is not given as a product identifier in any ONIX product record."
             self.errors.append(error_msg)
             return True
 
@@ -381,7 +381,7 @@ class BookWorkAggregator:
         :param pid: Related product's identifier.
         """
 
-        error_msg = f"Product ISBN13:{pisbn} has a related product {ptype}:{pid} of types {relation} not given as a product identifier in any ONIX product record."
+        error_msg = f"Product ISBN13:{pisbn} has a related product {ptype}:{pid} of types {relation} which is not given as a product identifier in any ONIX product record."
         self.errors.append(error_msg)
 
     def get_works_from_partition(self, partition: List[List[int]]) -> List[BookWork]:
