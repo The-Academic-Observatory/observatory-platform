@@ -596,6 +596,11 @@
         "mode": "NULLABLE",
         "name": "PersonName",
         "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ISNI",
+        "type": "STRING"
       }
     ],
     "mode": "REPEATED",
