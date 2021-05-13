@@ -278,7 +278,7 @@ class BookWorkAggregator:
         """
 
         if wid not in self.isbn13_to_index:
-            error_msg = f"Product record {pisbn} is a manifestation of {wtype}:{wid}, which is not given as a product identifier in any ONIX product record."
+            error_msg = f"Product ISBN13:{pisbn} is a manifestation of {wtype}:{wid}, which is not given as a product identifier in any ONIX product record."
             self.errors.append(error_msg)
             return True
 
