@@ -45,5 +45,6 @@ Every week the following tables are overwritten for visualisation in the Data St
 
 from observatory.dags.workflows.doi import DoiWorkflow
 
-workflow = DoiWorkflow()
-globals()[workflow.dag_id] = workflow.make_dag()
+# Outputs data into:
+doi_workflow = DoiWorkflow()
+globals()[doi_workflow.dag_id] = doi_workflow.make_dag()

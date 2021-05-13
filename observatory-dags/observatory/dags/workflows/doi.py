@@ -93,16 +93,42 @@ class DoiWorkflow(Telescope):
     SENSOR_DAG_IDS = ["crossref_metadata", "fundref", "geonames", "grid", "mag", "open_citations", "unpaywall"]
     TRANSFORMS = [
         Transform("wos"),
-        Transform("crossref_events"),
-        Transform("fundref", input_dataset_id="crossref", input_table_id="fundref", input_sharded=True),
+        Transform("crossref_events", cluster=True, clustering_fields=["doi"]),
+        Transform(
+            "fundref",
+            input_dataset_id="crossref",
+            input_table_id="fundref",
+            input_sharded=True,
+            cluster=True,
+            clustering_fields=["doi"],
+        ),
         Transform("grid", input_dataset_id="digital_science", input_table_id="grid", input_sharded=True),
         Transform("scopus"),
-        Transform("mag", input_dataset_id="mag", input_table_id="Affiliations", input_sharded=True),
-        Transform("orcid"),
         Transform(
-            "open_citations", input_dataset_id="open_citations", input_table_id="open_citations", input_sharded=True
+            "mag",
+            input_dataset_id="mag",
+            input_table_id="Affiliations",
+            input_sharded=True,
+            cluster=True,
+            clustering_fields=["Doi"],
         ),
-        Transform("unpaywall", input_dataset_id="our_research", input_table_id="unpaywall", input_sharded=True),
+        Transform("orcid", cluster=True, clustering_fields=["doi"]),
+        Transform(
+            "open_citations",
+            input_dataset_id="open_citations",
+            input_table_id="open_citations",
+            input_sharded=True,
+            cluster=True,
+            clustering_fields=["doi"],
+        ),
+        Transform(
+            "unpaywall",
+            input_dataset_id="our_research",
+            input_table_id="unpaywall",
+            input_sharded=True,
+            cluster=True,
+            clustering_fields=["doi"],
+        ),
     ]
     DOI_TRANSFORM = Transform(
         "doi",
@@ -228,7 +254,9 @@ class DoiWorkflow(Telescope):
         self.dashboards_dataset_id = dashboards_dataset_id
         self.observatory_dataset_id = observatory_dataset_id
         self.elastic_dataset_id = elastic_dataset_id
+        self.create_tasks()
 
+    def create_tasks(self):
         # Add sensors
         for ext_dag_id in self.SENSOR_DAG_IDS:
             sensor = ExternalTaskSensor(task_id=f"{ext_dag_id}_sensor", external_dag_id=ext_dag_id, mode="reschedule")
@@ -320,6 +348,8 @@ class DoiWorkflow(Telescope):
             input_table_id=transform.input_table_id,
             input_sharded=transform.input_sharded,
             output_table_id=transform.output_table_id,
+            cluster=transform.cluster,
+            clustering_fields=transform.clustering_fields,
         )
 
     def create_aggregate_table(self, release: ObservatoryRelease, **kwargs):
@@ -441,7 +471,14 @@ class ObservatoryRelease:
             )
 
     def create_intermediate_table(
-        self, *, input_dataset_id: str, input_table_id: str, input_sharded: bool, output_table_id: str,
+        self,
+        *,
+        input_dataset_id: str,
+        input_table_id: str,
+        input_sharded: bool,
+        output_table_id: str,
+        cluster: bool,
+        clustering_fields: List,
     ):
         """ Create an intermediate table.
         :param input_dataset_id: the input dataset id.
@@ -449,6 +486,8 @@ class ObservatoryRelease:
         :param input_sharded: whether the input table is sharded or not. The most recent sharded table will be
         selected, up until the release date.
         :param output_table_id: the output table id.
+        :param cluster: whether to cluster or not.
+        :param clustering_fields: the fields to cluster on.
         :return: None.
         """
 
@@ -479,6 +518,8 @@ class ObservatoryRelease:
             dataset_id=self.intermediate_dataset_id,
             table_id=output_table_id_sharded,
             location=self.data_location,
+            cluster=cluster,
+            clustering_fields=clustering_fields,
         )
 
         return success
