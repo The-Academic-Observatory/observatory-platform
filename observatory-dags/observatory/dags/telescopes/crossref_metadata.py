@@ -43,7 +43,7 @@ from observatory.platform.utils.airflow_utils import AirflowConns, \
     check_connections, \
     check_variables
 from observatory.platform.utils.config_utils import (find_schema)
-from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
+from observatory.platform.utils.gc_utils import (bigquery_sharded_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,
                                                  load_bigquery_table,
@@ -319,7 +319,7 @@ class CrossrefMetadataTelescope:
         continue_dag = False
         release = CrossrefMetadataRelease(execution_date.year, execution_date.month)
         if release.exists():
-            table_id = bigquery_partitioned_table_id(CrossrefMetadataTelescope.DAG_ID, release.date)
+            table_id = bigquery_sharded_table_id(CrossrefMetadataTelescope.DAG_ID, release.date)
             logging.info('Checking if bigquery table already exists:')
             if bigquery_table_exists(project_id, CrossrefMetadataTelescope.DATASET_ID, table_id):
                 logging.info(f'Skipping as table exists for {release.url}: '
@@ -489,7 +489,7 @@ class CrossrefMetadataTelescope:
         create_bigquery_dataset(project_id, dataset_id, data_location, CrossrefMetadataTelescope.DESCRIPTION)
 
         # Load each release
-        table_id = bigquery_partitioned_table_id(CrossrefMetadataTelescope.DAG_ID, release.date)
+        table_id = bigquery_sharded_table_id(CrossrefMetadataTelescope.DAG_ID, release.date)
 
         # Select schema file based on release date
         analysis_schema_path = schema_path()

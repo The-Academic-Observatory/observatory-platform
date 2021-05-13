@@ -39,11 +39,11 @@ from observatory.dags.workflows.onix_work_aggregation import (
 from observatory.platform.telescopes.telescope import AbstractRelease, Telescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.gc_utils import (
-    bigquery_partitioned_table_id,
+    bigquery_sharded_table_id,
     create_bigquery_dataset,
     create_bigquery_table_from_query,
     run_bigquery_query,
-    select_table_suffixes,
+    select_table_shard_dates,
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.jinja2_utils import render_template
@@ -474,7 +474,7 @@ class OnixWorkflow(Telescope):
 
         for release in releases:
             if table_date == None:
-                table_date = select_table_suffixes(
+                table_date = select_table_shard_dates(
                     project_id=orig_project_id,
                     dataset_id=orig_dataset,
                     table_id=orig_table,
@@ -488,7 +488,7 @@ class OnixWorkflow(Telescope):
             release_date = release.release_date
             table_joining_template_file = "assign_workid_workfamilyid.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
-            table_id = bigquery_partitioned_table_id(output_table, release_date)
+            table_id = bigquery_sharded_table_id(output_table, release_date)
             orig_table_suffix = table_date.strftime("%Y%m%d")
             dst_table_suffix = release_date.strftime("%Y%m%d")
 

@@ -33,7 +33,7 @@ from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.data_utils import get_file
-from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
+from observatory.platform.utils.gc_utils import (bigquery_sharded_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,
                                                  load_bigquery_table,
@@ -187,7 +187,7 @@ class OpenCitationsTelescope:
         # Check if we can skip any releases
         releases_out = []
         for release in releases:
-            table_id = bigquery_partitioned_table_id(OpenCitationsTelescope.DAG_ID, release.release_date)
+            table_id = bigquery_sharded_table_id(OpenCitationsTelescope.DAG_ID, release.release_date)
 
             if bigquery_table_exists(project_id, OpenCitationsTelescope.DATASET_ID, table_id):
                 logging.info(f'Skipping as table exists for {release.release_name} release: '
@@ -350,7 +350,7 @@ class OpenCitationsTelescope:
 
         # Load each release
         for release in releases:
-            table_id = bigquery_partitioned_table_id(table_name, release.release_date)
+            table_id = bigquery_sharded_table_id(table_name, release.release_date)
 
             # Select schema file based on release date
             analysis_schema_path = schema_path()

@@ -67,7 +67,7 @@ class TestOnixWorkflowRelease(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        with patch("observatory.dags.workflows.onix_workflow.select_table_suffixes") as mock_sel_table_suffixes:
+        with patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates") as mock_sel_table_suffixes:
             mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
             self.release = OnixWorkflowRelease(
                 dag_id="did",
@@ -215,7 +215,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         env.api_session.commit()
 
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_ctor_gen_dag_id(self, mock_sel_table_suffixes, mock_mr):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
@@ -253,7 +253,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertTrue(wf.sensors[0] != None)
 
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_ctor_gen_assign_dag_id(self, mock_sel_table_suffixes, mock_mr):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
@@ -290,7 +290,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertTrue(wf.sensors[0] != None)
 
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_ctor(self, mock_sel_table_suffixes, mock_mr):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
@@ -342,7 +342,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(release.onix_table_id, "onix")
 
     @patch("observatory.dags.workflows.onix_workflow.run_bigquery_query")
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_get_onix_records(self, mock_sel_table_suffixes, mock_bq_query):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         mock_bq_query.return_value = TestOnixWorkflow.onix_data
@@ -378,7 +378,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(releases[0].bucket_name, "bucket_name")
 
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_cleanup(self, mock_sel_table_suffixes, mock_mr):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
@@ -405,7 +405,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.cleanup(releases)
             self.assertFalse(os.path.isdir(release.transform_folder))
 
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_dag_structure(self, mock_sel_table_suffixes):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
 
@@ -499,7 +499,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 dag,
             )
 
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_dag_load(self, mock_sel_table_suffixes):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
@@ -516,7 +516,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.bq_load_shard_v2")
     @patch("observatory.dags.workflows.onix_workflow.upload_files_to_cloud_storage")
     @patch("observatory.dags.workflows.onix_workflow.list_to_jsonl_gz")
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_create_and_upload_bq_isbn13_workid_lookup_table(
         self,
         mock_sel_table_suffixes,
@@ -632,7 +632,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.bq_load_shard_v2")
     @patch("observatory.dags.workflows.onix_workflow.upload_files_to_cloud_storage")
     @patch("observatory.dags.workflows.onix_workflow.list_to_jsonl_gz")
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_create_and_upload_bq_isbn13_workfamilyid_lookup_table(
         self,
         mock_sel_table_suffixes,
@@ -723,7 +723,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_create_oaebu_intermediate_table_tasks(
         self, mock_sel_table_suffixes, mock_create_bq_ds, mock_create_bq_table, mock_mr
     ):

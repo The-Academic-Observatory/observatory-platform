@@ -34,7 +34,7 @@ from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.data_utils import get_file
-from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
+from observatory.platform.utils.gc_utils import (bigquery_sharded_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,
                                                  load_bigquery_table,
@@ -281,7 +281,7 @@ class UnpaywallTelescope:
         # Check if the BigQuery table exists for each release to see if the workflow needs to process
         releases_list_out = []
         for release in releases_list:
-            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, release.release_date)
+            table_id = bigquery_sharded_table_id(UnpaywallTelescope.DAG_ID, release.release_date)
 
             if bigquery_table_exists(project_id, UnpaywallTelescope.DATASET_ID, table_id):
                 logging.info(f'Skipping as table exists for {release.url}: '
@@ -432,7 +432,7 @@ class UnpaywallTelescope:
             blob_name = f'telescopes/unpaywall/{os.path.basename(release.filepath_transform)}'
 
             # Get release_date
-            table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, release.release_date)
+            table_id = bigquery_sharded_table_id(UnpaywallTelescope.DAG_ID, release.release_date)
 
             # Select schema file based on release date
             analysis_schema_path = schema_path()

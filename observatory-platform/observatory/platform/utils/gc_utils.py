@@ -94,8 +94,8 @@ def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str) -> 
     return table_exists
 
 
-def bigquery_partitioned_table_id(table_name, datetime: Pendulum) -> str:
-    """Create a partitioned table identifier for a BigQuery table.
+def bigquery_sharded_table_id(table_name, datetime: Pendulum) -> str:
+    """Create a sharded table identifier for a BigQuery table.
 
     :param table_name: the name of the table.
     :param datetime: the date to append as a partition suffix.
@@ -839,7 +839,7 @@ def azure_to_google_cloud_storage_transfer(
     return status == TransferStatus.success
 
 
-def select_table_suffixes(
+def select_table_shard_dates(
     project_id: str, dataset_id: str, table_id: str, end_date: pendulum.Date, limit: int = 1
 ) -> List:
     """Returns a list of table suffix dates, sorted from the most recent to the oldest date. By default it returns
@@ -852,7 +852,7 @@ def select_table_suffixes(
     :return:
     """
 
-    template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("select_table_suffixes"))
+    template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("select_table_shard_dates"))
     query = render_template(
         template_path,
         project_id=project_id,

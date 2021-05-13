@@ -38,7 +38,7 @@ from observatory.dags.telescopes.oapen_irus_uk import (
 )
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
-from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -230,7 +230,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
                 table_id, _ = table_ids_from_path(file)
                 table_id = (
                     f"{self.project_id}.{telescope.dataset_id}."
-                    f"{bigquery_partitioned_table_id(telescope.DAG_ID_PREFIX, release.release_date)}"
+                    f"{bigquery_sharded_table_id(telescope.DAG_ID_PREFIX, release.release_date)}"
                 )
                 expected_rows = 4
                 self.assert_table_integrity(table_id, expected_rows)

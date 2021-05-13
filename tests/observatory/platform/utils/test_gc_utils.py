@@ -28,7 +28,7 @@ from google.cloud.bigquery import SourceFormat
 from observatory.platform.utils.file_utils import crc32c_base64_hash, hex_to_base64_str
 from observatory.platform.utils.gc_utils import (
     azure_to_google_cloud_storage_transfer,
-    bigquery_partitioned_table_id,
+    bigquery_sharded_table_id,
     bigquery_table_exists,
     copy_bigquery_table,
     copy_blob_from_cloud_storage,
@@ -42,7 +42,7 @@ from observatory.platform.utils.gc_utils import (
     download_blobs_from_cloud_storage,
     load_bigquery_table,
     run_bigquery_query,
-    select_table_suffixes,
+    select_table_shard_dates,
     table_name_from_blob,
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
@@ -132,7 +132,7 @@ class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
 
     def test_bigquery_partitioned_table_id(self):
         expected = "my_table20200315"
-        actual = bigquery_partitioned_table_id("my_table", pendulum.datetime(year=2020, month=3, day=15))
+        actual = bigquery_sharded_table_id("my_table", pendulum.datetime(year=2020, month=3, day=15))
         self.assertEqual(expected, actual)
 
     @patch("observatory.platform.utils.gc_utils.run_bigquery_query")
@@ -140,7 +140,7 @@ class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
         end_date = pendulum.Pendulum(2021, 1, 1)
         mock_run_bq_query.return_value = [{"suffix": end_date}]
 
-        results = select_table_suffixes(project_id="proj", dataset_id="ds", table_id="table", end_date=end_date)
+        results = select_table_shard_dates(project_id="proj", dataset_id="ds", table_id="table", end_date=end_date)
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0], end_date)

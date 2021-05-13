@@ -30,7 +30,7 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
 from observatory.dags.telescopes.google_analytics import GoogleAnalyticsRelease, GoogleAnalyticsTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
 
 
@@ -213,7 +213,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                 table_id, _ = table_ids_from_path(file)
                 table_id = (
                     f"{self.project_id}.{telescope.dataset_id}."
-                    f"{bigquery_partitioned_table_id(telescope.DAG_ID_PREFIX, release.end_date)}"
+                    f"{bigquery_sharded_table_id(telescope.DAG_ID_PREFIX, release.end_date)}"
                 )
                 expected_rows = 2
                 self.assert_table_integrity(table_id, expected_rows)
