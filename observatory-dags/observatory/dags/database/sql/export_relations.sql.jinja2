@@ -27,8 +27,8 @@ SELECT
   ROUND(SAFE_DIVIDE( ( relation.num_oa_outputs ) * 100 , relation.total_outputs ), 2) as {{ facet }}_percent_oa,
   ROUND(SAFE_DIVIDE( ( relation.num_green_outputs ) * 100 , relation.total_outputs ), 2) as {{ facet }}_percent_green,
   ROUND(SAFE_DIVIDE( ( relation.num_gold_outputs ) * 100 , relation.total_outputs ), 2) as {{ facet }}_percent_gold,
-  relation.percent_of_all_outputs as {{ facet }}_percent_of_all_outputs,
-  relation.percent_of_all_oa as {{ facet }}_percent_of_all_oa
+  relation.percentage_of_all_outputs as {{ facet }}_percent_of_all_outputs,
+  relation.percentage_of_all_oa as {{ facet }}_percent_of_all_oa
 FROM
   `{{ project_id }}.{{ dataset_id }}.{{ table_id }}{{ release_date.strftime('%Y%m%d') }}` as entity,
   UNNEST({{ facet }}) as relation
