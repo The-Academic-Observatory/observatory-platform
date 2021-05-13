@@ -160,16 +160,16 @@ def get_pref_product_id(relprod: dict) -> Tuple[str, str]:
     :return: The Product ID type, and Product ID as a pair.
     """
 
-    if "ISBN13" in relprod:
+    if "ISBN13" in relprod and relprod["ISBN13"] is not None:
         return "ISBN13", relprod["ISBN13"]
 
-    if "GTIN_13" in relprod:
+    if "GTIN_13" in relprod and relprod["GTIN_13"] is not None:
         return "GTIN_13", relprod["GTIN_13"]
 
-    if "DOI" in relprod:
+    if "DOI" in relprod and relprod["DOI"] is not None:
         return "DOI", relprod["DOI"]
 
-    if "PID_Proprietary" in relprod:
+    if "PID_Proprietary" in relprod and relprod["PID_Proprietary"] is not None:
         return "PID_Proprietary", relprod["PID_Proprietary"]
 
     raise Exception(f"Unhandled product identifier found in {relprod}")
@@ -198,8 +198,9 @@ class BookWorkAggregator:
 
         self.gtin13_to_product = {}
         for record in self.records:
-            if "GTIN_13" in record:
-                self.gtin13_to_product[record["GTIN_13"]] = record
+            if "GTIN_13" in record and record["GTIN_13"] is not None:
+                gtin = record["GTIN_13"]
+                self.gtin13_to_product[gtin] = record
 
         self.uf = UnionFind(self.n)
 
@@ -325,6 +326,8 @@ class BookWorkAggregator:
         if pid_type == "ISBN13":
             isbn = pid
         elif pid_type == "GTIN_13":
+            if pid not in self.gtin13_to_product:
+                return None
             relrec = self.gtin13_to_product[pid]
             isbn = relrec["ISBN13"]
         else:
@@ -378,7 +381,7 @@ class BookWorkAggregator:
         :param pid: Related product's identifier.
         """
 
-        error_msg = f"Product {pisbn} has a related product {ptype}:{pid} of types {relation} missing a product record."
+        error_msg = f"Product ISBN13:{pisbn} has a related product {ptype}:{pid} of types {relation} not given as a product identifier in any ONIX product record."
         self.errors.append(error_msg)
 
     def get_works_from_partition(self, partition: List[List[int]]) -> List[BookWork]:

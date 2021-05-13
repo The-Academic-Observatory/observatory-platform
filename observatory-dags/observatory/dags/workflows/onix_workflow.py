@@ -317,14 +317,7 @@ class OnixWorkflow(Telescope):
         sql = f"SELECT * FROM {project_id}.{dataset_id}.{table_id}"
         records = run_bigquery_query(sql)
 
-        products = [
-            {
-                "ISBN13": records[i]["ISBN13"],
-                "RelatedWorks": records[i]["RelatedWorks"],
-                "RelatedProducts": records[i]["RelatedProducts"],
-            }
-            for i in range(len(records))
-        ]
+        products = [{key: records[i][key] for key in records[i].keys()} for i in range(len(records))]
 
         return products
 
