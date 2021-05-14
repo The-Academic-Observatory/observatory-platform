@@ -1,0 +1,16 @@
+{#
+Copyright 2020 Curtin University.
+Authors: Richard Hosking
+#}
+
+SELECT
+  entity.id as {{ aggregate }}_id,
+  ANY_VALUE(entity.name) as {{ aggregate }}_name,
+  ANY_VALUE(entity.country) as {{ aggregate }}_country,
+  ANY_VALUE(entity.country_code) as {{ aggregate }}_country_code,
+  ANY_VALUE(entity.region) as {{ aggregate }}_region,
+  ANY_VALUE(entity.subregion) as {{ aggregate }}_subregion,
+  ANY_VALUE(entity.coordinates) as {{ aggregate }}_coordinates,
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}{{ release_date.strftime('%Y%m%d') }}` as entity
+GROUP BY entity.id

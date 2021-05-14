@@ -201,6 +201,7 @@ class DoiWorkflow:
 
     AGGREGATE_DOI_FILENAME = make_sql_jinja2_filename("aggregate_doi")
 
+    EXPORT_UNIQUE_LIST_FILENAME = make_sql_jinja2_filename("export_unique_list")
     EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME = make_sql_jinja2_filename("export_access_types")
     EXPORT_AGGREGATE_DISCIPLINES_FILENAME = make_sql_jinja2_filename("export_disciplines")
     EXPORT_AGGREGATE_EVENTS_FILENAME = make_sql_jinja2_filename("export_events")
@@ -884,6 +885,7 @@ class DoiWorkflow:
 
         # Always export
         tables = [
+            {"file_name": DoiWorkflow.EXPORT_UNIQUE_LIST_FILENAME, "aggregate": table_id, "facet": "none"},
             {
                 "file_name": DoiWorkflow.EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME,
                 "aggregate": table_id,
