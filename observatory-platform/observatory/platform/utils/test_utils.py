@@ -203,6 +203,18 @@ class ObservatoryEnvironment:
         self.assert_gcp_dependencies()
         self.storage_client.create_bucket(bucket_id, location=self.data_location)
 
+    def _create_dataset(self, dataset_id: str) -> None:
+        """Create a BigQuery dataset.
+
+        :param dataset_id: the dataset identifier.
+        :return: None.
+        """
+
+        self.assert_gcp_dependencies()
+        dataset = bigquery.Dataset(f'{self.project_id}.{dataset_id}')
+        dataset.location = self.data_location
+        self.bigquery_client.create_dataset(dataset, exists_ok=True)
+
     def _delete_bucket(self, bucket_id: str) -> None:
         """Delete a Google Cloud Storage Bucket.
 
@@ -350,6 +362,7 @@ class ObservatoryEnvironment:
                 self.session = settings.Session
                 db.initdb()
 
+                # Setup Airflow task logging
                 original_log_level = logging.getLogger().getEffectiveLevel()
                 if task_logging:
                     # Set root logger to INFO level, it seems that custom 'logging.info()' statements inside a task
@@ -358,10 +371,13 @@ class ObservatoryEnvironment:
                     # Propagate logging so it is displayed
                     logging.getLogger('airflow.task').propagate = True
 
-                # Create buckets
+                # Create buckets and datasets
                 if self.create_gcp_env:
                     for bucket_id in self.buckets:
                         self._create_bucket(bucket_id)
+
+                    for dataset_id in self.datasets:
+                        self._create_dataset(dataset_id)
 
                 # Add default Airflow variables
                 self.data_path = os.path.join(self.temp_dir, "data")

@@ -72,6 +72,54 @@ class Aggregation:
     relate_to_publishers: bool = False
 
 
+def make_dataset_transforms(
+    dataset_crossref_events: str = "crossref",
+    dataset_fundref: str = "crossref",
+    dataset_grid: str = "digital_science",
+    dataset_mag: str = "mag",
+    dataset_orcid: str = "orcid",
+    dataset_open_citations: str = "open_citations",
+    dataset_unpaywall: str = "our_research",
+):
+    return [
+        # Transform("crossref_events", cluster=True, clustering_fields=["doi"]),
+        # Transform(
+        #     "fundref",
+        #     input_dataset_id=dataset_fundref,
+        #     input_table_id="fundref",
+        #     input_sharded=True,
+        #     cluster=True,
+        #     clustering_fields=["doi"],
+        # ),
+        # Transform("grid", input_dataset_id=dataset_grid, input_table_id="grid", input_sharded=True),
+        # Transform(
+        #     "mag",
+        #     input_dataset_id=dataset_mag,
+        #     input_table_id="Affiliations",
+        #     input_sharded=True,
+        #     cluster=True,
+        #     clustering_fields=["Doi"],
+        # ),
+        # Transform("orcid", cluster=True, clustering_fields=["doi"]),
+        Transform(
+            "open_citations",
+            input_dataset_id=dataset_open_citations,
+            input_table_id="open_citations",
+            input_sharded=True,
+            cluster=True,
+            clustering_fields=["doi"],
+        ),
+        # Transform(
+        #     "unpaywall",
+        #     input_dataset_id=dataset_unpaywall,
+        #     input_table_id="unpaywall",
+        #     input_sharded=True,
+        #     cluster=True,
+        #     clustering_fields=["doi"],
+        # ),
+    ]
+
+
 class DoiWorkflow(Telescope):
     INT_DATASET_ID = "observatory_intermediate"
     INT_DATASET_DESCRIPTION = "Intermediate processing dataset for the Academic Observatory."
@@ -91,45 +139,6 @@ class DoiWorkflow(Telescope):
     EXPORT_RELATIONS_FILENAME = make_sql_jinja2_filename("export_relations")
 
     SENSOR_DAG_IDS = ["crossref_metadata", "fundref", "geonames", "grid", "mag", "open_citations", "unpaywall"]
-    TRANSFORMS = [
-        Transform("wos"),
-        Transform("crossref_events", cluster=True, clustering_fields=["doi"]),
-        Transform(
-            "fundref",
-            input_dataset_id="crossref",
-            input_table_id="fundref",
-            input_sharded=True,
-            cluster=True,
-            clustering_fields=["doi"],
-        ),
-        Transform("grid", input_dataset_id="digital_science", input_table_id="grid", input_sharded=True),
-        Transform("scopus"),
-        Transform(
-            "mag",
-            input_dataset_id="mag",
-            input_table_id="Affiliations",
-            input_sharded=True,
-            cluster=True,
-            clustering_fields=["Doi"],
-        ),
-        Transform("orcid", cluster=True, clustering_fields=["doi"]),
-        Transform(
-            "open_citations",
-            input_dataset_id="open_citations",
-            input_table_id="open_citations",
-            input_sharded=True,
-            cluster=True,
-            clustering_fields=["doi"],
-        ),
-        Transform(
-            "unpaywall",
-            input_dataset_id="our_research",
-            input_table_id="unpaywall",
-            input_sharded=True,
-            cluster=True,
-            clustering_fields=["doi"],
-        ),
-    ]
     DOI_TRANSFORM = Transform(
         "doi",
         input_dataset_id="crossref",
@@ -214,6 +223,7 @@ class DoiWorkflow(Telescope):
         dashboards_dataset_id: str = DASHBOARDS_DATASET_ID,
         observatory_dataset_id: str = FINAL_DATASET_ID,
         elastic_dataset_id: str = ELASTIC_DATASET_ID,
+        transforms: List = None,
         dag_id: Optional[str] = "doi",
         start_date: Optional[Pendulum] = datetime(2020, 8, 30),
         schedule_interval: Optional[str] = "@weekly",
@@ -254,6 +264,11 @@ class DoiWorkflow(Telescope):
         self.dashboards_dataset_id = dashboards_dataset_id
         self.observatory_dataset_id = observatory_dataset_id
         self.elastic_dataset_id = elastic_dataset_id
+
+        self.transforms = transforms
+        if transforms is None:
+            self.transforms = make_dataset_transforms()
+
         self.create_tasks()
 
     def create_tasks(self):
@@ -270,7 +285,7 @@ class DoiWorkflow(Telescope):
 
         # Create tasks for processing intermediate tables
         with self.parallel_tasks():
-            for transform in self.TRANSFORMS:
+            for transform in self.transforms:
                 task_id = f"create_{transform.input_table_id}"
                 self.add_task(self.create_intermediate_table, **{"transform": transform, "task_id": task_id})
 

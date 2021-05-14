@@ -13,27 +13,34 @@
 # limitations under the License.
 
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
-
+import contextlib
+import copy
 import datetime
 import logging
 import shutil
 from abc import ABC, abstractmethod
 from functools import partial
-from typing import Any, Callable, List, Union
+from typing import Any, Callable, List, Union, Dict
 
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.helpers import chain
-from observatory.platform.utils.airflow_utils import AirflowVars, check_connections, check_variables, AirflowVariable
+from typing_extensions import Protocol
+
+from observatory.platform.utils.airflow_utils import (
+    AirflowVariable,
+    AirflowVars,
+    check_connections,
+    check_variables,
+)
 from observatory.platform.utils.file_utils import list_files
 from observatory.platform.utils.template_utils import (
     SubFolder,
     on_failure_callback,
     telescope_path,
 )
-from typing_extensions import Protocol
 
 
 class ReleaseFunction(Protocol):
@@ -167,6 +174,23 @@ class AbstractTelescope(ABC):
         pass
 
 
+def make_task_id(func: Callable, kwargs: Dict) -> str:
+    """ Set a task_id from a func or kwargs.
+    :param func: the task function.
+    :param kwargs: the task kwargs parameter.
+    :return: the task id.
+    """
+
+    task_id_key = "task_id"
+
+    if task_id_key in kwargs:
+        task_id = kwargs["task_id"]
+    else:
+        task_id = func.__name__
+
+    return task_id
+
+
 class Telescope(AbstractTelescope):
     RELEASE_INFO = "releases"
 
@@ -204,6 +228,7 @@ class Telescope(AbstractTelescope):
         self.max_active_runs = max_active_runs
         self.airflow_vars = airflow_vars
         self.airflow_conns = airflow_conns
+        self._parallel_tasks = False
 
         self.sensors = []
         self.setup_task_funcs = []
@@ -276,7 +301,21 @@ class Telescope(AbstractTelescope):
         :param func: the function that will be called by the PythonOperator task.
         :return: None.
         """
-        self.task_funcs.append((func, kwargs))
+
+        if not self._parallel_tasks:
+            self.task_funcs.append((func, kwargs))
+        elif len(self.task_funcs) == 0 or not isinstance(self.task_funcs[-1], List):
+            self.task_funcs.append([(func, kwargs)])
+        else:
+            self.task_funcs[-1].append((func, kwargs))
+
+    @contextlib.contextmanager
+    def parallel_tasks(self):
+        try:
+            self._parallel_tasks = True
+            yield
+        finally:
+            self._parallel_tasks = False
 
     def add_task_chain(self, funcs: List[Callable], **kwargs):
         """Add a list of tasks, which are used to process releases. (See add_task for more info.)
@@ -301,6 +340,29 @@ class Telescope(AbstractTelescope):
         result = func(release, **kwargs)
         return result
 
+    def task_funcs_to_operators(self, task_funcs: List):
+        tasks_ = []
+        for obj in task_funcs:
+            if isinstance(obj, List):
+                tasks_.append(self.task_funcs_to_operators(obj))
+            else:
+                with self.dag:
+                    func_, kwargs_ = obj
+                    task_id = make_task_id(func_, kwargs_)
+                    print(f"TEST task_id: {task_id}, kwargs: {kwargs_}")
+                    kwargs_copy = copy.copy(kwargs_)
+                    kwargs_copy.pop("task_id", None)
+                    task_ = PythonOperator(
+                        task_id=task_id,
+                        python_callable=partial(self.task_callable, func_),
+                        queue=self.queue,
+                        default_args=self.default_args,
+                        provide_context=True,
+                        op_kwargs=kwargs_copy,
+                    )
+                    tasks_.append(task_)
+        return tasks_
+
     def make_dag(self) -> DAG:
         """Make an Airflow DAG for a telescope.
 
@@ -321,22 +383,13 @@ class Telescope(AbstractTelescope):
                     queue=self.queue,
                     default_args=self.default_args,
                     provide_context=True,
-                    **kwargs,
+                    op_kwargs=kwargs,
                 )
                 tasks.append(task)
 
-            # Process all other tasks next, which are always PythonOperators
-            for func, kwargs in self.task_funcs:
-                task = PythonOperator(
-                    task_id=func.__name__,
-                    python_callable=partial(self.task_callable, func),
-                    queue=self.queue,
-                    default_args=self.default_args,
-                    provide_context=True,
-                    **kwargs
-                )
-                tasks.append(task)
-            chain(*tasks)
+                # Process all other tasks next, which are always PythonOperators
+                tasks += self.task_funcs_to_operators(self.task_funcs)
+                chain(*tasks)
 
             # Chain all sensors to the first task
             self.sensors >> tasks[0]

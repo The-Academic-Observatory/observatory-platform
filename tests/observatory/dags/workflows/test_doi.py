@@ -19,19 +19,23 @@ from __future__ import annotations
 import os
 import random
 import unittest
+from click.testing import CliRunner
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from observatory.dags.workflows.doi import Transform
 from typing import Dict
 from typing import List
-
+import logging
+from observatory.platform.utils.template_utils import schema_path, find_schema
+from observatory.platform.utils.gc_utils import bigquery_sharded_table_id, load_bigquery_table, SourceFormat
 import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.dummy_operator import DummyOperator
 from faker import Faker
 
-from observatory.dags.workflows.doi import DoiWorkflow
+from observatory.dags.workflows.doi import DoiWorkflow, make_dataset_transforms
 from observatory.platform.utils.airflow_utils import set_task_state
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
 
@@ -147,7 +151,7 @@ class Journal:
 @dataclass
 class Event:
     source: str = None
-    event_date: pendulum.Date = None
+    event_date: pendulum.Pendulum = None
 
 
 @dataclass
@@ -279,7 +283,7 @@ def make_observatory_dataset(
             range_months_ = random.randint(1, min(24, max((pendulum.date.today() - published_date_).in_months(), 1)))
             date_end = published_date_.add(months=range_months_)
             event_date_ = faker.date_between_dates(date_start=published_date_, date_end=date_end)
-            event_date_ = pendulum.date(year=event_date_.year, month=event_date_.month, day=event_date_.day)
+            event_date_ = pendulum.datetime(year=event_date_.year, month=event_date_.month, day=event_date_.day)
             events_.append(Event(source=random.choice(EVENT_TYPES), event_date=event_date_))
 
         # Fields of study
@@ -383,39 +387,13 @@ def make_crossref_events(dataset: ObservatoryDataset) -> List[Dict]:
     events = []
 
     for paper in dataset.papers:
-        lookup_totals = dict()
-        lookup_months = dict()
-        lookup_years = dict()
         for event in paper.events:
-            # Total events
-            if event.source in lookup_totals:
-                lookup_totals[event.source] += 1
-            else:
-                lookup_totals[event.source] = 1
-
-            # Events by month
-            month = event.event_date.strftime("%Y-%m")
-            month_key = (event.source, month)
-            if month_key in lookup_months:
-                lookup_months[month_key] += 1
-            else:
-                lookup_months[month_key] = 1
-
-            # Events by year
-            year = event.event_date.year
-            year_key = (event.source, year)
-            if year_key in lookup_years:
-                lookup_years[year_key] += 1
-            else:
-                lookup_years[year_key] = 1
-
-        events_ = [{"source": source, "count": count} for source, count in lookup_totals.items()]
-        months_ = [
-            {"source": source, "month": month, "count": count} for (source, month), count in lookup_months.items()
-        ]
-        years_ = [{"source": source, "year": year, "count": count} for (source, year), count in lookup_years.items()]
-
-        events.append({"doi": paper.doi, "events": events_, "months": months_, "years": years_})
+            obj_id = f"https://doi.org/{paper.doi}"
+            occurred_at = f"{event.event_date.to_datetime_string()} UTC"
+            source_id = event.source
+            events.append(
+                {"obj_id": obj_id, "occurred_at": occurred_at, "source_id": source_id, "id": str(uuid.uuid4())}
+            )
 
     return events
 
@@ -512,9 +490,7 @@ def make_fundref(dataset: ObservatoryDataset) -> List[Dict]:
     records = []
 
     for funder in dataset.funders:
-        records.append(
-            {"name": funder.name, "doi": funder.doi,}
-        )
+        records.append({"pre_label": funder.name, "funder": f"http://dx.doi.org/{funder.doi}"})
 
     return records
 
@@ -534,7 +510,7 @@ def make_crossref_metadata(dataset: ObservatoryDataset) -> List[Dict]:
                 "DOI": paper.doi,
                 "is_referenced_by_count": len(paper.cited_by),
                 "issued": {
-                    "date_parts": [[paper.published_date.year, paper.published_date.month, paper.published_date.day]]
+                    "date_parts": [paper.published_date.year, paper.published_date.month, paper.published_date.day]
                 },
                 "funder": funders,
             }
@@ -543,25 +519,8 @@ def make_crossref_metadata(dataset: ObservatoryDataset) -> List[Dict]:
     return records
 
 
-class TestDataGenerator(unittest.TestCase):
-    def test_datagen(self):
-        observatory_dataset = make_observatory_dataset()
-        open_citations = make_open_citations(observatory_dataset)
-        crossref_events = make_crossref_events(observatory_dataset)
-        mag = make_mag(observatory_dataset)
-        fundref = make_fundref(observatory_dataset)
-        unpaywall = make_unpaywall(observatory_dataset)
-        crossref_metadata = make_crossref_metadata(observatory_dataset)
-
-        # Save to jsonl
-
-        # Upload to google cloud storage
-        # Load into BigQuery in a temporary dataset
-        # Run DOI workflow as normal
-        # Compute expected output
-        # Check that expected outputs match
-
-        a = 1
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
+from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
 
 
 class TestDoiWorkflow(ObservatoryTestCase):
@@ -652,17 +611,114 @@ class TestDoiWorkflow(ObservatoryTestCase):
             dag_file = os.path.join(module_file_path("observatory.dags.dags"), "doi.py")
             self.assert_dag_load("doi", dag_file)
 
+    def setup_fake_observatory_dataset(
+        self,
+        observatory_dataset: ObservatoryDataset,
+        bucket_name: str,
+        dataset_id: str,
+        release_date: pendulum.Pendulum,
+    ):
+        # Generate source datasets
+        open_citations = make_open_citations(observatory_dataset)
+        crossref_events = make_crossref_events(observatory_dataset)
+        mag: MagDataset = make_mag(observatory_dataset)
+        fundref = make_fundref(observatory_dataset)
+        unpaywall = make_unpaywall(observatory_dataset)
+        crossref_metadata = make_crossref_metadata(observatory_dataset)
+
+        with CliRunner().isolated_filesystem() as t:
+            table_names = [
+                "crossref_events",
+                "crossref_metadata",
+                "fundref",
+                "MagAffiliations",
+                "MagFieldsOfStudy",
+                "MagPaperAuthorAffiliations",
+                "MagPaperFieldsOfStudy",
+                "MagPapers",
+                "open_citations",
+                "unpaywall",
+            ]
+            datasets = [
+                crossref_events,
+                crossref_metadata,
+                fundref,
+                mag.affiliations,
+                mag.fields_of_study,
+                mag.paper_author_affiliations,
+                mag.paper_fields_of_study,
+                mag.papers,
+                open_citations,
+                unpaywall,
+            ]
+            files_list = []
+            blob_names = []
+
+            # Save to JSONL
+            for table_name, dataset in zip(table_names, datasets):
+                blob_name = f"{table_name}.jsonl.gz"
+                file_path = os.path.join(t, blob_name)
+                list_to_jsonl_gz(file_path, dataset)
+                files_list.append(file_path)
+                blob_names.append(blob_name)
+
+            # Upload to Google Cloud Storage
+            success = upload_files_to_cloud_storage(bucket_name, blob_names, files_list)
+            self.assertTrue(success)
+
+            # Save to BigQuery tables
+            for table_name, blob_name in zip(table_names, blob_names):
+                # Get release_date
+                table_id = bigquery_sharded_table_id(table_name, release_date)
+
+                # Select schema file based on release date
+                analysis_schema_path = schema_path()
+                schema_file_path = find_schema(analysis_schema_path, table_name, release_date)
+                if schema_file_path is None:
+                    logging.error(
+                        f"No schema found with search parameters: analysis_schema_path={analysis_schema_path}, "
+                        f"table_name={table_name}, release_date={release_date}"
+                    )
+                    exit(os.EX_CONFIG)
+
+                # Load BigQuery table
+                uri = f"gs://{bucket_name}/{blob_name}"
+                logging.info(f"URI: {uri}")
+                success = load_bigquery_table(
+                    uri,
+                    dataset_id,
+                    self.gcp_data_location,
+                    table_id,
+                    schema_file_path,
+                    SourceFormat.NEWLINE_DELIMITED_JSON,
+                )
+                if not success:
+                    raise AirflowException("bq_load task: data failed to load data into BigQuery")
+
     def test_telescope(self):
         """Test the DOI telescope end to end.
 
         :return: None.
         """
 
-        env = ObservatoryEnvironment(self.gcp_project_id, self.gcp_data_location)
+        env = ObservatoryEnvironment(project_id=self.gcp_project_id, data_location=self.gcp_data_location)
+        fake_dataset_id = env.add_dataset()
+        intermediate_dataset_id = env.add_dataset()
+        dashboards_dataset_id = env.add_dataset()
+        observatory_dataset_id = env.add_dataset()
+        elastic_dataset_id = env.add_dataset()
+        fake_release_date = pendulum.utcnow().date()
+        dataset_transforms = make_dataset_transforms(dataset_open_citations=fake_dataset_id)
 
         with env.create():
             # Make dag
-            doi_dag = DoiWorkflow().make_dag()
+            doi_dag = DoiWorkflow(
+                intermediate_dataset_id=intermediate_dataset_id,
+                dashboards_dataset_id=dashboards_dataset_id,
+                observatory_dataset_id=observatory_dataset_id,
+                elastic_dataset_id=elastic_dataset_id,
+                transforms=dataset_transforms
+            ).make_dag()
 
             # Test that sensors do go into the 'up_for_reschedule' state as the DAGs that they wait for haven't run
             execution_date = pendulum.datetime(year=2020, month=11, day=1)
@@ -682,8 +738,72 @@ class TestDoiWorkflow(ObservatoryTestCase):
                     ti = env.run_task("dummy_task", dag, execution_date=execution_date)
                     self.assertEqual(expected_state, ti.state)
 
-            # Test that sensors go into 'success' state as the DAGs that they are waiting for have finished
             with env.create_dag_run(doi_dag, execution_date):
+                # Test that sensors go into 'success' state as the DAGs that they are waiting for have finished
                 for task_id in DoiWorkflow.SENSOR_DAG_IDS:
                     ti = env.run_task(f"{task_id}_sensor", doi_dag, execution_date=execution_date)
                     self.assertEqual(expected_state, ti.state)
+
+                # Check dependencies
+                ti = env.run_task("check_dependencies", doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+
+                # Create datasets
+                ti = env.run_task("create_datasets", doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+
+                # Generate fake dataset
+                observatory_dataset = make_observatory_dataset()
+                self.setup_fake_observatory_dataset(
+                    observatory_dataset, env.download_bucket, fake_dataset_id, fake_release_date
+                )
+
+                # Test source dataset transformations
+                for transform in dataset_transforms:
+                    task_id = f"create_{transform.input_table_id}"
+                    ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+                    self.assertEqual(expected_state, ti.state)
+
+            a = 1
+
+            # Run DOI workflow as normal
+            # Compute expected output
+            # Check that expected outputs match
+
+    #
+    # for paper in dataset.papers:
+    #     lookup_totals = dict()
+    #     lookup_months = dict()
+    #     lookup_years = dict()
+    #     for event in paper.events:
+    #         # Total events
+    #         if event.source in lookup_totals:
+    #             lookup_totals[event.source] += 1
+    #         else:
+    #             lookup_totals[event.source] = 1
+    #
+    #         # Events by month
+    #         month = event.event_date.strftime("%Y-%m")
+    #         month_key = (event.source, month)
+    #         if month_key in lookup_months:
+    #             lookup_months[month_key] += 1
+    #         else:
+    #             lookup_months[month_key] = 1
+    #
+    #         # Events by year
+    #         year = event.event_date.year
+    #         year_key = (event.source, year)
+    #         if year_key in lookup_years:
+    #             lookup_years[year_key] += 1
+    #         else:
+    #             lookup_years[year_key] = 1
+    #
+    #     events_ = [{"source": source, "count": count} for source, count in lookup_totals.items()]
+    #     months_ = [
+    #         {"source": source, "month": month, "count": count} for (source, month), count in lookup_months.items()
+    #     ]
+    #     years_ = [{"source": source, "year": year, "count": count} for (source, year), count in lookup_years.items()]
+    #
+    #     events.append({"obj_id": paper.doi, "events": events_, "months": months_, "years": years_})
+    #
+    # return events
