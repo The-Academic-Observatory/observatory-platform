@@ -885,7 +885,7 @@ class DoiWorkflow:
 
         # Always export
         tables = [
-            {"file_name": DoiWorkflow.EXPORT_UNIQUE_LIST_FILENAME, "aggregate": table_id, "facet": "none"},
+            {"file_name": DoiWorkflow.EXPORT_UNIQUE_LIST_FILENAME, "aggregate": table_id, "facet": "unique_list"},
             {
                 "file_name": DoiWorkflow.EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME,
                 "aggregate": table_id,
