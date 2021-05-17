@@ -19,6 +19,7 @@ import os
 
 import httpretty
 import pendulum
+from natsort import natsorted
 from airflow.models.connection import Connection
 
 from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataRelease, CrossrefMetadataTelescope
@@ -123,7 +124,7 @@ class TestCrossrefMetadata(ObservatoryTestCase):
             # Test that file extracted
             env.run_task(telescope.extract.__name__, dag, execution_date)
             self.assertEqual(5, len(release.extract_files))
-            for i, file in enumerate(release.extract_files):
+            for i, file in enumerate(natsorted(release.extract_files)):
                 expected_file_hash = self.extract_file_hashes[i]
                 self.assert_file_integrity(file, expected_file_hash, 'md5')
 
