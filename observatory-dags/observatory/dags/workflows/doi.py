@@ -21,8 +21,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
-from typing import Optional
+from typing import List, Dict, Optional, Tuple
 
 from airflow.exceptions import AirflowException
 from airflow.models import Variable
@@ -49,13 +48,19 @@ MAX_QUERIES = 100
 
 
 @dataclass
+class Table:
+    dataset_id: str
+    table_id: str
+    sharded: bool = False
+    release_date: Pendulum = None
+
+
+@dataclass
 class Transform:
-    output_table_id: str
-    input_dataset_id: str = None
-    input_table_id: str = None
-    input_sharded: bool = False
-    cluster: bool = False
-    clustering_fields: List = None
+    inputs: Dict = None
+    output_table_id: str = None
+    output_cluster: bool = False
+    output_clustering_fields: List = None
 
 
 @dataclass
@@ -73,51 +78,88 @@ class Aggregation:
 
 
 def make_dataset_transforms(
-    dataset_crossref_events: str = "crossref",
-    dataset_fundref: str = "crossref",
-    dataset_grid: str = "digital_science",
-    dataset_mag: str = "mag",
-    dataset_orcid: str = "orcid",
-    dataset_open_citations: str = "open_citations",
-    dataset_unpaywall: str = "our_research",
-):
-    return [
-        # Transform("crossref_events", cluster=True, clustering_fields=["doi"]),
-        # Transform(
-        #     "fundref",
-        #     input_dataset_id=dataset_fundref,
-        #     input_table_id="fundref",
-        #     input_sharded=True,
-        #     cluster=True,
-        #     clustering_fields=["doi"],
-        # ),
-        # Transform("grid", input_dataset_id=dataset_grid, input_table_id="grid", input_sharded=True),
-        # Transform(
-        #     "mag",
-        #     input_dataset_id=dataset_mag,
-        #     input_table_id="Affiliations",
-        #     input_sharded=True,
-        #     cluster=True,
-        #     clustering_fields=["Doi"],
-        # ),
-        # Transform("orcid", cluster=True, clustering_fields=["doi"]),
+    dataset_id_crossref_events: str = "crossref",
+    dataset_id_crossref_metadata: str = "crossref",
+    dataset_id_fundref: str = "crossref",
+    dataset_id_grid: str = "digital_science",
+    dataset_id_mag: str = "mag",
+    dataset_id_orcid: str = "orcid",
+    dataset_id_open_citations: str = "open_citations",
+    dataset_id_unpaywall: str = "our_research",
+    dataset_id_settings: str = "settings",
+    dataset_id_observatory: str = "observatory",
+) -> Tuple[List[Transform], Transform, Transform]:
+    return (
+        [
+            Transform(
+                inputs={"crossref_events": Table(dataset_id_crossref_events, "crossref_events")},
+                output_table_id="crossref_events",
+                output_cluster=True,
+                output_clustering_fields=["doi"],
+            ),
+            Transform(
+                inputs={
+                    "fundref": Table(dataset_id_fundref, "fundref", sharded=True),
+                    "crossref_metadata": Table(dataset_id_crossref_metadata, "crossref_metadata", sharded=True),
+                },
+                output_table_id="fundref",
+                output_cluster=True,
+                output_clustering_fields=["doi"],
+            ),
+            Transform(
+                inputs={
+                    "grid": Table(dataset_id_grid, "grid", sharded=True),
+                    "settings": Table(dataset_id_settings, "grid_to_home_url"),
+                },
+                output_table_id="grid",
+            ),
+            Transform(
+                inputs={
+                    "mag": Table(dataset_id_mag, "Affiliations", sharded=True),
+                    "settings": Table(dataset_id_settings, "mag_affiliations_override"),
+                },
+                output_table_id="mag",
+                output_cluster=True,
+                output_clustering_fields=["Doi"],
+            ),
+            Transform(
+                inputs={"orcid": Table(dataset_id_orcid, "orcid")},
+                output_table_id="orcid",
+                output_cluster=True,
+                output_clustering_fields=["doi"],
+            ),
+            Transform(
+                inputs={"open_citations": Table(dataset_id_open_citations, "open_citations", sharded=True)},
+                output_table_id="open_citations",
+                output_cluster=True,
+                output_clustering_fields=["doi"],
+            ),
+            Transform(
+                inputs={"unpaywall": Table(dataset_id_unpaywall, "unpaywall", sharded=True)},
+                output_table_id="unpaywall",
+                output_cluster=True,
+                output_clustering_fields=["doi"],
+            ),
+        ],
         Transform(
-            "open_citations",
-            input_dataset_id=dataset_open_citations,
-            input_table_id="open_citations",
-            input_sharded=True,
-            cluster=True,
-            clustering_fields=["doi"],
+            inputs={
+                "crossref_metadata": Table("crossref", "crossref_metadata", sharded=True),
+                "settings": Table("settings", "groupings"),
+            },
+            output_table_id="doi",
+            output_cluster=True,
+            output_clustering_fields=["doi"],
         ),
-        # Transform(
-        #     "unpaywall",
-        #     input_dataset_id=dataset_unpaywall,
-        #     input_table_id="unpaywall",
-        #     input_sharded=True,
-        #     cluster=True,
-        #     clustering_fields=["doi"],
-        # ),
-    ]
+        Transform(
+            inputs={
+                "observatory": Table(dataset_id_observatory, "doi", sharded=True),
+                "crossref_events": Table(dataset_id_crossref_events, "crossref_events"),
+            },
+            output_table_id="book",
+            output_cluster=True,
+            output_clustering_fields=["isbn"],
+        ),
+    )
 
 
 class DoiWorkflow(Telescope):
@@ -139,15 +181,7 @@ class DoiWorkflow(Telescope):
     EXPORT_RELATIONS_FILENAME = make_sql_jinja2_filename("export_relations")
 
     SENSOR_DAG_IDS = ["crossref_metadata", "fundref", "geonames", "grid", "mag", "open_citations", "unpaywall"]
-    DOI_TRANSFORM = Transform(
-        "doi",
-        input_dataset_id="crossref",
-        input_table_id="crossref_metadata",
-        input_sharded=True,
-        cluster=True,
-        clustering_fields=["doi"],
-    )
-    BOOK_TRANSFORM = Transform("book", cluster=True, clustering_fields=["isbn"])
+
     AGGREGATIONS = [
         Aggregation(
             "country",
@@ -265,9 +299,11 @@ class DoiWorkflow(Telescope):
         self.observatory_dataset_id = observatory_dataset_id
         self.elastic_dataset_id = elastic_dataset_id
 
-        self.transforms = transforms
+        self.transforms, self.transform_doi, self.transform_book = transforms
         if transforms is None:
-            self.transforms = make_dataset_transforms()
+            self.transforms, self.transform_doi, self.transform_book = make_dataset_transforms(
+                dataset_id_observatory=observatory_dataset_id
+            )
 
         self.create_tasks()
 
@@ -286,14 +322,22 @@ class DoiWorkflow(Telescope):
         # Create tasks for processing intermediate tables
         with self.parallel_tasks():
             for transform in self.transforms:
-                task_id = f"create_{transform.input_table_id}"
+                task_id = f"create_{transform.output_table_id}"
                 self.add_task(self.create_intermediate_table, **{"transform": transform, "task_id": task_id})
 
         # Create DOI Table
-        self.add_task(self.create_intermediate_table, agg=self.DOI_TRANSFORM, task_id="create_doi")
+        self.add_task(
+            self.create_intermediate_table,
+            agg=self.transform_doi,
+            task_id=f"create_{self.transform_doi.output_table_id}",
+        )
 
         # Create Book Table
-        self.add_task(self.create_intermediate_table, agg=self.BOOK_TRANSFORM, task_id="create_book")
+        self.add_task(
+            self.create_intermediate_table,
+            agg=self.transform_book,
+            task_id=f"create_{self.transform_doi.output_table_id}",
+        )
 
         # Create final tables
         with self.parallel_tasks():
@@ -524,7 +568,9 @@ class ObservatoryRelease:
         template_path = os.path.join(
             workflow_sql_templates_path(), make_sql_jinja2_filename(f"create_{output_table_id}")
         )
-        sql = render_template(template_path, project_id=self.project_id, release_date=shard_date)
+        sql = render_template(
+            template_path, dataset_id=input_dataset_id, project_id=self.project_id, release_date=shard_date
+        )
 
         output_table_id_sharded = bigquery_sharded_table_id(output_table_id, self.release_date)
         success = create_bigquery_table_from_query(

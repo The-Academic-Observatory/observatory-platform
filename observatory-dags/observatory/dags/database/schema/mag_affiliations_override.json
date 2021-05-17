@@ -1,0 +1,20 @@
+[
+  {
+    "description": "",
+    "mode": "NULLABLE",
+    "name": "AffiliationId",
+    "type": "INTEGER"
+  },
+  {
+    "description": "",
+    "mode": "NULLABLE",
+    "name": "name",
+    "type": "STRING"
+  },
+  {
+    "description": "",
+    "mode": "NULLABLE",
+    "name": "grid_id",
+    "type": "STRING"
+  }
+]

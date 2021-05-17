@@ -18,7 +18,7 @@ SELECT
   grids.*,
   home_repo.urls as home_repo,
   STRUCT(regions) as iso3166
-FROM `{{ project_id }}.digital_science.grid{{ grid_release_date.strftime('%Y%m%d') }}` as grids
+FROM `{{ project_id }}.{{ dataset_id }}.grid{{ grid_release_date.strftime('%Y%m%d') }}` as grids
 LEFT JOIN `{{ project_id }}.iso.iso3166_countries_and_regions` as regions ON (grids.addresses[OFFSET(0)].country_code = regions.alpha2)
-LEFT JOIN `{{ project_id }}.coki.grid_to_home_url` as home_repo ON grids.id = home_repo.grid_id
+LEFT JOIN `{{ project_id }}.{{ settings_dataset_id }}.grid_to_home_url` as home_repo ON grids.id = home_repo.grid_id
 WHERE ARRAY_LENGTH(grids.addresses) > 0

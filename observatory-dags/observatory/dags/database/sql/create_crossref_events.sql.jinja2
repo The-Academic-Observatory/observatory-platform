@@ -29,7 +29,7 @@ FROM (
     safe.FORMAT_TIMESTAMP('%Y-%m', occurred_at) as month,
     source_id as source,
     COUNT(id) as count
-  FROM `{{ project_id }}.crossref.crossref_events`
+  FROM `{{ project_id }}.{{ crossref_events.dataset_id }}.{{ crossref_events.table_id }}`
   WHERE safe.FORMAT_TIMESTAMP('%Y-%m', occurred_at) is not null
   GROUP BY
   doi, source_id, month)

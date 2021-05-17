@@ -668,8 +668,10 @@ class TestDoiWorkflow(ObservatoryTestCase):
 
             # Save to BigQuery tables
             for table_name, blob_name in zip(table_names, blob_names):
-                # Get release_date
-                table_id = bigquery_sharded_table_id(table_name, release_date)
+                if table_name != "crossref_events":
+                    table_id = bigquery_sharded_table_id(table_name, release_date)
+                else:
+                    table_id = table_name
 
                 # Select schema file based on release date
                 analysis_schema_path = schema_path()
@@ -708,7 +710,15 @@ class TestDoiWorkflow(ObservatoryTestCase):
         observatory_dataset_id = env.add_dataset()
         elastic_dataset_id = env.add_dataset()
         fake_release_date = pendulum.utcnow().date()
-        dataset_transforms = make_dataset_transforms(dataset_open_citations=fake_dataset_id)
+        dataset_transforms = make_dataset_transforms(
+            dataset_id_open_citations=fake_dataset_id,
+            dataset_id_crossref_events=fake_dataset_id,
+            dataset_id_fundref=fake_dataset_id,
+            dataset_id_grid=fake_dataset_id,
+            dataset_id_mag=fake_dataset_id,
+            dataset_id_orcid=fake_dataset_id,
+            dataset_id_unpaywall=fake_dataset_id,
+        )
 
         with env.create():
             # Make dag
@@ -717,7 +727,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 dashboards_dataset_id=dashboards_dataset_id,
                 observatory_dataset_id=observatory_dataset_id,
                 elastic_dataset_id=elastic_dataset_id,
-                transforms=dataset_transforms
+                transforms=dataset_transforms,
             ).make_dag()
 
             # Test that sensors do go into the 'up_for_reschedule' state as the DAGs that they wait for haven't run
@@ -729,7 +739,9 @@ class TestDoiWorkflow(ObservatoryTestCase):
                     self.assertEqual(expected_state, ti.state)
 
             # Run Dummy Dags
-            execution_date = pendulum.datetime(year=2020, month=11, day=2)
+            execution_date = pendulum.datetime(
+                year=fake_release_date.year, month=fake_release_date.month, day=fake_release_date.day
+            )
             expected_state = "success"
             for dag_id in DoiWorkflow.SENSOR_DAG_IDS:
                 dag = make_dummy_dag(dag_id, execution_date)
@@ -760,15 +772,49 @@ class TestDoiWorkflow(ObservatoryTestCase):
 
                 # Test source dataset transformations
                 for transform in dataset_transforms:
-                    task_id = f"create_{transform.input_table_id}"
+                    task_id = f"create_{transform.output_table_id}"
                     ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
                     self.assertEqual(expected_state, ti.state)
 
-            a = 1
+                # Test create DOI
+                ti = env.run_task('create_doi', doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that output is correct
 
-            # Run DOI workflow as normal
-            # Compute expected output
-            # Check that expected outputs match
+                # Test create book
+                ti = env.run_task('create_book', doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that output is correct
+
+                # Test aggregations
+                for agg in DoiWorkflow.AGGREGATIONS:
+                    task_id = f"create_{agg.table_id}"
+                    ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+
+                    # Check that task finished successfully
+                    self.assertEqual(expected_state, ti.state)
+                    # TODO: check that output is correct
+
+                # Test copy to dashboards
+                ti = env.run_task('copy_to_dashboards', doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that tables exist
+
+                # Test create dashboard views
+                ti = env.run_task('create_dashboard_views', doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that views exist
+
+                # Test create exported tables for Elasticsearch
+                for agg in DoiWorkflow.AGGREGATIONS:
+                    task_id = f"export_{agg.table_id}"
+                    ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+
+                    # Check that task finished successfully
+                    self.assertEqual(expected_state, ti.state)
+                    # TODO: check that output is correct
+
+                a = 1
 
     #
     # for paper in dataset.papers:

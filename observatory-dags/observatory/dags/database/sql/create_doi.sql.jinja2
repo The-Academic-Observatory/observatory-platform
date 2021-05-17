@@ -131,10 +131,10 @@ SELECT
     ) as grid_groups,
 
   FROM dois_temp_table as dois, UNNEST(grids) as grid_id
-  LEFT JOIN `{{ project_id }}.{{ dataset_id }}.grid_extended{{ release_date.strftime('%Y%m%d') }}` as institution on grid_id = institution.id
-  LEFT JOIN (SELECT grid, ARRAY_AGG(STRUCT(group_id, group_name, country_code)) as groupings FROM `{{ project_id }}.coki.groupings` CROSS JOIN UNNEST(grids) as grid GROUP BY grid) as grid_groups on institution.id = grid_groups.grid
+  LEFT JOIN `{{ project_id }}.{{ dataset_id }}.grid{{ release_date.strftime('%Y%m%d') }}` as institution on grid_id = institution.id
+  LEFT JOIN (SELECT grid, ARRAY_AGG(STRUCT(group_id, group_name, country_code)) as groupings FROM `{{ project_id }}.{{ settings.dataset_id }}.{{ settings.table_id }}` CROSS JOIN UNNEST(grids) as grid GROUP BY grid) as grid_groups on institution.id = grid_groups.grid
   GROUP BY doi) as base on extras.doi = base.doi
-  LEFT JOIN `{{ project_id }}.{{ dataset_id }}.crossref_funders_extended{{ release_date.strftime('%Y%m%d') }}` as fundref on fundref.doi = extras.doi
+  LEFT JOIN `{{ project_id }}.{{ dataset_id }}.fundref{{ release_date.strftime('%Y%m%d') }}` as fundref on fundref.doi = extras.doi
   LEFT JOIN `{{ project_id }}.{{ dataset_id }}.orcid{{ release_date.strftime('%Y%m%d') }}` as orcid on orcid.doi = extras.doi
 )
 

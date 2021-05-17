@@ -28,7 +28,7 @@ SELECT
   MAX( scopus_citedby_count ) as scopus_citedby_count,
   MAX( scopus_identifier ) as scopus_identifier,
   ARRAY_AGG(grid_id) as grids
-FROM `{{ project_id }}.elsevier.scopus`
+FROM `{{ project_id }}.{{ dataset_id }}.scopus`
 WHERE scopus IS NOT NULL AND doi IS NOT NULL
 GROUP BY
   UPPER(TRIM(doi))
