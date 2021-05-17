@@ -297,7 +297,7 @@ class TestObservatoryTerraform(unittest.TestCase):
             terraform_credentials_path = os.path.join(working_dir, 'token.json')
             config_file_path = os.path.join(working_dir, 'config-terraform.yaml')
             credentials_file_path = os.path.join(working_dir, 'google_application_credentials.json')
-            workspaces_prefix = random_id() + '-'
+            TerraformConfig.WORKSPACE_PREFIX = random_id() + '-'
 
             # Create token file
             with open(terraform_credentials_path, 'w') as f:
@@ -403,7 +403,7 @@ class TestObservatoryTerraform(unittest.TestCase):
         with runner.isolated_filesystem():
             working_dir = pathlib.Path().absolute()
             credentials_file_path = os.path.join(working_dir, 'google_application_credentials.json')
-            workspaces_prefix = random_id() + '-'
+            TerraformConfig.WORKSPACE_PREFIX = random_id() + '-'
 
             # No config file should exist because we are in a new isolated filesystem
             config_file_path = os.path.join(working_dir, 'config-terraform.yaml')
