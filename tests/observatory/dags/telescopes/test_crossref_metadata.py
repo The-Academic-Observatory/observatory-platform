@@ -15,17 +15,22 @@
 # Author: Aniek Roelofs
 
 
+import os
+
 import httpretty
+import pendulum
 from airflow.models.connection import Connection
 
+from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataRelease, CrossrefMetadataTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
 from observatory.platform.utils.template_utils import blob_name
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
+from tests.observatory.test_utils import test_fixtures_path
 
 
 class TestCrossrefMetadata(ObservatoryTestCase):
-    """ Tests for the Geonames telescope """
+    """ Tests for the Crossref Metadata telescope """
 
     def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
@@ -43,7 +48,7 @@ class TestCrossrefMetadata(ObservatoryTestCase):
                                     'dd1ab247c55191a14bcd1bf32719c337']
 
     def test_dag_structure(self):
-        """ Test that the Geonames DAG has the correct structure.
+        """ Test that the Crossref Metadata DAG has the correct structure.
 
         :return: None
         """
@@ -62,7 +67,7 @@ class TestCrossrefMetadata(ObservatoryTestCase):
         }, dag)
 
     def test_dag_load(self):
-        """ Test that the Geonames DAG can be loaded from a DAG bag.
+        """ Test that the Crossref Metadata DAG can be loaded from a DAG bag.
 
         :return: None
         """
