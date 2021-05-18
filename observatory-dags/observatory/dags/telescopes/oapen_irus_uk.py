@@ -19,7 +19,6 @@ import logging
 import os
 import time
 from datetime import datetime
-from functools import partial
 from typing import List, Optional, Tuple
 from urllib.parse import quote
 
@@ -27,7 +26,6 @@ import pendulum
 import requests
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.operators.python_operator import PythonOperator
 from google.auth import environment_vars
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2.service_account import IDTokenCredentials
@@ -187,8 +185,8 @@ class OapenIrusUkTelescope(SnapshotTelescope):
     FUNCTION_NAME = 'oapen_access_stats'  # Name of the google cloud function
     FUNCTION_REGION = 'europe-west1'  # Region of the google cloud function
     FUNCTION_SOURCE_URL = 'https://github.com/The-Academic-Observatory/oapen-irus-uk-cloud-function/releases/' \
-                          'download/v1.0.0/oapen-irus-uk-cloud-function.zip'  # URL to the zipped source code of the cloud function
-    FUNCTION_MD5_HASH = '61793f6e4864285088917b81186f125e'  # MD5 hash of the zipped source code
+                          'download/v1.0.1/oapen-irus-uk-cloud-function.zip'  # URL to the zipped source code of the cloud function
+    FUNCTION_MD5_HASH = 'a273d1b547e221a8d2165c5ac956e942'  # MD5 hash of the zipped source code
     FUNCTION_BLOB_NAME = 'cloud_function_source_code.zip'  # blob name of zipped source code
     OAPEN_API_URL = 'https://library.oapen.org/rest/search?query=publisher.name:{publisher_name}&expand=metadata'
 
