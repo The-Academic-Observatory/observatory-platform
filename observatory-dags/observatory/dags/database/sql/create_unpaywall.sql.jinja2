@@ -188,4 +188,4 @@ exclusive categories, e.g. in the generation of stacked bar charts that include 
   best_oa_location.url_for_pdf
 
 FROM 
-  `{{ project_id }}.{{ dataset_id }}.unpaywall{{ release_date.strftime('%Y%m%d') }}`
+  `{{ project_id }}.{{ unpaywall.dataset_id }}.{{ unpaywall.table_id }}{{ unpaywall.release_date.strftime('%Y%m%d') }}`

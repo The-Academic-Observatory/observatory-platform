@@ -50,7 +50,7 @@ MAX_QUERIES = 100
 @dataclass
 class Table:
     dataset_id: str
-    table_id: str
+    table_id: str = None
     sharded: bool = False
     release_date: Pendulum = None
 
@@ -82,12 +82,14 @@ def make_dataset_transforms(
     dataset_id_crossref_metadata: str = "crossref",
     dataset_id_fundref: str = "crossref",
     dataset_id_grid: str = "digital_science",
+    dataset_id_iso: str = "iso",
     dataset_id_mag: str = "mag",
     dataset_id_orcid: str = "orcid",
     dataset_id_open_citations: str = "open_citations",
     dataset_id_unpaywall: str = "our_research",
     dataset_id_settings: str = "settings",
     dataset_id_observatory: str = "observatory",
+    dataset_id_observatory_intermediate: str = "observatory_intermediate",
 ) -> Tuple[List[Transform], Transform, Transform]:
     return (
         [
@@ -109,25 +111,26 @@ def make_dataset_transforms(
             Transform(
                 inputs={
                     "grid": Table(dataset_id_grid, "grid", sharded=True),
-                    "settings": Table(dataset_id_settings, "grid_to_home_url"),
+                    "iso": Table(dataset_id_iso),
+                    "settings": Table(dataset_id_settings),
                 },
                 output_table_id="grid",
             ),
             Transform(
                 inputs={
                     "mag": Table(dataset_id_mag, "Affiliations", sharded=True),
-                    "settings": Table(dataset_id_settings, "mag_affiliations_override"),
+                    "settings": Table(dataset_id_settings),
                 },
                 output_table_id="mag",
                 output_cluster=True,
                 output_clustering_fields=["Doi"],
             ),
-            Transform(
-                inputs={"orcid": Table(dataset_id_orcid, "orcid")},
-                output_table_id="orcid",
-                output_cluster=True,
-                output_clustering_fields=["doi"],
-            ),
+            # Transform(
+            #     inputs={"orcid": Table(dataset_id_orcid, "orcid")},
+            #     output_table_id="orcid",
+            #     output_cluster=True,
+            #     output_clustering_fields=["doi"],
+            # ),
             Transform(
                 inputs={"open_citations": Table(dataset_id_open_citations, "open_citations", sharded=True)},
                 output_table_id="open_citations",
@@ -143,8 +146,10 @@ def make_dataset_transforms(
         ],
         Transform(
             inputs={
-                "crossref_metadata": Table("crossref", "crossref_metadata", sharded=True),
-                "settings": Table("settings", "groupings"),
+                "observatory_intermediate": Table(dataset_id_observatory_intermediate),
+                "unpaywall": Table(dataset_id_unpaywall),
+                "crossref_metadata": Table(dataset_id_crossref_metadata, "crossref_metadata", sharded=True),
+                "settings": Table(dataset_id_settings),
             },
             output_table_id="doi",
             output_cluster=True,
@@ -257,7 +262,7 @@ class DoiWorkflow(Telescope):
         dashboards_dataset_id: str = DASHBOARDS_DATASET_ID,
         observatory_dataset_id: str = FINAL_DATASET_ID,
         elastic_dataset_id: str = ELASTIC_DATASET_ID,
-        transforms: List = None,
+        transforms: Tuple = None,
         dag_id: Optional[str] = "doi",
         start_date: Optional[Pendulum] = datetime(2020, 8, 30),
         schedule_interval: Optional[str] = "@weekly",
@@ -328,14 +333,14 @@ class DoiWorkflow(Telescope):
         # Create DOI Table
         self.add_task(
             self.create_intermediate_table,
-            agg=self.transform_doi,
+            transform=self.transform_doi,
             task_id=f"create_{self.transform_doi.output_table_id}",
         )
 
         # Create Book Table
         self.add_task(
             self.create_intermediate_table,
-            agg=self.transform_book,
+            transform=self.transform_book,
             task_id=f"create_{self.transform_doi.output_table_id}",
         )
 
@@ -403,12 +408,10 @@ class DoiWorkflow(Telescope):
 
         transform: Transform = kwargs["transform"]
         release.create_intermediate_table(
-            input_dataset_id=transform.input_dataset_id,
-            input_table_id=transform.input_table_id,
-            input_sharded=transform.input_sharded,
+            inputs=transform.inputs,
             output_table_id=transform.output_table_id,
-            cluster=transform.cluster,
-            clustering_fields=transform.clustering_fields,
+            output_cluster=transform.output_cluster,
+            output_clustering_fields=transform.output_clustering_fields,
         )
 
     def create_aggregate_table(self, release: ObservatoryRelease, **kwargs):
@@ -530,14 +533,7 @@ class ObservatoryRelease:
             )
 
     def create_intermediate_table(
-        self,
-        *,
-        input_dataset_id: str,
-        input_table_id: str,
-        input_sharded: bool,
-        output_table_id: str,
-        cluster: bool,
-        clustering_fields: List,
+        self, *, inputs: Dict, output_table_id: str, output_cluster: bool, output_clustering_fields: List,
     ):
         """ Create an intermediate table.
         :param input_dataset_id: the input dataset id.
@@ -550,27 +546,28 @@ class ObservatoryRelease:
         :return: None.
         """
 
-        shard_date = None
-        if input_sharded:
+        def get_release_date(dataset_id: str, table_id: str):
             # Get last table shard date before current end date
-            table_shard_dates = select_table_shard_dates(
-                self.project_id, input_dataset_id, input_table_id, self.release_date
-            )
+            table_shard_dates = select_table_shard_dates(self.project_id, dataset_id, table_id, self.release_date)
             if len(table_shard_dates):
                 shard_date = table_shard_dates[0]
             else:
                 raise AirflowException(
-                    f"{self.project_id}.{input_dataset_id}.{input_table_id} "
+                    f"{self.project_id}.{dataset_id}.{table_id} "
                     f"with a table shard date <= {self.release_date} not found"
                 )
+
+            return shard_date
+
+        for k, table in inputs.items():
+            if table.sharded:
+                table.release_date = get_release_date(table.dataset_id, table.table_id)
 
         # Create processed table
         template_path = os.path.join(
             workflow_sql_templates_path(), make_sql_jinja2_filename(f"create_{output_table_id}")
         )
-        sql = render_template(
-            template_path, dataset_id=input_dataset_id, project_id=self.project_id, release_date=shard_date
-        )
+        sql = render_template(template_path, project_id=self.project_id, release_date=self.release_date, **inputs)
 
         output_table_id_sharded = bigquery_sharded_table_id(output_table_id, self.release_date)
         success = create_bigquery_table_from_query(
@@ -579,8 +576,8 @@ class ObservatoryRelease:
             dataset_id=self.intermediate_dataset_id,
             table_id=output_table_id_sharded,
             location=self.data_location,
-            cluster=cluster,
-            clustering_fields=clustering_fields,
+            cluster=output_cluster,
+            clustering_fields=output_clustering_fields,
         )
 
         return success

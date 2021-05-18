@@ -34,6 +34,6 @@ SELECT
   COUNTIF(IF(STARTS_WITH(timespan, "-"), -1, IF(STRPOS(timespan, "Y")-1 > 0, CAST(SUBSTR(timespan, STRPOS(timespan, "P")+1, STRPOS(timespan, "Y")-2) AS INT64), 0)) < 2 AND author_sc = True) as author_sc_two_years,
   COUNTIF(IF(STARTS_WITH(timespan, "-"), -1, IF(STRPOS(timespan, "Y")-1 > 0, CAST(SUBSTR(timespan, STRPOS(timespan, "P")+1, STRPOS(timespan, "Y")-2) AS INT64), 0)) < 5 AND author_sc = True) as author_sc_five_years
 FROM
-  `{{ project_id }}.{{ dataset_id }}.open_citations{{ release_date.strftime('%Y%m%d') }}` as citations
+  `{{ project_id }}.{{ open_citations.dataset_id }}.{{ open_citations.table_id }}{{ open_citations.release_date.strftime('%Y%m%d') }}` as citations
 GROUP BY
   UPPER(TRIM(cited))

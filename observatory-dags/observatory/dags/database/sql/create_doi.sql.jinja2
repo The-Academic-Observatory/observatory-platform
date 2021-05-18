@@ -22,12 +22,12 @@ FROM
   (SELECT 
     UPPER(TRIM(ref.doi)) as doi,
     STRUCT( title, abstract, issued.date_parts[offset(0)] as published_year, CASE WHEN ARRAY_LENGTH(issued.date_parts) > 1 THEN issued.date_parts[offset(1)] ELSE 13 END as published_month, CONCAT(issued.date_parts[offset(0)], "-", CASE WHEN ARRAY_LENGTH(issued.date_parts) > 1 THEN issued.date_parts[offset(1)] ELSE 13 END) as published_year_month, type, ISSN, ISBN, issn_type, publisher_location, publisher, member, prefix, container_title, short_container_title, group_title, references_count, is_referenced_by_count, subject, published_print, license, volume, funder, page, author, link, clinical_trial_number, alternative_id ) as crossref,
-    (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.unpaywall{{ release_date.strftime('%Y%m%d') }}` as oa WHERE oa.doi = UPPER(TRIM(ref.doi))) as unpaywall,
-    ARRAY((SELECT as STRUCT _TABLE_SUFFIX as unpaywall_release, * from `{{ project_id }}.{{ dataset_id }}.unpaywall*` as oa WHERE oa.doi = UPPER(TRIM(ref.doi)))) as unpaywall_history,
-    (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.mag{{ release_date.strftime('%Y%m%d') }}` as mag WHERE mag.doi = UPPER(TRIM(ref.doi))) as mag,
-    (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.open_citations{{ release_date.strftime('%Y%m%d') }}` as oa WHERE oa.doi = UPPER(TRIM(ref.doi))) as open_citations,
-    (SELECT as STRUCT * from `{{ project_id }}.{{ dataset_id }}.crossref_events{{ release_date.strftime('%Y%m%d') }}` as events WHERE events.doi = UPPER(TRIM(ref.doi))) as events
-  FROM `{{ project_id }}.crossref.crossref_metadata{{ crossref_metadata_release_date.strftime('%Y%m%d') }}` as ref
+    (SELECT as STRUCT * from `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.unpaywall{{ release_date.strftime('%Y%m%d') }}` as oa WHERE oa.doi = UPPER(TRIM(ref.doi))) as unpaywall,
+    ARRAY((SELECT as STRUCT _TABLE_SUFFIX as unpaywall_release, * from `{{ project_id }}.{{ unpaywall.dataset_id }}.unpaywall*` as oa WHERE oa.doi = UPPER(TRIM(ref.doi)))) as unpaywall_history,
+    (SELECT as STRUCT * from `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.mag{{ release_date.strftime('%Y%m%d') }}` as mag WHERE mag.doi = UPPER(TRIM(ref.doi))) as mag,
+    (SELECT as STRUCT * from `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.open_citations{{ release_date.strftime('%Y%m%d') }}` as oa WHERE oa.doi = UPPER(TRIM(ref.doi))) as open_citations,
+    (SELECT as STRUCT * from `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.crossref_events{{ release_date.strftime('%Y%m%d') }}` as events WHERE events.doi = UPPER(TRIM(ref.doi))) as events
+  FROM `{{ project_id }}.{{ crossref_metadata.dataset_id }}.crossref_metadata{{ crossref_metadata.release_date.strftime('%Y%m%d') }}` as ref
   WHERE ARRAY_LENGTH(issued.date_parts) > 0)
 ),
 
@@ -131,11 +131,11 @@ SELECT
     ) as grid_groups,
 
   FROM dois_temp_table as dois, UNNEST(grids) as grid_id
-  LEFT JOIN `{{ project_id }}.{{ dataset_id }}.grid{{ release_date.strftime('%Y%m%d') }}` as institution on grid_id = institution.id
-  LEFT JOIN (SELECT grid, ARRAY_AGG(STRUCT(group_id, group_name, country_code)) as groupings FROM `{{ project_id }}.{{ settings.dataset_id }}.{{ settings.table_id }}` CROSS JOIN UNNEST(grids) as grid GROUP BY grid) as grid_groups on institution.id = grid_groups.grid
+  LEFT JOIN `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.grid{{ release_date.strftime('%Y%m%d') }}` as institution on grid_id = institution.id
+  LEFT JOIN (SELECT grid, ARRAY_AGG(STRUCT(group_id, group_name, country_code)) as groupings FROM `{{ project_id }}.{{ settings.dataset_id }}.groupings` CROSS JOIN UNNEST(grids) as grid GROUP BY grid) as grid_groups on institution.id = grid_groups.grid
   GROUP BY doi) as base on extras.doi = base.doi
-  LEFT JOIN `{{ project_id }}.{{ dataset_id }}.fundref{{ release_date.strftime('%Y%m%d') }}` as fundref on fundref.doi = extras.doi
-  LEFT JOIN `{{ project_id }}.{{ dataset_id }}.orcid{{ release_date.strftime('%Y%m%d') }}` as orcid on orcid.doi = extras.doi
+  LEFT JOIN `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.fundref{{ release_date.strftime('%Y%m%d') }}` as fundref on fundref.doi = extras.doi
+  LEFT JOIN `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.orcid{{ release_date.strftime('%Y%m%d') }}` as orcid on orcid.doi = extras.doi
 )
 
 SELECT

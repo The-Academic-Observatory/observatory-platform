@@ -33,7 +33,7 @@ WITH orcid_processed as (SELECT
       work_group.work_summary[OFFSET(0)].publication_date
     FROM UNNEST(activities_summary.works.group) as work_group
   ) as works
-FROM `{{ project_id }}.{{ dataset_id }}.orcid` as orcid)
+FROM `{{ project_id }}.{{ orcid.dataset_id }}.{{ orcid.table_id }}` as orcid)
 
 SELECT
   doi,
