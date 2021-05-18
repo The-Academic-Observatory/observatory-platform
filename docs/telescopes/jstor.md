@@ -13,19 +13,34 @@ This account can then be used to login and set-up the scheduled reports (see bel
 
 The corresponding tables created in BigQuery are `jstor_countryYYYYMMDD` and `jstor_institutionYYYYMMDD`.
 
-| Summary                 |        |
-|-------------------------|--------|
-| Average runtime         |   ? min |
-| Average download size   |   ? mb |
-| Harvest Type            |  API   |
-| Harvest Frequency       | Monthly|
-| Runs on remote worker   |  True  |
-| Catchup missed runs     |  True  |
-| Table Write Disposition |Truncate|
-| Update Frequency        |  Daily |
-| Credentials Required    |   Yes  |
-| Uses Telescope Template |Snapshot|
-| Each shard includes all data |   No    |
+
+```eval_rst
++------------------------------+---------+
+| Summary                      |         |
++==============================+=========+
+| Average runtime              | ? min   |
++------------------------------+---------+
+| Average download size        |  ? MB   |
++------------------------------+---------+
+| Harvest Type                 |  API    |
++------------------------------+---------+
+| Harvest Frequency            | Monthly |
++------------------------------+---------+
+| Runs on remote worker        | True    |
++------------------------------+---------+
+| Catchup missed runs          | True    |
++------------------------------+---------+
+| Table Write Disposition      | Truncate|
++------------------------------+---------+
+| Update Frequency             | Daily   |
++------------------------------+---------+
+| Credentials Required         | Yes     |
++------------------------------+---------+
+| Uses Telescope Template      | Snapshot|
++------------------------------+---------+
+| Each shard includes all data | No      |
++------------------------------+---------+
+```
 
 ## Setting up a report schedule
 Log in to the JSTOR website and set up a report schedule at https://www.jstor.org/publisher-reports/#request-schedules.  

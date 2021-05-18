@@ -11,19 +11,33 @@ The Cloud Function is created and called from the telescope, when the Cloud Func
 
 The corresponding table created in BigQuery is `oapen.oapen_irus_ukYYYYMMDD`.
 
-| Summary                 |        |
-|-------------------------|--------|
-| Average runtime         |   ? min |
-| Average download size   |   ? mb |
-| Harvest Type            |  API   |
-| Harvest Frequency       | Monthly|
-| Runs on remote worker   |  True  |
-| Catchup missed runs     |  True  |
-| Table Write Disposition |Truncate|
-| Update Frequency        |  Daily |
-| Credentials Required    |   Yes  |
-| Uses Telescope Template |Snapshot|
-| Each shard includes all data |   No    |
+```eval_rst
++------------------------------+---------+
+| Summary                      |         |
++==============================+=========+
+| Average runtime              | ? min   |
++------------------------------+---------+
+| Average download size        |  ? MB   |
++------------------------------+---------+
+| Harvest Type                 |  API    |
++------------------------------+---------+
+| Harvest Frequency            | Monthly |
++------------------------------+---------+
+| Runs on remote worker        | True    |
++------------------------------+---------+
+| Catchup missed runs          | True    |
++------------------------------+---------+
+| Table Write Disposition      | Truncate|
++------------------------------+---------+
+| Update Frequency             | Daily   |
++------------------------------+---------+
+| Credentials Required         | Yes     |
++------------------------------+---------+
+| Uses Telescope Template      | Snapshot|
++------------------------------+---------+
+| Each shard includes all data | No      |
++------------------------------+---------+
+```
 
 ## Cloud Function
 The OAPEN IRUS-UK telescope makes use of a Google Cloud Function that resides in the OAPEN Google project. 

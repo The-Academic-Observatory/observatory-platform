@@ -34,8 +34,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'autoapi.extension',
     'recommonmark',
-    'sphinxcontrib.openapi',
-    'sphinx_markdown_tables'
+    'sphinxcontrib.openapi'
 ]
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi

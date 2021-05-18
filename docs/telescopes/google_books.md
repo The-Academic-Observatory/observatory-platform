@@ -13,20 +13,33 @@ Currently there are 3 report types available:
 In this telescope we collect data from the last 2 reports.  
 The corresponding tables created in BigQuery are `google.google_books_salesYYYYMMDD` and `google.google_books_trafficYYYYMMDD`.
 
-| Summary                 |        |
-|-------------------------|--------|
-| Average runtime         |   ? min |
-| Average download size   |   ? mb |
-| Harvest Type            |  SFTP  |
-| Harvest Frequency       | Monthly|
-| Runs on remote worker   |  True  |
-| Catchup missed runs     |  True  |
-| Table Write Disposition |Truncate|
-| Update Frequency        |  Daily |
-| Credentials Required    |   Yes  |
-| Uses Telescope Template |Snapshot|
-| Each shard includes all data |   No    |
-
+```eval_rst
++------------------------------+---------+
+| Summary                      |         |
++==============================+=========+
+| Average runtime              | ? min   |
++------------------------------+---------+
+| Average download size        |  ? MB   |
++------------------------------+---------+
+| Harvest Type                 |  SFTP   |
++------------------------------+---------+
+| Harvest Frequency            | Monthly |
++------------------------------+---------+
+| Runs on remote worker        | True    |
++------------------------------+---------+
+| Catchup missed runs          | True    |
++------------------------------+---------+
+| Table Write Disposition      | Truncate|
++------------------------------+---------+
+| Update Frequency             | Daily   |
++------------------------------+---------+
+| Credentials Required         | Yes     |
++------------------------------+---------+
+| Uses Telescope Template      | Snapshot|
++------------------------------+---------+
+| Each shard includes all data | No      |
++------------------------------+---------+
+```
 
 ## Authentication
 The reports are downloaded from https://play.google.com/books/publish/. To get access to the reports the publisher needs to give access to a google service account.  

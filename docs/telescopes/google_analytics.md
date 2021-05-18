@@ -9,19 +9,33 @@ To get access to the analytics data a publisher needs to add the relevant google
 
 The corresponding table created in BigQuery is `google.google_analyticsYYYYMMDD`.
 
-| Summary                 |        |
-|-------------------------|--------|
-| Average runtime         |   ? min |
-| Average download size   |   ? mb |
-| Harvest Type            |  API   |
-| Harvest Frequency       | Monthly|
-| Runs on remote worker   |  True  |
-| Catchup missed runs     |  True  |
-| Table Write Disposition |Truncate|
-| Update Frequency        |  Daily |
-| Credentials Required    |   Yes  |
-| Uses Telescope Template |Snapshot|
-| Each shard includes all data |   No    |
+```eval_rst
++------------------------------+---------+
+| Summary                      |         |
++==============================+=========+
+| Average runtime              | ? min   |
++------------------------------+---------+
+| Average download size        |  ? MB   |
++------------------------------+---------+
+| Harvest Type                 | API     |
++------------------------------+---------+
+| Harvest Frequency            | Monthly |
++------------------------------+---------+
+| Runs on remote worker        | True    |
++------------------------------+---------+
+| Catchup missed runs          | True    |
++------------------------------+---------+
+| Table Write Disposition      | Truncate|
++------------------------------+---------+
+| Update Frequency             | Daily   |
++------------------------------+---------+
+| Credentials Required         | Yes     |
++------------------------------+---------+
+| Uses Telescope Template      | Snapshot|
++------------------------------+---------+
+| Each shard includes all data | No      |
++------------------------------+---------+
+```
 
 ## Setting up service account
 * Create a service account from IAM & Admin - Service Accounts
