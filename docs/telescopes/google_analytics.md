@@ -4,7 +4,6 @@ Google Analytics is a web analytics service offered by Google that tracks and re
 This telescope gets data from Google Analytics for 1 view id per publisher and for several combinations of metrics and dimensions.  
 It is possible to add a regex expression to filter on pagepaths, so only data on relevant pagepaths is collected.  
 
-Both the 'view_id' and 'pagepath_regex' need to be set in the 'extra' field of this Telescope. The pagepath_regex can be an empty string.  
 To get access to the analytics data a publisher needs to add the relevant google service account as a user.
 
 The corresponding table created in BigQuery is `google.google_analyticsYYYYMMDD`.
@@ -36,6 +35,23 @@ The corresponding table created in BigQuery is `google.google_analyticsYYYYMMDD`
 | Each shard includes all data | No      |
 +------------------------------+---------+
 ```
+
+## Telescope object 'extra'
+This telescope is created using the Observatory API. There are two 'extra' fields that are required for the
+ corresponding Telescope object.  
+These are the 'view_id' and the 'pagepath_regex'.   
+
+### view_id
+The view_id points to the specific view on which Google Analytics data is collected.  
+See [the google support page](https://support.google.com/analytics/answer/1009618?hl=en) for more information on the
+ hierarchy of the Analytics account.
+Below is more information on how to list the view_ids which a service account has access to.
+
+### pagepath_regex
+This is a regular expression that is used to filter on pagepaths for which analytics data is collected.  
+The regular expression can be set to an empty string if no filtering is required.  
+Note that the Google Analytics API uses 're2', so it is not possible to use e.g. negative lookaheads.  
+See [the google support page](https://support.google.com/analytics/answer/1034324?hl=en) and [github wiki](https://github.com/google/re2/wiki/Syntax) for more information.  
 
 ## Setting up service account
 * Create a service account from IAM & Admin - Service Accounts

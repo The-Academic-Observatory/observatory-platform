@@ -5,9 +5,6 @@ Journal reports also include usage by issue and article.
 Usage is aligned with the COUNTER 5 standard of Item Requests (views + downloads).  
 Reports can be run or scheduled weekly, monthly, or quarterly with custom date ranges. 
 
-A mapping is needed between the JSTOR publisher ID and the organisation name obtained from the observatory API.
-To get the right publisher id, the 'publisher_id' needs to be set in the 'extra' field of this Telescope.
-
 To get access to the analytics data a publisher needs to grant access to e.g. a Gmail account. 
 This account can then be used to login and set-up the scheduled reports (see below). 
 
@@ -42,10 +39,20 @@ The corresponding tables created in BigQuery are `jstor_countryYYYYMMDD` and `js
 +------------------------------+---------+
 ```
 
+## Telescope object 'extra'
+This telescope is created using the Observatory API. There is one 'extra' field that is required for the
+ corresponding Telescope object, namely the 'publisher_id'.   
+
+### publisher_id
+A mapping is required between the JSTOR publisher ID and the organisation name obtained from the observatory API.
+The JSTOR publisher_id can be found in the original filename of a JSTOR report, for example:  
+`PUB_<publisher_id>_PUBBIU_20210501.tsv`
+
+It is possible to get the original filename by directly downloading a (previous) report from the JSTOR portal.
+
 ## Setting up a report schedule
-Log in to the JSTOR website and set up a report schedule at https://www.jstor.org/publisher-reports/#request
--schedules.    
-It will be best to set the report frequency the same as the schedule interval of the telescope. Currently this is set
+Log in to the JSTOR website and set up a report schedule at their [portal](https://www.jstor.org/publisher-reports/#request-schedules).  
+It will be easiest to set the report frequency the same as the schedule interval of the telescope. Currently this is set
  to monthly.  
 For this telescope only the 'Book Usage by Country' (PUB_BCU) and 'Book Usage by Institution' (PUB_BIU) are used.  
 
