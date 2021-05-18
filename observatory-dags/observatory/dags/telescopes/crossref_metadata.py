@@ -126,6 +126,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
     def transform(self, max_workers: int):
         """ Transform the Crossref Metadata release.
         Each extracted file is transformed. This is done in parallel using the ThreadPoolExecutor.
+        Once all individual files are transformed they are concatenated together and gzipped.
 
         :param max_workers: the number of processes to use when transforming files (one process per file).
         :return: whether the transformation was successful or not.
@@ -255,15 +256,16 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         logging.info('Checking if release exists')
 
         response = retry_session().head(url)
-        if not response:
-            raise AirflowException(f'Failed to get head of url: {url}')
         if response.status_code == 302:
             logging.info(f'Snapshot exists at url: {url}, response code: {response.status_code}')
             return True
-        else:
+        elif response.reason == 'Not Found':
             logging.info(f'Snapshot does not exist at url: {url}, response code: {response.status_code}, '
-                         f'{response.reason}')
+                         f'reason: {response.reason}')
             return False
+        else:
+            raise AirflowException(f"Could not get head of url: {url}, response code: {response.status_code},"
+                                   f"reason: {response.reason}")
 
     def download(self, releases: List[CrossrefMetadataRelease], **kwargs):
         """ Task to download the CrossrefMetadataRelease release for a given month.

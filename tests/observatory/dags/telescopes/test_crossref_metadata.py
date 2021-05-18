@@ -16,13 +16,16 @@
 
 
 import os
-
 import httpretty
 import pendulum
+from datetime import datetime
 from natsort import natsorted
+from unittest.mock import patch
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 
-from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataRelease, CrossrefMetadataTelescope
+from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataRelease, CrossrefMetadataTelescope, \
+    transform_file
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
 from observatory.platform.utils.template_utils import blob_name
@@ -47,6 +50,9 @@ class TestCrossrefMetadata(ObservatoryTestCase):
         self.extract_file_hashes = ['4a55065d90aaa58c69bc5f5a54da3006', 'c45901a52154789470410aad51485e9c',
                                     '4c0fd617224a557b9ef04313cca0bd4a', 'd93dc613e299871925532d906c3a44a1',
                                     'dd1ab247c55191a14bcd1bf32719c337']
+
+        # release used for tests outside observatory test environment
+        self.release = CrossrefMetadataRelease('crossref_metadata', datetime(2020, 1, 1))
 
     def test_dag_structure(self):
         """ Test that the Crossref Metadata DAG has the correct structure.
@@ -95,7 +101,7 @@ class TestCrossrefMetadata(ObservatoryTestCase):
         # Create the Observatory environment and run tests
         with env.create():
             # Add Crossref Metadata connection
-            env.add_connection(Connection(conn_id=AirflowConns.CROSSREF, uri=" mysql://:crossref-token@"))
+            env.add_connection(Connection(conn_id=AirflowConns.CROSSREF, uri="mysql://:crossref-token@"))
 
             # Test that all dependencies are specified: no error should be thrown
             env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
@@ -105,7 +111,7 @@ class TestCrossrefMetadata(ObservatoryTestCase):
                 url = CrossrefMetadataTelescope.TELESCOPE_URL.format(year=execution_date.year,
                                                                      month=execution_date.month)
                 httpretty.register_uri(httpretty.HEAD, url, body="", status=302)
-                ti = env.run_task(telescope.check_release_exists.__name__, dag, execution_date)
+                env.run_task(telescope.check_release_exists.__name__, dag, execution_date)
 
             release = CrossrefMetadataRelease(telescope.dag_id, execution_date)
 
@@ -150,3 +156,89 @@ class TestCrossrefMetadata(ObservatoryTestCase):
                                                                 release.transform_folder
             env.run_task(telescope.cleanup.__name__, dag, execution_date)
             self.assert_cleanup(download_folder, extract_folder, transform_folder)
+
+    @patch('observatory.dags.telescopes.crossref_metadata.BaseHook.get_connection')
+    def test_download(self, mock_conn):
+        """ Test download method of release with failing response
+
+        :param mock_conn: Mock Airflow crossref connection
+        :return: None.
+        """
+        mock_conn.return_value = Connection(AirflowConns.CROSSREF, 'mysql://:crossref-token@')
+        release = self.release
+        with httpretty.enabled():
+            httpretty.register_uri(httpretty.GET, release.url, body="", status=400)
+            with self.assertRaises(ConnectionError):
+                release.download()
+
+    @patch('observatory.dags.telescopes.crossref_metadata.subprocess.Popen')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
+    def test_extract(self, mock_variable_get, mock_subprocess):
+        """ Test extract method of release with failing extract command
+
+        :param mock_variable_get: Mock Airflow data path variable
+        :param mock_subprocess: Mock the subprocess output
+        :return: None.
+        """
+        mock_variable_get.return_value = 'data'
+        release = self.release
+
+        mock_subprocess().returncode = 1
+        mock_subprocess().communicate.return_value = 'stdout'.encode(), 'stderr'.encode()
+        with self.assertRaises(AirflowException):
+            release.extract()
+
+    @patch('observatory.dags.telescopes.crossref_metadata.transform_file')
+    @patch('observatory.dags.telescopes.crossref_metadata.subprocess.Popen')
+    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
+    def test_transform(self, mock_variable_get, mock_subprocess, mock_transform_file):
+        """ Test the transform method of release with failing concatenate command
+
+        :param mock_variable_get: Mock Airflow data path variable
+        :param mock_subprocess: Mock the subprocess output
+        :param mock_transform_file: Mock the transform function
+        :return: None.
+        """
+        mock_variable_get.return_value = 'data'
+        release = self.release
+
+        mock_subprocess().returncode = 1
+        mock_subprocess().communicate.return_value = 'stdout'.encode(), 'stderr'.encode()
+        with self.assertRaises(AirflowException):
+            release.transform(max_workers=5)
+
+    def test_check_release_exists(self):
+        """ Test the 'check_release_exists' task with different responses.
+
+        :return: None.
+        """
+        release = self.release
+        telescope = CrossrefMetadataTelescope()
+        with httpretty.enabled():
+            # register 3 responses, successful, release not found and 'other'
+            httpretty.register_uri(httpretty.HEAD, uri=release.url,
+                                   responses=[
+                                       httpretty.Response(body='', status=302),
+                                       httpretty.Response(body='', status=404, adding_headers={'reason': 'Not Found'}),
+                                       httpretty.Response(body='', status=400)])
+
+            continue_dag = telescope.check_release_exists(execution_date=release.release_date)
+            self.assertTrue(continue_dag)
+
+            continue_dag = telescope.check_release_exists(execution_date=release.release_date)
+            self.assertFalse(continue_dag)
+
+            with self.assertRaises(AirflowException):
+                telescope.check_release_exists(execution_date=release.release_date)
+
+    @patch('observatory.dags.telescopes.crossref_metadata.subprocess.Popen')
+    def test_transform_file(self, mock_subprocess):
+        """ Test transform_file function with failing transform command.
+
+        :param mock_subprocess: Mock the subprocess output
+        :return: None.
+        """
+        mock_subprocess().returncode = 1
+        mock_subprocess().communicate.return_value = 'stdout'.encode(), 'stderr'.encode()
+        with self.assertRaises(AirflowException):
+            transform_file('input_file_path', 'output_file_path')
