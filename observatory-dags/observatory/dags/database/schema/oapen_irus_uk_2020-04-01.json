@@ -1,8 +1,26 @@
 [
   {
-    "description": "ID for the book.",
+    "description": "Proprietary identifier of the book.",
     "mode": "NULLABLE",
-    "name": "item_id",
+    "name": "proprietary_id",
+    "type": "STRING"
+  },
+  {
+    "description": "URI of the book.",
+    "mode": "NULLABLE",
+    "name": "URI",
+    "type": "STRING"
+  },
+  {
+    "description": "DOI of the book.",
+    "mode": "NULLABLE",
+    "name": "DOI",
+    "type": "STRING"
+  },
+  {
+    "description": "ISBN of the book.",
+    "mode": "NULLABLE",
+    "name": "ISBN",
     "type": "STRING"
   },
   {
