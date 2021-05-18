@@ -17,7 +17,16 @@
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
+from observatory.api.client.identifiers import TelescopeTypes
 from observatory.dags.telescopes.ucl_discovery import UclDiscoveryTelescope
+from observatory.platform.utils.telescope_utils import make_observatory_api
 
-telescope = UclDiscoveryTelescope()
-globals()[telescope.dag_id] = telescope.make_dag()
+# Fetch all telescopes
+api = make_observatory_api()
+telescope_type = api.get_telescope_type(type_id=TelescopeTypes.ucl_discovery)
+telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
+
+# Make all telescopes
+for telescope in telescopes:
+    ucl_discovery_telescope = UclDiscoveryTelescope(telescope.organisation)
+    globals()[ucl_discovery_telescope.dag_id] = ucl_discovery_telescope.make_dag()

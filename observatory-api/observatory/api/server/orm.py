@@ -87,6 +87,7 @@ def init_db(session: scoped_session):
         (TelescopeTypes.google_books, "Google Books Telescope"),
         (TelescopeTypes.google_analytics, "Google Analytics Telescope"),
         (TelescopeTypes.oapen_irus_uk, "OAPEN IRUS-UK Telescope"),
+        (TelescopeTypes.ucl_discovery, "UCL Discovery Telescope"),
         (TelescopeTypes.scopus, "Scopus Telescope"),
         (TelescopeTypes.wos, "Web of Science Telescope"),
         (TelescopeTypes.fulcrum, "Fulcrum Telescope"),

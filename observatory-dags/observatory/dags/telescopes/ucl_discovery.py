@@ -14,80 +14,38 @@
 
 # Author: Aniek Roelofs
 
+
 import csv
 import logging
 import os
 from datetime import datetime
-from typing import List
-from typing import Tuple
+from typing import List, Tuple, Optional
 
 import pendulum
-from croniter import croniter
+from airflow.exceptions import AirflowException
+from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
-from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, make_dag_id
+from observatory.platform.utils.template_utils import upload_files_from_list, blob_name, bq_load_shard_v2, \
+    table_ids_from_path
 from observatory.platform.utils.url_utils import retry_session
 
 
-def get_downloads_per_country(countries_url: str) -> Tuple[List[dict], int]:
-    """ Requests info on downloads per country for a specific eprint id
-
-    :param countries_url: The url to the downloads per country info
-    :return: Number of total downloads and list of downloads per country, country code and country name.
-    """
-    response = retry_session(num_retries=5).get(countries_url)
-    response_content = response.content.decode('utf-8')
-    if response_content == '\n':
-        return [], 0
-    response_csv = csv.DictReader(response_content.splitlines())
-    results = []
-    total_downloads = 0
-    for row in response_csv:
-        download_count = int(row['count'].strip('="'))
-        country_code = row['value']
-        country_name = row['description'].split('</span>')[0].split('>')[-1]
-        results.append({
-                           'country_code': country_code,
-                           'country_name': country_name,
-                           'download_count': download_count
-                       })
-        total_downloads += download_count
-
-    return results, total_downloads
-
-
-def create_result_dict(begin_date: str, end_date: str, total_downloads: int, downloads_per_country: List[dict],
-                       multi_row_columns: dict, single_row_columns: dict) -> dict:
-    """ Create one result dictionary with info on downloads for a specific eprint id in a given time period.
-
-    :param begin_date: The begin date of download period
-    :param end_date: The end date of download period
-    :param total_downloads: Total of downloads in that period
-    :param downloads_per_country: List of downloads per country
-    :param multi_row_columns: Dict of column names & values for columns that have values over multiple rows of an
-    eprintid
-    :param single_row_columns: Dict of column names & values for columns that have values only in the first row of an eprint id
-    :return: Results dictionary
-    """
-    result = dict(begin_date=begin_date, end_date=end_date, total_downloads=total_downloads,
-                  downloads_per_country=downloads_per_country, **multi_row_columns, **single_row_columns)
-    # change empty strings to None so they don't show up in BigQuery table
-    for k, v in result.items():
-        result[k] = v if v != '' else None
-    return result
-
-
 class UclDiscoveryRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, release_date: pendulum.Pendulum):
+    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, release_date: pendulum.Pendulum,
+                 organisation: Organisation):
         """ Construct a UclDiscoveryRelease instance.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the download period.
         :param release_date: the end date of the download period, also used as release date for BigQuery table and
         file paths.
+        :param organisation: the Organisation of which data is processed.
         """
         super().__init__(dag_id, release_date)
 
+        self.dag_id_prefix = UclDiscoveryTelescope.DAG_ID_PREFIX
+        self.organisation = organisation
         self.start_date = start_date
         self.end_date = release_date
 
@@ -103,18 +61,32 @@ class UclDiscoveryRelease(SnapshotRelease):
                              f'&view=Table&limit=all&set_name=eprint&export=CSV&set_value='
 
     @property
+    def download_bucket(self):
+        """ The download bucket name.
+        :return: the download bucket name.
+        """
+        return self.organisation.gcp_download_bucket
+
+    @property
+    def transform_bucket(self):
+        """ The transform bucket name.
+        :return: the transform bucket name.
+        """
+        return self.organisation.gcp_transform_bucket
+
+    @property
     def download_path(self) -> str:
         """ Creates path to store the downloaded UCL discovery data
         :return: Full path to the download file
         """
-        return os.path.join(self.download_folder, f'{self.dag_id}.txt')
+        return os.path.join(self.download_folder, f'{self.dag_id_prefix}.txt')
 
     @property
     def transform_path(self) -> str:
         """ Creates path to store the transformed and gzipped UCL discovery data
         :return: Full path to the transform file
         """
-        return os.path.join(self.transform_folder, f'{self.dag_id}.jsonl.gz')
+        return os.path.join(self.transform_folder, f'{self.dag_id_prefix}.jsonl.gz')
 
     def download(self) -> bool:
         """ Download metadata for all eprints that are published before a specific date
@@ -136,7 +108,8 @@ class UclDiscoveryRelease(SnapshotRelease):
                 f.write(response_content)
             return True
         else:
-            return False
+            raise AirflowException(f'Could not download metadata, response status code: {response.status_code} '
+                                   f'reason: {response.reason}')
 
     def transform(self):
         """ Parse the csv file and for each eprint id store the relevant metadata in a dictionary and get the downloads
@@ -230,11 +203,15 @@ class UclDiscoveryRelease(SnapshotRelease):
 
 
 class UclDiscoveryTelescope(SnapshotTelescope):
-    def __init__(self, dag_id: str = 'ucl_discovery', start_date: datetime = datetime(2008, 1, 1),
-                 schedule_interval: str = '@monthly', dataset_id: str = 'ucl', airflow_vars: list = None,
+    """ The UCL Discovery telescope. """
+    DAG_ID_PREFIX = "ucl_discovery"
+
+    def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
+                 start_date: datetime = datetime(2008, 1, 1), schedule_interval: str = '@monthly', dataset_id: str =
+                 'ucl', airflow_vars: list = None,
                  max_active_runs: int = 10):
         """ Construct a UclDiscoveryTelescope instance.
-
+        :param organisation: the Organisation of which data is processed.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
@@ -246,9 +223,14 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+        if dag_id is None:
+            dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
+
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, airflow_vars=airflow_vars,
                          max_active_runs=max_active_runs)
-
+        self.organisation = organisation
+        self.project_id = organisation.gcp_project_id
+        self.dataset_location = 'us'  # TODO: add to API
         self.add_setup_task(self.check_dependencies)
         self.add_task_chain([self.download,
                              self.upload_downloaded,
@@ -269,13 +251,11 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         """
 
         # Get start and end date (release_date)
-        cron_schedule = kwargs['dag'].normalized_schedule_interval
-        start_date = pendulum.instance(kwargs['dag_run'].execution_date)
-        cron_iter = croniter(cron_schedule, start_date)
-        end_date = pendulum.instance(cron_iter.get_next(datetime))
+        start_date = kwargs['execution_date']
+        end_date = kwargs['next_execution_date']
 
         logging.info(f'Start date: {start_date}, end date:{end_date}')
-        releases = [UclDiscoveryRelease(self.dag_id, start_date, end_date)]
+        releases = [UclDiscoveryRelease(self.dag_id, start_date, end_date, self.organisation)]
         return releases
 
     def download(self, releases: List[UclDiscoveryRelease], **kwargs):
@@ -304,3 +284,70 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         # Transform each release
         for release in releases:
             release.transform()
+
+    def bq_load(self, releases: List[UclDiscoveryRelease], **kwargs):
+        """ Task to load each transformed release to BigQuery.
+        The table_id is set to the file name without the extension.
+
+        :param releases: a list of releases.
+        :return: None.
+        """
+
+        # Load each transformed release
+        for release in releases:
+            for transform_path in release.transform_files:
+                transform_blob = blob_name(transform_path)
+                table_id, _ = table_ids_from_path(transform_path)
+
+                bq_load_shard_v2(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                 self.dataset_location, table_id, release.release_date, self.source_format,
+                                 prefix=self.schema_prefix, schema_version=self.schema_version,
+                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+
+
+def get_downloads_per_country(countries_url: str) -> Tuple[List[dict], int]:
+    """ Requests info on downloads per country for a specific eprint id
+
+    :param countries_url: The url to the downloads per country info
+    :return: Number of total downloads and list of downloads per country, country code and country name.
+    """
+    response = retry_session(num_retries=5).get(countries_url)
+    response_content = response.content.decode('utf-8')
+    if response_content == '\n':
+        return [], 0
+    response_csv = csv.DictReader(response_content.splitlines())
+    results = []
+    total_downloads = 0
+    for row in response_csv:
+        download_count = int(row['count'].strip('="'))
+        country_code = row['value']
+        country_name = row['description'].split('</span>')[0].split('>')[-1]
+        results.append({
+                           'country_code': country_code,
+                           'country_name': country_name,
+                           'download_count': download_count
+                       })
+        total_downloads += download_count
+
+    return results, total_downloads
+
+
+def create_result_dict(begin_date: str, end_date: str, total_downloads: int, downloads_per_country: List[dict],
+                       multi_row_columns: dict, single_row_columns: dict) -> dict:
+    """ Create one result dictionary with info on downloads for a specific eprint id in a given time period.
+
+    :param begin_date: The begin date of download period
+    :param end_date: The end date of download period
+    :param total_downloads: Total of downloads in that period
+    :param downloads_per_country: List of downloads per country
+    :param multi_row_columns: Dict of column names & values for columns that have values over multiple rows of an
+    eprintid
+    :param single_row_columns: Dict of column names & values for columns that have values only in the first row of an eprint id
+    :return: Results dictionary
+    """
+    result = dict(begin_date=begin_date, end_date=end_date, total_downloads=total_downloads,
+                  downloads_per_country=downloads_per_country, **multi_row_columns, **single_row_columns)
+    # change empty strings to None so they don't show up in BigQuery table
+    for k, v in result.items():
+        result[k] = v if v != '' else None
+    return result
