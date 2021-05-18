@@ -45,14 +45,15 @@ The corresponding tables created in BigQuery are `google.google_books_salesYYYYM
 The reports are downloaded from https://play.google.com/books/publish/. To get access to the reports the publisher needs to give access to a google service account.  
 This service account can then be used to login on this webpage and download each report manually.
 
-## Setting up a service account
-* Create a service account from IAM & Admin - Service Accounts
-* Create a JSON key and download the file with key
-* For each organisation/publisher of interest, ask them to add this service account for Google Books
+## Setting up a service account  
+* Create a service account from IAM & Admin - Service Accounts  
+* Create a JSON key and download the file with key  
+* For each organisation/publisher of interest, ask them to add this service account for Google Books  
 
 ## Downloading Reports Manually
 There is no API available to download the Google Books report and it is quite challenging to automate the Google login process through tools such as Selenium, because of Google's bot detection triggering a reCAPTCHA.  
-Until this step can be automated, the reports need to be downloaded manually, for each publisher and for both the sales transaction report and the traffic report: 
+Until this step can be automated, the reports need to be downloaded manually, for each publisher and for both the
+ sales transaction report and the traffic report:   
 *  A report should be created for exactly 1 month (e.g. starting 2021-01-01 and ending 2021-01-31). 
 *  All titles should be selected.
 *  All countries should be selected.
@@ -73,7 +74,7 @@ From there on, the reports are automatically downloaded on a monthly basis betwe
 To use Selenium you need the chrome webdriver, this can be downloaded from [here](https://chromedriver.chromium.org/downloads)
 
 <details>
-    <summary> The script</summary>
+    <summary> Click to expand and see the full script </summary>
     
 ```python
 import os
