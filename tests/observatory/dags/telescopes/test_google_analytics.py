@@ -166,7 +166,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                                   'title': 'Anything public program drive north.',
                                   'start_date': '2020-04-01',
                                   'end_date': '2020-04-30',
-                                  'partition_date': '2020-04-30',
+                                  'release_date': '2020-04-30',
                                   'average_time': 59.5,
                                   'unique_views': {
                                       'country': [{'name': 'country 1', 'value': 3}, {'name': 'country 2', 'value': 3}],
@@ -182,7 +182,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                                   'title': 'Standard current never no.',
                                   'start_date': '2020-04-01',
                                   'end_date': '2020-04-30',
-                                  'partition_date': '2020-04-30',
+                                  'release_date': '2020-04-30',
                                   'average_time': 44.2,
                                   'unique_views': {
                                       'country': [{'name': 'country 2', 'value': 2}, {'name': 'country 1', 'value': 1}],

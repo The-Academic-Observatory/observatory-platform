@@ -48,7 +48,7 @@
   },
   {
     "mode": "REQUIRED",
-    "name": "partition_date",
+    "name": "release_date",
     "type": "DATE",
     "description": "Table is partitioned on this column."
   }

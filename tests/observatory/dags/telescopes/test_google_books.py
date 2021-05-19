@@ -68,9 +68,9 @@ class TestGoogleBooks(ObservatoryTestCase):
             ),
         }
         self.traffic_download_hash = "db4dca44d5231e0c4e2ad95db41b79b6"
-        self.traffic_transform_hash = "fa6bd1cd"
+        self.traffic_transform_hash = "b8073007"
         self.sales_download_hash = "04b9d1cf5cd2e49df06227c2f450b8ef"
-        self.sales_transform_hash = "809efe8f"
+        self.sales_transform_hash = "ebe49987"
 
     def test_dag_structure(self):
         """Test that the Google Books DAG has the correct structure.

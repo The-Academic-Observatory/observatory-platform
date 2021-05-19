@@ -271,7 +271,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
         for release in releases:
             release.transform()
 
-    def bq_load_partition(self, releases: List[SnapshotRelease], **kwargs):
+    def bq_load_partition(self, releases: List[GoogleBooksRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
         :param releases: a list of releases.
