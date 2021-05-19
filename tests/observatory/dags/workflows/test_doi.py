@@ -15,6 +15,8 @@
 # Author: James Diprose
 
 from __future__ import annotations
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
+from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
 
 import os
 import random
@@ -525,8 +527,8 @@ def make_crossref_metadata(dataset: ObservatoryDataset) -> List[Dict]:
     return records
 
 
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
-from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
+def make_orcid(dataset: ObservatoryDataset) -> List[Dict]:
+    pass
 
 
 class TestDoiWorkflow(ObservatoryTestCase):
@@ -667,6 +669,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 ("PaperResources", True, dataset_id_all, [], "MagPaperResources"),
                 ("PaperUrls", True, dataset_id_all, [], "MagPaperUrls"),
                 ("PaperMeSH", True, dataset_id_all, [], "MagPaperMeSH"),
+                ("orcid", False, dataset_id_all, [], "orcid"),
             ]
 
             files_list = []
@@ -722,12 +725,12 @@ class TestDoiWorkflow(ObservatoryTestCase):
         """
 
         env = ObservatoryEnvironment(project_id=self.gcp_project_id, data_location=self.gcp_data_location)
-        fake_dataset_id = env.add_dataset()
-        intermediate_dataset_id = env.add_dataset()
-        dashboards_dataset_id = env.add_dataset()
-        observatory_dataset_id = env.add_dataset()
-        elastic_dataset_id = env.add_dataset()
-        settings_dataset_id = env.add_dataset()
+        fake_dataset_id = env.add_dataset(prefix='fake')
+        intermediate_dataset_id = env.add_dataset(prefix='intermediate')
+        dashboards_dataset_id = env.add_dataset(prefix='dashboards')
+        observatory_dataset_id = env.add_dataset(prefix='observatory')
+        elastic_dataset_id = env.add_dataset(prefix='elastic')
+        settings_dataset_id = env.add_dataset(prefix='settings')
         fake_release_date = pendulum.utcnow().date()
         dataset_transforms = make_dataset_transforms(
             dataset_id_crossref_events=fake_dataset_id,
@@ -797,7 +800,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
 
                 # Test source dataset transformations
                 for transform in transforms:
-                    task_id = f"create_{transform.output_table_id}"
+                    task_id = f"create_{transform.output_table.table_id}"
                     ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
                     self.assertEqual(expected_state, ti.state)
 
@@ -811,33 +814,33 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 self.assertEqual(expected_state, ti.state)
                 # TODO: check that output is correct
 
-                # # Test aggregations
-                # for agg in DoiWorkflow.AGGREGATIONS:
-                #     task_id = f"create_{agg.table_id}"
-                #     ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
-                #
-                #     # Check that task finished successfully
-                #     self.assertEqual(expected_state, ti.state)
-                #     # TODO: check that output is correct
-                #
-                # # Test copy to dashboards
-                # ti = env.run_task('copy_to_dashboards', doi_dag, execution_date=execution_date)
-                # self.assertEqual(expected_state, ti.state)
-                # # TODO: check that tables exist
-                #
-                # # Test create dashboard views
-                # ti = env.run_task('create_dashboard_views', doi_dag, execution_date=execution_date)
-                # self.assertEqual(expected_state, ti.state)
-                # # TODO: check that views exist
-                #
-                # # Test create exported tables for Elasticsearch
-                # for agg in DoiWorkflow.AGGREGATIONS:
-                #     task_id = f"export_{agg.table_id}"
-                #     ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
-                #
-                #     # Check that task finished successfully
-                #     self.assertEqual(expected_state, ti.state)
-                #     # TODO: check that output is correct
+                # Test aggregations
+                for agg in DoiWorkflow.AGGREGATIONS:
+                    task_id = f"create_{agg.table_id}"
+                    ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+
+                    # Check that task finished successfully
+                    self.assertEqual(expected_state, ti.state)
+                    # TODO: check that output is correct
+
+                # Test copy to dashboards
+                ti = env.run_task('copy_to_dashboards', doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that tables exist
+
+                # Test create dashboard views
+                ti = env.run_task('create_dashboard_views', doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that views exist
+
+                # Test create exported tables for Elasticsearch
+                for agg in DoiWorkflow.AGGREGATIONS:
+                    task_id = f"export_{agg.table_id}"
+                    ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+
+                    # Check that task finished successfully
+                    self.assertEqual(expected_state, ti.state)
+                    # TODO: check that output is correct
 
                 a = 1
 

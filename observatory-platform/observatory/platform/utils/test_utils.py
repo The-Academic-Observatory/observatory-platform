@@ -226,16 +226,17 @@ class ObservatoryEnvironment:
         bucket = self.storage_client.get_bucket(bucket_id)
         bucket.delete(force=True)
 
-    def add_dataset(self) -> str:
+    def add_dataset(self, prefix: str = '') -> str:
         """Add a BigQuery dataset to the Observatory environment.
 
         The BigQuery dataset will be deleted when the Observatory environment is closed.
 
+        :param prefix: an optional prefix for the dataset.
         :return: the BigQuery dataset identifier.
         """
 
         self.assert_gcp_dependencies()
-        dataset_id = random_id()
+        dataset_id = f"{prefix}_{random_id()}"
         self.datasets.append(dataset_id)
         return dataset_id
 

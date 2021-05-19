@@ -58,7 +58,7 @@ class Table:
 @dataclass
 class Transform:
     inputs: Dict = None
-    output_table_id: str = None
+    output_table: Table = None
     output_cluster: bool = False
     output_clustering_fields: List = None
 
@@ -95,7 +95,7 @@ def make_dataset_transforms(
         [
             Transform(
                 inputs={"crossref_events": Table(dataset_id_crossref_events, "crossref_events")},
-                output_table_id="crossref_events",
+                output_table=Table(dataset_id_observatory_intermediate, "crossref_events"),
                 output_cluster=True,
                 output_clustering_fields=["doi"],
             ),
@@ -104,7 +104,7 @@ def make_dataset_transforms(
                     "fundref": Table(dataset_id_fundref, "fundref", sharded=True),
                     "crossref_metadata": Table(dataset_id_crossref_metadata, "crossref_metadata", sharded=True),
                 },
-                output_table_id="fundref",
+                output_table=Table(dataset_id_observatory_intermediate, "fundref"),
                 output_cluster=True,
                 output_clustering_fields=["doi"],
             ),
@@ -114,32 +114,32 @@ def make_dataset_transforms(
                     "iso": Table(dataset_id_iso),
                     "settings": Table(dataset_id_settings),
                 },
-                output_table_id="grid",
+                output_table=Table(dataset_id_observatory_intermediate, "grid"),
             ),
             Transform(
                 inputs={
                     "mag": Table(dataset_id_mag, "Affiliations", sharded=True),
                     "settings": Table(dataset_id_settings),
                 },
-                output_table_id="mag",
+                output_table=Table(dataset_id_observatory_intermediate, "mag"),
                 output_cluster=True,
                 output_clustering_fields=["Doi"],
             ),
-            # Transform(
-            #     inputs={"orcid": Table(dataset_id_orcid, "orcid")},
-            #     output_table_id="orcid",
-            #     output_cluster=True,
-            #     output_clustering_fields=["doi"],
-            # ),
+            Transform(
+                inputs={"orcid": Table(dataset_id_orcid, "orcid")},
+                output_table=Table(dataset_id_observatory_intermediate, "orcid"),
+                output_cluster=True,
+                output_clustering_fields=["doi"],
+            ),
             Transform(
                 inputs={"open_citations": Table(dataset_id_open_citations, "open_citations", sharded=True)},
-                output_table_id="open_citations",
+                output_table=Table(dataset_id_observatory_intermediate, "open_citations"),
                 output_cluster=True,
                 output_clustering_fields=["doi"],
             ),
             Transform(
                 inputs={"unpaywall": Table(dataset_id_unpaywall, "unpaywall", sharded=True)},
-                output_table_id="unpaywall",
+                output_table=Table(dataset_id_observatory_intermediate, "unpaywall"),
                 output_cluster=True,
                 output_clustering_fields=["doi"],
             ),
@@ -151,16 +151,16 @@ def make_dataset_transforms(
                 "crossref_metadata": Table(dataset_id_crossref_metadata, "crossref_metadata", sharded=True),
                 "settings": Table(dataset_id_settings),
             },
-            output_table_id="doi",
+            output_table=Table(dataset_id_observatory, "doi"),
             output_cluster=True,
             output_clustering_fields=["doi"],
         ),
         Transform(
             inputs={
                 "observatory": Table(dataset_id_observatory, "doi", sharded=True),
-                "crossref_events": Table(dataset_id_crossref_events, "crossref_events"),
+                "crossref_events": Table(dataset_id_observatory_intermediate, "crossref_events", sharded=True),
             },
-            output_table_id="book",
+            output_table=Table(dataset_id_observatory, "book"),
             output_cluster=True,
             output_clustering_fields=["isbn"],
         ),
@@ -327,21 +327,21 @@ class DoiWorkflow(Telescope):
         # Create tasks for processing intermediate tables
         with self.parallel_tasks():
             for transform in self.transforms:
-                task_id = f"create_{transform.output_table_id}"
+                task_id = f"create_{transform.output_table.table_id}"
                 self.add_task(self.create_intermediate_table, **{"transform": transform, "task_id": task_id})
 
         # Create DOI Table
         self.add_task(
             self.create_intermediate_table,
             transform=self.transform_doi,
-            task_id=f"create_{self.transform_doi.output_table_id}",
+            task_id=f"create_{self.transform_doi.output_table.table_id}",
         )
 
         # Create Book Table
         self.add_task(
             self.create_intermediate_table,
             transform=self.transform_book,
-            task_id=f"create_{self.transform_doi.output_table_id}",
+            task_id=f"create_{self.transform_book.output_table.table_id}",
         )
 
         # Create final tables
@@ -409,7 +409,8 @@ class DoiWorkflow(Telescope):
         transform: Transform = kwargs["transform"]
         release.create_intermediate_table(
             inputs=transform.inputs,
-            output_table_id=transform.output_table_id,
+            output_dataset_id=transform.output_table.dataset_id,
+            output_table_id=transform.output_table.table_id,
             output_cluster=transform.output_cluster,
             output_clustering_fields=transform.output_clustering_fields,
         )
@@ -424,6 +425,7 @@ class DoiWorkflow(Telescope):
         :return: None.
         """
 
+        print(f"CREATE AGGREGATE TABLE: {kwargs}")
         agg: Aggregation = kwargs["aggregation"]
         success = release.create_aggregate_table(
             aggregation_field=agg.aggregation_field,
@@ -448,7 +450,7 @@ class DoiWorkflow(Telescope):
         """
 
         success = release.copy_to_dashboards()
-        set_task_state(success, kwargs["task_id"])
+        set_task_state(success, self.copy_to_dashboards.__name__)
 
     def create_dashboard_views(self, release: ObservatoryRelease, **kwargs):
         """ Create views for dashboards dataset.
@@ -533,7 +535,13 @@ class ObservatoryRelease:
             )
 
     def create_intermediate_table(
-        self, *, inputs: Dict, output_table_id: str, output_cluster: bool, output_clustering_fields: List,
+        self,
+        *,
+        inputs: Dict,
+        output_dataset_id: str,
+        output_table_id: str,
+        output_cluster: bool,
+        output_clustering_fields: List,
     ):
         """ Create an intermediate table.
         :param input_dataset_id: the input dataset id.
@@ -573,7 +581,7 @@ class ObservatoryRelease:
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=self.project_id,
-            dataset_id=self.intermediate_dataset_id,
+            dataset_id=output_dataset_id,
             table_id=output_table_id_sharded,
             location=self.data_location,
             cluster=output_cluster,
@@ -611,10 +619,11 @@ class ObservatoryRelease:
         :return: None.
         """
 
-        template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("create_aggregate.sql"))
+        template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("create_aggregate"))
         sql = render_template(
             template_path,
             project_id=self.project_id,
+            dataset_id=self.observatory_dataset_id,
             release_date=self.release_date,
             aggregation_field=aggregation_field,
             group_by_time_field=group_by_time_field,
@@ -755,8 +764,14 @@ class ObservatoryRelease:
 
                 msg = f"Exporting file_name={template_file_name}, aggregate={aggregate}, facet={facet}"
                 logging.info(msg)
+                future = executor.submit(
+                    self.export_aggregate_table,
+                    table_id=table_id,
+                    template_file_name=template_file_name,
+                    aggregate=aggregate,
+                    facet=facet,
+                )
 
-                future = executor.submit(self.export_aggregate_table, table_id, template_file_name, aggregate, facet,)
                 futures.append(future)
                 futures_msgs[future] = msg
 

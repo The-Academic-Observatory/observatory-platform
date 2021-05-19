@@ -349,16 +349,16 @@ class Telescope(AbstractTelescope):
                 with self.dag:
                     func_, kwargs_ = obj
                     task_id = make_task_id(func_, kwargs_)
-                    print(f"TEST task_id: {task_id}, kwargs: {kwargs_}")
-                    kwargs_copy = copy.copy(kwargs_)
-                    kwargs_copy.pop("task_id", None)
+                    # print(f"TEST task_id: {task_id}, kwargs: {kwargs_}")
+                    # kwargs_copy = copy.copy(kwargs_)
+                    # kwargs_copy.pop("task_id", None)
                     task_ = PythonOperator(
                         task_id=task_id,
                         python_callable=partial(self.task_callable, func_),
                         queue=self.queue,
                         default_args=self.default_args,
                         provide_context=True,
-                        op_kwargs=kwargs_copy,
+                        op_kwargs=kwargs_,
                     )
                     tasks_.append(task_)
         return tasks_
