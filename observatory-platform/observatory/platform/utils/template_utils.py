@@ -40,7 +40,6 @@ from observatory.platform.utils.gc_utils import (bigquery_sharded_table_id,
                                                  upload_files_to_cloud_storage)
 from observatory.platform.utils.jinja2_utils import make_sql_jinja2_filename, render_template
 
-partition_field = 'partition_date'
 
 # To avoid hitting the airflow database and the secret backend unnecessarily, some variables are stored as a global
 # variable and only requested once
@@ -129,13 +128,15 @@ def upload_files_from_list(files_list: List[str], bucket_name: str) -> bool:
 
 
 def add_partition_date(list_of_dicts: List[dict], partition_date: datetime,
-                       partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY):
+                       partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
+                       partition_field: str = 'release_date'):
     """ Add a partition date key/value pair to each dictionary in the list of dicts.
     Used to load data into a BigQuery partition.
 
     :param list_of_dicts: List of dictionaries with original data
     :param partition_date: The partition date
     :param partition_type: The partition type
+    :param partition_field: The name of the partition field in the BigQuery table
     :return: Updated list of dicts with partition dates
     """
     if partition_type == bigquery.TimePartitioningType.HOUR:
@@ -360,7 +361,8 @@ def bq_load_partition(project_id: str, transform_bucket: str, transform_blob: st
                       dataset_location: str, table_id: str, release_date: pendulum.Pendulum,
                       source_format: SourceFormat,
                       partition_type: bigquery.TimePartitioningType, prefix: str = '', schema_version: str = None,
-                      dataset_description: str = '', **load_bigquery_table_kwargs):
+                      dataset_description: str = '', partition_field: str = 'release_date',
+                      **load_bigquery_table_kwargs, ):
     """ Load data from a specific file (blob) in the transform bucket to a partition.
 
     :param project_id: project id.
@@ -375,6 +377,7 @@ def bq_load_partition(project_id: str, transform_bucket: str, transform_blob: st
     :param prefix: The prefix for the schema.
     :param schema_version: Schema version.
     :param dataset_description: description of the BigQuery dataset.
+    :param partition_field: The name of the partition field in the BigQuery table
     :return: None.
     """
 
