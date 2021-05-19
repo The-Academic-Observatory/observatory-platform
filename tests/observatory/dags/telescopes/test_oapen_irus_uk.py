@@ -131,7 +131,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         dataset_id = env.add_dataset()
 
         # Setup Telescope
-        execution_date = pendulum.datetime(year=2021, month=2, day=1)
+        execution_date = pendulum.datetime(year=2021, month=2, day=1).end_of('month')
         organisation = Organisation(
             name=self.organisation_name,
             gcp_project_id=self.project_id,

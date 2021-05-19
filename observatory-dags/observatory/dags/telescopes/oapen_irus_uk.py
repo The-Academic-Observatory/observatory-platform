@@ -241,9 +241,9 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         :return: list of OapenIrusUkRelease instances
         """
         # Get release_date
-        release_date = pendulum.instance(kwargs['execution_date'])
+        release_date = pendulum.instance(kwargs['execution_date']).end_of('month')
 
-        logging.info(f'Release month: {release_date}')
+        logging.info(f'Release date: {release_date}')
         releases = [OapenIrusUkRelease(self.dag_id, release_date, self.organisation)]
         return releases
 

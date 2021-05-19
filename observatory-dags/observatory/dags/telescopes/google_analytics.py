@@ -38,25 +38,24 @@ from observatory.platform.utils.template_utils import add_partition_date, blob_n
 
 
 class GoogleAnalyticsRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, release_date: pendulum.Pendulum,
+    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
                  organisation: Organisation):
         """ Construct a GoogleAnalyticsRelease.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the download period.
-        :param release_date: the end date of the download period, also used as release date for BigQuery table and
+        :param end_date: the end date of the download period, also used as release date for BigQuery table and
         file paths
         :param organisation: the Organisation of which data is processed.
         """
         self.dag_id_prefix = GoogleAnalyticsTelescope.DAG_ID_PREFIX
         transform_files_regex = f"{self.dag_id_prefix}.jsonl.gz"
 
-        super().__init__(dag_id=dag_id, release_date=release_date,
-                         transform_files_regex=transform_files_regex)
+        super().__init__(dag_id=dag_id, release_date=end_date, transform_files_regex=transform_files_regex)
 
         self.organisation = organisation
         self.start_date = start_date
-        self.end_date = release_date
+        self.end_date = end_date
 
     @property
     def download_bucket(self):
@@ -152,11 +151,11 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         passed to this argument.
         :return: A list of grid release instances
         """
-        # Get start and end date (release_date)
+        # Get start and end date (end_date = release_date)
         start_date = kwargs['execution_date']
         end_date = kwargs['next_execution_date'] - timedelta(days=1)
 
-        logging.info(f'Start date: {start_date}, end date:{end_date}')
+        logging.info(f'Start date: {start_date}, end date:{end_date}, release date: {end_date}')
         releases = [GoogleAnalyticsRelease(self.dag_id, start_date, end_date, self.organisation)]
         return releases
 
