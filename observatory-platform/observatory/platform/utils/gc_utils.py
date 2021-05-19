@@ -236,8 +236,9 @@ def load_bigquery_table(
     if cluster:
         job_config.clustering_fields = clustering_fields
 
+    load_job = None
     try:
-        load_job: LoadJob = client.load_table_from_uri(
+        load_job: [LoadJob, None] = client.load_table_from_uri(
             uri, dataset.table(table), location=location, job_config=job_config
         )
 
@@ -246,7 +247,9 @@ def load_bigquery_table(
 
         logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
     except BadRequest as e:
-        logging.error(f"{func_name}: load bigquery table failed: {e}.\nError collection:\n{load_job.errors}")
+        logging.error(f"{func_name}: load bigquery table failed: {e}.")
+        if load_job:
+            logging.error(f"Error collection:\n{load_job.errors}")
         state = False
 
     return state
