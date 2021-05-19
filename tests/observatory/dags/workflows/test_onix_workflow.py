@@ -1305,7 +1305,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         self.timestamp = pendulum.now()
 
         self.onix_table_id = "onix"
-        self.test_onix_folder = "onix_workflow_test_onix_table"
+        self.test_onix_folder = random_id()  # "onix_workflow_test_onix_table"
         self.onix_release_date = pendulum.Pendulum(2021, 5, 13)
         self.onix_dataset_id = ""
         self.fake_partner_dataset = ""
