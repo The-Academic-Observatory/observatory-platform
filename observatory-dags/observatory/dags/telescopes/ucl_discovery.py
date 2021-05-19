@@ -18,7 +18,7 @@
 import csv
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Tuple, Optional
 
 import pendulum
@@ -33,21 +33,21 @@ from observatory.platform.utils.url_utils import retry_session
 
 
 class UclDiscoveryRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, release_date: pendulum.Pendulum,
+    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
                  organisation: Organisation):
         """ Construct a UclDiscoveryRelease instance.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the download period.
-        :param release_date: the end date of the download period, also used as release date for BigQuery table and
+        :param end_date: the end date of the download period, also used as release date for BigQuery table and
         file paths.
         :param organisation: the Organisation of which data is processed.
         """
-        super().__init__(dag_id, release_date)
+        super().__init__(dag_id, end_date)
 
         self.dag_id_prefix = UclDiscoveryTelescope.DAG_ID_PREFIX
         self.organisation = organisation
         self.start_date = start_date
-        self.end_date = release_date
+        self.end_date = end_date
 
         self.eprint_metadata_url = 'https://discovery.ucl.ac.uk/cgi/search/archive/advanced/export_discovery_CSV.csv?' \
                                    'screen=Search&dataset=archive&_action_export=1&output=CSV' \
@@ -250,11 +250,11 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         :return: A list with one ucldiscovery release instance.
         """
 
-        # Get start and end date (release_date)
+        # Get start and end date (end_date = release_date)
         start_date = kwargs['execution_date']
-        end_date = kwargs['next_execution_date']
+        end_date = kwargs['next_execution_date'] - timedelta(days=1)
 
-        logging.info(f'Start date: {start_date}, end date:{end_date}')
+        logging.info(f'Start date: {start_date}, end date:{end_date}, release date: {end_date}')
         releases = [UclDiscoveryRelease(self.dag_id, start_date, end_date, self.organisation)]
         return releases
 

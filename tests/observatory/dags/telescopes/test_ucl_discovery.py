@@ -16,7 +16,7 @@
 
 import vcr
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pendulum
@@ -55,7 +55,7 @@ class TestUclDiscovery(ObservatoryTestCase):
         self.country_cassette = os.path.join(test_fixtures_path("vcr_cassettes", "ucl_discovery"),
                                               'country.yaml')
         self.download_hash = '8ae68aa5a455a1835fd906665746ee8c'
-        self.transform_hash = '89704b88'
+        self.transform_hash = '7ddc1700'
 
     def test_dag_structure(self):
         """Test that the UCL Discovery DAG has the correct structure.
@@ -156,7 +156,7 @@ class TestUclDiscovery(ObservatoryTestCase):
             # Use release to check tasks
             cron_schedule = dag.normalized_schedule_interval
             cron_iter = croniter(cron_schedule, execution_date)
-            end_date = pendulum.instance(cron_iter.get_next(datetime))
+            end_date = pendulum.instance(cron_iter.get_next(datetime)) - timedelta(days=1)
             release = UclDiscoveryRelease(telescope.dag_id, execution_date, end_date, organisation)
 
             # Test download
@@ -172,7 +172,6 @@ class TestUclDiscovery(ObservatoryTestCase):
                 self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
 
             # Test that file transformed
-            # with vcr.use_cassette(self.country_cassette):
             env.run_task(telescope.transform.__name__, dag, execution_date)
             self.assertEqual(1, len(release.transform_files))
             for file in release.transform_files:
