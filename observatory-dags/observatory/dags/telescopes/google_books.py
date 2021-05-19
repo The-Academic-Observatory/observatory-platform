@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import List, Optional
 
 import pendulum
+from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud import bigquery
 from observatory.api.client.model.organisation import Organisation
@@ -39,7 +40,7 @@ class GoogleBooksRelease(SnapshotRelease):
         """ Construct a GoogleBooksRelease.
 
         :param dag_id: the DAG id.
-        :param release_date: the release date.
+        :param release_date: the release date, corresponds to the last day of the month being processed.
         :param sftp_files: List of full filepaths to download from sftp service (incl. in_progress folder)
         :param organisation: the Organisation.
         """
@@ -109,9 +110,19 @@ class GoogleBooksRelease(SnapshotRelease):
                 for row in csv_reader:
                     transformed_row = OrderedDict((convert(k.replace('%', 'Perc')), v) for k, v in row.items())
                     if 'sales' in file:
+                        transaction_date = datetime.strptime(transformed_row['Transaction_Date'], '%m/%d/%Y')
+
+                        # sanity check that transaction date is in month of release date
+                        if self.release_date.start_of('month') <= transaction_date <= self.release_date.end_of('month'):
+                            pass
+                        else:
+                            raise AirflowException('Transaction date does not fall within release month. '
+                                                   f"Transaction date: {transaction_date.strftime('%Y-%m-%d')}, "
+                                                   f"release month: {self.release_date.strftime('%Y-%m')}")
+
                         # transform to valid date format
-                        transformed_row['Transaction_Date'] = datetime.strptime(transformed_row['Transaction_Date'],
-                                                                                '%d/%m/%Y').strftime('%Y-%m-%d')
+                        transformed_row['Transaction_Date'] = transaction_date.strftime('%Y-%m-%d')
+
                         # remove percentage sign
                         transformed_row['Publisher_Revenue_Perc'] = transformed_row['Publisher_Revenue_Perc'].strip('%')
                         # this field is not present for some publishers (UCL Press), for ANU Press the field value is
@@ -208,7 +219,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
             for file_name in files:
                 if re.match(self.sftp_regex, file_name):
                     date_str = file_name[-11:].strip('.csv')
-                    release_date = pendulum.strptime(date_str, '%Y_%m')
+                    release_date = pendulum.strptime(date_str, '%Y_%m').end_of('month')
                     sftp_file = os.path.join(self.sftp_folders.in_progress, file_name)
                     release_info[release_date].append(sftp_file)
 
