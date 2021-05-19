@@ -1392,7 +1392,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_country.json"),
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_sales.json"),
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_traffic.json"),
-            # os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "oapen_irus_uk.json"),
+            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "oapen_irus_uk.json"),
         ]
         blobs = [os.path.join(self.test_onix_folder, os.path.basename(file)) for file in files]
         upload_files_to_cloud_storage(bucket_name=self.gcp_bucket_name, blob_names=blobs, file_paths=files)
@@ -1440,19 +1440,19 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             **{},
         )
 
-        # oapen_irus_uk_table_id, _ = table_ids_from_path("oapen_irus_uk.json")
-        # bq_load_shard_v2(
-        #     project_id=self.gcp_project_id,
-        #     transform_bucket=self.gcp_bucket_name,
-        #     transform_blob=blobs[3],
-        #     dataset_id=self.fake_partner_dataset,
-        #     dataset_location=self.data_location,
-        #     table_id=oapen_irus_uk_table_id,
-        #     release_date=self.onix_release_date,
-        #     source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-        #     dataset_description="Test Onix data for the workflow",
-        #     **{},
-        # )
+        oapen_irus_uk_table_id, _ = table_ids_from_path("oapen_irus_uk.json")
+        bq_load_shard_v2(
+            project_id=self.gcp_project_id,
+            transform_bucket=self.gcp_bucket_name,
+            transform_blob=blobs[3],
+            dataset_id=self.fake_partner_dataset,
+            dataset_location=self.data_location,
+            table_id=oapen_irus_uk_table_id,
+            release_date=self.onix_release_date,
+            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+            dataset_description="Test Onix data for the workflow",
+            **{},
+        )
 
         return [
             OaebuPartners(
@@ -1476,13 +1476,13 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 gcp_table_id=google_books_traffic_table_id,
                 isbn_field_name="Primary_ISBN",
             ),
-            # OaebuPartners(
-            #     name="OAPEN IRUS UK",
-            #     gcp_project_id=self.gcp_project_id,
-            #     gcp_dataset_id=self.fake_partner_dataset,
-            #     gcp_table_id=oapen_irus_uk_table_id,
-            #     isbn_field_name="ISBN",
-            # ),
+            OaebuPartners(
+                name="OAPEN IRUS UK",
+                gcp_project_id=self.gcp_project_id,
+                gcp_dataset_id=self.fake_partner_dataset,
+                gcp_table_id=oapen_irus_uk_table_id,
+                isbn_field_name="ISBN",
+            ),
         ]
 
     def test_sensors(self):
