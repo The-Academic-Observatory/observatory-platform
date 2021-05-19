@@ -1301,7 +1301,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         self.api_port = 5000
         self.gcp_project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
-        self.gcp_bucket_name = os.getenv("TEST_GCP_BUCKET_NAME")
+        # self.gcp_bucket_name = os.getenv("TEST_GCP_BUCKET_NAME")
         self.timestamp = pendulum.now()
 
         self.onix_table_id = "onix"
@@ -1490,6 +1490,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         env = ObservatoryEnvironment(self.gcp_project_id, self.data_location)
         with env.create():
             # Set up environment
+            self.gcp_bucket_name = env.transform_bucket
             self.setup_observatory_env(env)
             data_partners = self.setup_fake_partner_data(env)
 
@@ -1544,6 +1545,8 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
         # Create the Observatory environment and run tests
         with env.create():
+            self.gcp_bucket_name = env.transform_bucket
+
             # Set up environment
             self.setup_observatory_env(env)
             data_partners = self.setup_fake_partner_data(env)
