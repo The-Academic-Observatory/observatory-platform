@@ -4,24 +4,54 @@ Google Analytics is a web analytics service offered by Google that tracks and re
 This telescope gets data from Google Analytics for 1 view id per publisher and for several combinations of metrics and dimensions.  
 It is possible to add a regex expression to filter on pagepaths, so only data on relevant pagepaths is collected.  
 
-Both the 'view_id' and 'pagepath_regex' need to be set in the 'extra' field of this Telescope. The pagepath_regex can be an empty string.  
 To get access to the analytics data a publisher needs to add the relevant google service account as a user.
 
 The corresponding table created in BigQuery is `google.google_analyticsYYYYMMDD`.
 
-| Summary                 |        |
-|-------------------------|--------|
-| Average runtime         |   ? min |
-| Average download size   |   ? mb |
-| Harvest Type            |  API   |
-| Harvest Frequency       | Monthly|
-| Runs on remote worker   |  True  |
-| Catchup missed runs     |  True  |
-| Table Write Disposition |Truncate|
-| Update Frequency        |  Daily |
-| Credentials Required    |   Yes  |
-| Uses Telescope Template |Snapshot|
-| Each shard includes all data |   No    |
+```eval_rst
++------------------------------+---------+
+| Summary                      |         |
++==============================+=========+
+| Average runtime              | ? min   |
++------------------------------+---------+
+| Average download size        |  ? MB   |
++------------------------------+---------+
+| Harvest Type                 | API     |
++------------------------------+---------+
+| Harvest Frequency            | Monthly |
++------------------------------+---------+
+| Runs on remote worker        | True    |
++------------------------------+---------+
+| Catchup missed runs          | True    |
++------------------------------+---------+
+| Table Write Disposition      | Truncate|
++------------------------------+---------+
+| Update Frequency             | Daily   |
++------------------------------+---------+
+| Credentials Required         | Yes     |
++------------------------------+---------+
+| Uses Telescope Template      | Snapshot|
++------------------------------+---------+
+| Each shard includes all data | No      |
++------------------------------+---------+
+```
+
+## Telescope object 'extra'
+This telescope is created using the Observatory API. There are two 'extra' fields that are required for the
+ corresponding Telescope object.  
+These are the 'view_id' and the 'pagepath_regex'.   
+
+### view_id
+The view_id points to the specific view on which Google Analytics data is collected.  
+See [the google support page](https://support.google.com/analytics/answer/1009618?hl=en) for more information on the
+ hierarchy of the Analytics account.
+Below is more information on how to list the view_ids which a service account has access to.
+
+### pagepath_regex
+This is a regular expression that is used to filter on pagepaths for which analytics data is collected.  
+The regular expression can be set to an empty string if no filtering is required.  
+Note that the Google Analytics API uses 're2', so it is not possible to use e.g. negative lookaheads.  
+See [the google support page](https://support.google.com/analytics/answer/1034324?hl=en) and [github wiki](https://github.com/google/re2/wiki/Syntax) for more information.  
 
 ## Setting up service account
 * Create a service account from IAM & Admin - Service Accounts
@@ -50,7 +80,7 @@ for profile in profiles:
 Note that all values need to be urlencoded.
 In the config.yaml file, the following airflow connections are required:  
 
-## oaebu_service_account
+### oaebu_service_account
 After creating the JSON key file as described above, open the JSON file and use the information to create the connection.  
 URL encode each of the fields 'private_key_id', 'private_key', 'client_email' and 'client_id'.
 ```yaml
