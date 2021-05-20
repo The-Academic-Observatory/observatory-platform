@@ -64,5 +64,11 @@
     "mode": "NULLABLE",
     "name": "Total_Item_Requests",
     "type": "INTEGER"
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "release_date",
+    "type": "DATE",
+    "description": "Table is partitioned on this column."
   }
 ]

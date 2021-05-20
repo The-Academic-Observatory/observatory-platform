@@ -29,7 +29,7 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
 from observatory.dags.telescopes.jstor import (JstorRelease, JstorTelescope, get_label_id)
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import (ObservatoryEnvironment, ObservatoryTestCase, module_file_path,
                                                    test_fixtures_path)
 
@@ -58,14 +58,14 @@ class TestJstor(ObservatoryTestCase):
                                'headers': {'Content-Disposition': f'attachment; filename=PUB_{publisher_id}_PUBBCU_'
                                                                   f'{self.release_date.strftime("%Y%m%d")}.tsv'},
                                'download_hash': '9c5eff69085457758e3743d229ec46a1',
-                               'transform_hash': 'e772a805',
+                               'transform_hash': '9b197a54',
                                'table_rows': 10}
         self.institution_report = {'path': test_fixtures_path('telescopes', 'jstor', 'institution_20210401.tsv'),
                                    'url': 'https://www.jstor.org/admin/reports/download/129518301',
                                    'headers': {'Content-Disposition': f'attachment; filename=PUB_{publisher_id}_PUBBIU_'
                                                                       f'{self.release_date.strftime("%Y%m%d")}.tsv'},
                                    'download_hash': '793ee70d9102d8dca3cace65cb00ecc3',
-                                   'transform_hash': '56cce6d5',
+                                   'transform_hash': '4a664f4d',
                                    'table_rows': 3}
 
     def test_dag_structure(self):
@@ -81,8 +81,8 @@ class TestJstor(ObservatoryTestCase):
             'download_reports': ['upload_downloaded'],
             'upload_downloaded': ['transform'],
             'transform': ['upload_transformed'],
-            'upload_transformed': ['bq_load'],
-            'bq_load': ['cleanup'],
+            'upload_transformed': ['bq_load_partition'],
+            'bq_load_partition': ['cleanup'],
             'cleanup': []
         }, dag)
 
@@ -223,11 +223,10 @@ class TestJstor(ObservatoryTestCase):
                 self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
             # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load.__name__, dag, execution_date)
+            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
             for file in release.transform_files:
                 table_id, _ = table_ids_from_path(file)
-                table_id = f'{self.project_id}.{telescope.dataset_id}.' \
-                           f'{bigquery_partitioned_table_id(table_id, release.release_date)}'
+                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
                 if 'country' in file:
                     expected_rows = self.country_report['table_rows']
                 else:

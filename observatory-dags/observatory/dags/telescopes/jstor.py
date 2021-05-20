@@ -35,15 +35,16 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models.taskinstance import TaskInstance
 from bs4 import BeautifulSoup, SoupStrainer
+from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import Resource, build
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import convert, list_to_jsonl_gz, make_dag_id
-from observatory.platform.utils.template_utils import SubFolder, blob_name, bq_load_shard_v2, table_ids_from_path, \
-    telescope_path, upload_files_from_list
+from observatory.platform.utils.telescope_utils import add_partition_date, convert, list_to_jsonl_gz, make_dag_id
+from observatory.platform.utils.template_utils import SubFolder, blob_name, bq_load_partition, \
+    table_ids_from_path, telescope_path, upload_files_from_list
 from pendulum import Pendulum
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
 
@@ -106,6 +107,7 @@ class JstorRelease(SnapshotRelease):
                     transformed_row = OrderedDict((convert(k), v) for k, v in row.items())
                     results.append(transformed_row)
 
+            results = add_partition_date(results, self.release_date, bigquery.TimePartitioningType.MONTH)
             report_type = 'country' if 'country' in file else 'institution'
             list_to_jsonl_gz(self.transform_path(report_type), results)
 
@@ -192,7 +194,7 @@ class JstorTelescope(SnapshotTelescope):
         self.add_task_chain([self.upload_downloaded,
                              self.transform,
                              self.upload_transformed,
-                             self.bq_load,
+                             self.bq_load_partition,
                              self.cleanup])
 
     def make_release(self, **kwargs) -> List[JstorRelease]:
@@ -307,10 +309,9 @@ class JstorTelescope(SnapshotTelescope):
         for release in releases:
             release.transform()
 
-    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
+    def bq_load_partition(self, releases: List[JstorRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
-
         :param releases: a list of releases.
         :return: None.
         """
@@ -320,11 +321,13 @@ class JstorTelescope(SnapshotTelescope):
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
+                table_description = self.table_descriptions.get(table_id, '')
 
-                bq_load_shard_v2(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
-                                 self.dataset_location, table_id, release.release_date, self.source_format,
-                                 prefix=self.schema_prefix, schema_version=self.schema_version,
-                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+                bq_load_partition(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                  self.dataset_location, table_id, release.release_date, self.source_format,
+                                  bigquery.table.TimePartitioningType.MONTH, prefix=self.schema_prefix,
+                                  schema_version=self.schema_version, dataset_description=self.dataset_description,
+                                  table_description=table_description, **self.load_bigquery_table_kwargs)
 
 
 def create_headers(url: str) -> dict:
