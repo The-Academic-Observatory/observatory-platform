@@ -27,7 +27,7 @@ from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
 from observatory.dags.telescopes.ucl_discovery import UclDiscoveryRelease, UclDiscoveryTelescope, get_downloads_per_country
 from tests.observatory.test_utils import test_fixtures_path
@@ -55,7 +55,7 @@ class TestUclDiscovery(ObservatoryTestCase):
         self.country_cassette = os.path.join(test_fixtures_path("vcr_cassettes", "ucl_discovery"),
                                               'country.yaml')
         self.download_hash = '8ae68aa5a455a1835fd906665746ee8c'
-        self.transform_hash = '7ddc1700'
+        self.transform_hash = '5a552603'
 
     def test_dag_structure(self):
         """Test that the UCL Discovery DAG has the correct structure.
@@ -69,8 +69,8 @@ class TestUclDiscovery(ObservatoryTestCase):
                 "download": ["upload_downloaded"],
                 "upload_downloaded": ["transform"],
                 "transform": ["upload_transformed"],
-                "upload_transformed": ["bq_load"],
-                "bq_load": ["cleanup"],
+                "upload_transformed": ["bq_load_partition"],
+                "bq_load_partition": ["cleanup"],
                 "cleanup": [],
             },
             dag,
@@ -113,7 +113,6 @@ class TestUclDiscovery(ObservatoryTestCase):
         """Test the UCL Discovery telescope end to end.
         :return: None.
         """
-
         mock_downloads_per_country.return_value = [{'country_code': 'MX', 'country_name': 'Mexico',
                                                     'download_count': 10},
                                                    {'country_code': 'US', 'country_name': 'United States',
@@ -183,12 +182,10 @@ class TestUclDiscovery(ObservatoryTestCase):
                 self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
             # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load.__name__, dag, execution_date)
+            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
             for file in release.transform_files:
                 table_id, _ = table_ids_from_path(file)
-                table_id = f"{self.project_id}.{telescope.dataset_id}." \
-                           f"{bigquery_sharded_table_id(telescope.DAG_ID_PREFIX, release.end_date)}"
-
+                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
                 expected_rows = 519
                 self.assert_table_integrity(table_id, expected_rows)
 
