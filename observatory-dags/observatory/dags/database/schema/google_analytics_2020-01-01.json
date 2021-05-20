@@ -149,6 +149,6 @@
     "mode": "REQUIRED",
     "name": "release_date",
     "type": "DATE",
-    "description": "Table is partitioned on this column."
+    "description": "Last day of the release month. Table is partitioned on this column."
   }
 ]
