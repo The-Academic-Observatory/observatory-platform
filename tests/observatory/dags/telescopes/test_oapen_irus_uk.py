@@ -38,7 +38,7 @@ from observatory.dags.telescopes.oapen_irus_uk import (
 )
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
-from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -64,7 +64,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         self.host = "localhost"
         self.api_port = 5000
         self.download_path = test_fixtures_path("telescopes", "oapen_irus_uk", "download_2021_02.jsonl.gz")
-        self.transform_hash = "5fe1ffaf"
+        self.transform_hash = "c4cb48bd"
 
     def test_dag_structure(self):
         """Test that the Oapen Irus Uk DAG has the correct structure.
@@ -79,8 +79,8 @@ class TestOapenIrusUk(ObservatoryTestCase):
                 "call_cloud_function": ["transfer"],
                 "transfer": ["download_transform"],
                 "download_transform": ["upload_transformed"],
-                "upload_transformed": ["bq_load"],
-                "bq_load": ["cleanup"],
+                "upload_transformed": ["bq_load_partition"],
+                "bq_load_partition": ["cleanup"],
                 "cleanup": [],
             },
             dag,
@@ -225,13 +225,10 @@ class TestOapenIrusUk(ObservatoryTestCase):
                 self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
             # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load.__name__, dag, execution_date)
+            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
             for file in release.transform_files:
                 table_id, _ = table_ids_from_path(file)
-                table_id = (
-                    f"{self.project_id}.{telescope.dataset_id}."
-                    f"{bigquery_sharded_table_id(telescope.DAG_ID_PREFIX, release.release_date)}"
-                )
+                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
                 expected_rows = 4
                 self.assert_table_integrity(table_id, expected_rows)
 
