@@ -14,6 +14,7 @@
 
 # Author: James Diprose, Aniek Roelofs
 
+import copy
 import os
 import unittest
 from datetime import datetime, timedelta
@@ -32,7 +33,7 @@ from observatory.platform.utils.template_utils import (SubFolder, add_partition_
                                                        bq_append_from_partition, bq_delete_old,
                                                        bq_load_ingestion_partition, bq_load_partition, bq_load_shard,
                                                        bq_load_shard_v2, create_date_table_id, on_failure_callback,
-                                                       partition_field, prepare_bq_load, prepare_bq_load_v2,
+                                                       prepare_bq_load, prepare_bq_load_v2,
                                                        reset_variables, table_ids_from_path, telescope_path,
                                                        test_data_path, upload_files_from_list)
 
@@ -145,22 +146,25 @@ class TestTemplateUtils(unittest.TestCase):
         list_of_dicts = [{'k1a': 'v2a'}, {'k1b': 'v2b'}, {'k1c': 'v2c'}]
         partition_date = datetime(2020, 1, 1)
 
-        result = add_partition_date(list_of_dicts, partition_date)
-        expected_result = [{'k1a': 'v2a', partition_field: partition_date.strftime('%Y-%m-%d')},
-                           {'k1b': 'v2b', partition_field: partition_date.strftime('%Y-%m-%d')},
-                           {'k1c': 'v2c', partition_field: partition_date.strftime('%Y-%m-%d')}]
+        # Add partition date with default partition_type and partition_field
+        result = add_partition_date(copy.deepcopy(list_of_dicts), partition_date)
+        expected_result = [{'k1a': 'v2a', 'release_date': partition_date.strftime('%Y-%m-%d')},
+                           {'k1b': 'v2b', 'release_date': partition_date.strftime('%Y-%m-%d')},
+                           {'k1c': 'v2c', 'release_date': partition_date.strftime('%Y-%m-%d')}]
         self.assertListEqual(expected_result, result)
 
-        result = add_partition_date(list_of_dicts, partition_date, bigquery.TimePartitioningType.HOUR)
-        expected_result = [{'k1a': 'v2a', partition_field: partition_date.isoformat()},
-                           {'k1b': 'v2b', partition_field: partition_date.isoformat()},
-                           {'k1c': 'v2c', partition_field: partition_date.isoformat()}]
+        result = add_partition_date(copy.deepcopy(list_of_dicts), partition_date, bigquery.TimePartitioningType.HOUR,
+                                    'partition_field')
+        expected_result = [{'k1a': 'v2a', 'partition_field': partition_date.isoformat()},
+                           {'k1b': 'v2b', 'partition_field': partition_date.isoformat()},
+                           {'k1c': 'v2c', 'partition_field': partition_date.isoformat()}]
         self.assertListEqual(expected_result, result)
 
-        result = add_partition_date(list_of_dicts, partition_date, bigquery.TimePartitioningType.MONTH)
-        expected_result = [{'k1a': 'v2a', partition_field: partition_date.strftime('%Y-%m-%d')},
-                           {'k1b': 'v2b', partition_field: partition_date.strftime('%Y-%m-%d')},
-                           {'k1c': 'v2c', partition_field: partition_date.strftime('%Y-%m-%d')}]
+        result = add_partition_date(copy.deepcopy(list_of_dicts), partition_date, bigquery.TimePartitioningType.MONTH,
+                                    'partition_field')
+        expected_result = [{'k1a': 'v2a', 'partition_field': partition_date.strftime('%Y-%m-%d')},
+                           {'k1b': 'v2b', 'partition_field': partition_date.strftime('%Y-%m-%d')},
+                           {'k1c': 'v2c', 'partition_field': partition_date.strftime('%Y-%m-%d')}]
         self.assertListEqual(expected_result, result)
 
     def test_table_ids_from_path(self):
@@ -416,7 +420,7 @@ class TestTemplateUtils(unittest.TestCase):
                     telescope.dataset_id,
                     telescope.dataset_location, 'file$202103', 'schema.json',
                     telescope.source_format,
-                    partition=True, partition_field=partition_field,
+                    partition=True, partition_field='release_date',
                     partition_type=bigquery.table.TimePartitioningType.MONTH,
                     table_description=table_description)
 
