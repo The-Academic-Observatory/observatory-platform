@@ -17,3 +17,6 @@ The Work Family ID will be an arbitrary Work ID (ISBN) representative from a wor
 
 ## Create OAEBU intermediate tables
 For each data partner's tables containing ISBN, create new "matched" tables which extend the original data with new "work_id" and "work_family_id" columns.
+
+## Create QA tables
+For each data source, including the intermediate tables, we can produce some basic quality assurance checks on the data, and output these to tables for easy export. For example we can check to see if ISBNs provided are valid, or if there are unmatched ISBN indicating missing ONIX product records.

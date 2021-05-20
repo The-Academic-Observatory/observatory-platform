@@ -160,16 +160,16 @@ def get_pref_product_id(relprod: dict) -> Tuple[str, str]:
     :return: The Product ID type, and Product ID as a pair.
     """
 
-    if "ISBN13" in relprod:
+    if "ISBN13" in relprod and relprod["ISBN13"] is not None:
         return "ISBN13", relprod["ISBN13"]
 
-    if "GTIN_13" in relprod:
+    if "GTIN_13" in relprod and relprod["GTIN_13"] is not None:
         return "GTIN_13", relprod["GTIN_13"]
 
-    if "DOI" in relprod:
+    if "DOI" in relprod and relprod["DOI"] is not None:
         return "DOI", relprod["DOI"]
 
-    if "PID_Proprietary" in relprod:
+    if "PID_Proprietary" in relprod and relprod["PID_Proprietary"] is not None:
         return "PID_Proprietary", relprod["PID_Proprietary"]
 
     raise Exception(f"Unhandled product identifier found in {relprod}")
@@ -198,8 +198,15 @@ class BookWorkAggregator:
 
         self.gtin13_to_product = {}
         for record in self.records:
-            if "GTIN_13" in record:
-                self.gtin13_to_product[record["GTIN_13"]] = record
+            if "GTIN_13" in record and record["GTIN_13"] is not None:
+                gtin = record["GTIN_13"]
+                self.gtin13_to_product[gtin] = record
+
+        self.proprietary_to_product = {}
+        for record in self.records:
+            if "PID_Proprietary" in record and record["PID_Proprietary"] is not None:
+                pid_proprietary = record["PID_Proprietary"]
+                self.proprietary_to_product[pid_proprietary] = record
 
         self.uf = UnionFind(self.n)
 
@@ -210,7 +217,7 @@ class BookWorkAggregator:
         :return: Preferred work id type and the work id. None represents unknoown work_id type.
         """
 
-        id_pref = {"ISBN-13": 0, "GTIN_13": 1, "DOI": 2, "PID_Proprietary": 3}
+        id_pref = {"ISBN-13": 0, "GTIN_13": 1, "DOI": 2, "Proprietary": 3}
 
         work_id = None
         work_id_type = None
@@ -232,6 +239,10 @@ class BookWorkAggregator:
 
         if work_id_type == "GTIN_13" and work_id in self.gtin13_to_product:
             product = self.gtin13_to_product[work_id]
+            return "ISBN13", product["ISBN13"]
+
+        if work_id_type == "Proprietary" and work_id in self.proprietary_to_product:
+            product = self.proprietary_to_product[work_id]
             return "ISBN13", product["ISBN13"]
 
         return work_id_type, work_id
@@ -277,7 +288,7 @@ class BookWorkAggregator:
         """
 
         if wid not in self.isbn13_to_index:
-            error_msg = f"Product record {pisbn} is a manifestation of {wid}, but we cannot find a product record with identifier {wtype}:{wid}."
+            error_msg = f"Product ISBN13:{pisbn} is a manifestation of {wtype}:{wid}, which is not given as a product identifier in any ONIX product record."
             self.errors.append(error_msg)
             return True
 
@@ -325,7 +336,14 @@ class BookWorkAggregator:
         if pid_type == "ISBN13":
             isbn = pid
         elif pid_type == "GTIN_13":
+            if pid not in self.gtin13_to_product:
+                return None
             relrec = self.gtin13_to_product[pid]
+            isbn = relrec["ISBN13"]
+        elif pid_type == "PID_Proprietary":
+            if pid not in self.proprietary_to_product:
+                return None
+            relrec = self.proprietary_to_product[pid]
             isbn = relrec["ISBN13"]
         else:
             raise Exception(f"No handling implemented for {pid_type}")
@@ -378,7 +396,7 @@ class BookWorkAggregator:
         :param pid: Related product's identifier.
         """
 
-        error_msg = f"Product {pisbn} has a related product {ptype}:{pid} of types {relation} missing a product record."
+        error_msg = f"Product ISBN13:{pisbn} has a related product {ptype}:{pid} of types {relation} which is not given as a product identifier in any ONIX product record."
         self.errors.append(error_msg)
 
     def get_works_from_partition(self, partition: List[List[int]]) -> List[BookWork]:
@@ -527,7 +545,9 @@ class BookWorkFamilyAggregator:
 
         return id_to_index
 
-    def get_wid_idx(self, pid_type: str, pid: str, isbn13_to_index: dict, gtin13_to_index: dict) -> Union[None, int]:
+    def get_wid_idx(
+        self, pid_type: str, pid: str, isbn13_to_index: dict, gtin13_to_index: dict, proprietary_to_index: dict
+    ) -> Union[None, int]:
         """
         Get the index into the works list for the product id.
 
@@ -535,6 +555,7 @@ class BookWorkFamilyAggregator:
         :param pid: Product ID.
         :param isbn13_to_index: ISBN lookup table.
         :param gtin13_to_index: GTIN13 lookup table.
+        :param proprietary_to_index: Proprietary ID lookup table.
         :return: Index for the work in the works list, or None if the record doesn't exist.
         """
 
@@ -546,6 +567,10 @@ class BookWorkFamilyAggregator:
             if pid not in gtin13_to_index:
                 return None
             return gtin13_to_index[pid]
+        elif pid_type == "PID_Proprietary":
+            if pid not in proprietary_to_index:
+                return None
+            return proprietary_to_index[pid]
         else:
             raise Exception(f"No handling implemented for {pid_type}")
 
@@ -573,6 +598,7 @@ class BookWorkFamilyAggregator:
         n = len(self.works)
         gtin13_to_index = self.get_identifier_to_index_table("GTIN_13")
         isbn13_to_index = self.get_identifier_to_index_table("ISBN13")
+        proprietary_to_index = self.get_identifier_to_index_table("PID_Proprietary")
 
         uf = UnionFind(n)
         for work_idx in range(n):
@@ -583,7 +609,7 @@ class BookWorkFamilyAggregator:
                         continue
 
                     pid_type, pid = get_pref_product_id(relprod)
-                    wid = self.get_wid_idx(pid_type, pid, isbn13_to_index, gtin13_to_index)
+                    wid = self.get_wid_idx(pid_type, pid, isbn13_to_index, gtin13_to_index, proprietary_to_index)
 
                     # BookWorkAggregator should be logging all errors. No need for extra logging here.
                     if wid is None:

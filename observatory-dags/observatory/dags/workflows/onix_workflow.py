@@ -75,6 +75,7 @@ class OnixWorkflowRelease(AbstractRelease):
         onix_dataset_id: str = "onix",
         onix_table_id: str = "onix",
         gcp_bucket_name: str,
+        oaebu_data_qa_dataset: str = None,
     ):
         """
         :param dag_id: DAG ID.
@@ -83,6 +84,7 @@ class OnixWorkflowRelease(AbstractRelease):
         :param gcp_bucket_name: GCP bucket name.
         :param onix_dataset_id: GCP dataset ID for the onix data.
         :param onix_table_id: GCP table ID for the onix data.
+        :param oaebu_data_qa_dataset: OAEBU Data QA dataset.
         """
 
         self.dag_id = dag_id
@@ -112,6 +114,12 @@ class OnixWorkflowRelease(AbstractRelease):
 
         # OAEBU intermediate tables
         self.oaebu_intermediate_dataset = "oaebu_intermediate"
+
+        self.oaebu_data_qa_dataset = oaebu_data_qa_dataset
+        if oaebu_data_qa_dataset is None:
+            self.oaebu_data_qa_dataset = "oaebu_data_qa"
+
+        self.oaebu_intermediate_match_suffix = "_matched"
 
     @property
     def transform_bucket(self) -> str:
@@ -192,6 +200,7 @@ class OnixWorkflow(Telescope):
     4. Create OAEBU intermediate tables.
       a. For each data partner, create new tables in oaebu_intermediate dataset where existing tables are augmented
          with work_id and work_family_id columns.
+    5. Create OAEBU QA tables for looking at metrics and problems arising from the data sets (and for eventual automatic reporting).
     """
 
     DAG_ID_PREFIX = "onix_workflow"
@@ -255,8 +264,23 @@ class OnixWorkflow(Telescope):
         # Create OAEBU Intermediate tables
         self.create_oaebu_intermediate_table_tasks(data_partners)
 
+        # Create QA metrics tables
+        self.create_oaebu_data_qa_tasks(data_partners)
+
         # Cleanup tasks
         self.add_task(self.cleanup)
+
+    def get_isbn_utils_sql_string(self) -> str:
+        """Load the ISBN utils sql functions.
+        :return BQ SQL string.
+        """
+
+        isbn_utils_file = "isbn_utils.sql"
+        isbn_utils_path = os.path.join(workflow_sql_templates_path(), isbn_utils_file)
+        with open(isbn_utils_path, "r") as f:
+            isbn_utils_sql = f.read()
+
+        return isbn_utils_sql
 
     def make_release(self, **kwargs) -> List[OnixWorkflowRelease]:
         """Creates a release object.
@@ -274,7 +298,6 @@ class OnixWorkflow(Telescope):
             include_prior_dates=False,
         )
 
-        # release_date = kwargs["execution_date"]
         for record in records:
             release_date = record["release_date"]
             release = OnixWorkflowRelease(
@@ -300,14 +323,7 @@ class OnixWorkflow(Telescope):
         sql = f"SELECT * FROM {project_id}.{dataset_id}.{table_id}"
         records = run_bigquery_query(sql)
 
-        products = [
-            {
-                "ISBN13": records[i]["ISBN13"],
-                "RelatedWorks": records[i]["RelatedWorks"],
-                "RelatedProducts": records[i]["RelatedProducts"],
-            }
-            for i in range(len(records))
-        ]
+        products = [{key: records[i][key] for key in records[i].keys()} for i in range(len(records))]
 
         return products
 
@@ -465,7 +481,7 @@ class OnixWorkflow(Telescope):
                     end_date=release.release_date,
                 )[0]
 
-            output_table = orig_table + "_matched"
+            output_table = f"{orig_dataset}_{orig_table}{release.oaebu_intermediate_match_suffix}"
             output_dataset = release.oaebu_intermediate_dataset
 
             data_location = release.dataset_location
@@ -523,3 +539,514 @@ class OnixWorkflow(Telescope):
             fn.__name__ += f".{data.gcp_dataset_id}.{data.gcp_table_id}"
 
             self.add_task(fn)
+
+    def create_oaebu_data_qa_tasks(self, data_partners: List[OaebuPartners]):
+        """Create tasks for outputing QA metrics from our OAEBU data.  It will create output tables in the oaebu_data_qa dataset.
+        :param oaebu_data: List of oaebu partner data.
+        """
+
+        self.create_oaebu_data_qa_onix()
+
+        for data_partner in data_partners:
+            if data_partner.name == "JSTOR":
+                self.create_oaebu_data_qa_jstor_tasks(data_partner)
+            elif data_partner.name == "OAPEN IRUS UK":
+                self.create_oaebu_data_qa_oapen_irus_uk_tasks(data_partner)
+            elif data_partner.name == "Google Books Sales":
+                self.create_oaebu_data_qa_google_books_sales_tasks(data_partner)
+            elif data_partner.name == "Google Books Traffic":
+                self.create_oaebu_data_qa_google_books_traffic_tasks(data_partner)
+
+            self.create_oaebu_data_qa_intermediate_tasks(data_partner)
+
+    def create_oaebu_data_qa_onix(self, *args, **kwargs):
+        """Create ONIX quality assurance metrics."""
+
+        # isbn validation
+        self.add_task(self.create_oaebu_data_qa_onix_isbn)
+
+        # aggregate metrics
+        self.add_task(self.create_oaebu_data_qa_onix_aggregate)
+
+    def create_oaebu_data_qa_onix_aggregate(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
+        """Create a bq table of some aggregate metrics for the ONIX data set.
+        :param releases: List of workflow releases.
+        """
+
+        template_file = "onix_aggregate_metrics.sql.jinja2"
+        template_path = os.path.join(workflow_sql_templates_path(), template_file)
+
+        for release in releases:
+            onix_project_id = release.project_id
+            onix_dataset_id = release.onix_dataset_id
+            onix_table_id = release.onix_table_id + release.release_date.strftime("%Y%m%d")
+            output_dataset = release.oaebu_data_qa_dataset
+            output_table = "onix_aggregate_metrics"
+            release_date = release.release_date
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+
+            sql = render_template(
+                template_path,
+                project_id=onix_project_id,
+                dataset_id=onix_dataset_id,
+                table_id=onix_table_id,
+                isbn="ISBN13",
+            )
+
+            create_bigquery_dataset(
+                project_id=release.project_id,
+                dataset_id=release.oaebu_data_qa_dataset,
+                location=release.dataset_location,
+            )
+
+            # Fix
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_data_qa_dataset,
+                table_id=output_table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{output_table_id}"
+                )
+
+    def create_oaebu_data_qa_onix_isbn(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
+        """Create a BQ table of invalid ISBNs for the ONIX feed that can be fed back to publishers.
+        No attempt is made to normalise the string so we catch as many string issues as we can.
+
+        :param releases: List of Onix workflow releases.
+        """
+
+        for release in releases:
+            release_date = release.release_date
+            project_id = release.project_id
+            orig_dataset_id = release.onix_dataset_id
+            orig_table_id = release.onix_table_id + release_date.strftime("%Y%m%d")
+            output_dataset_id = release.oaebu_data_qa_dataset
+            output_table = "onix_invalid_isbn"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            dataset_location = release.dataset_location
+
+            self.oaebu_data_qa_validate_isbn(
+                project_id=project_id,
+                orig_dataset_id=orig_dataset_id,
+                orig_table_id=orig_table_id,
+                output_dataset_id=output_dataset_id,
+                output_table_id=output_table_id,
+                dataset_location=dataset_location,
+                isbn="ISBN13",
+            )
+
+    def oaebu_data_qa_validate_isbn(
+        self,
+        *,
+        project_id: str,
+        orig_dataset_id,
+        orig_table_id: str,
+        output_dataset_id: str,
+        output_table_id: str,
+        dataset_location: str,
+        isbn: str,
+    ):
+        """Create a BQ table of invalid ISBNs for the ONIX feed that can be fed back to publishers.
+        No attempt is made to normalise the string so we catch as many string issues as we can.
+
+        :param output_table: Name of the output table.
+        :param project_id: GCP Project ID of the data.
+        :param orig_dataset_id: GCP Dataset ID of the source data.
+        :param orig_table_id: Table ID of the source data (excluding date).
+        :param output_dataset_id: Dataset ID for the output data.
+        :param output_table_id: Table ID for the output data.
+        :apram dataset_location: Location of GCP servers.
+        :param isbn: Name of the isbn field in source table.
+        """
+
+        isbn_utils_sql = self.get_isbn_utils_sql_string()
+
+        isbn_validate_template_file = "validate_isbn.sql.jinja2"
+        template_path = os.path.join(workflow_sql_templates_path(), isbn_validate_template_file)
+
+        sql = render_template(
+            template_path,
+            project_id=project_id,
+            dataset_id=orig_dataset_id,
+            table_id=orig_table_id,
+            isbn=isbn,
+        )
+
+        sql = isbn_utils_sql + sql
+
+        create_bigquery_dataset(
+            project_id=project_id,
+            dataset_id=output_dataset_id,
+            location=dataset_location,
+        )
+
+        status = create_bigquery_table_from_query(
+            sql=sql,
+            project_id=project_id,
+            dataset_id=output_dataset_id,
+            table_id=output_table_id,
+            location=dataset_location,
+        )
+
+        if status != True:
+            raise AirflowException(
+                f"create_bigquery_table_from_query failed on {project_id}.{output_dataset_id}.{output_table_id}"
+            )
+
+    def create_oaebu_data_qa_jstor_tasks(self, data_partner: OaebuPartners):
+        """Create JSTOR quality assurance metrics.
+        :param data_partner: OaebuPartner metadata.
+        """
+
+        # isbn validation
+        fn = partial(
+            self.create_oaebu_data_qa_jstor_isbn,
+            project_id=data_partner.gcp_project_id,
+            orig_dataset_id=data_partner.gcp_dataset_id,
+            orig_table=data_partner.gcp_table_id,
+            table_date=data_partner.gcp_table_date,
+        )
+        update_wrapper(fn, self.create_oaebu_data_qa_jstor_isbn)
+        self.add_task(fn)
+
+    def create_oaebu_data_qa_jstor_isbn(
+        self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        project_id: str,
+        orig_dataset_id: str,
+        orig_table: str,
+        table_date: Union[None, pendulum.Pendulum],
+        **kwargs,
+    ):
+        """Create a BQ table of invalid ISBNs for the JSTOR feed.
+        No attempt is made to normalise the string so we catch as many string issues as we can.
+
+        :param releases: List of workflow release objects.
+        :param project_id: GCP project ID.
+        :param orig_dataset_id: Dataset ID for jstor data.
+        :param orig_table: Table ID for the jstor data.
+        :table_date: Table suffix of jstor release if it exists.
+        """
+
+        for release in releases:
+            release_date = table_date
+            if release_date is None:
+                release_date = select_table_suffixes(
+                    project_id=project_id,
+                    dataset_id=orig_dataset_id,
+                    table_id=orig_table,
+                    end_date=release.release_date,
+                )[0]
+
+            # select table suffixes to get table suffix
+            output_dataset_id = release.oaebu_data_qa_dataset
+            orig_table_id = orig_table + release_date.strftime("%Y%m%d")
+
+            # Validate the ISBN field
+            output_table = "jstor_invalid_isbn"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            dataset_location = release.dataset_location
+            self.oaebu_data_qa_validate_isbn(
+                project_id=project_id,
+                orig_dataset_id=orig_dataset_id,
+                orig_table_id=orig_table_id,
+                output_dataset_id=output_dataset_id,
+                output_table_id=output_table_id,
+                dataset_location=dataset_location,
+                isbn="ISBN",
+            )
+
+            # Validate the eISBN field
+            output_table = "jstor_invalid_eisbn"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            self.oaebu_data_qa_validate_isbn(
+                project_id=project_id,
+                orig_dataset_id=orig_dataset_id,
+                orig_table_id=orig_table_id,
+                output_dataset_id=output_dataset_id,
+                output_table_id=output_table_id,
+                dataset_location=dataset_location,
+                isbn="eISBN",
+            )
+
+    def create_oaebu_data_qa_oapen_irus_uk_tasks(self, data_partner: OaebuPartners):
+        """Create OAPEN IRUS UK quality assurance metrics.
+        :param data_partner: OaebuPartner metadata.
+        """
+
+        # isbn validation
+        fn = partial(
+            self.create_oaebu_data_qa_oapen_irus_uk_isbn,
+            project_id=data_partner.gcp_project_id,
+            orig_dataset_id=data_partner.gcp_dataset_id,
+            orig_table=data_partner.gcp_table_id,
+            table_date=data_partner.gcp_table_date,
+        )
+        update_wrapper(fn, self.create_oaebu_data_qa_oapen_irus_uk_isbn)
+        self.add_task(fn)
+
+    def create_oaebu_data_qa_oapen_irus_uk_isbn(
+        self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        project_id: str,
+        orig_dataset_id: str,
+        orig_table: str,
+        table_date: Union[None, pendulum.Pendulum],
+        **kwargs,
+    ):
+        """Create a BQ table of invalid ISBNs for the OAPEN IRUS UK feed.
+        No attempt is made to normalise the string so we catch as many string issues as we can.
+
+        :param releases: List of workflow release objects.
+        :param project_id: GCP project ID.
+        :param orig_dataset_id: Dataset ID for jstor data.
+        :param orig_table: Table ID for the jstor data.
+        :table_date: Table suffix of jstor release if it exists.
+        """
+        for release in releases:
+            release_date = table_date
+            if release_date is None:
+                release_date = select_table_suffixes(
+                    project_id=project_id,
+                    dataset_id=orig_dataset_id,
+                    table_id=orig_table,
+                    end_date=release.release_date,
+                )[0]
+
+            # select table suffixes to get table suffix
+            output_dataset_id = release.oaebu_data_qa_dataset
+            orig_table_id = orig_table + release_date.strftime("%Y%m%d")
+
+            # Validate the ISBN field
+            output_table = "oapen_irus_uk_invalid_isbn"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            dataset_location = release.dataset_location
+            self.oaebu_data_qa_validate_isbn(
+                project_id=project_id,
+                orig_dataset_id=orig_dataset_id,
+                orig_table_id=orig_table_id,
+                output_dataset_id=output_dataset_id,
+                output_table_id=output_table_id,
+                dataset_location=dataset_location,
+                isbn="ISBN",
+            )
+
+    def create_oaebu_data_qa_google_books_sales_tasks(self, data_partner: OaebuPartners):
+        """Create Google Books Sales quality assurance metrics.
+        :param data_partner: OaebuPartner metadata.
+        """
+
+        # isbn validation
+        fn = partial(
+            self.create_oaebu_data_qa_google_books_sales_isbn,
+            project_id=data_partner.gcp_project_id,
+            orig_dataset_id=data_partner.gcp_dataset_id,
+            orig_table=data_partner.gcp_table_id,
+            table_date=data_partner.gcp_table_date,
+        )
+        update_wrapper(fn, self.create_oaebu_data_qa_google_books_sales_isbn)
+        self.add_task(fn)
+
+    def create_oaebu_data_qa_google_books_sales_isbn(
+        self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        project_id: str,
+        orig_dataset_id: str,
+        orig_table: str,
+        table_date: Union[None, pendulum.Pendulum],
+        **kwargs,
+    ):
+        """Create a BQ table of invalid ISBNs for the Google Books Sales feed.
+        No attempt is made to normalise the string so we catch as many string issues as we can.
+
+        :param releases: List of workflow release objects.
+        :param project_id: GCP project ID.
+        :param orig_dataset_id: Dataset ID for jstor data.
+        :param orig_table: Table ID for the jstor data.
+        :table_date: Table suffix of jstor release if it exists.
+        """
+        for release in releases:
+            release_date = table_date
+            if release_date is None:
+                release_date = select_table_suffixes(
+                    project_id=project_id,
+                    dataset_id=orig_dataset_id,
+                    table_id=orig_table,
+                    end_date=release.release_date,
+                )[0]
+
+            # select table suffixes to get table suffix
+            output_dataset_id = release.oaebu_data_qa_dataset
+            orig_table_id = orig_table + release_date.strftime("%Y%m%d")
+
+            # Validate the ISBN field
+            output_table = "google_books_sales_invalid_isbn"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            dataset_location = release.dataset_location
+            self.oaebu_data_qa_validate_isbn(
+                project_id=project_id,
+                orig_dataset_id=orig_dataset_id,
+                orig_table_id=orig_table_id,
+                output_dataset_id=output_dataset_id,
+                output_table_id=output_table_id,
+                dataset_location=dataset_location,
+                isbn="Primary_ISBN",
+            )
+
+    def create_oaebu_data_qa_google_books_traffic_tasks(self, data_partner: OaebuPartners):
+        """Create Google Books Traffic quality assurance metrics.
+        :param data_partner: OaebuPartner metadata.
+        """
+
+        # isbn validation
+        fn = partial(
+            self.create_oaebu_data_qa_google_books_traffic_isbn,
+            project_id=data_partner.gcp_project_id,
+            orig_dataset_id=data_partner.gcp_dataset_id,
+            orig_table=data_partner.gcp_table_id,
+            table_date=data_partner.gcp_table_date,
+        )
+        update_wrapper(fn, self.create_oaebu_data_qa_google_books_traffic_isbn)
+        self.add_task(fn)
+
+    def create_oaebu_data_qa_google_books_traffic_isbn(
+        self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        project_id: str,
+        orig_dataset_id: str,
+        orig_table: str,
+        table_date: Union[None, pendulum.Pendulum],
+        **kwargs,
+    ):
+        """Create a BQ table of invalid ISBNs for the Google Books Traffic feed.
+        No attempt is made to normalise the string so we catch as many string issues as we can.
+
+        :param releases: List of workflow release objects.
+        :param project_id: GCP project ID.
+        :param orig_dataset_id: Dataset ID for jstor data.
+        :param orig_table: Table ID for the jstor data.
+        :table_date: Table suffix of jstor release if it exists.
+        """
+        for release in releases:
+            release_date = table_date
+            if release_date is None:
+                release_date = select_table_suffixes(
+                    project_id=project_id,
+                    dataset_id=orig_dataset_id,
+                    table_id=orig_table,
+                    end_date=release.release_date,
+                )[0]
+
+            # select table suffixes to get table suffix
+            output_dataset_id = release.oaebu_data_qa_dataset
+            orig_table_id = orig_table + release_date.strftime("%Y%m%d")
+
+            # Validate the ISBN field
+            output_table = "google_books_traffic_invalid_isbn"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            dataset_location = release.dataset_location
+            self.oaebu_data_qa_validate_isbn(
+                project_id=project_id,
+                orig_dataset_id=orig_dataset_id,
+                orig_table_id=orig_table_id,
+                output_dataset_id=output_dataset_id,
+                output_table_id=output_table_id,
+                dataset_location=dataset_location,
+                isbn="Primary_ISBN",
+            )
+
+    def create_oaebu_data_qa_intermediate_tasks(self, data_partner: OaebuPartners):
+        """Create tasks for generating oaebu intermediate metrics for each OAEBU data partner.
+        :param oaebu_data: List of oaebu partner data.
+        """
+
+        # Record unmatched work_id. This is indicative of invalid ISBN or missing ONIX product records.
+
+        fn = partial(
+            self.create_oaebu_data_qa_intermediate_unmatched_workid,
+            project_id=data_partner.gcp_project_id,
+            orig_dataset_id=data_partner.gcp_dataset_id,
+            orig_table=data_partner.gcp_table_id,
+            orig_isbn=data_partner.isbn_field_name,
+        )
+
+        # Populate the __name__ attribute of the partial object (it lacks one by default).
+        # Scheme: create_oaebu_intermediate_table.dataset.table
+        update_wrapper(fn, self.create_oaebu_data_qa_intermediate_unmatched_workid)
+        fn.__name__ += f".{data_partner.gcp_dataset_id}.{data_partner.gcp_table_id}"
+
+        self.add_task(fn)
+
+        # Other tasks
+
+    def create_oaebu_data_qa_intermediate_unmatched_workid(
+        self,
+        releases: List[OnixWorkflowRelease],
+        project_id: str,
+        orig_dataset_id: str,
+        orig_table: str,
+        orig_isbn: str,
+        *args,
+        **kwargs,
+    ):
+        """Create quality assurance metrics for the OAEBU intermediate tables.
+        :param oaebu_data: List of workflow release objects.
+        :param project_id: GCP Project ID for the data.
+        :param orig_dataset_id: Dataset ID of the original partner data.
+        :param orig_table: Original table name for the partner data.
+        :param orig_isbn: Name of the ISBN field we're checking.
+        """
+
+        template_file = "oaebu_intermediate_metrics.sql.jinja2"
+        template_path = os.path.join(workflow_sql_templates_path(), template_file)
+
+        for release in releases:
+            intermediate_table = f"{orig_dataset_id}_{orig_table}{release.oaebu_intermediate_match_suffix}"
+            release_date = select_table_suffixes(
+                project_id=project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                table_id=intermediate_table,
+                end_date=release.release_date,
+            )[0]
+
+            intermediate_table_id = intermediate_table + release_date.strftime("%Y%m%d")
+
+            output_dataset = release.oaebu_data_qa_dataset
+            output_table = f"{orig_table}_unmatched_{orig_isbn}"
+            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+
+            sql = render_template(
+                template_path,
+                project_id=project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                table_id=intermediate_table_id,
+                isbn=orig_isbn,
+            )
+
+            create_bigquery_dataset(
+                project_id=release.project_id,
+                dataset_id=release.oaebu_data_qa_dataset,
+                location=release.dataset_location,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_data_qa_dataset,
+                table_id=output_table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{output_table_id}"
+                )
