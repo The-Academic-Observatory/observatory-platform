@@ -1,0 +1,46 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Tuan Chien #}
+
+CREATE TEMP FUNCTION no_publisher_url(publishers ARRAY<STRUCT<PublisherName STRING,  Websites ARRAY< STRUCT<WebsiteDescriptions ARRAY<STRING>, WebsiteRole STRING, WebsiteLinks ARRAY<STRING>>>, PublishingRole STRING>>)
+RETURNS BOOLEAN
+LANGUAGE js
+AS r"""
+  if(publishers.length == 0) {
+      return true;
+  }
+
+  for(let i = 0; i < publishers.length; i++) {
+    for(let j = 0; j < publishers[i].Websites.length; j++) {
+      if(publishers[i].Websites[j].WebsiteLinks.length > 0)
+        return false;
+    }
+  }
+
+  return true;
+""";
+
+SELECT
+  COUNT(*) table_size,
+  SUM(CASE WHEN ISBN13 IS NULL THEN 1 ELSE 0 END) no_isbns,
+  SUM(CASE WHEN ARRAY_LENGTH(RelatedWorks) = 0 THEN 1 ELSE 0 END) no_relatedworks,
+  SUM(CASE WHEN ARRAY_LENGTH(RelatedProducts) = 0 THEN 1 ELSE 0 END) no_relatedproducts,
+  SUM(CASE WHEN DOI IS NULL THEN 1 ELSE 0 END) no_doi,
+  SUM(CASE WHEN ProductForm IS NULL THEN 1 ELSE 0 END) no_productform,
+  SUM(CASE WHEN ARRAY_LENGTH(Contributors) = 0 THEN 1 ELSE 0 END) no_contributors,
+  SUM(CASE WHEN ARRAY_LENGTH(TitleDetails) = 0 THEN 1 ELSE 0 END) no_titledetails,
+  SUM(CASE WHEN no_publisher_url(Publishers) = true THEN 1 ELSE 0 END) no_publisher_urls,
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`
