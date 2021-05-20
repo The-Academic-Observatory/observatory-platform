@@ -5,17 +5,29 @@ Its aim is to increase discoverability of books. Currently, there are two requir
 * Academic books in DOAB shall be subjected to independent and external peer review prior to publication
 Data is downloaded from a csv file.
 
-| Summary                 |        |
-|-------------------------|--------|
-| Average runtime         |   15m  |
-| Average download size   |  50MB  |
-| Harvest Type            |   API  |
-| Harvest Frequency       | Weekly |
-| Runs on remote worker   |  False |
-| Catchup missed runs     |  False |
-| Table Write Disposition | Append |
-| Update Frequency        |  Daily |
-| Credentials Required    |   No   |
+```eval_rst
++--------------------------+---------+
+| Summary                  |         |
++==========================+=========+
+| Average runtime          | 15m     |
++--------------------------+---------+
+| Average download size    | 50MB    |
++--------------------------+---------+
+| Harvest Type             | API     |
++--------------------------+---------+
+| Harvest Frequency        | Weekly  |
++--------------------------+---------+
+| Runs on remote worker    | False   |
++--------------------------+---------+
+| Catchup missed runs      | False   |
++--------------------------+---------+
+| Table Write Disposition  | Append  |
++--------------------------+---------+
+| Update Frequency         | Daily   |
++--------------------------+---------+
+| Credentials Required     | No      |
++--------------------------+---------+
+```
 
 ## Schedule
 The csv is updated daily and this telescope is scheduled to harvest the data weekly. 

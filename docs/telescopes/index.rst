@@ -13,7 +13,9 @@ Telescopes
     jstor
     mag
     oapen_metadata
+    oapen_irus_uk
     scopus
     terraform
+    ucl_discovery
     unpaywall
     wos

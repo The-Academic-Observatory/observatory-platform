@@ -4,17 +4,31 @@ OAPEN enables libraries and aggregators to use the metadata of all available tit
 The metadata is available in different formats and this telescope harvests the data in the CSV format.  
 See the [OAPEN Metadata webpage](https://www.oapen.org/resources/15635975-metadata) for more information. 
 
-| Summary                 |        |
-|-------------------------|--------|
-| Average runtime         |   5min |
-| Average download size   |   50mb |
-| Harvest Type            |   URL  |
-| Harvest Frequency       | Weekly |
-| Runs on remote worker   |  True  |
-| Catchup missed runs     |  False |
-| Table Write Disposition | Append |
-| Update Frequency        |  Daily |
-| Credentials Required    |   No   |
+```eval_rst
++------------------------------+---------+
+| Summary                      |         |
++==============================+=========+
+| Average runtime              |  5min   |
++------------------------------+---------+
+| Average download size        |  50MB   |
++------------------------------+---------+
+| Harvest Type                 |  URL    |
++------------------------------+---------+
+| Harvest Frequency            | Weekly  |
++------------------------------+---------+
+| Runs on remote worker        | True    |
++------------------------------+---------+
+| Catchup missed runs          | False   |
++------------------------------+---------+
+| Table Write Disposition      | Append  |
++------------------------------+---------+
+| Update Frequency             | Daily   |
++------------------------------+---------+
+| Credentials Required         | No      |
++------------------------------+---------+
+| Uses Telescope Template      | Stream  |
++------------------------------+---------+
+```
 
 ## Schedule
 The CSV file containing metadata is updated daily and this telescope is scheduled to harvest the metadata weekly. 

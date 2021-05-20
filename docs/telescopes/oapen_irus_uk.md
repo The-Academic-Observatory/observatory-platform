@@ -11,19 +11,50 @@ The Cloud Function is created and called from the telescope, when the Cloud Func
 
 The corresponding table created in BigQuery is `oapen.oapen_irus_ukYYYYMMDD`.
 
-| Summary                 |        |
-|-------------------------|--------|
-| Average runtime         |   ? min |
-| Average download size   |   ? mb |
-| Harvest Type            |  API   |
-| Harvest Frequency       | Monthly|
-| Runs on remote worker   |  True  |
-| Catchup missed runs     |  True  |
-| Table Write Disposition |Truncate|
-| Update Frequency        |  Daily |
-| Credentials Required    |   Yes  |
-| Uses Telescope Template |Snapshot|
-| Each shard includes all data |   No    |
+```eval_rst
++------------------------------+---------+
+| Summary                      |         |
++==============================+=========+
+| Average runtime              | ? min   |
++------------------------------+---------+
+| Average download size        |  ? MB   |
++------------------------------+---------+
+| Harvest Type                 |  API    |
++------------------------------+---------+
+| Harvest Frequency            | Monthly |
++------------------------------+---------+
+| Runs on remote worker        | True    |
++------------------------------+---------+
+| Catchup missed runs          | True    |
++------------------------------+---------+
+| Table Write Disposition      | Truncate|
++------------------------------+---------+
+| Update Frequency             | Daily   |
++------------------------------+---------+
+| Credentials Required         | Yes     |
++------------------------------+---------+
+| Uses Telescope Template      | Snapshot|
++------------------------------+---------+
+| Each shard includes all data | No      |
++------------------------------+---------+
+```
+
+## Telescope object 'extra'
+This telescope is created using the Observatory API. There is one 'extra' field that is required for the
+ corresponding Telescope object, namely the 'publisher_id'.   
+
+### publisher_id
+A mapping is required between the OAPEN publisher ID and the organisation name obtained from the observatory API.
+The OAPEN publisher_id is used directly for the older platform and is used for the new platform to look up the
+ publisher uuid, which is then used to collect the data. 
+ 
+The publisher_id can be found by going to the OAPEN [page to manually create reports](https://irus.jisc.ac.uk/IRUSConsult/irus-oapen/v2/br1b/).
+On this page there is a drop down list with publisher names, to get the publisher_id simply url encode the publisher
+ name from this list.
+
+Note that occasionally there are multiple publisher names for one publisher.  
+For example to get all data from Edinburgh University Press, you need data from both publisher_ids 
+`Edinburgh University Press` and `Edinburgh University Press,`.
 
 ## Cloud Function
 The OAPEN IRUS-UK telescope makes use of a Google Cloud Function that resides in the OAPEN Google project. 
