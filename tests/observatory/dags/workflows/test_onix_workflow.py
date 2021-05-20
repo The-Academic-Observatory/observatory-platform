@@ -1575,6 +1575,8 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 onix_table_id=self.onix_table_id,
                 data_partners=data_partners,
             )
+
+            oaebu_data_qa_dataset = env.add_dataset()
             telescope.make_release = MagicMock(
                 return_value=[
                     OnixWorkflowRelease(
@@ -1584,6 +1586,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                         gcp_bucket_name=self.gcp_bucket_name,
                         onix_dataset_id=self.onix_dataset_id,
                         onix_table_id=self.onix_table_id,
+                        oaebu_data_qa_dataset=oaebu_data_qa_dataset,
                     )
                 ]
             )
@@ -1756,7 +1759,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             )
 
             # Check invalid ISBN13s picked up in ONIX
-            sql = f"SELECT ISBN13 from {self.gcp_project_id}.oaebu_data_qa.onix_invalid_isbn{release_suffix}"
+            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_data_qa_dataset}.onix_invalid_isbn{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["ISBN13"] for record in records])
             self.assertEqual(len(isbns), 3)
@@ -1765,7 +1768,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("111" in isbns)
 
             # Check ONIX aggregate metrics are correct
-            sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.onix_aggregate_metrics{release_suffix}"
+            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.onix_aggregate_metrics{release_suffix}"
             records = run_bigquery_query(sql)
             self.assertEqual(len(records), 1)
             self.assertEqual(records[0]["table_size"], 3)
@@ -1779,7 +1782,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertEqual(records[0]["no_publisher_urls"], 3)
 
             # Check JSTOR ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.jstor_invalid_isbn{release_suffix}"
+            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.jstor_invalid_isbn{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["ISBN"] for record in records])
             self.assertEqual(len(isbns), 4)
@@ -1789,7 +1792,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("112" in isbns)
 
             # Check JSTOR eISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.jstor_invalid_eisbn{release_suffix}"
+            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.jstor_invalid_eisbn{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["eISBN"] for record in records])
             self.assertEqual(len(isbns), 4)
@@ -1799,7 +1802,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue(None in isbns)
 
             # Check JSTOR unmatched ISBN picked up
-            sql = f"SELECT ISBN from {self.gcp_project_id}.oaebu_data_qa.jstor_country_unmatched_ISBN{release_suffix}"
+            sql = f"SELECT ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.jstor_country_unmatched_ISBN{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["ISBN"] for record in records])
             self.assertEqual(len(isbns), 2)
@@ -1807,7 +1810,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("113" in isbns)
 
             # Check OAPEN IRUS UK ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.oapen_irus_uk_invalid_isbn{release_suffix}"
+            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.oapen_irus_uk_invalid_isbn{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["ISBN"] for record in records])
             self.assertEqual(len(isbns), 4)
@@ -1817,7 +1820,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("211" in isbns)
 
             # Check OAPEN IRUS UK unmatched ISBN picked up
-            sql = f"SELECT ISBN from {self.gcp_project_id}.oaebu_data_qa.oapen_irus_uk_unmatched_ISBN{release_suffix}"
+            sql = f"SELECT ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.oapen_irus_uk_unmatched_ISBN{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["ISBN"] for record in records])
             self.assertEqual(len(isbns), 2)
@@ -1825,7 +1828,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("113" in isbns)
 
             # Check Google Books Sales ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.google_books_sales_invalid_isbn{release_suffix}"
+            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_sales_invalid_isbn{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["Primary_ISBN"] for record in records])
             self.assertEqual(len(isbns), 4)
@@ -1835,7 +1838,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("112" in isbns)
 
             # Check Google Books Sales unmatched ISBN picked up
-            sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.oaebu_data_qa.google_books_sales_unmatched_Primary_ISBN{release_suffix}"
+            sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_sales_unmatched_Primary_ISBN{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["Primary_ISBN"] for record in records])
             self.assertEqual(len(isbns), 2)
@@ -1843,7 +1846,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("113" in isbns)
 
             # Check Google Books Traffic ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.google_books_traffic_invalid_isbn{release_suffix}"
+            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_traffic_invalid_isbn{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["Primary_ISBN"] for record in records])
             self.assertEqual(len(isbns), 4)
@@ -1853,7 +1856,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("112" in isbns)
 
             # Check Google Books Traffic unmatched ISBN picked up
-            sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.oaebu_data_qa.google_books_traffic_unmatched_Primary_ISBN{release_suffix}"
+            sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_traffic_unmatched_Primary_ISBN{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["Primary_ISBN"] for record in records])
             self.assertEqual(len(isbns), 2)
@@ -1864,7 +1867,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
 
             # Environment cleanup
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="oaebu_data_qa")
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_data_qa_dataset)
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="oaebu_intermediate")
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="onix_workflow")
             delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix=self.test_onix_folder)
