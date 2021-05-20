@@ -127,28 +127,6 @@ def upload_files_from_list(files_list: List[str], bucket_name: str) -> bool:
     return success
 
 
-def add_partition_date(list_of_dicts: List[dict], partition_date: datetime,
-                       partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
-                       partition_field: str = 'release_date'):
-    """ Add a partition date key/value pair to each dictionary in the list of dicts.
-    Used to load data into a BigQuery partition.
-
-    :param list_of_dicts: List of dictionaries with original data
-    :param partition_date: The partition date
-    :param partition_type: The partition type
-    :param partition_field: The name of the partition field in the BigQuery table
-    :return: Updated list of dicts with partition dates
-    """
-    if partition_type == bigquery.TimePartitioningType.HOUR:
-        partition_date = partition_date.isoformat()
-    else:
-        partition_date = partition_date.strftime('%Y-%m-%d')
-
-    for entry in list_of_dicts:
-        entry[partition_field] = partition_date
-    return list_of_dicts
-
-
 def table_ids_from_path(transform_path: str) -> Tuple[str, str]:
     """
     To create the table ids the basename of the transform path is taken and file extensions are stripped.
