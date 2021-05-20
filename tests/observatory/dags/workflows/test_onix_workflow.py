@@ -1527,6 +1527,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                         gcp_bucket_name=self.gcp_bucket_name,
                         onix_dataset_id=self.onix_dataset_id,
                         onix_table_id=self.onix_table_id,
+                        oaebu_data_qa_dataset=env.add_dataset(),
                     )
                 ]
             )

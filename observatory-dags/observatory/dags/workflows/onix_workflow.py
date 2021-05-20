@@ -75,6 +75,7 @@ class OnixWorkflowRelease(AbstractRelease):
         onix_dataset_id: str = "onix",
         onix_table_id: str = "onix",
         gcp_bucket_name: str,
+        oaebu_data_qa_dataset: str = None,
     ):
         """
         :param dag_id: DAG ID.
@@ -83,6 +84,7 @@ class OnixWorkflowRelease(AbstractRelease):
         :param gcp_bucket_name: GCP bucket name.
         :param onix_dataset_id: GCP dataset ID for the onix data.
         :param onix_table_id: GCP table ID for the onix data.
+        :param oaebu_data_qa_dataset: OAEBU Data QA dataset.
         """
 
         self.dag_id = dag_id
@@ -112,7 +114,11 @@ class OnixWorkflowRelease(AbstractRelease):
 
         # OAEBU intermediate tables
         self.oaebu_intermediate_dataset = "oaebu_intermediate"
-        self.oaebu_data_qa_dataset = "oaebu_data_qa"
+
+        self.oaebu_data_qa_dataset = oaebu_data_qa_dataset
+        if oaebu_data_qa_dataset is None:
+            self.oaebu_data_qa_dataset = "oaebu_data_qa"
+
         self.oaebu_intermediate_match_suffix = "_matched"
 
     @property
