@@ -29,13 +29,14 @@ from google.cloud.bigquery import SourceFormat
 from observatory.dags.config import schema_path
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.telescopes.stream_telescope import StreamRelease, StreamTelescope
-from observatory.platform.utils.template_utils import (SubFolder, add_partition_date, blob_name, bq_append_from_file,
+from observatory.platform.utils.template_utils import (SubFolder, blob_name, bq_append_from_file,
                                                        bq_append_from_partition, bq_delete_old,
                                                        bq_load_ingestion_partition, bq_load_partition, bq_load_shard,
                                                        bq_load_shard_v2, create_date_table_id, on_failure_callback,
                                                        prepare_bq_load, prepare_bq_load_v2,
                                                        reset_variables, table_ids_from_path, telescope_path,
                                                        test_data_path, upload_files_from_list)
+from observatory.platform.utils.telescope_utils import add_partition_date
 
 from tests.observatory.test_utils import random_id
 
