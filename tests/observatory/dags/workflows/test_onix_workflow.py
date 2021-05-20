@@ -1677,6 +1677,20 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 self.timestamp,
             )
 
+            # OAPEN IRUS UK isbn check
+            env.run_task(
+                telescope.create_oaebu_data_qa_oapen_irus_uk_isbn.__name__,
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # OAPEN IRUS UK intermediate unmatched isbns
+            env.run_task(
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[3].gcp_dataset_id}.{data_partners[3].gcp_table_id}",
+                workflow_dag,
+                self.timestamp,
+            )
+
             # Test conditions
             release_suffix = self.onix_release_date.strftime("%Y%m%d")
 
@@ -1704,7 +1718,26 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
+            # JSTOR
             sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.oaebu_intermediate.{self.fake_partner_dataset}_jstor_country_matched{release_suffix}"
+            records = run_bigquery_query(sql)
+            oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
+            oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
+
+            self.assertTrue(
+                oaebu_works["111"] == oaebu_works["112"]
+                and oaebu_works["111"] != oaebu_works["211"]
+                and oaebu_works["113"] is None
+            )
+
+            self.assertTrue(
+                oaebu_wfam["111"] == oaebu_wfam["112"]
+                and oaebu_wfam["112"] == oaebu_wfam["211"]
+                and oaebu_wfam["113"] is None
+            )
+
+            # OAPEN IRUS UK
+            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.oaebu_intermediate.{self.fake_partner_dataset}_oapen_irus_uk_matched{release_suffix}"
             records = run_bigquery_query(sql)
             oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
             oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
@@ -1754,7 +1787,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("113" in isbns)
             self.assertTrue("112" in isbns)
 
-            # Check JSTOR ISBN are valid
+            # Check JSTOR eISBN are valid
             sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.jstor_invalid_eisbn{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["eISBN"] for record in records])
@@ -1766,6 +1799,24 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # Check JSTOR unmatched ISBN picked up
             sql = f"SELECT ISBN from {self.gcp_project_id}.oaebu_data_qa.jstor_country_unmatched_ISBN{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("9781111111113" in isbns)
+            self.assertTrue("113" in isbns)
+
+            # Check OAPEN IRUS UK ISBN are valid
+            sql = f"SELECT * from {self.gcp_project_id}.oaebu_data_qa.oapen_irus_uk_invalid_isbn{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN"] for record in records])
+            self.assertEqual(len(isbns), 4)
+            self.assertTrue("111" in isbns)
+            self.assertTrue("113" in isbns)
+            self.assertTrue("112" in isbns)
+            self.assertTrue("211" in isbns)
+
+            # Check OAPEN IRUS UK unmatched ISBN picked up
+            sql = f"SELECT ISBN from {self.gcp_project_id}.oaebu_data_qa.oapen_irus_uk_unmatched_ISBN{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["ISBN"] for record in records])
             self.assertEqual(len(isbns), 2)
