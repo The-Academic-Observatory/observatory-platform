@@ -28,10 +28,11 @@ from google.cloud import bigquery
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import SftpFolders, convert, list_to_jsonl_gz, make_dag_id, \
+from observatory.platform.utils.telescope_utils import SftpFolders, add_partition_date, convert, list_to_jsonl_gz, \
+    make_dag_id, \
     make_sftp_connection
 from observatory.platform.utils.template_utils import upload_files_from_list
-from observatory.platform.utils.template_utils import add_partition_date, blob_name, bq_load_partition, \
+from observatory.platform.utils.template_utils import blob_name, bq_load_partition, \
     table_ids_from_path
 
 
