@@ -29,5 +29,22 @@ telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
 
 # Make all ONIX telescopes
 for telescope in telescopes:
-    onix_telescope = OnixTelescope(telescope.organisation)
+    organisation = telescope.organisation
+    organisation_name = organisation.name
+    project_id = organisation.gcp_project_id
+    download_bucket = organisation.gcp_download_bucket
+    transform_bucket = organisation.gcp_transform_bucket
+    dataset_location = "us"
+    date_regex = telescope.extra.get("date_regex")
+    date_format = telescope.extra.get("date_format")
+
+    onix_telescope = OnixTelescope(
+        organisation_name=organisation_name,
+        project_id=project_id,
+        download_bucket=download_bucket,
+        transform_bucket=transform_bucket,
+        dataset_location=dataset_location,
+        date_regex=date_regex,
+        date_format=date_format,
+    )
     globals()[onix_telescope.dag_id] = onix_telescope.make_dag()
