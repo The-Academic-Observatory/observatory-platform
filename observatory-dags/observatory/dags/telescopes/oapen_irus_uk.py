@@ -198,8 +198,8 @@ class OapenIrusUkTelescope(SnapshotTelescope):
     FUNCTION_NAME = 'oapen_access_stats'  # Name of the google cloud function
     FUNCTION_REGION = 'europe-west1'  # Region of the google cloud function
     FUNCTION_SOURCE_URL = 'https://github.com/The-Academic-Observatory/oapen-irus-uk-cloud-function/releases/' \
-                          'download/v1.0.1/oapen-irus-uk-cloud-function.zip'  # URL to the zipped source code of the cloud function
-    FUNCTION_MD5_HASH = 'a273d1b547e221a8d2165c5ac956e942'  # MD5 hash of the zipped source code
+                          'download/v1.0.2/oapen-irus-uk-cloud-function.zip'  # URL to the zipped source code of the cloud function
+    FUNCTION_MD5_HASH = '650c77ab0501819ee0522761c0275c5a'  # MD5 hash of the zipped source code
     FUNCTION_BLOB_NAME = 'cloud_function_source_code.zip'  # blob name of zipped source code
     OAPEN_API_URL = 'https://library.oapen.org/rest/search?query=publisher.name:{publisher_name}&expand=metadata'
 
