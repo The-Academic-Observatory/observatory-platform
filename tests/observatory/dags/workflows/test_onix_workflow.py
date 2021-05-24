@@ -919,7 +919,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 ],
             )
 
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
     def test_create_oaebu_data_qa_jstor_isbn(self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes):
@@ -990,7 +990,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             expected_hash = "b069027b3ad5b9bd4b78e7c82faea024"
             self.assertEqual(sql_hash, expected_hash)
 
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
     def test_create_oaebu_data_qa_google_books_sales_isbn(
@@ -1063,7 +1063,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             expected_hash = "3e84231b474ee952cc104afc5308caed"
             self.assertEqual(sql_hash, expected_hash)
 
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
     def test_create_oaebu_data_qa_google_books_traffic_isbn(
@@ -1136,7 +1136,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             expected_hash = "3e84231b474ee952cc104afc5308caed"
             self.assertEqual(sql_hash, expected_hash)
 
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
     def test_create_oaebu_data_qa_oapen_irus_uk_isbn(self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes):
@@ -1207,7 +1207,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             expected_hash = "fcc561153f0173d855bc82e8fd990cde"
             self.assertEqual(sql_hash, expected_hash)
 
-    @patch("observatory.dags.workflows.onix_workflow.select_table_suffixes")
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
     def test_create_oaebu_data_qa_intermediate_unmatched_workid(
