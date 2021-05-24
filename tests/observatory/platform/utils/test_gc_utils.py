@@ -130,13 +130,13 @@ class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
             actual_crc32c = crc32c_base64_hash(file_name)
             self.assertEqual(self.expected_crc32c, actual_crc32c)
 
-    def test_bigquery_partitioned_table_id(self):
+    def test_bigquery_sharded_table_id(self):
         expected = "my_table20200315"
         actual = bigquery_sharded_table_id("my_table", pendulum.datetime(year=2020, month=3, day=15))
         self.assertEqual(expected, actual)
 
     @patch("observatory.platform.utils.gc_utils.run_bigquery_query")
-    def test_select_table_suffixes(self, mock_run_bq_query):
+    def test_select_table_shard_dates(self, mock_run_bq_query):
         end_date = pendulum.Pendulum(2021, 1, 1)
         mock_run_bq_query.return_value = [{"suffix": end_date}]
 

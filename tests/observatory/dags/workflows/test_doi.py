@@ -42,7 +42,7 @@ class TestDoi(unittest.TestCase):
         with self.assertRaises(AirflowException):
             set_task_state(False, 'my-task-id')
 
-    def test_select_table_suffixes(self):
+    def test_select_table_shard_dates(self):
         client = bigquery.Client()
         dataset_id = random_id()
         table_id = 'fundref'
