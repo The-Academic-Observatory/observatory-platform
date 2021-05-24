@@ -111,7 +111,7 @@ class GoogleBooksRelease(SnapshotRelease):
                 for row in csv_reader:
                     transformed_row = OrderedDict((convert(k.replace('%', 'Perc')), v) for k, v in row.items())
                     if 'sales' in file:
-                        transaction_date = datetime.strptime(transformed_row['Transaction_Date'], '%m/%d/%Y')
+                        transaction_date = datetime.strptime(transformed_row['Transaction_Date'], '%m/%d/%y')
 
                         # sanity check that transaction date is in month of release date
                         if self.release_date.start_of('month') <= transaction_date <= self.release_date.end_of('month'):
