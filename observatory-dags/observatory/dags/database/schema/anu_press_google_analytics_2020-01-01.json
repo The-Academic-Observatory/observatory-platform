@@ -1,0 +1,190 @@
+[
+  {
+    "mode": "REQUIRED",
+    "name": "url",
+    "type": "STRING",
+    "description": "Base URL of the book pages."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "title",
+    "type": "STRING",
+    "description": "Title of the book."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "publication_id",
+    "type": "STRING",
+    "description": "Custom dimension Publication ID."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "publication_type",
+    "type": "STRING",
+    "description": "Custom dimension Publication type."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "publication_imprint",
+    "type": "STRING",
+    "description": "Custom dimension Publication imprint."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "publication_group",
+    "type": "STRING",
+    "description": "Custom dimension Publication group."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "publication_whole_or_part",
+    "type": "STRING",
+    "description": "Custom dimension Publication whole/part."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "publication_format",
+    "type": "STRING",
+    "description": "Custom dimension Publication format."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "start_date",
+    "type": "DATE",
+    "description": "Start date for period of analytics info."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "end_date",
+    "type": "DATE",
+    "description": "End date for period of analytics info."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "average_time",
+    "type": "FLOAT",
+    "description": "Average time (in seconds) spent on each page."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "unique_views",
+    "type": "RECORD",
+    "description": "Unique views for several different dimensions. Unique views is the number of sessions during which the specified page was viewed at least once. A unique pageview is counted for each page URL + page title combination.",
+    "fields": [
+      {
+        "mode": "REPEATED",
+        "name": "country",
+        "type": "RECORD",
+        "description": "Unique views per users' country, derived from their IP addresses or Geographical IDs.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": "Country name."
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "INTEGER",
+            "description": "Number of unique views."
+          }
+        ]
+      },
+      {
+        "mode": "REPEATED",
+        "name": "referrer",
+        "type": "RECORD",
+        "description": "Unique views per referrer, the full referring URL including the hostname and path.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": "Referrer name."
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "INTEGER",
+            "description": "Number of unique views."
+          }
+        ]
+      },
+      {
+        "mode": "REPEATED",
+        "name": "social_network",
+        "type": "RECORD",
+        "description": "Unique views per social network. This is related to the referring social network for traffic sources; e.g., Google+, Blogger.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": "Social network name."
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "INTEGER",
+            "description": "Number of unique views."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "sessions",
+    "type": "RECORD",
+    "description": "Total number of sessions for several different dimensions.",
+    "fields": [
+      {
+        "mode": "REPEATED",
+        "name": "country",
+        "type": "RECORD",
+        "description": "Unique views per users' country, derived from their IP addresses or Geographical IDs.",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": "Country name."
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "INTEGER",
+            "description": "Number of sessions."
+          }
+        ]
+      },
+      {
+        "mode": "REPEATED",
+        "name": "source",
+        "type": "RECORD",
+        "description": "Sessions per source of referrals. For manual campaign tracking, it is the value of the utm_source campaign tracking parameter. For AdWords autotagging, it is google. If you use neither, it is the domain of the source (e.g., document.referrer) referring the users. It may also contain a port address. If users arrived without a referrer, its value is (direct)..",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING",
+            "description": "Source name."
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "INTEGER",
+            "description": "Number of sessions."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "release_date",
+    "type": "DATE",
+    "description": "Last day of the release month. Table is partitioned on this column."
+  }
+]

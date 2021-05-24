@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import copy
 import datetime
 import logging
 import os
@@ -29,6 +28,7 @@ from airflow.hooks.base_hook import BaseHook
 from google.cloud import bigquery
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
+
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
@@ -100,10 +100,11 @@ class GoogleAnalyticsRelease(SnapshotRelease):
 class GoogleAnalyticsTelescope(SnapshotTelescope):
     """ Google Analytics Telescope."""
     DAG_ID_PREFIX = 'google_analytics'
+    ANU_ORG_NAME = 'ANU Press'
 
     def __init__(self, organisation: Organisation, view_id: str, pagepath_regex: str, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2018, 1, 1),  schedule_interval: str = '@monthly', dataset_id: str =
-                 'google', catchup: bool = True, airflow_vars=None, airflow_conns=None):
+                 start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly', dataset_id: str =
+                 'google', catchup: bool = True, airflow_vars=None, airflow_conns=None, schema_prefix: str = ''):
         """ Construct a GoogleAnalyticsTelescope instance.
         :param organisation: the Organisation of which data is processed.
         :param view_id: the view ID, obtained from the 'extra' info from the API regarding the telescope.
@@ -115,6 +116,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         :param schedule_interval: the schedule interval of the DAG.
         :param catchup: whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
+        :param schema_prefix: the prefix used to find the schema path.
         """
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
@@ -126,8 +128,12 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         if dag_id is None:
             dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
 
+        # set schema prefix to 'anu_press' for ANU press, custom dimensions are added in this schema.
+        if schema_prefix == '':
+            schema_prefix = 'anu_press_' if organisation.name == self.ANU_ORG_NAME else ''
+
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, catchup=catchup, airflow_vars=airflow_vars,
-                         airflow_conns=airflow_conns)
+                         airflow_conns=airflow_conns, schema_prefix=schema_prefix)
 
         self.organisation = organisation
         self.project_id = organisation.gcp_project_id
@@ -195,7 +201,6 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
                 table_description = self.table_descriptions.get(table_id, '')
-
                 bq_load_partition(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
                                   self.dataset_location, table_id, release.release_date, self.source_format,
                                   bigquery.table.TimePartitioningType.MONTH, prefix=self.schema_prefix,
@@ -220,16 +225,16 @@ def initialize_analyticsreporting() -> Resource:
     return service
 
 
-def list_all_books(service: Resource, organisation_name: str, view_id: str, pagepath_regex: str,
-                   start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> Tuple[List[dict], list]:
+def list_all_books(service: Resource, view_id: str, pagepath_regex: str, start_date: pendulum.Pendulum,
+                   end_date: pendulum.Pendulum, organisation_name: str) -> Tuple[List[dict], list]:
     """ List all available books by getting all pagepaths of a view id in a given period.
 
     :param service: The Google Analytics Reporting service object.
-    :param organisation_name: Name of the organisation.
     :param view_id: The view id.
     :param pagepath_regex: The regex expression for the pagepath of a book.
     :param start_date: Start date of analytics period
     :param end_date: End date of analytics period
+    :param organisation_name: The organisation name.
     :return: A list with dictionaries, one for each book entry (the dict contains the pagepath, title and average time
     on page) and a list of all pagepaths.
     """
@@ -256,12 +261,12 @@ def list_all_books(service: Resource, organisation_name: str, view_id: str, page
             }]
         }]
     }
-    # filter on publication type for anu press
-    if organisation_name == 'anu_press':
-        body['reportRequests'][0]['dimensionFilterClauses'][0]['filters'].append({
-            'dimensionName': 'ga:dimension2',
-            "operator": "EXACT",
-            "expressions": ["book"]})
+
+    # add all 6 custom dimensions for anu press
+    if organisation_name == GoogleAnalyticsTelescope.ANU_ORG_NAME:
+        for i in range(1, 7):
+            body['reportRequests'][0]['dimensions'].append({'name': f'ga:dimension{str(i)}'})
+
     reports = service.reports().batchGet(body=body).execute()
     all_book_entries = reports['reports'][0]['data'].get('rows')
     next_page_token = reports['reports'][0].get('nextPageToken')
@@ -282,15 +287,16 @@ def list_all_books(service: Resource, organisation_name: str, view_id: str, page
     return all_book_entries, pagepaths
 
 
-def create_book_result_dicts(book_entries: List[dict], start_date: pendulum.Pendulum, end_date: pendulum.Pendulum) -> \
-        Dict[dict]:
+def create_book_result_dicts(book_entries: List[dict], start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
+                             organisation_name: str) -> Dict[dict]:
     """ Create a dictionary to store results for a single book. Pagepath, title and avg time on page are already given.
     The other metrics will be added to the dictionary later.
 
     :param book_entries: List with dictionaries of book entries.
     :param start_date: Start date of analytics period.
     :param end_date: End date of analytics period.
-    :return:
+    :param organisation_name: The organisation name.
+    :return: Dict to store results
     """
     book_results = {}
     for entry in book_entries:
@@ -308,6 +314,16 @@ def create_book_result_dicts(book_entries: List[dict], start_date: pendulum.Pend
                        'sessions': {'country': {},
                                     'source': {}}
                        }
+        # add custom dimension data for ANU Press
+        if organisation_name == GoogleAnalyticsTelescope.ANU_ORG_NAME:
+            # matches dimension order in 'list_all_books'
+            custom_dimensions = {'publication_id': entry['dimensions'][2],
+                                 'publication_type': entry['dimensions'][3],
+                                 'publication_imprint': entry['dimensions'][4],
+                                 'publication_group': entry['dimensions'][5],
+                                 'publication_whole_or_part': entry['dimensions'][6],
+                                 'publication_format': entry['dimensions'][7]}
+            book_result = dict(book_result, **custom_dimensions)
         book_results[pagepath] = book_result
 
     return book_results
@@ -374,6 +390,8 @@ def add_to_book_result_dict(book_results: dict, dimension: dict, pagepath: str, 
     :param sessions: Number of sessions for the pagepath&dimension
     :return: None
     """
+    # map the dimension name to the field name in BigQuery. The ga:dimensionX are obtained from custom ANU press
+    # dimensions
     mapping = {'ga:country': 'country',
                'ga:fullReferrer': 'referrer',
                'ga:socialNetwork': 'social_network',
@@ -383,57 +401,6 @@ def add_to_book_result_dict(book_results: dict, dimension: dict, pagepath: str, 
         book_results[pagepath]['unique_views'][column_name] = unique_views
     if column_name in ['country', 'source']:
         book_results[pagepath]['sessions'][column_name] = sessions
-
-
-def merge_pagepaths_per_book(book_results: dict, pagepaths: list):
-    """ Merge results of multiple pagepaths for a single book.
-    There might be multiple pagepaths for one book (e.g. some paths have a fbclid parameter).
-    The unique views and sessions can be summed, the average time on page is first summed and then divided by the number
-    of pagepaths available for that book, so it is the correct average.
-
-    :param book_results: Dictionary with all book results.
-    :param pagepaths: List of pagepaths.
-    :return: None.
-    """
-    # get unique book pagepaths, stripping everything after '?'
-    unique_pagepaths = set([path.split('?')[0] for path in pagepaths])
-    unique_book_results = {}
-    paths_per_book = {}
-    for path in book_results:
-        unique_path = path.split('?')[0]
-        if unique_path in unique_pagepaths:
-            try:
-                # merge average time, sum values and divide to get average when known how many pagepaths for 1 book
-                paths_per_book[unique_path] += 1
-                unique_book_results[unique_path]['average_time'] += book_results[path]['average_time']
-
-                # merge unique views, sum values
-                for dimension in unique_book_results[unique_path]['unique_views']:
-                    current_views = unique_book_results[unique_path]['unique_views'][dimension]
-                    added_views = book_results[path]['unique_views'][dimension]
-                    merged_views = {k: current_views.get(k, 0) + added_views.get(k, 0) for k in
-                                    set(current_views) | set(added_views)}
-
-                    unique_book_results[unique_path]['unique_views'][dimension] = merged_views
-
-                # merge sessions, sum values
-                for dimension in unique_book_results[unique_path]['sessions']:
-                    current_sessions = unique_book_results[unique_path]['sessions'][dimension]
-                    added_sessions = book_results[path]['sessions'][dimension]
-                    merged_sessions = {k: current_sessions.get(k, 0) + added_sessions.get(k, 0) for k in
-                                       set(current_sessions) | set(added_sessions)}
-
-                    unique_book_results[unique_path]['sessions'][dimension] = merged_sessions
-
-            except KeyError:
-                paths_per_book[unique_path] = 1
-                unique_book_results[unique_path] = copy.deepcopy(book_results[path])
-
-    # divide summed up average time by number of paths per book
-    for unique_path in unique_book_results:
-        unique_book_results[unique_path] = {k: v / paths_per_book[unique_path] if k == 'average_time' else v
-                                            for k, v in unique_book_results[unique_path].items()}
-    return unique_book_results
 
 
 def get_reports(service: Resource, organisation_name: str, view_id: str, pagepath_regex: str,
@@ -451,12 +418,12 @@ def get_reports(service: Resource, organisation_name: str, view_id: str, pagepat
     """
 
     # list all books
-    book_entries, pagepaths = list_all_books(service, organisation_name, view_id, pagepath_regex, start_date, end_date)
+    book_entries, pagepaths = list_all_books(service, view_id, pagepath_regex, start_date, end_date,  organisation_name)
     # if no books in period return empty list and raise airflow skip exception
     if not book_entries:
         return []
     # create dict with dict for each book to store results
-    book_results = create_book_result_dicts(book_entries, start_date, end_date)
+    book_results = create_book_result_dicts(book_entries, start_date, end_date, organisation_name)
 
     metric_names = ['uniquePageviews', 'sessions']
     metrics = [{'expression': f'ga:{metric}'} for metric in metric_names]
@@ -474,7 +441,7 @@ def get_reports(service: Resource, organisation_name: str, view_id: str, pagepat
         # entry is combination of book pagepath & dimension
         for entry in dimension_data:
             pagepath = entry['dimensions'][0]
-            dimension_of_interest = entry['dimensions'][1]  # e.g. 'Australia' for 'country' dimension
+            dimension_value = entry['dimensions'][1]  # e.g. 'Australia' for 'country' dimension
 
             if prev_pagepath and pagepath != prev_pagepath:
                 add_to_book_result_dict(book_results, dimension, prev_pagepath, unique_views, sessions)
@@ -486,20 +453,18 @@ def get_reports(service: Resource, organisation_name: str, view_id: str, pagepat
             views_metric = int(entry['metrics'][0]['values'][0])
             sessions_metric = int(entry['metrics'][0]['values'][1])
             if views_metric > 0:
-                unique_views[dimension_of_interest] = views_metric
+                unique_views[dimension_value] = views_metric
             if sessions_metric > 0:
-                sessions[dimension_of_interest] = sessions_metric
+                sessions[dimension_value] = sessions_metric
 
             prev_pagepath = pagepath
         else:
             add_to_book_result_dict(book_results, dimension, prev_pagepath, unique_views, sessions)
-    # merge results of single book with different pagepaths (e.g. fbclid parameter)
-    book_results = merge_pagepaths_per_book(book_results, pagepaths)
 
     # transform nested dict to list of dicts
     for book, result in book_results.items():
-        # field is 'unique_views' or 'sessions'
         for field, value in result.items():
+            # field is 'unique_views' or 'sessions'
             if isinstance(value, dict):
                 # nested_field is 'country', 'referrer' or 'social_network'
                 for nested_field, nested_value in value.items():
