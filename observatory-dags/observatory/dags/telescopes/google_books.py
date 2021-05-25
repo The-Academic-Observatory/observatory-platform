@@ -146,9 +146,8 @@ class GoogleBooksTelescope(SnapshotTelescope):
     DAG_ID_PREFIX = 'google_books'
 
     def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2020, 1, 1),
-                 schedule_interval: str = '@monthly', dataset_id: str = 'google', catchup: bool = False,
-                 airflow_vars=None, airflow_conns=None):
+                 start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly', dataset_id: str =
+                 'google', catchup: bool = False, airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleBooksTelescope instance.
 
         :param organisation: the Organisation the DAG will process.

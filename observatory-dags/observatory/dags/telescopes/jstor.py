@@ -154,7 +154,7 @@ class JstorTelescope(SnapshotTelescope):
     MULTIPLIER = 10
 
     def __init__(self, organisation: Organisation, publisher_id: str, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2015, 9, 1), schedule_interval: str = '@monthly',
+                 start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly',
                  dataset_id: str = 'jstor', source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
                  dataset_description: str = '', catchup: bool = False, airflow_vars: List = None,
                  airflow_conns: List = None):

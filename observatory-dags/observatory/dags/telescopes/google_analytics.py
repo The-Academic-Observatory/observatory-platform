@@ -102,9 +102,8 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
     DAG_ID_PREFIX = 'google_analytics'
 
     def __init__(self, organisation: Organisation, view_id: str, pagepath_regex: str, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2021, 1, 1),
-                 schedule_interval: str = '@monthly', dataset_id: str = 'google', catchup: bool = True,
-                 airflow_vars=None, airflow_conns=None):
+                 start_date: datetime = datetime(2018, 1, 1),  schedule_interval: str = '@monthly', dataset_id: str =
+                 'google', catchup: bool = True, airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleAnalyticsTelescope instance.
         :param organisation: the Organisation of which data is processed.
         :param view_id: the view ID, obtained from the 'extra' info from the API regarding the telescope.

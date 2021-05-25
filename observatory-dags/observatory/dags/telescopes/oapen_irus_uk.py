@@ -204,7 +204,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
     OAPEN_API_URL = 'https://library.oapen.org/rest/search?query=publisher.name:{publisher_name}&expand=metadata'
 
     def __init__(self, organisation: Organisation, publisher_id: str, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2020, 2, 1), schedule_interval: str = '@monthly',
+                 start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly',
                  dataset_id: str = 'oapen', dataset_description: str = 'Oapen dataset', catchup: bool = True,
                  airflow_vars: List = None, airflow_conns: List = None, max_active_runs=5):
 
