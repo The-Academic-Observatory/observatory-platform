@@ -35,6 +35,11 @@ The corresponding table created in BigQuery is `google.google_analyticsYYYYMMDD`
 | Each shard includes all data | No      |
 +------------------------------+---------+
 ```
+## Custom dimensions for ANU Press
+ANU Press is using custom dimensions in their google analytics data. To ensure that the telescope processes these
+ custom dimensions, the organisation name needs to be set to exactly 'ANU Press'.  
+The organisation name is used directly inside the telescope and if it matches 'ANU Press' additional dimensions will
+ be added and a different BigQuery schema is used.  
 
 ## Telescope object 'extra'
 This telescope is created using the Observatory API. There are two 'extra' fields that are required for the
@@ -64,16 +69,23 @@ from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
 
 scopes = ['https://www.googleapis.com/auth/analytics.readonly']
-credentials_path = '/path/to/service_account_credentials.json'
+credentials_path = '/Users/284060a/keys/gcp/aniek-dev-b345af1f5cd3.json'
+
 creds = ServiceAccountCredentials.from_json_keyfile_name(credentials_path, scopes=scopes)
 
 # Build the service object.
 service = build('analytics', 'v3', credentials=creds)
 
 account_summaries = service.management().accountSummaries().list().execute()
-profiles = account_summaries['items'][1]['webProperties'][0]['profiles']
-for profile in profiles:
-    view_id = profile['id']
+view_ids = []
+for account in account_summaries['items']:
+    account_name = account['name']
+    profiles = account['webProperties'][0]['profiles']
+    website_url = account['webProperties'][0]['websiteUrl']
+    for profile in profiles:
+        view_id_info = {'account': account_name, 'websiteUrl': website_url, 'view_id': profile['id'], 
+                        'view_name': profile['name']}
+        view_ids.append(view_id_info)
 ```
 
 ## Airflow connections
