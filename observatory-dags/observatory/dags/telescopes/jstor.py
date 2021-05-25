@@ -157,7 +157,7 @@ class JstorTelescope(SnapshotTelescope):
                  start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly',
                  dataset_id: str = 'jstor', source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
                  dataset_description: str = '', catchup: bool = False, airflow_vars: List = None,
-                 airflow_conns: List = None):
+                 airflow_conns: List = None, max_active_runs: int = 1):
         """ Construct a JstorTelescope instance.
         :param organisation: the Organisation of which data is processed.
         :param publisher_id: the publisher ID, obtained from the 'extra' info from the API regarding the telescope.
@@ -169,6 +169,7 @@ class JstorTelescope(SnapshotTelescope):
         :param dataset_description: description for the BigQuery dataset.
         :param catchup: whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
+        :param max_active_runs: the maximum number of DAG runs that can be run at once.
         """
 
         if airflow_vars is None:
@@ -182,7 +183,7 @@ class JstorTelescope(SnapshotTelescope):
 
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, source_format=source_format,
                          dataset_description=dataset_description, catchup=catchup, airflow_vars=airflow_vars,
-                         airflow_conns=airflow_conns)
+                         airflow_conns=airflow_conns, max_active_runs=max_active_runs)
         self.organisation = organisation
         self.project_id = organisation.gcp_project_id
         self.dataset_location = 'us'  # TODO: add to API
