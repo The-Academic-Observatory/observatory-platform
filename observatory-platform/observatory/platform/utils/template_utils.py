@@ -303,9 +303,9 @@ def bq_load_shard_v2(project_id: str, transform_bucket: str, transform_blob: str
 
 def bq_load_ingestion_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
                                 partition_table_id: str, source_format: SourceFormat, prefix: str = '',
-                                schema_version: str =
-                                None, dataset_description: str = '', partition_type: bigquery.TimePartitioningType =
-                                bigquery.TimePartitioningType.DAY, **load_bigquery_table_kwargs):
+                                schema_version: str = None, dataset_description: str = '',
+                                partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
+                                **load_bigquery_table_kwargs):
     """ Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
     given it will automatically partition by ingestion datetime.
 
