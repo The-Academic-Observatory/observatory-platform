@@ -26,7 +26,7 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import _hash_file
-from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
+from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.telescope_utils import SftpFolders
 from observatory.platform.utils.template_utils import SubFolder, blob_name, telescope_path
 from observatory.platform.utils.test_utils import (
@@ -203,7 +203,7 @@ class TestOnix(ObservatoryTestCase):
 
                 # Test load into BigQuery
                 env.run_task(telescope.bq_load.__name__, dag, execution_date)
-                table_id = f"{self.project_id}.{dataset_id}.{bigquery_partitioned_table_id(telescope.DAG_ID_PREFIX, release_date)}"
+                table_id = f"{self.project_id}.{dataset_id}.{bigquery_sharded_table_id(telescope.DAG_ID_PREFIX, release_date)}"
                 expected_rows = 1
                 self.assert_table_integrity(table_id, expected_rows)
 

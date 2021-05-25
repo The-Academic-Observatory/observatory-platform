@@ -39,7 +39,7 @@ from pendulum import Pendulum
 from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
 from observatory.platform.utils.config_utils import (find_schema)
-from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
+from observatory.platform.utils.gc_utils import (bigquery_sharded_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,
                                                  load_bigquery_table,
@@ -568,7 +568,7 @@ class FundrefTelescope:
         # doesn't exist
         releases_list_out = []
         for release in releases_list:
-            table_id = bigquery_partitioned_table_id(FundrefTelescope.DAG_ID, release.date)
+            table_id = bigquery_sharded_table_id(FundrefTelescope.DAG_ID, release.date)
             logging.info('Checking if bigquery table already exists:')
             if bigquery_table_exists(project_id, FundrefTelescope.DATASET_ID, table_id):
                 logging.info(f'Skipping as table exists for {release.url}: '
@@ -718,7 +718,7 @@ class FundrefTelescope:
 
         # Load each release into BigQuery
         for release in releases_list:
-            table_id = bigquery_partitioned_table_id(FundrefTelescope.DAG_ID, release.date)
+            table_id = bigquery_sharded_table_id(FundrefTelescope.DAG_ID, release.date)
 
             # Select schema file based on release date
             analysis_schema_path = schema_path()
