@@ -45,7 +45,7 @@ class SnapshotRelease(Release):
 class SnapshotTelescope(Telescope):
     def __init__(self, dag_id: str, start_date: datetime, schedule_interval: str, dataset_id: str, catchup: bool = True,
                  queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1,
-                 source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON, schema_prefix: str = '',
+                 source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON, schema_prefix: str = '',
                  schema_version: str = None, load_bigquery_table_kwargs: Dict = None,
                  dataset_description: str = '', table_descriptions: Dict[str, str] = None,
                  airflow_vars: list = None, airflow_conns: list = None):

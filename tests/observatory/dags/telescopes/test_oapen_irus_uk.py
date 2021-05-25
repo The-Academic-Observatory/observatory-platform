@@ -38,7 +38,7 @@ from observatory.dags.telescopes.oapen_irus_uk import (
 )
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
-from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -64,7 +64,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         self.host = "localhost"
         self.api_port = 5000
         self.download_path = test_fixtures_path("telescopes", "oapen_irus_uk", "download_2021_02.jsonl.gz")
-        self.transform_hash = "5fe1ffaf"
+        self.transform_hash = "5f64902e"
 
     def test_dag_structure(self):
         """Test that the Oapen Irus Uk DAG has the correct structure.
@@ -79,8 +79,8 @@ class TestOapenIrusUk(ObservatoryTestCase):
                 "call_cloud_function": ["transfer"],
                 "transfer": ["download_transform"],
                 "download_transform": ["upload_transformed"],
-                "upload_transformed": ["bq_load"],
-                "bq_load": ["cleanup"],
+                "upload_transformed": ["bq_load_partition"],
+                "bq_load_partition": ["cleanup"],
                 "cleanup": [],
             },
             dag,
@@ -131,7 +131,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         dataset_id = env.add_dataset()
 
         # Setup Telescope
-        execution_date = pendulum.datetime(year=2021, month=2, day=1)
+        execution_date = pendulum.datetime(year=2021, month=2, day=1).end_of('month')
         organisation = Organisation(
             name=self.organisation_name,
             gcp_project_id=self.project_id,
@@ -155,8 +155,9 @@ class TestOapenIrusUk(ObservatoryTestCase):
                         {
                             "functions": [
                                 {
-                                    "name": f"projects/{OapenIrusUkTelescope.OAPEN_PROJECT_ID}/locations/{OapenIrusUkTelescope.FUNCTION_REGION}/functions/"
-                                    f"{OapenIrusUkTelescope.FUNCTION_NAME}"
+                                    "name": f"projects/{OapenIrusUkTelescope.OAPEN_PROJECT_ID}/locations/"
+                                            f"{OapenIrusUkTelescope.FUNCTION_REGION}/functions/"
+                                            f"{OapenIrusUkTelescope.FUNCTION_NAME}"
                                 }
                             ]
                         }
@@ -164,11 +165,11 @@ class TestOapenIrusUk(ObservatoryTestCase):
                 ),
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
-                            "done": True,
-                            "response": {"message": "response"},
+                    json.dumps({
+                        "name":
+                            "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
+                        "done": True,
+                        "response": {"message": "response"},
                         }
                     ),
                 ),
@@ -200,12 +201,14 @@ class TestOapenIrusUk(ObservatoryTestCase):
             # Test call cloud function task: no error should be thrown
             with httpretty.enabled():
                 # mock response of getting publisher uuid
-                url = f"https://library.oapen.org/rest/search?query=publisher.name:{release.organisation_id}&expand=metadata"
+                url = f"https://library.oapen.org/rest/search?query=publisher.name:{release.organisation_id}" \
+                      f"&expand=metadata"
                 httpretty.register_uri(httpretty.GET, url, body='[{"uuid":"df73bf94-b818-494c-a8dd-6775b0573bc2"}]')
                 # mock response of cloud function
                 mock_authorized_session.return_value.status_code = 200
                 mock_authorized_session.return_value.reason = "unit test"
-                url = f"https://{OapenIrusUkTelescope.FUNCTION_REGION}-{OapenIrusUkTelescope.OAPEN_PROJECT_ID}.cloudfunctions.net/{OapenIrusUkTelescope.FUNCTION_NAME}"
+                url = f"https://{OapenIrusUkTelescope.FUNCTION_REGION}-{OapenIrusUkTelescope.OAPEN_PROJECT_ID}." \
+                      f"cloudfunctions.net/{OapenIrusUkTelescope.FUNCTION_NAME}"
                 httpretty.register_uri(httpretty.POST, url, body="")
                 env.run_task(telescope.call_cloud_function.__name__, dag, execution_date)
 
@@ -225,13 +228,10 @@ class TestOapenIrusUk(ObservatoryTestCase):
                 self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
             # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load.__name__, dag, execution_date)
+            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
             for file in release.transform_files:
                 table_id, _ = table_ids_from_path(file)
-                table_id = (
-                    f"{self.project_id}.{telescope.dataset_id}."
-                    f"{bigquery_sharded_table_id(telescope.DAG_ID_PREFIX, release.release_date)}"
-                )
+                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
                 expected_rows = 4
                 self.assert_table_integrity(table_id, expected_rows)
 
@@ -258,8 +258,6 @@ class TestOapenIrusUk(ObservatoryTestCase):
         """
         mock_create_bucket.return_value = True
         mock_upload_to_bucket.return_value = True, True
-        organisation = Organisation(name=self.organisation_name)
-        telescope = OapenIrusUkTelescope(organisation, self.extra.get("publisher_id"))
         with CliRunner().isolated_filesystem():
             mock_variable_get.return_value = os.getcwd()
             success, upload = upload_source_code_to_bucket(
@@ -325,17 +323,18 @@ class TestOapenIrusUk(ObservatoryTestCase):
                     {"status": "200"},
                     json.dumps(
                         {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
+                            "name":
+                                "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
                         }
                     ),
                 ),
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
-                            "done": True,
-                            "response": {"message": "response"},
+                    json.dumps({
+                        "name":
+                            "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
+                        "done": True,
+                        "response": {"message": "response"},
                         }
                     ),
                 ),
@@ -353,19 +352,18 @@ class TestOapenIrusUk(ObservatoryTestCase):
             [
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
+                    json.dumps({
+                        "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
                         }
                     ),
                 ),
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
-                            "done": True,
-                            "response": {"message": "response"},
+                    json.dumps({
+                        "name":
+                            "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
+                        "done": True,
+                        "response": {"message": "response"},
                         }
                     ),
                 ),
@@ -383,19 +381,18 @@ class TestOapenIrusUk(ObservatoryTestCase):
             [
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
+                    json.dumps({
+                        "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
                         }
                     ),
                 ),
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
-                            "done": True,
-                            "error": {"message": "error"},
+                    json.dumps({
+                        "name":
+                            "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
+                        "done": True,
+                        "error": {"message": "error"},
                         }
                     ),
                 ),

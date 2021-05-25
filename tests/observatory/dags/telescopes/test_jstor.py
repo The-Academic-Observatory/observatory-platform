@@ -29,7 +29,7 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
 from observatory.dags.telescopes.jstor import (JstorRelease, JstorTelescope, get_label_id)
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import (ObservatoryEnvironment, ObservatoryTestCase, module_file_path,
                                                    test_fixtures_path)
 
@@ -51,21 +51,21 @@ class TestJstor(ObservatoryTestCase):
         self.host = "localhost"
         self.api_port = 5000
 
-        self.release_date = pendulum.parse('20210301')
+        self.release_date = pendulum.parse('20210301').end_of('month')
         publisher_id = self.extra.get('publisher_id')
-        self.country_report = {'path': test_fixtures_path('telescopes', 'jstor', 'country_20210301.tsv'),
+        self.country_report = {'path': test_fixtures_path('telescopes', 'jstor', 'country_20210401.tsv'),
                                'url': 'https://www.jstor.org/admin/reports/download/249192019',
                                'headers': {'Content-Disposition': f'attachment; filename=PUB_{publisher_id}_PUBBCU_'
                                                                   f'{self.release_date.strftime("%Y%m%d")}.tsv'},
                                'download_hash': '9c5eff69085457758e3743d229ec46a1',
-                               'transform_hash': 'e772a805',
+                               'transform_hash': '9b197a54',
                                'table_rows': 10}
-        self.institution_report = {'path': test_fixtures_path('telescopes', 'jstor', 'institution_20210301.tsv'),
+        self.institution_report = {'path': test_fixtures_path('telescopes', 'jstor', 'institution_20210401.tsv'),
                                    'url': 'https://www.jstor.org/admin/reports/download/129518301',
                                    'headers': {'Content-Disposition': f'attachment; filename=PUB_{publisher_id}_PUBBIU_'
                                                                       f'{self.release_date.strftime("%Y%m%d")}.tsv'},
                                    'download_hash': '793ee70d9102d8dca3cace65cb00ecc3',
-                                   'transform_hash': '56cce6d5',
+                                   'transform_hash': '4a664f4d',
                                    'table_rows': 3}
 
     def test_dag_structure(self):
@@ -76,13 +76,13 @@ class TestJstor(ObservatoryTestCase):
         organisation = Organisation(name=self.organisation_name)
         dag = JstorTelescope(organisation, self.extra.get('publisher_id')).make_dag()
         self.assert_dag_structure({
-            'check_dependencies': ['list_releases'],
-            'list_releases': ['download'],
-            'download': ['upload_downloaded'],
+            'check_dependencies': ['list_reports'],
+            'list_reports': ['download_reports'],
+            'download_reports': ['upload_downloaded'],
             'upload_downloaded': ['transform'],
             'transform': ['upload_transformed'],
-            'upload_transformed': ['bq_load'],
-            'bq_load': ['cleanup'],
+            'upload_transformed': ['bq_load_partition'],
+            'bq_load_partition': ['cleanup'],
             'cleanup': []
         }, dag)
 
@@ -165,73 +165,73 @@ class TestJstor(ObservatoryTestCase):
                 for report in [self.country_report, self.institution_report]:
                     self.setup_mock_file_download(report['url'], report['path'], headers=report['headers'],
                                                   method=httpretty.HEAD)
-                ti = env.run_task(telescope.list_releases.__name__, dag, execution_date)
-            available_releases = ti.xcom_pull(key=JstorTelescope.RELEASE_INFO,
-                                              task_ids=telescope.list_releases.__name__, include_prior_dates=False)
-            self.assertIsInstance(available_releases, dict)
-            for release_date, reports_info in available_releases.items():
-                self.assertEqual(self.release_date, release_date)
-                self.assertIsInstance(reports_info, list)
-                expected_reports_info = [{'type': 'country',
-                                          'url': self.country_report['url'],
-                                          'id': '1788ec9e91f3de62'},
-                                         {'type': 'institution',
-                                          'url': self.institution_report['url'],
-                                          'id': '1788ebe4ecbab055'}]
-                self.assertListEqual(expected_reports_info, reports_info)
+                ti = env.run_task(telescope.list_reports.__name__, dag, execution_date)
+            available_reports = ti.xcom_pull(key=JstorTelescope.REPORTS_INFO,
+                                             task_ids=telescope.list_reports.__name__, include_prior_dates=False)
+            self.assertIsInstance(available_reports, list)
+            expected_reports_info = [{'type': 'country',
+                                      'url': self.country_report['url'],
+                                      'id': '1788ec9e91f3de62'},
+                                     {'type': 'institution',
+                                      'url': self.institution_report['url'],
+                                      'id': '1788ebe4ecbab055'}]
+            self.assertListEqual(expected_reports_info, available_reports)
 
-            # use release info for other tasks
-            releases = [JstorRelease(telescope.dag_id, release_date, reports_info, organisation)]
-
-            # Test download task
+            # Test download_reports task
             with httpretty.enabled():
                 for report in [self.country_report, self.institution_report]:
                     self.setup_mock_file_download(report['url'], report['path'], headers=report['headers'])
-                env.run_task(telescope.download.__name__, dag, execution_date)
-            for release in releases:
-                self.assertEqual(2, len(release.download_files))
-                for file in release.download_files:
-                    if 'country' in file:
-                        expected_file_hash = self.country_report['download_hash']
-                    else:
-                        expected_file_hash = self.institution_report['download_hash']
-                    self.assert_file_integrity(file, expected_file_hash, 'md5')
+                ti = env.run_task(telescope.download_reports.__name__, dag, execution_date)
+
+            # use release info for other tasks
+            available_releases = ti.xcom_pull(key=JstorTelescope.RELEASE_INFO,
+                                              task_ids=telescope.download_reports.__name__, include_prior_dates=False)
+            self.assertIsInstance(available_releases, dict)
+            self.assertEqual(1, len(available_releases))
+            for release_date, reports_info in available_releases.items():
+                self.assertEqual(self.release_date, release_date)
+                self.assertIsInstance(reports_info, list)
+                self.assertListEqual(expected_reports_info, reports_info)
+            release = JstorRelease(telescope.dag_id, release_date, reports_info, organisation)
+
+            self.assertEqual(2, len(release.download_files))
+            for file in release.download_files:
+                if 'country' in file:
+                    expected_file_hash = self.country_report['download_hash']
+                else:
+                    expected_file_hash = self.institution_report['download_hash']
+                self.assert_file_integrity(file, expected_file_hash, 'md5')
 
             # Test that file uploaded
             env.run_task(telescope.upload_downloaded.__name__, dag, execution_date)
-            for release in releases:
-                for file in release.download_files:
-                    self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
+            for file in release.download_files:
+                self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
 
             # Test that file transformed
             env.run_task(telescope.transform.__name__, dag, execution_date)
-            for release in releases:
-                self.assertEqual(2, len(release.transform_files))
-                for file in release.transform_files:
-                    if 'country' in file:
-                        expected_file_hash = self.country_report['transform_hash']
-                    else:
-                        expected_file_hash = self.institution_report['transform_hash']
-                    self.assert_file_integrity(file, expected_file_hash, 'gzip_crc')
+            self.assertEqual(2, len(release.transform_files))
+            for file in release.transform_files:
+                if 'country' in file:
+                    expected_file_hash = self.country_report['transform_hash']
+                else:
+                    expected_file_hash = self.institution_report['transform_hash']
+                self.assert_file_integrity(file, expected_file_hash, 'gzip_crc')
 
             # Test that transformed file uploaded
             env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
-            for release in releases:
-                for file in release.transform_files:
-                    self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
+            for file in release.transform_files:
+                self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
             # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load.__name__, dag, execution_date)
-            for release in releases:
-                for file in release.transform_files:
-                    table_id, _ = table_ids_from_path(file)
-                    table_id = f'{self.project_id}.{telescope.dataset_id}.' \
-                               f'{bigquery_sharded_table_id(table_id, release.release_date)}'
-                    if 'country' in file:
-                        expected_rows = self.country_report['table_rows']
-                    else:
-                        expected_rows = self.institution_report['table_rows']
-                    self.assert_table_integrity(table_id, expected_rows)
+            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
+            for file in release.transform_files:
+                table_id, _ = table_ids_from_path(file)
+                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
+                if 'country' in file:
+                    expected_rows = self.country_report['table_rows']
+                else:
+                    expected_rows = self.institution_report['table_rows']
+                self.assert_table_integrity(table_id, expected_rows)
 
             # Test that all telescope data deleted
             download_folder, extract_folder, transform_folder = release.download_folder, release.extract_folder, \

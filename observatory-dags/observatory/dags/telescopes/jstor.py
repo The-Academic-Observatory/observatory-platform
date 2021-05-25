@@ -23,10 +23,11 @@ import logging
 import os
 import os.path
 import os.path
+import shutil
 import time
 from collections import OrderedDict
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import pendulum
 import requests
@@ -34,14 +35,16 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models.taskinstance import TaskInstance
 from bs4 import BeautifulSoup, SoupStrainer
+from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import Resource, build
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import convert, list_to_jsonl_gz, make_dag_id
-from observatory.platform.utils.template_utils import upload_files_from_list, blob_name, table_ids_from_path, bq_load_shard_v2
+from observatory.platform.utils.telescope_utils import add_partition_date, convert, list_to_jsonl_gz, make_dag_id
+from observatory.platform.utils.template_utils import SubFolder, blob_name, bq_load_partition, \
+    table_ids_from_path, telescope_path, upload_files_from_list
 from pendulum import Pendulum
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
 
@@ -50,7 +53,7 @@ class JstorRelease(SnapshotRelease):
     def __init__(self, dag_id: str, release_date: Pendulum, reports_info: List[dict], organisation: Organisation):
         """ Construct a JstorRelease.
 
-        :param release_date: the release date.
+        :param release_date: the release date, corresponds to the last day of the month being processed..
         :param reports_info: list with report_type (country or institution) and url of reports
         """
 
@@ -91,16 +94,6 @@ class JstorRelease(SnapshotRelease):
         """
         return os.path.join(self.transform_folder, f"{JstorTelescope.DAG_ID_PREFIX}_{report_type}.jsonl.gz")
 
-    def download(self):
-        """ Downloads Google Books reports.
-
-        :return: the paths on the system of the downloaded files.
-        """
-        for report in self.reports_info:
-            url = report['url']
-            download_path = self.download_path(report['type'])
-            success = download_report(url, download_path)
-
     def transform(self):
         """ Transform a Jstor release into json lines format and gzip the result.
 
@@ -114,6 +107,7 @@ class JstorRelease(SnapshotRelease):
                     transformed_row = OrderedDict((convert(k), v) for k, v in row.items())
                     results.append(transformed_row)
 
+            results = add_partition_date(results, self.release_date, bigquery.TimePartitioningType.MONTH)
             report_type = 'country' if 'country' in file else 'institution'
             list_to_jsonl_gz(self.transform_path(report_type), results)
 
@@ -148,7 +142,7 @@ class JstorTelescope(SnapshotTelescope):
     Saved to the BigQuery tables: <project_id>.jstor.jstor_countryYYYYMMDD and
     <project_id>.jstor.jstor_institutionYYYYMMDD
     """
-
+    REPORTS_INFO = 'reports_info'
     DAG_ID_PREFIX = 'jstor'
     PROCESSED_LABEL_NAME = 'processed_report'
 
@@ -160,10 +154,10 @@ class JstorTelescope(SnapshotTelescope):
     MULTIPLIER = 10
 
     def __init__(self, organisation: Organisation, publisher_id: str, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2015, 9, 1), schedule_interval: str = '@monthly',
-                 dataset_id: str = 'jstor', source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
+                 start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly',
+                 dataset_id: str = 'jstor', source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
                  dataset_description: str = '', catchup: bool = False, airflow_vars: List = None,
-                 airflow_conns: List = None):
+                 airflow_conns: List = None, max_active_runs: int = 1):
         """ Construct a JstorTelescope instance.
         :param organisation: the Organisation of which data is processed.
         :param publisher_id: the publisher ID, obtained from the 'extra' info from the API regarding the telescope.
@@ -175,6 +169,7 @@ class JstorTelescope(SnapshotTelescope):
         :param dataset_description: description for the BigQuery dataset.
         :param catchup: whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
+        :param max_active_runs: the maximum number of DAG runs that can be run at once.
         """
 
         if airflow_vars is None:
@@ -188,18 +183,19 @@ class JstorTelescope(SnapshotTelescope):
 
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, source_format=source_format,
                          dataset_description=dataset_description, catchup=catchup, airflow_vars=airflow_vars,
-                         airflow_conns=airflow_conns)
+                         airflow_conns=airflow_conns, max_active_runs=max_active_runs)
         self.organisation = organisation
         self.project_id = organisation.gcp_project_id
         self.dataset_location = 'us'  # TODO: add to API
         self.publisher_id = publisher_id
 
-        self.add_setup_task_chain([self.check_dependencies, self.list_releases])
-        self.add_task_chain([self.download,
-                             self.upload_downloaded,
+        self.add_setup_task_chain([self.check_dependencies,
+                                   self.list_reports,
+                                   self.download_reports])
+        self.add_task_chain([self.upload_downloaded,
                              self.transform,
                              self.upload_transformed,
-                             self.bq_load,
+                             self.bq_load_partition,
                              self.cleanup])
 
     def make_release(self, **kwargs) -> List[JstorRelease]:
@@ -213,7 +209,7 @@ class JstorTelescope(SnapshotTelescope):
         """
 
         ti: TaskInstance = kwargs['ti']
-        available_releases = ti.xcom_pull(key=JstorTelescope.RELEASE_INFO, task_ids=self.list_releases.__name__,
+        available_releases = ti.xcom_pull(key=JstorTelescope.RELEASE_INFO, task_ids=self.download_reports.__name__,
                                           include_prior_dates=False)
         releases = []
         for release_date in available_releases:
@@ -232,38 +228,65 @@ class JstorTelescope(SnapshotTelescope):
             raise AirflowException(f"Publisher ID is not set in 'extra' of telescope, extra example: {expected_extra}")
         return True
 
-    def list_releases(self, **kwargs):
+    def list_reports(self, **kwargs) -> bool:
         """ Lists all Jstor releases for a given month and publishes their report_type, download_url and
         release_date's as an XCom.
 
         :param kwargs: the context passed from the BranchPythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
-        :return: the identifier of the task to execute next.
+        :return: Whether to continue the DAG
         """
 
         service = create_gmail_service()
         label_id = get_label_id(service, self.PROCESSED_LABEL_NAME)
-        available_releases = list_available_releases(service, self.publisher_id, label_id)
+        available_reports = list_reports(service, self.publisher_id, label_id)
 
-        continue_dag = len(available_releases)
+        continue_dag = len(available_reports) > 0
         if continue_dag:
             # Push messages
             ti: TaskInstance = kwargs['ti']
-            ti.xcom_push(JstorTelescope.RELEASE_INFO, available_releases)
+            ti.xcom_push(JstorTelescope.REPORTS_INFO, available_reports)
 
         return continue_dag
 
-    def download(self, releases: List[JstorRelease], **kwargs):
-        """ Task to download the Jstor releases for a given month.
+    def download_reports(self, **kwargs) -> bool:
+        """ Download the JSTOR reports based on the list with available reports.
+        The release date for each report is only known after downloading the report. Therefore they are first
+        downloaded to a temporary location, afterwards the release info can be pushed as an xcom and the report is
+        moved to the correct location.
 
-        :param releases: a list of Jstor releases.
-        :return: None.
+        :param kwargs: the context passed from the BranchPythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: Whether to continue the DAG (always True)
         """
+        ti: TaskInstance = kwargs['ti']
+        available_reports = ti.xcom_pull(key=JstorTelescope.REPORTS_INFO, task_ids=self.list_reports.__name__,
+                                         include_prior_dates=False)
+        reports_folder = telescope_path(SubFolder.downloaded.value, self.dag_id, 'tmp_reports')
+        available_releases = {}
+        for report in available_reports:
+            # Download report to temporary file
+            url = report['url']
+            tmp_download_path = os.path.join(reports_folder, 'report.tsv')
+            download_report(url, tmp_download_path)
 
-        # Download each release
-        for release in releases:
-            release.download()
+            # Get the release date
+            release_date = get_release_date(tmp_download_path)
+
+            # Create temporarily release and move report to correct path
+            release = JstorRelease(self.dag_id, release_date, [report], self.organisation)
+            shutil.move(tmp_download_path, release.download_path(report['type']))
+
+            # Add reports to list with available releases
+            try:
+                available_releases[release_date].append(report)
+            except KeyError:
+                available_releases[release_date] = [report]
+
+        ti.xcom_push(JstorTelescope.RELEASE_INFO, available_releases)
+        return True
 
     def upload_downloaded(self, releases: List[JstorRelease], **kwargs):
         """ Task to upload the downloaded Jstor releases for a given month.
@@ -287,10 +310,9 @@ class JstorTelescope(SnapshotTelescope):
         for release in releases:
             release.transform()
 
-    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
+    def bq_load_partition(self, releases: List[JstorRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
-
         :param releases: a list of releases.
         :return: None.
         """
@@ -300,11 +322,14 @@ class JstorTelescope(SnapshotTelescope):
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
+                table_description = self.table_descriptions.get(table_id, '')
 
-                bq_load_shard_v2(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
-                                 self.dataset_location, table_id, release.release_date, self.source_format,
-                                 prefix=self.schema_prefix, schema_version=self.schema_version,
-                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+                bq_load_partition(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                  self.dataset_location, table_id, release.release_date, self.source_format,
+                                  bigquery.table.TimePartitioningType.MONTH, prefix=self.schema_prefix,
+                                  schema_version=self.schema_version, dataset_description=self.dataset_description,
+                                  table_description=table_description, **self.load_bigquery_table_kwargs)
+
 
 def create_headers(url: str) -> dict:
     """ Create a headers dict that can be used to make a request
@@ -353,7 +378,7 @@ def get_header_info(url: str) -> [str, str]:
                                                                      exp_base=JstorTelescope.EXP_BASE,
                                                                      max=JstorTelescope.MAX_WAIT_TIME),
        )
-def download_report(url: str, download_path: str) -> bool:
+def download_report(url: str, download_path: str):
     """ Download report from url to a file.
 
     :param url: Download url
@@ -371,7 +396,32 @@ def download_report(url: str, download_path: str) -> bool:
     content = response.content.decode('utf-8')
     with open(download_path, 'w') as f:
         f.write(content)
-    return True
+
+
+def get_release_date(report_path: str) -> pendulum:
+    """ Get the release date from the "Usage Month" column in the first row of the report.
+    Also checks if the reports contains data from the same month only.
+
+    :param report_path: The path to the JSTOR report
+    :return: The release date, defaults to end of the month
+    """
+    # Load report data into list of dicts
+    with open(report_path) as tsv_file:
+        csv_list = list(csv.DictReader(tsv_file, delimiter='\t'))
+
+    # get the first and last usage month
+    first_usage_month = csv_list[0]['Usage Month']
+    last_usage_month = csv_list[-1]['Usage Month']
+
+    # check that month in first and last row are the same
+    if first_usage_month != last_usage_month:
+        logging.info(f"Report contains data from more than 1 month, start month: {first_usage_month}, "
+                     f"end month: {last_usage_month}")
+
+    # get the release date from the last usage month
+    release_date = pendulum.strptime(last_usage_month, '%Y-%m').end_of('month')
+
+    return release_date
 
 
 def create_gmail_service() -> Resource:
@@ -425,8 +475,7 @@ def message_has_label(message: dict, label_id: str) -> bool:
             return True
 
 
-def list_available_releases(service: Resource, publisher_id: str, processed_label_id: str) -> Dict[
-    Pendulum, List[dict]]:
+def list_reports(service: Resource, publisher_id: str, processed_label_id: str) -> List[dict]:
     """ List the available releases by going through the messages of a gmail account and looking for a specific pattern.
 
     If a message has been processed previously it has a specific label, messages with this label will be skipped.
@@ -440,7 +489,7 @@ def list_available_releases(service: Resource, publisher_id: str, processed_labe
     and/or institution reports.
     """
 
-    available_releases = {}
+    available_reports = []
     # list messages with specific query
     results = service.users().messages().list(userId='me', q='subject:"JSTOR Publisher Report Available"',
                                               labelIds=["INBOX"]).execute()
@@ -479,27 +528,16 @@ def list_available_releases(service: Resource, publisher_id: str, processed_labe
         if report_type is None:
             logging.info(f"Skipping unrecognized report type, filename {filename}")
 
-        # get release date
-        release_date = pendulum.parse(filename.split('_')[-1])
-
         # check format
         if extension != 'tsv':
             raise AirflowException(f'File "{filename}.{extension}" does not have ".tsv" extension')
 
         # add report info
-        try:
-            available_releases[release_date].append({
-                'type': report_type,
-                'url': download_url,
-                'id': message_id
-            })
-        except KeyError:
-            available_releases[release_date] = [{
-                'type': report_type,
-                'url': download_url,
-                'id': message_id
-            }]
+        available_reports.append({
+            'type': report_type,
+            'url': download_url,
+            'id': message_id
+        })
 
-        logging.info(f'Processing report. Report type: {report_type}, release date: '
-                     f'{release_date}, url: {download_url}, message id: {message_id}.')
-    return available_releases
+        logging.info(f'Processing report. Report type: {report_type}, url: {download_url}, message id: {message_id}.')
+    return available_reports

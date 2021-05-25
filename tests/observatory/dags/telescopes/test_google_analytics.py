@@ -17,7 +17,7 @@
 import gzip
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pendulum
@@ -30,7 +30,7 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
 from observatory.dags.telescopes.google_analytics import GoogleAnalyticsRelease, GoogleAnalyticsTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
 
 
@@ -62,8 +62,8 @@ class TestGoogleAnalytics(ObservatoryTestCase):
             {
                 "check_dependencies": ["download_transform"],
                 "download_transform": ["upload_transformed"],
-                "upload_transformed": ["bq_load"],
-                "bq_load": ["cleanup"],
+                "upload_transformed": ["bq_load_partition"],
+                "bq_load_partition": ["cleanup"],
                 "cleanup": [],
             },
             dag,
@@ -119,7 +119,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
         dataset_id = env.add_dataset()
 
         # Setup Telescope
-        execution_date = pendulum.datetime(year=2021, month=4, day=1)
+        execution_date = pendulum.datetime(year=2020, month=4, day=1)
         organisation = Organisation(
             name=self.organisation_name,
             gcp_project_id=self.project_id,
@@ -149,11 +149,12 @@ class TestGoogleAnalytics(ObservatoryTestCase):
             # Use release to check tasks
             cron_schedule = dag.normalized_schedule_interval
             cron_iter = croniter(cron_schedule, execution_date)
-            end_date = pendulum.instance(cron_iter.get_next(datetime))
+            end_date = pendulum.instance(cron_iter.get_next(datetime)) - timedelta(days=1)
             release = GoogleAnalyticsRelease(telescope.dag_id, execution_date, end_date, organisation)
 
             # Test download_transform task
             env.run_task(telescope.download_transform.__name__, dag, execution_date)
+            self.assertEqual(1, len(release.transform_files))
             for file in release.transform_files:
                 self.assertTrue(os.path.isfile(file))
                 # Use frozenset to test results are as expected, many dict transformations re-order items in dict
@@ -161,43 +162,35 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                 with gzip.open(file, "rb") as f:
                     for line in f:
                         actual_list.append(json.loads(line))
-                expected_list = [
-                    {
-                        "url": "/base/path/151420",
-                        "title": "Anything public program drive north.",
-                        "start_date": "2021-04-01",
-                        "end_date": "2021-05-01",
-                        "average_time": 59.5,
-                        "unique_views": {
-                            "country": [{"name": "country 1", "value": 3}, {"name": "country 2", "value": 3}],
-                            "referrer": [{"name": "referrer 1", "value": 3}, {"name": "referrer 2", "value": 3}],
-                            "social_network": [
-                                {"name": "social_network 1", "value": 3},
-                                {"name": "social_network 2", "value": 3},
-                            ],
-                        },
-                        "sessions": {
-                            "country": [{"name": "country 1", "value": 1}, {"name": "country 2", "value": 1}],
-                            "source": [{"name": "source 1", "value": 1}, {"name": "source 2", "value": 1}],
-                        },
-                    },
-                    {
-                        "url": "/base/path/833557",
-                        "title": "Standard current never no.",
-                        "start_date": "2021-04-01",
-                        "end_date": "2021-05-01",
-                        "average_time": 44.2,
-                        "unique_views": {
-                            "country": [{"name": "country 2", "value": 2}, {"name": "country 1", "value": 1}],
-                            "referrer": [{"name": "referrer 1", "value": 1}, {"name": "referrer 2", "value": 2}],
-                            "social_network": [
-                                {"name": "social_network 2", "value": 2},
-                                {"name": "social_network 1", "value": 1},
-                            ],
-                        },
-                        "sessions": {"country": [], "source": []},
-                    },
-                ]
+                expected_list = [{'url': '/base/path/151420',
+                                  'title': 'Anything public program drive north.',
+                                  'start_date': '2020-04-01',
+                                  'end_date': '2020-04-30',
+                                  'release_date': '2020-04-30',
+                                  'average_time': 59.5,
+                                  'unique_views': {
+                                      'country': [{'name': 'country 1', 'value': 3}, {'name': 'country 2', 'value': 3}],
+                                      'referrer': [{'name': 'referrer 1', 'value': 3},
+                                                   {'name': 'referrer 2', 'value': 3}],
+                                      'social_network': [{'name': 'social_network 1', 'value': 3},
+                                                         {'name': 'social_network 2', 'value': 3}]},
+                                  'sessions': {'country': [{'name': 'country 1', 'value': 1},
+                                                           {'name': 'country 2', 'value': 1}],
+                                               'source': [{'name': 'source 1', 'value': 1},
+                                                          {'name': 'source 2', 'value': 1}]}},
+                                 {'url': '/base/path/833557',
+                                  'title': 'Standard current never no.',
+                                  'start_date': '2020-04-01',
+                                  'end_date': '2020-04-30',
+                                  'release_date': '2020-04-30',
+                                  'average_time': 44.2,
+                                  'unique_views': {
+                                      'country': [{'name': 'country 2', 'value': 2}, {'name': 'country 1', 'value': 1}],
+                                      'referrer': [{'name': 'referrer 1', 'value': 1},
+                                                   {'name': 'referrer 2', 'value': 2}],
+                                      'social_network': [{'name': 'social_network 2', 'value': 2},
+                                                         {'name': 'social_network 1', 'value': 1}]},
+                                  'sessions': {'country': [], 'source': []}}]
                 self.assertEqual(frozenset(expected_list[0]), frozenset(actual_list[0]))
                 self.assertEqual(frozenset(expected_list[1]), frozenset(actual_list[1]))
                 self.assertEqual(2, len(actual_list))
@@ -208,13 +201,10 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                 self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
             # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load.__name__, dag, execution_date)
+            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
             for file in release.transform_files:
                 table_id, _ = table_ids_from_path(file)
-                table_id = (
-                    f"{self.project_id}.{telescope.dataset_id}."
-                    f"{bigquery_sharded_table_id(telescope.DAG_ID_PREFIX, release.end_date)}"
-                )
+                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
                 expected_rows = 2
                 self.assert_table_integrity(table_id, expected_rows)
 

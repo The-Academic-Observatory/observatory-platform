@@ -18,36 +18,37 @@
 import csv
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Tuple, Optional
 
 import pendulum
 from airflow.exceptions import AirflowException
+from google.cloud import bigquery
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, make_dag_id
-from observatory.platform.utils.template_utils import upload_files_from_list, blob_name, bq_load_shard_v2, \
-    table_ids_from_path
+from observatory.platform.utils.telescope_utils import add_partition_date, list_to_jsonl_gz, make_dag_id
+from observatory.platform.utils.template_utils import upload_files_from_list, blob_name, \
+    bq_load_partition, table_ids_from_path
 from observatory.platform.utils.url_utils import retry_session
 
 
 class UclDiscoveryRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, release_date: pendulum.Pendulum,
+    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum,
                  organisation: Organisation):
         """ Construct a UclDiscoveryRelease instance.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the download period.
-        :param release_date: the end date of the download period, also used as release date for BigQuery table and
+        :param end_date: the end date of the download period, also used as release date for BigQuery table and
         file paths.
         :param organisation: the Organisation of which data is processed.
         """
-        super().__init__(dag_id, release_date)
+        super().__init__(dag_id, end_date)
 
         self.dag_id_prefix = UclDiscoveryTelescope.DAG_ID_PREFIX
         self.organisation = organisation
         self.start_date = start_date
-        self.end_date = release_date
+        self.end_date = end_date
 
         self.eprint_metadata_url = 'https://discovery.ucl.ac.uk/cgi/search/archive/advanced/export_discovery_CSV.csv?' \
                                    'screen=Search&dataset=archive&_action_export=1&output=CSV' \
@@ -198,6 +199,7 @@ class UclDiscoveryRelease(SnapshotRelease):
                                         single_row_columns)
             results.append(result)
 
+        results = add_partition_date(results, self.release_date, bigquery.TimePartitioningType.MONTH)
         # Write list into gzipped JSON Lines file
         list_to_jsonl_gz(self.transform_path, results)
 
@@ -236,7 +238,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
                              self.upload_downloaded,
                              self.transform,
                              self.upload_transformed,
-                             self.bq_load,
+                             self.bq_load_partition,
                              self.cleanup])
 
     def make_release(self, **kwargs) -> List[UclDiscoveryRelease]:
@@ -250,11 +252,11 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         :return: A list with one ucldiscovery release instance.
         """
 
-        # Get start and end date (release_date)
+        # Get start and end date (end_date = release_date)
         start_date = kwargs['execution_date']
-        end_date = kwargs['next_execution_date']
+        end_date = kwargs['next_execution_date'] - timedelta(days=1)
 
-        logging.info(f'Start date: {start_date}, end date:{end_date}')
+        logging.info(f'Start date: {start_date}, end date:{end_date}, release date: {end_date}')
         releases = [UclDiscoveryRelease(self.dag_id, start_date, end_date, self.organisation)]
         return releases
 
@@ -285,10 +287,9 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         for release in releases:
             release.transform()
 
-    def bq_load(self, releases: List[UclDiscoveryRelease], **kwargs):
+    def bq_load_partition(self, releases: List[UclDiscoveryRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
-
         :param releases: a list of releases.
         :return: None.
         """
@@ -298,11 +299,13 @@ class UclDiscoveryTelescope(SnapshotTelescope):
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
+                table_description = self.table_descriptions.get(table_id, '')
 
-                bq_load_shard_v2(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
-                                 self.dataset_location, table_id, release.release_date, self.source_format,
-                                 prefix=self.schema_prefix, schema_version=self.schema_version,
-                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+                bq_load_partition(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                  self.dataset_location, table_id, release.release_date, self.source_format,
+                                  bigquery.table.TimePartitioningType.MONTH, prefix=self.schema_prefix,
+                                  schema_version=self.schema_version, dataset_description=self.dataset_description,
+                                  table_description=table_description, **self.load_bigquery_table_kwargs)
 
 
 def get_downloads_per_country(countries_url: str) -> Tuple[List[dict], int]:

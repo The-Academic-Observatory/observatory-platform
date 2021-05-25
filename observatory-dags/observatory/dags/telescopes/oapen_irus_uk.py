@@ -14,6 +14,7 @@
 
 # Author: Aniek Roelofs
 
+import gzip
 import json
 import logging
 import os
@@ -28,6 +29,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from google.auth import environment_vars
 from google.auth.transport.requests import AuthorizedSession
+from google.cloud import bigquery
 from google.oauth2.service_account import IDTokenCredentials
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
@@ -40,8 +42,9 @@ from observatory.platform.utils.gc_utils import copy_blob_from_cloud_storage, \
     create_cloud_storage_bucket, \
     download_blob_from_cloud_storage, \
     upload_file_to_cloud_storage
-from observatory.platform.utils.telescope_utils import make_dag_id, make_org_id
-from observatory.platform.utils.template_utils import SubFolder, blob_name, telescope_path
+from observatory.platform.utils.telescope_utils import make_dag_id, make_org_id, add_partition_date, list_to_jsonl_gz
+from observatory.platform.utils.template_utils import SubFolder, blob_name, telescope_path, bq_load_partition, \
+    table_ids_from_path
 
 
 class OapenIrusUkRelease(SnapshotRelease):
@@ -176,6 +179,16 @@ class OapenIrusUkRelease(SnapshotRelease):
         if not success:
             raise AirflowException('Download blob unsuccessful')
 
+        # Read gzipped data and create list of dicts
+        with gzip.open(self.transform_path, 'r') as f:
+            results = [json.loads(line) for line in f]
+
+        # Add partition date
+        results = add_partition_date(results, self.release_date, bigquery.TimePartitioningType.MONTH)
+
+        # Write list into gzipped JSON Lines file
+        list_to_jsonl_gz(self.transform_path, results)
+
 
 class OapenIrusUkTelescope(SnapshotTelescope):
     DAG_ID_PREFIX = 'oapen_irus_uk'
@@ -185,13 +198,13 @@ class OapenIrusUkTelescope(SnapshotTelescope):
     FUNCTION_NAME = 'oapen_access_stats'  # Name of the google cloud function
     FUNCTION_REGION = 'europe-west1'  # Region of the google cloud function
     FUNCTION_SOURCE_URL = 'https://github.com/The-Academic-Observatory/oapen-irus-uk-cloud-function/releases/' \
-                          'download/v1.0.1/oapen-irus-uk-cloud-function.zip'  # URL to the zipped source code of the cloud function
-    FUNCTION_MD5_HASH = 'a273d1b547e221a8d2165c5ac956e942'  # MD5 hash of the zipped source code
+                          'download/v1.0.2/oapen-irus-uk-cloud-function.zip'  # URL to the zipped source code of the cloud function
+    FUNCTION_MD5_HASH = '650c77ab0501819ee0522761c0275c5a'  # MD5 hash of the zipped source code
     FUNCTION_BLOB_NAME = 'cloud_function_source_code.zip'  # blob name of zipped source code
     OAPEN_API_URL = 'https://library.oapen.org/rest/search?query=publisher.name:{publisher_name}&expand=metadata'
 
     def __init__(self, organisation: Organisation, publisher_id: str, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2020, 2, 1), schedule_interval: str = '@monthly',
+                 start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly',
                  dataset_id: str = 'oapen', dataset_description: str = 'Oapen dataset', catchup: bool = True,
                  airflow_vars: List = None, airflow_conns: List = None, max_active_runs=5):
 
@@ -223,6 +236,8 @@ class OapenIrusUkTelescope(SnapshotTelescope):
                          catchup=catchup, airflow_vars=airflow_vars, airflow_conns=airflow_conns,
                          max_active_runs=max_active_runs)
         self.organisation = organisation
+        self.project_id = organisation.gcp_project_id
+        self.dataset_location = 'us'  # TODO: add to API
         self.publisher_id = publisher_id
 
         self.add_setup_task(self.check_dependencies)
@@ -232,7 +247,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         self.add_task(self.transfer)
         self.add_task(self.download_transform)
         self.add_task(self.upload_transformed)
-        self.add_task(self.bq_load)
+        self.add_task(self.bq_load_partition)
         self.add_task(self.cleanup)
 
     def make_release(self, **kwargs) -> List[OapenIrusUkRelease]:
@@ -241,9 +256,9 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         :return: list of OapenIrusUkRelease instances
         """
         # Get release_date
-        release_date = pendulum.instance(kwargs['execution_date'])
+        release_date = pendulum.instance(kwargs['execution_date']).end_of('month')
 
-        logging.info(f'Release month: {release_date}')
+        logging.info(f'Release date: {release_date}')
         releases = [OapenIrusUkRelease(self.dag_id, release_date, self.organisation)]
         return releases
 
@@ -293,6 +308,26 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         """
         for release in releases:
             release.download_transform()
+
+    def bq_load_partition(self, releases: List[OapenIrusUkRelease], **kwargs):
+        """ Task to load each transformed release to BigQuery.
+        The table_id is set to the file name without the extension.
+        :param releases: a list of releases.
+        :return: None.
+        """
+
+        # Load each transformed release
+        for release in releases:
+            for transform_path in release.transform_files:
+                transform_blob = blob_name(transform_path)
+                table_id, _ = table_ids_from_path(transform_path)
+                table_description = self.table_descriptions.get(table_id, '')
+
+                bq_load_partition(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                  self.dataset_location, table_id, release.release_date, self.source_format,
+                                  bigquery.table.TimePartitioningType.MONTH, prefix=self.schema_prefix,
+                                  schema_version=self.schema_version, dataset_description=self.dataset_description,
+                                  table_description=table_description, **self.load_bigquery_table_kwargs)
 
 
 def get_publisher_uuid(publisher_name: str) -> str:

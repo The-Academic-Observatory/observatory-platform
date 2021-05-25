@@ -186,5 +186,11 @@
         "type": "STRING"
       }
     ]
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "release_date",
+    "type": "DATE",
+    "description": "Last day of the release month. Table is partitioned on this column."
   }
 ]

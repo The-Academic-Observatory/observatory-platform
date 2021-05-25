@@ -14,25 +14,27 @@
 
 # Author: Aniek Roelofs
 
-import vcr
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pendulum
+import vcr
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
+from click.testing import CliRunner
 from croniter import croniter
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
+from observatory.dags.telescopes.ucl_discovery import UclDiscoveryRelease, UclDiscoveryTelescope, \
+    get_downloads_per_country
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
-from observatory.dags.telescopes.ucl_discovery import UclDiscoveryRelease, UclDiscoveryTelescope, get_downloads_per_country
-from tests.observatory.test_utils import test_fixtures_path
-from click.testing import CliRunner
 from requests.exceptions import RetryError
+
+from tests.observatory.test_utils import test_fixtures_path
 
 
 class TestUclDiscovery(ObservatoryTestCase):
@@ -53,9 +55,9 @@ class TestUclDiscovery(ObservatoryTestCase):
         self.metadata_cassette = os.path.join(test_fixtures_path("vcr_cassettes", "ucl_discovery"),
                                               'metadata.yaml')
         self.country_cassette = os.path.join(test_fixtures_path("vcr_cassettes", "ucl_discovery"),
-                                              'country.yaml')
+                                             'country.yaml')
         self.download_hash = '8ae68aa5a455a1835fd906665746ee8c'
-        self.transform_hash = '89704b88'
+        self.transform_hash = '5a552603'
 
     def test_dag_structure(self):
         """Test that the UCL Discovery DAG has the correct structure.
@@ -69,8 +71,8 @@ class TestUclDiscovery(ObservatoryTestCase):
                 "download": ["upload_downloaded"],
                 "upload_downloaded": ["transform"],
                 "transform": ["upload_transformed"],
-                "upload_transformed": ["bq_load"],
-                "bq_load": ["cleanup"],
+                "upload_transformed": ["bq_load_partition"],
+                "bq_load_partition": ["cleanup"],
                 "cleanup": [],
             },
             dag,
@@ -113,7 +115,6 @@ class TestUclDiscovery(ObservatoryTestCase):
         """Test the UCL Discovery telescope end to end.
         :return: None.
         """
-
         mock_downloads_per_country.return_value = [{'country_code': 'MX', 'country_name': 'Mexico',
                                                     'download_count': 10},
                                                    {'country_code': 'US', 'country_name': 'United States',
@@ -144,9 +145,9 @@ class TestUclDiscovery(ObservatoryTestCase):
             conn = Connection(
                 conn_id=AirflowConns.OAEBU_SERVICE_ACCOUNT,
                 uri=f"google-cloud-platform://?type=service_account&private_key_id=private_key_id"
-                f"&private_key=private_key"
-                f"&client_email=client_email"
-                f"&client_id=client_id",
+                    f"&private_key=private_key"
+                    f"&client_email=client_email"
+                    f"&client_id=client_id",
             )
             env.add_connection(conn)
 
@@ -156,7 +157,7 @@ class TestUclDiscovery(ObservatoryTestCase):
             # Use release to check tasks
             cron_schedule = dag.normalized_schedule_interval
             cron_iter = croniter(cron_schedule, execution_date)
-            end_date = pendulum.instance(cron_iter.get_next(datetime))
+            end_date = pendulum.instance(cron_iter.get_next(datetime)) - timedelta(days=1)
             release = UclDiscoveryRelease(telescope.dag_id, execution_date, end_date, organisation)
 
             # Test download
@@ -172,7 +173,6 @@ class TestUclDiscovery(ObservatoryTestCase):
                 self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
 
             # Test that file transformed
-            # with vcr.use_cassette(self.country_cassette):
             env.run_task(telescope.transform.__name__, dag, execution_date)
             self.assertEqual(1, len(release.transform_files))
             for file in release.transform_files:
@@ -184,12 +184,10 @@ class TestUclDiscovery(ObservatoryTestCase):
                 self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
             # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load.__name__, dag, execution_date)
+            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
             for file in release.transform_files:
                 table_id, _ = table_ids_from_path(file)
-                table_id = f"{self.project_id}.{telescope.dataset_id}." \
-                           f"{bigquery_sharded_table_id(telescope.DAG_ID_PREFIX, release.end_date)}"
-
+                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
                 expected_rows = 519
                 self.assert_table_integrity(table_id, expected_rows)
 
@@ -243,7 +241,7 @@ class TestUclDiscovery(ObservatoryTestCase):
             # test retry error
             mock_retry_session.side_effect = RetryError()
             with self.assertRaises(RetryError):
-               release.download()
+                release.download()
 
     def test_get_downloads_per_country(self):
         """ Test get_downloads_per_country function.

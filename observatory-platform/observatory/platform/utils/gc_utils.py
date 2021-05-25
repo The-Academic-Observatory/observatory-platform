@@ -153,15 +153,15 @@ def load_bigquery_table(
     location: str,
     table: str,
     schema_file_path: str,
-    source_format: str,
+    source_format: SourceFormat,
     csv_field_delimiter: str = ",",
     csv_quote_character: str = '"',
     csv_allow_quoted_newlines: bool = False,
     csv_skip_leading_rows: int = 0,
     partition: bool = False,
     partition_field: Union[None, str] = None,
-    partition_type: str = bigquery.TimePartitioningType.DAY,
-    require_partition_filter=True,
+    partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
+    require_partition_filter=False,
     write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE,
     table_description: str = "",
     project_id: str = None,
@@ -236,8 +236,9 @@ def load_bigquery_table(
     if cluster:
         job_config.clustering_fields = clustering_fields
 
+    load_job = None
     try:
-        load_job: LoadJob = client.load_table_from_uri(
+        load_job: [LoadJob, None] = client.load_table_from_uri(
             uri, dataset.table(table), location=location, job_config=job_config
         )
 
@@ -246,7 +247,9 @@ def load_bigquery_table(
 
         logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
     except BadRequest as e:
-        logging.error(f"{func_name}: load bigquery table failed: {e}.\nError collection:\n{load_job.errors}")
+        logging.error(f"{func_name}: load bigquery table failed: {e}.")
+        if load_job:
+            logging.error(f"Error collection:\n{load_job.errors}")
         state = False
 
     return state
