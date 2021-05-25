@@ -22,14 +22,18 @@ from datetime import datetime
 from typing import List, Optional
 
 import pendulum
+from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
+from google.cloud import bigquery
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import SftpFolders, convert, list_to_jsonl_gz, make_dag_id, \
+from observatory.platform.utils.telescope_utils import SftpFolders, add_partition_date, convert, list_to_jsonl_gz, \
+    make_dag_id, \
     make_sftp_connection
-from observatory.platform.utils.template_utils import blob_name, bq_load_shard_v2, table_ids_from_path, \
-    upload_files_from_list
+from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.template_utils import blob_name, bq_load_partition, \
+    table_ids_from_path
 
 
 class GoogleBooksRelease(SnapshotRelease):
@@ -37,7 +41,7 @@ class GoogleBooksRelease(SnapshotRelease):
         """ Construct a GoogleBooksRelease.
 
         :param dag_id: the DAG id.
-        :param release_date: the release date.
+        :param release_date: the release date, corresponds to the last day of the month being processed.
         :param sftp_files: List of full filepaths to download from sftp service (incl. in_progress folder)
         :param organisation: the Organisation.
         """
@@ -107,9 +111,19 @@ class GoogleBooksRelease(SnapshotRelease):
                 for row in csv_reader:
                     transformed_row = OrderedDict((convert(k.replace('%', 'Perc')), v) for k, v in row.items())
                     if 'sales' in file:
+                        transaction_date = datetime.strptime(transformed_row['Transaction_Date'], '%m/%d/%y')
+
+                        # sanity check that transaction date is in month of release date
+                        if self.release_date.start_of('month') <= transaction_date <= self.release_date.end_of('month'):
+                            pass
+                        else:
+                            raise AirflowException('Transaction date does not fall within release month. '
+                                                   f"Transaction date: {transaction_date.strftime('%Y-%m-%d')}, "
+                                                   f"release month: {self.release_date.strftime('%Y-%m')}")
+
                         # transform to valid date format
-                        transformed_row['Transaction_Date'] = pendulum.parse(
-                            transformed_row['Transaction_Date']).to_date_string()
+                        transformed_row['Transaction_Date'] = transaction_date.strftime('%Y-%m-%d')
+
                         # remove percentage sign
                         transformed_row['Publisher_Revenue_Perc'] = transformed_row['Publisher_Revenue_Perc'].strip('%')
                         # this field is not present for some publishers (UCL Press), for ANU Press the field value is
@@ -123,6 +137,7 @@ class GoogleBooksRelease(SnapshotRelease):
                         transformed_row['Buy_Link_CTR'] = transformed_row['Buy_Link_CTR'].strip('%')
 
                     results.append(transformed_row)
+            results = add_partition_date(results, self.release_date, bigquery.TimePartitioningType.MONTH)
             list_to_jsonl_gz(self.transform_path(file), results)
 
 
@@ -131,9 +146,8 @@ class GoogleBooksTelescope(SnapshotTelescope):
     DAG_ID_PREFIX = 'google_books'
 
     def __init__(self, organisation: Organisation, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2020, 1, 1),
-                 schedule_interval: str = '@monthly', dataset_id: str = 'google', catchup: bool = False,
-                 airflow_vars=None, airflow_conns=None):
+                 start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly', dataset_id: str =
+                 'google', catchup: bool = False, airflow_vars=None, airflow_conns=None):
         """ Construct a GoogleBooksTelescope instance.
 
         :param organisation: the Organisation the DAG will process.
@@ -167,7 +181,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
                              self.upload_downloaded,
                              self.transform,
                              self.upload_transformed,
-                             self.bq_load,
+                             self.bq_load_partition,
                              self.move_files_to_finished,
                              self.cleanup])
 
@@ -205,7 +219,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
             for file_name in files:
                 if re.match(self.sftp_regex, file_name):
                     date_str = file_name[-11:].strip('.csv')
-                    release_date = pendulum.strptime(date_str, '%Y_%m')
+                    release_date = pendulum.strptime(date_str, '%Y_%m').end_of('month')
                     sftp_file = os.path.join(self.sftp_folders.in_progress, file_name)
                     release_info[release_date].append(sftp_file)
 
@@ -257,7 +271,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
         for release in releases:
             release.transform()
 
-    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
+    def bq_load_partition(self, releases: List[GoogleBooksRelease], **kwargs):
         """ Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
         :param releases: a list of releases.
@@ -269,11 +283,13 @@ class GoogleBooksTelescope(SnapshotTelescope):
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
+                table_description = self.table_descriptions.get(table_id, '')
 
-                bq_load_shard_v2(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
-                                 self.dataset_location, table_id, release.release_date, self.source_format,
-                                 prefix=self.schema_prefix, schema_version=self.schema_version,
-                                 dataset_description=self.dataset_description, **self.load_bigquery_table_kwargs)
+                bq_load_partition(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
+                                  self.dataset_location, table_id, release.release_date, self.source_format,
+                                  bigquery.table.TimePartitioningType.MONTH, prefix=self.schema_prefix,
+                                  schema_version=self.schema_version, dataset_description=self.dataset_description,
+                                  table_description=table_description, **self.load_bigquery_table_kwargs)
 
     def move_files_to_finished(self, releases: List[GoogleBooksRelease], **kwargs):
         """ Move Google Books files to SFTP finished folder.

@@ -40,10 +40,10 @@ import pysftp
 from airflow.hooks.base_hook import BaseHook
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
+from google.cloud import bigquery
 from observatory.api.client.api.observatory_api import ObservatoryApi
 from observatory.api.client.api_client import ApiClient
 from observatory.api.client.configuration import Configuration
-from observatory.api.server.api import Response
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
@@ -651,3 +651,27 @@ def upload_telescope_file_list(bucket_name: str, inst_id: str, telescope_path: s
         blob_list.append(blob_name)
         upload_file_to_cloud_storage(bucket_name, blob_name, file_path=file)
     return blob_list
+
+
+def add_partition_date(list_of_dicts: List[dict], partition_date: datetime,
+                       partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
+                       partition_field: str = 'release_date'):
+    """ Add a partition date key/value pair to each dictionary in the list of dicts.
+    Used to load data into a BigQuery partition.
+
+    :param list_of_dicts: List of dictionaries with original data
+    :param partition_date: The partition date
+    :param partition_type: The partition type
+    :param partition_field: The name of the partition field in the BigQuery table
+    :return: Updated list of dicts with partition dates
+    """
+    if partition_type == bigquery.TimePartitioningType.HOUR:
+        partition_date = partition_date.isoformat()
+    else:
+        partition_date = partition_date.strftime('%Y-%m-%d')
+
+    for entry in list_of_dicts:
+        entry[partition_field] = partition_date
+    return list_of_dicts
+
+

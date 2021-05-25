@@ -286,24 +286,29 @@ if __name__ == '__main__':
 See the [google support answer](https://support.google.com/googleapi/answer/6158841?hl=en) for info on how to enable an API.
 Search for the Gmail API and enable this.
 
-### Creating the Gmail API connection and credentials
-* Set-up google cloud project to use Gmail account.  
-    If the Gmail account is part of the same organization (e.g. using a g-suite account):  
-    *  In the IAM section add the Gmail account you want to use as a user.
-  
-    If the Gmail account is not part of the same organization (e.g. regular account@gmail.com):  
-    *  Make the project external from the 'APIs & Services' section and 'OAuth consent screen' subsection.
-    *  In the same subsection, add the Gmail account you want to use as a test user.
-  
-*  Create OAuth credentials from the 'APIs & Services' section and Credentials subsection.
-    *  Application type: Web application
-    *  Name: Can be anything, e.g. 'gmail API'
-    *  Authorized redirect URIs: add the URI: http://localhost:8080/
-    *  Click 'Create'
-    *  Back in the Credentials overview, download a JSON with the client secret info of the Client ID you just created. 
-    The file will be named something like 'client_secret_token.apps.googleusercontent.com.json'
+### Creating the Gmail API connection and credentials  
+#### Set-up google cloud project to use Gmail account.  
+If the Gmail account is part of the same organization (e.g. using a g-suite account):   
+ *  In the IAM section add the Gmail account you want to use as a user. 
     
+If the Gmail account is not part of the same organization (e.g. regular account@gmail.com):    
+  * Go to 'APIs & Services'
+  * Click 'OAuth consent screen'
+  * For user Type, choose 'External' and click create.
+  * Add the Gmail account you want to use as a test user.
+     
+#### Create OAuth credentials
+* From the 'APIs & Services' section, click the 'Credentials' menu item.
+* Click 'Create Credentials' and choose OAuth client ID.
+* In the form, enter the following information:
+  *  Application type: Web application
+  *  Name: Can be anything, e.g. 'gmail API'
+  *  Authorized redirect URIs: add the URI: http://localhost:8080/
+  *  Click 'Create'
+* Download the client secrets file for the newly created OAuth 2.0 Client ID, by clicking the download icon for the 
+  client ID that you created. The file will be named something like 'client_secret_token.apps.googleusercontent.com.json'    
 * Get the credentials info using the JSON file with client secret info by executing the following python code. 
+
 Note that when you create these credentials, any previously stored credentials become invalid.
 ```python
 import urllib.parse
