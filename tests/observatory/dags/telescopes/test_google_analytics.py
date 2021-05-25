@@ -30,7 +30,7 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
 from observatory.dags.telescopes.google_analytics import GoogleAnalyticsRelease, GoogleAnalyticsTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
 
 

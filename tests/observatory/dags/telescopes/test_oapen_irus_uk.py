@@ -38,7 +38,7 @@ from observatory.dags.telescopes.oapen_irus_uk import (
 )
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
-from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -155,8 +155,9 @@ class TestOapenIrusUk(ObservatoryTestCase):
                         {
                             "functions": [
                                 {
-                                    "name": f"projects/{OapenIrusUkTelescope.OAPEN_PROJECT_ID}/locations/{OapenIrusUkTelescope.FUNCTION_REGION}/functions/"
-                                    f"{OapenIrusUkTelescope.FUNCTION_NAME}"
+                                    "name": f"projects/{OapenIrusUkTelescope.OAPEN_PROJECT_ID}/locations/"
+                                            f"{OapenIrusUkTelescope.FUNCTION_REGION}/functions/"
+                                            f"{OapenIrusUkTelescope.FUNCTION_NAME}"
                                 }
                             ]
                         }
@@ -164,11 +165,11 @@ class TestOapenIrusUk(ObservatoryTestCase):
                 ),
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
-                            "done": True,
-                            "response": {"message": "response"},
+                    json.dumps({
+                        "name":
+                            "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
+                        "done": True,
+                        "response": {"message": "response"},
                         }
                     ),
                 ),
@@ -200,12 +201,14 @@ class TestOapenIrusUk(ObservatoryTestCase):
             # Test call cloud function task: no error should be thrown
             with httpretty.enabled():
                 # mock response of getting publisher uuid
-                url = f"https://library.oapen.org/rest/search?query=publisher.name:{release.organisation_id}&expand=metadata"
+                url = f"https://library.oapen.org/rest/search?query=publisher.name:{release.organisation_id}" \
+                      f"&expand=metadata"
                 httpretty.register_uri(httpretty.GET, url, body='[{"uuid":"df73bf94-b818-494c-a8dd-6775b0573bc2"}]')
                 # mock response of cloud function
                 mock_authorized_session.return_value.status_code = 200
                 mock_authorized_session.return_value.reason = "unit test"
-                url = f"https://{OapenIrusUkTelescope.FUNCTION_REGION}-{OapenIrusUkTelescope.OAPEN_PROJECT_ID}.cloudfunctions.net/{OapenIrusUkTelescope.FUNCTION_NAME}"
+                url = f"https://{OapenIrusUkTelescope.FUNCTION_REGION}-{OapenIrusUkTelescope.OAPEN_PROJECT_ID}." \
+                      f"cloudfunctions.net/{OapenIrusUkTelescope.FUNCTION_NAME}"
                 httpretty.register_uri(httpretty.POST, url, body="")
                 env.run_task(telescope.call_cloud_function.__name__, dag, execution_date)
 
@@ -255,8 +258,6 @@ class TestOapenIrusUk(ObservatoryTestCase):
         """
         mock_create_bucket.return_value = True
         mock_upload_to_bucket.return_value = True, True
-        organisation = Organisation(name=self.organisation_name)
-        telescope = OapenIrusUkTelescope(organisation, self.extra.get("publisher_id"))
         with CliRunner().isolated_filesystem():
             mock_variable_get.return_value = os.getcwd()
             success, upload = upload_source_code_to_bucket(
@@ -322,17 +323,18 @@ class TestOapenIrusUk(ObservatoryTestCase):
                     {"status": "200"},
                     json.dumps(
                         {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
+                            "name":
+                                "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
                         }
                     ),
                 ),
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
-                            "done": True,
-                            "response": {"message": "response"},
+                    json.dumps({
+                        "name":
+                            "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
+                        "done": True,
+                        "response": {"message": "response"},
                         }
                     ),
                 ),
@@ -350,19 +352,18 @@ class TestOapenIrusUk(ObservatoryTestCase):
             [
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
+                    json.dumps({
+                        "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
                         }
                     ),
                 ),
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
-                            "done": True,
-                            "response": {"message": "response"},
+                    json.dumps({
+                        "name":
+                            "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
+                        "done": True,
+                        "response": {"message": "response"},
                         }
                     ),
                 ),
@@ -380,19 +381,18 @@ class TestOapenIrusUk(ObservatoryTestCase):
             [
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
+                    json.dumps({
+                        "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc"
                         }
                     ),
                 ),
                 (
                     {"status": "200"},
-                    json.dumps(
-                        {
-                            "name": "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
-                            "done": True,
-                            "error": {"message": "error"},
+                    json.dumps({
+                        "name":
+                            "operations/d29ya2Zsb3dzLWRldi91cy1jZW50cmFsMS9vYXBlbl9hY2Nlc3Nfc3RhdHMvWnlmSEdWZDBHTGc",
+                        "done": True,
+                        "error": {"message": "error"},
                         }
                     ),
                 ),
