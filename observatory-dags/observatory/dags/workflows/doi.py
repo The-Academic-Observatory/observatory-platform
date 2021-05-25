@@ -178,6 +178,7 @@ class DoiWorkflow(Telescope):
     ELASTIC_DATASET_ID_DATASET_DESCRIPTION = "The Academic Observatory dataset for Elasticsearch."
 
     AGGREGATE_DOI_FILENAME = make_sql_jinja2_filename("aggregate_doi")
+    EXPORT_UNIQUE_LIST_FILENAME = make_sql_jinja2_filename("export_unique_list")
     EXPORT_ACCESS_TYPES_FILENAME = make_sql_jinja2_filename("export_access_types")
     EXPORT_DISCIPLINES_FILENAME = make_sql_jinja2_filename("export_disciplines")
     EXPORT_EVENTS_FILENAME = make_sql_jinja2_filename("export_events")
@@ -482,6 +483,8 @@ class DoiWorkflow(Telescope):
             relate_to_groups=agg.relate_to_groups,
             relate_to_members=agg.relate_to_members,
             relate_to_journals=agg.relate_to_journals,
+            relate_to_funders=agg.relate_to_funders,
+            relate_to_publishers=agg.relate_to_publishers,
         )
         set_task_state(success, kwargs["task_id"])
 
@@ -710,6 +713,7 @@ class ObservatoryRelease:
 
         # Always export
         tables = [
+            {"file_name": DoiWorkflow.EXPORT_UNIQUE_LIST_FILENAME, "aggregate": table_id, "facet": "unique_list", },
             {"file_name": DoiWorkflow.EXPORT_ACCESS_TYPES_FILENAME, "aggregate": table_id, "facet": "access_types",},
             {"file_name": DoiWorkflow.EXPORT_DISCIPLINES_FILENAME, "aggregate": table_id, "facet": "disciplines",},
             {"file_name": DoiWorkflow.EXPORT_OUTPUT_TYPES_FILENAME, "aggregate": table_id, "facet": "output_types",},
