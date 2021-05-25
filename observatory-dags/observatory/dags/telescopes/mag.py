@@ -43,7 +43,7 @@ from observatory.platform.utils.airflow_utils import AirflowConns, \
     check_variables
 from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.gc_utils import (azure_to_google_cloud_storage_transfer,
-                                                 bigquery_partitioned_table_id,
+                                                 bigquery_sharded_table_id,
                                                  bigquery_table_exists,
                                                  create_bigquery_dataset,
                                                  download_blobs_from_cloud_storage,
@@ -231,7 +231,7 @@ class MagTelescope:
         releases_out = []
         logging.info('Check if releases already exist:')
         for release in releases:
-            table_id = bigquery_partitioned_table_id(MagTelescope.DAG_ID, release.release_date)
+            table_id = bigquery_sharded_table_id(MagTelescope.DAG_ID, release.release_date)
 
             if bigquery_table_exists(project_id, MagTelescope.DATASET_ID, table_id):
                 logging.info(f'Skipping as table exists for MAG {release.release_date} release: '
@@ -564,7 +564,7 @@ def db_load_mag_release(project_id: str, bucket_name: str, data_location: str, r
         for blob_name in blob_names:
             # Make table name and id
             table_name = table_name_from_blob(blob_name, file_extension)
-            table_id = bigquery_partitioned_table_id(table_name, release_date)
+            table_id = bigquery_sharded_table_id(table_name, release_date)
 
             # Get schema for table
             schema_file_path = find_schema(analysis_schema_path, table_name, release_date, prefix=prefix)

@@ -15,20 +15,17 @@
 #
 # Author: Tuan Chien
 
-import json
 import os
 import shutil
 from functools import partial, update_wrapper
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import List, Optional, Union
 
-import numpy as np
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from google.cloud.bigquery import SourceFormat
-from jinja2 import Environment, PackageLoader
+
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.dags.workflows.oaebu_partners import OaebuPartners
@@ -37,13 +34,12 @@ from observatory.dags.workflows.onix_work_aggregation import (
     BookWorkFamilyAggregator,
 )
 from observatory.platform.telescopes.telescope import AbstractRelease, Telescope
-from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.gc_utils import (
-    bigquery_partitioned_table_id,
+    bigquery_sharded_table_id,
     create_bigquery_dataset,
     create_bigquery_table_from_query,
     run_bigquery_query,
-    select_table_suffixes,
+    select_table_shard_dates,
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.jinja2_utils import render_template
@@ -51,13 +47,10 @@ from observatory.platform.utils.telescope_utils import (
     list_to_jsonl_gz,
     make_dag_id,
     make_telescope_sensor,
-    write_to_file,
 )
 from observatory.platform.utils.template_utils import (
-    blob_name,
     bq_load_shard_v2,
     table_ids_from_path,
-    upload_files_from_list,
 )
 
 
@@ -474,7 +467,7 @@ class OnixWorkflow(Telescope):
 
         for release in releases:
             if table_date == None:
-                table_date = select_table_suffixes(
+                table_date = select_table_shard_dates(
                     project_id=orig_project_id,
                     dataset_id=orig_dataset,
                     table_id=orig_table,
@@ -488,7 +481,7 @@ class OnixWorkflow(Telescope):
             release_date = release.release_date
             table_joining_template_file = "assign_workid_workfamilyid.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
-            table_id = bigquery_partitioned_table_id(output_table, release_date)
+            table_id = bigquery_sharded_table_id(output_table, release_date)
             orig_table_suffix = table_date.strftime("%Y%m%d")
             dst_table_suffix = release_date.strftime("%Y%m%d")
 
@@ -583,7 +576,7 @@ class OnixWorkflow(Telescope):
             output_dataset = release.oaebu_data_qa_dataset
             output_table = "onix_aggregate_metrics"
             release_date = release.release_date
-            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            output_table_id = bigquery_sharded_table_id(output_table, release_date)
 
             sql = render_template(
                 template_path,
@@ -627,7 +620,7 @@ class OnixWorkflow(Telescope):
             orig_table_id = release.onix_table_id + release_date.strftime("%Y%m%d")
             output_dataset_id = release.oaebu_data_qa_dataset
             output_table = "onix_invalid_isbn"
-            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            output_table_id = bigquery_sharded_table_id(output_table, release_date)
             dataset_location = release.dataset_location
 
             self.oaebu_data_qa_validate_isbn(
@@ -670,19 +663,13 @@ class OnixWorkflow(Telescope):
         template_path = os.path.join(workflow_sql_templates_path(), isbn_validate_template_file)
 
         sql = render_template(
-            template_path,
-            project_id=project_id,
-            dataset_id=orig_dataset_id,
-            table_id=orig_table_id,
-            isbn=isbn,
+            template_path, project_id=project_id, dataset_id=orig_dataset_id, table_id=orig_table_id, isbn=isbn,
         )
 
         sql = isbn_utils_sql + sql
 
         create_bigquery_dataset(
-            project_id=project_id,
-            dataset_id=output_dataset_id,
-            location=dataset_location,
+            project_id=project_id, dataset_id=output_dataset_id, location=dataset_location,
         )
 
         status = create_bigquery_table_from_query(
@@ -737,7 +724,7 @@ class OnixWorkflow(Telescope):
         for release in releases:
             release_date = table_date
             if release_date is None:
-                release_date = select_table_suffixes(
+                release_date = select_table_shard_dates(
                     project_id=project_id,
                     dataset_id=orig_dataset_id,
                     table_id=orig_table,
@@ -750,7 +737,7 @@ class OnixWorkflow(Telescope):
 
             # Validate the ISBN field
             output_table = "jstor_invalid_isbn"
-            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            output_table_id = bigquery_sharded_table_id(output_table, release_date)
             dataset_location = release.dataset_location
             self.oaebu_data_qa_validate_isbn(
                 project_id=project_id,
@@ -764,7 +751,7 @@ class OnixWorkflow(Telescope):
 
             # Validate the eISBN field
             output_table = "jstor_invalid_eisbn"
-            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            output_table_id = bigquery_sharded_table_id(output_table, release_date)
             self.oaebu_data_qa_validate_isbn(
                 project_id=project_id,
                 orig_dataset_id=orig_dataset_id,
@@ -813,7 +800,7 @@ class OnixWorkflow(Telescope):
         for release in releases:
             release_date = table_date
             if release_date is None:
-                release_date = select_table_suffixes(
+                release_date = select_table_shard_dates(
                     project_id=project_id,
                     dataset_id=orig_dataset_id,
                     table_id=orig_table,
@@ -826,7 +813,7 @@ class OnixWorkflow(Telescope):
 
             # Validate the ISBN field
             output_table = "oapen_irus_uk_invalid_isbn"
-            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            output_table_id = bigquery_sharded_table_id(output_table, release_date)
             dataset_location = release.dataset_location
             self.oaebu_data_qa_validate_isbn(
                 project_id=project_id,
@@ -876,7 +863,7 @@ class OnixWorkflow(Telescope):
         for release in releases:
             release_date = table_date
             if release_date is None:
-                release_date = select_table_suffixes(
+                release_date = select_table_shard_dates(
                     project_id=project_id,
                     dataset_id=orig_dataset_id,
                     table_id=orig_table,
@@ -889,7 +876,7 @@ class OnixWorkflow(Telescope):
 
             # Validate the ISBN field
             output_table = "google_books_sales_invalid_isbn"
-            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            output_table_id = bigquery_sharded_table_id(output_table, release_date)
             dataset_location = release.dataset_location
             self.oaebu_data_qa_validate_isbn(
                 project_id=project_id,
@@ -939,7 +926,7 @@ class OnixWorkflow(Telescope):
         for release in releases:
             release_date = table_date
             if release_date is None:
-                release_date = select_table_suffixes(
+                release_date = select_table_shard_dates(
                     project_id=project_id,
                     dataset_id=orig_dataset_id,
                     table_id=orig_table,
@@ -952,7 +939,7 @@ class OnixWorkflow(Telescope):
 
             # Validate the ISBN field
             output_table = "google_books_traffic_invalid_isbn"
-            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            output_table_id = bigquery_sharded_table_id(output_table, release_date)
             dataset_location = release.dataset_location
             self.oaebu_data_qa_validate_isbn(
                 project_id=project_id,
@@ -1011,7 +998,7 @@ class OnixWorkflow(Telescope):
 
         for release in releases:
             intermediate_table = f"{orig_dataset_id}_{orig_table}{release.oaebu_intermediate_match_suffix}"
-            release_date = select_table_suffixes(
+            release_date = select_table_shard_dates(
                 project_id=project_id,
                 dataset_id=release.oaebu_intermediate_dataset,
                 table_id=intermediate_table,
@@ -1022,7 +1009,7 @@ class OnixWorkflow(Telescope):
 
             output_dataset = release.oaebu_data_qa_dataset
             output_table = f"{orig_table}_unmatched_{orig_isbn}"
-            output_table_id = bigquery_partitioned_table_id(output_table, release_date)
+            output_table_id = bigquery_sharded_table_id(output_table, release_date)
 
             sql = render_template(
                 template_path,

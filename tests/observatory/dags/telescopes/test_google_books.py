@@ -25,7 +25,7 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.dags.telescopes.google_books import GoogleBooksRelease, GoogleBooksTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.telescope_utils import SftpFolders
-from observatory.platform.utils.template_utils import bigquery_partitioned_table_id, blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name, table_ids_from_path
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -234,7 +234,7 @@ class TestGoogleBooks(ObservatoryTestCase):
                 for release in releases:
                     for file in release.transform_files:
                         table_id, _ = table_ids_from_path(file)
-                        table_id = f"{self.project_id}.{telescope.dataset_id}.{bigquery_partitioned_table_id(table_id, release.release_date)}"
+                        table_id = f"{self.project_id}.{telescope.dataset_id}.{bigquery_sharded_table_id(table_id, release.release_date)}"
                         expected_rows = 4
                         self.assert_table_integrity(table_id, expected_rows)
 

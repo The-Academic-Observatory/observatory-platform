@@ -38,7 +38,7 @@ from observatory.dags.config import schema_path, workflow_sql_templates_path
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars, create_slack_webhook
 from observatory.platform.utils.config_utils import find_schema
-from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
+from observatory.platform.utils.gc_utils import (bigquery_sharded_table_id,
                                                  copy_bigquery_table,
                                                  create_bigquery_dataset,
                                                  load_bigquery_table,
@@ -226,7 +226,7 @@ def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_
                                                                       schema_version, dataset_description)
 
     # Create table id
-    table_id = bigquery_partitioned_table_id(table_id, release_date)
+    table_id = bigquery_sharded_table_id(table_id, release_date)
 
     # Load BigQuery table
     uri = f"gs://{bucket_name}/{transform_blob}"
@@ -262,7 +262,7 @@ def bq_load_shard_v2(project_id: str, transform_bucket: str, transform_blob: str
                                           schema_version, dataset_description)
 
     # Create table id
-    table_id = bigquery_partitioned_table_id(table_id, release_date)
+    table_id = bigquery_sharded_table_id(table_id, release_date)
 
     # Load BigQuery table
     uri = f"gs://{transform_bucket}/{transform_blob}"

@@ -35,7 +35,7 @@ from google.cloud.bigquery import SourceFormat, WriteDisposition
 from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.config_utils import (find_schema, )
-from observatory.platform.utils.gc_utils import (bigquery_partitioned_table_id,
+from observatory.platform.utils.gc_utils import (bigquery_sharded_table_id,
                                                  create_bigquery_dataset,
                                                  load_bigquery_table, )
 from observatory.platform.utils.telescope_utils import (build_schedule,
@@ -658,7 +658,7 @@ class WosTelescope:
                                 WosTelescope.DESCRIPTION)
 
         # Create table id
-        table_id = bigquery_partitioned_table_id(WosTelescope.TABLE_NAME, release.release_date)
+        table_id = bigquery_sharded_table_id(WosTelescope.TABLE_NAME, release.release_date)
 
         # Load into BigQuery
         analysis_schema_path = schema_path()

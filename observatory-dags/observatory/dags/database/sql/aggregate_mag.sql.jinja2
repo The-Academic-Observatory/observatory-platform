@@ -21,6 +21,18 @@ WITH affiliations_processed as (
     IF(override.grid_id is not null, override.grid_id, affiliation.GridId) as GridId
   FROM `{{ project_id }}.mag.Affiliations{{ release_date.strftime('%Y%m%d') }}` as affiliation
   LEFT JOIN `{{ project_id }}.coki.mag_affiliation_override` as override on override.AffiliationId = affiliation.AffiliationId 
+),
+
+fields_of_study as (
+    SELECT
+        fields.*,
+        ARRAY(SELECT AS STRUCT
+            extended.AttributeType as AttributeType,
+            extended.AttributeValue as AttributeValue
+         FROM `{{ project_id }}.mag.FieldOfStudyExtendedAttributes{{ release_date.strftime('%Y%m%d') }}` as extended
+         WHERE extended.FieldOfStudyId = fields.FieldOfStudyId
+        ) as extended
+    FROM `{{ project_id }}.mag.FieldsOfStudy{{ release_date.strftime('%Y%m%d') }}` as fields
 )
 
 SELECT 
@@ -70,16 +82,15 @@ LEFT JOIN (SELECT
               papers.PaperId, 
               -- Fields of Study
               STRUCT(
-              ARRAY_AGG(IF(fields.Level = 0,STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended.AttributeType as AttributeType,extended.AttributeValue as AttributeValue), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_0,
-              ARRAY_AGG(IF(fields.Level = 1, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended.AttributeType as AttributeType,extended.AttributeValue as AttributeValue), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_1,
-              ARRAY_AGG(IF(fields.Level = 2, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended.AttributeType as AttributeType,extended.AttributeValue as AttributeValue), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_2,
-              ARRAY_AGG(IF(fields.Level = 3, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended.AttributeType as AttributeType,extended.AttributeValue as AttributeValue), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_3,
-              ARRAY_AGG(IF(fields.Level = 4, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended.AttributeType as AttributeType,extended.AttributeValue as AttributeValue), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_4,
-              ARRAY_AGG(IF(fields.Level = 5, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended.AttributeType as AttributeType,extended.AttributeValue as AttributeValue), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_5) as fields
+              ARRAY_AGG(IF(fields.Level = 0, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_0,
+              ARRAY_AGG(IF(fields.Level = 1, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_1,
+              ARRAY_AGG(IF(fields.Level = 2, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_2,
+              ARRAY_AGG(IF(fields.Level = 3, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_3,
+              ARRAY_AGG(IF(fields.Level = 4, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_4,
+              ARRAY_AGG(IF(fields.Level = 5, STRUCT(fields.DisplayName,fields.FieldOfStudyId,fields.Rank,fields.MainType,paperFields.Score,extended), null) IGNORE NULLS ORDER BY paperFields.Score DESC) as level_5) as fields
             FROM `{{ project_id }}.mag.Papers{{ release_date.strftime('%Y%m%d') }}`  as papers
             LEFT JOIN `{{ project_id }}.mag.PaperFieldsOfStudy{{ release_date.strftime('%Y%m%d') }}` as paperFields on papers.PaperId = paperFields.PaperId
-            LEFT JOIN `{{ project_id }}.mag.FieldsOfStudy{{ release_date.strftime('%Y%m%d') }}` as fields on fields.FieldOfStudyId = paperFields.FieldOfStudyId
-            LEFT JOIN `{{ project_id }}.mag.FieldOfStudyExtendedAttributes{{ release_date.strftime('%Y%m%d') }}` as extended on extended.FieldOfStudyId = fields.FieldOfStudyId
+            LEFT JOIN fields_of_study as fields on fields.FieldOfStudyId = paperFields.FieldOfStudyId
             WHERE papers.Doi IS NOT NULL
             GROUP BY papers.PaperId) as fields ON fields.PaperId = papers.PaperId
 

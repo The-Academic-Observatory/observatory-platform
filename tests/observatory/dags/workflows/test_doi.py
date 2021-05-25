@@ -21,9 +21,9 @@ import pendulum
 from airflow.exceptions import AirflowException
 from google.cloud import bigquery
 
-from observatory.dags.workflows.doi import (select_table_suffixes,
+from observatory.dags.workflows.doi import (select_table_shard_dates,
                                             set_task_state)
-from observatory.platform.utils.gc_utils import (create_bigquery_dataset, bigquery_partitioned_table_id,
+from observatory.platform.utils.gc_utils import (create_bigquery_dataset, bigquery_sharded_table_id,
                                                  create_bigquery_table_from_query)
 from tests.observatory.test_utils import random_id
 
@@ -42,7 +42,7 @@ class TestDoi(unittest.TestCase):
         with self.assertRaises(AirflowException):
             set_task_state(False, 'my-task-id')
 
-    def test_select_table_suffixes(self):
+    def test_select_table_shard_dates(self):
         client = bigquery.Client()
         dataset_id = random_id()
         table_id = 'fundref'
@@ -55,24 +55,24 @@ class TestDoi(unittest.TestCase):
         try:
             create_bigquery_dataset(self.gc_project_id, dataset_id, self.gc_bucket_location)
             create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
-                                             bigquery_partitioned_table_id(table_id, release_1),
+                                             bigquery_sharded_table_id(table_id, release_1),
                                              self.gc_bucket_location)
             create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
-                                             bigquery_partitioned_table_id(table_id, release_2),
+                                             bigquery_sharded_table_id(table_id, release_2),
                                              self.gc_bucket_location)
             create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
-                                             bigquery_partitioned_table_id(table_id, release_3),
+                                             bigquery_sharded_table_id(table_id, release_3),
                                              self.gc_bucket_location)
 
-            suffixes = select_table_suffixes(self.gc_project_id, dataset_id, table_id, release_1)
+            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_1)
             self.assertTrue(len(suffixes), 1)
             self.assertEqual(release_1, suffixes[0])
 
-            suffixes = select_table_suffixes(self.gc_project_id, dataset_id, table_id, release_2)
+            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_2)
             self.assertTrue(len(suffixes), 1)
             self.assertEqual(release_2, suffixes[0])
 
-            suffixes = select_table_suffixes(self.gc_project_id, dataset_id, table_id, release_3)
+            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_3)
             self.assertTrue(len(suffixes), 1)
             self.assertEqual(release_3, suffixes[0])
 
