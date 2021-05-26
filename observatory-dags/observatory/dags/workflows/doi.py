@@ -19,7 +19,6 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from airflow.exceptions import AirflowException
-from airflow.models import Variable
 from pendulum import Pendulum
 
 from observatory.dags.config import workflow_sql_templates_path
@@ -28,6 +27,7 @@ from observatory.dags.telescopes.fundref import FundrefTelescope
 from observatory.dags.telescopes.grid import GridTelescope
 from observatory.dags.telescopes.mag import MagTelescope
 from observatory.dags.telescopes.unpaywall import UnpaywallTelescope
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
@@ -220,7 +220,7 @@ class DoiWorkflow:
         "relate_to_members": True,
         "relate_to_journals": True,
         "relate_to_funders": True,
-        "relate_to_publishers": True
+        "relate_to_publishers": True,
     }
 
     AGGREGATIONS_FUNDER = {
@@ -232,7 +232,7 @@ class DoiWorkflow:
         "relate_to_members": True,
         "relate_to_journals": False,
         "relate_to_funders": True,
-        "relate_to_publishers": True
+        "relate_to_publishers": True,
     }
 
     AGGREGATIONS_GROUP = {
@@ -244,7 +244,7 @@ class DoiWorkflow:
         "relate_to_members": True,
         "relate_to_journals": True,
         "relate_to_funders": True,
-        "relate_to_publishers": True
+        "relate_to_publishers": True,
     }
 
     AGGREGATIONS_INSTITUTION = {
@@ -256,7 +256,7 @@ class DoiWorkflow:
         "relate_to_members": False,
         "relate_to_journals": True,
         "relate_to_funders": True,
-        "relate_to_publishers": True
+        "relate_to_publishers": True,
     }
 
     AGGREGATIONS_AUTHOR = {
@@ -268,7 +268,7 @@ class DoiWorkflow:
         "relate_to_members": False,
         "relate_to_journals": True,
         "relate_to_funders": True,
-        "relate_to_publishers": True
+        "relate_to_publishers": True,
     }
 
     AGGREGATIONS_JOURNAL = {
@@ -280,7 +280,7 @@ class DoiWorkflow:
         "relate_to_members": False,
         "relate_to_journals": True,
         "relate_to_funders": True,
-        "relate_to_publishers": False
+        "relate_to_publishers": False,
     }
 
     AGGREGATIONS_PUBLISHER = {
@@ -292,7 +292,7 @@ class DoiWorkflow:
         "relate_to_members": False,
         "relate_to_journals": False,
         "relate_to_funders": True,
-        "relate_to_publishers": False
+        "relate_to_publishers": False,
     }
 
     AGGREGATIONS_REGION = {
@@ -304,7 +304,7 @@ class DoiWorkflow:
         "relate_to_members": False,
         "relate_to_journals": False,
         "relate_to_funders": True,
-        "relate_to_publishers": True
+        "relate_to_publishers": True,
     }
 
     AGGREGATIONS_SUBREGION = {
@@ -316,7 +316,7 @@ class DoiWorkflow:
         "relate_to_members": False,
         "relate_to_journals": False,
         "relate_to_funders": True,
-        "relate_to_publishers": True
+        "relate_to_publishers": True,
     }
 
     @staticmethod
@@ -862,7 +862,7 @@ class DoiWorkflow:
             relate_to_members=relate_to_members,
             relate_to_journals=relate_to_journals,
             relate_to_funders=relate_to_funders,
-            relate_to_publishers=relate_to_publishers
+            relate_to_publishers=relate_to_publishers,
         )
 
     @staticmethod
@@ -952,7 +952,8 @@ class DoiWorkflow:
                 {
                     "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
                     "aggregate": table_id,
-                    "facet": "funders"}
+                    "facet": "funders",
+                }
             )
 
         if kwargs["relate_to_publishers"]:
@@ -960,7 +961,8 @@ class DoiWorkflow:
                 {
                     "file_name": DoiWorkflow.EXPORT_AGGREGATE_RELATIONS_FILENAME,
                     "aggregate": table_id,
-                    "facet": "publishers"}
+                    "facet": "publishers",
+                }
             )
 
         results = []
