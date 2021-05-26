@@ -27,7 +27,7 @@ from airflow.models.connection import Connection
 from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataRelease, CrossrefMetadataTelescope, \
     transform_file
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.gc_utils import bigquery_partitioned_table_id
+from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.template_utils import blob_name
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
 from tests.observatory.test_utils import test_fixtures_path
@@ -147,7 +147,7 @@ class TestCrossrefMetadata(ObservatoryTestCase):
             # Test that data loaded into BigQuery
             env.run_task(telescope.bq_load.__name__, dag, execution_date)
             table_id = f'{self.project_id}.{dataset_id}.' \
-                       f'{bigquery_partitioned_table_id(telescope.dag_id, release.release_date)}'
+                       f'{bigquery_sharded_table_id(telescope.dag_id, release.release_date)}'
             expected_rows = 20
             self.assert_table_integrity(table_id, expected_rows)
 
