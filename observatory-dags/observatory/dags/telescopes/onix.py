@@ -213,6 +213,14 @@ class OnixTelescope(SnapshotTelescope):
     ):
         """ Construct an OnixTelescope instance.
 
+        :param organisation_name: the organisation name.
+        :param project_id: the Google Cloud project id.
+        :param download_bucket: the Google Cloud download bucket.
+        :param transform_bucket: the Google Cloud transform bucket.
+        :param dataset_location: the location for the BigQuery dataset.
+        :param date_regex: a regular expression for extracting a date string from an ONIX file name.
+        :param date_format: the Python strptime date format string for transforming the string extracted with
+        `date_regex` into a date object.
         :param dag_id: the id of the DAG, by default this is automatically generated based on the DAG_ID_PREFIX
         and the organisation name.
         :param start_date: the start date of the DAG.
@@ -220,7 +228,8 @@ class OnixTelescope(SnapshotTelescope):
         :param dataset_id: the BigQuery dataset id.
         :param source_format: the format of the data to load into BigQuery.
         :param catchup: whether to catchup the DAG or not.
-        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
+        :param airflow_vars: list of airflow variable keys, for each variable, it is checked if it exists in airflow.
+        :param airflow_conns: list of airflow connection keys, for each connection, it is checked if it exists in airflow.
         """
 
         if airflow_vars is None:
