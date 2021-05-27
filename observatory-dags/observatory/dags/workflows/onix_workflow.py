@@ -256,6 +256,7 @@ class OnixWorkflow(Telescope):
         self.add_sensor(telescope_sensor)
 
         # Aggregate Works
+        self.add_setup_task(self.continue_workflow)
         self.add_task(self.aggregate_works)
         self.add_task(self.upload_aggregation_tables)
         self.add_task(self.bq_load_workid_lookup)
@@ -299,17 +300,19 @@ class OnixWorkflow(Telescope):
             include_prior_dates=False,
         )
 
-        for record in records:
-            release_date = record["release_date"]
-            release = OnixWorkflowRelease(
-                dag_id=self.dag_id,
-                release_date=release_date,
-                gcp_project_id=self.gcp_project_id,
-                gcp_bucket_name=self.gcp_bucket_name,
-                onix_dataset_id=self.onix_dataset_id,
-                onix_table_id=self.onix_table_id,
-            )
-            releases.append(release)
+        # If records is None then the ONIX telescope DAG run skipped due to no files being found
+        if records is not None:
+            for record in records:
+                release_date = record["release_date"]
+                release = OnixWorkflowRelease(
+                    dag_id=self.dag_id,
+                    release_date=release_date,
+                    gcp_project_id=self.gcp_project_id,
+                    gcp_bucket_name=self.gcp_bucket_name,
+                    onix_dataset_id=self.onix_dataset_id,
+                    onix_table_id=self.onix_table_id,
+                )
+                releases.append(release)
 
         return releases
 
@@ -327,6 +330,16 @@ class OnixWorkflow(Telescope):
         products = [{key: records[i][key] for key in records[i].keys()} for i in range(len(records))]
 
         return products
+
+    def continue_workflow(self, **kwargs):
+        """ Check if any releases were processed by the ONIX telescope, if no releases then skip else
+        continue processing tasks.
+
+        :param kwargs:
+        :return: True if ONIX telescope processed files, else False.
+        """
+
+        return len(self.make_release(**kwargs)) > 0
 
     def aggregate_works(self, releases: List[OnixWorkflowRelease], **kwargs):
         """Fetches the ONIX product records from our ONIX database, aggregates them into works, workfamilies,
