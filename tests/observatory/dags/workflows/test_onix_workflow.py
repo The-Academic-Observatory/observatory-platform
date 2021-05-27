@@ -454,7 +454,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             dag = wf.make_dag()
             self.assert_dag_structure(
                 {
-                    "onix_test_sensor": ["aggregate_works"],
+                    "onix_test_sensor": ["continue_workflow"],
+                    "continue_workflow": ["aggregate_works"],
                     "aggregate_works": ["upload_aggregation_tables"],
                     "upload_aggregation_tables": ["bq_load_workid_lookup"],
                     "bq_load_workid_lookup": ["bq_load_workid_lookup_errors"],
