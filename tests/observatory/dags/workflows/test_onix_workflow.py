@@ -1603,6 +1603,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             # Trigger sensor
             env.run_task(telescope_sensor.task_id, workflow_dag, self.timestamp)
 
+            # Continue workflow
+            env.run_task(telescope.continue_workflow.__name__, workflow_dag, self.timestamp)
+
             # Aggregate works
             env.run_task(telescope.aggregate_works.__name__, workflow_dag, self.timestamp)
 
