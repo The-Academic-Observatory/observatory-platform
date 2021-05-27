@@ -87,7 +87,7 @@
           },
           {
             "description": "Date of upload to the new DSPACE platform. Starts from April of 2020.",
-            "mode": "REQUIRED",
+            "mode": "REPEATED",
             "name": "available",
             "type": "TIMESTAMP"
           },
