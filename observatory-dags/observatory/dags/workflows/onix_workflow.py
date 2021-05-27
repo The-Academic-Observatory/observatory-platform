@@ -25,7 +25,6 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.dags.workflows.oaebu_partners import OaebuPartners
@@ -69,6 +68,8 @@ class OnixWorkflowRelease(AbstractRelease):
         onix_table_id: str = "onix",
         gcp_bucket_name: str,
         oaebu_data_qa_dataset: str = None,
+        workflow_dataset: str = None,
+        oaebu_intermediate_dataset: str = None,
     ):
         """
         :param dag_id: DAG ID.
@@ -78,6 +79,8 @@ class OnixWorkflowRelease(AbstractRelease):
         :param onix_dataset_id: GCP dataset ID for the onix data.
         :param onix_table_id: GCP table ID for the onix data.
         :param oaebu_data_qa_dataset: OAEBU Data QA dataset.
+        :param workflow_dataset: Onix workflow dataset.
+        :param oaebu_intermediate_dataset: OAEBU intermediate dataset.
         """
 
         self.dag_id = dag_id
@@ -93,11 +96,14 @@ class OnixWorkflowRelease(AbstractRelease):
         self.worksfamilylookup_filename = os.path.join(self.transform_folder, f"{self.workfamilyid_table}.jsonl.gz")
 
         # GCP parameters
-        self.workflow_dataset_id = "onix_workflow"
         self.project_id = gcp_project_id
         self.onix_dataset_id = onix_dataset_id
         self.dataset_location = "us"
         self.dataset_description = "ONIX workflow tables"
+
+        self.workflow_dataset_id = workflow_dataset
+        if self.workflow_dataset_id is None:
+            self.workflow_dataset_id = "onix_workflow"
 
         # ONIX release info
         self.onix_table_id = onix_table_id
@@ -106,10 +112,12 @@ class OnixWorkflowRelease(AbstractRelease):
         Path(".", self.transform_folder).mkdir(exist_ok=True, parents=True)
 
         # OAEBU intermediate tables
-        self.oaebu_intermediate_dataset = "oaebu_intermediate"
+        self.oaebu_intermediate_dataset = oaebu_intermediate_dataset
+        if self.oaebu_intermediate_dataset is None:
+            self.oaebu_intermediate_dataset = "oaebu_intermediate"
 
         self.oaebu_data_qa_dataset = oaebu_data_qa_dataset
-        if oaebu_data_qa_dataset is None:
+        if self.oaebu_data_qa_dataset is None:
             self.oaebu_data_qa_dataset = "oaebu_data_qa"
 
         self.oaebu_intermediate_match_suffix = "_matched"
@@ -663,13 +671,19 @@ class OnixWorkflow(Telescope):
         template_path = os.path.join(workflow_sql_templates_path(), isbn_validate_template_file)
 
         sql = render_template(
-            template_path, project_id=project_id, dataset_id=orig_dataset_id, table_id=orig_table_id, isbn=isbn,
+            template_path,
+            project_id=project_id,
+            dataset_id=orig_dataset_id,
+            table_id=orig_table_id,
+            isbn=isbn,
         )
 
         sql = isbn_utils_sql + sql
 
         create_bigquery_dataset(
-            project_id=project_id, dataset_id=output_dataset_id, location=dataset_location,
+            project_id=project_id,
+            dataset_id=output_dataset_id,
+            location=dataset_location,
         )
 
         status = create_bigquery_table_from_query(
