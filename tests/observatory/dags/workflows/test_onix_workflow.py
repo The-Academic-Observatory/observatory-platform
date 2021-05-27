@@ -1301,7 +1301,6 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         self.api_port = 5000
         self.gcp_project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
-        # self.gcp_bucket_name = os.getenv("TEST_GCP_BUCKET_NAME")
         self.timestamp = pendulum.now()
 
         self.onix_table_id = "onix"
@@ -1577,6 +1576,8 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             )
 
             oaebu_data_qa_dataset = env.add_dataset()
+            onix_workflow_dataset = env.add_dataset()
+            oaebu_intermediate_dataset = env.add_dataset()
             telescope.make_release = MagicMock(
                 return_value=[
                     OnixWorkflowRelease(
@@ -1587,6 +1588,8 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                         onix_dataset_id=self.onix_dataset_id,
                         onix_table_id=self.onix_table_id,
                         oaebu_data_qa_dataset=oaebu_data_qa_dataset,
+                        workflow_dataset=onix_workflow_dataset,
+                        oaebu_intermediate_dataset=oaebu_intermediate_dataset,
                     )
                 ]
             )
@@ -1711,19 +1714,19 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             )
             self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
 
-            table_id = f"{self.gcp_project_id}.onix_workflow.onix_workid_isbn{release_suffix}"
+            table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn{release_suffix}"
 
             self.assert_table_integrity(table_id, 3)
 
-            table_id = f"{self.gcp_project_id}.onix_workflow.onix_workfamilyid_isbn{release_suffix}"
+            table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workfamilyid_isbn{release_suffix}"
             self.assert_table_integrity(table_id, 3)
 
-            table_id = f"{self.gcp_project_id}.onix_workflow.onix_workid_isbn_errors{release_suffix}"
+            table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn_errors{release_suffix}"
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
             # JSTOR
-            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.oaebu_intermediate.{self.fake_partner_dataset}_jstor_country_matched{release_suffix}"
+            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.{oaebu_intermediate_dataset}.{self.fake_partner_dataset}_jstor_country_matched{release_suffix}"
             records = run_bigquery_query(sql)
             oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
             oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
@@ -1741,7 +1744,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             )
 
             # OAPEN IRUS UK
-            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.oaebu_intermediate.{self.fake_partner_dataset}_oapen_irus_uk_matched{release_suffix}"
+            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.{oaebu_intermediate_dataset}.{self.fake_partner_dataset}_oapen_irus_uk_matched{release_suffix}"
             records = run_bigquery_query(sql)
             oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
             oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
