@@ -303,7 +303,7 @@ class TestTemplateUtils(unittest.TestCase):
 
     @patch('observatory.platform.utils.template_utils.load_bigquery_table')
     @patch('observatory.platform.utils.template_utils.prepare_bq_load_v2')
-    @patch("airflow.models.variable.Variable.get")
+    @patch("observatory.platform.utils.airflow_utils.AirflowVariable.get")
     def test_bq_load_shard_v2(self, mock_variable_get, mock_prepare_bq_load, mock_load_bigquery_table):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -387,7 +387,7 @@ class TestTemplateUtils(unittest.TestCase):
 
     @patch('observatory.platform.utils.template_utils.load_bigquery_table')
     @patch('observatory.platform.utils.template_utils.prepare_bq_load_v2')
-    @patch("airflow.models.variable.Variable.get")
+    @patch("observatory.platform.utils.airflow_utils.AirflowVariable.get")
     def test_bq_load_partition(self, mock_variable_get, mock_prepare_bq_load, mock_load_bigquery_table):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
