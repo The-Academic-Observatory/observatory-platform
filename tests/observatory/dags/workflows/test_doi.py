@@ -23,6 +23,7 @@ import random
 import unittest
 from click.testing import CliRunner
 import uuid
+from observatory.platform.utils.gc_utils import run_bigquery_query
 from dataclasses import dataclass
 from datetime import datetime
 from observatory.dags.workflows.doi import Transform
@@ -531,6 +532,93 @@ def make_orcid(dataset: ObservatoryDataset) -> List[Dict]:
     pass
 
 
+def count_events(events: List[Event]):
+    lookup_totals = dict()
+    lookup_months = dict()
+    lookup_years = dict()
+    for event in events:
+        # Total events
+        if event.source in lookup_totals:
+            lookup_totals[event.source] += 1
+        else:
+            lookup_totals[event.source] = 1
+
+        # Events by month
+        month = event.event_date.strftime("%Y-%m")
+        month_key = (event.source, month)
+        if month_key in lookup_months:
+            lookup_months[month_key] += 1
+        else:
+            lookup_months[month_key] = 1
+
+        # Events by year
+        year = event.event_date.year
+        year_key = (event.source, year)
+        if year_key in lookup_years:
+            lookup_years[year_key] += 1
+        else:
+            lookup_years[year_key] = 1
+
+    total = [{"source": source, "count": count} for source, count in lookup_totals.items()]
+    months = [{"source": source, "month": month, "count": count} for (source, month), count in lookup_months.items()]
+    years = [{"source": source, "year": year, "count": count} for (source, year), count in lookup_years.items()]
+
+    return total, months, years
+
+
+def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
+    records = []
+    for paper in dataset.papers:
+        events_total, _, _ = count_events(paper.events)
+
+        records.append(
+            {
+                "doi": paper.doi,
+                "crossref": {
+                    "title": paper.title,
+                    "published_year": paper.published_date.year,
+                    "published_month": paper.published_date.month,
+                    "published_year_month": f"{ paper.published_date.year}-{paper.published_date.month}",
+                    "funder": [{"name": funder.name, "DOI": funder.doi} for funder in paper.funders],
+                },
+                "unpaywall": {},
+                "unpaywall_history": {},
+                "mag": {},
+                "open_citations": {},
+                "events": {"doi": paper.doi, "events": events_total},
+                "grids": list(set([author.institution.grid_id for author in paper.authors])),
+                "affiliations": {},
+            }
+        )
+    return records
+
+        #     lookup_totals = dict()
+        #     lookup_months = dict()
+        #     lookup_years = dict()
+        #     for event in paper.events:
+        #         # Total events
+        #         if event.source in lookup_totals:
+        #             lookup_totals[event.source] += 1
+        #         else:
+        #             lookup_totals[event.source] = 1
+        #
+        #         # Events by month
+        #         month = event.event_date.strftime("%Y-%m")
+        #         month_key = (event.source, month)
+        #         if month_key in lookup_months:
+        #             lookup_months[month_key] += 1
+        #         else:
+        #             lookup_months[month_key] = 1
+        #
+        #         # Events by year
+        #         year = event.event_date.year
+        #         year_key = (event.source, year)
+        #         if year_key in lookup_years:
+        #             lookup_years[year_key] += 1
+        #         else:
+        #             lookup_years[year_key] = 1
+
+
 class TestDoiWorkflow(ObservatoryTestCase):
     """ Tests for the functions used by the Doi workflow """
 
@@ -647,19 +735,37 @@ class TestDoiWorkflow(ObservatoryTestCase):
             records = [
                 ("crossref_events", False, dataset_id_all, crossref_events, "crossref_events"),
                 ("crossref_metadata", True, dataset_id_all, crossref_metadata, "crossref_metadata"),
-                ("fundref", True, dataset_id_all,fundref, "fundref"),
+                ("fundref", True, dataset_id_all, fundref, "fundref"),
                 ("Affiliations", True, dataset_id_all, mag.affiliations, "MagAffiliations"),
                 ("FieldsOfStudy", True, dataset_id_all, mag.fields_of_study, "MagFieldsOfStudy"),
-                ("PaperAuthorAffiliations", True, dataset_id_all, mag.paper_author_affiliations, "MagPaperAuthorAffiliations"),
+                (
+                    "PaperAuthorAffiliations",
+                    True,
+                    dataset_id_all,
+                    mag.paper_author_affiliations,
+                    "MagPaperAuthorAffiliations",
+                ),
                 ("PaperFieldsOfStudy", True, dataset_id_all, mag.paper_fields_of_study, "MagPaperFieldsOfStudy"),
                 ("Papers", True, dataset_id_all, mag.papers, "MagPapers"),
                 ("open_citations", True, dataset_id_all, open_citations, "open_citations"),
                 ("unpaywall", True, dataset_id_all, unpaywall, "unpaywall"),
                 ("grid", True, dataset_id_all, grid, "grid"),
-                ("iso3166_countries_and_regions", False, dataset_id_all, iso3166_countries_and_regions, "iso3166_countries_and_regions"),
+                (
+                    "iso3166_countries_and_regions",
+                    False,
+                    dataset_id_all,
+                    iso3166_countries_and_regions,
+                    "iso3166_countries_and_regions",
+                ),
                 ("grid_to_home_url", False, dataset_id_settings, grid_to_home_url, "grid_to_home_url"),
                 ("groupings", False, dataset_id_settings, groupings, "groupings"),
-                ("mag_affiliation_override", False, dataset_id_settings, mag_affiliation_override, "mag_affiliation_override"),
+                (
+                    "mag_affiliation_override",
+                    False,
+                    dataset_id_settings,
+                    mag_affiliation_override,
+                    "mag_affiliation_override",
+                ),
                 ("PaperAbstractsInvertedIndex", True, dataset_id_all, [], "MagPaperAbstractsInvertedIndex"),
                 ("Journals", True, dataset_id_all, [], "MagJournals"),
                 ("ConferenceInstances", True, dataset_id_all, [], "MagConferenceInstances"),
@@ -725,12 +831,12 @@ class TestDoiWorkflow(ObservatoryTestCase):
         """
 
         env = ObservatoryEnvironment(project_id=self.gcp_project_id, data_location=self.gcp_data_location)
-        fake_dataset_id = env.add_dataset(prefix='fake')
-        intermediate_dataset_id = env.add_dataset(prefix='intermediate')
-        dashboards_dataset_id = env.add_dataset(prefix='dashboards')
-        observatory_dataset_id = env.add_dataset(prefix='observatory')
-        elastic_dataset_id = env.add_dataset(prefix='elastic')
-        settings_dataset_id = env.add_dataset(prefix='settings')
+        fake_dataset_id = env.add_dataset(prefix="fake")
+        intermediate_dataset_id = env.add_dataset(prefix="intermediate")
+        dashboards_dataset_id = env.add_dataset(prefix="dashboards")
+        observatory_dataset_id = env.add_dataset(prefix="observatory")
+        elastic_dataset_id = env.add_dataset(prefix="elastic")
+        settings_dataset_id = env.add_dataset(prefix="settings")
         fake_release_date = pendulum.utcnow().date()
         dataset_transforms = make_dataset_transforms(
             dataset_id_crossref_events=fake_dataset_id,
@@ -805,8 +911,13 @@ class TestDoiWorkflow(ObservatoryTestCase):
                     self.assertEqual(expected_state, ti.state)
 
                 # Test create DOI
+                release_date = execution_date.add(days=1)
+                release_suffix = release_date.strftime("%Y%m%d")
                 ti = env.run_task("create_doi", doi_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
+                expected = make_doi_table(observatory_dataset)
+                sql = f"SELECT * from {self.gcp_project_id}.{observatory_dataset_id}.doi{release_suffix}"
+                actual = run_bigquery_query(sql)
                 # TODO: check that output is correct
 
                 # Test create book
@@ -824,12 +935,12 @@ class TestDoiWorkflow(ObservatoryTestCase):
                     # TODO: check that output is correct
 
                 # Test copy to dashboards
-                ti = env.run_task('copy_to_dashboards', doi_dag, execution_date=execution_date)
+                ti = env.run_task("copy_to_dashboards", doi_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
                 # TODO: check that tables exist
 
                 # Test create dashboard views
-                ti = env.run_task('create_dashboard_views', doi_dag, execution_date=execution_date)
+                ti = env.run_task("create_dashboard_views", doi_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
                 # TODO: check that views exist
 

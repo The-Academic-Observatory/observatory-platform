@@ -29,10 +29,10 @@ fields_of_study as (
         ARRAY(SELECT AS STRUCT
             extended.AttributeType as AttributeType,
             extended.AttributeValue as AttributeValue
-         FROM `{{ project_id }}.mag.FieldOfStudyExtendedAttributes{{ release_date.strftime('%Y%m%d') }}` as extended
+         FROM `{{ project_id }}.{{ mag.dataset_id }}.FieldOfStudyExtendedAttributes{{ mag.release_date.strftime('%Y%m%d') }}` as extended
          WHERE extended.FieldOfStudyId = fields.FieldOfStudyId
         ) as extended
-    FROM `{{ project_id }}.mag.FieldsOfStudy{{ release_date.strftime('%Y%m%d') }}` as fields
+    FROM `{{ project_id }}.{{ mag.dataset_id }}.FieldsOfStudy{{ mag.release_date.strftime('%Y%m%d') }}` as fields
 )
 
 SELECT 
