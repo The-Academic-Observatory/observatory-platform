@@ -162,19 +162,19 @@ class JstorTelescope(SnapshotTelescope):
     MULTIPLIER = 10
 
     def __init__(
-            self,
-            organisation: Organisation,
-            publisher_id: str,
-            dag_id: Optional[str] = None,
-            start_date: datetime = datetime(2018, 1, 1),
-            schedule_interval: str = "@monthly",
-            dataset_id: str = "jstor",
-            source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
-            dataset_description: str = "",
-            catchup: bool = False,
-            airflow_vars: List = None,
-            airflow_conns: List = None,
-            max_active_runs: int = 1,
+        self,
+        organisation: Organisation,
+        publisher_id: str,
+        dag_id: Optional[str] = None,
+        start_date: datetime = datetime(2018, 1, 1),
+        schedule_interval: str = "@monthly",
+        dataset_id: str = "jstor",
+        source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
+        dataset_description: str = "",
+        catchup: bool = False,
+        airflow_vars: List = None,
+        airflow_conns: List = None,
+        max_active_runs: int = 1,
     ):
         """ Construct a JstorTelescope instance.
         :param organisation: the Organisation of which data is processed.
@@ -378,9 +378,7 @@ def create_headers() -> dict:
     :return: headers dictionary
     """
 
-    headers = {
-        "User-Agent": get_ao_user_agent()
-    }
+    headers = {"User-Agent": get_ao_user_agent()}
     return headers
 
 
@@ -388,7 +386,7 @@ def create_headers() -> dict:
     stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
     reraise=True,
     wait=wait_fixed(JstorTelescope.FIXED_WAIT)
-         + wait_exponential(
+    + wait_exponential(
         multiplier=JstorTelescope.MULTIPLIER, exp_base=JstorTelescope.EXP_BASE, max=JstorTelescope.MAX_WAIT_TIME
     ),
 )
@@ -399,7 +397,8 @@ def get_header_info(url: str) -> [str, str]:
     :return: Filename and file extension
     """
     logging.info(
-        f'Getting HEAD of report download url, attempt: {get_header_info.retry.statistics["attempt_number"]}, '
+        f'Getting HEAD of report: {url}, '
+        f'attempt: {get_header_info.retry.statistics["attempt_number"]}, '
         f'idle for: {get_header_info.retry.statistics["idle_for"]}'
     )
     response = requests.head(url, allow_redirects=True, headers=create_headers())
@@ -416,7 +415,7 @@ def get_header_info(url: str) -> [str, str]:
     stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
     reraise=True,
     wait=wait_fixed(JstorTelescope.FIXED_WAIT)
-         + wait_exponential(
+    + wait_exponential(
         multiplier=JstorTelescope.MULTIPLIER, exp_base=JstorTelescope.EXP_BASE, max=JstorTelescope.MAX_WAIT_TIME
     ),
 )
@@ -428,8 +427,10 @@ def download_report(url: str, download_path: str):
     :return: Whether download was successful
     """
     logging.info(
-        f'Downloading report from url, attempt: {download_report.retry.statistics["attempt_number"]}, idle for:'
-        f'{download_report.retry.statistics["idle_for"]}'
+        f'Downloading report: {url}, '
+        f'to: {download_path}, '
+        f'attempt: {download_report.retry.statistics["attempt_number"]}, '
+        f'idle for: {download_report.retry.statistics["idle_for"]}'
     )
     response = requests.get(url, headers=create_headers())
     if response.status_code != 200:
@@ -540,9 +541,9 @@ def list_reports(service: Resource, publisher_id: str, processed_label_id: str) 
     # list messages with specific query
     results = (
         service.users()
-            .messages()
-            .list(userId="me", q='subject:"JSTOR Publisher Report Available"', labelIds=["INBOX"])
-            .execute()
+        .messages()
+        .list(userId="me", q='subject:"JSTOR Publisher Report Available"', labelIds=["INBOX"])
+        .execute()
     )
     for message_info in results["messages"]:
         message_id = message_info["id"]
