@@ -563,17 +563,25 @@ def count_events(events: List[Event]):
     months = [{"source": source, "month": month, "count": count} for (source, month), count in lookup_months.items()]
     years = [{"source": source, "year": year, "count": count} for (source, year), count in lookup_years.items()]
 
+    # Sort
+    sort_events(total, months, years)
     return total, months, years
 
+
+def sort_events(events, months, years):
+    events.sort(key=lambda x: x["source"])
+    months.sort(key=lambda x: f"{x['month']}{x['source']}{x['count']}")
+    years.sort(key=lambda x: f"{x['year']}{x['source']}{x['count']}")
 
 def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
     records = []
     for paper in dataset.papers:
-        events_total, _, _ = count_events(paper.events)
+        events_total, events_months, events_years = count_events(paper.events)
+        grids = list(set([author.institution.grid_id for author in paper.authors]))
 
         records.append(
             {
-                "doi": paper.doi,
+                "doi": paper.doi.upper(),
                 "crossref": {
                     "title": paper.title,
                     "published_year": paper.published_date.year,
@@ -585,38 +593,47 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
                 "unpaywall_history": {},
                 "mag": {},
                 "open_citations": {},
-                "events": {"doi": paper.doi, "events": events_total},
-                "grids": list(set([author.institution.grid_id for author in paper.authors])),
+                "events": {
+                    "doi": paper.doi.upper(),
+                    "events": events_total,
+                    "months": events_months,
+                    "years": events_years,
+                },
+                "grids": grids,
                 "affiliations": {},
             }
         )
+
+    # Sort to match with sorted results
+    records.sort(key=lambda r: r["doi"])
+
     return records
 
-        #     lookup_totals = dict()
-        #     lookup_months = dict()
-        #     lookup_years = dict()
-        #     for event in paper.events:
-        #         # Total events
-        #         if event.source in lookup_totals:
-        #             lookup_totals[event.source] += 1
-        #         else:
-        #             lookup_totals[event.source] = 1
-        #
-        #         # Events by month
-        #         month = event.event_date.strftime("%Y-%m")
-        #         month_key = (event.source, month)
-        #         if month_key in lookup_months:
-        #             lookup_months[month_key] += 1
-        #         else:
-        #             lookup_months[month_key] = 1
-        #
-        #         # Events by year
-        #         year = event.event_date.year
-        #         year_key = (event.source, year)
-        #         if year_key in lookup_years:
-        #             lookup_years[year_key] += 1
-        #         else:
-        #             lookup_years[year_key] = 1
+    #     lookup_totals = dict()
+    #     lookup_months = dict()
+    #     lookup_years = dict()
+    #     for event in paper.events:
+    #         # Total events
+    #         if event.source in lookup_totals:
+    #             lookup_totals[event.source] += 1
+    #         else:
+    #             lookup_totals[event.source] = 1
+    #
+    #         # Events by month
+    #         month = event.event_date.strftime("%Y-%m")
+    #         month_key = (event.source, month)
+    #         if month_key in lookup_months:
+    #             lookup_months[month_key] += 1
+    #         else:
+    #             lookup_months[month_key] = 1
+    #
+    #         # Events by year
+    #         year = event.event_date.year
+    #         year_key = (event.source, year)
+    #         if year_key in lookup_years:
+    #             lookup_years[year_key] += 1
+    #         else:
+    #             lookup_years[year_key] = 1
 
 
 class TestDoiWorkflow(ObservatoryTestCase):
@@ -837,7 +854,6 @@ class TestDoiWorkflow(ObservatoryTestCase):
         observatory_dataset_id = env.add_dataset(prefix="observatory")
         elastic_dataset_id = env.add_dataset(prefix="elastic")
         settings_dataset_id = env.add_dataset(prefix="settings")
-        fake_release_date = pendulum.utcnow().date()
         dataset_transforms = make_dataset_transforms(
             dataset_id_crossref_events=fake_dataset_id,
             dataset_id_crossref_metadata=fake_dataset_id,
@@ -856,26 +872,27 @@ class TestDoiWorkflow(ObservatoryTestCase):
 
         with env.create():
             # Make dag
+            start_date = pendulum.datetime(year=2021, month=5, day=9)
             doi_dag = DoiWorkflow(
                 intermediate_dataset_id=intermediate_dataset_id,
                 dashboards_dataset_id=dashboards_dataset_id,
                 observatory_dataset_id=observatory_dataset_id,
                 elastic_dataset_id=elastic_dataset_id,
                 transforms=dataset_transforms,
+                start_date=start_date,
             ).make_dag()
 
             # Test that sensors do go into the 'up_for_reschedule' state as the DAGs that they wait for haven't run
-            execution_date = pendulum.datetime(year=2020, month=11, day=1)
+            # execution_date = pendulum.datetime(year=2021, month=5, day=9)
             expected_state = "up_for_reschedule"
-            with env.create_dag_run(doi_dag, execution_date):
+            with env.create_dag_run(doi_dag, start_date):
                 for task_id in DoiWorkflow.SENSOR_DAG_IDS:
-                    ti = env.run_task(f"{task_id}_sensor", doi_dag, execution_date=execution_date)
+                    ti = env.run_task(f"{task_id}_sensor", doi_dag, execution_date=start_date)
                     self.assertEqual(expected_state, ti.state)
 
             # Run Dummy Dags
-            execution_date = pendulum.datetime(
-                year=fake_release_date.year, month=fake_release_date.month, day=fake_release_date.day
-            )
+            execution_date = pendulum.datetime(year=2021, month=5, day=16)
+            release_date = pendulum.datetime(year=2021, month=5, day=22)
             expected_state = "success"
             for dag_id in DoiWorkflow.SENSOR_DAG_IDS:
                 dag = make_dummy_dag(dag_id, execution_date)
@@ -901,7 +918,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 # Generate fake dataset
                 observatory_dataset = make_observatory_dataset()
                 self.setup_fake_observatory_dataset(
-                    observatory_dataset, env.download_bucket, fake_dataset_id, settings_dataset_id, fake_release_date
+                    observatory_dataset, env.download_bucket, fake_dataset_id, settings_dataset_id, release_date
                 )
 
                 # Test source dataset transformations
@@ -911,14 +928,30 @@ class TestDoiWorkflow(ObservatoryTestCase):
                     self.assertEqual(expected_state, ti.state)
 
                 # Test create DOI
-                release_date = execution_date.add(days=1)
                 release_suffix = release_date.strftime("%Y%m%d")
                 ti = env.run_task("create_doi", doi_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
-                expected = make_doi_table(observatory_dataset)
-                sql = f"SELECT * from {self.gcp_project_id}.{observatory_dataset_id}.doi{release_suffix}"
-                actual = run_bigquery_query(sql)
+                expected_list = make_doi_table(observatory_dataset)
+                sql = f"SELECT * from {self.gcp_project_id}.{observatory_dataset_id}.doi{release_suffix} ORDER BY doi ASC;"
+                actual_list = [dict(row) for row in run_bigquery_query(sql)]
                 # TODO: check that output is correct
+                self.assertEqual(len(expected_list), len(actual_list))
+                for expected, actual in zip(expected_list, actual_list):
+                    self.assertEqual(expected["doi"], actual["doi"])
+
+                    # Check that events are equal
+                    events_expected = expected["events"]
+                    events_actual = actual["events"]
+                    self.assertEqual(events_expected["doi"], events_actual["doi"])
+                    sort_events(events_actual["events"], events_actual["months"], events_actual["years"])
+
+                    event_keys = ["events", "months", "years"]
+                    for key in event_keys:
+                        self.assertEqual(len(events_expected[key]), len(events_actual[key]))
+                        for ee, ea in zip(events_expected[key], events_actual[key]):
+                            self.assertDictEqual(ee, ea)
+
+                    self.assertSetEqual(set(expected["grids"]), set(actual["grids"]))
 
                 # Test create book
                 ti = env.run_task("create_book", doi_dag, execution_date=execution_date)
