@@ -63,8 +63,8 @@ class TestOapenIrusUk(ObservatoryTestCase):
         self.extra = {"publisher_id": quote("UCL Press")}
         self.host = "localhost"
         self.api_port = 5000
-        self.download_path = test_fixtures_path("telescopes", "oapen_irus_uk", "download_2021_02.jsonl.gz")
-        self.transform_hash = "5f64902e"
+        self.download_path = test_fixtures_path("telescopes", "oapen_irus_uk", "download.jsonl.gz")
+        self.transform_hash = "e22b37f2"
 
     def test_dag_structure(self):
         """Test that the Oapen Irus Uk DAG has the correct structure.
@@ -219,6 +219,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
 
             # Test download_transform task
             env.run_task(telescope.download_transform.__name__, dag, execution_date)
+            self.assertEqual(1, len(release.transform_files))
             for file in release.transform_files:
                 self.assert_file_integrity(file, self.transform_hash, "gzip_crc")
 
@@ -232,7 +233,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
             for file in release.transform_files:
                 table_id, _ = table_ids_from_path(file)
                 table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
-                expected_rows = 4
+                expected_rows = 2
                 self.assert_table_integrity(table_id, expected_rows)
 
             # Test that all telescope data deleted
