@@ -20,7 +20,7 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from urllib.parse import quote
 
 import pendulum
@@ -85,10 +85,18 @@ class OapenIrusUkRelease(SnapshotRelease):
         return self.organisation.gcp_transform_bucket
 
     @property
+    def download_path(self) -> str:
+        """ Creates path to store the downloaded oapen irus uk data
+
+        :return: Full path to the download file
+        """
+        return os.path.join(self.download_folder, f'{OapenIrusUkTelescope.DAG_ID_PREFIX}.jsonl.gz')
+
+    @property
     def transform_path(self) -> str:
         """ Creates path to store the transformed oapen irus uk data
 
-        :return: Full path to the download file
+        :return: Full path to the transform file
         """
         return os.path.join(self.transform_folder, f'{OapenIrusUkTelescope.DAG_ID_PREFIX}.jsonl.gz')
 
@@ -175,12 +183,12 @@ class OapenIrusUkRelease(SnapshotRelease):
 
         :return: None.
         """
-        success = download_blob_from_cloud_storage(self.download_bucket, self.blob_name, self.transform_path)
+        success = download_blob_from_cloud_storage(self.download_bucket, self.blob_name, self.download_path)
         if not success:
             raise AirflowException('Download blob unsuccessful')
 
         # Read gzipped data and create list of dicts
-        with gzip.open(self.transform_path, 'r') as f:
+        with gzip.open(self.download_path, 'r') as f:
             results = [json.loads(line) for line in f]
 
         # Add partition date
@@ -198,15 +206,16 @@ class OapenIrusUkTelescope(SnapshotTelescope):
     FUNCTION_NAME = 'oapen_access_stats'  # Name of the google cloud function
     FUNCTION_REGION = 'europe-west1'  # Region of the google cloud function
     FUNCTION_SOURCE_URL = 'https://github.com/The-Academic-Observatory/oapen-irus-uk-cloud-function/releases/' \
-                          'download/v1.0.2/oapen-irus-uk-cloud-function.zip'  # URL to the zipped source code of the cloud function
-    FUNCTION_MD5_HASH = '650c77ab0501819ee0522761c0275c5a'  # MD5 hash of the zipped source code
+                          'download/v1.1.0/oapen-irus-uk-cloud-function.zip'  # URL to the zipped source code of the
+    # cloud function
+    FUNCTION_MD5_HASH = '87ba55491c00d392298c3433918ecf40'  # MD5 hash of the zipped source code
     FUNCTION_BLOB_NAME = 'cloud_function_source_code.zip'  # blob name of zipped source code
     OAPEN_API_URL = 'https://library.oapen.org/rest/search?query=publisher.name:{publisher_name}&expand=metadata'
 
     def __init__(self, organisation: Organisation, publisher_id: str, dag_id: Optional[str] = None,
                  start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly',
-                 dataset_id: str = 'oapen', dataset_description: str = 'Oapen dataset', catchup: bool = True,
-                 airflow_vars: List = None, airflow_conns: List = None, max_active_runs=5):
+                 dataset_id: str = 'oapen', dataset_description: str = 'OAPEN dataset', table_descriptions: Dict = None,
+                 catchup: bool = True, airflow_vars: List = None, airflow_conns: List = None, max_active_runs=5):
 
         """ The OAPEN irus uk telescope.
         :param organisation: the Organisation the DAG will process.
@@ -216,6 +225,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the BigQuery dataset id.
         :param dataset_description: description for the BigQuery dataset.
+        :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
         :param catchup:  whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
@@ -229,12 +239,18 @@ class OapenIrusUkTelescope(SnapshotTelescope):
             airflow_conns = [AirflowConns.GEOIP_LICENSE_KEY, AirflowConns.OAPEN_IRUS_UK_API,
                              AirflowConns.OAPEN_IRUS_UK_LOGIN]
 
+        if table_descriptions is None:
+            table_descriptions = {self.DAG_ID_PREFIX: 'Access stats from the OAPEN IRUS UK platform. Before 2020-04 '
+                                                      'from: https://irus.jisc.ac.uk/IRUSConsult/irus-oapen/v2/. '
+                                                      'After 2020-04 from the OAPEN_SUSHI API (documentation not '
+                                                      'published).'}
+
         if dag_id is None:
             dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
 
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, dataset_description=dataset_description,
                          catchup=catchup, airflow_vars=airflow_vars, airflow_conns=airflow_conns,
-                         max_active_runs=max_active_runs)
+                         max_active_runs=max_active_runs, table_descriptions=table_descriptions)
         self.organisation = organisation
         self.project_id = organisation.gcp_project_id
         self.dataset_location = 'us'  # TODO: add to API
