@@ -85,10 +85,18 @@ class OapenIrusUkRelease(SnapshotRelease):
         return self.organisation.gcp_transform_bucket
 
     @property
+    def download_path(self) -> str:
+        """ Creates path to store the downloaded oapen irus uk data
+
+        :return: Full path to the download file
+        """
+        return os.path.join(self.download_folder, f'{OapenIrusUkTelescope.DAG_ID_PREFIX}.jsonl.gz')
+
+    @property
     def transform_path(self) -> str:
         """ Creates path to store the transformed oapen irus uk data
 
-        :return: Full path to the download file
+        :return: Full path to the transform file
         """
         return os.path.join(self.transform_folder, f'{OapenIrusUkTelescope.DAG_ID_PREFIX}.jsonl.gz')
 
@@ -175,12 +183,12 @@ class OapenIrusUkRelease(SnapshotRelease):
 
         :return: None.
         """
-        success = download_blob_from_cloud_storage(self.download_bucket, self.blob_name, self.transform_path)
+        success = download_blob_from_cloud_storage(self.download_bucket, self.blob_name, self.download_path)
         if not success:
             raise AirflowException('Download blob unsuccessful')
 
         # Read gzipped data and create list of dicts
-        with gzip.open(self.transform_path, 'r') as f:
+        with gzip.open(self.download_path, 'r') as f:
             results = [json.loads(line) for line in f]
 
         # Add partition date
