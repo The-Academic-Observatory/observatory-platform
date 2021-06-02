@@ -83,7 +83,7 @@ class TestOapenMetadata(unittest.TestCase):
         self.start_date = pendulum.parse('2021-02-12')
         self.end_date = pendulum.parse('2021-02-19')
         self.download_hash = '4c261bbfaceafde1854e102d31fcbc0e'
-        self.transform_crc = '34ac5707'
+        self.transform_crc = '415144d7'
 
         # Create release instance that is used to test download/transform
         with patch('observatory.platform.utils.template_utils.AirflowVariable.get') as mock_variable_get:

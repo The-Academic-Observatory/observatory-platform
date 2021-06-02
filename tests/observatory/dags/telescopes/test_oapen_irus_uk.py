@@ -16,7 +16,6 @@
 
 import json
 import os
-from datetime import datetime
 from unittest.mock import patch
 from urllib.parse import quote
 
@@ -233,10 +232,6 @@ class TestOapenIrusUk(ObservatoryTestCase):
             env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
             for file in release.transform_files:
                 table_id, _ = table_ids_from_path(file)
-                if release.release_date >= datetime(2020, 4, 1):
-                    table_id += '_v2'
-                else:
-                    table_id += '_v1'
                 table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
                 expected_rows = 2
                 self.assert_table_integrity(table_id, expected_rows)
