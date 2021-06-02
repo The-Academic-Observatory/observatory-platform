@@ -727,7 +727,7 @@ class OnixWorkflow(Telescope):
             project_id=data_partner.gcp_project_id,
             orig_dataset_id=data_partner.gcp_dataset_id,
             orig_table=data_partner.gcp_table_id,
-            shared=data_partner.sharded
+            sharded=data_partner.sharded
         )
         update_wrapper(fn, self.create_oaebu_data_qa_jstor_isbn)
         self.add_task(fn)
