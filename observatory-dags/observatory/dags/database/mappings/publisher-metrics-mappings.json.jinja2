@@ -1,0 +1,48 @@
+{
+  "mappings": {
+    "properties": {
+      "{{ aggregration_level }}_id": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "month": {
+        "type": "date",
+        "format": "yyyy-MM-dd"
+      },
+      "metrics": {
+        "properties": {
+          "oapen": {
+            "properties": {
+
+            }
+          },
+          "jstor": {
+            "properties": {
+
+            }
+          },
+          "google_books": {
+            "properties": {
+
+            }
+          },
+          "google_analytics": {
+            "properties": {
+
+            }
+          },
+          "ucl_discovery": {
+            "properties": {
+
+            }
+          }
+        }
+      }
+    }
+  }
+}
