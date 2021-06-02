@@ -188,6 +188,17 @@ class OnixWorkflowRelease(AbstractRelease):
         shutil.rmtree(self.transform_folder)
 
 
+def make_table_id(*, project_id: str, dataset_id: str, table_id: str, end_date: pendulum.Pendulum, sharded: bool):
+    new_table_id = table_id
+    if sharded:
+        table_date = select_table_shard_dates(
+            project_id=project_id, dataset_id=dataset_id, table_id=table_id, end_date=end_date,
+        )[0]
+        new_table_id = f"{table_id}{table_date.strftime('%Y%m%d')}"
+
+    return new_table_id
+
+
 class OnixWorkflow(Telescope):
     """This workflow telescope:
     1. [Not implemented] Creates an ISBN13-> internal identifier lookup table.
@@ -473,7 +484,7 @@ class OnixWorkflow(Telescope):
         orig_dataset: str,
         orig_table: str,
         orig_isbn: str,
-        table_date: Union[None, pendulum.Pendulum],
+        sharded: bool,
         **kwargs,
     ):
         """Create an intermediate oaebu table.  They are of the form datasource_matched<date>
@@ -483,17 +494,17 @@ class OnixWorkflow(Telescope):
         :param orig_dataset: Dataset ID for the partner data.
         :param orig_table: Table ID for the partner data.
         :param orig_isbn: Name of the ISBN field in the partner data table.
-        :param table_date: Date of table
+        :param sharded: whether the table is sharded or not.
         """
 
         for release in releases:
-            if table_date == None:
-                table_date = select_table_shard_dates(
-                    project_id=orig_project_id,
-                    dataset_id=orig_dataset,
-                    table_id=orig_table,
-                    end_date=release.release_date,
-                )[0]
+            orig_table_id = make_table_id(
+                project_id=orig_project_id,
+                dataset_id=orig_dataset,
+                table_id=orig_table,
+                end_date=release.release_date,
+                sharded=sharded,
+            )
 
             output_table = f"{orig_dataset}_{orig_table}{release.oaebu_intermediate_match_suffix}"
             output_dataset = release.oaebu_intermediate_dataset
@@ -503,14 +514,13 @@ class OnixWorkflow(Telescope):
             table_joining_template_file = "assign_workid_workfamilyid.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
             table_id = bigquery_sharded_table_id(output_table, release_date)
-            orig_table_suffix = table_date.strftime("%Y%m%d")
             dst_table_suffix = release_date.strftime("%Y%m%d")
 
             sql = render_template(
                 template_path,
                 project_id=orig_project_id,
                 orig_dataset=orig_dataset,
-                orig_table=f"{orig_table}{orig_table_suffix}",
+                orig_table=orig_table_id,
                 orig_isbn=orig_isbn,
                 onix_workflow_dataset=release.workflow_dataset_id,
                 wid_table=release.worksid_table + dst_table_suffix,
@@ -544,7 +554,7 @@ class OnixWorkflow(Telescope):
                 orig_dataset=data.gcp_dataset_id,
                 orig_table=data.gcp_table_id,
                 orig_isbn=data.isbn_field_name,
-                table_date=data.gcp_table_date,
+                sharded=data.sharded,
             )
 
             # Populate the __name__ attribute of the partial object (it lacks one by default).
@@ -684,19 +694,13 @@ class OnixWorkflow(Telescope):
         template_path = os.path.join(workflow_sql_templates_path(), isbn_validate_template_file)
 
         sql = render_template(
-            template_path,
-            project_id=project_id,
-            dataset_id=orig_dataset_id,
-            table_id=orig_table_id,
-            isbn=isbn,
+            template_path, project_id=project_id, dataset_id=orig_dataset_id, table_id=orig_table_id, isbn=isbn,
         )
 
         sql = isbn_utils_sql + sql
 
         create_bigquery_dataset(
-            project_id=project_id,
-            dataset_id=output_dataset_id,
-            location=dataset_location,
+            project_id=project_id, dataset_id=output_dataset_id, location=dataset_location,
         )
 
         status = create_bigquery_table_from_query(
@@ -723,7 +727,7 @@ class OnixWorkflow(Telescope):
             project_id=data_partner.gcp_project_id,
             orig_dataset_id=data_partner.gcp_dataset_id,
             orig_table=data_partner.gcp_table_id,
-            table_date=data_partner.gcp_table_date,
+            shared=data_partner.sharded
         )
         update_wrapper(fn, self.create_oaebu_data_qa_jstor_isbn)
         self.add_task(fn)
@@ -735,7 +739,7 @@ class OnixWorkflow(Telescope):
         project_id: str,
         orig_dataset_id: str,
         orig_table: str,
-        table_date: Union[None, pendulum.Pendulum],
+        sharded: bool,
         **kwargs,
     ):
         """Create a BQ table of invalid ISBNs for the JSTOR feed.
@@ -749,18 +753,17 @@ class OnixWorkflow(Telescope):
         """
 
         for release in releases:
-            release_date = table_date
-            if release_date is None:
-                release_date = select_table_shard_dates(
-                    project_id=project_id,
-                    dataset_id=orig_dataset_id,
-                    table_id=orig_table,
-                    end_date=release.release_date,
-                )[0]
+            release_date = release.release_date
+            orig_table_id = make_table_id(
+                project_id=project_id,
+                dataset_id=orig_dataset_id,
+                table_id=orig_table,
+                end_date=release_date,
+                sharded=sharded,
+            )
 
             # select table suffixes to get table suffix
             output_dataset_id = release.oaebu_data_qa_dataset
-            orig_table_id = orig_table + release_date.strftime("%Y%m%d")
 
             # Validate the ISBN field
             output_table = "jstor_invalid_isbn"
@@ -800,7 +803,7 @@ class OnixWorkflow(Telescope):
             project_id=data_partner.gcp_project_id,
             orig_dataset_id=data_partner.gcp_dataset_id,
             orig_table=data_partner.gcp_table_id,
-            table_date=data_partner.gcp_table_date,
+            sharded=data_partner.sharded,
         )
         update_wrapper(fn, self.create_oaebu_data_qa_oapen_irus_uk_isbn)
         self.add_task(fn)
@@ -812,7 +815,7 @@ class OnixWorkflow(Telescope):
         project_id: str,
         orig_dataset_id: str,
         orig_table: str,
-        table_date: Union[None, pendulum.Pendulum],
+        sharded: bool,
         **kwargs,
     ):
         """Create a BQ table of invalid ISBNs for the OAPEN IRUS UK feed.
@@ -825,18 +828,17 @@ class OnixWorkflow(Telescope):
         :table_date: Table suffix of jstor release if it exists.
         """
         for release in releases:
-            release_date = table_date
-            if release_date is None:
-                release_date = select_table_shard_dates(
-                    project_id=project_id,
-                    dataset_id=orig_dataset_id,
-                    table_id=orig_table,
-                    end_date=release.release_date,
-                )[0]
+            release_date = release.release_date
+            orig_table_id = make_table_id(
+                project_id=project_id,
+                dataset_id=orig_dataset_id,
+                table_id=orig_table,
+                end_date=release_date,
+                sharded=sharded,
+            )
 
             # select table suffixes to get table suffix
             output_dataset_id = release.oaebu_data_qa_dataset
-            orig_table_id = orig_table + release_date.strftime("%Y%m%d")
 
             # Validate the ISBN field
             output_table = "oapen_irus_uk_invalid_isbn"
@@ -863,7 +865,7 @@ class OnixWorkflow(Telescope):
             project_id=data_partner.gcp_project_id,
             orig_dataset_id=data_partner.gcp_dataset_id,
             orig_table=data_partner.gcp_table_id,
-            table_date=data_partner.gcp_table_date,
+            sharded=data_partner.sharded,
         )
         update_wrapper(fn, self.create_oaebu_data_qa_google_books_sales_isbn)
         self.add_task(fn)
@@ -875,7 +877,7 @@ class OnixWorkflow(Telescope):
         project_id: str,
         orig_dataset_id: str,
         orig_table: str,
-        table_date: Union[None, pendulum.Pendulum],
+        sharded: bool,
         **kwargs,
     ):
         """Create a BQ table of invalid ISBNs for the Google Books Sales feed.
@@ -888,18 +890,17 @@ class OnixWorkflow(Telescope):
         :table_date: Table suffix of jstor release if it exists.
         """
         for release in releases:
-            release_date = table_date
-            if release_date is None:
-                release_date = select_table_shard_dates(
-                    project_id=project_id,
-                    dataset_id=orig_dataset_id,
-                    table_id=orig_table,
-                    end_date=release.release_date,
-                )[0]
+            release_date = release.release_date
+            orig_table_id = make_table_id(
+                project_id=project_id,
+                dataset_id=orig_dataset_id,
+                table_id=orig_table,
+                end_date=release_date,
+                sharded=sharded,
+            )
 
             # select table suffixes to get table suffix
             output_dataset_id = release.oaebu_data_qa_dataset
-            orig_table_id = orig_table + release_date.strftime("%Y%m%d")
 
             # Validate the ISBN field
             output_table = "google_books_sales_invalid_isbn"
@@ -926,7 +927,7 @@ class OnixWorkflow(Telescope):
             project_id=data_partner.gcp_project_id,
             orig_dataset_id=data_partner.gcp_dataset_id,
             orig_table=data_partner.gcp_table_id,
-            table_date=data_partner.gcp_table_date,
+            sharded=data_partner.sharded,
         )
         update_wrapper(fn, self.create_oaebu_data_qa_google_books_traffic_isbn)
         self.add_task(fn)
@@ -938,7 +939,7 @@ class OnixWorkflow(Telescope):
         project_id: str,
         orig_dataset_id: str,
         orig_table: str,
-        table_date: Union[None, pendulum.Pendulum],
+        sharded: bool,
         **kwargs,
     ):
         """Create a BQ table of invalid ISBNs for the Google Books Traffic feed.
@@ -951,18 +952,17 @@ class OnixWorkflow(Telescope):
         :table_date: Table suffix of jstor release if it exists.
         """
         for release in releases:
-            release_date = table_date
-            if release_date is None:
-                release_date = select_table_shard_dates(
-                    project_id=project_id,
-                    dataset_id=orig_dataset_id,
-                    table_id=orig_table,
-                    end_date=release.release_date,
-                )[0]
+            release_date = release.release_date
+            orig_table_id = make_table_id(
+                project_id=project_id,
+                dataset_id=orig_dataset_id,
+                table_id=orig_table,
+                end_date=release_date,
+                sharded=sharded,
+            )
 
             # select table suffixes to get table suffix
             output_dataset_id = release.oaebu_data_qa_dataset
-            orig_table_id = orig_table + release_date.strftime("%Y%m%d")
 
             # Validate the ISBN field
             output_table = "google_books_traffic_invalid_isbn"
