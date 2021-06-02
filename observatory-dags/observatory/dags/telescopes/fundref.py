@@ -435,44 +435,48 @@ def add_funders_relationships(funders: List, funders_by_key: Dict) -> List:
     return funders
 
 
-def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction: str, parents: List) -> Tuple[
+def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction: str, sub_funders: List) -> Tuple[
     List, int]:
     """ Recursively goes through a funder/sub_funder dict. The funder properties can be looked up with the
-    funders_by_key
-    dictionary that stores the properties per funder id. Any children/parents for the funder are already given in the
-    xml element with the 'narrower' and 'broader' tags. For each funder in the list, it will recursively add any
-    children/parents for those funders in 'narrower'/'broader' and their funder properties.
+    funders_by_key dictionary that stores the properties per funder id. Any children/parents for the funder are
+    already given in the xml element with the 'narrower' and 'broader' tags. For each funder in the list,
+    it will recursively add any children/parents for those funders in 'narrower'/'broader' and their funder properties.
 
     :param funders_by_key: dictionary with id as key and funders object as value
     :param funder: dictionary of a given funder containing 'narrower' and 'broader' info
     :param depth: keeping track of nested depth
     :param direction: either 'narrower' or 'broader' to get 'children' or 'parents'
-    :param parents: list to keep track of which funder ids are parents
+    :param sub_funders: list to keep track of which funder ids are parents
     :return: list of children and current depth
     """
 
     starting_depth = depth
     children = []
+    # Loop through funder_ids in 'narrower' or 'broader' info
     for funder_id in funder[direction]:
-        if funder_id in parents:
-            print(f"funder {funder_id} is it's own parent/child, skipping..")
+        if funder_id in sub_funders:
+            # Stop recursion if funder is it's own parent or child
+            print(f"Funder {funder_id} is it's own parent/child, skipping..")
             name = 'NA'
             returned = []
             returned_depth = depth
+            sub_funders.append(funder_id)
         else:
             try:
                 sub_funder = funders_by_key[funder_id]
-                parents.append(sub_funder['funder'])
+                # Add funder id of sub_funder to list to keep track of 'higher' sub_funders in the recursion
+                sub_funders.append(sub_funder['funder'])
+                # Store name to pass on to child object
                 name = sub_funder['pre_label']
-
+                # Get children/parents of sub_funder
                 returned, returned_depth = recursive_funders(funders_by_key, sub_funder, starting_depth + 1, direction,
-                                                             parents)
+                                                             sub_funders)
             except KeyError:
                 print(f'Could not find funder by id: {funder_id}, skipping..')
                 name = 'NA'
                 returned = []
                 returned_depth = depth
-
+        # Add child/parent (containing nested children/parents) to list
         if direction == "narrower":
             child = {
                 'funder': funder_id,
@@ -486,7 +490,7 @@ def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction:
                 'parent': returned
             }
         children.append(child)
-        parents = []
+        sub_funders.pop(-1)
         if returned_depth > depth:
             depth = returned_depth
     return children, depth
