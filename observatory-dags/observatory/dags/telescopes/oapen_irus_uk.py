@@ -216,7 +216,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
                  start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly',
                  dataset_id: str = 'oapen', dataset_description: str = 'OAPEN dataset', table_descriptions: Dict = None,
                  catchup: bool = True, airflow_vars: List = None, airflow_conns: List = None, max_active_runs=5,
-                 max_cloud_function_instances: int = 100):
+                 max_cloud_function_instances: int = 0):
 
         """ The OAPEN irus uk telescope.
         :param organisation: the Organisation the DAG will process.
