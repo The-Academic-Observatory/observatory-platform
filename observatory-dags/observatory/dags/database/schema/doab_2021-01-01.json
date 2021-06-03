@@ -40,7 +40,7 @@
     "mode": "REQUIRED",
     "name": "dc",
     "type": "RECORD",
-    "fields":[
+    "fields": [
       {
         "description": "The abstract in another language.",
         "mode": "NULLABLE",
@@ -81,6 +81,12 @@
             "description": "",
             "mode": "NULLABLE",
             "name": "other",
+            "type": "STRING"
+          },
+          {
+            "description": "Illustrator name",
+            "mode": "NULLABLE",
+            "name": "illustrator",
             "type": "STRING"
           }
         ]
@@ -156,17 +162,17 @@
         ]
       },
       {
-            "description": "",
-            "mode": "NULLABLE",
-            "name": "fundingReference",
-            "type": "STRING"
-          },
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "fundingReference",
+        "type": "STRING"
+      },
       {
-            "description": "",
-            "mode": "REPEATED",
-            "name": "grantproject",
-            "type": "STRING"
-          },
+        "description": "",
+        "mode": "REPEATED",
+        "name": "grantproject",
+        "type": "STRING"
+      },
       {
         "description": "identifier",
         "mode": "NULLABLE",
@@ -268,17 +274,17 @@
         "type": "RECORD",
         "fields": [
           {
-              "description": "",
-              "mode": "NULLABLE",
-              "name": "value",
-              "type": "STRING"
-            },
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "value",
+            "type": "STRING"
+          },
           {
-              "description": "",
-              "mode": "NULLABLE",
-              "name": "license",
-              "type": "STRING"
-            },
+            "description": "",
+            "mode": "NULLABLE",
+            "name": "license",
+            "type": "STRING"
+          },
           {
             "description": "[Blank]",
             "mode": "NULLABLE",
@@ -286,11 +292,11 @@
             "type": "STRING"
           },
           {
-              "description": "[Blank]",
-              "mode": "NULLABLE",
-              "name": "uri",
-              "type": "STRING"
-            }
+            "description": "[Blank]",
+            "mode": "NULLABLE",
+            "name": "uri",
+            "type": "STRING"
+          }
         ]
       },
       {
@@ -311,7 +317,7 @@
         "name": "subject",
         "type": "RECORD",
         "fields": [
-           {
+          {
             "description": "",
             "mode": "REPEATED",
             "name": "value",
@@ -490,6 +496,12 @@
             "mode": "NULLABLE",
             "name": "project",
             "type": "STRING"
+          },
+          {
+            "description": "Grant acronym.",
+            "mode": "NULLABLE",
+            "name": "acronym",
+            "type": "STRING"
           }
         ]
       },
@@ -658,7 +670,7 @@
             "type": "STRING"
           }
         ]
-    },
+      },
       {
         "description": "Remark",
         "mode": "NULLABLE",
@@ -672,7 +684,7 @@
             "type": "STRING"
           }
         ]
-    },
+      },
       {
         "description": "",
         "mode": "NULLABLE",
