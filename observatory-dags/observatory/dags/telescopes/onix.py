@@ -61,10 +61,13 @@ class OnixRelease(SnapshotRelease):
     ):
         """ Construct an OnixRelease.
 
-        :param release_date: the release date.
-        :param file_name: the ONIX file name.
-        :param organisation: the Organisation.
-        """
+       :param dag_id: the DAG id.
+       :param release_date: the release date.
+       :param file_name: the ONIX file name.
+       :param organisation_name: the organisation name.
+       :param download_bucket: the download bucket name.
+       :param transform_bucket: the transform bucket name.
+       """
 
         self.organisation_name = organisation_name
         self._download_bucket = download_bucket
