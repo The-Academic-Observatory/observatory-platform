@@ -321,7 +321,7 @@ class Telescope(AbstractTelescope):
                     queue=self.queue,
                     default_args=self.default_args,
                     provide_context=True,
-                    op_kwargs=kwargs,
+                    **kwargs,
                 )
                 tasks.append(task)
 
@@ -333,7 +333,7 @@ class Telescope(AbstractTelescope):
                     queue=self.queue,
                     default_args=self.default_args,
                     provide_context=True,
-                    op_kwargs=kwargs
+                    **kwargs
                 )
                 tasks.append(task)
             chain(*tasks)
