@@ -30,12 +30,12 @@ from observatory.dags.telescopes.mag import MagTelescope
 from observatory.dags.telescopes.unpaywall import UnpaywallTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.gc_utils import (
-    bigquery_partitioned_table_id,
+    bigquery_sharded_table_id,
     copy_bigquery_table,
     create_bigquery_dataset,
     create_bigquery_table_from_query,
     create_bigquery_view,
-    select_table_suffixes,
+    select_table_shard_dates,
 )
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
@@ -105,7 +105,7 @@ def create_aggregate_table(
         relate_to_publishers=relate_to_publishers,
     )
 
-    processed_table_id = bigquery_partitioned_table_id(table_id, release_date)
+    processed_table_id = bigquery_sharded_table_id(table_id, release_date)
     success = create_bigquery_table_from_query(
         sql=sql,
         project_id=project_id,
@@ -141,7 +141,7 @@ def export_aggregate_table(
 
     export_table_id = f"{aggregate}_{facet}"
 
-    processed_table_id = bigquery_partitioned_table_id(export_table_id, release_date)
+    processed_table_id = bigquery_sharded_table_id(export_table_id, release_date)
 
     success = create_bigquery_table_from_query(
         sql=sql,
@@ -201,6 +201,7 @@ class DoiWorkflow:
 
     AGGREGATE_DOI_FILENAME = make_sql_jinja2_filename("aggregate_doi")
 
+    EXPORT_UNIQUE_LIST_FILENAME = make_sql_jinja2_filename("export_unique_list")
     EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME = make_sql_jinja2_filename("export_access_types")
     EXPORT_AGGREGATE_DISCIPLINES_FILENAME = make_sql_jinja2_filename("export_disciplines")
     EXPORT_AGGREGATE_EVENTS_FILENAME = make_sql_jinja2_filename("export_events")
@@ -392,7 +393,7 @@ class DoiWorkflow:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
 
         release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        grid_release_date = select_table_suffixes(
+        grid_release_date = select_table_shard_dates(
             project_id, GridTelescope.DATASET_ID, GridTelescope.DAG_ID, release_date
         )
         if len(grid_release_date):
@@ -406,7 +407,7 @@ class DoiWorkflow:
         )
         sql = render_template(template_path, project_id=project_id, grid_release_date=grid_release_date)
 
-        processed_table_id = bigquery_partitioned_table_id("grid_extended", release_date)
+        processed_table_id = bigquery_sharded_table_id("grid_extended", release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -441,7 +442,7 @@ class DoiWorkflow:
         sql = render_template(template_path, project_id=project_id)
         # TODO: perhaps only include records up until the end date of this query?
 
-        processed_table_id = bigquery_partitioned_table_id("crossref_events", release_date)
+        processed_table_id = bigquery_sharded_table_id("crossref_events", release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -475,7 +476,7 @@ class DoiWorkflow:
         )
         sql = render_template(template_path, project_id=project_id)
 
-        processed_table_id = bigquery_partitioned_table_id("orcid", release_date)
+        processed_table_id = bigquery_sharded_table_id("orcid", release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -505,7 +506,7 @@ class DoiWorkflow:
 
         # Get last MAG release date before current end date
         table_id = "Affiliations"
-        mag_release_date = select_table_suffixes(project_id, MagTelescope.DATASET_ID, table_id, release_date)
+        mag_release_date = select_table_shard_dates(project_id, MagTelescope.DATASET_ID, table_id, release_date)
         if len(mag_release_date):
             mag_release_date = mag_release_date[0]
         else:
@@ -517,7 +518,7 @@ class DoiWorkflow:
         )
         sql = render_template(template_path, project_id=project_id, release_date=mag_release_date)
 
-        processed_table_id = bigquery_partitioned_table_id(MagTelescope.DAG_ID, release_date)
+        processed_table_id = bigquery_sharded_table_id(MagTelescope.DAG_ID, release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -546,7 +547,7 @@ class DoiWorkflow:
         release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
 
         # Get last Unpaywall release date before current end date
-        unpaywall_release_date = select_table_suffixes(
+        unpaywall_release_date = select_table_shard_dates(
             project_id, UnpaywallTelescope.DATASET_ID, UnpaywallTelescope.DAG_ID, release_date
         )
         if len(unpaywall_release_date):
@@ -560,7 +561,7 @@ class DoiWorkflow:
         )
         sql = render_template(template_path, project_id=project_id, release_date=unpaywall_release_date)
 
-        processed_table_id = bigquery_partitioned_table_id(UnpaywallTelescope.DAG_ID, release_date)
+        processed_table_id = bigquery_sharded_table_id(UnpaywallTelescope.DAG_ID, release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -589,10 +590,10 @@ class DoiWorkflow:
         release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
 
         # Get last Funref and Crossref Metadata release dates before current end date
-        fundref_release_date = select_table_suffixes(
+        fundref_release_date = select_table_shard_dates(
             project_id, FundrefTelescope.DATASET_ID, FundrefTelescope.DAG_ID, release_date
         )
-        crossref_metadata_release_date = select_table_suffixes(
+        crossref_metadata_release_date = select_table_shard_dates(
             project_id, CrossrefMetadataTelescope.DATASET_ID, CrossrefMetadataTelescope.DAG_ID, release_date
         )
         if len(fundref_release_date) and len(crossref_metadata_release_date):
@@ -614,7 +615,7 @@ class DoiWorkflow:
             fundref_release_date=fundref_release_date,
         )
 
-        processed_table_id = bigquery_partitioned_table_id("crossref_funders_extended", release_date)
+        processed_table_id = bigquery_sharded_table_id("crossref_funders_extended", release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -643,7 +644,7 @@ class DoiWorkflow:
         release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
 
         # Get last Open Citations release date before current end date
-        open_citations_release_date = select_table_suffixes(
+        open_citations_release_date = select_table_shard_dates(
             project_id, "open_citations", "open_citations", release_date
         )
         if len(open_citations_release_date):
@@ -657,7 +658,7 @@ class DoiWorkflow:
         )
         sql = render_template(template_path, project_id=project_id, release_date=open_citations_release_date)
 
-        processed_table_id = bigquery_partitioned_table_id("open_citations", release_date)
+        processed_table_id = bigquery_sharded_table_id("open_citations", release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -692,7 +693,7 @@ class DoiWorkflow:
         sql = render_template(template_path, project_id=project_id)
         # TODO: only include records up until the end date
 
-        processed_table_id = bigquery_partitioned_table_id("wos", release_date)
+        processed_table_id = bigquery_sharded_table_id("wos", release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -724,7 +725,7 @@ class DoiWorkflow:
         )
         sql = render_template(template_path, project_id=project_id)
 
-        processed_table_id = bigquery_partitioned_table_id("scopus", release_date)
+        processed_table_id = bigquery_sharded_table_id("scopus", release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -751,7 +752,7 @@ class DoiWorkflow:
         release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
 
         # Get last Crossref Metadata release date before current end date
-        crossref_metadata_release_date = select_table_suffixes(
+        crossref_metadata_release_date = select_table_shard_dates(
             project_id, CrossrefMetadataTelescope.DATASET_ID, CrossrefMetadataTelescope.DAG_ID, release_date
         )
         if len(crossref_metadata_release_date):
@@ -771,7 +772,7 @@ class DoiWorkflow:
             crossref_metadata_release_date=crossref_metadata_release_date,
         )
 
-        processed_table_id = bigquery_partitioned_table_id("doi", release_date)
+        processed_table_id = bigquery_sharded_table_id("doi", release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -806,7 +807,7 @@ class DoiWorkflow:
             template_path, project_id=project_id, dataset_id=DoiWorkflow.PROCESSED_DATASET_ID, release_date=release_date
         )
 
-        processed_table_id = bigquery_partitioned_table_id("book", release_date)
+        processed_table_id = bigquery_sharded_table_id("book", release_date)
         success = create_bigquery_table_from_query(
             sql=sql,
             project_id=project_id,
@@ -843,6 +844,8 @@ class DoiWorkflow:
         relate_to_groups = kwargs["relate_to_groups"]
         relate_to_members = kwargs["relate_to_members"]
         relate_to_journals = kwargs["relate_to_journals"]
+        relate_to_funders = kwargs["relate_to_funders"]
+        relate_to_publishers = kwargs["relate_to_publishers"]
 
         # Aggregate
         create_aggregate_table(
@@ -858,6 +861,8 @@ class DoiWorkflow:
             relate_to_groups=relate_to_groups,
             relate_to_members=relate_to_members,
             relate_to_journals=relate_to_journals,
+            relate_to_funders=relate_to_funders,
+            relate_to_publishers=relate_to_publishers
         )
 
     @staticmethod
@@ -880,6 +885,7 @@ class DoiWorkflow:
 
         # Always export
         tables = [
+            {"file_name": DoiWorkflow.EXPORT_UNIQUE_LIST_FILENAME, "aggregate": table_id, "facet": "unique_list"},
             {
                 "file_name": DoiWorkflow.EXPORT_AGGREGATE_ACCESS_TYPES_FILENAME,
                 "aggregate": table_id,
@@ -1020,7 +1026,7 @@ class DoiWorkflow:
         # Copy the latest data for display in the dashboards
         results = []
         for table_name in table_names:
-            source_table_id = f"{project_id}.observatory.{bigquery_partitioned_table_id(table_name, release_date)}"
+            source_table_id = f"{project_id}.observatory.{bigquery_sharded_table_id(table_name, release_date)}"
             destination_table_id = f"{project_id}.{DoiWorkflow.DASHBOARDS_DATASET_ID}.{table_name}"
             success = copy_bigquery_table(source_table_id, destination_table_id, data_location)
             if not success:
