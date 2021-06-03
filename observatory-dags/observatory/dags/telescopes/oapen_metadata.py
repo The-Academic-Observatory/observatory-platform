@@ -92,7 +92,7 @@ class OapenMetadataRelease(StreamRelease):
                        'dc.description.abstract', 'BITSTREAM Webshop URL', 'dc.type', 'dc.identifier.isbn',
                        'dc.description.provenance', 'oapen.grant.project', 'oapen.relation.isbn', 'dc.identifier',
                        'dc.date.accessioned', 'BITSTREAM License', 'oapen.relation.isFundedBy_grantor.name',
-                       'dc.relation.isnodouble', 'dc.language', 'grantor.number'}
+                       'dc.relation.isnodouble', 'dc.language', 'grantor.number', 'dc.date.available'}
         entries = transform_dict(csv_entries, convert, nested_fields, list_fields)
 
         # Transform release into JSON Lines format saving in memory buffer

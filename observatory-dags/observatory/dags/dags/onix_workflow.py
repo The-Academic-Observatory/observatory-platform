@@ -19,66 +19,55 @@
 
 
 from observatory.api.client.identifiers import TelescopeTypes
-from observatory.api.server.api import Response
-from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.dags.workflows.oaebu_partners import OaebuPartners
 from observatory.dags.workflows.onix_workflow import OnixWorkflow
-from observatory.platform.utils.telescope_utils import make_dag_id, make_observatory_api
+from observatory.platform.utils.telescope_utils import make_observatory_api
 
 
 # Temporary function. Create oaebu partner metadata.
 # Get rid of this when we change the Observatory API.
 def get_oaebu_partner_data(project_id):
     oaebu_data = [
-        # OaebuPartners(
-        #     name="Google Analytics",
-        #     gcp_project_id=project_id,
-        #     gcp_dataset_id="google",
-        #     gcp_table_id="google_book_sales",
-        #     isbn_field_name="Primary_ISBN",
-        # ),
-        # OaebuPartners(
-        #     name="Google Book Sales",
-        #     gcp_project_id=project_id,
-        #     gcp_dataset_id="google",
-        #     gcp_table_id="google_book_sales",
-        #     isbn_field_name="Primary_ISBN",
-        # ),
-        # OaebuPartners(
-        #     name="Google Book Traffic",
-        #     gcp_project_id=project_id,
-        #     gcp_dataset_id="google",
-        #     gcp_table_id="google_book_traffic",
-        #     isbn_field_name="Primary_ISBN",
-        # ),
-        # OaebuPartners(
-        #     name="JSTOR Country",
-        #     gcp_project_id=project_id,
-        #     gcp_dataset_id="jstor",
-        #     gcp_table_id="jstor_country",
-        #     isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
-        # ),
-        # OaebuPartners(
-        #     name="JSTOR Institution",
-        #     gcp_project_id=project_id,
-        #     gcp_dataset_id="jstor",
-        #     gcp_table_id="jstor_institution",
-        #     isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
-        # ),
-        # OaebuPartners(
-        #     name="OAPEN IRUS UK",
-        #     gcp_project_id=project_id,
-        #     gcp_dataset_id="oapen",
-        #     gcp_table_id="oapen_irus_uk",
-        #     isbn_field_name="isbn",  # Debate over whether this should be eISBN instead
-        # ),
-        # OaebuPartners(
-        #     name="Fake partner",
-        #     gcp_project_id=project_id,
-        #     gcp_dataset_id="fake_partner",
-        #     gcp_table_id="jstor_country",
-        #     isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
-        # ),
+        OaebuPartners(
+            name="Google Books Sales",
+            gcp_project_id=project_id,
+            gcp_dataset_id="google",
+            gcp_table_id="google_books_sales",
+            isbn_field_name="Primary_ISBN",
+            sharded=False
+        ),
+        OaebuPartners(
+            name="Google Books Traffic",
+            gcp_project_id=project_id,
+            gcp_dataset_id="google",
+            gcp_table_id="google_books_traffic",
+            isbn_field_name="Primary_ISBN",
+            sharded=False
+        ),
+        OaebuPartners(
+            name="JSTOR Country",
+            gcp_project_id=project_id,
+            gcp_dataset_id="jstor",
+            gcp_table_id="jstor_country",
+            isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
+            sharded=False
+        ),
+        OaebuPartners(
+            name="JSTOR Institution",
+            gcp_project_id=project_id,
+            gcp_dataset_id="jstor",
+            gcp_table_id="jstor_institution",
+            isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
+            sharded=False
+        ),
+        OaebuPartners(
+            name="OAPEN IRUS UK",
+            gcp_project_id=project_id,
+            gcp_dataset_id="oapen",
+            gcp_table_id="oapen_irus_uk",
+            isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
+            sharded=False
+        )
     ]
 
     return oaebu_data

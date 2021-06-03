@@ -69,7 +69,7 @@ from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
 
 scopes = ['https://www.googleapis.com/auth/analytics.readonly']
-credentials_path = '/Users/284060a/keys/gcp/aniek-dev-b345af1f5cd3.json'
+credentials_path = '/path/to/service_account_credentials.json'
 
 creds = ServiceAccountCredentials.from_json_keyfile_name(credentials_path, scopes=scopes)
 

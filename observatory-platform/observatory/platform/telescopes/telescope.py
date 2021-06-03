@@ -23,15 +23,10 @@ from typing import Any, Callable, List, Union
 
 from airflow import DAG
 from airflow.exceptions import AirflowException
-from airflow.models.variable import Variable
 from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.helpers import chain
-from observatory.platform.utils.airflow_utils import (
-    AirflowVars,
-    check_connections,
-    check_variables,
-)
+from observatory.platform.utils.airflow_utils import AirflowVars, check_connections, check_variables, AirflowVariable
 from observatory.platform.utils.file_utils import list_files
 from observatory.platform.utils.template_utils import (
     SubFolder,
@@ -338,7 +333,7 @@ class Telescope(AbstractTelescope):
                     queue=self.queue,
                     default_args=self.default_args,
                     provide_context=True,
-                    **kwargs,
+                    **kwargs
                 )
                 tasks.append(task)
             chain(*tasks)
@@ -515,14 +510,14 @@ class Release(AbstractRelease):
         """The download bucket name.
         :return: the download bucket name.
         """
-        return Variable.get(AirflowVars.DOWNLOAD_BUCKET)
+        return AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET)
 
     @property
     def transform_bucket(self):
         """The transform bucket name.
         :return: the transform bucket name.
         """
-        return Variable.get(AirflowVars.TRANSFORM_BUCKET)
+        return AirflowVariable.get(AirflowVars.TRANSFORM_BUCKET)
 
     def cleanup(self) -> None:
         """Delete all files and folders associated with this release.

@@ -215,7 +215,8 @@ class OapenIrusUkTelescope(SnapshotTelescope):
     def __init__(self, organisation: Organisation, publisher_id: str, dag_id: Optional[str] = None,
                  start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly',
                  dataset_id: str = 'oapen', dataset_description: str = 'OAPEN dataset', table_descriptions: Dict = None,
-                 catchup: bool = True, airflow_vars: List = None, airflow_conns: List = None, max_active_runs=5):
+                 catchup: bool = True, airflow_vars: List = None, airflow_conns: List = None, max_active_runs=5,
+                 max_cloud_function_instances: int = 0):
 
         """ The OAPEN irus uk telescope.
         :param organisation: the Organisation the DAG will process.
@@ -229,6 +230,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         :param catchup:  whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
+        :param max_cloud_function_instances: the maximum cloud function instances.
         """
 
         if airflow_vars is None:
@@ -251,6 +253,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, dataset_description=dataset_description,
                          catchup=catchup, airflow_vars=airflow_vars, airflow_conns=airflow_conns,
                          max_active_runs=max_active_runs, table_descriptions=table_descriptions)
+        self.max_cloud_function_instances = max_cloud_function_instances
         self.organisation = organisation
         self.project_id = organisation.gcp_project_id
         self.dataset_location = 'us'  # TODO: add to API
@@ -296,7 +299,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         :return: None.
         """
         for release in releases:
-            release.create_cloud_function(self.max_active_runs)
+            release.create_cloud_function(self.max_cloud_function_instances)
 
     def call_cloud_function(self, releases: List[OapenIrusUkRelease], **kwargs):
         """ Task to call the cloud function for each release.

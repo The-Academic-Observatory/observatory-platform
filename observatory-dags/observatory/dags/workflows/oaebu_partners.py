@@ -17,9 +17,6 @@
 
 
 from dataclasses import dataclass
-from typing import Union
-
-from pendulum import Pendulum
 
 
 @dataclass
@@ -30,8 +27,8 @@ class OaebuPartners:
     :param gcp_project_id: GCP Project ID.
     :param gcp_dataset_id: GCP Dataset ID.
     :param gcp_table_id: Table name without the date suffix.
-    :param gcp_table_date: Table's date suffix.
     :param isbn_field_name: Name of the field containing the ISBN.
+    :param sharded: whether the table is sharded or not.
     """
 
     name: str
@@ -39,4 +36,4 @@ class OaebuPartners:
     gcp_dataset_id: str
     gcp_table_id: str
     isbn_field_name: str
-    gcp_table_date: Union[Pendulum, None] = None
+    sharded: bool

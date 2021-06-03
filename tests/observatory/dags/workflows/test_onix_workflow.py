@@ -17,31 +17,23 @@
 import hashlib
 import os
 import unittest
-from datetime import datetime
-from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-import observatory.api.server.orm as orm
-import pandas as pd
 import pendulum
-from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
-from airflow.models.taskinstance import TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.state import State
 from click.testing import CliRunner
+from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
+
+import observatory.api.server.orm as orm
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.server.orm import Organisation
-from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.dags.workflows.oaebu_partners import OaebuPartners
 from observatory.dags.workflows.onix_workflow import OnixWorkflow, OnixWorkflowRelease
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import (
     delete_bigquery_dataset,
     delete_bucket_dir,
@@ -50,7 +42,7 @@ from observatory.platform.utils.gc_utils import (
 )
 from observatory.platform.utils.telescope_utils import make_observatory_api
 from observatory.platform.utils.template_utils import (
-    blob_name,
+    bq_load_partition,
     bq_load_shard_v2,
     table_ids_from_path,
 )
@@ -119,29 +111,21 @@ class TestOnixWorkflow(ObservatoryTestCase):
             "RelatedWorks": [
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [
-                        {"WorkIDType": "ISBN-13", "IDValue": "112"},
-                    ],
+                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "112"},],
                 },
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [
-                        {"WorkIDType": "ISBN-13", "IDValue": "113"},
-                    ],
+                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "113"},],
                 },
             ],
-            "RelatedProducts": [
-                {"ProductRelationCodes": ["Replaces", "something random"], "ISBN13": "211"},
-            ],
+            "RelatedProducts": [{"ProductRelationCodes": ["Replaces", "something random"], "ISBN13": "211"},],
         },
         {
             "ISBN13": "112",
             "RelatedWorks": [
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [
-                        {"WorkIDType": "ISBN-13", "IDValue": "112"},
-                    ],
+                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "112"},],
                 },
             ],
             "RelatedProducts": [],
@@ -151,9 +135,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             "RelatedWorks": [
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [
-                        {"WorkIDType": "ISBN-13", "IDValue": "211"},
-                    ],
+                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "211"},],
                 },
             ],
             "RelatedProducts": [],
@@ -162,10 +144,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
     class MockTelescopeResponse:
         def __init__(self):
-            self.organisation = Organisation(
-                name="test",
-                gcp_project_id="project_id",
-            )
+            self.organisation = Organisation(name="test", gcp_project_id="project_id",)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -405,10 +384,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.cleanup(releases)
             self.assertFalse(os.path.isdir(release.transform_folder))
 
-    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
-    def test_dag_structure(self, mock_sel_table_suffixes):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
-
+    def test_dag_structure(self):
         data_partners = [
             OaebuPartners(
                 name="JSTOR",
@@ -416,7 +392,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="jstor_country",
                 isbn_field_name="isbn",
-                gcp_table_date=None,
+                sharded=False,
             ),
             OaebuPartners(
                 name="OAPEN IRUS UK",
@@ -424,7 +400,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="oapen_irus_uk",
                 isbn_field_name="ISBN",
-                gcp_table_date=None,
+                sharded=False,
             ),
             OaebuPartners(
                 name="Google Books Sales",
@@ -432,7 +408,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="google_books_sales",
                 isbn_field_name="Primary_ISBN",
-                gcp_table_date=None,
+                sharded=False,
             ),
             OaebuPartners(
                 name="Google Books Traffic",
@@ -440,7 +416,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="google_books_traffic",
                 isbn_field_name="Primary_ISBN",
-                gcp_table_date=None,
+                sharded=False,
             ),
         ]
 
@@ -454,7 +430,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             dag = wf.make_dag()
             self.assert_dag_structure(
                 {
-                    "onix_test_sensor": ["aggregate_works"],
+                    "onix_test_sensor": ["continue_workflow"],
+                    "continue_workflow": ["aggregate_works"],
                     "aggregate_works": ["upload_aggregation_tables"],
                     "upload_aggregation_tables": ["bq_load_workid_lookup"],
                     "bq_load_workid_lookup": ["bq_load_workid_lookup_errors"],
@@ -717,7 +694,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                         orig_dataset="dataset",
                         orig_table="table",
                         orig_isbn="isbn",
-                        table_date=pendulum.Pendulum(2021, 1, 1),
+                        sharded=False
                     )
 
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
@@ -734,20 +711,20 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="test_dataset",
                 gcp_table_id="test_table",
                 isbn_field_name="isbn",
+                sharded=True
             ),
             OaebuPartners(
                 name="Test Partner",
                 gcp_project_id="test_project",
                 gcp_dataset_id="test_dataset",
                 gcp_table_id="test_table2",
-                gcp_table_date=pendulum.Pendulum(2021, 1, 1),
                 isbn_field_name="isbn",
+                sharded=True
             ),
         ]
 
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         mock_create_bq_table.return_value = True
-        self.assertEqual(data_partners[0].gcp_table_date, None)
 
         with CliRunner().isolated_filesystem():
             wf = OnixWorkflow(
@@ -932,6 +909,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="jstor",
                 gcp_table_id="country",
                 isbn_field_name="ISBN",
+                sharded=False,
             )
         ]
         with CliRunner().isolated_filesystem():
@@ -956,7 +934,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="jstor",
                 orig_table="country",
-                table_date=None,
+                sharded=True
             )
 
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
@@ -975,7 +953,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="jstor",
                 orig_table="country",
-                table_date=pendulum.Pendulum(2021, 1, 1),
+                sharded=False
             )
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
@@ -987,7 +965,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "b069027b3ad5b9bd4b78e7c82faea024"
+            expected_hash = "7a9a66b5a0295ecdd53d245e659f3e85"
             self.assertEqual(sql_hash, expected_hash)
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
@@ -1005,6 +983,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="google_books",
                 gcp_table_id="sales",
                 isbn_field_name="Primary_ISBN",
+                sharded=False,
             )
         ]
         with CliRunner().isolated_filesystem():
@@ -1029,7 +1008,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="google_books",
                 orig_table="sales",
-                table_date=None,
+                sharded=True,
             )
 
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
@@ -1048,7 +1027,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="google_books",
                 orig_table="sales",
-                table_date=pendulum.Pendulum(2021, 1, 1),
+                sharded=False,
             )
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
@@ -1060,7 +1039,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "3e84231b474ee952cc104afc5308caed"
+            expected_hash = "90bbe5c7fb00173d1a85f6ab13ab99b2"
             self.assertEqual(sql_hash, expected_hash)
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
@@ -1078,6 +1057,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="google_books",
                 gcp_table_id="traffic",
                 isbn_field_name="Primary_ISBN",
+                sharded=False
             )
         ]
         with CliRunner().isolated_filesystem():
@@ -1102,7 +1082,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="google_books",
                 orig_table="traffic",
-                table_date=None,
+                sharded=True,
             )
 
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
@@ -1121,7 +1101,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="google_books",
                 orig_table="sales",
-                table_date=pendulum.Pendulum(2021, 1, 1),
+                sharded=False
             )
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
@@ -1133,7 +1113,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "3e84231b474ee952cc104afc5308caed"
+            expected_hash = "90bbe5c7fb00173d1a85f6ab13ab99b2"
             self.assertEqual(sql_hash, expected_hash)
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
@@ -1149,6 +1129,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="irus_uk",
                 gcp_table_id="oapen_irus_uk",
                 isbn_field_name="ISBN",
+                sharded=False
             )
         ]
         with CliRunner().isolated_filesystem():
@@ -1173,7 +1154,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="irus_uk",
                 orig_table="oapen_irus_uk",
-                table_date=None,
+                sharded=True
             )
 
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
@@ -1192,7 +1173,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="irus_uk",
                 orig_table="oapen_irus_uk",
-                table_date=pendulum.Pendulum(2021, 1, 1),
+                sharded=False
             )
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
@@ -1204,7 +1185,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "fcc561153f0173d855bc82e8fd990cde"
+            expected_hash = "ae842fbf661d3a0c50b748dec8e1cd24"
             self.assertEqual(sql_hash, expected_hash)
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
@@ -1222,6 +1203,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="jstor",
                 gcp_table_id="country",
                 isbn_field_name="ISBN",
+                sharded=False
             )
         ]
         with CliRunner().isolated_filesystem():
@@ -1305,7 +1287,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
         self.onix_table_id = "onix"
         self.test_onix_folder = random_id()  # "onix_workflow_test_onix_table"
-        self.onix_release_date = pendulum.Pendulum(2021, 5, 13)
+        self.onix_release_date = pendulum.Pendulum(2021, 1, 1)
+
+        # 2020-01-01
         self.onix_dataset_id = ""
         self.fake_partner_dataset = ""
 
@@ -1397,92 +1381,48 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         upload_files_to_cloud_storage(bucket_name=self.gcp_bucket_name, blob_names=blobs, file_paths=files)
 
         # Load into bigquery
-        jstor_table_id, _ = table_ids_from_path("jstor_country.json")
-        bq_load_shard_v2(
-            project_id=self.gcp_project_id,
-            transform_bucket=self.gcp_bucket_name,
-            transform_blob=blobs[0],
-            dataset_id=self.fake_partner_dataset,
-            dataset_location=self.data_location,
-            table_id=jstor_table_id,
-            release_date=self.onix_release_date,
-            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-            dataset_description="Test Onix data for the workflow",
-            **{},
-        )
+        table_ids = []
+        for file_name, blob in zip(files, blobs):
+            table_id, _ = table_ids_from_path(file_name)
+            bq_load_partition(
+                project_id=self.gcp_project_id,
+                transform_bucket=self.gcp_bucket_name,
+                transform_blob=blob,
+                dataset_id=self.fake_partner_dataset,
+                dataset_location=self.data_location,
+                table_id=table_id,
+                release_date=self.onix_release_date,
+                source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                partition_type=bigquery.table.TimePartitioningType.MONTH,
+                dataset_description="Test Onix data for the workflow",
+                partition_field="release_date",
+                **{},
+            )
+            table_ids.append(table_id)
 
-        google_books_sales_table_id, _ = table_ids_from_path("google_books_sales.json")
-        bq_load_shard_v2(
-            project_id=self.gcp_project_id,
-            transform_bucket=self.gcp_bucket_name,
-            transform_blob=blobs[1],
-            dataset_id=self.fake_partner_dataset,
-            dataset_location=self.data_location,
-            table_id=google_books_sales_table_id,
-            release_date=self.onix_release_date,
-            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-            dataset_description="Test Onix data for the workflow",
-            **{},
-        )
+        # Make partners
+        partners = []
+        for (name, isbn_field_name), table_id in zip(
+            [
+                ("JSTOR", "ISBN"),
+                ("Google Books Sales", "Primary_ISBN"),
+                ("Google Books Traffic", "Primary_ISBN"),
+                ("OAPEN IRUS UK", "ISBN"),
+            ],
+            table_ids,
+        ):
+            partners.append(
+                OaebuPartners(
+                    name=name,
+                    gcp_project_id=self.gcp_project_id,
+                    gcp_dataset_id=self.fake_partner_dataset,
+                    gcp_table_id=table_id,
+                    isbn_field_name=isbn_field_name,
+                    sharded=False,
+                )
+            )
 
-        google_books_traffic_table_id, _ = table_ids_from_path("google_books_traffic.json")
-        bq_load_shard_v2(
-            project_id=self.gcp_project_id,
-            transform_bucket=self.gcp_bucket_name,
-            transform_blob=blobs[2],
-            dataset_id=self.fake_partner_dataset,
-            dataset_location=self.data_location,
-            table_id=google_books_traffic_table_id,
-            release_date=self.onix_release_date,
-            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-            dataset_description="Test Onix data for the workflow",
-            **{},
-        )
-
-        oapen_irus_uk_table_id, _ = table_ids_from_path("oapen_irus_uk.json")
-        bq_load_shard_v2(
-            project_id=self.gcp_project_id,
-            transform_bucket=self.gcp_bucket_name,
-            transform_blob=blobs[3],
-            dataset_id=self.fake_partner_dataset,
-            dataset_location=self.data_location,
-            table_id=oapen_irus_uk_table_id,
-            release_date=self.onix_release_date,
-            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-            dataset_description="Test Onix data for the workflow",
-            **{},
-        )
-
-        return [
-            OaebuPartners(
-                name="JSTOR",
-                gcp_project_id=self.gcp_project_id,
-                gcp_dataset_id=self.fake_partner_dataset,
-                gcp_table_id=jstor_table_id,
-                isbn_field_name="ISBN",
-            ),
-            OaebuPartners(
-                name="Google Books Sales",
-                gcp_project_id=self.gcp_project_id,
-                gcp_dataset_id=self.fake_partner_dataset,
-                gcp_table_id=google_books_sales_table_id,
-                isbn_field_name="Primary_ISBN",
-            ),
-            OaebuPartners(
-                name="Google Books Traffic",
-                gcp_project_id=self.gcp_project_id,
-                gcp_dataset_id=self.fake_partner_dataset,
-                gcp_table_id=google_books_traffic_table_id,
-                isbn_field_name="Primary_ISBN",
-            ),
-            OaebuPartners(
-                name="OAPEN IRUS UK",
-                gcp_project_id=self.gcp_project_id,
-                gcp_dataset_id=self.fake_partner_dataset,
-                gcp_table_id=oapen_irus_uk_table_id,
-                isbn_field_name="ISBN",
-            ),
-        ]
+        return partners
 
     def test_sensors(self):
         # Setup Observatory environment
@@ -1602,6 +1542,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             # Trigger sensor
             env.run_task(telescope_sensor.task_id, workflow_dag, self.timestamp)
 
+            # Continue workflow
+            env.run_task(telescope.continue_workflow.__name__, workflow_dag, self.timestamp)
+
             # Aggregate works
             env.run_task(telescope.aggregate_works.__name__, workflow_dag, self.timestamp)
 
@@ -1630,23 +1573,17 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # ONIX isbn check
             env.run_task(
-                telescope.create_oaebu_data_qa_onix_isbn.__name__,
-                workflow_dag,
-                self.timestamp,
+                telescope.create_oaebu_data_qa_onix_isbn.__name__, workflow_dag, self.timestamp,
             )
 
             # ONIX aggregate metrics
             env.run_task(
-                telescope.create_oaebu_data_qa_onix_aggregate.__name__,
-                workflow_dag,
-                self.timestamp,
+                telescope.create_oaebu_data_qa_onix_aggregate.__name__, workflow_dag, self.timestamp,
             )
 
             # JSTOR isbn check
             env.run_task(
-                telescope.create_oaebu_data_qa_jstor_isbn.__name__,
-                workflow_dag,
-                self.timestamp,
+                telescope.create_oaebu_data_qa_jstor_isbn.__name__, workflow_dag, self.timestamp,
             )
 
             # JSTOR intermediate unmatched isbns
@@ -1658,9 +1595,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # Google Books Sales isbn check
             env.run_task(
-                telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__,
-                workflow_dag,
-                self.timestamp,
+                telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__, workflow_dag, self.timestamp,
             )
 
             # Google Books Sales intermediate unmatched isbns
@@ -1672,9 +1607,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # Google Books Traffic isbn check
             env.run_task(
-                telescope.create_oaebu_data_qa_google_books_traffic_isbn.__name__,
-                workflow_dag,
-                self.timestamp,
+                telescope.create_oaebu_data_qa_google_books_traffic_isbn.__name__, workflow_dag, self.timestamp,
             )
 
             # Google Books Traffic intermediate unmatched isbns
@@ -1686,9 +1619,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # OAPEN IRUS UK isbn check
             env.run_task(
-                telescope.create_oaebu_data_qa_oapen_irus_uk_isbn.__name__,
-                workflow_dag,
-                self.timestamp,
+                telescope.create_oaebu_data_qa_oapen_irus_uk_isbn.__name__, workflow_dag, self.timestamp,
             )
 
             # OAPEN IRUS UK intermediate unmatched isbns
