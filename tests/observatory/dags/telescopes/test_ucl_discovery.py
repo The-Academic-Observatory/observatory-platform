@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 import pendulum
 import vcr
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.connection import Connection
 from click.testing import CliRunner
 from croniter import croniter
@@ -229,13 +229,12 @@ class TestUclDiscovery(ObservatoryTestCase):
             # test status code 200, but empty csv file
             mock_retry_session().get.return_value.status_code = 200
             mock_retry_session().get.return_value.content = ''.encode()
-            result = release.download()
-            self.assertFalse(result)
+            with self.assertRaises(AirflowSkipException):
+                release.download()
 
             # test status code 200 and valid csv file
             mock_retry_session().get.return_value.content = '"eprintid","userid"\n"1234","1234"'.encode()
-            result = release.download()
-            self.assertTrue(result)
+            release.download()
             self.assert_file_integrity(release.download_path, '13cc3a5087bbd37bf12221727bd1d93f', 'md5')
 
             # test retry error

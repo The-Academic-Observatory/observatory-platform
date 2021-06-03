@@ -5,11 +5,15 @@ Journal reports also include usage by issue and article.
 Usage is aligned with the COUNTER 5 standard of Item Requests (views + downloads).  
 Reports can be run or scheduled weekly, monthly, or quarterly with custom date ranges. 
 
-To get access to the analytics data a publisher needs to grant access to e.g. a Gmail account. 
-This account can then be used to login and set-up the scheduled reports (see below). 
+To directly get access to the analytics data a publisher needs to grant access to e.g. a Gmail account. 
+This account can then be used to login to the JSTOR portal and set-up the scheduled reports (see below) that are
+ mailed to a G-suite account.  
+Alternatively, the publisher can set-up a schedule to create reports that are send to the G-suite account.  
+In the telescope the Gmail of the G-suite account is parsed for messages with a download link to the JSTOR report.
+
+The production server of the observatory-platform has been white listed by JSTOR to avoid bot detection.
 
 The corresponding tables created in BigQuery are `jstor_countryYYYYMMDD` and `jstor_institutionYYYYMMDD`.
-
 
 ```eval_rst
 +------------------------------+---------+
@@ -287,29 +291,29 @@ See the [google support answer](https://support.google.com/googleapi/answer/6158
 Search for the Gmail API and enable this.
 
 ### Creating the Gmail API connection and credentials  
-#### Set-up google cloud project to use Gmail account.  
-If the Gmail account is part of the same organization (e.g. using a g-suite account):   
- *  In the IAM section add the Gmail account you want to use as a user. 
-    
-If the Gmail account is not part of the same organization (e.g. regular account@gmail.com):    
-  * Go to 'APIs & Services'
-  * Click 'OAuth consent screen'
-  * For user Type, choose 'External' and click create.
-  * Add the Gmail account you want to use as a test user.
-     
-#### Create OAuth credentials
-* From the 'APIs & Services' section, click the 'Credentials' menu item.
-* Click 'Create Credentials' and choose OAuth client ID.
-* In the form, enter the following information:
-  *  Application type: Web application
-  *  Name: Can be anything, e.g. 'gmail API'
-  *  Authorized redirect URIs: add the URI: http://localhost:8080/
-  *  Click 'Create'
-* Download the client secrets file for the newly created OAuth 2.0 Client ID, by clicking the download icon for the 
-  client ID that you created. The file will be named something like 'client_secret_token.apps.googleusercontent.com.json'    
-* Get the credentials info using the JSON file with client secret info by executing the following python code. 
+Currently, the telescope works only with a Gmail account that is an internal user (a G-suite account).  
+It is possible to create credentials for an external user with a project status of 'Testing' in the OAuth screen, 
+however refresh tokens created in such a project expire after 7 days and the telescope does not handle expired
+ refresh tokens.  
+See the [documentation](https://developers.google.com/identity/protocols/oauth2#expiration) for more info on OAuth
+ refresh token expiration.  
 
-Note that when you create these credentials, any previously stored credentials become invalid.
+#### Create OAuth credentials   
+- In the IAM section add the G-suite account you would like to use as a user. 
+- From the 'APIs & Services' section, click the 'Credentials' menu item.
+- Click 'Create Credentials' and choose OAuth client ID.
+- In the form, enter the following information:
+  -  Application type: Web application
+  -  Name: Can be anything, e.g. 'Gmail API'
+  -  Authorized redirect URIs: add the URI: http://localhost:8080/
+  -  Click 'Create'
+- Download the client secrets file for the newly created OAuth 2.0 Client ID, by clicking the download icon for the 
+  client ID that you created. The file will be named something like `client_secret_token.apps.googleusercontent.com.json`    
+- Get the credentials info using the JSON file with client secret info by executing the following python code. 
+
+Note that there is currently a limit of 50 refresh tokens per client ID. 
+If the limit is reached, creating a new refresh token automatically invalidates the oldest refresh token without
+ warning.  
 ```python
 import urllib.parse
 from google_auth_oauthlib.flow import InstalledAppFlow

@@ -24,7 +24,6 @@ import os
 import os.path
 import os.path
 import shutil
-import time
 from collections import OrderedDict
 from datetime import datetime
 from typing import List, Optional
@@ -39,14 +38,22 @@ from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import Resource, build
+from pendulum import Pendulum
+from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
+
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.telescope_utils import add_partition_date, convert, list_to_jsonl_gz, make_dag_id
-from observatory.platform.utils.template_utils import SubFolder, blob_name, bq_load_partition, \
-    table_ids_from_path, telescope_path, upload_files_from_list
-from pendulum import Pendulum
-from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
+from observatory.platform.utils.template_utils import (
+    SubFolder,
+    blob_name,
+    bq_load_partition,
+    table_ids_from_path,
+    telescope_path,
+    upload_files_from_list,
+)
+from observatory.platform.utils.url_utils import get_ao_user_agent
 
 
 class JstorRelease(SnapshotRelease):
@@ -84,7 +91,7 @@ class JstorRelease(SnapshotRelease):
         :param report_type: The report type (country or institution)
         :return: Download path
         """
-        return os.path.join(self.download_folder, f'{JstorTelescope.DAG_ID_PREFIX}_{report_type}.tsv')
+        return os.path.join(self.download_folder, f"{JstorTelescope.DAG_ID_PREFIX}_{report_type}.tsv")
 
     def transform_path(self, report_type: str) -> str:
         """ Creates full transform path
@@ -102,13 +109,13 @@ class JstorRelease(SnapshotRelease):
         for file in self.download_files:
             results = []
             with open(file) as tsv_file:
-                csv_reader = csv.DictReader(tsv_file, delimiter='\t')
+                csv_reader = csv.DictReader(tsv_file, delimiter="\t")
                 for row in csv_reader:
                     transformed_row = OrderedDict((convert(k), v) for k, v in row.items())
                     results.append(transformed_row)
 
             results = add_partition_date(results, self.release_date, bigquery.TimePartitioningType.MONTH)
-            report_type = 'country' if 'country' in file else 'institution'
+            report_type = "country" if "country" in file else "institution"
             list_to_jsonl_gz(self.transform_path(report_type), results)
 
     def cleanup(self) -> None:
@@ -122,17 +129,17 @@ class JstorRelease(SnapshotRelease):
         service = create_gmail_service()
         label_id = get_label_id(service, JstorTelescope.PROCESSED_LABEL_NAME)
         for report in self.reports_info:
-            message_id = report['id']
-            body = {
-                'addLabelIds': [label_id]
-            }
-            response = service.users().messages().modify(userId='me', id=message_id, body=body).execute()
+            message_id = report["id"]
+            body = {"addLabelIds": [label_id]}
+            response = service.users().messages().modify(userId="me", id=message_id, body=body).execute()
             try:
-                message_id = response['id']
-                logging.info(f"Added label '{JstorTelescope.PROCESSED_LABEL_NAME}' to GMAIL message, message_id: "
-                             f"{message_id}")
+                message_id = response["id"]
+                logging.info(
+                    f"Added label '{JstorTelescope.PROCESSED_LABEL_NAME}' to GMAIL message, message_id: "
+                    f"{message_id}"
+                )
             except KeyError:
-                raise AirflowException(f'Unsuccessful adding label to GMAIL message, message_id: {message_id}')
+                raise AirflowException(f"Unsuccessful adding label to GMAIL message, message_id: {message_id}")
 
 
 class JstorTelescope(SnapshotTelescope):
@@ -142,9 +149,10 @@ class JstorTelescope(SnapshotTelescope):
     Saved to the BigQuery tables: <project_id>.jstor.jstor_countryYYYYMMDD and
     <project_id>.jstor.jstor_institutionYYYYMMDD
     """
-    REPORTS_INFO = 'reports_info'
-    DAG_ID_PREFIX = 'jstor'
-    PROCESSED_LABEL_NAME = 'processed_report'
+
+    REPORTS_INFO = "reports_info"
+    DAG_ID_PREFIX = "jstor"
+    PROCESSED_LABEL_NAME = "processed_report"
 
     # download settings
     MAX_ATTEMPTS = 3
@@ -153,11 +161,21 @@ class JstorTelescope(SnapshotTelescope):
     EXP_BASE = 3
     MULTIPLIER = 10
 
-    def __init__(self, organisation: Organisation, publisher_id: str, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly',
-                 dataset_id: str = 'jstor', source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
-                 dataset_description: str = '', catchup: bool = False, airflow_vars: List = None,
-                 airflow_conns: List = None, max_active_runs: int = 1):
+    def __init__(
+        self,
+        organisation: Organisation,
+        publisher_id: str,
+        dag_id: Optional[str] = None,
+        start_date: datetime = datetime(2018, 1, 1),
+        schedule_interval: str = "@monthly",
+        dataset_id: str = "jstor",
+        source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
+        dataset_description: str = "",
+        catchup: bool = False,
+        airflow_vars: List = None,
+        airflow_conns: List = None,
+        max_active_runs: int = 1,
+    ):
         """ Construct a JstorTelescope instance.
         :param organisation: the Organisation of which data is processed.
         :param publisher_id: the publisher ID, obtained from the 'extra' info from the API regarding the telescope.
@@ -173,30 +191,40 @@ class JstorTelescope(SnapshotTelescope):
         """
 
         if airflow_vars is None:
-            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+            airflow_vars = [
+                AirflowVars.DATA_PATH,
+                AirflowVars.PROJECT_ID,
+                AirflowVars.DATA_LOCATION,
+                AirflowVars.DOWNLOAD_BUCKET,
+                AirflowVars.TRANSFORM_BUCKET,
+            ]
         if airflow_conns is None:
             airflow_conns = [AirflowConns.GMAIL_API]
 
         if dag_id is None:
             dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
 
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, source_format=source_format,
-                         dataset_description=dataset_description, catchup=catchup, airflow_vars=airflow_vars,
-                         airflow_conns=airflow_conns, max_active_runs=max_active_runs)
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            dataset_id,
+            source_format=source_format,
+            dataset_description=dataset_description,
+            catchup=catchup,
+            airflow_vars=airflow_vars,
+            airflow_conns=airflow_conns,
+            max_active_runs=max_active_runs,
+        )
         self.organisation = organisation
         self.project_id = organisation.gcp_project_id
-        self.dataset_location = 'us'  # TODO: add to API
+        self.dataset_location = "us"  # TODO: add to API
         self.publisher_id = publisher_id
 
-        self.add_setup_task_chain([self.check_dependencies,
-                                   self.list_reports,
-                                   self.download_reports])
-        self.add_task_chain([self.upload_downloaded,
-                             self.transform,
-                             self.upload_transformed,
-                             self.bq_load_partition,
-                             self.cleanup])
+        self.add_setup_task_chain([self.check_dependencies, self.list_reports, self.download_reports])
+        self.add_task_chain(
+            [self.upload_downloaded, self.transform, self.upload_transformed, self.bq_load_partition, self.cleanup]
+        )
 
     def make_release(self, **kwargs) -> List[JstorRelease]:
         """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
@@ -208,9 +236,10 @@ class JstorTelescope(SnapshotTelescope):
         :return: A list of grid release instances
         """
 
-        ti: TaskInstance = kwargs['ti']
-        available_releases = ti.xcom_pull(key=JstorTelescope.RELEASE_INFO, task_ids=self.download_reports.__name__,
-                                          include_prior_dates=False)
+        ti: TaskInstance = kwargs["ti"]
+        available_releases = ti.xcom_pull(
+            key=JstorTelescope.RELEASE_INFO, task_ids=self.download_reports.__name__, include_prior_dates=False
+        )
         releases = []
         for release_date in available_releases:
             reports_info = available_releases[release_date]
@@ -224,7 +253,7 @@ class JstorTelescope(SnapshotTelescope):
         super().check_dependencies()
 
         if self.publisher_id is None:
-            expected_extra = {'publisher_id': 'jstor_publisher_id'}
+            expected_extra = {"publisher_id": "jstor_publisher_id"}
             raise AirflowException(f"Publisher ID is not set in 'extra' of telescope, extra example: {expected_extra}")
         return True
 
@@ -245,7 +274,7 @@ class JstorTelescope(SnapshotTelescope):
         continue_dag = len(available_reports) > 0
         if continue_dag:
             # Push messages
-            ti: TaskInstance = kwargs['ti']
+            ti: TaskInstance = kwargs["ti"]
             ti.xcom_push(JstorTelescope.REPORTS_INFO, available_reports)
 
         return continue_dag
@@ -261,15 +290,16 @@ class JstorTelescope(SnapshotTelescope):
         for a list of the keyword arguments that are passed to this argument.
         :return: Whether to continue the DAG (always True)
         """
-        ti: TaskInstance = kwargs['ti']
-        available_reports = ti.xcom_pull(key=JstorTelescope.REPORTS_INFO, task_ids=self.list_reports.__name__,
-                                         include_prior_dates=False)
-        reports_folder = telescope_path(SubFolder.downloaded.value, self.dag_id, 'tmp_reports')
+        ti: TaskInstance = kwargs["ti"]
+        available_reports = ti.xcom_pull(
+            key=JstorTelescope.REPORTS_INFO, task_ids=self.list_reports.__name__, include_prior_dates=False
+        )
+        reports_folder = telescope_path(SubFolder.downloaded.value, self.dag_id, "tmp_reports")
         available_releases = {}
         for report in available_reports:
             # Download report to temporary file
-            url = report['url']
-            tmp_download_path = os.path.join(reports_folder, 'report.tsv')
+            url = report["url"]
+            tmp_download_path = os.path.join(reports_folder, "report.tsv")
             download_report(url, tmp_download_path)
 
             # Get the release date
@@ -277,7 +307,7 @@ class JstorTelescope(SnapshotTelescope):
 
             # Create temporarily release and move report to correct path
             release = JstorRelease(self.dag_id, release_date, [report], self.organisation)
-            shutil.move(tmp_download_path, release.download_path(report['type']))
+            shutil.move(tmp_download_path, release.download_path(report["type"]))
 
             # Add reports to list with available releases
             try:
@@ -322,62 +352,73 @@ class JstorTelescope(SnapshotTelescope):
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
-                table_description = self.table_descriptions.get(table_id, '')
+                table_description = self.table_descriptions.get(table_id, "")
 
-                bq_load_partition(self.project_id, release.transform_bucket, transform_blob, self.dataset_id,
-                                  self.dataset_location, table_id, release.release_date, self.source_format,
-                                  bigquery.table.TimePartitioningType.MONTH, prefix=self.schema_prefix,
-                                  schema_version=self.schema_version, dataset_description=self.dataset_description,
-                                  table_description=table_description, **self.load_bigquery_table_kwargs)
+                bq_load_partition(
+                    self.project_id,
+                    release.transform_bucket,
+                    transform_blob,
+                    self.dataset_id,
+                    self.dataset_location,
+                    table_id,
+                    release.release_date,
+                    self.source_format,
+                    bigquery.table.TimePartitioningType.MONTH,
+                    prefix=self.schema_prefix,
+                    schema_version=self.schema_version,
+                    dataset_description=self.dataset_description,
+                    table_description=table_description,
+                    **self.load_bigquery_table_kwargs,
+                )
 
 
-def create_headers(url: str) -> dict:
+def create_headers() -> dict:
     """ Create a headers dict that can be used to make a request
 
-    :param url: the download url
     :return: headers dictionary
     """
-    referer = f"https://www.google.com/url?q={url}" \
-              f"&amp;source=gmail&amp;ust={int(time.time())}000&amp;usg=AFQjCNFtACM-4Zqs3yA1AXl4GyEbfvCqwQ"
-    headers = {
-        'Referer': referer,
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) '
-                      'Chrome/89.0.4389.90 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
-                  'application/signed-exchange;v=b3;q=0.9'
 
-    }
+    headers = {"User-Agent": get_ao_user_agent()}
     return headers
 
 
-@retry(stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
-       reraise=True,
-       wait=wait_fixed(JstorTelescope.FIXED_WAIT) + wait_exponential(multiplier=JstorTelescope.MULTIPLIER,
-                                                                     exp_base=JstorTelescope.EXP_BASE,
-                                                                     max=JstorTelescope.MAX_WAIT_TIME),
-       )
+@retry(
+    stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
+    reraise=True,
+    wait=wait_fixed(JstorTelescope.FIXED_WAIT)
+    + wait_exponential(
+        multiplier=JstorTelescope.MULTIPLIER, exp_base=JstorTelescope.EXP_BASE, max=JstorTelescope.MAX_WAIT_TIME
+    ),
+)
 def get_header_info(url: str) -> [str, str]:
     """ Get header info from url and parse for filename and extension of file.
 
     :param url: Download url
     :return: Filename and file extension
     """
-    logging.info(f'Getting HEAD of report download url, attempt: {get_header_info.retry.statistics["attempt_number"]}, '
-                 f'idle for: {get_header_info.retry.statistics["idle_for"]}')
-    response = requests.head(url, allow_redirects=True, headers=create_headers(url))
+    logging.info(
+        f'Getting HEAD of report: {url}, '
+        f'attempt: {get_header_info.retry.statistics["attempt_number"]}, '
+        f'idle for: {get_header_info.retry.statistics["idle_for"]}'
+    )
+    response = requests.head(url, allow_redirects=True, headers=create_headers())
     if response.status_code != 200:
-        raise AirflowException(f'Could not get HEAD of report download url, reason: {response.reason}, '
-                               f'status_code: {response.status_code}')
-    filename, extension = response.headers['Content-Disposition'].split('=')[1].split('.')
+        raise AirflowException(
+            f"Could not get HEAD of report download url, reason: {response.reason}, "
+            f"status_code: {response.status_code}"
+        )
+    filename, extension = response.headers["Content-Disposition"].split("=")[1].split(".")
     return filename, extension
 
 
-@retry(stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
-       reraise=True,
-       wait=wait_fixed(JstorTelescope.FIXED_WAIT) + wait_exponential(multiplier=JstorTelescope.MULTIPLIER,
-                                                                     exp_base=JstorTelescope.EXP_BASE,
-                                                                     max=JstorTelescope.MAX_WAIT_TIME),
-       )
+@retry(
+    stop=stop_after_attempt(JstorTelescope.MAX_ATTEMPTS),
+    reraise=True,
+    wait=wait_fixed(JstorTelescope.FIXED_WAIT)
+    + wait_exponential(
+        multiplier=JstorTelescope.MULTIPLIER, exp_base=JstorTelescope.EXP_BASE, max=JstorTelescope.MAX_WAIT_TIME
+    ),
+)
 def download_report(url: str, download_path: str):
     """ Download report from url to a file.
 
@@ -386,15 +427,20 @@ def download_report(url: str, download_path: str):
     :return: Whether download was successful
     """
     logging.info(
-        f'Downloading report from url, attempt: {download_report.retry.statistics["attempt_number"]}, idle for:'
-        f'{download_report.retry.statistics["idle_for"]}')
-    response = requests.get(url, headers=create_headers(url))
+        f'Downloading report: {url}, '
+        f'to: {download_path}, '
+        f'attempt: {download_report.retry.statistics["attempt_number"]}, '
+        f'idle for: {download_report.retry.statistics["idle_for"]}'
+    )
+    response = requests.get(url, headers=create_headers())
     if response.status_code != 200:
-        raise AirflowException(f'Could not download content from report url, reason: {response.reason}, '
-                               f'status_code: {response.status_code}')
+        raise AirflowException(
+            f"Could not download content from report url, reason: {response.reason}, "
+            f"status_code: {response.status_code}"
+        )
 
-    content = response.content.decode('utf-8')
-    with open(download_path, 'w') as f:
+    content = response.content.decode("utf-8")
+    with open(download_path, "w") as f:
         f.write(content)
 
 
@@ -407,19 +453,21 @@ def get_release_date(report_path: str) -> pendulum:
     """
     # Load report data into list of dicts
     with open(report_path) as tsv_file:
-        csv_list = list(csv.DictReader(tsv_file, delimiter='\t'))
+        csv_list = list(csv.DictReader(tsv_file, delimiter="\t"))
 
     # get the first and last usage month
-    first_usage_month = csv_list[0]['Usage Month']
-    last_usage_month = csv_list[-1]['Usage Month']
+    first_usage_month = csv_list[0]["Usage Month"]
+    last_usage_month = csv_list[-1]["Usage Month"]
 
     # check that month in first and last row are the same
     if first_usage_month != last_usage_month:
-        logging.info(f"Report contains data from more than 1 month, start month: {first_usage_month}, "
-                     f"end month: {last_usage_month}")
+        logging.info(
+            f"Report contains data from more than 1 month, start month: {first_usage_month}, "
+            f"end month: {last_usage_month}"
+        )
 
     # get the release date from the last usage month
-    release_date = pendulum.strptime(last_usage_month, '%Y-%m').end_of('month')
+    release_date = pendulum.strptime(last_usage_month, "%Y-%m").end_of("month")
 
     return release_date
 
@@ -430,10 +478,10 @@ def create_gmail_service() -> Resource:
     :return: Gmail service instance
     """
     gmail_api_conn = BaseHook.get_connection(AirflowConns.GMAIL_API)
-    scopes = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.modify']
+    scopes = ["https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.modify"]
     creds = Credentials.from_authorized_user_info(gmail_api_conn.extra_dejson, scopes=scopes)
 
-    service = build('gmail', 'v1', credentials=creds, cache_discovery=False)
+    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
 
     return service
 
@@ -445,20 +493,20 @@ def get_label_id(service: Resource, label_name: str) -> str:
     :param label_name: The name of the label
     :return: The label id
     """
-    existing_labels = service.users().labels().list(userId='me').execute()['labels']
-    label_id = [label['id'] for label in existing_labels if label['name'] == label_name]
+    existing_labels = service.users().labels().list(userId="me").execute()["labels"]
+    label_id = [label["id"] for label in existing_labels if label["name"] == label_name]
     if label_id:
         label_id = label_id[0]
     else:
         # create label
         label_body = {
-            'name': label_name,
-            'messageListVisibility': 'show',
-            'labelListVisibility': 'labelShow',
-            'type': 'user'
+            "name": label_name,
+            "messageListVisibility": "show",
+            "labelListVisibility": "labelShow",
+            "type": "user",
         }
-        result = service.users().labels().create(userId='me', body=label_body).execute()
-        label_id = result['id']
+        result = service.users().labels().create(userId="me", body=label_body).execute()
+        label_id = result["id"]
     return label_id
 
 
@@ -469,7 +517,7 @@ def message_has_label(message: dict, label_id: str) -> bool:
     :param label_id: The label id
     :return: True if the message has the label
     """
-    label_ids = message['labelIds']
+    label_ids = message["labelIds"]
     for label in label_ids:
         if label == label_id:
             return True
@@ -491,11 +539,15 @@ def list_reports(service: Resource, publisher_id: str, processed_label_id: str) 
 
     available_reports = []
     # list messages with specific query
-    results = service.users().messages().list(userId='me', q='subject:"JSTOR Publisher Report Available"',
-                                              labelIds=["INBOX"]).execute()
-    for message_info in results['messages']:
-        message_id = message_info['id']
-        message = service.users().messages().get(userId='me', id=message_id).execute()
+    results = (
+        service.users()
+        .messages()
+        .list(userId="me", q='subject:"JSTOR Publisher Report Available"', labelIds=["INBOX"])
+        .execute()
+    )
+    for message_info in results["messages"]:
+        message_id = message_info["id"]
+        message = service.users().messages().get(userId="me", id=message_id).execute()
 
         # check if message has processed label id
         if message_has_label(message, processed_label_id):
@@ -503,10 +555,10 @@ def list_reports(service: Resource, publisher_id: str, processed_label_id: str) 
 
         # get download url
         download_url = None
-        message_data = base64.urlsafe_b64decode(message['payload']['body']['data'])
-        for link in BeautifulSoup(message_data, 'html.parser', parse_only=SoupStrainer('a')):
-            if link.text == 'Download Completed Report':
-                download_url = link['href']
+        message_data = base64.urlsafe_b64decode(message["payload"]["body"]["data"])
+        for link in BeautifulSoup(message_data, "html.parser", parse_only=SoupStrainer("a")):
+            if link.text == "Download Completed Report":
+                download_url = link["href"]
                 break
         if download_url is None:
             raise AirflowException(f"Can't find download link for report in e-mail, message snippet: {message.snippet}")
@@ -515,29 +567,22 @@ def list_reports(service: Resource, publisher_id: str, processed_label_id: str) 
         filename, extension = get_header_info(download_url)
 
         # get publisher
-        report_publisher = filename.split('_')[1]
+        report_publisher = filename.split("_")[1]
         if report_publisher != publisher_id:
             continue
 
         # get report_type
-        report_mapping = {
-            'PUBBCU': 'country',
-            'PUBBIU': 'institution'
-        }
-        report_type = report_mapping.get(filename.split('_')[2])
+        report_mapping = {"PUBBCU": "country", "PUBBIU": "institution"}
+        report_type = report_mapping.get(filename.split("_")[2])
         if report_type is None:
             logging.info(f"Skipping unrecognized report type, filename {filename}")
 
         # check format
-        if extension != 'tsv':
+        if extension != "tsv":
             raise AirflowException(f'File "{filename}.{extension}" does not have ".tsv" extension')
 
         # add report info
-        available_reports.append({
-            'type': report_type,
-            'url': download_url,
-            'id': message_id
-        })
+        available_reports.append({"type": report_type, "url": download_url, "id": message_id})
 
-        logging.info(f'Processing report. Report type: {report_type}, url: {download_url}, message id: {message_id}.')
+        logging.info(f"Processing report. Report type: {report_type}, url: {download_url}, message id: {message_id}.")
     return available_reports

@@ -22,7 +22,6 @@ from airflow.models.connection import Connection
 
 import observatory.api.server.orm as orm
 from observatory.api.client.identifiers import TelescopeTypes
-from observatory.api.client.model.organisation import Organisation
 from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import _hash_file
@@ -56,6 +55,9 @@ class TestOnix(ObservatoryTestCase):
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
         self.organisation_name = "Curtin Press"
         self.organisation_folder = "curtin_press"
+        self.dataset_location = "us"
+        self.date_regex = "\\d{8}"
+        self.date_format = "%Y%m%d"
 
     def test_dag_structure(self):
         """Test that the ONIX DAG has the correct structure.
@@ -63,8 +65,15 @@ class TestOnix(ObservatoryTestCase):
         :return: None
         """
 
-        organisation = Organisation(name=self.organisation_name)
-        dag = OnixTelescope(organisation).make_dag()
+        dag = OnixTelescope(
+            organisation_name=self.organisation_name,
+            project_id="my-project",
+            download_bucket="download_bucket",
+            transform_bucket="transform_bucket",
+            dataset_location=self.dataset_location,
+            date_regex=self.date_regex,
+            date_format=self.date_format,
+        ).make_dag()
         self.assert_dag_structure(
             {
                 "check_dependencies": ["list_release_info"],
@@ -107,6 +116,7 @@ class TestOnix(ObservatoryTestCase):
                 organisation=organisation,
                 modified=dt,
                 created=dt,
+                extra={"date_regex": self.date_regex, "date_format": self.date_format},
             )
             env.api_session.add(telescope)
             env.api_session.commit()
@@ -131,13 +141,16 @@ class TestOnix(ObservatoryTestCase):
             with sftp_server.create() as sftp_root:
                 # Setup Telescope
                 execution_date = pendulum.datetime(year=2021, month=3, day=31)
-                org = Organisation(
-                    name=self.organisation_name,
-                    gcp_project_id=self.project_id,
-                    gcp_download_bucket=env.download_bucket,
-                    gcp_transform_bucket=env.transform_bucket,
+                telescope = OnixTelescope(
+                    organisation_name=self.organisation_name,
+                    project_id=self.project_id,
+                    download_bucket=env.download_bucket,
+                    transform_bucket=env.transform_bucket,
+                    dataset_location=self.dataset_location,
+                    date_regex=self.date_regex,
+                    date_format=self.date_format,
+                    dataset_id=dataset_id,
                 )
-                telescope = OnixTelescope(org, dataset_id=dataset_id)
                 dag = telescope.make_dag()
 
                 # Release settings
@@ -203,7 +216,9 @@ class TestOnix(ObservatoryTestCase):
 
                 # Test load into BigQuery
                 env.run_task(telescope.bq_load.__name__, dag, execution_date)
-                table_id = f"{self.project_id}.{dataset_id}.{bigquery_sharded_table_id(telescope.DAG_ID_PREFIX, release_date)}"
+                table_id = (
+                    f"{self.project_id}.{dataset_id}.{bigquery_sharded_table_id(telescope.DAG_ID_PREFIX, release_date)}"
+                )
                 expected_rows = 1
                 self.assert_table_integrity(table_id, expected_rows)
 

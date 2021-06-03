@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from typing import List, Tuple, Optional
 
 import pendulum
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from google.cloud import bigquery
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
@@ -89,10 +89,10 @@ class UclDiscoveryRelease(SnapshotRelease):
         """
         return os.path.join(self.transform_folder, f'{self.dag_id_prefix}.jsonl.gz')
 
-    def download(self) -> bool:
+    def download(self):
         """ Download metadata for all eprints that are published before a specific date
 
-        :return: True or False depending on whether download was successful
+        :return: None.
         """
         logging.info(f'Downloading metadata from {self.eprint_metadata_url}')
         response = retry_session(num_retries=5).get(self.eprint_metadata_url)
@@ -102,12 +102,10 @@ class UclDiscoveryRelease(SnapshotRelease):
             try:
                 next(csv_reader)
             except StopIteration:
-                logging.info(f'No metadata available.')
-                return False
+                raise AirflowSkipException('No metadata available for the year of this release date.')
             logging.info(f'Saving metadata to file: {self.download_path}')
             with open(self.download_path, 'w') as f:
                 f.write(response_content)
-            return True
         else:
             raise AirflowException(f'Could not download metadata, response status code: {response.status_code} '
                                    f'reason: {response.reason}')

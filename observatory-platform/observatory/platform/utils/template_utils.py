@@ -32,12 +32,14 @@ from observatory.dags.config import schema_path, workflow_sql_templates_path
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars, create_slack_webhook
 from observatory.platform.utils.config_utils import find_schema
-from observatory.platform.utils.gc_utils import (bigquery_sharded_table_id,
-                                                 copy_bigquery_table,
-                                                 create_bigquery_dataset,
-                                                 load_bigquery_table,
-                                                 run_bigquery_query,
-                                                 upload_files_to_cloud_storage)
+from observatory.platform.utils.gc_utils import (
+    bigquery_sharded_table_id,
+    copy_bigquery_table,
+    create_bigquery_dataset,
+    load_bigquery_table,
+    run_bigquery_query,
+    upload_files_to_cloud_storage,
+)
 from observatory.platform.utils.jinja2_utils import make_sql_jinja2_filename, render_template
 
 
@@ -67,13 +69,13 @@ def telescope_path(*subdirs) -> str:
     """
     global data_path
     if data_path is None:
-        logging.info('telescope_path: requesting data_path variable')
+        logging.info("telescope_path: requesting data_path variable")
         data_path = AirflowVariable.get(AirflowVars.DATA_PATH)
 
     subdirs = [subdir.value if isinstance(subdir, Enum) else subdir for subdir in subdirs]
 
     # Create telescope path
-    path = os.path.join(data_path, 'telescopes', *subdirs)
+    path = os.path.join(data_path, "telescopes", *subdirs)
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
     return path
@@ -86,7 +88,7 @@ def test_data_path() -> str:
     """
     global test_data_path_val_
     if test_data_path_val_ is None:
-        logging.info('test_data_path: requesting test_data_path variable')
+        logging.info("test_data_path: requesting test_data_path variable")
         test_data_path_val_ = AirflowVariable.get(AirflowVars.TEST_DATA_PATH)
 
     return test_data_path_val_
@@ -106,7 +108,7 @@ def blob_name(path: str) -> str:
     sub_paths = pathlib.Path(os.path.relpath(path, telescope_path())).parts[1:]
     relative_path = pathlib.Path(*sub_paths).as_posix()
 
-    return pathlib.Path(os.path.join('telescopes', relative_path)).as_posix()
+    return pathlib.Path(os.path.join("telescopes", relative_path)).as_posix()
 
 
 def upload_files_from_list(files_list: List[str], bucket_name: str) -> bool:
@@ -135,12 +137,12 @@ def table_ids_from_path(transform_path: str) -> Tuple[str, str]:
     :param transform_path: The full path of a file in the transform folder
     :return: Main table id and partition table id
     """
-    logging.info(f'Creating table ids from path: {transform_path}')
+    logging.info(f"Creating table ids from path: {transform_path}")
 
     main_table_id = os.path.splitext(pathlib.Path(transform_path).stem)[0]
-    partition_table_id = f'{main_table_id}_partitions'
+    partition_table_id = f"{main_table_id}_partitions"
 
-    logging.info(f'Table id: {main_table_id}, partition table id: {partition_table_id}')
+    logging.info(f"Table id: {main_table_id}, partition table id: {partition_table_id}")
     return main_table_id, partition_table_id
 
 
@@ -153,10 +155,7 @@ def create_date_table_id(table_id: str, date: datetime, partition_type: bigquery
     :return: The updated table id
     """
     time_type = bigquery.TimePartitioningType
-    type_map = {time_type.HOUR: "%Y%m%d%H",
-                time_type.DAY: "%Y%m%d",
-                time_type.MONTH: "%Y%m",
-                time_type.YEAR: "%Y"}
+    type_map = {time_type.HOUR: "%Y%m%d%H", time_type.DAY: "%Y%m%d", time_type.MONTH: "%Y%m", time_type.YEAR: "%Y"}
 
     date_format = type_map.get(partition_type)
     if date_format is None:
@@ -164,11 +163,17 @@ def create_date_table_id(table_id: str, date: datetime, partition_type: bigquery
 
     date_str = date.strftime(date_format)
 
-    return f'{table_id}${date_str}'
+    return f"{table_id}${date_str}"
 
 
-def prepare_bq_load(dataset_id: str, table_id: str, release_date: pendulum.Pendulum, prefix: str,
-                    schema_version: str, dataset_description: str = '') -> [str, str, str, str]:
+def prepare_bq_load(
+    dataset_id: str,
+    table_id: str,
+    release_date: pendulum.Pendulum,
+    prefix: str,
+    schema_version: str,
+    dataset_description: str = "",
+) -> [str, str, str, str]:
     """
     Prepare to load data into BigQuery. This will:
      - create the dataset if it does not exist yet
@@ -183,13 +188,13 @@ def prepare_bq_load(dataset_id: str, table_id: str, release_date: pendulum.Pendu
     :return: The project id, bucket name, data location and schema path
     """
 
-    logging.info('requesting project_id variable')
+    logging.info("requesting project_id variable")
     project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
 
-    logging.info('requesting transform_bucket variable')
+    logging.info("requesting transform_bucket variable")
     bucket_name = AirflowVariable.get(AirflowVars.TRANSFORM_BUCKET)
 
-    logging.info('requesting data_location variable')
+    logging.info("requesting data_location variable")
     data_location = AirflowVariable.get(AirflowVars.DATA_LOCATION)
 
     # Create dataset
@@ -203,9 +208,16 @@ def prepare_bq_load(dataset_id: str, table_id: str, release_date: pendulum.Pendu
     return project_id, bucket_name, data_location, schema_file_path
 
 
-def prepare_bq_load_v2(project_id: str, dataset_id: str, dataset_location: str, table_id: str,
-                       release_date: pendulum.Pendulum, prefix: str, schema_version: str,
-                       dataset_description: str = '') -> str:
+def prepare_bq_load_v2(
+    project_id: str,
+    dataset_id: str,
+    dataset_location: str,
+    table_id: str,
+    release_date: pendulum.Pendulum,
+    prefix: str,
+    schema_version: str,
+    dataset_description: str = "",
+) -> str:
     """
     Prepare to load data into BigQuery. This will:
      - create the dataset if it does not exist yet
@@ -234,10 +246,17 @@ def prepare_bq_load_v2(project_id: str, dataset_id: str, dataset_location: str, 
     return schema_file_path
 
 
-def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, table_id: str,
-                  source_format: SourceFormat, prefix: str = '', schema_version: str = None,
-                  dataset_description: str = '',
-                  **load_bigquery_table_kwargs):
+def bq_load_shard(
+    release_date: pendulum.Pendulum,
+    transform_blob: str,
+    dataset_id: str,
+    table_id: str,
+    source_format: SourceFormat,
+    prefix: str = "",
+    schema_version: str = None,
+    dataset_description: str = "",
+    **load_bigquery_table_kwargs,
+):
     """ Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
     :param release_date: Release date.
     :param transform_blob: Name of the transform blob.
@@ -249,8 +268,9 @@ def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_
     :param dataset_description: description of the BigQuery dataset.
     :return: None.
     """
-    _, bucket_name, data_location, schema_file_path = prepare_bq_load(dataset_id, table_id, release_date, prefix,
-                                                                      schema_version, dataset_description)
+    _, bucket_name, data_location, schema_file_path = prepare_bq_load(
+        dataset_id, table_id, release_date, prefix, schema_version, dataset_description
+    )
 
     # Create table id
     table_id = bigquery_sharded_table_id(table_id, release_date)
@@ -259,16 +279,27 @@ def bq_load_shard(release_date: pendulum.Pendulum, transform_blob: str, dataset_
     uri = f"gs://{bucket_name}/{transform_blob}"
     logging.info(f"URI: {uri}")
 
-    success = load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path, source_format,
-                                  **load_bigquery_table_kwargs)
+    success = load_bigquery_table(
+        uri, dataset_id, data_location, table_id, schema_file_path, source_format, **load_bigquery_table_kwargs
+    )
     if not success:
         raise AirflowException()
 
 
-def bq_load_shard_v2(project_id: str, transform_bucket: str, transform_blob: str, dataset_id: str,
-                     dataset_location: str, table_id: str, release_date: pendulum.Pendulum, source_format: SourceFormat,
-                     prefix: str = '', schema_version: str = None, dataset_description: str = '',
-                     **load_bigquery_table_kwargs):
+def bq_load_shard_v2(
+    project_id: str,
+    transform_bucket: str,
+    transform_blob: str,
+    dataset_id: str,
+    dataset_location: str,
+    table_id: str,
+    release_date: pendulum.Pendulum,
+    source_format: SourceFormat,
+    prefix: str = "",
+    schema_version: str = None,
+    dataset_description: str = "",
+    **load_bigquery_table_kwargs,
+):
     """ Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
 
     :param project_id: project id.
@@ -285,8 +316,9 @@ def bq_load_shard_v2(project_id: str, transform_bucket: str, transform_blob: str
     :return: None.
     """
 
-    schema_file_path = prepare_bq_load_v2(project_id, dataset_id, dataset_location, table_id, release_date, prefix,
-                                          schema_version, dataset_description)
+    schema_file_path = prepare_bq_load_v2(
+        project_id, dataset_id, dataset_location, table_id, release_date, prefix, schema_version, dataset_description
+    )
 
     # Create table id
     table_id = bigquery_sharded_table_id(table_id, release_date)
@@ -295,17 +327,33 @@ def bq_load_shard_v2(project_id: str, transform_bucket: str, transform_blob: str
     uri = f"gs://{transform_bucket}/{transform_blob}"
     logging.info(f"URI: {uri}")
 
-    success = load_bigquery_table(uri, dataset_id, dataset_location, table_id, schema_file_path, source_format,
-                                  project_id=project_id, **load_bigquery_table_kwargs)
+    success = load_bigquery_table(
+        uri,
+        dataset_id,
+        dataset_location,
+        table_id,
+        schema_file_path,
+        source_format,
+        project_id=project_id,
+        **load_bigquery_table_kwargs,
+    )
     if not success:
         raise AirflowException()
 
 
-def bq_load_ingestion_partition(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
-                                partition_table_id: str, source_format: SourceFormat, prefix: str = '',
-                                schema_version: str = None, dataset_description: str = '',
-                                partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
-                                **load_bigquery_table_kwargs):
+def bq_load_ingestion_partition(
+    end_date: pendulum.Pendulum,
+    transform_blob: str,
+    dataset_id: str,
+    main_table_id: str,
+    partition_table_id: str,
+    source_format: SourceFormat,
+    prefix: str = "",
+    schema_version: str = None,
+    dataset_description: str = "",
+    partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
+    **load_bigquery_table_kwargs,
+):
     """ Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
     given it will automatically partition by ingestion datetime.
 
@@ -321,26 +369,45 @@ def bq_load_ingestion_partition(end_date: pendulum.Pendulum, transform_blob: str
     :param partition_type: The partitioning type (hour, day, month or year)
     :return: None.
     """
-    _, bucket_name, data_location, schema_file_path = prepare_bq_load(dataset_id, main_table_id, end_date, prefix,
-                                                                      schema_version, dataset_description)
+    _, bucket_name, data_location, schema_file_path = prepare_bq_load(
+        dataset_id, main_table_id, end_date, prefix, schema_version, dataset_description
+    )
 
     uri = f"gs://{bucket_name}/{transform_blob}"
 
     # Include date in table id, so data in table is not overwritten
     partition_table_id = create_date_table_id(partition_table_id, pendulum.today(), partition_type)
-    success = load_bigquery_table(uri, dataset_id, data_location, partition_table_id, schema_file_path,
-                                  source_format, partition=True, partition_type=partition_type,
-                                  **load_bigquery_table_kwargs)
+    success = load_bigquery_table(
+        uri,
+        dataset_id,
+        data_location,
+        partition_table_id,
+        schema_file_path,
+        source_format,
+        partition=True,
+        partition_type=partition_type,
+        **load_bigquery_table_kwargs,
+    )
     if not success:
         raise AirflowException()
 
 
-def bq_load_partition(project_id: str, transform_bucket: str, transform_blob: str, dataset_id: str,
-                      dataset_location: str, table_id: str, release_date: pendulum.Pendulum,
-                      source_format: SourceFormat,
-                      partition_type: bigquery.TimePartitioningType, prefix: str = '', schema_version: str = None,
-                      dataset_description: str = '', partition_field: str = 'release_date',
-                      **load_bigquery_table_kwargs, ):
+def bq_load_partition(
+    project_id: str,
+    transform_bucket: str,
+    transform_blob: str,
+    dataset_id: str,
+    dataset_location: str,
+    table_id: str,
+    release_date: pendulum.Pendulum,
+    source_format: SourceFormat,
+    partition_type: bigquery.TimePartitioningType,
+    prefix: str = "",
+    schema_version: str = None,
+    dataset_description: str = "",
+    partition_field: str = "release_date",
+    **load_bigquery_table_kwargs,
+):
     """ Load data from a specific file (blob) in the transform bucket to a partition.
 
     :param project_id: project id.
@@ -359,23 +426,40 @@ def bq_load_partition(project_id: str, transform_bucket: str, transform_blob: st
     :return: None.
     """
 
-    schema_file_path = prepare_bq_load_v2(project_id, dataset_id, dataset_location, table_id, release_date,
-                                          prefix,
-                                          schema_version, dataset_description)
+    schema_file_path = prepare_bq_load_v2(
+        project_id, dataset_id, dataset_location, table_id, release_date, prefix, schema_version, dataset_description
+    )
 
     uri = f"gs://{transform_bucket}/{transform_blob}"
 
     # Include date in table id, so data in table is not overwritten
     table_id = create_date_table_id(table_id, release_date, partition_type)
-    success = load_bigquery_table(uri, dataset_id, dataset_location, table_id, schema_file_path,
-                                  source_format, partition=True, partition_field=partition_field,
-                                  partition_type=partition_type, **load_bigquery_table_kwargs)
+    success = load_bigquery_table(
+        uri,
+        dataset_id,
+        dataset_location,
+        table_id,
+        schema_file_path,
+        source_format,
+        project_id=project_id,
+        partition=True,
+        partition_field=partition_field,
+        partition_type=partition_type,
+        **load_bigquery_table_kwargs,
+    )
     if not success:
         raise AirflowException()
 
 
-def bq_delete_old(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, dataset_id: str, main_table_id: str,
-                  partition_table_id: str, merge_partition_field: str, updated_date_field: str):
+def bq_delete_old(
+    start_date: pendulum.Pendulum,
+    end_date: pendulum.Pendulum,
+    dataset_id: str,
+    main_table_id: str,
+    partition_table_id: str,
+    merge_partition_field: str,
+    updated_date_field: str,
+):
     """ Will run a BigQuery query that deletes rows from the main table that are matched with rows from
     specific partitions of the partition table.
     The query is created from a template and the given info.
@@ -399,15 +483,29 @@ def bq_delete_old(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, da
     merge_condition_field = merge_partition_field
     updated_date_field = updated_date_field
 
-    template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename('merge_delete_matched'))
-    query = render_template(template_path, dataset=dataset_id, main_table=main_table,
-                            partitioned_table=partitioned_table, merge_condition_field=merge_condition_field,
-                            start_date=start_date, end_date=end_date, updated_date_field=updated_date_field)
+    template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("merge_delete_matched"))
+    query = render_template(
+        template_path,
+        dataset=dataset_id,
+        main_table=main_table,
+        partitioned_table=partitioned_table,
+        merge_condition_field=merge_condition_field,
+        start_date=start_date,
+        end_date=end_date,
+        updated_date_field=updated_date_field,
+    )
     run_bigquery_query(query)
 
 
-def bq_append_from_partition(start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, dataset_id: str,
-                             main_table_id: str, partition_table_id: str, prefix: str = '', schema_version: str = None):
+def bq_append_from_partition(
+    start_date: pendulum.Pendulum,
+    end_date: pendulum.Pendulum,
+    dataset_id: str,
+    main_table_id: str,
+    partition_table_id: str,
+    prefix: str = "",
+    schema_version: str = None,
+):
     """ Appends rows to the main table by coping specific partitions from the partition table to the main table.
     :param start_date: Start date.
     :param end_date: End date.
@@ -418,27 +516,36 @@ def bq_append_from_partition(start_date: pendulum.Pendulum, end_date: pendulum.P
     :param schema_version: Schema version.
     :return: None.
     """
-    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(dataset_id, main_table_id, end_date,
-                                                                               prefix, schema_version)
+    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
+        dataset_id, main_table_id, end_date, prefix, schema_version
+    )
     # include end date in period
     period = pendulum.period(start_date, end_date)
-    logging.info(f'Getting table partitions: ')
+    logging.info(f"Getting table partitions: ")
     source_table_ids = []
     for dt in period:
         table_id = f"{project_id}.{dataset_id}.{partition_table_id}${dt.strftime('%Y%m%d')}"
         source_table_ids.append(table_id)
-        logging.info(f'Adding table_id: {table_id}')
+        logging.info(f"Adding table_id: {table_id}")
     destination_table_id = f"{project_id}.{dataset_id}.{main_table_id}"
-    success = copy_bigquery_table(source_table_ids, destination_table_id, data_location,
-                                  bigquery.WriteDisposition.WRITE_APPEND)
+    success = copy_bigquery_table(
+        source_table_ids, destination_table_id, data_location, bigquery.WriteDisposition.WRITE_APPEND
+    )
     if not success:
         raise AirflowException()
 
 
-def bq_append_from_file(end_date: pendulum.Pendulum, transform_blob: str, dataset_id: str, main_table_id: str,
-                        source_format: SourceFormat, prefix: str = '', schema_version: str = None,
-                        dataset_description: str = '',
-                        **load_bigquery_table_kwargs):
+def bq_append_from_file(
+    end_date: pendulum.Pendulum,
+    transform_blob: str,
+    dataset_id: str,
+    main_table_id: str,
+    source_format: SourceFormat,
+    prefix: str = "",
+    schema_version: str = None,
+    dataset_description: str = "",
+    **load_bigquery_table_kwargs,
+):
     """ Appends rows to the main table by loading data from a specific file (blob) in the transform bucket.
     :param end_date: End date.
     :param transform_blob: Name of the transform blob.
@@ -450,9 +557,9 @@ def bq_append_from_file(end_date: pendulum.Pendulum, transform_blob: str, datase
     :param dataset_description: The dataset description.
     :return: None.
     """
-    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(dataset_id, main_table_id, end_date,
-                                                                               prefix, schema_version,
-                                                                               dataset_description)
+    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
+        dataset_id, main_table_id, end_date, prefix, schema_version, dataset_description
+    )
 
     # Load BigQuery table
     uri = f"gs://{bucket_name}/{transform_blob}"
@@ -460,9 +567,16 @@ def bq_append_from_file(end_date: pendulum.Pendulum, transform_blob: str, datase
 
     # Append to table table
     table_id = main_table_id
-    success = load_bigquery_table(uri, dataset_id, data_location, table_id, schema_file_path,
-                                  source_format, write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
-                                  **load_bigquery_table_kwargs)
+    success = load_bigquery_table(
+        uri,
+        dataset_id,
+        data_location,
+        table_id,
+        schema_file_path,
+        source_format,
+        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        **load_bigquery_table_kwargs,
+    )
     if not success:
         raise AirflowException()
 
@@ -474,19 +588,20 @@ def on_failure_callback(**kwargs):
     :return: None.
     """
 
-    logging.info('requesting environment variable')
+    logging.info("requesting environment variable")
     environment = AirflowVariable.get(AirflowVars.ENVIRONMENT)
 
-    logging.info('requesting project_id variable')
+    logging.info("requesting project_id variable")
     project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
 
     if environment == Environment.develop.value:
-        logging.info('Not sending slack notification in develop environment.')
+        logging.info("Not sending slack notification in develop environment.")
     else:
-        exception = kwargs.get('exception')
-        formatted_exception = ''.join(
-            traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)).strip()
-        comments = f'Task failed, exception:\n{formatted_exception}'
+        exception = kwargs.get("exception")
+        formatted_exception = "".join(
+            traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
+        ).strip()
+        comments = f"Task failed, exception:\n{formatted_exception}"
         slack_hook = create_slack_webhook(comments, project_id, **kwargs)
         slack_hook.execute()
 
@@ -494,6 +609,6 @@ def on_failure_callback(**kwargs):
 class SubFolder(Enum):
     """ The type of subfolder to create for telescope data """
 
-    downloaded = 'download'
-    extracted = 'extract'
-    transformed = 'transform'
+    downloaded = "download"
+    extracted = "extract"
+    transformed = "transform"
