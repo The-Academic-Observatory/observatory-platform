@@ -132,6 +132,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
         :return: whether the transformation was successful or not.
         """
         logging.info(f'Tranform input folder: {self.extract_folder}, output folder: {self.transform_folder}')
+        finished = 0
         # Transform each file in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = []
@@ -143,17 +144,20 @@ class CrossrefMetadataRelease(SnapshotRelease):
             for input_file in input_file_paths:
                 # The output file will be a json lines file, hence adding the 'l' to the file extension
                 output_file = os.path.join(self.transform_folder, os.path.basename(input_file) + 'l')
-                logging.info(f'transforming release: input_file_path={os.path.basename(input_file)}, '
-                             f'output_file_path={os.path.basename(output_file)}')
                 future = executor.submit(transform_file, input_file, output_file)
                 futures.append(future)
 
             # Wait for completed tasks
             for future in as_completed(futures):
                 future.result()
+                finished += 1
+                if finished % 1000 == 0:
+                    logging.info(f'Transformed {finished} files')
 
+    def concatenate_transformed(self):
         # Concatenate all transformed files and gzip concatenated file
-        cmd = f"cat {self.transform_folder}/*.jsonl | gzip > {self.transform_path}"
+        cmd = f'find {self.transform_folder} -type f -name "*.jsonl" -print0 | xargs -0 cat | gzip > ' \
+              f'{self.transform_path}'
         logging.info(f"Concatenating and compressing file, cmd: {cmd}")
         p: Popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     executable='/bin/bash')
@@ -220,6 +224,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         self.add_task(self.upload_downloaded)
         self.add_task(self.extract)
         self.add_task(self.transform)
+        self.add_task(self.concatenate_transformed)
         self.add_task(self.upload_transformed)
         self.add_task(self.bq_load)
         self.add_task(self.cleanup)
@@ -308,6 +313,16 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         for release in releases:
             release.transform(max_workers=self.max_processes)
 
+    def concatenate_transformed(self, releases: List[CrossrefMetadataRelease], **kwargs):
+        """ Task to concatenate the transformed files for the CrossrefMetadataRelease release for a given month.
+
+        :param releases: the list of CrossrefMetadataRelease instances.
+        :return: None.
+        """
+
+        for release in releases:
+            release.concatenate_transformed()
+
 
 def transform_file(input_file_path: str, output_file_path: str):
     """ Transform a single crossref metadata json file.
@@ -326,8 +341,6 @@ def transform_file(input_file_path: str, output_file_path: str):
           f'{output_file_path}'
     p: Popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
     stdout, stderr = wait_for_process(p)
-    if p.returncode == 0:
-        logging.info(f"transform successful: {os.path.basename(input_file_path)}")
-    else:
-        raise AirflowException(f"transform unsuccessful: {os.path.basename(input_file_path)}. "
+    if p.returncode != 0:
+        raise AirflowException(f"transform unsuccessful for file: {input_file_path}. "
                                f"stdout: {stdout}, stderr: {stderr}")
