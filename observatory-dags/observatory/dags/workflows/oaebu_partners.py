@@ -19,6 +19,17 @@
 from dataclasses import dataclass
 
 
+class OaebuPartnerName:
+    """ OAEBU partner name constants. """
+
+    google_analytics = "Google Analytics"
+    google_books_sales = "Google Books Sales"
+    google_books_traffic = "Google Books Traffic"
+    jstor_country = "JSTOR Country"
+    jstor_institution = "JSTOR Institution"
+    oapen_irus_uk = "OAPEN IRUS UK"
+
+
 @dataclass
 class OaebuPartners:
     """Temporary class for storing information about data sources we are using to produce oaebu intermediate tables for.  Change or remove this later when Observatory API is more mature.

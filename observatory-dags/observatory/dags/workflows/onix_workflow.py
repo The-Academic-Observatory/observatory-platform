@@ -27,7 +27,7 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.dags.telescopes.onix import OnixTelescope
-from observatory.dags.workflows.oaebu_partners import OaebuPartners
+from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
 from observatory.dags.workflows.onix_work_aggregation import (
     BookWorkAggregator,
     BookWorkFamilyAggregator,
@@ -192,7 +192,10 @@ def make_table_id(*, project_id: str, dataset_id: str, table_id: str, end_date: 
     new_table_id = table_id
     if sharded:
         table_date = select_table_shard_dates(
-            project_id=project_id, dataset_id=dataset_id, table_id=table_id, end_date=end_date,
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            end_date=end_date,
         )[0]
         new_table_id = f"{table_id}{table_date.strftime('%Y%m%d')}"
 
@@ -343,7 +346,7 @@ class OnixWorkflow(Telescope):
         return products
 
     def continue_workflow(self, **kwargs):
-        """ Check if any releases were processed by the ONIX telescope, if no releases then skip else
+        """Check if any releases were processed by the ONIX telescope, if no releases then skip else
         continue processing tasks.
 
         :param kwargs:
@@ -572,13 +575,16 @@ class OnixWorkflow(Telescope):
         self.create_oaebu_data_qa_onix()
 
         for data_partner in data_partners:
-            if data_partner.name == "JSTOR":
+            if (
+                data_partner.name == OaebuPartnerName.jstor_country
+                or data_partner.name == OaebuPartnerName.jstor_institution
+            ):
                 self.create_oaebu_data_qa_jstor_tasks(data_partner)
-            elif data_partner.name == "OAPEN IRUS UK":
+            elif data_partner.name == OaebuPartnerName.oapen_irus_uk:
                 self.create_oaebu_data_qa_oapen_irus_uk_tasks(data_partner)
-            elif data_partner.name == "Google Books Sales":
+            elif data_partner.name == OaebuPartnerName.google_books_sales:
                 self.create_oaebu_data_qa_google_books_sales_tasks(data_partner)
-            elif data_partner.name == "Google Books Traffic":
+            elif data_partner.name == OaebuPartnerName.google_books_traffic:
                 self.create_oaebu_data_qa_google_books_traffic_tasks(data_partner)
 
             self.create_oaebu_data_qa_intermediate_tasks(data_partner)
@@ -694,13 +700,19 @@ class OnixWorkflow(Telescope):
         template_path = os.path.join(workflow_sql_templates_path(), isbn_validate_template_file)
 
         sql = render_template(
-            template_path, project_id=project_id, dataset_id=orig_dataset_id, table_id=orig_table_id, isbn=isbn,
+            template_path,
+            project_id=project_id,
+            dataset_id=orig_dataset_id,
+            table_id=orig_table_id,
+            isbn=isbn,
         )
 
         sql = isbn_utils_sql + sql
 
         create_bigquery_dataset(
-            project_id=project_id, dataset_id=output_dataset_id, location=dataset_location,
+            project_id=project_id,
+            dataset_id=output_dataset_id,
+            location=dataset_location,
         )
 
         status = create_bigquery_table_from_query(
@@ -727,9 +739,10 @@ class OnixWorkflow(Telescope):
             project_id=data_partner.gcp_project_id,
             orig_dataset_id=data_partner.gcp_dataset_id,
             orig_table=data_partner.gcp_table_id,
-            sharded=data_partner.sharded
+            sharded=data_partner.sharded,
         )
         update_wrapper(fn, self.create_oaebu_data_qa_jstor_isbn)
+        fn.__name__ += f".{data_partner.gcp_dataset_id}.{data_partner.gcp_table_id}"
         self.add_task(fn)
 
     def create_oaebu_data_qa_jstor_isbn(
