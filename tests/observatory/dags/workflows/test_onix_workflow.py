@@ -694,7 +694,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                         orig_dataset="dataset",
                         orig_table="table",
                         orig_isbn="isbn",
-                        table_date=pendulum.Pendulum(2021, 1, 1),
+                        sharded=False
                     )
 
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
@@ -711,20 +711,20 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="test_dataset",
                 gcp_table_id="test_table",
                 isbn_field_name="isbn",
+                sharded=True
             ),
             OaebuPartners(
                 name="Test Partner",
                 gcp_project_id="test_project",
                 gcp_dataset_id="test_dataset",
                 gcp_table_id="test_table2",
-                gcp_table_date=pendulum.Pendulum(2021, 1, 1),
                 isbn_field_name="isbn",
+                sharded=True
             ),
         ]
 
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         mock_create_bq_table.return_value = True
-        self.assertEqual(data_partners[0].gcp_table_date, None)
 
         with CliRunner().isolated_filesystem():
             wf = OnixWorkflow(
@@ -934,7 +934,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="jstor",
                 orig_table="country",
-                table_date=None,
+                sharded=True
             )
 
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
@@ -953,7 +953,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="jstor",
                 orig_table="country",
-                table_date=pendulum.Pendulum(2021, 1, 1),
+                sharded=False
             )
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
@@ -965,7 +965,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "b069027b3ad5b9bd4b78e7c82faea024"
+            expected_hash = "7a9a66b5a0295ecdd53d245e659f3e85"
             self.assertEqual(sql_hash, expected_hash)
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
@@ -1039,7 +1039,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "3e84231b474ee952cc104afc5308caed"
+            expected_hash = "90bbe5c7fb00173d1a85f6ab13ab99b2"
             self.assertEqual(sql_hash, expected_hash)
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
@@ -1057,6 +1057,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="google_books",
                 gcp_table_id="traffic",
                 isbn_field_name="Primary_ISBN",
+                sharded=False
             )
         ]
         with CliRunner().isolated_filesystem():
@@ -1081,7 +1082,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="google_books",
                 orig_table="traffic",
-                table_date=None,
+                sharded=True,
             )
 
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
@@ -1100,7 +1101,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="google_books",
                 orig_table="sales",
-                table_date=pendulum.Pendulum(2021, 1, 1),
+                sharded=False
             )
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
@@ -1112,7 +1113,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "3e84231b474ee952cc104afc5308caed"
+            expected_hash = "90bbe5c7fb00173d1a85f6ab13ab99b2"
             self.assertEqual(sql_hash, expected_hash)
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
@@ -1128,6 +1129,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="irus_uk",
                 gcp_table_id="oapen_irus_uk",
                 isbn_field_name="ISBN",
+                sharded=False
             )
         ]
         with CliRunner().isolated_filesystem():
@@ -1152,7 +1154,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="irus_uk",
                 orig_table="oapen_irus_uk",
-                table_date=None,
+                sharded=True
             )
 
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
@@ -1171,7 +1173,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 project_id="project",
                 orig_dataset_id="irus_uk",
                 orig_table="oapen_irus_uk",
-                table_date=pendulum.Pendulum(2021, 1, 1),
+                sharded=False
             )
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
@@ -1183,7 +1185,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "fcc561153f0173d855bc82e8fd990cde"
+            expected_hash = "ae842fbf661d3a0c50b748dec8e1cd24"
             self.assertEqual(sql_hash, expected_hash)
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
@@ -1201,6 +1203,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="jstor",
                 gcp_table_id="country",
                 isbn_field_name="ISBN",
+                sharded=False
             )
         ]
         with CliRunner().isolated_filesystem():
