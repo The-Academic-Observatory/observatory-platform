@@ -78,6 +78,36 @@ OUTPUT_TYPES = [
     "other_outputs",
 ]
 
+FUNDREF_COUNTRY_CODES = ["usa", "gbr", "aus", "can"]
+
+FUNDREF_REGIONS = {"usa": "Americas", "gbr": "Europe", "aus": "Oceania", "can": "Americas"}
+
+FUNDING_BODY_TYPES = [
+    "For-profit companies (industry)",
+    "Trusts, charities, foundations (both public and private)",
+    "Associations and societies (private and public)",
+    "National government",
+    "Universities (academic only)",
+    "International organizations",
+    "Research institutes and centers",
+    "Other non-profit organizations",
+    "Local government",
+    "Libraries and data archiving organizations",
+]
+
+FUNDING_BODY_SUBTYPES = {
+    "For-profit companies (industry)": "pri",
+    "Trusts, charities, foundations (both public and private)": "pri",
+    "Associations and societies (private and public)": "pri",
+    "National government": "gov",
+    "Universities (academic only)": "gov",
+    "International organizations": "pri",
+    "Research institutes and centers": "pri",
+    "Other non-profit organizations": "pri",
+    "Local government": "gov",
+    "Libraries and data archiving organizations": "gov",
+}
+
 
 def make_dummy_dag(dag_id: str, execution_date: datetime):
     with DAG(
@@ -97,9 +127,14 @@ class Institution:
     name: str = None
     grid_id: str = None
     country_code: str = None
+    country_code_2: str = None
     region: str = None
     subregion: str = None
     papers: List[Paper] = None
+    types: str = None
+    home_repo: str = None
+    country: str = None
+    coordinates: str = None
 
 
 @dataclass
@@ -133,6 +168,10 @@ class Funder:
     id: int
     name: str = None
     doi: str = None
+    country_code: str = None
+    region: str = None
+    funding_body_type: str = None
+    funding_body_subtype: str = None
 
 
 @dataclass
@@ -180,9 +219,9 @@ def make_doi(doi_prefix: int):
 def make_observatory_dataset(
     n_funders: int = 5,
     n_publishers: int = 5,
-    n_authors: int = 100,
-    n_papers: int = 1000,
-    n_fields_of_study_per_level: int = 200,
+    n_authors: int = 10,
+    n_papers: int = 100,
+    n_fields_of_study_per_level: int = 10,
 ) -> ObservatoryDataset:
     faker = Faker()
 
@@ -192,24 +231,39 @@ def make_observatory_dataset(
         name="Curtin University",
         grid_id="grid.1032.0",
         country_code="AUS",
+        country_code_2="AU",
         region="Oceania",
         subregion="Australia and New Zealand",
+        types="Education",
+        home_repo="curtin.edu.au",
+        country="Australia",
+        coordinates="-32.005931, 115.894397",
     )
     inst_anu = Institution(
         2,
-        name="Australia National University",
+        name="Australian National University",
         grid_id="grid.1001.0",
         country_code="AUS",
+        country_code_2="AU",
         region="Oceania",
         subregion="Australia and New Zealand",
+        types="Education",
+        home_repo="anu.edu.au",
+        country="Australia",
+        coordinates="-35.2778, 149.1205",
     )
     inst_akl = Institution(
         3,
         name="University of Auckland",
         grid_id="grid.9654.e",
         country_code="NZL",
+        country_code_2="NZ",
         region="Oceania",
         subregion="Australia and New Zealand",
+        types="Education",
+        home_repo="auckland.ac.nz",
+        country="New Zealand",
+        coordinates="-36.852304, 174.767734",
     )
     institutions = [inst_curtin, inst_anu, inst_akl]
 
@@ -217,7 +271,19 @@ def make_observatory_dataset(
     funders = []
     doi_prefix = 1000
     for i, _ in enumerate(range(n_funders)):
-        funders.append(Funder(i, name=faker.company(), doi=make_doi(doi_prefix)))
+        country_code = random.choice(FUNDREF_COUNTRY_CODES)
+        funding_body_type = random.choice(FUNDING_BODY_TYPES)
+        funders.append(
+            Funder(
+                i,
+                name=faker.company(),
+                doi=make_doi(doi_prefix),
+                country_code=country_code,
+                region=FUNDREF_REGIONS[country_code],
+                funding_body_type=funding_body_type,
+                funding_body_subtype=FUNDING_BODY_SUBTYPES[funding_body_type],
+            )
+        )
         doi_prefix += 1
 
     # Publishers and journals
@@ -499,7 +565,16 @@ def make_fundref(dataset: ObservatoryDataset) -> List[Dict]:
     records = []
 
     for funder in dataset.funders:
-        records.append({"pre_label": funder.name, "funder": f"http://dx.doi.org/{funder.doi}"})
+        records.append(
+            {
+                "pre_label": funder.name,
+                "funder": f"http://dx.doi.org/{funder.doi}",
+                "country_code": funder.country_code,
+                "region": funder.region,
+                "funding_body_type": funder.funding_body_type,
+                "funding_body_sub_type": funder.funding_body_subtype,
+            }
+        )
 
     return records
 
@@ -516,12 +591,14 @@ def make_crossref_metadata(dataset: ObservatoryDataset) -> List[Dict]:
         # Add Crossref record
         records.append(
             {
+                "title": [paper.title],
                 "DOI": paper.doi,
                 "is_referenced_by_count": len(paper.cited_by),
                 "issued": {
                     "date_parts": [paper.published_date.year, paper.published_date.month, paper.published_date.day]
                 },
                 "funder": funders,
+                "publisher": paper.publisher.name,
             }
         )
 
@@ -573,34 +650,128 @@ def sort_events(events, months, years):
     months.sort(key=lambda x: f"{x['month']}{x['source']}{x['count']}")
     years.sort(key=lambda x: f"{x['year']}{x['source']}{x['count']}")
 
+
 def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
     records = []
     for paper in dataset.papers:
+        doi = paper.doi.upper()
         events_total, events_months, events_years = count_events(paper.events)
         grids = list(set([author.institution.grid_id for author in paper.authors]))
 
+        # When no events, events is None
+        events = None
+        if len(events_total):
+            events = {
+                "doi": doi,
+                "events": events_total,
+                "months": events_months,
+                "years": events_years,
+            }
+
+        # Make affiliations
+        funders = {}
+        for funder in paper.funders:
+            funders[funder.doi] = {
+                "identifier": funder.name, #
+                "name": funder.name,
+                "doi": funder.doi,
+                "types": ["Funder"],
+                "home_repo": [],
+                "country": None,
+                "country_code": funder.country_code,
+                "country_code_2": None,
+                "region": funder.region,
+                "subregion": None,
+                "coordinates": None,
+                "funding_body_type": funder.funding_body_type,
+                "funding_body_subtype": funder.funding_body_subtype,
+                "members": [],
+            }
+        funders = [v for k, v in funders.items()]
+        funders.sort(key=lambda x: x["identifier"])
+
+        institutions = {}
+        for author in paper.authors:
+            inst = author.institution
+            if inst.grid_id not in institutions:
+                institutions[inst.grid_id] = {
+                    "identifier": inst.grid_id,
+                    "types": [inst.types],
+                    "name": inst.name,
+                    "home_repo": [inst.home_repo],
+                    "country": inst.country,
+                    "country_code": inst.country_code,
+                    "country_code_2": inst.country_code_2,
+                    "region": inst.region,
+                    "subregion": inst.subregion,
+                    "coordinates": inst.coordinates,
+                    "members": [],
+                }
+        institutions = [v for k, v in institutions.items()]
+        institutions.sort(key=lambda x: x["identifier"])
+
+        journal = paper.journal
+        journals = [
+            {
+                "identifier": journal.name,
+                "types": ["Journal"],
+                "name": journal.name,
+                "home_repo": [],
+                "country": None,
+                "country_code": None,
+                "country_code_2": None,
+                "region": None,
+                "subregion": None,
+                "coordinates": None,
+                "members": [],
+            }
+        ]
+
+        publisher = paper.publisher
+        publishers = [
+            {
+                "identifier": publisher.name,
+                "types": ["Publisher"],
+                "name": publisher.name,
+                "home_repo": [],
+                "country": None,
+                "country_code": None,
+                "country_code_2": None,
+                "region": None,
+                "subregion": None,
+                "coordinates": None,
+                "members": [],
+            }
+        ]
+
         records.append(
             {
-                "doi": paper.doi.upper(),
+                "doi": doi,
                 "crossref": {
                     "title": paper.title,
                     "published_year": paper.published_date.year,
                     "published_month": paper.published_date.month,
-                    "published_year_month": f"{ paper.published_date.year}-{paper.published_date.month}",
+                    "published_year_month": f"{paper.published_date.year}-{paper.published_date.month}",
                     "funder": [{"name": funder.name, "DOI": funder.doi} for funder in paper.funders],
                 },
                 "unpaywall": {},
                 "unpaywall_history": {},
                 "mag": {},
                 "open_citations": {},
-                "events": {
-                    "doi": paper.doi.upper(),
-                    "events": events_total,
-                    "months": events_months,
-                    "years": events_years,
-                },
+                "events": events,
                 "grids": grids,
-                "affiliations": {},
+                "affiliations": {
+                    "doi": doi,
+                    "institutions": institutions,
+                    "countries": [],
+                    "subregions	": [],
+                    "regions": [],
+                    "groupings": [],
+                    "funders": funders,
+                    "authors": [],
+                    "journals": journals,
+                    "publishers": publishers,
+                },
             }
         )
 
@@ -608,32 +779,6 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
     records.sort(key=lambda r: r["doi"])
 
     return records
-
-    #     lookup_totals = dict()
-    #     lookup_months = dict()
-    #     lookup_years = dict()
-    #     for event in paper.events:
-    #         # Total events
-    #         if event.source in lookup_totals:
-    #             lookup_totals[event.source] += 1
-    #         else:
-    #             lookup_totals[event.source] = 1
-    #
-    #         # Events by month
-    #         month = event.event_date.strftime("%Y-%m")
-    #         month_key = (event.source, month)
-    #         if month_key in lookup_months:
-    #             lookup_months[month_key] += 1
-    #         else:
-    #             lookup_months[month_key] = 1
-    #
-    #         # Events by year
-    #         year = event.event_date.year
-    #         year_key = (event.source, year)
-    #         if year_key in lookup_years:
-    #             lookup_years[year_key] += 1
-    #         else:
-    #             lookup_years[year_key] = 1
 
 
 class TestDoiWorkflow(ObservatoryTestCase):
@@ -932,61 +1077,112 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 ti = env.run_task("create_doi", doi_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
                 expected_list = make_doi_table(observatory_dataset)
-                sql = f"SELECT * from {self.gcp_project_id}.{observatory_dataset_id}.doi{release_suffix} ORDER BY doi ASC;"
-                actual_list = [dict(row) for row in run_bigquery_query(sql)]
-                # TODO: check that output is correct
+                actual_list = [
+                    dict(row)
+                    for row in run_bigquery_query(
+                        f"SELECT * from {self.gcp_project_id}.{observatory_dataset_id}.doi{release_suffix} ORDER BY doi ASC;"
+                    )
+                ]
+
+                # Assert DOI output is correct
                 self.assertEqual(len(expected_list), len(actual_list))
                 for expected, actual in zip(expected_list, actual_list):
+                    #
+                    # Check that DOIs match
+                    #
                     self.assertEqual(expected["doi"], actual["doi"])
 
-                    # Check that events are equal
+                    #
+                    # Check events
+                    #
                     events_expected = expected["events"]
                     events_actual = actual["events"]
-                    self.assertEqual(events_expected["doi"], events_actual["doi"])
-                    sort_events(events_actual["events"], events_actual["months"], events_actual["years"])
+                    if events_expected is None:
+                        # When no events exist assert they are None
+                        self.assertIsNone(events_actual)
+                    else:
+                        # When events exist check that they are equal
+                        self.assertEqual(events_expected["doi"], events_actual["doi"])
+                        sort_events(events_actual["events"], events_actual["months"], events_actual["years"])
 
-                    event_keys = ["events", "months", "years"]
-                    for key in event_keys:
-                        self.assertEqual(len(events_expected[key]), len(events_actual[key]))
-                        for ee, ea in zip(events_expected[key], events_actual[key]):
-                            self.assertDictEqual(ee, ea)
+                        event_keys = ["events", "months", "years"]
+                        for key in event_keys:
+                            self.assertEqual(len(events_expected[key]), len(events_actual[key]))
+                            for ee, ea in zip(events_expected[key], events_actual[key]):
+                                self.assertDictEqual(ee, ea)
 
+                    # Check grids
                     self.assertSetEqual(set(expected["grids"]), set(actual["grids"]))
 
-                # Test create book
-                ti = env.run_task("create_book", doi_dag, execution_date=execution_date)
-                self.assertEqual(expected_state, ti.state)
-                # TODO: check that output is correct
+                    #
+                    # Check affiliations
+                    #
+                    affiliations_expected = expected["affiliations"]
+                    affiliations_actual = actual["affiliations"]
 
-                # Test aggregations
-                for agg in DoiWorkflow.AGGREGATIONS:
-                    task_id = f"create_{agg.table_id}"
-                    ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+                    # DOI
+                    self.assertEqual(affiliations_expected["doi"], affiliations_actual["doi"])
 
-                    # Check that task finished successfully
-                    self.assertEqual(expected_state, ti.state)
-                    # TODO: check that output is correct
+                    # Institutions
+                    institutions_expected = affiliations_expected["institutions"]
+                    institutions_actual = affiliations_actual["institutions"]
+                    self.assertEqual(len(institutions_expected), len(institutions_actual))
+                    institutions_actual.sort(key=lambda x: x["identifier"])
+                    self.assertListEqual(institutions_expected, institutions_actual)
 
-                # Test copy to dashboards
-                ti = env.run_task("copy_to_dashboards", doi_dag, execution_date=execution_date)
-                self.assertEqual(expected_state, ti.state)
-                # TODO: check that tables exist
+                    # Journals
+                    journals_expected = affiliations_expected["journals"]
+                    journals_actual = affiliations_actual["journals"]
+                    self.assertEqual(len(journals_expected), len(journals_actual))
+                    self.assertListEqual(journals_expected, journals_actual)
 
-                # Test create dashboard views
-                ti = env.run_task("create_dashboard_views", doi_dag, execution_date=execution_date)
-                self.assertEqual(expected_state, ti.state)
-                # TODO: check that views exist
+                    # Publishers
+                    publishers_expected = affiliations_expected["publishers"]
+                    publishers_actual = affiliations_actual["publishers"]
+                    self.assertEqual(len(publishers_expected), len(publishers_actual))
+                    self.assertListEqual(publishers_expected, publishers_actual)
 
-                # Test create exported tables for Elasticsearch
-                for agg in DoiWorkflow.AGGREGATIONS:
-                    task_id = f"export_{agg.table_id}"
-                    ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+                    # Funders
+                    funders_expected = affiliations_expected["funders"]
+                    funders_actual = affiliations_actual["funders"]
+                    self.assertEqual(len(funders_expected), len(funders_actual))
+                    funders_actual.sort(key=lambda x: x["identifier"])
+                    self.assertListEqual(funders_expected, funders_actual)
 
-                    # Check that task finished successfully
-                    self.assertEqual(expected_state, ti.state)
-                    # TODO: check that output is correct
-
-                a = 1
+                # # Test create book
+                # ti = env.run_task("create_book", doi_dag, execution_date=execution_date)
+                # self.assertEqual(expected_state, ti.state)
+                # # TODO: check that output is correct
+                #
+                # # Test aggregations
+                # for agg in DoiWorkflow.AGGREGATIONS:
+                #     task_id = f"create_{agg.table_id}"
+                #     ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+                #
+                #     # Check that task finished successfully
+                #     self.assertEqual(expected_state, ti.state)
+                #     # TODO: check that output is correct
+                #
+                # # Test copy to dashboards
+                # ti = env.run_task("copy_to_dashboards", doi_dag, execution_date=execution_date)
+                # self.assertEqual(expected_state, ti.state)
+                # # TODO: check that tables exist
+                #
+                # # Test create dashboard views
+                # ti = env.run_task("create_dashboard_views", doi_dag, execution_date=execution_date)
+                # self.assertEqual(expected_state, ti.state)
+                # # TODO: check that views exist
+                #
+                # # Test create exported tables for Elasticsearch
+                # for agg in DoiWorkflow.AGGREGATIONS:
+                #     task_id = f"export_{agg.table_id}"
+                #     ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+                #
+                #     # Check that task finished successfully
+                #     self.assertEqual(expected_state, ti.state)
+                #     # TODO: check that output is correct
+                #
+                # a = 1
 
     #
     # for paper in dataset.papers:
