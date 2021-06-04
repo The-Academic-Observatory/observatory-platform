@@ -189,6 +189,15 @@ class OnixWorkflowRelease(AbstractRelease):
 
 
 def make_table_id(*, project_id: str, dataset_id: str, table_id: str, end_date: pendulum.Pendulum, sharded: bool):
+    """
+    Make a BQ table ID.
+    :param project_id: GCP Project ID.
+    :param dataset_id: GCP Dataset ID.
+    :param table_id: Table name to convert to the suitable BQ table ID.
+    :param end_date: Latest date considered.
+    :param sharded: whether the table is sharded or not.
+    """
+
     new_table_id = table_id
     if sharded:
         table_date = select_table_shard_dates(
@@ -551,6 +560,10 @@ class OnixWorkflow(Telescope):
         """
 
         for data in data_partners:
+            # Temporarily disable any google analytics processing that is not ANU Press
+            if data.name == OaebuPartnerName.google_analytics and self.org_name != "ANU Press":
+                continue
+
             fn = partial(
                 self.create_oaebu_intermediate_table,
                 orig_project_id=data.gcp_project_id,
@@ -575,6 +588,10 @@ class OnixWorkflow(Telescope):
         self.create_oaebu_data_qa_onix()
 
         for data_partner in data_partners:
+            # Temporarily disable any google analytics processing that is not ANU Press
+            if data_partner.name == OaebuPartnerName.google_analytics and self.org_name != "ANU Press":
+                continue
+
             if (
                 data_partner.name == OaebuPartnerName.jstor_country
                 or data_partner.name == OaebuPartnerName.jstor_institution
@@ -586,6 +603,8 @@ class OnixWorkflow(Telescope):
                 self.create_oaebu_data_qa_google_books_sales_tasks(data_partner)
             elif data_partner.name == OaebuPartnerName.google_books_traffic:
                 self.create_oaebu_data_qa_google_books_traffic_tasks(data_partner)
+            elif data_partner.name == OaebuPartnerName.google_analytics:
+                self.create_oaebu_data_qa_google_analytics_tasks(data_partner)
 
             self.create_oaebu_data_qa_intermediate_tasks(data_partner)
 
@@ -763,6 +782,7 @@ class OnixWorkflow(Telescope):
         :param orig_dataset_id: Dataset ID for jstor data.
         :param orig_table: Table ID for the jstor data.
         :table_date: Table suffix of jstor release if it exists.
+        :param sharded: whether the table is sharded or not.
         """
 
         for release in releases:
@@ -805,6 +825,68 @@ class OnixWorkflow(Telescope):
                 isbn="eISBN",
             )
 
+    def create_oaebu_data_qa_google_analytics_tasks(self, data_partner: OaebuPartners):
+        """Create Google Analytics quality assurance metrics.
+        :param data_partner: OaebuPartner metadata.
+        """
+        # isbn validation
+        fn = partial(
+            self.create_oaebu_data_qa_google_analytics_isbn,
+            project_id=data_partner.gcp_project_id,
+            orig_dataset_id=data_partner.gcp_dataset_id,
+            orig_table=data_partner.gcp_table_id,
+            sharded=data_partner.sharded,
+        )
+        update_wrapper(fn, self.create_oaebu_data_qa_google_analytics_isbn)
+        self.add_task(fn)
+
+    def create_oaebu_data_qa_google_analytics_isbn(
+        self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        project_id: str,
+        orig_dataset_id: str,
+        orig_table: str,
+        sharded: bool,
+        **kwargs,
+    ):
+        """Create a BQ table of invalid ISBNs for the Google Analytics feed.
+        No attempt is made to normalise the string so we catch as many string issues as we can.
+
+        :param releases: List of workflow release objects.
+        :param project_id: GCP project ID.
+        :param orig_dataset_id: Dataset ID for jstor data.
+        :param orig_table: Table ID for the jstor data.
+        :table_date: Table suffix of jstor release if it exists.
+        :param sharded: whether the table is sharded or not.
+        """
+        for release in releases:
+            release_date = release.release_date
+            orig_table_id = make_table_id(
+                project_id=project_id,
+                dataset_id=orig_dataset_id,
+                table_id=orig_table,
+                end_date=release_date,
+                sharded=sharded,
+            )
+
+            # select table suffixes to get table suffix
+            output_dataset_id = release.oaebu_data_qa_dataset
+
+            # Validate the ISBN field
+            output_table = "google_analytics_invalid_isbn"
+            output_table_id = bigquery_sharded_table_id(output_table, release_date)
+            dataset_location = release.dataset_location
+            self.oaebu_data_qa_validate_isbn(
+                project_id=project_id,
+                orig_dataset_id=orig_dataset_id,
+                orig_table_id=orig_table_id,
+                output_dataset_id=output_dataset_id,
+                output_table_id=output_table_id,
+                dataset_location=dataset_location,
+                isbn="publication_id",
+            )
+
     def create_oaebu_data_qa_oapen_irus_uk_tasks(self, data_partner: OaebuPartners):
         """Create OAPEN IRUS UK quality assurance metrics.
         :param data_partner: OaebuPartner metadata.
@@ -839,6 +921,7 @@ class OnixWorkflow(Telescope):
         :param orig_dataset_id: Dataset ID for jstor data.
         :param orig_table: Table ID for the jstor data.
         :table_date: Table suffix of jstor release if it exists.
+        :param sharded: whether the table is sharded or not.
         """
         for release in releases:
             release_date = release.release_date
@@ -901,6 +984,7 @@ class OnixWorkflow(Telescope):
         :param orig_dataset_id: Dataset ID for jstor data.
         :param orig_table: Table ID for the jstor data.
         :table_date: Table suffix of jstor release if it exists.
+        :param sharded: whether the table is sharded or not.
         """
         for release in releases:
             release_date = release.release_date
@@ -963,6 +1047,7 @@ class OnixWorkflow(Telescope):
         :param orig_dataset_id: Dataset ID for jstor data.
         :param orig_table: Table ID for the jstor data.
         :table_date: Table suffix of jstor release if it exists.
+        :param sharded: whether the table is sharded or not.
         """
         for release in releases:
             release_date = release.release_date
