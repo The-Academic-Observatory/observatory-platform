@@ -183,7 +183,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
                  dataset_description: str = 'The Crossref Metadata Plus dataset: '
                                             'https://www.crossref.org/services/metadata-retrieval/metadata-plus/',
                  load_bigquery_table_kwargs: Dict = None, table_descriptions: Dict = None,
-                 airflow_vars: List = None, airflow_conns: List = None, max_active_runs: int = 2,
+                 airflow_vars: List = None, airflow_conns: List = None, max_active_runs: int = 1,
                  max_processes: int = min(32, os.cpu_count() + 4)):
 
         """ The Crossref Metadata telescope
