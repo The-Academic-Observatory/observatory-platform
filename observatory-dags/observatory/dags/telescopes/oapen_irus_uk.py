@@ -206,14 +206,14 @@ class OapenIrusUkTelescope(SnapshotTelescope):
     FUNCTION_NAME = 'oapen_access_stats'  # Name of the google cloud function
     FUNCTION_REGION = 'europe-west1'  # Region of the google cloud function
     FUNCTION_SOURCE_URL = 'https://github.com/The-Academic-Observatory/oapen-irus-uk-cloud-function/releases/' \
-                          'download/v1.1.0/oapen-irus-uk-cloud-function.zip'  # URL to the zipped source code of the
+                          'download/v1.1.1/oapen-irus-uk-cloud-function.zip'  # URL to the zipped source code of the
     # cloud function
-    FUNCTION_MD5_HASH = '87ba55491c00d392298c3433918ecf40'  # MD5 hash of the zipped source code
+    FUNCTION_MD5_HASH = '31283d3f8f855ecfd8407fc6d924bc92'  # MD5 hash of the zipped source code
     FUNCTION_BLOB_NAME = 'cloud_function_source_code.zip'  # blob name of zipped source code
     OAPEN_API_URL = 'https://library.oapen.org/rest/search?query=publisher.name:{publisher_name}&expand=metadata'
 
     def __init__(self, organisation: Organisation, publisher_id: str, dag_id: Optional[str] = None,
-                 start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '@monthly',
+                 start_date: datetime = datetime(2018, 1, 1), schedule_interval: str = '0 0 14 * *',
                  dataset_id: str = 'oapen', dataset_description: str = 'OAPEN dataset', table_descriptions: Dict = None,
                  catchup: bool = True, airflow_vars: List = None, airflow_conns: List = None, max_active_runs=5,
                  max_cloud_function_instances: int = 0):
