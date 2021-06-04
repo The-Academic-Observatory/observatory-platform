@@ -49,7 +49,7 @@ def get_oaebu_partner_data(project_id):
             gcp_project_id=project_id,
             gcp_dataset_id="jstor",
             gcp_table_id="jstor_country",
-            isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
+            isbn_field_name="eISBN",
             sharded=False,
         ),
         OaebuPartners(
@@ -57,7 +57,7 @@ def get_oaebu_partner_data(project_id):
             gcp_project_id=project_id,
             gcp_dataset_id="jstor",
             gcp_table_id="jstor_institution",
-            isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
+            isbn_field_name="eISBN",
             sharded=False,
         ),
         OaebuPartners(
@@ -65,7 +65,7 @@ def get_oaebu_partner_data(project_id):
             gcp_project_id=project_id,
             gcp_dataset_id="oapen",
             gcp_table_id="oapen_irus_uk",
-            isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
+            isbn_field_name="ISBN",
             sharded=False,
         ),
     ]
