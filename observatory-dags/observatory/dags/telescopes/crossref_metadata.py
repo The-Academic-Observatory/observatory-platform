@@ -131,7 +131,10 @@ class CrossrefMetadataRelease(SnapshotRelease):
         :param max_workers: the number of processes to use when transforming files (one process per file).
         :return: whether the transformation was successful or not.
         """
-        logging.info(f'Transform input folder: {self.extract_folder}, output folder: {self.transform_folder}')
+        output_folder = os.path.join(self.transform_folder, 'single_files')
+        if not os.path.exists(output_folder):
+            os.mkdir(output_folder)
+        logging.info(f'Transform input folder: {self.extract_folder}, output folder: {output_folder}')
         finished = 0
         # Transform each file in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -143,7 +146,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
             # Create tasks for each file
             for input_file in input_file_paths:
                 # The output file will be a json lines file, hence adding the 'l' to the file extension
-                output_file = os.path.join(self.transform_folder, 'single_files', os.path.basename(input_file) + 'l')
+                output_file = os.path.join(output_folder, os.path.basename(input_file) + 'l')
                 future = executor.submit(transform_file, input_file, output_file)
                 futures.append(future)
 
