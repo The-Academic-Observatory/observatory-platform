@@ -29,6 +29,14 @@ from observatory.platform.utils.telescope_utils import make_observatory_api
 def get_oaebu_partner_data(project_id):
     oaebu_data = [
         OaebuPartners(
+            name=OaebuPartnerName.google_analytics,
+            gcp_project_id=project_id,
+            gcp_dataset_id="google",
+            gcp_table_id="anu_google_analytics",
+            isbn_field_name="publication_id",
+            sharded=False,
+        ),
+        OaebuPartners(
             name=OaebuPartnerName.google_books_sales,
             gcp_project_id=project_id,
             gcp_dataset_id="google",
