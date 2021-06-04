@@ -50,6 +50,9 @@ class TestCrossrefMetadata(ObservatoryTestCase):
         self.extract_file_hashes = ['4a55065d90aaa58c69bc5f5a54da3006', 'c45901a52154789470410aad51485e9c',
                                     '4c0fd617224a557b9ef04313cca0bd4a', 'd93dc613e299871925532d906c3a44a1',
                                     'dd1ab247c55191a14bcd1bf32719c337']
+        self.transform_hashes = ['065a8c0bd1ef4239be9f37c0ad199a31', '38b766ec494054e621787de00ff715c8',
+                                 '70437aad7c4568ed07408baf034871e4', 'c3e3285a48867c8b7c10b1c9c0c5ab8a',
+                                 '71ba3612352bcb2a723d4aa33ec35b61']
 
         # release used for tests outside observatory test environment
         self.release = CrossrefMetadataRelease('crossref_metadata', datetime(2020, 1, 1))
@@ -134,15 +137,17 @@ class TestCrossrefMetadata(ObservatoryTestCase):
                 expected_file_hash = self.extract_file_hashes[i]
                 self.assert_file_integrity(file, expected_file_hash, 'md5')
 
-            # Test that file transformed
+            # Test that files transformed
             env.run_task(telescope.transform.__name__, dag, execution_date)
-            self.assertEqual(1, len(release.transform_files))
-            expected_file_hash = '25e7768e'
-            self.assert_file_integrity(release.transform_path, expected_file_hash, 'gzip_crc')
+            self.assertEqual(5, len(release.transform_files))
+            for i, file in enumerate(natsorted(release.transform_files)):
+                expected_file_hash = self.transform_hashes[i]
+                self.assert_file_integrity(file, expected_file_hash, 'md5')
 
-            # Test that transformed file uploaded
+            # Test that transformed files uploaded
             env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
-            self.assert_blob_integrity(env.transform_bucket, blob_name(release.transform_path), release.transform_path)
+            for file in release.transform_files:
+                self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
             # Test that data loaded into BigQuery
             env.run_task(telescope.bq_load.__name__, dag, execution_date)
@@ -187,25 +192,6 @@ class TestCrossrefMetadata(ObservatoryTestCase):
         mock_subprocess().communicate.return_value = 'stdout'.encode(), 'stderr'.encode()
         with self.assertRaises(AirflowException):
             release.extract()
-
-    @patch('observatory.dags.telescopes.crossref_metadata.transform_file')
-    @patch('observatory.dags.telescopes.crossref_metadata.subprocess.Popen')
-    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-    def test_transform(self, mock_variable_get, mock_subprocess, mock_transform_file):
-        """ Test the transform method of release with failing concatenate command
-
-        :param mock_variable_get: Mock Airflow data path variable
-        :param mock_subprocess: Mock the subprocess output
-        :param mock_transform_file: Mock the transform function
-        :return: None.
-        """
-        mock_variable_get.return_value = 'data'
-        release = self.release
-
-        mock_subprocess().returncode = 1
-        mock_subprocess().communicate.return_value = 'stdout'.encode(), 'stderr'.encode()
-        with self.assertRaises(AirflowException):
-            release.transform(max_workers=5)
 
     def test_check_release_exists(self):
         """ Test the 'check_release_exists' task with different responses.

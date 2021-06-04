@@ -35,7 +35,7 @@ from natsort import natsorted
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.proc_utils import wait_for_process
-from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.template_utils import upload_files_from_list, bq_load_shard, table_ids_from_path, blob_name
 from observatory.platform.utils.url_utils import retry_session
 from pendulum import Pendulum
 
@@ -50,7 +50,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
 
         download_files_regex = '.*.json.tar.gz$'
         extract_files_regex = f'.*.json$'
-        transform_files_regex = f'.*.jsonl.gz$'
+        transform_files_regex = f'.*.jsonl$'
         super().__init__(dag_id, release_date, download_files_regex, extract_files_regex, transform_files_regex)
 
         self.url = CrossrefMetadataTelescope.TELESCOPE_URL.format(year=release_date.year, month=release_date.month)
@@ -63,15 +63,6 @@ class CrossrefMetadataRelease(SnapshotRelease):
         """
 
         return os.path.join(self.download_folder, 'crossref_metadata.json.tar.gz')
-
-    @property
-    def transform_path(self) -> str:
-        """ Get the path to the transformed file.
-
-        :return: the file path.
-        """
-
-        return os.path.join(self.transform_folder, 'crossref_metadata.jsonl')
 
     def download(self):
         """ Downloads release
@@ -131,10 +122,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
         :param max_workers: the number of processes to use when transforming files (one process per file).
         :return: whether the transformation was successful or not.
         """
-        output_folder = os.path.join(self.transform_folder, 'single_files')
-        if not os.path.exists(output_folder):
-            os.mkdir(output_folder)
-        logging.info(f'Transform input folder: {self.extract_folder}, output folder: {output_folder}')
+        logging.info(f'Transform input folder: {self.extract_folder}, output folder: {self.transform_folder}')
         finished = 0
         # Transform each file in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -146,7 +134,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
             # Create tasks for each file
             for input_file in input_file_paths:
                 # The output file will be a json lines file, hence adding the 'l' to the file extension
-                output_file = os.path.join(output_folder, os.path.basename(input_file) + 'l')
+                output_file = os.path.join(self.transform_folder, os.path.basename(input_file) + 'l')
                 future = executor.submit(transform_file, input_file, output_file)
                 futures.append(future)
 
@@ -156,19 +144,6 @@ class CrossrefMetadataRelease(SnapshotRelease):
                 finished += 1
                 if finished % 1000 == 0:
                     logging.info(f'Transformed {finished} files')
-
-    def concatenate_transformed(self):
-        # Concatenate all transformed files
-        cmd = f'find {os.path.join(self.transform_folder, "single_files")} -type f -name "*.jsonl" -print0 | ' \
-              f'xargs -0 cat > {self.transform_path}'
-        logging.info(f"Concatenating file, cmd: {cmd}")
-        p: Popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    executable='/bin/bash')
-        stdout, stderr = wait_for_process(p)
-        if p.returncode == 0:
-            logging.info(f"cmd successful. stdout: {stdout}, stderr: {stderr}")
-        else:
-            raise AirflowException(f"cmd unsuccessful. stdout: {stdout}, stderr: {stderr}")
 
 
 class CrossrefMetadataTelescope(SnapshotTelescope):
@@ -227,7 +202,6 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         self.add_task(self.upload_downloaded)
         self.add_task(self.extract)
         self.add_task(self.transform)
-        self.add_task(self.concatenate_transformed)
         self.add_task(self.upload_transformed)
         self.add_task(self.bq_load)
         self.add_task(self.cleanup)
@@ -316,15 +290,23 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         for release in releases:
             release.transform(max_workers=self.max_processes)
 
-    def concatenate_transformed(self, releases: List[CrossrefMetadataRelease], **kwargs):
-        """ Task to concatenate the transformed files for the CrossrefMetadataRelease release for a given month.
+    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
+        """ Task to load each transformed release to BigQuery.
 
-        :param releases: the list of CrossrefMetadataRelease instances.
+        The table_id is set to the file name without the extension.
+
+        :param releases: a list of releases.
         :return: None.
         """
 
+        # Load each transformed release
         for release in releases:
-            release.concatenate_transformed()
+            transform_blob = f'{blob_name(release.transform_folder)}/*'
+            table_description = self.table_descriptions.get(self.dag_id, '')
+            bq_load_shard(release.release_date, transform_blob, self.dataset_id, self.dag_id, self.source_format,
+                          prefix=self.schema_prefix, schema_version=self.schema_version,
+                          dataset_description=self.dataset_description, table_description=table_description,
+                          **self.load_bigquery_table_kwargs)
 
 
 def transform_file(input_file_path: str, output_file_path: str):
