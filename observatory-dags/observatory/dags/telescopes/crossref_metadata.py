@@ -71,7 +71,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
         :return: the file path.
         """
 
-        return os.path.join(self.transform_folder, 'crossref_metadata.jsonl.gz')
+        return os.path.join(self.transform_folder, 'crossref_metadata.jsonl')
 
     def download(self):
         """ Downloads release
@@ -131,7 +131,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
         :param max_workers: the number of processes to use when transforming files (one process per file).
         :return: whether the transformation was successful or not.
         """
-        logging.info(f'Tranform input folder: {self.extract_folder}, output folder: {self.transform_folder}')
+        logging.info(f'Transform input folder: {self.extract_folder}, output folder: {self.transform_folder}')
         finished = 0
         # Transform each file in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -143,7 +143,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
             # Create tasks for each file
             for input_file in input_file_paths:
                 # The output file will be a json lines file, hence adding the 'l' to the file extension
-                output_file = os.path.join(self.transform_folder, os.path.basename(input_file) + 'l')
+                output_file = os.path.join(self.transform_folder, 'single_files', os.path.basename(input_file) + 'l')
                 future = executor.submit(transform_file, input_file, output_file)
                 futures.append(future)
 
@@ -155,10 +155,10 @@ class CrossrefMetadataRelease(SnapshotRelease):
                     logging.info(f'Transformed {finished} files')
 
     def concatenate_transformed(self):
-        # Concatenate all transformed files and gzip concatenated file
-        cmd = f'find {self.transform_folder} -type f -name "*.jsonl" -print0 | xargs -0 cat | gzip > ' \
-              f'{self.transform_path}'
-        logging.info(f"Concatenating and compressing file, cmd: {cmd}")
+        # Concatenate all transformed files
+        cmd = f'find {os.path.join(self.transform_folder, "single_files")} -type f -name "*.jsonl" -print0 | ' \
+              f'xargs -0 cat > {self.transform_path}'
+        logging.info(f"Concatenating file, cmd: {cmd}")
         p: Popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     executable='/bin/bash')
         stdout, stderr = wait_for_process(p)
@@ -178,7 +178,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
     DAG_ID = 'crossref_metadata'
     TELESCOPE_URL = 'https://api.crossref.org/snapshots/monthly/{year}/{month:02d}/all.json.tar.gz'
 
-    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 6, 7),
+    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 6, 1),
                  schedule_interval: str = '@monthly', dataset_id: str = 'crossref',
                  dataset_description: str = 'The Crossref Metadata Plus dataset: '
                                             'https://www.crossref.org/services/metadata-retrieval/metadata-plus/',
