@@ -111,6 +111,15 @@ def blob_name(path: str) -> str:
     return pathlib.Path(os.path.join("telescopes", relative_path)).as_posix()
 
 
+def batch_blob_name(path: str) -> str:
+    """
+
+    :param path:
+    :return:
+    """
+    return os.path.join(blob_name(path), "*")
+
+
 def upload_files_from_list(files_list: List[str], bucket_name: str) -> bool:
     """ Upload all files in a list to the google cloud download bucket.
 

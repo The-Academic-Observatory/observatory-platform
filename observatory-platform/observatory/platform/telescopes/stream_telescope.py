@@ -27,6 +27,7 @@ from airflow.models.taskinstance import TaskInstance
 from observatory.platform.telescopes.telescope import Release, Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.template_utils import blob_name, \
+    batch_blob_name, \
     bq_append_from_file, \
     bq_append_from_partition, \
     bq_delete_old, \
@@ -61,7 +62,7 @@ class StreamTelescope(Telescope):
                  queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1, source_format: SourceFormat =
                  SourceFormat.NEWLINE_DELIMITED_JSON, schema_prefix: str = '',
                  schema_version: str = None, load_bigquery_table_kwargs: Dict = None,
-                 dataset_description: str = '', table_descriptions: Dict[str, str] = None,
+                 dataset_description: str = '', table_descriptions: Dict[str, str] = None, batch_load: bool = False,
                  airflow_vars: list = None, airflow_conns: list = None):
         """ Construct a StreamTelescope instance.
 
@@ -104,6 +105,7 @@ class StreamTelescope(Telescope):
         self.load_bigquery_table_kwargs = load_bigquery_table_kwargs if load_bigquery_table_kwargs else dict()
         self.dataset_description = dataset_description
         self.table_descriptions = table_descriptions if table_descriptions else dict()
+        self.batch_load = batch_load
 
     def get_release_info(self, **kwargs) -> bool:
         """ Create a release instance and update the xcom value with the last start date.
@@ -146,11 +148,14 @@ class StreamTelescope(Telescope):
             # because a first release can be relatively big in size.
             raise AirflowSkipException('Skipped, because first release')
 
-        for transform_path in release.transform_files:
-            transform_blob = blob_name(transform_path)
-            main_table_id, partition_table_id = table_ids_from_path(transform_path)
+        if self.batch_load:
+            transform_blobs = [batch_blob_name(release.transform_folder)]
+        else:
+            transform_blobs = [blob_name(path) for path in release.transform_files]
+        for blob in transform_blobs:
+            main_table_id, partition_table_id = table_ids_from_path(blob)
             table_description = self.table_descriptions.get(main_table_id, '')
-            bq_load_ingestion_partition(release.end_date, transform_blob, self.dataset_id, main_table_id,
+            bq_load_ingestion_partition(release.end_date, blob, self.dataset_id, main_table_id,
                                         partition_table_id, self.source_format, self.schema_prefix, self.schema_version,
                                         self.dataset_description, table_description=table_description,
                                         **self.load_bigquery_table_kwargs)
@@ -172,8 +177,12 @@ class StreamTelescope(Telescope):
         end_date = pendulum.instance(ti.start_date)
         if (end_date - start_date).days >= self.bq_merge_days:
             logging.info(f'Deleting old data from main table from partitions between dates: {start_date}, {end_date}')
-            for transform_path in release.transform_files:
-                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+            if self.batch_load:
+                transform_blobs = [batch_blob_name(release.transform_folder)]
+            else:
+                transform_blobs = [blob_name(path) for path in release.transform_files]
+            for blob in transform_blobs:
+                main_table_id, partition_table_id = table_ids_from_path(blob)
                 bq_delete_old(start_date, end_date, self.dataset_id, main_table_id, partition_table_id,
                               self.merge_partition_field, self.updated_date_field)
         else:
@@ -189,11 +198,14 @@ class StreamTelescope(Telescope):
         ti: TaskInstance = kwargs['ti']
 
         if release.first_release:
-            for transform_path in release.transform_files:
-                transform_blob = blob_name(transform_path)
-                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+            if self.batch_load:
+                transform_blobs = [batch_blob_name(release.transform_folder)]
+            else:
+                transform_blobs = [blob_name(path) for path in release.transform_files]
+            for blob in transform_blobs:
+                main_table_id, partition_table_id = table_ids_from_path(blob)
                 table_description = self.table_descriptions.get(main_table_id, '')
-                bq_append_from_file(release.end_date, transform_blob, self.dataset_id, main_table_id,
+                bq_append_from_file(release.end_date, blob, self.dataset_id, main_table_id,
                                     self.source_format, self.schema_prefix, self.schema_version,
                                     self.dataset_description, table_description=table_description,
                                     **self.load_bigquery_table_kwargs)
@@ -203,8 +215,12 @@ class StreamTelescope(Telescope):
         end_date = pendulum.instance(ti.start_date)
         if (end_date - start_date).days >= self.bq_merge_days:
             logging.info(f'Appending data to main table from partitions between dates: {start_date}, {end_date}')
-            for transform_path in release.transform_files:
-                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+            if self.batch_load:
+                transform_blobs = [batch_blob_name(release.transform_folder)]
+            else:
+                transform_blobs = [blob_name(path) for path in release.transform_files]
+            for blob in transform_blobs:
+                main_table_id, partition_table_id = table_ids_from_path(blob)
                 bq_append_from_partition(start_date, end_date, self.dataset_id, main_table_id, partition_table_id,
                                          self.schema_prefix, self.schema_version)
         else:

@@ -62,58 +62,62 @@ class CrossrefEventsRelease(StreamRelease):
         """ Path to store the downloaded crossref events file"""
         return os.path.join(self.download_folder, 'crossref_events.json')
 
-    @property
-    def transform_path(self) -> str:
-        """ Path to store the transformed crossref events file"""
-        return os.path.join(self.transform_folder, 'crossref_events.jsonl.gz')
+    # @property
+    # def transform_path(self) -> str:
+    #     """ Path to store the transformed crossref events file"""
+    #     return os.path.join(self.transform_folder, 'crossref_events.jsonl.gz')
 
-    @property
-    def batch_dates(self) -> list:
-        """ Create batches of time periods, based on the start and end date of the release and the max number of
-        processes available.
-        :return: List of batches, where each batch is a tuple of (start_date, end_date). Both dates are strings in
-        format YYYY-MM-DD
-        """
-        if self.download_mode == 'sequential':
-            return [(self.start_date.strftime("%Y-%m-%d"), self.end_date.strftime("%Y-%m-%d"))]
-        elif self.download_mode == 'parallel':
-            pass
-        else:
-            raise AirflowException(f'Download mode has to be either "sequential" or "parallel", '
-                                   f'not "{self.download_mode}"')
-
-        start_date = self.start_date.date()
-        end_date = self.end_date.date()
-
-        # number of days between start and end, add 1, because end date is included
-        total_no_days = (end_date - start_date).days + 1
-
-        # number of days in each batch, rounded to nearest integer, minimal is 1
-        batch_no_days = max(1, round(total_no_days / self.max_processes))
-
-        batches = []
-        period = pendulum.period(start_date, end_date)
-        for i, dt in enumerate(period.range('days', batch_no_days)):
-            batch_start_date = dt.strftime("%Y-%m-%d")
-            # if final batch or end date is reached before end of period, use end date of release instead
-            if i == (self.max_processes - 1) or dt == end_date:
-                batch_end_date = end_date.strftime("%Y-%m-%d")
-                batches.append((batch_start_date, batch_end_date))
-                break
-            # use end date of period
-            else:
-                # end date is included, so subtract 1 day from batch_no_days
-                batch_end_date = (dt + timedelta(days=batch_no_days - 1)).strftime("%Y-%m-%d")
-                batches.append((batch_start_date, batch_end_date))
-
-        return batches
+    # @property
+    # def batch_dates(self) -> list:
+    #     """ Create batches of time periods, based on the start and end date of the release and the max number of
+    #     processes available.
+    #     :return: List of batches, where each batch is a tuple of (start_date, end_date). Both dates are strings in
+    #     format YYYY-MM-DD
+    #     """
+    #     if self.download_mode == 'sequential':
+    #         return [(self.start_date.strftime("%Y-%m-%d"), self.end_date.strftime("%Y-%m-%d"))]
+    #     elif self.download_mode == 'parallel':
+    #         pass
+    #     else:
+    #         raise AirflowException(f'Download mode has to be either "sequential" or "parallel", '
+    #                                f'not "{self.download_mode}"')
+    #
+    #     start_date = self.start_date.date()
+    #     end_date = self.end_date.date()
+    #
+    #     # number of days between start and end, add 1, because end date is included
+    #     total_no_days = (end_date - start_date).days + 1
+    #
+    #     # number of days in each batch, rounded to nearest integer, minimal is 1
+    #     batch_no_days = max(1, round(total_no_days / self.max_processes))
+    #
+    #     batches = []
+    #     period = pendulum.period(start_date, end_date)
+    #     for i, dt in enumerate(period.range('days', batch_no_days)):
+    #         batch_start_date = dt.strftime("%Y-%m-%d")
+    #         # if final batch or end date is reached before end of period, use end date of release instead
+    #         if i == (self.max_processes - 1) or dt == end_date:
+    #             batch_end_date = end_date.strftime("%Y-%m-%d")
+    #             batches.append((batch_start_date, batch_end_date))
+    #             break
+    #         # use end date of period
+    #         else:
+    #             # end date is included, so subtract 1 day from batch_no_days
+    #             batch_end_date = (dt + timedelta(days=batch_no_days - 1)).strftime("%Y-%m-%d")
+    #             batches.append((batch_start_date, batch_end_date))
+    #
+    #     return batches
 
     @property
     def urls(self) -> list:
         urls = []
-        for batch in self.batch_dates:
-            start_date = batch[0]
-            end_date = batch[1]
+        start_date = self.start_date.date()
+        end_date = self.end_date.date()
+        period = pendulum.period(start_date, end_date)
+        for dt in period.range('days'):
+            date_str = dt.strftime("%Y-%m-%d")
+            start_date = date_str
+            end_date = date_str
 
             events_url = f'https://api.eventdata.crossref.org/v1/events?mailto={self.mailto}' \
                          f'&from-collected-date={start_date}&until-collected-date={end_date}&rows=1000'
@@ -163,7 +167,6 @@ class CrossrefEventsRelease(StreamRelease):
         if self.download_mode == 'parallel':
             no_workers = self.max_processes
             logging.info(f'Downloading events with parallel method, no. workers: {no_workers}')
-
         else:
             logging.info('Downloading events with sequential method')
             no_workers = 1
@@ -171,8 +174,8 @@ class CrossrefEventsRelease(StreamRelease):
         with ThreadPoolExecutor(max_workers=no_workers) as executor:
             futures = []
             # select minimum, either no of batches or no of workers
-            for i in range(min(no_workers, len(self.urls))):
-                futures.append(executor.submit(self.download_events_batch, i))
+            for i in range(len(self.urls)):
+                futures.append(executor.submit(self.download_transform_events, i))
             for future in as_completed(futures):
                 batch_result = future.result()
                 all_results += batch_result
@@ -210,22 +213,15 @@ class CrossrefEventsRelease(StreamRelease):
             cursor_path = self.batch_path(url, cursor=True)
             # check if cursor files exist from a previous failed request
             if os.path.isfile(cursor_path):
-                # retrieve cursor
-                with open(cursor_path, 'r') as f:
-                    next_cursor = f.read()
-                # delete file
-                pathlib.Path(cursor_path).unlink()
-                # extract events
-                success, next_cursor, total_events = download_events(url, events_path, next_cursor)
-            # if events path exists but no cursor file previous request has finished & successful
-            elif os.path.isfile(events_path):
-                success = True
-                next_cursor = None
-                total_events = 'See previous successful attempt'
-            # first time request
-            else:
-                # extract events
-                success, next_cursor, total_events = download_events(url, events_path)
+                pass
+                # # retrieve cursor
+                # with open(cursor_path, 'r') as f:
+                #     next_cursor = f.read()
+                # # # delete file
+                # # pathlib.Path(cursor_path).unlink()
+            # if events path exists but no cursor, previous request has finished & successful
+            if os.path.isfile(events_path) and not next_cursor:
+                continue
 
             if not success:
                 with open(cursor_path, 'w') as f:
@@ -290,16 +286,14 @@ class CrossrefEventsTelescope(StreamTelescope):
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
                          updated_date_field, bq_merge_days, dataset_description=dataset_description,
-                         airflow_vars=airflow_vars)
+                         airflow_vars=airflow_vars, batch_load=True)
         self.mailto = mailto
         self.download_mode = download_mode
         self.max_processes = max_processes
 
         self.add_setup_task_chain([self.check_dependencies,
                                    self.get_release_info])
-        self.add_task_chain([self.download,
-                             self.upload_downloaded,
-                             self.transform,
+        self.add_task_chain([self.download_transform,
                              self.upload_transformed,
                              self.bq_load_partition])
         self.add_task_chain([self.bq_delete_old,
@@ -316,33 +310,26 @@ class CrossrefEventsTelescope(StreamTelescope):
                                         self.download_mode, self.max_processes)
         return release
 
-    def download(self, release: CrossrefEventsRelease, **kwargs):
+    def download_transform(self, release: CrossrefEventsRelease, **kwargs):
         """ Task to download the CrossrefEventsRelease release.
 
         :param release: a CrossrefEventsRelease instance.
         :return: None.
         """
         # Download release
-        release.download()
+        release.download_transform()
 
-    def upload_downloaded(self, release: CrossrefEventsRelease, **kwargs):
-        """ Task to upload the downloadeded CrossrefEventsRelease release.
+    # def upload_downloaded(self, release: CrossrefEventsRelease, **kwargs):
+    #     """ Task to upload the downloadeded CrossrefEventsRelease release.
+    #
+    #     :param release: a CrossrefEventsRelease instance.
+    #     :return: None.
+    #     """
+    #     # Upload each downloaded release
+    #     upload_files_from_list(release.download_files, release.download_bucket)
 
-        :param release: a CrossrefEventsRelease instance.
-        :return: None.
-        """
-        # Upload each downloaded release
-        upload_files_from_list(release.download_files, release.download_bucket)
-
-    def transform(self, release: CrossrefEventsRelease, **kwargs):
-        """ Task to transform the CrossrefEventsRelease release.
-
-        :param release: an CrossrefEventsRelease instance.
-        :return: None.
-        """
-        # Transform each release
-        release.transform()
-
+    # def transform(self, release: CrossrefEventsRelease, **kwargs):
+    #     release.transform()
 
 def download_events(url: str, events_path: str, next_cursor: str = None, success: bool = True) -> \
         Tuple[bool, Union[str, None], Union[int, None]]:
