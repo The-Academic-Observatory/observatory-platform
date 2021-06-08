@@ -220,8 +220,8 @@ def make_observatory_dataset(
     n_funders: int = 5,
     n_publishers: int = 5,
     n_authors: int = 10,
-    n_papers: int = 100,
-    n_fields_of_study_per_level: int = 10,
+    n_papers: int = 50,
+    n_fields_of_study_per_level: int = 5,
 ) -> ObservatoryDataset:
     faker = Faker()
 
@@ -668,11 +668,120 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
                 "years": events_years,
             }
 
+        #
         # Make affiliations
+        #
+
+        # Institutions, countries, regions, subregion
+        institutions = {}
+        countries = {}
+        regions = {}
+        subregions = {}
+        for author in paper.authors:
+            # Institution
+            inst = author.institution
+            if inst.grid_id not in institutions:
+                institutions[inst.grid_id] = {
+                    "identifier": inst.grid_id,
+                    "types": [inst.types],
+                    "name": inst.name,
+                    "home_repo": {inst.home_repo},
+                    "country": inst.country,
+                    "country_code": inst.country_code,
+                    "country_code_2": inst.country_code_2,
+                    "region": inst.region,
+                    "subregion": inst.subregion,
+                    "coordinates": inst.coordinates,
+                    "members": [],
+                }
+
+            # Country
+            if inst.country not in countries:
+                countries[inst.country] = {
+                    "identifier": inst.country_code,
+                    "name": inst.country,
+                    "types": ["Country"],
+                    "home_repo": {inst.home_repo},
+                    "country": inst.country,
+                    "country_code": inst.country_code,
+                    "country_code_2": inst.country_code_2,
+                    "region": inst.region,
+                    "subregion": inst.subregion,
+                    "coordinates": None,
+                    "count": 0,
+                    "members": {inst.grid_id},
+                }
+            else:
+                # countries[inst.country]["count"] += 1
+                countries[inst.country]["members"].add(inst.grid_id)
+                countries[inst.country]["home_repo"].add(inst.home_repo)
+
+            # Region
+            if inst.region not in regions:
+                regions[inst.region] = {
+                    "identifier": inst.region,
+                    "name": inst.region,
+                    "types": ["Region"],
+                    "home_repo": {inst.home_repo},
+                    "country": None,
+                    "country_code": None,
+                    "country_code_2": None,
+                    "region": inst.region,
+                    "subregion": None,
+                    "coordinates": None,
+                    "count": 0,
+                    "members": {inst.subregion},
+                }
+            else:
+                # regions[inst.region]["count"] += 1
+                regions[inst.region]["members"].add(inst.subregion)
+                countries[inst.country]["home_repo"].add(inst.home_repo)
+
+            if inst.subregion not in subregions:
+                subregions[inst.subregion] = {
+                    "identifier": inst.subregion,
+                    "name": inst.subregion,
+                    "types": ["Subregion"],
+                    "home_repo": {inst.home_repo},
+                    "country": None,
+                    "country_code": None,
+                    "country_code_2": None,
+                    "region": inst.region,
+                    "subregion": None,
+                    "coordinates": None,
+                    "count": 0,
+                    "members": {inst.country_code},
+                }
+            else:
+                # subregions[inst.subregion]["count"] += 1
+                subregions[inst.subregion]["members"].add(inst.country_code)
+                countries[inst.country]["home_repo"].add(inst.home_repo)
+
+        def to_list(dict_: Dict):
+            l_ = []
+            for k, v in dict_.items():
+                v["members"] = list(v["members"])
+                v["home_repo"] = list(v["home_repo"])
+                v["members"].sort()
+                if "count" in v:
+                    v["count"] = len(v["members"])
+                v["home_repo"].sort()
+                l_.append(v)
+            l_.sort(key=lambda x: x["identifier"])
+            return l_
+
+        institutions = to_list(institutions)
+        countries = to_list(countries)
+        regions = to_list(regions)
+        subregions = to_list(subregions)
+
+        # Groupings
+
+        # Funders
         funders = {}
         for funder in paper.funders:
             funders[funder.doi] = {
-                "identifier": funder.name, #
+                "identifier": funder.name,  #
                 "name": funder.name,
                 "doi": funder.doi,
                 "types": ["Funder"],
@@ -690,26 +799,9 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
         funders = [v for k, v in funders.items()]
         funders.sort(key=lambda x: x["identifier"])
 
-        institutions = {}
-        for author in paper.authors:
-            inst = author.institution
-            if inst.grid_id not in institutions:
-                institutions[inst.grid_id] = {
-                    "identifier": inst.grid_id,
-                    "types": [inst.types],
-                    "name": inst.name,
-                    "home_repo": [inst.home_repo],
-                    "country": inst.country,
-                    "country_code": inst.country_code,
-                    "country_code_2": inst.country_code_2,
-                    "region": inst.region,
-                    "subregion": inst.subregion,
-                    "coordinates": inst.coordinates,
-                    "members": [],
-                }
-        institutions = [v for k, v in institutions.items()]
-        institutions.sort(key=lambda x: x["identifier"])
+        # Authors
 
+        # Journals
         journal = paper.journal
         journals = [
             {
@@ -727,6 +819,7 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
             }
         ]
 
+        # Publishers
         publisher = paper.publisher
         publishers = [
             {
@@ -744,6 +837,9 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
             }
         ]
 
+        #
+        # Make final record
+        #
         records.append(
             {
                 "doi": doi,
@@ -763,9 +859,9 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
                 "affiliations": {
                     "doi": doi,
                     "institutions": institutions,
-                    "countries": [],
-                    "subregions	": [],
-                    "regions": [],
+                    "countries": countries,
+                    "subregions": subregions,
+                    "regions": regions,
                     "groupings": [],
                     "funders": funders,
                     "authors": [],
@@ -1123,31 +1219,24 @@ class TestDoiWorkflow(ObservatoryTestCase):
                     # DOI
                     self.assertEqual(affiliations_expected["doi"], affiliations_actual["doi"])
 
+                    def assert_list_equal(expected_, actual_, key_):
+                        items_expected_ = expected_[key_]
+                        items_actual_ = actual_[key_]
+                        self.assertEqual(len(items_expected_), len(items_actual_))
+                        items_actual_.sort(key=lambda x: x["identifier"])
+                        for item_ in items_actual_:
+                            item_["home_repo"].sort()
+                            item_["members"].sort()
+                        self.assertListEqual(items_expected_, items_actual_)
+
                     # Institutions
-                    institutions_expected = affiliations_expected["institutions"]
-                    institutions_actual = affiliations_actual["institutions"]
-                    self.assertEqual(len(institutions_expected), len(institutions_actual))
-                    institutions_actual.sort(key=lambda x: x["identifier"])
-                    self.assertListEqual(institutions_expected, institutions_actual)
-
-                    # Journals
-                    journals_expected = affiliations_expected["journals"]
-                    journals_actual = affiliations_actual["journals"]
-                    self.assertEqual(len(journals_expected), len(journals_actual))
-                    self.assertListEqual(journals_expected, journals_actual)
-
-                    # Publishers
-                    publishers_expected = affiliations_expected["publishers"]
-                    publishers_actual = affiliations_actual["publishers"]
-                    self.assertEqual(len(publishers_expected), len(publishers_actual))
-                    self.assertListEqual(publishers_expected, publishers_actual)
-
-                    # Funders
-                    funders_expected = affiliations_expected["funders"]
-                    funders_actual = affiliations_actual["funders"]
-                    self.assertEqual(len(funders_expected), len(funders_actual))
-                    funders_actual.sort(key=lambda x: x["identifier"])
-                    self.assertListEqual(funders_expected, funders_actual)
+                    assert_list_equal(affiliations_expected, affiliations_actual, "institutions")
+                    assert_list_equal(affiliations_expected, affiliations_actual, "countries")
+                    assert_list_equal(affiliations_expected, affiliations_actual, "subregions")
+                    assert_list_equal(affiliations_expected, affiliations_actual, "regions")
+                    assert_list_equal(affiliations_expected, affiliations_actual, "journals")
+                    assert_list_equal(affiliations_expected, affiliations_actual, "publishers")
+                    assert_list_equal(affiliations_expected, affiliations_actual, "funders")
 
                 # # Test create book
                 # ti = env.run_task("create_book", doi_dag, execution_date=execution_date)
