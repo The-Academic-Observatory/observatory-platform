@@ -131,7 +131,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         dataset_id = env.add_dataset()
 
         # Setup Telescope
-        execution_date = pendulum.datetime(year=2021, month=2, day=1).end_of('month')
+        execution_date = pendulum.datetime(year=2021, month=2, day=14)
         organisation = Organisation(
             name=self.organisation_name,
             gcp_project_id=self.project_id,
@@ -180,7 +180,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         dag = telescope.make_dag()
 
         # Use release to check results from tasks
-        release = OapenIrusUkRelease(telescope.dag_id, execution_date, organisation)
+        release = OapenIrusUkRelease(telescope.dag_id, execution_date.end_of('month'), organisation)
 
         # Create the Observatory environment and run tests
         with env.create():
