@@ -37,6 +37,7 @@ import requests
 # import io
 import jsonlines
 import gzip
+import pathlib
 
 
 class CrossrefEventsRelease(StreamRelease):
@@ -289,6 +290,7 @@ class CrossrefEventsRelease(StreamRelease):
             #     with open(cursor_path, 'w') as f:
             #         f.write(next_cursor)
             # batch_results.append((events_path, success))
+            pathlib.Path(cursor_path).unlink()
             logging.info(f'{i + 1}.{event_type} successful, total no. events: {total_events}, downloaded '
                          f'events: {counter}')
         return file_paths
