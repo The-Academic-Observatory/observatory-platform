@@ -64,7 +64,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         self.host = "localhost"
         self.api_port = 5000
         self.download_path = test_fixtures_path("telescopes", "oapen_irus_uk", "download.jsonl.gz")
-        self.transform_hash = "e22b37f2"
+        self.transform_hash = "0b111b2f"
 
     def test_dag_structure(self):
         """Test that the Oapen Irus Uk DAG has the correct structure.
