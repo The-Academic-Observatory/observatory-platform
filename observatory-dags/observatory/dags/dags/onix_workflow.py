@@ -19,7 +19,7 @@
 
 
 from observatory.api.client.identifiers import TelescopeTypes
-from observatory.dags.workflows.oaebu_partners import OaebuPartners
+from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
 from observatory.dags.workflows.onix_workflow import OnixWorkflow
 from observatory.platform.utils.telescope_utils import make_observatory_api
 
@@ -29,45 +29,53 @@ from observatory.platform.utils.telescope_utils import make_observatory_api
 def get_oaebu_partner_data(project_id):
     oaebu_data = [
         OaebuPartners(
-            name="Google Books Sales",
+            name=OaebuPartnerName.google_analytics,
+            gcp_project_id=project_id,
+            gcp_dataset_id="google",
+            gcp_table_id="google_analytics",
+            isbn_field_name="publication_id",
+            sharded=False,
+        ),
+        OaebuPartners(
+            name=OaebuPartnerName.google_books_sales,
             gcp_project_id=project_id,
             gcp_dataset_id="google",
             gcp_table_id="google_books_sales",
             isbn_field_name="Primary_ISBN",
-            sharded=False
+            sharded=False,
         ),
         OaebuPartners(
-            name="Google Books Traffic",
+            name=OaebuPartnerName.google_books_traffic,
             gcp_project_id=project_id,
             gcp_dataset_id="google",
             gcp_table_id="google_books_traffic",
             isbn_field_name="Primary_ISBN",
-            sharded=False
+            sharded=False,
         ),
         OaebuPartners(
-            name="JSTOR Country",
+            name=OaebuPartnerName.jstor_country,
             gcp_project_id=project_id,
             gcp_dataset_id="jstor",
             gcp_table_id="jstor_country",
-            isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
-            sharded=False
+            isbn_field_name="eISBN",
+            sharded=False,
         ),
         OaebuPartners(
-            name="JSTOR Institution",
+            name=OaebuPartnerName.jstor_institution,
             gcp_project_id=project_id,
             gcp_dataset_id="jstor",
             gcp_table_id="jstor_institution",
-            isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
-            sharded=False
+            isbn_field_name="eISBN",
+            sharded=False,
         ),
         OaebuPartners(
-            name="OAPEN IRUS UK",
+            name=OaebuPartnerName.oapen_irus_uk,
             gcp_project_id=project_id,
             gcp_dataset_id="oapen",
             gcp_table_id="oapen_irus_uk",
-            isbn_field_name="ISBN",  # Debate over whether this should be eISBN instead
-            sharded=False
-        )
+            isbn_field_name="ISBN",
+            sharded=False,
+        ),
     ]
 
     return oaebu_data
