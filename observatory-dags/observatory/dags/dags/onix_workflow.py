@@ -32,7 +32,7 @@ def get_oaebu_partner_data(project_id):
             name=OaebuPartnerName.google_analytics,
             gcp_project_id=project_id,
             gcp_dataset_id="google",
-            gcp_table_id="anu_google_analytics",
+            gcp_table_id="google_analytics",
             isbn_field_name="publication_id",
             sharded=False,
         ),
