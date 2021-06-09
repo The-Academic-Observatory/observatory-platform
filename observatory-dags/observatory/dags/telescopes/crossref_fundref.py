@@ -166,10 +166,11 @@ class CrossrefFundrefRelease(SnapshotRelease):
 class CrossrefFundrefTelescope(SnapshotTelescope):
     """ Crossref Fundref Telescope."""
     DAG_ID = 'crossref_fundref'
+    DATASET_ID = 'crossref'
     RELEASES_URL = 'https://gitlab.com/api/v4/projects/crossref%2Fopen_funder_registry/releases'
 
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2014, 3, 1),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'crossref',
+                 schedule_interval: str = '@weekly', dataset_id: str = DATASET_ID,
                  table_descriptions: Dict = None,
                  catchup: bool = False, airflow_vars: List = None):
 

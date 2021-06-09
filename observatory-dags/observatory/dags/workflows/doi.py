@@ -24,7 +24,7 @@ from pendulum import Pendulum
 
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataTelescope
-from observatory.dags.telescopes.fundref import FundrefTelescope
+from observatory.dags.telescopes.crossref_fundref import CrossrefFundrefTelescope
 from observatory.dags.telescopes.grid import GridTelescope
 from observatory.dags.telescopes.mag import MagTelescope
 from observatory.dags.telescopes.unpaywall import UnpaywallTelescope
@@ -591,7 +591,7 @@ class DoiWorkflow:
 
         # Get last Funref and Crossref Metadata release dates before current end date
         fundref_release_date = select_table_shard_dates(
-            project_id, FundrefTelescope.DATASET_ID, FundrefTelescope.DAG_ID, release_date
+            project_id, CrossrefFundrefTelescope.DATASET_ID, CrossrefFundrefTelescope.DAG_ID, release_date
         )
         crossref_metadata_release_date = select_table_shard_dates(
             project_id, CrossrefMetadataTelescope.DATASET_ID, CrossrefMetadataTelescope.DAG_ID, release_date
