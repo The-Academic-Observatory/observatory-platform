@@ -382,8 +382,7 @@ def list_releases(start_date: Pendulum, end_date: Pendulum) -> List[dict]:
                 break
             current_page += 1
         else:
-            logging.error(f"Error retrieving response")
-            exit(os.EX_DATAERR)
+            raise AirflowException(f"Error retrieving response from: {url}")
 
     return release_info
 

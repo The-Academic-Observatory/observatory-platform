@@ -26,9 +26,11 @@ from observatory.dags.telescopes.crossref_fundref import (CrossrefFundrefRelease
                                                           CrossrefFundrefTelescope,
                                                           list_releases,
                                                           )
+from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.template_utils import bigquery_sharded_table_id, blob_name
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
-
+from click.testing import CliRunner
+from observatory.dags.telescopes.crossref_fundref import strip_whitespace
 from tests.observatory.test_utils import test_fixtures_path
 
 
@@ -45,7 +47,7 @@ class TestCrossrefFundref(ObservatoryTestCase):
         super(TestCrossrefFundref, self).__init__(*args, **kwargs)
         self.project_id = os.getenv('TEST_GCP_PROJECT_ID')
         self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
-        self.download_path = test_fixtures_path('telescopes', 'crossref_fundref', 'crossref_fundref.tar.gz')
+        self.download_path = test_fixtures_path('telescopes', 'crossref_fundref', 'crossref_fundref_v1.34.tar.gz')
         self.download_hash = '0cd65042'
         self.extract_hash = '559aa89d41a85ff84d705084c1caeb8d'
         self.transform_hash = '632b453a'
@@ -171,3 +173,25 @@ class TestCrossrefFundref(ObservatoryTestCase):
                 self.assertIsInstance(release, dict)
                 self.assertIsInstance(release['url'], str)
                 self.assertIsInstance(release['date'], pendulum.datetime)
+
+    def test_strip_whitespace(self):
+        with CliRunner().isolated_filesystem():
+            # Create file with space
+            file_with_space = 'file1.txt'
+            with open(file_with_space, 'w') as f:
+                f.write(' ')
+                f.write('test')
+
+            # Create file without space and store hash
+            file_without_space = 'file2.txt'
+            with open(file_without_space, 'w') as f:
+                f.write('test')
+            expected_hash = _hash_file(file_without_space, algorithm="md5")
+
+            # Strip whitespace and check that files are now the same
+            strip_whitespace(file_with_space)
+            self.assert_file_integrity(file_with_space, expected_hash, 'md5')
+
+            # Check that file stays the same when first line is not a space
+            strip_whitespace(file_without_space)
+            self.assert_file_integrity(file_without_space, expected_hash, 'md5')
