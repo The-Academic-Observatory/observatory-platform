@@ -91,49 +91,49 @@
   },
   {
     "description": "Record to store statistics on the country level.",
-    "mode": "NULLABLE",
+    "mode": "REPEATED",
     "name": "country",
     "type": "RECORD",
     "fields": [
       {
         "description": "The country name of the client registered by oapen irus uk.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "name",
         "type": "STRING"
       },
       {
         "description": "The country code of the client registered by oapen irus uk.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "code",
         "type": "STRING"
       },
       {
         "description": "The total number of title requests. Only available for data before 2020-04-01.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "title_requests",
         "type": "INTEGER"
       },
       {
         "description": "The total number of item investigations. Only available for data since 2020-04-01.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "total_item_investigations",
         "type": "INTEGER"
       },
       {
         "description": "The total number of item requests. Only available for data since 2020-04-01.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "total_item_requests",
         "type": "INTEGER"
       },
       {
         "description": "The number of unique item investigations. Only available for data since 2020-04-01.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "unique_item_investigations",
         "type": "INTEGER"
       },
       {
         "description": "The number of unique item requests. Only available for data since 2020-04-01.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "unique_item_requests",
         "type": "INTEGER"
       }
@@ -141,67 +141,67 @@
   },
   {
     "description": "Record to store statistics on the location level.",
-    "mode": "NULLABLE",
+    "mode": "REPEATED",
     "name": "locations",
     "type": "RECORD",
     "fields": [
       {
         "description": "The latitude geolocated from the client's ip address.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "latitude",
         "type": "FLOAT"
       },
       {
         "description": "The longitude geolocated from the client's ip address.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "longitude",
         "type": "FLOAT"
       },
       {
         "description": "The city geolocated from the client's ip address.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "city",
         "type": "STRING"
       },
       {
         "description": "The country name geolocated from the client's ip address.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "country_name",
         "type": "STRING"
       },
       {
         "description": "The country code geolocated from the client's ip address.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "country_code",
         "type": "STRING"
       },
       {
         "description": "The total number of title requests. Only available for data before 2020-04-01.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "title_requests",
         "type": "INTEGER"
       },
       {
         "description": "The total number of item investigations. Only available for data since 2020-04-01.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "total_item_investigations",
         "type": "INTEGER"
       },
       {
         "description": "The total number of item requests. Only available for data since 2020-04-01.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "total_item_requests",
         "type": "INTEGER"
       },
       {
         "description": "The number of unique item investigations. Only available for data since 2020-04-01.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "unique_item_investigations",
         "type": "INTEGER"
       },
       {
         "description": "The number of unique item requests. Only available for data since 2020-04-01.",
-        "mode": "REPEATED",
+        "mode": "NULLABLE",
         "name": "unique_item_requests",
         "type": "INTEGER"
       }
