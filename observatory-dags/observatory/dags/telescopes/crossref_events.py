@@ -132,12 +132,13 @@ class CrossrefEventsRelease(StreamRelease):
             events_path = self.batch_path(url)
             cursor_path = self.batch_path(url, cursor=True)
 
+            event_type, date = parse_event_url(url)
+
             # if events file exists but no cursor file, previous request has finished & successful
             if os.path.isfile(events_path) and not os.path.isfile(cursor_path):
                 logging.info(f"{i + 1}.{event_type} Skipped, already finished: {date}")
                 continue
 
-            event_type, date = parse_event_url(url)
             logging.info(f"{i + 1}.{event_type} Downloading date: {date}")
 
             headers = {'User-Agent': get_ao_user_agent()}
