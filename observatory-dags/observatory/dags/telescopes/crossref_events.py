@@ -129,17 +129,18 @@ class CrossrefEventsRelease(StreamRelease):
         events = 0
         # Extract all new, edited and deleted events
         for url in self.urls[i]:
-            event_type, date = parse_event_url(url)
-            logging.info(f"{i + 1}.{event_type} Downloading date: {date}")
-            headers = {'User-Agent': get_ao_user_agent()}
-
             events_path = self.batch_path(url)
             cursor_path = self.batch_path(url, cursor=True)
 
             # if events file exists but no cursor file, previous request has finished & successful
             if os.path.isfile(events_path) and not os.path.isfile(cursor_path):
+                logging.info(f"{i + 1}.{event_type} Skipped, already finished: {date}")
                 continue
 
+            event_type, date = parse_event_url(url)
+            logging.info(f"{i + 1}.{event_type} Downloading date: {date}")
+
+            headers = {'User-Agent': get_ao_user_agent()}
             next_cursor, counts, total_events = download_events(url, headers, events_path, cursor_path)
             counter = counts
             while next_cursor:
