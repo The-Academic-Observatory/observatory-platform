@@ -171,8 +171,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
 
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2014, 3, 1),
                  schedule_interval: str = '@weekly', dataset_id: str = DATASET_ID,
-                 table_descriptions: Dict = None,
-                 catchup: bool = False, airflow_vars: List = None):
+                 table_descriptions: Dict = None, airflow_vars: List = None):
 
         """ Construct a CrossrefFundrefTelescope instance.
 
@@ -194,7 +193,6 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id,
                          table_descriptions=table_descriptions,
-                         catchup=catchup,
                          airflow_vars=airflow_vars)
 
         # Create Gitlab pool to limit the number of connections to Gitlab, which is very quick to block requests if
@@ -253,7 +251,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
         execution_date = kwargs['execution_date']
         releases_list = list_releases(prev_execution_date, execution_date)
         logging.info(f'Releases between prev ({prev_execution_date}) and current ({execution_date}) execution date:')
-        logging.info(*releases_list, sep='\n')
+        logging.info(releases_list)
 
         # Check if the BigQuery table for each release already exists and only process release if the table
         # doesn't exist
@@ -532,7 +530,7 @@ def parse_fundref_registry_rdf(registry_file_path: str) -> Tuple[List, Dict]:
                 elif tag == 'notation':
                     funder['notation'] = nested.text
                 else:
-                    print(f"Unrecognized tag for element: {nested}")
+                    logging.info(f"Unrecognized tag for element: {nested}")
 
             funders.append(funder)
 
@@ -580,7 +578,7 @@ def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction:
     for funder_id in funder[direction]:
         if funder_id in sub_funders:
             # Stop recursion if funder is it's own parent or child
-            print(f"Funder {funder_id} is it's own parent/child, skipping..")
+            logging.info(f"Funder {funder_id} is it's own parent/child, skipping..")
             name = 'NA'
             returned = []
             returned_depth = depth
@@ -596,10 +594,12 @@ def recursive_funders(funders_by_key: Dict, funder: Dict, depth: int, direction:
                 returned, returned_depth = recursive_funders(funders_by_key, sub_funder, starting_depth + 1, direction,
                                                              sub_funders)
             except KeyError:
-                print(f'Could not find funder by id: {funder_id}, skipping..')
+                logging.info(f'Could not find funder by id: {funder_id}, skipping..')
                 name = 'NA'
                 returned = []
                 returned_depth = depth
+                sub_funders.append(funder_id)
+
         # Add child/parent (containing nested children/parents) to list
         if direction == "narrower":
             child = {
