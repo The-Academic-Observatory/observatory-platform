@@ -15,32 +15,32 @@
 # Author: James Diprose
 
 from __future__ import annotations
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
-from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
 
+import logging
 import os
 import random
-import unittest
-from click.testing import CliRunner
 import uuid
-from observatory.platform.utils.gc_utils import run_bigquery_query
 from dataclasses import dataclass
 from datetime import datetime
-from observatory.dags.workflows.doi import Transform
 from typing import Dict
 from typing import List
-import logging
-from observatory.platform.utils.template_utils import schema_path, find_schema
-from observatory.platform.utils.telescope_utils import load_jsonl
-from observatory.platform.utils.gc_utils import bigquery_sharded_table_id, load_bigquery_table, SourceFormat
+
+import pandas as pd
 import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.dummy_operator import DummyOperator
+from click.testing import CliRunner
 from faker import Faker
 
 from observatory.dags.workflows.doi import DoiWorkflow, make_dataset_transforms
 from observatory.platform.utils.airflow_utils import set_task_state
+from observatory.platform.utils.gc_utils import bigquery_sharded_table_id, load_bigquery_table, SourceFormat
+from observatory.platform.utils.gc_utils import run_bigquery_query
+from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
+from observatory.platform.utils.telescope_utils import list_to_jsonl_gz
+from observatory.platform.utils.telescope_utils import load_jsonl
+from observatory.platform.utils.template_utils import schema_path, find_schema
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -154,6 +154,31 @@ class Paper:
     license: str = None
     is_free_to_read_at_publisher: bool = False
     is_in_institutional_repo: bool = False
+
+    @property
+    def access_type(self) -> AccessType:
+        gold_doaj = self.journal.license is not None
+        gold = gold_doaj or (self.is_free_to_read_at_publisher and self.license is not None and not gold_doaj)
+        hybrid = self.is_free_to_read_at_publisher and self.license is not None and not gold_doaj
+        bronze = self.is_free_to_read_at_publisher and self.license is None and not gold_doaj
+        green = self.is_in_institutional_repo
+        green_only = self.is_in_institutional_repo and not gold_doaj and not self.is_free_to_read_at_publisher
+        oa = gold or hybrid or bronze or green
+
+        return AccessType(
+            oa=oa, green=green, gold=gold, gold_doaj=gold_doaj, hybrid=hybrid, bronze=bronze, green_only=green_only
+        )
+
+
+@dataclass
+class AccessType:
+    oa: bool = None
+    green: bool = None
+    gold: bool = None
+    gold_doaj: bool = None
+    hybrid: bool = None
+    bronze: bool = None
+    green_only: bool = None
 
 
 @dataclass
@@ -679,22 +704,24 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
         subregions = {}
         authors = []
         for author in paper.authors:
-            # Author
-            authors.append({
-                "identifier": author.orcid,
-                "name": author.name,
-                "given_names": author.first_name,
-                "family_name": author.last_name,
-                "types": ["Author"],
-                "home_repo": None,
-                "country": None,
-                "country_code": None,
-                "country_code_2": None,
-                "region": None,
-                "subregion": None,
-                "coordinates": None,
-                "members": [],
-            })
+            # # Author
+            # authors.append(
+            #     {
+            #         "identifier": author.orcid,
+            #         "name": author.name,
+            #         "given_names": author.first_name,
+            #         "family_name": author.last_name,
+            #         "types": ["Author"],
+            #         "home_repo": None,
+            #         "country": None,
+            #         "country_code": None,
+            #         "country_code_2": None,
+            #         "region": None,
+            #         "subregion": None,
+            #         "coordinates": None,
+            #         "members": [],
+            #     }
+            # )
 
             # Institution
             inst = author.institution
@@ -894,6 +921,106 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
 
     # Sort to match with sorted results
     records.sort(key=lambda r: r["doi"])
+
+    return records
+
+
+def make_country_table(dataset: ObservatoryDataset) -> List[Dict]:
+    data = []
+    for paper in dataset.papers:
+        for author in paper.authors:
+            inst = author.institution
+            at = paper.access_type
+            data.append(
+                {
+                    "doi": paper.doi,
+                    "id": inst.country_code,
+                    "time_period": paper.published_date.year,
+                    "name": inst.country,
+                    "home_repo": None,
+                    "country": inst.country,
+                    "country_code": inst.country_code,
+                    "country_code_2": inst.country_code_2,
+                    "region": inst.region,
+                    "subregion": inst.subregion,
+                    "coordinates": None,
+                    "total_outputs": 1,
+                    "oa": at.oa,
+                    "green": at.green,
+                    "gold": at.gold,
+                    "gold_doaj": at.gold_doaj,
+                    "hybrid": at.hybrid,
+                    "bronze": at.bronze,
+                    "green_only": at.green_only,
+                }
+            )
+
+    df = pd.DataFrame(data)
+    df.drop_duplicates(inplace=True)
+    agg = {
+        "id": "first",
+        "time_period": "first",
+        "name": "first",
+        "home_repo": "first",
+        "country": "first",
+        "country_code": "first",
+        "country_code_2": "first",
+        "region": "first",
+        "subregion": "first",
+        "coordinates": "first",
+        "total_outputs": "sum",
+        "oa": "sum",
+        "green": "sum",
+        "gold": "sum",
+        "gold_doaj": "sum",
+        "hybrid": "sum",
+        "bronze": "sum",
+        "green_only": "sum",
+    }
+    df = df.groupby(["id", "time_period"], as_index=False).agg(agg).sort_values(by=["id", "time_period"])
+    records = []
+    for i, row in df.iterrows():
+        total_outputs = row["total_outputs"]
+        oa = row["oa"]
+        green = row["green"]
+        gold = row["gold"]
+        gold_doaj = row["gold_doaj"]
+        hybrid = row["hybrid"]
+        bronze = row["bronze"]
+        green_only = row["green_only"]
+
+        records.append(
+            {
+                "id": row["id"],
+                "time_period": row["time_period"],
+                "name": row["name"],
+                "home_repo": row["home_repo"],
+                "country": row["country"],
+                "country_code": row["country_code"],
+                "country_code_2": row["country_code_2"],
+                "region": row["region"],
+                "subregion": row["subregion"],
+                "coordinates": row["coordinates"],
+                "total_outputs": total_outputs,
+                "access_types": {
+                    "oa": {"total_outputs": oa, "percent": round(oa / total_outputs * 100, 2)},
+                    "green": {"total_outputs": green, "percent": round(green / total_outputs * 100, 2)},
+                    "gold": {"total_outputs": gold, "percent": round(gold / total_outputs * 100, 2)},
+                    "gold_doaj": {"total_outputs": gold_doaj, "percent": round(gold_doaj / total_outputs * 100, 2)},
+                    "hybrid": {"total_outputs": hybrid, "percent": round(hybrid / total_outputs * 100, 2)},
+                    "bronze": {"total_outputs": bronze, "percent": round(bronze / total_outputs * 100, 2)},
+                    "green_only": {"total_outputs": green_only, "percent": round(green_only / total_outputs * 100, 2)},
+                },
+                "citations": {},
+                "output_types": [],
+                "disciplines": {},
+                "funders": [],
+                "members": [],
+                "publishers": [],
+                "journals": [],
+                "events": [],
+            }
+        )
 
     return records
 
@@ -1185,7 +1312,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                     observatory_dataset, env.download_bucket, fake_dataset_id, settings_dataset_id, release_date
                 )
 
-                # Test source dataset transformations
+                # Test that source dataset transformations run
                 for transform in transforms:
                     task_id = f"create_{transform.output_table.table_id}"
                     ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
@@ -1195,54 +1322,96 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 ti = env.run_task("create_doi", doi_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
                 expected_output = make_doi_table(observatory_dataset)
-                actual_output = self.query_doi_table(observatory_dataset_id, release_date)
+                actual_output = self.query_table(observatory_dataset_id, "doi", release_date, "doi")
                 self.assert_doi(expected_output, actual_output)
 
                 # Test create book
                 ti = env.run_task("create_book", doi_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
-                expected_table_id = f""
-                expected_rows = 5
-                self.assert_table_integrity(expected_table_id, expected_rows)
+                # expected_table_id = f""
+                # expected_rows = 5
+                # self.assert_table_integrity(expected_table_id, expected_rows)
 
-                # # Test aggregations
+                # Test aggregations
+                ti = env.run_task("create_country", doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+
+                # Assert country aggregation output
+                expected_output = make_country_table(observatory_dataset)
+                actual_output = self.query_table(observatory_dataset_id, "country", release_date, "id, time_period")
+                self.assert_aggregate(expected_output, actual_output)
+                a = 1
+
                 # for agg in DoiWorkflow.AGGREGATIONS:
-                #     task_id = f"create_{agg.table_id}"
-                #     ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
-                #
-                #     # Check that task finished successfully
-                #     self.assertEqual(expected_state, ti.state)
+
+                # Check that task finished successfully
+
                 #     # TODO: check that output is correct
-                #
-                # # Test copy to dashboards
-                # ti = env.run_task("copy_to_dashboards", doi_dag, execution_date=execution_date)
-                # self.assertEqual(expected_state, ti.state)
-                # # TODO: check that tables exist
-                #
-                # # Test create dashboard views
-                # ti = env.run_task("create_dashboard_views", doi_dag, execution_date=execution_date)
-                # self.assertEqual(expected_state, ti.state)
-                # # TODO: check that views exist
-                #
-                # # Test create exported tables for Elasticsearch
-                # for agg in DoiWorkflow.AGGREGATIONS:
-                #     task_id = f"export_{agg.table_id}"
-                #     ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
-                #
-                #     # Check that task finished successfully
-                #     self.assertEqual(expected_state, ti.state)
-                #     # TODO: check that output is correct
+
+                # Test copy to dashboards
+                ti = env.run_task("copy_to_dashboards", doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that tables exist
+
+                # Test create dashboard views
+                ti = env.run_task("create_dashboard_views", doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that views exist
+
+                # Test create exported tables for Elasticsearch
+                for agg in DoiWorkflow.AGGREGATIONS:
+                    task_id = f"export_{agg.table_id}"
+                    ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+
+                    # Check that task finished successfully
+                    self.assertEqual(expected_state, ti.state)
+                    # TODO: check that output is correct
                 #
                 # a = 1
 
-    def query_doi_table(self, observatory_dataset_id: str, release_date):
+    def query_table(
+        self, observatory_dataset_id: str, table_id: str, release_date: pendulum.Pendulum, order_by_field: str
+    ):
         release_suffix = release_date.strftime("%Y%m%d")
         return [
             dict(row)
             for row in run_bigquery_query(
-                f"SELECT * from {self.gcp_project_id}.{observatory_dataset_id}.doi{release_suffix} ORDER BY doi ASC;"
+                f"SELECT * from {self.gcp_project_id}.{observatory_dataset_id}.{table_id}{release_suffix} ORDER BY {order_by_field} ASC;"
             )
         ]
+
+    def assert_aggregate(self, expected: List[Dict], actual: List[Dict]):
+        # Check that expected and actual are same length
+        self.assertEqual(len(expected), len(actual))
+
+        # Check that each item matches
+        for expected_item, actual_item in zip(expected, actual):
+            # Check that top level fields match
+            for key in [
+                "id",
+                "time_period",
+                "name",
+                "country",
+                "country_code",
+                "country_code_2",
+                "region",
+                "subregion",
+                "coordinates",
+                "total_outputs",
+            ]:
+                self.assertEqual(expected_item[key], actual_item[key])
+
+            # Access types
+            self.assert_sub_fields(
+                expected_item,
+                actual_item,
+                "access_types",
+                ["oa", "green", "gold", "gold_doaj", "hybrid", "bronze", "green_only"],
+            )
+
+    def assert_sub_fields(self, expected: Dict, actual: Dict, field: str, sub_fields: List[str]):
+        for key in sub_fields:
+            self.assertEqual(expected[field][key], actual[field][key])
 
     def assert_doi(self, expected: List[Dict], actual: List[Dict]):
         # Assert DOI output is correct
