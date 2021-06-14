@@ -650,7 +650,6 @@ class OnixWorkflow(Telescope):
         :param include_jstor: Whether jstor is a relevant data source for this publisher
         :param include_oapen: Whether OAPEN is a relevant data source for this publisher
         :param include_ucl: Whether UCL Discovery is a relevant data source for this publisher
-        :param sharded: whether the table is sharded or not.
         """
 
         for release in releases:
@@ -676,7 +675,7 @@ class OnixWorkflow(Telescope):
                 google_books=include_google_books,
                 jstor=include_jstor,
                 oapen=include_oapen,
-                ucl=include_ucl
+                ucl=include_ucl,
             )
 
             create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
