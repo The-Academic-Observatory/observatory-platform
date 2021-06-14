@@ -723,7 +723,7 @@ class OnixWorkflow(Telescope):
         update_wrapper(fn, self.create_oaebu_book_product_table)
         fn.__name__ += f".{data.gcp_dataset_id}.{data.gcp_table_id}"
 
-        self.add_task(fn)
+        #self.add_task(fn)
 
 
     def create_oaebu_data_qa_tasks(self, data_partners: List[OaebuPartners]):
