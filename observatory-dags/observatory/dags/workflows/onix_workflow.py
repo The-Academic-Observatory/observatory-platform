@@ -606,8 +606,6 @@ class OnixWorkflow(Telescope):
         # Book Product
         fn = partial(
             self.create_oaebu_book_product_table,
-            orig_project_id=release.gcp_project_id,
-            orig_dataset=release.gcp_dataset_id,
             include_google_analytics=any(OaebuPartnerName.google_analytics in data.name for data in data_partners),
             include_google_books=any(OaebuPartnerName.google_books_traffic in data.name for data in data_partners),
             include_jstor=any(OaebuPartnerName.jstor_country in data.name for data in data_partners),
@@ -631,8 +629,6 @@ class OnixWorkflow(Telescope):
         self,
         releases: List[OnixWorkflowRelease],
         *args,
-        orig_project_id: str,
-        orig_dataset: str,
         include_google_analytics=bool,
         include_google_books=bool,
         include_jstor=bool,
@@ -643,8 +639,6 @@ class OnixWorkflow(Telescope):
         """Create an intermediate oaebu table.  They are of the form datasource_matched<date>
         :param releases: Onix workflow release information.
         :param args: Catching any other positional args (unused).
-        :param orig_project_id: Project ID for the partner data.
-        :param orig_dataset: Dataset ID for the partner data.
         :param include_google_analytics: Whether Google Analytics is a relevant data source for this publisher
         :param include_google_books: Whether Google Books is a relevant data source for this publisher
         :param include_jstor: Whether jstor is a relevant data source for this publisher
@@ -668,8 +662,8 @@ class OnixWorkflow(Telescope):
 
             sql = render_template(
                 template_path,
-                project_id=orig_project_id,
-                dataset_id=orig_dataset,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
                 release=release_date,
                 google_analytics=include_google_analytics,
                 google_books=include_google_books,
@@ -709,8 +703,6 @@ class OnixWorkflow(Telescope):
         # Book Product
         fn = partial(
             self.create_oaebu_book_product_table,
-            orig_project_id=release.gcp_project_id,
-            orig_dataset=release.gcp_dataset_id,
             include_google_analytics=include_google_analytics,
             include_google_books=include_google_books,
             include_jstor=include_jstor,
