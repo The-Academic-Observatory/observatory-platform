@@ -307,7 +307,7 @@ class OnixWorkflow(Telescope):
         self.create_oaebu_output_table_tasks(data_partners)
 
         # Create OAEBU Elastic Export tables
-
+        self.create_oaebu_export_table_tasks(data_partners)
 
         # Create QA metrics tables
         self.create_oaebu_data_qa_tasks(data_partners)
@@ -606,8 +606,8 @@ class OnixWorkflow(Telescope):
         # Book Product
         fn = partial(
             self.create_oaebu_book_product_table,
-            orig_project_id=data.gcp_project_id,
-            orig_dataset=data.gcp_dataset_id,
+            orig_project_id=release.gcp_project_id,
+            orig_dataset=release.gcp_dataset_id,
             include_google_analytics=any(OaebuPartnerName.google_analytics in data.name for data in data_partners),
             include_google_books=any(OaebuPartnerName.google_books_traffic in data.name for data in data_partners),
             include_jstor=any(OaebuPartnerName.jstor_country in data.name for data in data_partners),
@@ -616,7 +616,7 @@ class OnixWorkflow(Telescope):
         )
 
         # Populate the __name__ attribute of the partial object (it lacks one by default).
-        # Scheme: create_oaebu_intermediate_table.dataset.table
+        # Scheme: create_oaebu_table.dataset.table
         update_wrapper(fn, self.create_oaebu_book_product_table)
         fn.__name__ += f".{data.gcp_dataset_id}.{data.gcp_table_id}"
 
@@ -692,6 +692,38 @@ class OnixWorkflow(Telescope):
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
+
+
+    def create_oaebu_export_tasks(self, data_partners: List[OaebuPartners]):
+        """Create tasks for outputing final metrics from our OAEBU data.  It will create output tables in the oaebu dataset.
+        :param oaebu_data: List of oaebu partner data.
+        """
+
+        # Determine crosssection of data_partners to consider for current publisher
+        include_google_analytics = any(OaebuPartnerName.google_analytics in data.name for data in data_partners),
+        include_google_books = any(OaebuPartnerName.google_books_traffic in data.name for data in data_partners),
+        include_jstor = any(OaebuPartnerName.jstor_country in data.name for data in data_partners),
+        include_oapen = any(OaebuPartnerName.oapen_irus_uk in data.name for data in data_partners),
+        include_ucl = any(OaebuPartnerName.ucl_discovery in data.name for data in data_partners)
+
+        # Book Product
+        fn = partial(
+            self.create_oaebu_book_product_table,
+            orig_project_id=release.gcp_project_id,
+            orig_dataset=release.gcp_dataset_id,
+            include_google_analytics=include_google_analytics,
+            include_google_books=include_google_books,
+            include_jstor=include_jstor,
+            include_oapen=include_oapen,
+            include_ucl=include_ucl,
+        )
+
+        # Populate the __name__ attribute of the partial object (it lacks one by default).
+        # Scheme: create_oaebu_intermediate_table.dataset.table
+        update_wrapper(fn, self.create_oaebu_book_product_table)
+        fn.__name__ += f".{data.gcp_dataset_id}.{data.gcp_table_id}"
+
+        self.add_task(fn)
 
 
     def create_oaebu_data_qa_tasks(self, data_partners: List[OaebuPartners]):
