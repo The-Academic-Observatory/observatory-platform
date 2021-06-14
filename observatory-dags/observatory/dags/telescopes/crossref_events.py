@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import List, Tuple, Union
@@ -31,8 +32,7 @@ from observatory.platform.telescopes.stream_telescope import (StreamRelease, Str
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.telescope_utils import convert
 from observatory.platform.utils.url_utils import get_ao_user_agent
-from requests.exceptions import RetryError
-from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
+from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed, RetryError
 
 
 class CrossrefEventsRelease(StreamRelease):
@@ -151,7 +151,7 @@ class CrossrefEventsRelease(StreamRelease):
 
             if os.path.isfile(cursor_path):
                 os.remove(cursor_path)
-            logging.info(f'{i + 1}.{event_type} successful, total no. events: {total_events}, downloaded '
+            logging.info(f'{i + 1}.{event_type} successful, date: {date}, total no. events: {total_events}, downloaded '
                          f'events: {counter}')
             events += counter
         return events
@@ -223,7 +223,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         release.download_transform()
 
 
-@retry(stop=stop_after_attempt(5),
+@retry(stop=stop_after_attempt(3),
        wait=wait_fixed(20) + wait_exponential(multiplier=10,
                                               exp_base=3,
                                               max=60 * 10),
@@ -233,7 +233,7 @@ def get_url(url: str, headers: dict):
     if response.status_code in [500, 400]:
         logging.info(f'Downloading events from url: {url}, attempt: {get_url.retry.statistics["attempt_number"]}, '
                      f'idle for: {get_url.retry.statistics["idle_for"]}')
-        raise ConnectionError("retrying url")
+        raise ConnectionError("Retrying url")
     return response
 
 
@@ -251,7 +251,9 @@ def download_events(url: str, headers: dict, events_path: str, cursor_path: str)
     try:
         response = get_url(url, headers)
     except RetryError:
-        raise AirflowException(f"Retry error for URL: {url}")
+        # Try again with rows set to 100
+        url = re.sub('rows=[0-9]*', 'rows=100', url)
+        response = get_url(url, headers)
     if response.status_code == 200:
         response_json = response.json()
         total_events = response_json['message']['total-results']
