@@ -167,6 +167,85 @@ def make_dataset_transforms(
     )
 
 
+def make_elastic_tables(
+    aggregate_table_id: str,
+    relate_to_institutions: bool = False,
+    relate_to_countries: bool = False,
+    relate_to_groups: bool = False,
+    relate_to_members: bool = False,
+    relate_to_journals: bool = False,
+    relate_to_funders: bool = False,
+    relate_to_publishers: bool = False,
+):
+    # Always export
+    tables = [
+        {
+            "file_name": DoiWorkflow.EXPORT_UNIQUE_LIST_FILENAME,
+            "aggregate": aggregate_table_id,
+            "facet": "unique_list",
+        },
+        {
+            "file_name": DoiWorkflow.EXPORT_ACCESS_TYPES_FILENAME,
+            "aggregate": aggregate_table_id,
+            "facet": "access_types",
+        },
+        {
+            "file_name": DoiWorkflow.EXPORT_DISCIPLINES_FILENAME,
+            "aggregate": aggregate_table_id,
+            "facet": "disciplines",
+        },
+        {
+            "file_name": DoiWorkflow.EXPORT_OUTPUT_TYPES_FILENAME,
+            "aggregate": aggregate_table_id,
+            "facet": "output_types",
+        },
+        {"file_name": DoiWorkflow.EXPORT_EVENTS_FILENAME, "aggregate": aggregate_table_id, "facet": "events"},
+        {"file_name": DoiWorkflow.EXPORT_METRICS_FILENAME, "aggregate": aggregate_table_id, "facet": "metrics"},
+    ]
+
+    # Optional Relationships
+    if relate_to_institutions:
+        tables.append(
+            {
+                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
+                "aggregate": aggregate_table_id,
+                "facet": "institutions",
+            }
+        )
+    if relate_to_countries:
+        tables.append(
+            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "countries",}
+        )
+    if relate_to_groups:
+        tables.append(
+            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "groupings",}
+        )
+    if relate_to_members:
+        tables.append(
+            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "members",}
+        )
+    if relate_to_journals:
+        tables.append(
+            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "journals",}
+        )
+
+    if relate_to_funders:
+        tables.append(
+            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "funders",}
+        )
+
+    if relate_to_publishers:
+        tables.append(
+            {
+                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
+                "aggregate": aggregate_table_id,
+                "facet": "publishers",
+            }
+        )
+
+    return tables
+
+
 class DoiWorkflow(Telescope):
     INT_DATASET_ID = "observatory_intermediate"
     INT_DATASET_DESCRIPTION = "Intermediate processing dataset for the Academic Observatory."
@@ -426,7 +505,6 @@ class DoiWorkflow(Telescope):
         :return: None.
         """
 
-        print(f"CREATE AGGREGATE TABLE: {kwargs}")
         agg: Aggregation = kwargs["aggregation"]
         success = release.create_aggregate_table(
             aggregation_field=agg.aggregation_field,
@@ -711,47 +789,16 @@ class ObservatoryRelease:
         :return: whether successful or not.
         """
 
-        # Always export
-        tables = [
-            {"file_name": DoiWorkflow.EXPORT_UNIQUE_LIST_FILENAME, "aggregate": table_id, "facet": "unique_list", },
-            {"file_name": DoiWorkflow.EXPORT_ACCESS_TYPES_FILENAME, "aggregate": table_id, "facet": "access_types",},
-            {"file_name": DoiWorkflow.EXPORT_DISCIPLINES_FILENAME, "aggregate": table_id, "facet": "disciplines",},
-            {"file_name": DoiWorkflow.EXPORT_OUTPUT_TYPES_FILENAME, "aggregate": table_id, "facet": "output_types",},
-            {"file_name": DoiWorkflow.EXPORT_EVENTS_FILENAME, "aggregate": table_id, "facet": "events"},
-            {"file_name": DoiWorkflow.EXPORT_METRICS_FILENAME, "aggregate": table_id, "facet": "metrics"},
-        ]
-
-        # Optional Relationships
-        if relate_to_institutions:
-            tables.append(
-                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "institutions",}
-            )
-        if relate_to_countries:
-            tables.append(
-                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "countries",}
-            )
-        if relate_to_groups:
-            tables.append(
-                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "groupings",}
-            )
-        if relate_to_members:
-            tables.append(
-                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "members",}
-            )
-        if relate_to_journals:
-            tables.append(
-                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "journals",}
-            )
-
-        if relate_to_funders:
-            tables.append(
-                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "funders",}
-            )
-
-        if relate_to_publishers:
-            tables.append(
-                {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": table_id, "facet": "publishers",}
-            )
+        tables = make_elastic_tables(
+            table_id,
+            relate_to_institutions=relate_to_institutions,
+            relate_to_countries=relate_to_countries,
+            relate_to_groups=relate_to_groups,
+            relate_to_members=relate_to_members,
+            relate_to_journals=relate_to_journals,
+            relate_to_funders=relate_to_funders,
+            relate_to_publishers=relate_to_publishers,
+        )
 
         # Calculate the number of parallel queries. Since all of the real work is done on BigQuery run each export task
         # in a separate thread so that they can be done in parallel.

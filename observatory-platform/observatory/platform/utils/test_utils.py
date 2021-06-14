@@ -491,7 +491,7 @@ class ObservatoryTestCase(unittest.TestCase):
 
         self.assertTrue(result)
 
-    def assert_table_integrity(self, table_id: str, expected_rows: int):
+    def assert_table_integrity(self, table_id: str, expected_rows: int = None):
         """Assert whether a BigQuery table exists and has the expected number of rows.
 
         :param table_id: the BigQuery table id.
@@ -508,7 +508,8 @@ class ObservatoryTestCase(unittest.TestCase):
             pass
 
         self.assertIsNotNone(table)
-        self.assertEqual(expected_rows, actual_rows)
+        if expected_rows is not None:
+            self.assertEqual(expected_rows, actual_rows)
 
     def assert_file_integrity(self, file_path: str, expected_hash: str, algorithm: str):
         """Assert that a file exists and it has the correct hash.
