@@ -14,3 +14,18 @@
 
 # Author: Richard Hosking #}
 
+SELECT
+    ISBN13,
+    month.month,
+    city.city,
+    CONCAT(CAST(MAX(city.latitude) as STRING), ", ", CAST(MAX(city.longitude) as STRING)) as coordinates,
+    STRUCT(
+        SUM(city.title_requests) as title_requests,
+        SUM(city.total_item_investigations) as total_item_investigations,
+        SUM(city.total_item_requests) as total_item_requests,
+        SUM(city.unique_item_investigations) as unique_item_investigations,
+        SUM(city.unique_item_requests) as unique_item_requests
+    ) as oapen_irus_uk,
+FROM `oaebu-anu-press.oaebu.book_product`, UNNEST(months) as month, UNNEST(month.oapen_irus_uk.locations) as city
+WHERE city.city IS NOT NULL
+GROUP BY ISBN13, month, city
