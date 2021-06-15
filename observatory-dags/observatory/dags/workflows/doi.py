@@ -384,11 +384,12 @@ class DoiWorkflow(Telescope):
         self.observatory_dataset_id = observatory_dataset_id
         self.elastic_dataset_id = elastic_dataset_id
 
-        self.transforms, self.transform_doi, self.transform_book = transforms
         if transforms is None:
             self.transforms, self.transform_doi, self.transform_book = make_dataset_transforms(
                 dataset_id_observatory=observatory_dataset_id
             )
+        else:
+            self.transforms, self.transform_doi, self.transform_book = transforms
 
         self.create_tasks()
 
@@ -515,6 +516,8 @@ class DoiWorkflow(Telescope):
             relate_to_groups=agg.relate_to_groups,
             relate_to_members=agg.relate_to_members,
             relate_to_journals=agg.relate_to_journals,
+            relate_to_funders=agg.relate_to_funders,
+            relate_to_publishers=agg.relate_to_publishers,
         )
         set_task_state(success, kwargs["task_id"])
 

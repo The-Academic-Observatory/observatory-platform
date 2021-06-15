@@ -19,8 +19,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
-from typing import Dict
-from typing import List
+from typing import Dict, List
 
 import pendulum
 from airflow import DAG
@@ -45,9 +44,13 @@ from observatory.dags.model import (
 )
 from observatory.dags.workflows.doi import DoiWorkflow, make_dataset_transforms, make_elastic_tables
 from observatory.platform.utils.airflow_utils import set_task_state
-from observatory.platform.utils.gc_utils import bigquery_sharded_table_id, load_bigquery_table, SourceFormat
-from observatory.platform.utils.gc_utils import run_bigquery_query
-from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
+from observatory.platform.utils.gc_utils import (
+    bigquery_sharded_table_id,
+    load_bigquery_table,
+    SourceFormat,
+    run_bigquery_query,
+    upload_files_to_cloud_storage,
+)
 from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, load_jsonl
 from observatory.platform.utils.template_utils import schema_path, find_schema
 from observatory.platform.utils.test_utils import (
@@ -67,10 +70,10 @@ def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
     """
 
     with DAG(
-        dag_id=dag_id,
-        schedule_interval="@weekly",
-        default_args={"owner": "airflow", "start_date": execution_date},
-        catchup=False,
+            dag_id=dag_id,
+            schedule_interval="@weekly",
+            default_args={"owner": "airflow", "start_date": execution_date},
+            catchup=False,
     ) as dag:
         task1 = DummyOperator(task_id="dummy_task")
 
@@ -157,26 +160,25 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 "unpaywall_sensor": ["check_dependencies"],
                 "check_dependencies": ["create_datasets"],
                 "create_datasets": [
-                    "extend_grid",
-                    "aggregate_crossref_events",
-                    "aggregate_orcid",
-                    "aggregate_mag",
-                    "aggregate_unpaywall",
-                    "extend_crossref_funders",
-                    "aggregate_open_citations",
-                    "aggregate_wos",
-                    "aggregate_scopus",
+                    "create_crossref_events",
+                    "create_fundref",
+                    "create_grid",
+                    "create_mag",
+                    "create_orcid",
+                    "create_open_citations",
+                    "create_unpaywall",
                 ],
-                "extend_grid": ["create_doi"],
-                "aggregate_crossref_events": ["create_doi"],
-                "aggregate_orcid": ["create_doi"],
-                "aggregate_mag": ["create_doi"],
-                "aggregate_unpaywall": ["create_doi"],
-                "extend_crossref_funders": ["create_doi"],
-                "aggregate_open_citations": ["create_doi"],
-                "aggregate_wos": ["create_doi"],
-                "aggregate_scopus": ["create_doi"],
+                "create_crossref_events": ["create_doi"],
+                "create_fundref": ["create_doi"],
+                "create_grid": ["create_doi"],
+                "create_mag": ["create_doi"],
+                "create_orcid": ["create_doi"],
+                "create_open_citations": ["create_doi"],
+                "create_unpaywall": ["create_doi"],
                 "create_doi": [
+                    "create_book",
+                ],
+                "create_book": [
                     "create_country",
                     "create_funder",
                     "create_group",
@@ -197,7 +199,26 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 "create_region": ["copy_to_dashboards"],
                 "create_subregion": ["copy_to_dashboards"],
                 "copy_to_dashboards": ["create_dashboard_views"],
-                "create_dashboard_views": [],
+                "create_dashboard_views": [
+                    "export_country",
+                    "export_funder",
+                    "export_group",
+                    "export_institution",
+                    "export_author",
+                    "export_journal",
+                    "export_publisher",
+                    "export_region",
+                    "export_subregion",
+                ],
+                "export_country": [],
+                "export_funder": [],
+                "export_group": [],
+                "export_institution": [],
+                "export_author": [],
+                "export_journal": [],
+                "export_publisher": [],
+                "export_region": [],
+                "export_subregion": [],
             },
             dag,
         )
@@ -354,7 +375,8 @@ class TestDoiWorkflow(ObservatoryTestCase):
 
                 # Test create exported tables for Elasticsearch
                 for agg in DoiWorkflow.AGGREGATIONS:
-                    task_id = f"export_{agg.table_id}"
+                    table_id = agg.table_id
+                    task_id = f"export_{table_id}"
                     ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
                     self.assertEqual(expected_state, ti.state)
 
@@ -377,9 +399,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                         )
                         self.assert_table_integrity(expected_table_id)
 
-    def query_table(
-        self, observatory_dataset_id: str, table_id: str, order_by_field: str
-    ) -> List[Dict]:
+    def query_table(self, observatory_dataset_id: str, table_id: str, order_by_field: str) -> List[Dict]:
         """ Query a BigQuery table, sorting the results and returning results as a list of dicts.
 
         :param observatory_dataset_id: the observatory dataset id.
@@ -514,12 +534,12 @@ class TestDoiWorkflow(ObservatoryTestCase):
         self.assertListEqual(items_expected_, items_actual_)
 
     def setup_fake_observatory_dataset(
-        self,
-        observatory_dataset: ObservatoryDataset,
-        bucket_name: str,
-        dataset_id_all: str,
-        dataset_id_settings: str,
-        release_date: pendulum.Pendulum,
+            self,
+            observatory_dataset: ObservatoryDataset,
+            bucket_name: str,
+            dataset_id_all: str,
+            dataset_id_settings: str,
+            release_date: pendulum.Pendulum,
     ):
         """ Setup a fake Observatory Dataset in BigQuery.
 

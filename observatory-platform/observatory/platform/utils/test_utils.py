@@ -211,7 +211,7 @@ class ObservatoryEnvironment:
         """
 
         self.assert_gcp_dependencies()
-        dataset = bigquery.Dataset(f'{self.project_id}.{dataset_id}')
+        dataset = bigquery.Dataset(f"{self.project_id}.{dataset_id}")
         dataset.location = self.data_location
         self.bigquery_client.create_dataset(dataset, exists_ok=True)
 
@@ -226,7 +226,7 @@ class ObservatoryEnvironment:
         bucket = self.storage_client.get_bucket(bucket_id)
         bucket.delete(force=True)
 
-    def add_dataset(self, prefix: str = '') -> str:
+    def add_dataset(self, prefix: str = "") -> str:
         """Add a BigQuery dataset to the Observatory environment.
 
         The BigQuery dataset will be deleted when the Observatory environment is closed.
@@ -441,7 +441,9 @@ class ObservatoryTestCase(unittest.TestCase):
         :return: None.
         """
 
-        self.assertEqual(expected.keys(), dag.task_dict.keys())
+        expected_keys = expected.keys()
+        actual_keys = dag.task_dict.keys()
+        self.assertEqual(expected_keys, actual_keys)
 
         for task_id, downstream_list in expected.items():
             self.assertTrue(dag.has_task(task_id))
@@ -545,8 +547,9 @@ class ObservatoryTestCase(unittest.TestCase):
         self.assertFalse(os.path.exists(extract_folder))
         self.assertFalse(os.path.exists(transform_folder))
 
-    def setup_mock_file_download(self, uri: str, file_path: str, headers: Dict = None, method: str = httpretty.GET) -> \
-            None:
+    def setup_mock_file_download(
+        self, uri: str, file_path: str, headers: Dict = None, method: str = httpretty.GET
+    ) -> None:
         """ Use httpretty to mock a file download.
 
         This function must be called from within an httpretty.enabled() block, for instance:
@@ -566,9 +569,7 @@ class ObservatoryTestCase(unittest.TestCase):
         with open(file_path, "rb") as f:
             body = f.read()
 
-        httpretty.register_uri(method, uri,
-                               adding_headers=headers,
-                               body=body)
+        httpretty.register_uri(method, uri, adding_headers=headers, body=body)
 
 
 class SftpServer:
