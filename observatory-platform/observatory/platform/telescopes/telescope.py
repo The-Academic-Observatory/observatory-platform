@@ -14,7 +14,7 @@
 
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 import contextlib
-import copy
+import dataclasses
 import datetime
 import logging
 import shutil
@@ -191,20 +191,26 @@ def make_task_id(func: Callable, kwargs: Dict) -> str:
     return task_id
 
 
+@dataclasses.dataclass
+class Operator:
+    func: Callable
+    kwargs: Dict
+
+
 class Telescope(AbstractTelescope):
     RELEASE_INFO = "releases"
 
     def __init__(
-        self,
-        dag_id: str,
-        start_date: datetime,
-        schedule_interval: str,
-        catchup: bool = False,
-        queue: str = "default",
-        max_retries: int = 3,
-        max_active_runs: int = 1,
-        airflow_vars: list = None,
-        airflow_conns: list = None,
+            self,
+            dag_id: str,
+            start_date: datetime,
+            schedule_interval: str,
+            catchup: bool = False,
+            queue: str = "default",
+            max_retries: int = 3,
+            max_active_runs: int = 1,
+            airflow_vars: list = None,
+            airflow_conns: list = None,
     ):
         """Construct a Telescope instance.
 
@@ -279,7 +285,7 @@ class Telescope(AbstractTelescope):
         :param func: the function that will be called by the ShortCircuitOperator task.
         :return: None.
         """
-        self.setup_task_funcs.append((func, kwargs))
+        self.setup_task_funcs.append(Operator(func, kwargs))
 
     def add_setup_task_chain(self, funcs: List[Callable], **kwargs):
         """Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
@@ -288,7 +294,7 @@ class Telescope(AbstractTelescope):
         :param funcs: The list of functions that will be called by the ShortCircuitOperator task.
         :return: None.
         """
-        self.setup_task_funcs += [(func, kwargs) for func in funcs]
+        self.setup_task_funcs += [Operator(func, kwargs) for func in funcs]
 
     def add_task(self, func: Callable, **kwargs):
         """Add a task, which is used to process releases. A task has the following properties:
@@ -303,11 +309,11 @@ class Telescope(AbstractTelescope):
         """
 
         if not self._parallel_tasks:
-            self.task_funcs.append((func, kwargs))
+            self.task_funcs.append(Operator(func, kwargs))
         elif len(self.task_funcs) == 0 or not isinstance(self.task_funcs[-1], List):
-            self.task_funcs.append([(func, kwargs)])
+            self.task_funcs.append([Operator(func, kwargs)])
         else:
-            self.task_funcs[-1].append((func, kwargs))
+            self.task_funcs[-1].append(Operator(func, kwargs))
 
     @contextlib.contextmanager
     def parallel_tasks(self):
@@ -323,7 +329,7 @@ class Telescope(AbstractTelescope):
         :param funcs: The list of functions that will be called by the PythonOperator task.
         :return: None.
         """
-        self.task_funcs += [(func, kwargs) for func in funcs]
+        self.task_funcs += [Operator(func, kwargs) for func in funcs]
 
     def task_callable(self, func: TelescopeFunction, **kwargs) -> Any:
         """Invoke a task callable. Creates a Release instance and calls the given task method. The result can be
@@ -342,23 +348,18 @@ class Telescope(AbstractTelescope):
 
     def task_funcs_to_operators(self, task_funcs: List):
         tasks_ = []
-        for obj in task_funcs:
-            if isinstance(obj, List):
-                tasks_.append(self.task_funcs_to_operators(obj))
+        for op in task_funcs:
+            if isinstance(op, List):
+                tasks_.append(self.task_funcs_to_operators(op))
             else:
                 with self.dag:
-                    func_, kwargs_ = obj
-                    task_id = make_task_id(func_, kwargs_)
-                    # print(f"TEST task_id: {task_id}, kwargs: {kwargs_}")
-                    # kwargs_copy = copy.copy(kwargs_)
-                    # kwargs_copy.pop("task_id", None)
+                    op.kwargs["task_id"] = make_task_id(op.func, op.kwargs)
                     task_ = PythonOperator(
-                        task_id=task_id,
-                        python_callable=partial(self.task_callable, func_),
+                        python_callable=partial(self.task_callable, op.func),
                         queue=self.queue,
                         default_args=self.default_args,
                         provide_context=True,
-                        op_kwargs=kwargs_,
+                        **op.kwargs,
                     )
                     tasks_.append(task_)
         return tasks_
@@ -376,14 +377,14 @@ class Telescope(AbstractTelescope):
 
         with self.dag:
             # Process setup tasks first, which are always ShortCircuitOperators
-            for func, kwargs in self.setup_task_funcs:
+            for op in self.setup_task_funcs:
                 task = ShortCircuitOperator(
-                    task_id=func.__name__,
-                    python_callable=func,
+                    task_id=op.func.__name__,
+                    python_callable=op.func,
                     queue=self.queue,
                     default_args=self.default_args,
                     provide_context=True,
-                    op_kwargs=kwargs,
+                    **op.kwargs,
                 )
                 tasks.append(task)
 
@@ -496,12 +497,12 @@ class Release(AbstractRelease):
     """ Used to store info on a given release"""
 
     def __init__(
-        self,
-        dag_id: str,
-        release_id: str,
-        download_files_regex: str = None,
-        extract_files_regex: str = None,
-        transform_files_regex: str = None,
+            self,
+            dag_id: str,
+            release_id: str,
+            download_files_regex: str = None,
+            extract_files_regex: str = None,
+            transform_files_regex: str = None,
     ):
         """Construct a Release instance
         :param dag_id: the id of the DAG.

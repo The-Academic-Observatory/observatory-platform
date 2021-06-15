@@ -409,19 +409,19 @@ class DoiWorkflow(Telescope):
         with self.parallel_tasks():
             for transform in self.transforms:
                 task_id = f"create_{transform.output_table.table_id}"
-                self.add_task(self.create_intermediate_table, **{"transform": transform, "task_id": task_id})
+                self.add_task(self.create_intermediate_table, op_kwargs={"transform": transform}, task_id=task_id)
 
         # Create DOI Table
         self.add_task(
             self.create_intermediate_table,
-            transform=self.transform_doi,
+            op_kwargs={"transform": self.transform_doi},
             task_id=f"create_{self.transform_doi.output_table.table_id}",
         )
 
         # Create Book Table
         self.add_task(
             self.create_intermediate_table,
-            transform=self.transform_book,
+            op_kwargs={"transform": self.transform_book},
             task_id=f"create_{self.transform_book.output_table.table_id}",
         )
 
@@ -429,7 +429,9 @@ class DoiWorkflow(Telescope):
         with self.parallel_tasks():
             for agg in self.AGGREGATIONS:
                 task_id = f"create_{agg.table_id}"
-                self.add_task(self.create_aggregate_table, **{"aggregation": agg, "task_id": task_id})
+                self.add_task(
+                    self.create_aggregate_table, op_kwargs={"aggregation": agg, "task_id": task_id}, task_id=task_id
+                )
 
         # Copy tables and create views
         self.add_task(self.copy_to_dashboards)
@@ -439,7 +441,9 @@ class DoiWorkflow(Telescope):
         with self.parallel_tasks():
             for agg in self.AGGREGATIONS:
                 task_id = f"export_{agg.table_id}"
-                self.add_task(self.export_for_elastic, **{"aggregation": agg, "task_id": task_id})
+                self.add_task(
+                    self.export_for_elastic, op_kwargs={"aggregation": agg, "task_id": task_id}, task_id=task_id
+                )
 
     def make_release(self, **kwargs) -> ObservatoryRelease:
         """Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
