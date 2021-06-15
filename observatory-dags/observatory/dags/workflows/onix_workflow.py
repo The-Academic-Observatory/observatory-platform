@@ -711,9 +711,9 @@ class OnixWorkflow(Telescope):
             create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
 
             # Book Product List
-            output_table = "book_prodct_list"
+            output_table = "book_product_list"
             table_id = bigquery_sharded_table_id(output_table, release_date)
-            table_joining_template_file = "create_book_product.sql.jinja2"
+            table_joining_template_file = "export_book_product_list.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
             sql = render_template(
@@ -742,16 +742,190 @@ class OnixWorkflow(Telescope):
                 )
 
             # Book Product Metrics
+            output_table = "book_product_metrics"
+            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_joining_template_file = "export_book_product_metrics.sql.jinja2"
+            template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+
+            sql = render_template(
+                template_path,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                release=release_date,
+                google_analytics=include_google_analytics,
+                google_books=include_google_books,
+                jstor=include_jstor,
+                oapen=include_oapen,
+                ucl=include_ucl,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=output_dataset,
+                table_id=table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
+                )
 
             # Book Product Country Metrics
+            output_table = "book_product_metrics_country"
+            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_joining_template_file = "export_book_product_metrics_country.sql.jinja2"
+            template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+
+            sql = render_template(
+                template_path,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                release=release_date,
+                google_analytics=include_google_analytics,
+                google_books=include_google_books,
+                jstor=include_jstor,
+                oapen=include_oapen,
+                ucl=include_ucl,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=output_dataset,
+                table_id=table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
+                )
 
             # Book Product Institution Metrics
+            output_table = "book_product_metrics_institution"
+            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_joining_template_file = "export_book_product_metrics_institution.sql.jinja2"
+            template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+
+            sql = render_template(
+                template_path,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                release=release_date,
+                google_analytics=include_google_analytics,
+                google_books=include_google_books,
+                jstor=include_jstor,
+                oapen=include_oapen,
+                ucl=include_ucl,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=output_dataset,
+                table_id=table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
+                )
 
             # Book Product City Metrics
+            output_table = "book_product_metrics_city"
+            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_joining_template_file = "export_book_product_metrics_city.sql.jinja2"
+            template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+
+            sql = render_template(
+                template_path,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                release=release_date,
+                google_analytics=include_google_analytics,
+                google_books=include_google_books,
+                jstor=include_jstor,
+                oapen=include_oapen,
+                ucl=include_ucl,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=output_dataset,
+                table_id=table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
+                )
 
             # Book Product Referrer Metrics
+            output_table = "book_product_metrics_referrer"
+            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_joining_template_file = "export_book_product_metrics_referrer.sql.jinja2"
+            template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+
+            sql = render_template(
+                template_path,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                release=release_date,
+                google_analytics=include_google_analytics,
+                google_books=include_google_books,
+                jstor=include_jstor,
+                oapen=include_oapen,
+                ucl=include_ucl,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=output_dataset,
+                table_id=table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
+                )
 
             # Publisher Metrics
+            output_table = "book_publisher_metrics"
+            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_joining_template_file = "export_book_product_metrics.sql.jinja2"
+            template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+
+            sql = render_template(
+                template_path,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                release=release_date,
+                google_analytics=include_google_analytics,
+                google_books=include_google_books,
+                jstor=include_jstor,
+                oapen=include_oapen,
+                ucl=include_ucl,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=output_dataset,
+                table_id=table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
+                )
 
     def create_oaebu_export_tasks(self, data_partners: List[OaebuPartners]):
         """Create tasks for outputing final metrics from our OAEBU data.  It will create output tables in the oaebu dataset.
