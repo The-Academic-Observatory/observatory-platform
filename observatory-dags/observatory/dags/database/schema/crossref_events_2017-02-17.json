@@ -84,6 +84,11 @@
     "type": "RECORD",
     "fields": [
       {
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      },
+      {
         "description": "The persistent ID. Must correspond to 'subj_id' or 'obj_id'",
         "mode": "NULLABLE",
         "name": "pid",
