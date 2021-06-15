@@ -616,7 +616,7 @@ class OnixWorkflow(Telescope):
         # Populate the __name__ attribute of the partial object (it lacks one by default).
         # Scheme: create_oaebu_table.dataset.table
         update_wrapper(fn, self.create_oaebu_book_product_table)
-        fn.__name__ += f".{data.gcp_dataset_id}.{data.gcp_table_id}"
+        fn.__name__ += ".create_book_product"
 
         self.add_task(fn)
 
@@ -687,6 +687,71 @@ class OnixWorkflow(Telescope):
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
 
+    def export_oaebu_data(self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        include_google_analytics=bool,
+        include_google_books=bool,
+        include_jstor=bool,
+        include_oapen=bool,
+        include_ucl=bool,
+        **kwargs,
+    ):
+        """Create a set of bq tables in the oaebu_elastic dataset
+        :param releases: List of workflow releases.
+        """
+
+        for release in releases:
+
+            output_dataset = release.oaebu_dataset
+
+            data_location = release.dataset_location
+            release_date = release.release_date
+
+            create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
+
+            # Book Product List
+            output_table = "book_prodct_list"
+            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_joining_template_file = "create_book_product.sql.jinja2"
+            template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+
+            sql = render_template(
+                template_path,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_intermediate_dataset,
+                release=release_date,
+                google_analytics=include_google_analytics,
+                google_books=include_google_books,
+                jstor=include_jstor,
+                oapen=include_oapen,
+                ucl=include_ucl,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=output_dataset,
+                table_id=table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
+                )
+
+            # Book Product Metrics
+
+            # Book Product Country Metrics
+
+            # Book Product Institution Metrics
+
+            # Book Product City Metrics
+
+            # Book Product Referrer Metrics
+
+            # Publisher Metrics
 
     def create_oaebu_export_tasks(self, data_partners: List[OaebuPartners]):
         """Create tasks for outputing final metrics from our OAEBU data.  It will create output tables in the oaebu dataset.
@@ -700,22 +765,18 @@ class OnixWorkflow(Telescope):
         include_oapen = any(OaebuPartnerName.oapen_irus_uk in data.name for data in data_partners),
         include_ucl = any(OaebuPartnerName.ucl_discovery in data.name for data in data_partners)
 
-        # Book Product
+        # Export OAEBU Data
         fn = partial(
-            self.create_oaebu_book_product_table,
+            self.export_oaebu_data,
             include_google_analytics=include_google_analytics,
             include_google_books=include_google_books,
             include_jstor=include_jstor,
             include_oapen=include_oapen,
             include_ucl=include_ucl,
         )
-
-        # Populate the __name__ attribute of the partial object (it lacks one by default).
-        # Scheme: create_oaebu_intermediate_table.dataset.table
-        update_wrapper(fn, self.create_oaebu_book_product_table)
-        fn.__name__ += f".{data.gcp_dataset_id}.{data.gcp_table_id}"
-
-        #self.add_task(fn)
+        update_wrapper(fn, self.export_oaebu_data)
+        fn.__name__ += ".export_oaebu_data"
+        self.add_task(fn)
 
 
     def create_oaebu_data_qa_tasks(self, data_partners: List[OaebuPartners]):

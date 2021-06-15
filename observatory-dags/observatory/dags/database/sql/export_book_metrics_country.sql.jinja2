@@ -74,11 +74,11 @@ google_analytics_month_country as (
 SELECT
     month_country.ISBN13,
     month_country.month,
-    month_country.alpha2,
+    month_country.country_code,
     month_country.country_name,
     STRUCT(jstor.Total_Item_Requests) as jstor,
     STRUCT(oapen.title_requests, oapen.total_item_investigations, oapen.total_item_requests, oapen.unique_item_investigations, oapen.unique_item_requests) as oapen_irus_uk,
-    google.value as google_analytics
+    STRUCT(google.value as value) as google_analytics
 FROM month_country
 LEFT JOIN jstor_month_country as jstor ON month_country.ISBN13 = jstor.ISBN13 AND month_country.month = jstor.month AND month_country.alpha2 = jstor.alpha2
 LEFT JOIN oapen_month_country as oapen ON month_country.ISBN13 = oapen.ISBN13 AND month_country.month = oapen.month AND month_country.alpha2 = oapen.alpha2

@@ -10,29 +10,6 @@
           }
         }
       },
-      "published_year": {
-        "type": "date",
-        "format": "yyyy-MM-dd"
-      },
-      "title": {
-        "type": "text",
-        "analyzer": "text_analyzer",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "subjects": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
       "month": {
         "type": "date",
         "format": "yyyy-MM-dd"
@@ -46,32 +23,25 @@
           }
         }
       },
-      "metrics": {
+      "coordinates": {
+        "type": "geo_point"
+      },
+      "oapen_irus_uk": {
         "properties": {
-          "oapen": {
-            "properties": {
-
-            }
+          "title_requests": {
+            "type": "integer"
           },
-          "jstor": {
-            "properties": {
-
-            }
+          "total_item_investigations": {
+            "type": "integer"
           },
-          "google_books": {
-            "properties": {
-
-            }
+          "total_item_requests": {
+            "type": "integer"
           },
-          "google_analytics": {
-            "properties": {
-
-            }
+          "unique_item_investigations": {
+            "type": "integer"
           },
-          "ucl_discovery": {
-            "properties": {
-
-            }
+          "unique_item_requests": {
+            "type": "integer"
           }
         }
       }
