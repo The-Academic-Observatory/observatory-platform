@@ -48,7 +48,7 @@ class CrossrefEventsRelease(StreamRelease):
         :param download_mode: Whether the events are downloaded in parallel, valid options: 'sequential' and 'parallel'
         :param max_processes: Max processes used for parallel downloading, default is based on 7 days x 3 url categories
         """
-        transform_files_regex = r'.*.json$'
+        transform_files_regex = r'.*.jsonl$'
         super().__init__(dag_id, start_date, end_date, first_release, transform_files_regex=transform_files_regex)
         self.mailto = mailto
         self.download_mode = download_mode
@@ -90,7 +90,7 @@ class CrossrefEventsRelease(StreamRelease):
         if cursor:
             return os.path.join(self.transform_folder, f'{event_type}_{date}_cursor.txt')
         else:
-            return os.path.join(self.transform_folder, f'{event_type}_{date}.json')
+            return os.path.join(self.transform_folder, f'{event_type}_{date}.jsonl')
 
     def download_transform(self):
         """ Download one release of crossref events, this is from the start date of the previous successful DAG until
@@ -113,14 +113,14 @@ class CrossrefEventsRelease(StreamRelease):
             futures = []
             # select minimum, either no of batches or no of workers
             for i in range(len(self.urls)):
-                futures.append(executor.submit(self.download_transform_events, i))
+                futures.append(executor.submit(self.download_transform_batch, i))
             for future in as_completed(futures):
                 events = future.result()
                 all_events += events
-        if events == 0:
+        if len(self.transform_files) == 0:
             raise AirflowSkipException('No events found')
 
-    def download_transform_events(self, i: int) -> int:
+    def download_transform_batch(self, i: int) -> int:
         """ Download one batch (time period) of events.
 
         :param i: The batch number
@@ -136,23 +136,24 @@ class CrossrefEventsRelease(StreamRelease):
 
             # if events file exists but no cursor file, previous request has finished & successful
             if os.path.isfile(events_path) and not os.path.isfile(cursor_path):
-                events_tmp = []
                 with jsonlines.open(events_path, 'r') as reader:
                     with jsonlines.open(events_path + 'tmp', 'w') as writer:
                         for obj in reader:
                             event = change_keys(obj, convert)
                             writer.write(event)
+                os.rename(events_path, events_path + 'old')
+                os.rename(events_path + 'tmp', events_path)
                 logging.info(f"{i + 1}.{event_type} Skipped, already finished: {date}")
                 continue
 
             logging.info(f"{i + 1}.{event_type} Downloading date: {date}")
 
             headers = {'User-Agent': get_ao_user_agent()}
-            next_cursor, counts, total_events = download_events(url, headers, events_path, cursor_path)
+            next_cursor, counts, total_events = download_transform_events(url, headers, events_path, cursor_path)
             counter = counts
             while next_cursor:
                 tmp_url = url + f'&cursor={next_cursor}'
-                next_cursor, counts, _ = download_events(tmp_url, headers, events_path, cursor_path)
+                next_cursor, counts, _ = download_transform_events(tmp_url, headers, events_path, cursor_path)
                 counter += counts
 
             if os.path.isfile(cursor_path):
@@ -243,7 +244,7 @@ def get_url(url: str, headers: dict):
     return response
 
 
-def download_events(url: str, headers: dict, events_path: str, cursor_path: str) -> Tuple[Union[str, None], int, int]:
+def download_transform_events(url: str, headers: dict, events_path: str, cursor_path: str) -> Tuple[Union[str, None], int, int]:
     """
     Extract the events from the given url until no new cursor is returned or a RetryError occurs. The extracted events
     are appended to a json file, with 1 list per request.
@@ -269,10 +270,6 @@ def download_events(url: str, headers: dict, events_path: str, cursor_path: str)
 
         # check for valid occurred at timestamp
         for i, event in enumerate(events):
-            try:
-                pendulum.parse(event['occurred_at'])
-            except ValueError:
-                event['occurred_at'] = "0001-01-01T00:00:00Z"
             # transform keys in dict
             events[i] = change_keys(event, convert)
 
@@ -314,5 +311,10 @@ def change_keys(obj, convert):
         for k, v in obj.items():
             if isinstance(v, int) and k != "total":
                 v = str(v)
+            if k in ['timestamp', 'occurred_at', 'issued', 'dateModified', 'updated_date']:
+                try:
+                    v = str(pendulum.parse(v))
+                except ValueError:
+                    v = "0001-01-01T00:00:00Z"
             new[convert(k)] = change_keys(v, convert)
         return new
