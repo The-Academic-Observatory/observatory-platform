@@ -387,9 +387,9 @@ class Telescope(AbstractTelescope):
                 )
                 tasks.append(task)
 
-                # Process all other tasks next, which are always PythonOperators
-                tasks += self.task_funcs_to_operators(self.task_funcs)
-                chain(*tasks)
+            # Process all other tasks next, which are always PythonOperators
+            tasks += self.task_funcs_to_operators(self.task_funcs)
+            chain(*tasks)
 
             # Chain all sensors to the first task
             self.sensors >> tasks[0]
