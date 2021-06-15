@@ -189,6 +189,11 @@
             "mode": "NULLABLE",
             "name": "id",
             "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING"
           }
         ]
       },
