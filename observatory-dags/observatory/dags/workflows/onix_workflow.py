@@ -304,10 +304,10 @@ class OnixWorkflow(Telescope):
         self.create_oaebu_intermediate_table_tasks(data_partners)
 
         # Create OAEBU tables
-        self.create_oaebu_output_table_tasks(data_partners)
+        self.create_oaebu_output_tasks(data_partners)
 
         # Create OAEBU Elastic Export tables
-        self.create_oaebu_export_table_tasks(data_partners)
+        self.create_oaebu_export_tasks(data_partners)
 
         # Create QA metrics tables
         self.create_oaebu_data_qa_tasks(data_partners)
@@ -597,34 +597,6 @@ class OnixWorkflow(Telescope):
 
             self.add_task(fn)
 
-
-    def create_oaebu_output_tasks(self, data_partners: List[OaebuPartners]):
-        """Create tasks for outputing final metrics from our OAEBU data.  It will create output tables in the oaebu dataset.
-        :param oaebu_data: List of oaebu partner data.
-        """
-
-        # Book Product
-        fn = partial(
-            self.create_oaebu_book_product_table,
-            include_google_analytics=any(OaebuPartnerName.google_analytics in data.name for data in data_partners),
-            include_google_books=any(OaebuPartnerName.google_books_traffic in data.name for data in data_partners),
-            include_jstor=any(OaebuPartnerName.jstor_country in data.name for data in data_partners),
-            include_oapen=any(OaebuPartnerName.oapen_irus_uk in data.name for data in data_partners),
-            include_ucl=any(OaebuPartnerName.ucl_discovery in data.name for data in data_partners),
-        )
-
-        # Populate the __name__ attribute of the partial object (it lacks one by default).
-        # Scheme: create_oaebu_table.dataset.table
-        update_wrapper(fn, self.create_oaebu_book_product_table)
-        fn.__name__ += ".create_book_product"
-
-        self.add_task(fn)
-
-        # TODO Book Work
-
-        # TODO Book Work Family
-
-
     def create_oaebu_book_product_table(
         self,
         releases: List[OnixWorkflowRelease],
@@ -686,6 +658,33 @@ class OnixWorkflow(Telescope):
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
+
+    def create_oaebu_output_tasks(self, data_partners: List[OaebuPartners]):
+        """Create tasks for outputing final metrics from our OAEBU data.  It will create output tables in the oaebu dataset.
+        :param oaebu_data: List of oaebu partner data.
+        """
+
+        # Book Product
+        fn = partial(
+            self.create_oaebu_book_product_table,
+            include_google_analytics=any(OaebuPartnerName.google_analytics in data.name for data in data_partners),
+            include_google_books=any(OaebuPartnerName.google_books_traffic in data.name for data in data_partners),
+            include_jstor=any(OaebuPartnerName.jstor_country in data.name for data in data_partners),
+            include_oapen=any(OaebuPartnerName.oapen_irus_uk in data.name for data in data_partners),
+            include_ucl=any(OaebuPartnerName.ucl_discovery in data.name for data in data_partners),
+        )
+
+        # Populate the __name__ attribute of the partial object (it lacks one by default).
+        # Scheme: create_oaebu_table.dataset.table
+        update_wrapper(fn, self.create_oaebu_book_product_table)
+        fn.__name__ += ".create_book_product"
+
+        self.add_task(fn)
+
+        # TODO Book Work
+
+        # TODO Book Work Family
+
 
     def export_oaebu_data(self,
         releases: List[OnixWorkflowRelease],
