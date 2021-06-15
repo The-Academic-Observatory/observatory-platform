@@ -30,5 +30,5 @@ SELECT
         month.oapen_irus_uk.unique_item_investigations,
         month.oapen_irus_uk.unique_item_requests
     ) as oapen_irus_uk,
-FROM `oaebu-anu-press.oaebu.book_product`, UNNEST(months) as month
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(months) as month
 WHERE month.oapen_irus_uk IS NOT NULL OR month.google_books_traffic IS NOT NULL OR month.google_books_sales IS NOT NULL

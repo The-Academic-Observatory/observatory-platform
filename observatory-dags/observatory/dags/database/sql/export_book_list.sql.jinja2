@@ -17,16 +17,10 @@
 SELECT
     ISBN13,
     onix.ProductForm,
-    onix.TitleDetails[SAFE_OFFSET(0)].TitleElements[SAFE_OFFSET(0)].TitleText as title,
-    ARRAY(SELECT AS STRUCT
-        subject.MainSubject as main_subject,
-        subject.SubjectSchemeIdentifier as schema_identifier,
-        subject.SubjectCode as subject_code
-    FROM UNNEST(onix.Subjects) as subject) as subjects,
-
-    (SELECT
-        ARRAY(SELECT TRIM(LOWER(keyword)) FROM UNNEST(SPLIT(subject.SubjectHeadingText[SAFE_OFFSET(0)], ';')) as keyword)
-    FROM UNNEST(onix.Subjects) as subject
-    WHERE subject.SubjectSchemeIdentifier = "Keywords") as keywords
-
-FROM `oaebu-anu-press.oaebu.book_product`
+    onix.EditionNumber,
+    onix.title,
+    onix.bic_subjects,
+    onix.bisac_subjects,
+    onix.thema_subjects,
+    onix.keywords
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`

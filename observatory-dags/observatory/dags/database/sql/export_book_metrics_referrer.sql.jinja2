@@ -21,6 +21,6 @@ SELECT
     STRUCT(
         SUM(referrer.value) as value
     ) as google_analytics,
-FROM `oaebu-anu-press.oaebu.book_product`, UNNEST(months) as month, UNNEST(month.google_analytics.unique_views.referrer) as referrer
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(months) as month, UNNEST(month.google_analytics.unique_views.referrer) as referrer
 WHERE referrer IS NOT NULL AND referrer.name != "(direct)"
 GROUP BY ISBN13, month, referrer

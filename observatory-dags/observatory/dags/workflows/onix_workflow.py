@@ -307,7 +307,7 @@ class OnixWorkflow(Telescope):
         self.create_oaebu_output_tasks(data_partners)
 
         # Create OAEBU Elastic Export tables
-        self.create_oaebu_export_tasks(data_partners)
+        self.add_task(self.export_oaebu_data)
 
         # Create QA metrics tables
         self.create_oaebu_data_qa_tasks(data_partners)
@@ -686,16 +686,7 @@ class OnixWorkflow(Telescope):
         # TODO Book Work Family
 
 
-    def export_oaebu_data(self,
-        releases: List[OnixWorkflowRelease],
-        *args,
-        include_google_analytics=bool,
-        include_google_books=bool,
-        include_jstor=bool,
-        include_oapen=bool,
-        include_ucl=bool,
-        **kwargs,
-    ):
+    def export_oaebu_data(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
         """Create a set of bq tables in the oaebu_elastic dataset
         :param releases: List of workflow releases.
         """
@@ -720,11 +711,6 @@ class OnixWorkflow(Telescope):
                 project_id=release.project_id,
                 dataset_id=release.oaebu_intermediate_dataset,
                 release=release_date,
-                google_analytics=include_google_analytics,
-                google_books=include_google_books,
-                jstor=include_jstor,
-                oapen=include_oapen,
-                ucl=include_ucl,
             )
 
             status = create_bigquery_table_from_query(
@@ -751,11 +737,6 @@ class OnixWorkflow(Telescope):
                 project_id=release.project_id,
                 dataset_id=release.oaebu_intermediate_dataset,
                 release=release_date,
-                google_analytics=include_google_analytics,
-                google_books=include_google_books,
-                jstor=include_jstor,
-                oapen=include_oapen,
-                ucl=include_ucl,
             )
 
             status = create_bigquery_table_from_query(
@@ -782,11 +763,6 @@ class OnixWorkflow(Telescope):
                 project_id=release.project_id,
                 dataset_id=release.oaebu_intermediate_dataset,
                 release=release_date,
-                google_analytics=include_google_analytics,
-                google_books=include_google_books,
-                jstor=include_jstor,
-                oapen=include_oapen,
-                ucl=include_ucl,
             )
 
             status = create_bigquery_table_from_query(
@@ -813,11 +789,6 @@ class OnixWorkflow(Telescope):
                 project_id=release.project_id,
                 dataset_id=release.oaebu_intermediate_dataset,
                 release=release_date,
-                google_analytics=include_google_analytics,
-                google_books=include_google_books,
-                jstor=include_jstor,
-                oapen=include_oapen,
-                ucl=include_ucl,
             )
 
             status = create_bigquery_table_from_query(
@@ -844,11 +815,6 @@ class OnixWorkflow(Telescope):
                 project_id=release.project_id,
                 dataset_id=release.oaebu_intermediate_dataset,
                 release=release_date,
-                google_analytics=include_google_analytics,
-                google_books=include_google_books,
-                jstor=include_jstor,
-                oapen=include_oapen,
-                ucl=include_ucl,
             )
 
             status = create_bigquery_table_from_query(
@@ -875,11 +841,6 @@ class OnixWorkflow(Telescope):
                 project_id=release.project_id,
                 dataset_id=release.oaebu_intermediate_dataset,
                 release=release_date,
-                google_analytics=include_google_analytics,
-                google_books=include_google_books,
-                jstor=include_jstor,
-                oapen=include_oapen,
-                ucl=include_ucl,
             )
 
             status = create_bigquery_table_from_query(
@@ -906,11 +867,6 @@ class OnixWorkflow(Telescope):
                 project_id=release.project_id,
                 dataset_id=release.oaebu_intermediate_dataset,
                 release=release_date,
-                google_analytics=include_google_analytics,
-                google_books=include_google_books,
-                jstor=include_jstor,
-                oapen=include_oapen,
-                ucl=include_ucl,
             )
 
             status = create_bigquery_table_from_query(
@@ -926,30 +882,6 @@ class OnixWorkflow(Telescope):
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
 
-    def create_oaebu_export_tasks(self, data_partners: List[OaebuPartners]):
-        """Create tasks for outputing final metrics from our OAEBU data.  It will create output tables in the oaebu dataset.
-        :param oaebu_data: List of oaebu partner data.
-        """
-
-        # Determine crosssection of data_partners to consider for current publisher
-        include_google_analytics = any(OaebuPartnerName.google_analytics in data.name for data in data_partners),
-        include_google_books = any(OaebuPartnerName.google_books_traffic in data.name for data in data_partners),
-        include_jstor = any(OaebuPartnerName.jstor_country in data.name for data in data_partners),
-        include_oapen = any(OaebuPartnerName.oapen_irus_uk in data.name for data in data_partners),
-        include_ucl = any(OaebuPartnerName.ucl_discovery in data.name for data in data_partners)
-
-        # Export OAEBU Data
-        fn = partial(
-            self.export_oaebu_data,
-            include_google_analytics=include_google_analytics,
-            include_google_books=include_google_books,
-            include_jstor=include_jstor,
-            include_oapen=include_oapen,
-            include_ucl=include_ucl,
-        )
-        update_wrapper(fn, self.export_oaebu_data)
-        fn.__name__ += ".export_oaebu_data"
-        self.add_task(fn)
 
 
     def create_oaebu_data_qa_tasks(self, data_partners: List[OaebuPartners]):

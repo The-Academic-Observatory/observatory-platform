@@ -26,6 +26,6 @@ SELECT
         SUM(city.unique_item_investigations) as unique_item_investigations,
         SUM(city.unique_item_requests) as unique_item_requests
     ) as oapen_irus_uk,
-FROM `oaebu-anu-press.oaebu.book_product`, UNNEST(months) as month, UNNEST(month.oapen_irus_uk.locations) as city
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(months) as month, UNNEST(month.oapen_irus_uk.locations) as city
 WHERE city.city IS NOT NULL
 GROUP BY ISBN13, month, city

@@ -21,5 +21,5 @@ SELECT
     STRUCT(
         institution.Total_Item_Requests
     ) as jstor,
-FROM `oaebu-anu-press.oaebu.book_product`, UNNEST(months) as month, UNNEST(month.jstor_institution) as institution
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(months) as month, UNNEST(month.jstor_institution) as institution
 WHERE month.oapen_irus_uk IS NOT NULL OR month.google_books_traffic IS NOT NULL OR month.google_books_sales IS NOT NULL
