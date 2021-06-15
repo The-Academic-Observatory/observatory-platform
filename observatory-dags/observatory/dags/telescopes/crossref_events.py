@@ -136,6 +136,12 @@ class CrossrefEventsRelease(StreamRelease):
 
             # if events file exists but no cursor file, previous request has finished & successful
             if os.path.isfile(events_path) and not os.path.isfile(cursor_path):
+                events_tmp = []
+                with jsonlines.open(events_path, 'r') as reader:
+                    with jsonlines.open(events_path + 'tmp', 'w') as writer:
+                        for obj in reader:
+                            event = change_keys(obj, convert)
+                            writer.write(event)
                 logging.info(f"{i + 1}.{event_type} Skipped, already finished: {date}")
                 continue
 
@@ -230,7 +236,7 @@ class CrossrefEventsTelescope(StreamTelescope):
        )
 def get_url(url: str, headers: dict):
     response = requests.get(url, headers=headers)
-    if response.status_code in [500, 400]:
+    if response.status_code in [500, 400, 429]:
         logging.info(f'Downloading events from url: {url}, attempt: {get_url.retry.statistics["attempt_number"]}, '
                      f'idle for: {get_url.retry.statistics["idle_for"]}')
         raise ConnectionError("Retrying url")
@@ -306,5 +312,7 @@ def change_keys(obj, convert):
     if isinstance(obj, dict):
         new = obj.__class__()
         for k, v in obj.items():
+            if isinstance(v, int) and k != "total":
+                v = str(v)
             new[convert(k)] = change_keys(v, convert)
         return new
