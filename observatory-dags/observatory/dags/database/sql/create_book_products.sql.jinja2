@@ -131,7 +131,7 @@ onix_ebook_titles as (
                     FROM UNNEST(onix.Subjects) as subject
                     WHERE subject.SubjectSchemeIdentifier = "Keywords") as keywords
         ) as onix
-    FROM `oaebu-anu-press.onix.onix20210601` as onix
+    FROM `{{ project_id }}.{{ dataset_id }}.onix{{ release.strftime('%Y%m%d') }}` as onix
     WHERE ProductForm = "Digital download and online" OR ProductForm = "Digital (delivered electronically)"
 ),
 
@@ -139,7 +139,7 @@ onix_ebook_titles as (
 google_analytics_metrics as (
     SELECT
         publication_id as ISBN13, release_date, STRUCT(STRUCT(AVG(average_time) as average_time, ARRAY_CONCAT_AGG(unique_views.country) as country, ARRAY_CONCAT_AGG(unique_views.referrer) as referrer, ARRAY_CONCAT_AGG(unique_views.social_network) as social_network) as unique_views) as metrics
-    FROM empty_google_analytics
+    FROM {% if google_analytics %} `{{ project_id }}.{{ dataset_id }}.google_google_analytics_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_google_analytics {% endif %}
     WHERE publication_whole_or_part = '(citation)' and publication_type = "book"
     GROUP BY publication_id, release_date
 ),
@@ -148,27 +148,27 @@ google_analytics_metrics as (
 google_books_sales_metrics as (
     SELECT
         Primary_ISBN as ISBN13, release_date, STRUCT(SUM(qty) as qty) as metrics
-    FROM empty_google_books_sales as google_books
+    FROM {% if google_books %} `{{ project_id }}.{{ dataset_id }}.google_google_book_sales_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_google_books_sales {% endif %} as google_books
     GROUP BY Primary_ISBN, release_date
 ),
 
 google_books_sales_metadata as (
     SELECT
         Primary_ISBN as ISBN13, MAX(Imprint_Name) as Imprint_Name, MAX(Title) as Title, MAX(Author) as Author
-    FROM empty_google_books_sales as google_books
+    FROM {% if google_books %} `{{ project_id }}.{{ dataset_id }}.google_google_book_sales_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_google_books_sales {% endif %} as google_books
     GROUP BY Primary_ISBN
 ),
 
 google_books_traffic_metrics as (
     SELECT
         Primary_ISBN  as ISBN13, release_date, STRUCT(Book_Visits_BV_, BV_with_Pages_Viewed, Non_Unique_Buy_Clicks, BV_with_Pages_Viewed, BV_with_Buy_Clicks, Buy_Link_CTR, Pages_Viewed) as metrics
-    FROM empty_google_books_traffic as google_books
+    FROM {% if google_books %} `{{ project_id }}.{{ dataset_id }}.google_google_book_traffic_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_google_books_traffic {% endif %} as google_books
 ),
 
 google_books_traffic_metadata as (
     SELECT
         Primary_ISBN  as ISBN13, MAX(title) as Title
-    FROM empty_google_books_traffic as google_books
+    FROM {% if google_books %} `{{ project_id }}.{{ dataset_id }}.google_google_book_traffic_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_google_books_traffic {% endif %} as google_books
     GROUP BY Primary_ISBN
 ),
 
@@ -176,28 +176,28 @@ google_books_traffic_metadata as (
 jstor_country_metrics as (
     SELECT
         eISBN as ISBN13, release_date, ARRAY_AGG(STRUCT(Country_name, Total_Item_Requests)) as metrics
-    FROM empty_jstor_country as jstor_country
+    FROM {% if jstor %} `{{ project_id }}.{{ dataset_id }}.jstor_jstor_country_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_jstor_country {% endif %} as jstor_country
     GROUP BY eISBN, release_date
 ),
 
 jstor_country_metadata as (
     SELECT
         eISBN as ISBN13, MAX(Book_Title) as Book_Title, MAX(Book_ID) as Book_ID, MAX(Authors) as Authors, MAX(ISBN) as ISBN, eISBN, MAX(Copyright_Year) as Copyright_Year, MAX(Disciplines) as Disciplines, MAX(Usage_Type) as Usage_Type
-    FROM empty_jstor_country as jstor_country
+    FROM {% if jstor %} `{{ project_id }}.{{ dataset_id }}.jstor_jstor_country_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_jstor_country {% endif %} as jstor_country as jstor_country
     GROUP BY eISBN
 ),
 
 jstor_institution_metrics as (
     SELECT
         eISBN as ISBN13, release_date, ARRAY_AGG(STRUCT(Institution, Total_Item_Requests)) as metrics
-    FROM empty_jstor_institution as jstor_institution
+    FROM {% if jstor %} `{{ project_id }}.{{ dataset_id }}.jstor_jstor_institution_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_jstor_institution {% endif %} as jstor_country as jstor_institution
     GROUP BY eISBN, release_date
 ),
 
 jstor_institution_metadata as (
     SELECT
         eISBN as ISBN13, MAX(Book_Title) as Book_Title, MAX(Book_ID) as Book_ID, MAX(Authors) as Authors, MAX(ISBN) as ISBN, eISBN, MAX(Copyright_Year) as Copyright_Year, MAX(Disciplines) as Disciplines, MAX(Usage_Type) as Usage_Type
-    FROM empty_jstor_institution as jstor_institution
+    FROM {% if jstor %} `{{ project_id }}.{{ dataset_id }}.jstor_jstor_institution_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_jstor_institution {% endif %} as jstor_country as jstor_institution
     GROUP BY eISBN
 ),
 
@@ -205,13 +205,13 @@ jstor_institution_metadata as (
 oapen_irus_uk_metrics as (
     SELECT
         ISBN as ISBN13, release_date, STRUCT(version, title_requests, total_item_investigations, total_item_requests, unique_item_investigations, unique_item_requests, country, locations) as metrics
-    FROM empty_oapen as oapen_irus_uk
+    FROM {% if oapen %} `{{ project_id }}.{{ dataset_id }}.oapen_oapen_irus_uk_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_oapen {% endif %} as as oapen_irus_uk
 ),
 
 oapen_irus_uk_metadata as (
     SELECT
         ISBN as ISBN13, MAX(book_title) as book_title, MAX(publisher) as publisher
-    FROM empty_oapen as oapen_irus_uk
+    FROM {% if oapen %} `{{ project_id }}.{{ dataset_id }}.oapen_oapen_irus_uk_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_oapen {% endif %} as as oapen_irus_uk
     GROUP BY ISBN
 ),
 
