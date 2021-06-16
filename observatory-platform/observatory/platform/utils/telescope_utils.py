@@ -86,7 +86,7 @@ def normalized_schedule_interval(schedule_interval: str) -> Optional[ScheduleInt
     return _schedule_interval
 
 
-def get_prev_execution_date(schedule_interval_target: str, execution_date: datetime) -> datetime:
+def get_prev_execution_date(schedule_interval_target: str, execution_date: pendulum.Pendulum) -> datetime:
     """ Get the previous execution date of a target DAG based on the given execution date and schedule interval of
     the target DAG.
     This can be used as a callable for the execution_delta_fn of the ExternalTaskSensor.
@@ -101,7 +101,7 @@ def get_prev_execution_date(schedule_interval_target: str, execution_date: datet
     # Normalize schedule, converting cron preset to cron expression
     normalized_schedule = normalized_schedule_interval(schedule_interval_target)
 
-    # Convert execution date to datetime, pendulum tz info gives error 'list index out of range'
+    # Convert exec date to datetime, using pendulum exec date gives error 'list index out of range' related to tz info
     tz_info = dateutil.tz.gettz(execution_date.timezone_name)
     dt_execution_date = datetime(
         execution_date.year,
