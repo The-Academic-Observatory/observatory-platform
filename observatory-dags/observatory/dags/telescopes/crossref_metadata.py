@@ -29,6 +29,8 @@ from subprocess import Popen
 from typing import Dict, List
 
 import requests
+import pendulum
+import xml.etree.ElementTree as ET
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from natsort import natsorted
@@ -221,8 +223,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         release_date = kwargs['execution_date']
         return [CrossrefMetadataRelease(self.dag_id, release_date)]
 
-    @staticmethod
-    def check_release_exists(**kwargs):
+    def check_release_exists(self, **kwargs):
         """ Check that the release for this month exists.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -230,6 +231,14 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         for a list of the keyword arguments that are passed to this argument.
         :return: None.
         """
+        # List all available releases
+        logging.info(f'Listing available releases since start date ({self.start_date}):')
+        for dt in pendulum.period(pendulum.instance(self.start_date), pendulum.today('UTC')).range('years'):
+            response = requests.get(f'https://api.crossref.org/snapshots/monthly/{dt.year}')
+            root = ET.fromstring(response.content)
+            for child in root.iter('a'):
+                href = child.attrib['href']
+                logging.info(href)
 
         # Construct the release for the execution date and check if it exists.
         # The release release for a given execution_date is added on the 5th day of the following month.
@@ -237,7 +246,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         execution_date = kwargs['execution_date']
 
         url = CrossrefMetadataTelescope.TELESCOPE_URL.format(year=execution_date.year, month=execution_date.month)
-        logging.info('Checking if release exists')
+        logging.info(f'Checking if available release exists for {execution_date.year}-{execution_date.month}')
 
         response = retry_session().head(url)
         if response.status_code == 302:
