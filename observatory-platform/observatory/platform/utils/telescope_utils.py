@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from math import ceil
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union, Optional
 
 import dateutil
 import jsonlines
@@ -59,7 +59,7 @@ from observatory.platform.utils.jinja2_utils import (
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
 
-def normalized_schedule_interval(schedule_interval: str) -> Optional[ScheduleInterval]:
+def normalized_schedule_interval(schedule_interval: Optional[str]) -> Optional[ScheduleInterval]:
     """
     Copied from airflow/models/dag.py.
     Returns Normalized Schedule Interval. This is used internally by the Scheduler to

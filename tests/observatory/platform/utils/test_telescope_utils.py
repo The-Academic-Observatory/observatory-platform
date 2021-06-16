@@ -38,6 +38,7 @@ from observatory.platform.utils.telescope_utils import (
     make_sftp_connection,
     make_telescope_sensor,
     get_prev_execution_date,
+    normalized_schedule_interval
 )
 
 
@@ -60,10 +61,9 @@ class TestTelescopeUtils(unittest.TestCase):
         for test in schedule_intervals:
             schedule_interval = test[0]
             expected_n_schedule_interval = test[1]
-            dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
+            actual_n_schedule_interval = normalized_schedule_interval(schedule_interval)
 
-            self.assertEqual(expected_n_schedule_interval, dag.normalized_schedule_interval)
-            self.assertEqual(schedule_interval, dag.schedule_interval)
+            self.assertEqual(expected_n_schedule_interval, actual_n_schedule_interval)
 
     def test_get_prev_execution_date(self):
         """ Test get_prev_execution_date """
