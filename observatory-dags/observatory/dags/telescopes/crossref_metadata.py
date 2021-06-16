@@ -155,7 +155,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
 
     DAG_ID = 'crossref_metadata'
     DATASET_ID = 'crossref'
-    SCHEDULE_INTERVAL = '@monthly'
+    SCHEDULE_INTERVAL = '0 0 7 * *'
     TELESCOPE_URL = 'https://api.crossref.org/snapshots/monthly/{year}/{month:02d}/all.json.tar.gz'
 
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 6, 7),
