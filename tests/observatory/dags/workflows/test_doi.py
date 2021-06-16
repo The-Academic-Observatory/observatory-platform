@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from datetime import datetime
 from typing import Dict, List
@@ -25,17 +24,9 @@ import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.dummy_operator import DummyOperator
-from click.testing import CliRunner
 
 from observatory.dags.model import (
-    ObservatoryDataset,
-    make_open_citations,
-    make_crossref_events,
-    make_mag,
-    make_fundref,
-    make_unpaywall,
-    make_crossref_metadata,
-    MagDataset,
+    bq_load_observatory_dataset,
     make_observatory_dataset,
     Institution,
     make_doi_table,
@@ -44,20 +35,11 @@ from observatory.dags.model import (
 )
 from observatory.dags.workflows.doi import DoiWorkflow, make_dataset_transforms, make_elastic_tables
 from observatory.platform.utils.airflow_utils import set_task_state
-from observatory.platform.utils.gc_utils import (
-    bigquery_sharded_table_id,
-    load_bigquery_table,
-    SourceFormat,
-    run_bigquery_query,
-    upload_files_to_cloud_storage,
-)
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, load_jsonl
-from observatory.platform.utils.template_utils import schema_path, find_schema
+from observatory.platform.utils.gc_utils import run_bigquery_query
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
-    test_fixtures_path,
 )
 
 
@@ -70,10 +52,10 @@ def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
     """
 
     with DAG(
-            dag_id=dag_id,
-            schedule_interval="@weekly",
-            default_args={"owner": "airflow", "start_date": execution_date},
-            catchup=False,
+        dag_id=dag_id,
+        schedule_interval="@weekly",
+        default_args={"owner": "airflow", "start_date": execution_date},
+        catchup=False,
     ) as dag:
         task1 = DummyOperator(task_id="dummy_task")
 
@@ -175,9 +157,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 "create_orcid": ["create_doi"],
                 "create_open_citations": ["create_doi"],
                 "create_unpaywall": ["create_doi"],
-                "create_doi": [
-                    "create_book",
-                ],
+                "create_doi": ["create_book",],
                 "create_book": [
                     "create_country",
                     "create_funder",
@@ -313,7 +293,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
 
                 # Generate fake dataset
                 observatory_dataset = make_observatory_dataset(self.institutions)
-                self.setup_fake_observatory_dataset(
+                bq_load_observatory_dataset(
                     observatory_dataset, env.download_bucket, fake_dataset_id, settings_dataset_id, release_date
                 )
 
@@ -532,130 +512,3 @@ class TestDoiWorkflow(ObservatoryTestCase):
             item_["home_repo"].sort()
             item_["members"].sort()
         self.assertListEqual(items_expected_, items_actual_)
-
-    def setup_fake_observatory_dataset(
-            self,
-            observatory_dataset: ObservatoryDataset,
-            bucket_name: str,
-            dataset_id_all: str,
-            dataset_id_settings: str,
-            release_date: pendulum.Pendulum,
-    ):
-        """ Setup a fake Observatory Dataset in BigQuery.
-
-        :param observatory_dataset: the Observatory Dataset.
-        :param bucket_name: the Google Cloud Storage bucket name.
-        :param dataset_id_all: the dataset id for all data tables.
-        :param dataset_id_settings: the dataset id for settings tables.
-        :param release_date: the release date for the observatory dataset.
-        :return: None.
-        """
-
-        # Generate source datasets
-        open_citations = make_open_citations(observatory_dataset)
-        crossref_events = make_crossref_events(observatory_dataset)
-        mag: MagDataset = make_mag(observatory_dataset)
-        fundref = make_fundref(observatory_dataset)
-        unpaywall = make_unpaywall(observatory_dataset)
-        crossref_metadata = make_crossref_metadata(observatory_dataset)
-
-        # Load fake GRID and settings datasets
-        test_doi_path = test_fixtures_path("telescopes", "doi")
-        grid = load_jsonl(os.path.join(test_doi_path, "grid.jsonl"))
-        iso3166_countries_and_regions = load_jsonl(os.path.join(test_doi_path, "iso3166_countries_and_regions.jsonl"))
-        grid_to_home_url = load_jsonl(os.path.join(test_doi_path, "grid_to_home_url.jsonl"))
-        groupings = load_jsonl(os.path.join(test_doi_path, "groupings.jsonl"))
-        mag_affiliation_override = load_jsonl(os.path.join(test_doi_path, "mag_affiliation_override.jsonl"))
-
-        with CliRunner().isolated_filesystem() as t:
-            records = [
-                ("crossref_events", False, dataset_id_all, crossref_events, "crossref_events"),
-                ("crossref_metadata", True, dataset_id_all, crossref_metadata, "crossref_metadata"),
-                ("fundref", True, dataset_id_all, fundref, "fundref"),
-                ("Affiliations", True, dataset_id_all, mag.affiliations, "MagAffiliations"),
-                ("FieldsOfStudy", True, dataset_id_all, mag.fields_of_study, "MagFieldsOfStudy"),
-                (
-                    "PaperAuthorAffiliations",
-                    True,
-                    dataset_id_all,
-                    mag.paper_author_affiliations,
-                    "MagPaperAuthorAffiliations",
-                ),
-                ("PaperFieldsOfStudy", True, dataset_id_all, mag.paper_fields_of_study, "MagPaperFieldsOfStudy"),
-                ("Papers", True, dataset_id_all, mag.papers, "MagPapers"),
-                ("open_citations", True, dataset_id_all, open_citations, "open_citations"),
-                ("unpaywall", True, dataset_id_all, unpaywall, "unpaywall"),
-                ("grid", True, dataset_id_all, grid, "grid"),
-                (
-                    "iso3166_countries_and_regions",
-                    False,
-                    dataset_id_all,
-                    iso3166_countries_and_regions,
-                    "iso3166_countries_and_regions",
-                ),
-                ("grid_to_home_url", False, dataset_id_settings, grid_to_home_url, "grid_to_home_url"),
-                ("groupings", False, dataset_id_settings, groupings, "groupings"),
-                (
-                    "mag_affiliation_override",
-                    False,
-                    dataset_id_settings,
-                    mag_affiliation_override,
-                    "mag_affiliation_override",
-                ),
-                ("PaperAbstractsInvertedIndex", True, dataset_id_all, [], "MagPaperAbstractsInvertedIndex"),
-                ("Journals", True, dataset_id_all, [], "MagJournals"),
-                ("ConferenceInstances", True, dataset_id_all, [], "MagConferenceInstances"),
-                ("ConferenceSeries", True, dataset_id_all, [], "MagConferenceSeries"),
-                ("FieldOfStudyExtendedAttributes", True, dataset_id_all, [], "MagFieldOfStudyExtendedAttributes"),
-                ("PaperExtendedAttributes", True, dataset_id_all, [], "MagPaperExtendedAttributes"),
-                ("PaperResources", True, dataset_id_all, [], "MagPaperResources"),
-                ("PaperUrls", True, dataset_id_all, [], "MagPaperUrls"),
-                ("PaperMeSH", True, dataset_id_all, [], "MagPaperMeSH"),
-                ("orcid", False, dataset_id_all, [], "orcid"),
-            ]
-
-            files_list = []
-            blob_names = []
-
-            # Save to JSONL
-            for table_name, is_sharded, dataset_id, dataset, schema in records:
-                blob_name = f"{table_name}.jsonl.gz"
-                file_path = os.path.join(t, blob_name)
-                list_to_jsonl_gz(file_path, dataset)
-                files_list.append(file_path)
-                blob_names.append(blob_name)
-
-            # Upload to Google Cloud Storage
-            success = upload_files_to_cloud_storage(bucket_name, blob_names, files_list)
-            self.assertTrue(success)
-
-            # Save to BigQuery tables
-            for blob_name, (table_name, is_sharded, dataset_id, dataset, schema) in zip(blob_names, records):
-                if is_sharded:
-                    table_id = bigquery_sharded_table_id(table_name, release_date)
-                else:
-                    table_id = table_name
-
-                # Select schema file based on release date
-                analysis_schema_path = schema_path()
-                schema_file_path = find_schema(analysis_schema_path, schema, release_date)
-                if schema_file_path is None:
-                    logging.error(
-                        f"No schema found with search parameters: analysis_schema_path={analysis_schema_path}, "
-                        f"table_name={table_name}, release_date={release_date}"
-                    )
-                    exit(os.EX_CONFIG)
-
-                # Load BigQuery table
-                uri = f"gs://{bucket_name}/{blob_name}"
-                logging.info(f"URI: {uri}")
-                success = load_bigquery_table(
-                    uri,
-                    dataset_id,
-                    self.gcp_data_location,
-                    table_id,
-                    schema_file_path,
-                    SourceFormat.NEWLINE_DELIMITED_JSON,
-                )
-                if not success:
-                    raise AirflowException("bq_load task: data failed to load data into BigQuery")

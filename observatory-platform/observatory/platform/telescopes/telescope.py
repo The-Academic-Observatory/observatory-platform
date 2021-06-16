@@ -194,6 +194,11 @@ def make_task_id(func: Callable, kwargs: Dict) -> str:
 
 @dataclasses.dataclass
 class Operator:
+    """ A container for data to be passed to an Airflow Operator.
+    :param func: the task function.
+    :param kwargs: the task kwargs parameter.
+    """
+
     func: Callable
     kwargs: Dict
 
@@ -202,16 +207,16 @@ class Telescope(AbstractTelescope):
     RELEASE_INFO = "releases"
 
     def __init__(
-            self,
-            dag_id: str,
-            start_date: datetime,
-            schedule_interval: str,
-            catchup: bool = False,
-            queue: str = "default",
-            max_retries: int = 3,
-            max_active_runs: int = 1,
-            airflow_vars: list = None,
-            airflow_conns: list = None,
+        self,
+        dag_id: str,
+        start_date: datetime,
+        schedule_interval: str,
+        catchup: bool = False,
+        queue: str = "default",
+        max_retries: int = 3,
+        max_active_runs: int = 1,
+        airflow_vars: list = None,
+        airflow_conns: list = None,
     ):
         """Construct a Telescope instance.
 
@@ -380,13 +385,14 @@ class Telescope(AbstractTelescope):
         with self.dag:
             # Process setup tasks first, which are always ShortCircuitOperators
             for op in self.setup_task_funcs:
+                kwargs_ = copy.copy(op.kwargs)
+                kwargs_["task_id"] = make_task_id(op.func, op.kwargs)
                 task = ShortCircuitOperator(
-                    task_id=op.func.__name__,
                     python_callable=op.func,
                     queue=self.queue,
                     default_args=self.default_args,
                     provide_context=True,
-                    **op.kwargs,
+                    **kwargs_,
                 )
                 tasks.append(task)
 
@@ -499,12 +505,12 @@ class Release(AbstractRelease):
     """ Used to store info on a given release"""
 
     def __init__(
-            self,
-            dag_id: str,
-            release_id: str,
-            download_files_regex: str = None,
-            extract_files_regex: str = None,
-            transform_files_regex: str = None,
+        self,
+        dag_id: str,
+        release_id: str,
+        download_files_regex: str = None,
+        extract_files_regex: str = None,
+        transform_files_regex: str = None,
     ):
         """Construct a Release instance
         :param dag_id: the id of the DAG.
