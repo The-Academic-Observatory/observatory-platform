@@ -14,6 +14,7 @@
 
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 import contextlib
+import copy
 import dataclasses
 import datetime
 import logging
@@ -294,7 +295,7 @@ class Telescope(AbstractTelescope):
         :param funcs: The list of functions that will be called by the ShortCircuitOperator task.
         :return: None.
         """
-        self.setup_task_funcs += [Operator(func, kwargs) for func in funcs]
+        self.setup_task_funcs += [Operator(func, copy.copy(kwargs)) for func in funcs]
 
     def add_task(self, func: Callable, **kwargs):
         """Add a task, which is used to process releases. A task has the following properties:
@@ -329,7 +330,7 @@ class Telescope(AbstractTelescope):
         :param funcs: The list of functions that will be called by the PythonOperator task.
         :return: None.
         """
-        self.task_funcs += [Operator(func, kwargs) for func in funcs]
+        self.task_funcs += [Operator(func, copy.copy(kwargs)) for func in funcs]
 
     def task_callable(self, func: TelescopeFunction, **kwargs) -> Any:
         """Invoke a task callable. Creates a Release instance and calls the given task method. The result can be
@@ -353,13 +354,14 @@ class Telescope(AbstractTelescope):
                 tasks_.append(self.task_funcs_to_operators(op))
             else:
                 with self.dag:
-                    op.kwargs["task_id"] = make_task_id(op.func, op.kwargs)
+                    kwargs_ = copy.copy(op.kwargs)
+                    kwargs_["task_id"] = make_task_id(op.func, op.kwargs)
                     task_ = PythonOperator(
                         python_callable=partial(self.task_callable, op.func),
                         queue=self.queue,
                         default_args=self.default_args,
                         provide_context=True,
-                        **op.kwargs,
+                        **kwargs_,
                     )
                     tasks_.append(task_)
         return tasks_
