@@ -21,7 +21,7 @@ from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
-from observatory.platform.telescopes.telescope import Release, Telescope
+from observatory.platform.telescopes.telescope import Release, Telescope, make_task_id
 from observatory.platform.utils.test_utils import ObservatoryTestCase
 
 
@@ -44,6 +44,12 @@ class MockTelescope(Telescope):
     def task(self, release: Release, **kwargs):
         pass
 
+    def task3(self, release: Release, **kwargs):
+        pass
+
+    def task4(self, release: Release, **kwargs):
+        pass
+
 
 class TestTelescope(ObservatoryTestCase):
     """ Tests the Telescope. """
@@ -59,6 +65,22 @@ class TestTelescope(ObservatoryTestCase):
         self.dag_id = "dag_id"
         self.start_date = datetime(2020, 1, 1)
         self.schedule_interval = "@weekly"
+
+    def test_make_task_id(self):
+        """ Test make_task_id """
+
+        def test_func():
+            pass
+
+        # task_id is specified as kwargs
+        expected_task_id = "hello"
+        actual_task_id = make_task_id(test_func, {"task_id": expected_task_id})
+        self.assertEqual(expected_task_id, actual_task_id)
+
+        # task_id not specified in kwargs
+        expected_task_id = "test_func"
+        actual_task_id = make_task_id(test_func, {})
+        self.assertEqual(expected_task_id, actual_task_id)
 
     def test_make_dag(self):
         """ Test making DAG """
@@ -98,6 +120,29 @@ class TestTelescope(ObservatoryTestCase):
         for task in dag.tasks:
             self.assertIsInstance(task, BaseOperator)
             self.assertEqual("none_failed", task.trigger_rule)
+
+        # Test adding parallel tasks
+        telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
+        telescope.add_setup_task(telescope.setup_task)
+        with telescope.parallel_tasks():
+            telescope.add_task(telescope.task, task_id="task1")
+            telescope.add_task(telescope.task, task_id="task2")
+        telescope.add_task(telescope.task, task_id="join")
+        # with telescope.parallel_tasks():
+        #     telescope.add_task_chain([telescope.task3, telescope.task4])
+        dag = telescope.make_dag()
+        self.assertIsInstance(dag, DAG)
+        self.assertEqual(4, len(dag.tasks))
+        self.assert_dag_structure({
+            "setup_task": ["task1", "task2"],
+            "task1": ["join"],
+            "task2": ["join"],
+            "join": [],
+            # "task3": [],
+            # "task4": []
+        }, dag)
+
+        # Test adding parallel tasks or
 
 
 class TestAddSensorsTelescope(ObservatoryTestCase):
