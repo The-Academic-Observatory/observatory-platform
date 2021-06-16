@@ -75,7 +75,7 @@ class BarComparisonChart(AbstractObservatoryChart):
                       'Hybrid OA (%)',
                       'Gold in DOAJ (%)',
                       'Green Only (%)']].plot(
-            kind='bar', stacked=True, colors=self.color_palette, ax=ax)
+            kind='bar', stacked=True, color=self.color_palette, ax=ax)
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
 

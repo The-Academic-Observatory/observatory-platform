@@ -947,14 +947,14 @@ class TestOnixWorkflow(ObservatoryTestCase):
             release = releases[0]
 
             # Spin up tasks
-            oaebu_task1, _ = wf.task_funcs[5]
-            self.assertEqual(oaebu_task1.__name__, "create_oaebu_intermediate_table.test_dataset.test_table")
+            oaebu_task1_op = wf.task_funcs[5]
+            self.assertEqual(oaebu_task1_op.func.__name__, "create_oaebu_intermediate_table.test_dataset.test_table")
 
-            oaebu_task2, _ = wf.task_funcs[6]
-            self.assertEqual(oaebu_task2.__name__, "create_oaebu_intermediate_table.test_dataset.test_table2")
+            oaebu_task2_op = wf.task_funcs[6]
+            self.assertEqual(oaebu_task2_op.func.__name__, "create_oaebu_intermediate_table.test_dataset.test_table2")
 
             # Run tasks
-            oaebu_task1(releases)
+            oaebu_task1_op.func(releases)
             _, call_args = mock_create_bq_ds.call_args
             self.assertEqual(call_args["project_id"], "project_id")
             self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
@@ -970,7 +970,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             expected_hash = "1dabe0b435be583fdbae6ad4421f579b"
             self.assertEqual(sql_hash, expected_hash)
 
-            oaebu_task2(releases)
+            oaebu_task2_op.func(releases)
             _, call_args = mock_create_bq_ds.call_args
             self.assertEqual(call_args["project_id"], "project_id")
             self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
