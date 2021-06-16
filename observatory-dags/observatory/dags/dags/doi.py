@@ -49,7 +49,7 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
 
 from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataTelescope
-from observatory.dags.telescopes.fundref import FundrefTelescope
+from observatory.dags.telescopes.crossref_fundref import CrossrefFundrefTelescope
 from observatory.dags.telescopes.geonames import GeonamesTelescope
 from observatory.dags.telescopes.grid import GridTelescope
 from observatory.dags.telescopes.mag import MagTelescope
@@ -79,7 +79,7 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
 
     fundref_sensor = ExternalTaskSensor(
         task_id=SENSOR_ID_FUNDREF,
-        external_dag_id=FundrefTelescope.DAG_ID,
+        external_dag_id=CrossrefFundrefTelescope.DAG_ID,
         mode='reschedule')
 
     geonames_sensor = ExternalTaskSensor(
