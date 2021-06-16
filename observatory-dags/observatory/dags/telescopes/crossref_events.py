@@ -135,6 +135,9 @@ class CrossrefEventsRelease(StreamRelease):
 
             # if events file exists but no cursor file, previous request has finished & successful
             if os.path.isfile(events_path) and not os.path.isfile(cursor_path):
+                if os.path.isfile(events_path + 'old'):
+                    logging.info(f"{i + 1}.{event_type} Skipped transform, already finished: {date}")
+                    continue
                 with jsonlines.open(events_path, 'r') as reader:
                     with jsonlines.open(events_path + 'tmp', 'w') as writer:
                         for obj in reader:
