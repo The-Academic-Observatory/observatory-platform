@@ -3,9 +3,9 @@ Telescopes
 .. toctree::
     :maxdepth: 3
 
+    crossref_fundref
     crossref_metadata
     doab
-    fundref
     geonames
     google_analytics
     google_books
