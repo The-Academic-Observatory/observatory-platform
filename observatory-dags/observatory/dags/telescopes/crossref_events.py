@@ -30,7 +30,6 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
 from observatory.platform.telescopes.stream_telescope import (StreamRelease, StreamTelescope)
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.telescope_utils import convert
 from observatory.platform.utils.url_utils import get_ao_user_agent
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed, RetryError
 
@@ -139,7 +138,7 @@ class CrossrefEventsRelease(StreamRelease):
                 with jsonlines.open(events_path, 'r') as reader:
                     with jsonlines.open(events_path + 'tmp', 'w') as writer:
                         for obj in reader:
-                            event = change_keys(obj, convert)
+                            event = transform(obj)
                             writer.write(event)
                 os.rename(events_path, events_path + 'old')
                 os.rename(events_path + 'tmp', events_path)
@@ -271,7 +270,7 @@ def download_transform_events(url: str, headers: dict, events_path: str, cursor_
         # check for valid occurred at timestamp
         for i, event in enumerate(events):
             # transform keys in dict
-            events[i] = change_keys(event, convert)
+            events[i] = transform(event)
 
         # append events and cursor
         if events:
@@ -297,18 +296,17 @@ def parse_event_url(url: str) -> (str, str):
     return event_type, date
 
 
-def change_keys(obj, convert):
+def transform(event):
     """
     Recursively goes through the dictionary obj and updates keys with the convert function.
-    :param obj: The dictionary
-    :param convert: The convert function that is used to update the key
+    :param event: The dictionary
     :return: The updated dictionary
     """
-    if isinstance(obj, (str, int, float)):
-        return obj
-    if isinstance(obj, dict):
-        new = obj.__class__()
-        for k, v in obj.items():
+    if isinstance(event, (str, int, float)):
+        return event
+    if isinstance(event, dict):
+        new = event.__class__()
+        for k, v in event.items():
             if isinstance(v, int) and k != "total":
                 v = str(v)
             if k in ['timestamp', 'occurred_at', 'issued', 'dateModified', 'updated_date']:
@@ -316,5 +314,5 @@ def change_keys(obj, convert):
                     v = str(pendulum.parse(v))
                 except ValueError:
                     v = "0001-01-01T00:00:00Z"
-            new[convert(k)] = change_keys(v, convert)
+            new[k] = transform(v)
         return new
