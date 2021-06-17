@@ -26,11 +26,12 @@ from typing import List, Tuple, Union
 import jsonlines
 import pendulum
 import requests
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
 from observatory.platform.telescopes.stream_telescope import (StreamRelease, StreamTelescope)
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.url_utils import get_ao_user_agent
+from observatory.platform.utils.template_utils import upload_files_from_list
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed, RetryError
 
 
@@ -47,8 +48,10 @@ class CrossrefEventsRelease(StreamRelease):
         :param download_mode: Whether the events are downloaded in parallel, valid options: 'sequential' and 'parallel'
         :param max_processes: Max processes used for parallel downloading, default is based on 7 days x 3 url categories
         """
+        download_files_regex = r'.*.jsonl$'
         transform_files_regex = r'.*.jsonl$'
-        super().__init__(dag_id, start_date, end_date, first_release, transform_files_regex=transform_files_regex)
+        super().__init__(dag_id, start_date, end_date, first_release, download_files_regex=download_files_regex,
+                         transform_files_regex=transform_files_regex)
         self.mailto = mailto
         self.download_mode = download_mode
         self.max_processes = max_processes
@@ -87,11 +90,11 @@ class CrossrefEventsRelease(StreamRelease):
         """
         event_type, date = parse_event_url(url)
         if cursor:
-            return os.path.join(self.transform_folder, f'{event_type}_{date}_cursor.txt')
+            return os.path.join(self.download_folder, f'{event_type}_{date}_cursor.txt')
         else:
-            return os.path.join(self.transform_folder, f'{event_type}_{date}.jsonl')
+            return os.path.join(self.download_folder, f'{event_type}_{date}.jsonl')
 
-    def download_transform(self):
+    def download(self):
         """ Download one release of crossref events, this is from the start date of the previous successful DAG until
         the start date of this DAG. The release can be split up in periods (multiple batches), if the download mode is
         set to 'parallel'.
@@ -112,14 +115,14 @@ class CrossrefEventsRelease(StreamRelease):
             futures = []
             # select minimum, either no of batches or no of workers
             for i in range(len(self.urls)):
-                futures.append(executor.submit(self.download_transform_batch, i))
+                futures.append(executor.submit(self.download_batch, i))
             for future in as_completed(futures):
                 events = future.result()
                 all_events += events
-        if len(self.transform_files) == 0:
+        if len(self.download_files) == 0:
             raise AirflowSkipException('No events found')
 
-    def download_transform_batch(self, i: int) -> int:
+    def download_batch(self, i: int) -> int:
         """ Download one batch (time period) of events.
 
         :param i: The batch number
@@ -135,27 +138,17 @@ class CrossrefEventsRelease(StreamRelease):
 
             # if events file exists but no cursor file, previous request has finished & successful
             if os.path.isfile(events_path) and not os.path.isfile(cursor_path):
-                if os.path.isfile(events_path + 'old'):
-                    logging.info(f"{i + 1}.{event_type} Skipped transform, already finished: {date}")
-                    continue
-                with jsonlines.open(events_path, 'r') as reader:
-                    with jsonlines.open(events_path + 'tmp', 'w') as writer:
-                        for obj in reader:
-                            event = transform(obj)
-                            writer.write(event)
-                os.rename(events_path, events_path + 'old')
-                os.rename(events_path + 'tmp', events_path)
                 logging.info(f"{i + 1}.{event_type} Skipped, already finished: {date}")
                 continue
 
             logging.info(f"{i + 1}.{event_type} Downloading date: {date}")
 
             headers = {'User-Agent': get_ao_user_agent()}
-            next_cursor, counts, total_events = download_transform_events(url, headers, events_path, cursor_path)
+            next_cursor, counts, total_events = download_events(url, headers, events_path, cursor_path)
             counter = counts
             while next_cursor:
                 tmp_url = url + f'&cursor={next_cursor}'
-                next_cursor, counts, _ = download_transform_events(tmp_url, headers, events_path, cursor_path)
+                next_cursor, counts, _ = download_events(tmp_url, headers, events_path, cursor_path)
                 counter += counts
 
             if os.path.isfile(cursor_path):
@@ -164,6 +157,43 @@ class CrossrefEventsRelease(StreamRelease):
                          f'events: {counter}')
             events += counter
         return events
+
+    def transform(self):
+        """ Transform all events.
+
+        :return: None.
+        """
+        if self.download_mode == 'parallel':
+            no_workers = self.max_processes
+            logging.info(f'Transforming events with parallel method, no. workers: {no_workers}')
+        else:
+            logging.info('Transforming events with sequential method')
+            no_workers = 1
+
+        with ThreadPoolExecutor(max_workers=no_workers) as executor:
+            futures = []
+            # select minimum, either no of batches or no of workers
+            for file in self.download_files:
+                futures.append(executor.submit(self.transform_batch, file))
+            for future in as_completed(futures):
+                future.result()
+
+    def transform_batch(self, download_path: str):
+        """ Transform one batch (time period) of events.
+
+        :return: None.
+        """
+        file_name = os.path.basename(download_path)
+        transform_path = os.path.join(self.transform_folder, file_name)
+
+        logging.info(f"Transforming file: {file_name}")
+        with jsonlines.open(download_path, 'r') as reader:
+            with jsonlines.open(transform_path, 'w') as writer:
+                for event in reader:
+                    event = transform_events(event)
+                    writer.write(event)
+
+        logging.info(f"Finished: {file_name}")
 
 
 class CrossrefEventsTelescope(StreamTelescope):
@@ -205,7 +235,9 @@ class CrossrefEventsTelescope(StreamTelescope):
 
         self.add_setup_task_chain([self.check_dependencies,
                                    self.get_release_info])
-        self.add_task_chain([self.download_transform,
+        self.add_task_chain([self.download,
+                             self.upload_downloaded,
+                             self.transform,
                              self.upload_transformed,
                              self.bq_load_partition])
         self.add_task_chain([self.bq_delete_old,
@@ -222,14 +254,29 @@ class CrossrefEventsTelescope(StreamTelescope):
                                         self.download_mode, self.max_processes)
         return release
 
-    def download_transform(self, release: CrossrefEventsRelease, **kwargs):
+    def download(self, release: CrossrefEventsRelease, **kwargs):
         """ Task to download the CrossrefEventsRelease release.
 
         :param release: a CrossrefEventsRelease instance.
         :return: None.
         """
-        # Download release
-        release.download_transform()
+        release.download()
+
+    def upload_downloaded(self, release: CrossrefEventsRelease, **kwargs):
+        """ Upload the downloaded files for the given release.
+        :param release: a CrossrefEventsRelease instance
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
+        upload_files_from_list(release.download_files, release.download_bucket)
+
+    def transform(self, release: CrossrefEventsRelease, **kwargs):
+        """ Task to transform the CrossrefEventsRelease release.
+
+        :param release: a CrossrefEventsRelease instance.
+        :return: None.
+        """
+        release.transform()
 
 
 @retry(stop=stop_after_attempt(3),
@@ -246,7 +293,17 @@ def get_url(url: str, headers: dict):
     return response
 
 
-def download_transform_events(url: str, headers: dict, events_path: str, cursor_path: str) -> Tuple[Union[str, None], int, int]:
+def parse_event_url(url: str) -> (str, str):
+    event_type = url.split('?mailto')[0].split('/')[-1]
+    if event_type == 'events':
+        date = url.split('from-collected-date=')[1].split('&')[0]
+    else:
+        date = url.split('from-updated-date=')[1].split('&')[0]
+
+    return event_type, date
+
+
+def download_events(url: str, headers: dict, events_path: str, cursor_path: str) -> Tuple[Union[str, None], int, int]:
     """
     Extract the events from the given url until no new cursor is returned or a RetryError occurs. The extracted events
     are appended to a json file, with 1 list per request.
@@ -270,11 +327,6 @@ def download_transform_events(url: str, headers: dict, events_path: str, cursor_
         next_cursor = response_json['message']['next-cursor']
         counter = len(events)
 
-        # check for valid occurred at timestamp
-        for i, event in enumerate(events):
-            # transform keys in dict
-            events[i] = transform(event)
-
         # append events and cursor
         if events:
             with open(events_path, 'a') as f:
@@ -289,17 +341,7 @@ def download_transform_events(url: str, headers: dict, events_path: str, cursor_
         raise ConnectionError(f"Error requesting url: {url}, response: {response.text}")
 
 
-def parse_event_url(url: str) -> (str, str):
-    event_type = url.split('?mailto')[0].split('/')[-1]
-    if event_type == 'events':
-        date = url.split('from-collected-date=')[1].split('&')[0]
-    else:
-        date = url.split('from-updated-date=')[1].split('&')[0]
-
-    return event_type, date
-
-
-def transform(event):
+def transform_events(event):
     """
     Recursively goes through the dictionary obj and updates keys with the convert function.
     :param event: The dictionary
@@ -317,5 +359,6 @@ def transform(event):
                     v = str(pendulum.parse(v))
                 except ValueError:
                     v = "0001-01-01T00:00:00Z"
-            new[k] = transform(v)
+            k = k.replace('-', '_')
+            new[k] = transform_events(v)
         return new
