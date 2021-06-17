@@ -478,14 +478,6 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 isbn_field_name="Primary_ISBN",
                 sharded=False,
             ),
-            OaebuPartners(
-                name=OaebuPartnerName.google_analytics,
-                gcp_project_id="project",
-                gcp_dataset_id="dataset",
-                gcp_table_id="google_analytics",
-                isbn_field_name="publication_id",
-                sharded=False,
-            ),
         ]
 
         with CliRunner().isolated_filesystem():
@@ -514,7 +506,9 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "create_oaebu_intermediate_table.dataset.google_books_sales": [
                         "create_oaebu_intermediate_table.dataset.google_books_traffic"
                     ],
-                    "create_oaebu_intermediate_table.dataset.google_books_traffic": ["create_oaebu_data_qa_onix_isbn"],
+                    "create_oaebu_intermediate_table.dataset.google_books_traffic": ["create_oaebu_book_product_table.create_book_product"],
+                    "create_oaebu_book_product_table.create_book_product": ["export_oaebu_data"],
+                    "export_oaebu_data": ["create_oaebu_data_qa_onix_isbn"],
                     "create_oaebu_data_qa_onix_isbn": ["create_oaebu_data_qa_onix_aggregate"],
                     "create_oaebu_data_qa_onix_aggregate": ["create_oaebu_data_qa_jstor_isbn.dataset.jstor_country"],
                     "create_oaebu_data_qa_jstor_isbn.dataset.jstor_country": [
@@ -617,7 +611,9 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "create_oaebu_intermediate_table.dataset.google_books_traffic": [
                         "create_oaebu_intermediate_table.dataset.google_analytics"
                     ],
-                    "create_oaebu_intermediate_table.dataset.google_analytics": ["create_oaebu_data_qa_onix_isbn"],
+                    "create_oaebu_intermediate_table.dataset.google_analytics": ["create_oaebu_book_product_table.create_book_product"],
+                    "create_oaebu_book_product_table.create_book_product": ["export_oaebu_data"],
+                    "export_oaebu_data": ["create_oaebu_data_qa_onix_isbn"],
                     "create_oaebu_data_qa_onix_isbn": ["create_oaebu_data_qa_onix_aggregate"],
                     "create_oaebu_data_qa_onix_aggregate": ["create_oaebu_data_qa_jstor_isbn.dataset.jstor_country"],
                     "create_oaebu_data_qa_jstor_isbn.dataset.jstor_country": [

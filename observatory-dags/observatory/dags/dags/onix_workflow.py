@@ -27,6 +27,7 @@ from observatory.platform.utils.telescope_utils import make_observatory_api
 # Temporary function. Create oaebu partner metadata.
 # Get rid of this when we change the Observatory API.
 def get_oaebu_partner_data(project_id, org_name):
+
     oaebu_data = [
         OaebuPartners(
             name=OaebuPartnerName.google_analytics,
@@ -87,28 +88,33 @@ def get_oaebu_partner_data(project_id, org_name):
     ]
 
     publisher_to_provider_mapping = {
-        "oaebu_anu_press": [OaebuPartnerName.google_analytics,
+        "ANU Press": [OaebuPartnerName.google_analytics,
                             OaebuPartnerName.google_books_sales,
                             OaebuPartnerName.google_books_traffic,
                             OaebuPartnerName.jstor_country,
                             OaebuPartnerName.jstor_institution,
                             OaebuPartnerName.oapen_irus_uk],
-        "oaebu_ucl_press": [OaebuPartnerName.google_books_sales,
+        "UCL Press": [OaebuPartnerName.google_books_sales,
                             OaebuPartnerName.google_books_traffic,
                             OaebuPartnerName.jstor_country,
                             OaebuPartnerName.jstor_institution,
                             OaebuPartnerName.oapen_irus_uk,
                             OaebuPartnerName.ucl_discovery],
-        "oaebu_witts_press": [],
-        "oaebu_umich_press": [],
-        "oaebu_springer_nature": [],
-        "oaebu_oapen_press": [OaebuPartnerName.oapen_irus_uk],
+        "Wits University Press": [],
+        "University of Michigan Press": [],
+        "Springer Nature": [],
+        "Oapen Press": [OaebuPartnerName.oapen_irus_uk],
+        "Curtin Press": [OaebuPartnerName.google_books_sales,
+                            OaebuPartnerName.google_books_traffic,
+                            OaebuPartnerName.jstor_country,
+                            OaebuPartnerName.jstor_institution,
+                            OaebuPartnerName.oapen_irus_uk],
     }
 
     publisher_data_partners = list()
 
-    for data in data_partners:
-        if data.name in publisher_to_provider_mapping[project_id]:
+    for data in oaebu_data:
+        if data.name in publisher_to_provider_mapping[org_name]:
             publisher_data_partners.append(data)
 
     return publisher_data_partners
