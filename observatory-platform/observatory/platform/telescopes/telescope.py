@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
+
 import contextlib
 import copy
 import dataclasses
@@ -323,6 +324,12 @@ class Telescope(AbstractTelescope):
 
     @contextlib.contextmanager
     def parallel_tasks(self):
+        """ When called, all tasks added to the telescope within the `with` block will run in parallel.
+        add_task and add_task_chain can be used with this function.
+
+        :return: None.
+        """
+
         try:
             self._parallel_tasks = True
             yield
@@ -335,7 +342,9 @@ class Telescope(AbstractTelescope):
         :param funcs: The list of functions that will be called by the PythonOperator task.
         :return: None.
         """
-        self.task_funcs += [Operator(func, copy.copy(kwargs)) for func in funcs]
+
+        for func in funcs:
+            self.add_task(func, **copy.copy(kwargs))
 
     def task_callable(self, func: TelescopeFunction, **kwargs) -> Any:
         """Invoke a task callable. Creates a Release instance and calls the given task method. The result can be
@@ -352,11 +361,19 @@ class Telescope(AbstractTelescope):
         result = func(release, **kwargs)
         return result
 
-    def task_funcs_to_operators(self, task_funcs: List):
-        tasks_ = []
-        for op in task_funcs:
+    def to_python_operators(self, input_operators: List[Operator]):
+        """ Converts a list of Operator objects (task functions and kwarg arguments) into PythonOperator objects.
+
+        Recursively processes parallel tasks.
+
+        :param input_operators: a list of Operator objects.
+        :return: a list of PythonOperator objects.
+        """
+
+        python_operators = []
+        for op in input_operators:
             if isinstance(op, List):
-                tasks_.append(self.task_funcs_to_operators(op))
+                python_operators.append(self.to_python_operators(op))
             else:
                 with self.dag:
                     kwargs_ = copy.copy(op.kwargs)
@@ -368,8 +385,8 @@ class Telescope(AbstractTelescope):
                         provide_context=True,
                         **kwargs_,
                     )
-                    tasks_.append(task_)
-        return tasks_
+                    python_operators.append(task_)
+        return python_operators
 
     def make_dag(self) -> DAG:
         """Make an Airflow DAG for a telescope.
@@ -397,7 +414,7 @@ class Telescope(AbstractTelescope):
                 tasks.append(task)
 
             # Process all other tasks next, which are always PythonOperators
-            tasks += self.task_funcs_to_operators(self.task_funcs)
+            tasks += self.to_python_operators(self.task_funcs)
             chain(*tasks)
 
             # Chain all sensors to the first task

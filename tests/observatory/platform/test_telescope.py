@@ -14,14 +14,14 @@
 
 # Author: Tuan Chien, Aniek Roelofs
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from functools import partial
 
 from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
-from observatory.platform.telescopes.telescope import Release, Telescope, make_task_id
+
+from observatory.platform.telescopes.telescope import Release, Telescope, make_task_id, Operator
 from observatory.platform.utils.test_utils import ObservatoryTestCase
 
 
@@ -44,10 +44,10 @@ class MockTelescope(Telescope):
     def task(self, release: Release, **kwargs):
         pass
 
-    def task3(self, release: Release, **kwargs):
+    def task5(self, release: Release, **kwargs):
         pass
 
-    def task4(self, release: Release, **kwargs):
+    def task6(self, release: Release, **kwargs):
         pass
 
 
@@ -127,22 +127,52 @@ class TestTelescope(ObservatoryTestCase):
         with telescope.parallel_tasks():
             telescope.add_task(telescope.task, task_id="task1")
             telescope.add_task(telescope.task, task_id="task2")
-        telescope.add_task(telescope.task, task_id="join")
-        # with telescope.parallel_tasks():
-        #     telescope.add_task_chain([telescope.task3, telescope.task4])
+        telescope.add_task(telescope.task, task_id="join1")
+        with telescope.parallel_tasks():
+            telescope.add_task(telescope.task, task_id="task3")
+            telescope.add_task(telescope.task, task_id="task4")
+        telescope.add_task(telescope.task, task_id="join2")
+        with telescope.parallel_tasks():
+            telescope.add_task_chain([telescope.task5, telescope.task6])
+
         dag = telescope.make_dag()
         self.assertIsInstance(dag, DAG)
-        self.assertEqual(4, len(dag.tasks))
-        self.assert_dag_structure({
-            "setup_task": ["task1", "task2"],
-            "task1": ["join"],
-            "task2": ["join"],
-            "join": [],
-            # "task3": [],
-            # "task4": []
-        }, dag)
+        self.assertEqual(9, len(dag.tasks))
+        self.assert_dag_structure(
+            {
+                "setup_task": ["task1", "task2"],
+                "task1": ["join1"],
+                "task2": ["join1"],
+                "join1": ["task3", "task4"],
+                "task3": ["join2"],
+                "task4": ["join2"],
+                "join2": ["task5", "task6"],
+                "task5": [],
+                "task6": [],
+            },
+            dag,
+        )
 
-        # Test adding parallel tasks or
+        # Test parallel tasks function
+        telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
+        self.assertFalse(telescope._parallel_tasks)
+        with telescope.parallel_tasks():
+            self.assertTrue(telescope._parallel_tasks)
+        self.assertFalse(telescope._parallel_tasks)
+
+        # to_python_operators
+        telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
+        operators = [
+            Operator(telescope.task5, {}),
+            Operator(telescope.task6, {}),
+            Operator(telescope.task, {"task_id": "task7"}),
+        ]
+        expected_python_operator_ids = ["task5", "task6", "task7"]
+        actual_python_operators = telescope.to_python_operators(operators)
+        self.assertEqual(len(expected_python_operator_ids), len(actual_python_operators))
+        for e_task_id, op, actual_op in zip(expected_python_operator_ids, operators, actual_python_operators):
+            self.assertEqual(e_task_id, actual_op.task_id)
+            self.assertEqual(op.func, actual_op.python_callable.args[0])
 
 
 class TestAddSensorsTelescope(ObservatoryTestCase):
@@ -162,21 +192,15 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
 
     def test_add_sensor(self):
         mt = MockTelescope(
-            dag_id="1",
-            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
-            schedule_interval="daily",
+            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily",
         )
         mt.add_task(self.dummy_func)
         tds = ExternalTaskSensor(
-            external_dag_id="1",
-            task_id="test",
-            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            external_dag_id="1", task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
 
         tds2 = ExternalTaskSensor(
-            external_dag_id="1",
-            task_id="test2",
-            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            external_dag_id="1", task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
 
         mt.add_sensor(tds)
@@ -187,21 +211,15 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
 
     def test_add_sensors(self):
         mt = MockTelescope(
-            dag_id="1",
-            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
-            schedule_interval="daily",
+            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily",
         )
         mt.add_task(self.dummy_func)
         tds = ExternalTaskSensor(
-            external_dag_id="1",
-            task_id="test",
-            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            external_dag_id="1", task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
 
         tds2 = ExternalTaskSensor(
-            external_dag_id="1",
-            task_id="test2",
-            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            external_dag_id="1", task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
 
         mt.add_sensors([tds, tds2])
@@ -211,17 +229,12 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
 
     def test_add_sensors_empty(self):
         mt = MockTelescope(
-            dag_id="1",
-            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
-            schedule_interval="daily",
+            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily",
         )
         mt.add_task(self.dummy_func)
         mt.add_sensors([])
         dag = mt.make_dag()
 
         self.assert_dag_structure(
-            {
-                "dummy_func": [],
-            },
-            dag,
+            {"dummy_func": [],}, dag,
         )
