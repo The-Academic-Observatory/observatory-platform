@@ -543,5 +543,10 @@
     "mode": "NULLABLE",
     "name": "action",
     "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "jwt",
+    "type": "STRING"
   }
 ]
