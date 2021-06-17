@@ -134,7 +134,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
         self.assert_dag_structure(
             {
                 "crossref_metadata_sensor": ["check_dependencies"],
-                "fundref_sensor": ["check_dependencies"],
+                "crossref_fundref_sensor": ["check_dependencies"],
                 "geonames_sensor": ["check_dependencies"],
                 "grid_sensor": ["check_dependencies"],
                 "mag_sensor": ["check_dependencies"],
@@ -143,7 +143,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 "check_dependencies": ["create_datasets"],
                 "create_datasets": [
                     "create_crossref_events",
-                    "create_fundref",
+                    "create_crossref_fundref",
                     "create_grid",
                     "create_mag",
                     "create_orcid",
@@ -151,7 +151,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                     "create_unpaywall",
                 ],
                 "create_crossref_events": ["create_doi"],
-                "create_fundref": ["create_doi"],
+                "create_crossref_fundref": ["create_doi"],
                 "create_grid": ["create_doi"],
                 "create_mag": ["create_doi"],
                 "create_orcid": ["create_doi"],
@@ -231,7 +231,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
         dataset_transforms = make_dataset_transforms(
             dataset_id_crossref_events=fake_dataset_id,
             dataset_id_crossref_metadata=fake_dataset_id,
-            dataset_id_fundref=fake_dataset_id,
+            dataset_id_crossref_fundref=fake_dataset_id,
             dataset_id_grid=fake_dataset_id,
             dataset_id_iso=fake_dataset_id,
             dataset_id_mag=fake_dataset_id,
@@ -294,7 +294,12 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 # Generate fake dataset
                 observatory_dataset = make_observatory_dataset(self.institutions)
                 bq_load_observatory_dataset(
-                    observatory_dataset, env.download_bucket, fake_dataset_id, settings_dataset_id, release_date
+                    observatory_dataset,
+                    env.download_bucket,
+                    fake_dataset_id,
+                    settings_dataset_id,
+                    release_date,
+                    self.gcp_data_location,
                 )
 
                 # Test that source dataset transformations run

@@ -80,7 +80,7 @@ class Aggregation:
 def make_dataset_transforms(
     dataset_id_crossref_events: str = "crossref",
     dataset_id_crossref_metadata: str = "crossref",
-    dataset_id_fundref: str = "crossref",
+    dataset_id_crossref_fundref: str = "crossref",
     dataset_id_grid: str = "digital_science",
     dataset_id_iso: str = "iso",
     dataset_id_mag: str = "mag",
@@ -101,10 +101,10 @@ def make_dataset_transforms(
             ),
             Transform(
                 inputs={
-                    "fundref": Table(dataset_id_fundref, "fundref", sharded=True),
+                    "crossref_fundref": Table(dataset_id_crossref_fundref, "crossref_fundref", sharded=True),
                     "crossref_metadata": Table(dataset_id_crossref_metadata, "crossref_metadata", sharded=True),
                 },
-                output_table=Table(dataset_id_observatory_intermediate, "fundref"),
+                output_table=Table(dataset_id_observatory_intermediate, "crossref_fundref"),
                 output_cluster=True,
                 output_clustering_fields=["doi"],
             ),
@@ -265,7 +265,7 @@ class DoiWorkflow(Telescope):
     EXPORT_OUTPUT_TYPES_FILENAME = make_sql_jinja2_filename("export_output_types")
     EXPORT_RELATIONS_FILENAME = make_sql_jinja2_filename("export_relations")
 
-    SENSOR_DAG_IDS = ["crossref_metadata", "fundref", "geonames", "grid", "mag", "open_citations", "unpaywall"]
+    SENSOR_DAG_IDS = ["crossref_metadata", "crossref_fundref", "geonames", "grid", "mag", "open_citations", "unpaywall"]
 
     AGGREGATIONS = [
         Aggregation(

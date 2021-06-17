@@ -684,7 +684,7 @@ def make_mag(dataset: ObservatoryDataset) -> MagDataset:
     return MagDataset(affiliations, papers, paper_author_affiliations, fields_of_study, paper_fields_of_study)
 
 
-def make_fundref(dataset: ObservatoryDataset) -> List[Dict]:
+def make_crossref_fundref(dataset: ObservatoryDataset) -> List[Dict]:
     """ Generate the Crossref Fundref table from an ObservatoryDataset instance.
 
     :param dataset: the Observatory Dataset.
@@ -763,7 +763,7 @@ def bq_load_observatory_dataset(
     open_citations = make_open_citations(observatory_dataset)
     crossref_events = make_crossref_events(observatory_dataset)
     mag: MagDataset = make_mag(observatory_dataset)
-    fundref = make_fundref(observatory_dataset)
+    crossref_fundref = make_crossref_fundref(observatory_dataset)
     unpaywall = make_unpaywall(observatory_dataset)
     crossref_metadata = make_crossref_metadata(observatory_dataset)
 
@@ -779,7 +779,7 @@ def bq_load_observatory_dataset(
         records = [
             ("crossref_events", False, dataset_id_all, crossref_events, "crossref_events"),
             ("crossref_metadata", True, dataset_id_all, crossref_metadata, "crossref_metadata"),
-            ("fundref", True, dataset_id_all, fundref, "fundref"),
+            ("crossref_fundref", True, dataset_id_all, crossref_fundref, "crossref_fundref"),
             ("Affiliations", True, dataset_id_all, mag.affiliations, "MagAffiliations"),
             ("FieldsOfStudy", True, dataset_id_all, mag.fields_of_study, "MagFieldsOfStudy"),
             (
