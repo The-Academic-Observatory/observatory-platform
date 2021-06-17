@@ -437,6 +437,15 @@ class TestDoiWorkflow(ObservatoryTestCase):
             )
 
     def assert_sub_fields(self, expected: Dict, actual: Dict, field: str, sub_fields: List[str]):
+        """ Checks that the sub fields in the aggregate match.
+
+        :param expected: the expected item.
+        :param actual: the actual item.
+        :param field: the field name.
+        :param sub_fields: the sub field name.
+        :return:
+        """
+
         for key in sub_fields:
             self.assertEqual(expected[field][key], actual[field][key])
 

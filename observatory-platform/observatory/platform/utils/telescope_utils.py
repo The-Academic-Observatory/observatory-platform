@@ -317,6 +317,12 @@ def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
 
 
 def load_jsonl(file_path: str) -> List[dict]:
+    """ Load a json lines file.
+
+    :param file_path: the path to the file.
+    :return: the rows from the json lines file as a list of dictionaries.
+    """
+
     records = []
     with json_lines.open(file_path) as f:
         for record in f:
@@ -751,9 +757,12 @@ def upload_telescope_file_list(bucket_name: str, inst_id: str, telescope_path: s
     return blob_list
 
 
-def add_partition_date(list_of_dicts: List[dict], partition_date: datetime,
-                       partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
-                       partition_field: str = 'release_date'):
+def add_partition_date(
+    list_of_dicts: List[dict],
+    partition_date: datetime,
+    partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
+    partition_field: str = "release_date",
+):
     """ Add a partition date key/value pair to each dictionary in the list of dicts.
     Used to load data into a BigQuery partition.
 
@@ -766,7 +775,7 @@ def add_partition_date(list_of_dicts: List[dict], partition_date: datetime,
     if partition_type == bigquery.TimePartitioningType.HOUR:
         partition_date = partition_date.isoformat()
     else:
-        partition_date = partition_date.strftime('%Y-%m-%d')
+        partition_date = partition_date.strftime("%Y-%m-%d")
 
     for entry in list_of_dicts:
         entry[partition_field] = partition_date
