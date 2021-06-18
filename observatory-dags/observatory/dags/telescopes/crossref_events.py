@@ -94,11 +94,9 @@ class CrossrefEventsRelease(StreamRelease):
             return os.path.join(self.download_folder, f'{event_type}_{date}.jsonl')
 
     def download(self):
-        """ Download one release of crossref events, this is from the start date of the previous successful DAG until
-        the start date of this DAG. The release can be split up in periods (multiple batches), if the download mode is
-        set to 'parallel'.
+        """ Download all events.
 
-        :return:
+        :return: None.
         """
 
         if self.download_mode == 'parallel':
@@ -107,7 +105,6 @@ class CrossrefEventsRelease(StreamRelease):
         else:
             logging.info('Downloading events with sequential method')
             no_workers = 1
-        # all_file_paths = self.download_events_batch(0)
         logging.info(f'Downloading using these URLs, but with different start and end dates: {self.urls[0]}')
         with ThreadPoolExecutor(max_workers=no_workers) as executor:
             futures = []
@@ -120,7 +117,10 @@ class CrossrefEventsRelease(StreamRelease):
             raise AirflowSkipException('No events found')
 
     def download_batch(self, i: int, url: str):
-        """ Download one day of events.
+        """ Download one day of events. When the download finished successfully, the generated cursor file is deleted.
+        If there is a cursor file available at the start, it means that a previous download attempt failed. If there
+        is an events file available and no cursor file, it means that a previous download attempt was successful,
+        so these events will not be downloaded again.
 
         :param i: URL counter
         :param url: The url from which to download events
@@ -172,6 +172,7 @@ class CrossrefEventsRelease(StreamRelease):
     def transform_batch(self, download_path: str):
         """ Transform one day of events.
 
+        :param download_path: The path to the downloaded file.
         :return: None.
         """
         file_name = os.path.basename(download_path)
@@ -208,7 +209,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param updated_date_field: the BigQuery field used to determine newest entry for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
-        :param batch_load:
+        :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param mailto: Email address used in the download url
         :param download_mode: Whether the events are downloaded in parallel, valid options: 'sequential' and 'parallel'
@@ -237,7 +238,11 @@ class CrossrefEventsTelescope(StreamTelescope):
                              self.cleanup], trigger_rule='none_failed')
 
     def make_release(self, **kwargs) -> CrossrefEventsRelease:
-        # Make Release instance
+        """ Make a Release instance
+
+        :param kwargs: The context passed from the PythonOperator.
+        :return: CrossrefEventsRelease
+        """
         ti: TaskInstance = kwargs['ti']
         start_date, end_date, first_release = ti.xcom_pull(key=CrossrefEventsTelescope.RELEASE_INFO,
                                                            include_prior_dates=True)
@@ -250,12 +255,14 @@ class CrossrefEventsTelescope(StreamTelescope):
         """ Task to download the CrossrefEventsRelease release.
 
         :param release: a CrossrefEventsRelease instance.
+        :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
         release.download()
 
     def upload_downloaded(self, release: CrossrefEventsRelease, **kwargs):
         """ Upload the downloaded files for the given release.
+
         :param release: a CrossrefEventsRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -266,6 +273,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         """ Task to transform the CrossrefEventsRelease release.
 
         :param release: a CrossrefEventsRelease instance.
+        :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
         release.transform()
@@ -277,6 +285,12 @@ class CrossrefEventsTelescope(StreamTelescope):
                                               max=60 * 10),
        )
 def get_response(url: str, headers: dict):
+    """ Get response from the url with given headers and retry for certain status codes.
+
+    :param url: The url
+    :param headers: The headers dict
+    :return: The response
+    """
     response = requests.get(url, headers=headers)
     if response.status_code in [500, 400, 429]:
         logging.info(f'Downloading events from url: {url}, attempt: {get_response.retry.statistics["attempt_number"]}, '
@@ -286,6 +300,11 @@ def get_response(url: str, headers: dict):
 
 
 def parse_event_url(url: str) -> (str, str):
+    """ Parse the URL to get the event type and date
+
+    :param url: The url
+    :return: The event type and date
+    """
     event_type = url.split('?mailto')[0].split('/')[-1]
     if event_type == 'events':
         date = url.split('from-collected-date=')[1].split('&')[0]
@@ -298,10 +317,10 @@ def parse_event_url(url: str) -> (str, str):
 def download_events(url: str, headers: dict, events_path: str, cursor_path: str) -> Tuple[Union[str, None], int, int]:
     """
     Extract the events from the given url until no new cursor is returned or a RetryError occurs. The extracted events
-    are appended to a json file, with 1 list per request.
+    are appended to a jsonl file and the cursors are written to a text file.
 
-    :param url: The crossref events api url.
-    :param headers: The ao headers used in url.
+    :param url: The url
+    :param headers: The headers dict
     :param events_path: Path to the file in which events are stored.
     :param cursor_path: Path to the file where cursors are stored.
     :return: next_cursor, counter of events and total number of events according to the response
@@ -312,6 +331,7 @@ def download_events(url: str, headers: dict, events_path: str, cursor_path: str)
         # Try again with rows set to 100
         url = re.sub('rows=[0-9]*', 'rows=100', url)
         response = get_response(url, headers)
+
     if response.status_code == 200:
         response_json = response.json()
         total_events = response_json['message']['total-results']
@@ -333,10 +353,11 @@ def download_events(url: str, headers: dict, events_path: str, cursor_path: str)
 
 
 def transform_events(event):
-    """
-    Recursively goes through the dictionary obj and updates keys with the convert function.
-    :param event: The dictionary
-    :return: The updated dictionary
+    """ Transform the dictionary with event data by replacing '-' with '_' in key names, converting all int values to
+    string except for the 'total' field and parsing datetime columns for a valid datetime.
+
+    :param event: The event dictionary
+    :return: The updated event dictionary
     """
     if isinstance(event, (str, int, float)):
         return event
