@@ -16,6 +16,8 @@
 
 WITH months as (SELECT
     ISBN13,
+    MAX(onix.title) as title,
+    MAX(onix.published_year) as published_year,
     month.month,
     month.jstor_country as jstor,
     month.oapen_irus_uk.locations as oapen_irus_uk,
@@ -33,6 +35,8 @@ countries as (
 month_country as (
     SELECT
         ISBN13,
+        title,
+        published_year,
         month,
         alpha2,
         name as country_name
@@ -73,6 +77,8 @@ google_analytics_month_country as (
 
 SELECT
     month_country.ISBN13,
+    month_country.title,
+    month_country.published_year,
     month_country.month,
     month_country.alpha2 as country_code,
     month_country.country_name,

@@ -1,0 +1,64 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Richard Hosking #}
+
+WITH google_analytics as (
+    SELECT
+        1234 as ISBN,
+        "2021-01-31" as release_date,
+        "google_analytics" as source
+),
+
+google_books as (
+    SELECT
+        1234 as ISBN,
+        "2021-01-31" as release_date,
+        "google_books" as source
+),
+
+jstor as (
+    SELECT
+        1234 as ISBN,
+        "2021-02-31" as release_date,
+        "jstor" as source
+),
+
+oapen as (
+    SELECT
+        1234 as ISBN,
+        "2021-01-31" as release_date,
+        "oapen" as source
+),
+
+all_un_matched as (
+SELECT * FROM google_analytics
+    UNION ALL
+SELECT * FROM google_books
+    UNION ALL
+SELECT * FROM jstor
+    UNION ALL
+SELECT * FROM oapen
+)
+
+SELECT
+    ISBN,
+    release_date,
+    "google_analytics" in UNNEST(ARRAY_AGG(source)) as in_google_analytics,
+    "google_books" in UNNEST(ARRAY_AGG(source)) as in_google_books,
+    "jstor" in UNNEST(ARRAY_AGG(source)) as in_jstor,
+    "oapen" in UNNEST(ARRAY_AGG(source)) as in_oapen,
+FROM all_un_matched
+WHERE ISBN IS NOT NULL
+GROUP BY ISBN, release_date

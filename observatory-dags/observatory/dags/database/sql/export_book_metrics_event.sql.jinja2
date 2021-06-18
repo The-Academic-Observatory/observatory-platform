@@ -19,10 +19,10 @@ SELECT
     MAX(onix.title) as title,
     MAX(onix.published_year) as published_year,
     month.month,
-    NET.HOST(referrer.name) as referrer,
+    events.source as event_source,
     STRUCT(
-        SUM(referrer.value) as value
-    ) as google_analytics,
-FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(months) as month, UNNEST(month.google_analytics.unique_views.referrer) as referrer
-WHERE referrer IS NOT NULL AND referrer.name != "(direct)"
-GROUP BY ISBN13, month, referrer
+        SUM(events.count) as count
+    ) as crossref_events,
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(months) as month, UNNEST(month.crossref_events) as events
+WHERE events IS NOT NULL
+GROUP BY ISBN13, month, event_source

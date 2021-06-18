@@ -109,6 +109,10 @@ onix_ebook_titles as (
             ProductForm,
             EditionNumber,
             onix.TitleDetails[SAFE_OFFSET(0)].TitleElements[SAFE_OFFSET(0)].TitleText as title,
+            ARRAY(SELECT
+                SUBSTRING(CAST(dates.Date as STRING), 0, 4)
+            FROM UNNEST(onix.PublishingDates) as dates
+            WHERE dates.PublishingDateRole = "Date of first publication")[SAFE_OFFSET(0)] as published_year,
             ARRAY(
                 SELECT
                     subject.SubjectCode
@@ -129,7 +133,14 @@ onix_ebook_titles as (
                     SELECT
                         TRIM(LOWER(keyword)) FROM UNNEST(SPLIT(subject.SubjectHeadingText[SAFE_OFFSET(0)], ';')) as keyword)
                     FROM UNNEST(onix.Subjects) as subject
-                    WHERE subject.SubjectSchemeIdentifier = "Keywords") as keywords
+                    WHERE subject.SubjectSchemeIdentifier = "Keywords") as keywords,
+            (SELECT
+                ARRAY(
+                    SELECT as STRUCT
+                        PersonName, ORCID
+                    FROM UNNEST(onix.Contributors) as contributor
+                )
+            ) as authors
         ) as onix
     FROM `{{ project_id }}.{{ onix_dataset_id }}.onix{{ release.strftime('%Y%m%d') }}` as onix
     WHERE ProductForm = "Digital download and online" OR ProductForm = "Digital (delivered electronically)"
