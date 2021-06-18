@@ -16,8 +16,8 @@
 
 WITH months as (SELECT
     ISBN13,
-    MAX(onix.title) as title,
-    MAX(onix.published_year) as published_year,
+    onix.title as title,
+    onix.published_year as published_year,
     month.month,
     month.jstor_country as jstor,
     month.oapen_irus_uk.locations as oapen_irus_uk,

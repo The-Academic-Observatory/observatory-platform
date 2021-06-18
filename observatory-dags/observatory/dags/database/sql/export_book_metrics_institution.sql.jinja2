@@ -16,8 +16,8 @@
 
 SELECT
     ISBN13,
-    MAX(onix.title) as title,
-    MAX(onix.published_year) as published_year,
+    onix.title as title,
+    onix.published_year as published_year,
     month.month,
     institution.institution,
     STRUCT(
