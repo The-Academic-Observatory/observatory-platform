@@ -74,7 +74,7 @@ google_analytics_month_country as (
 SELECT
     month_country.ISBN13,
     month_country.month,
-    month_country.country_code,
+    month_country.alpha2 as country_code,
     month_country.country_name,
     STRUCT(jstor.Total_Item_Requests) as jstor,
     STRUCT(oapen.title_requests, oapen.total_item_investigations, oapen.total_item_requests, oapen.unique_item_investigations, oapen.unique_item_requests) as oapen_irus_uk,

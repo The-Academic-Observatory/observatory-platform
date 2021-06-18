@@ -601,11 +601,16 @@ class OnixWorkflow(Telescope):
         self,
         releases: List[OnixWorkflowRelease],
         *args,
-        include_google_analytics=bool,
-        include_google_books=bool,
-        include_jstor=bool,
-        include_oapen=bool,
-        include_ucl=bool,
+        include_google_analytics: bool,
+        include_google_books: bool,
+        include_jstor: bool,
+        include_oapen: bool,
+        include_ucl: bool,
+        google_analytics_dataset: str,
+        google_books_dataset: str,
+        jstor_dataset: str,
+        oapen_dataset: str,
+        ucl_dataset: str,
         **kwargs,
     ):
         """Create an intermediate oaebu table.  They are of the form datasource_matched<date>
@@ -620,13 +625,13 @@ class OnixWorkflow(Telescope):
 
         for release in releases:
 
-            output_table = "book_prodct"
+            output_table = "book_product"
             output_dataset = release.oaebu_dataset
 
             data_location = release.dataset_location
             release_date = release.release_date
 
-            table_joining_template_file = "create_book_product.sql.jinja2"
+            table_joining_template_file = "create_book_products.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
             table_id = bigquery_sharded_table_id(output_table, release_date)
@@ -635,6 +640,7 @@ class OnixWorkflow(Telescope):
             sql = render_template(
                 template_path,
                 project_id=release.project_id,
+                onix_dataset_id=release.onix_dataset_id,
                 dataset_id=release.oaebu_intermediate_dataset,
                 release=release_date,
                 google_analytics=include_google_analytics,
@@ -642,6 +648,11 @@ class OnixWorkflow(Telescope):
                 jstor=include_jstor,
                 oapen=include_oapen,
                 ucl=include_ucl,
+                google_analytics_dataset=google_analytics_dataset,
+                google_books_dataset=google_books_dataset,
+                jstor_dataset=jstor_dataset,
+                oapen_dataset=oapen_dataset,
+                ucl_dataset=ucl_dataset,
             )
 
             create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
@@ -664,20 +675,35 @@ class OnixWorkflow(Telescope):
         :param oaebu_data: List of oaebu partner data.
         """
 
+        data_partner_datasets = {
+            OaebuPartnerName.google_analytics: None,
+            OaebuPartnerName.google_books_traffic: None,
+            OaebuPartnerName.jstor_country: None,
+            OaebuPartnerName.oapen_irus_uk: None,
+            OaebuPartnerName.ucl_discovery: None,
+        }
+        for data in data_partners:
+            data_partner_datasets[data.name] = data.gcp_dataset_id
+
         # Book Product
         fn = partial(
             self.create_oaebu_book_product_table,
-            include_google_analytics=any(OaebuPartnerName.google_analytics in data.name for data in data_partners),
-            include_google_books=any(OaebuPartnerName.google_books_traffic in data.name for data in data_partners),
-            include_jstor=any(OaebuPartnerName.jstor_country in data.name for data in data_partners),
-            include_oapen=any(OaebuPartnerName.oapen_irus_uk in data.name for data in data_partners),
-            include_ucl=any(OaebuPartnerName.ucl_discovery in data.name for data in data_partners),
+            include_google_analytics=data_partner_datasets[OaebuPartnerName.google_analytics] != None,
+            include_google_books=data_partner_datasets[OaebuPartnerName.google_books_traffic] != None,
+            include_jstor=data_partner_datasets[OaebuPartnerName.jstor_country] != None,
+            include_oapen=data_partner_datasets[OaebuPartnerName.oapen_irus_uk] != None,
+            include_ucl=data_partner_datasets[OaebuPartnerName.ucl_discovery] != None,
+            google_analytics_dataset=data_partner_datasets[OaebuPartnerName.google_analytics],
+            google_books_dataset=data_partner_datasets[OaebuPartnerName.google_books_traffic],
+            jstor_dataset=data_partner_datasets[OaebuPartnerName.jstor_country],
+            oapen_dataset=data_partner_datasets[OaebuPartnerName.oapen_irus_uk],
+            ucl_dataset=data_partner_datasets[OaebuPartnerName.ucl_discovery],
         )
 
         # Populate the __name__ attribute of the partial object (it lacks one by default).
         # Scheme: create_oaebu_table.dataset.table
         update_wrapper(fn, self.create_oaebu_book_product_table)
-        fn.__name__ += ".create_book_product"
+        #fn.__name__ += ".create_oaebu_book_product_table"
 
         self.add_task(fn)
 
@@ -693,7 +719,7 @@ class OnixWorkflow(Telescope):
 
         for release in releases:
 
-            output_dataset = release.oaebu_dataset
+            output_dataset = release.oaebu_elastic_dataset
 
             data_location = release.dataset_location
             release_date = release.release_date
@@ -703,13 +729,13 @@ class OnixWorkflow(Telescope):
             # Book Product List
             output_table = "book_product_list"
             table_id = bigquery_sharded_table_id(output_table, release_date)
-            table_joining_template_file = "export_book_product_list.sql.jinja2"
+            table_joining_template_file = "export_book_list.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
             sql = render_template(
                 template_path,
                 project_id=release.project_id,
-                dataset_id=release.oaebu_intermediate_dataset,
+                dataset_id=release.oaebu_dataset,
                 release=release_date,
             )
 
@@ -729,13 +755,13 @@ class OnixWorkflow(Telescope):
             # Book Product Metrics
             output_table = "book_product_metrics"
             table_id = bigquery_sharded_table_id(output_table, release_date)
-            table_joining_template_file = "export_book_product_metrics.sql.jinja2"
+            table_joining_template_file = "export_book_metrics.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
             sql = render_template(
                 template_path,
                 project_id=release.project_id,
-                dataset_id=release.oaebu_intermediate_dataset,
+                dataset_id=release.oaebu_dataset,
                 release=release_date,
             )
 
@@ -755,13 +781,13 @@ class OnixWorkflow(Telescope):
             # Book Product Country Metrics
             output_table = "book_product_metrics_country"
             table_id = bigquery_sharded_table_id(output_table, release_date)
-            table_joining_template_file = "export_book_product_metrics_country.sql.jinja2"
+            table_joining_template_file = "export_book_metrics_country.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
             sql = render_template(
                 template_path,
                 project_id=release.project_id,
-                dataset_id=release.oaebu_intermediate_dataset,
+                dataset_id=release.oaebu_dataset,
                 release=release_date,
             )
 
@@ -781,13 +807,13 @@ class OnixWorkflow(Telescope):
             # Book Product Institution Metrics
             output_table = "book_product_metrics_institution"
             table_id = bigquery_sharded_table_id(output_table, release_date)
-            table_joining_template_file = "export_book_product_metrics_institution.sql.jinja2"
+            table_joining_template_file = "export_book_metrics_institution.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
             sql = render_template(
                 template_path,
                 project_id=release.project_id,
-                dataset_id=release.oaebu_intermediate_dataset,
+                dataset_id=release.oaebu_dataset,
                 release=release_date,
             )
 
@@ -807,13 +833,13 @@ class OnixWorkflow(Telescope):
             # Book Product City Metrics
             output_table = "book_product_metrics_city"
             table_id = bigquery_sharded_table_id(output_table, release_date)
-            table_joining_template_file = "export_book_product_metrics_city.sql.jinja2"
+            table_joining_template_file = "export_book_metrics_city.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
             sql = render_template(
                 template_path,
                 project_id=release.project_id,
-                dataset_id=release.oaebu_intermediate_dataset,
+                dataset_id=release.oaebu_dataset,
                 release=release_date,
             )
 
@@ -833,13 +859,13 @@ class OnixWorkflow(Telescope):
             # Book Product Referrer Metrics
             output_table = "book_product_metrics_referrer"
             table_id = bigquery_sharded_table_id(output_table, release_date)
-            table_joining_template_file = "export_book_product_metrics_referrer.sql.jinja2"
+            table_joining_template_file = "export_book_metrics_referrer.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
             sql = render_template(
                 template_path,
                 project_id=release.project_id,
-                dataset_id=release.oaebu_intermediate_dataset,
+                dataset_id=release.oaebu_dataset,
                 release=release_date,
             )
 
@@ -859,13 +885,13 @@ class OnixWorkflow(Telescope):
             # Publisher Metrics
             output_table = "book_publisher_metrics"
             table_id = bigquery_sharded_table_id(output_table, release_date)
-            table_joining_template_file = "export_book_product_metrics.sql.jinja2"
+            table_joining_template_file = "export_book_metrics.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
             sql = render_template(
                 template_path,
                 project_id=release.project_id,
-                dataset_id=release.oaebu_intermediate_dataset,
+                dataset_id=release.oaebu_dataset,
                 release=release_date,
             )
 
