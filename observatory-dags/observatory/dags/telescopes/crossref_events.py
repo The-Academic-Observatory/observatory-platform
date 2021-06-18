@@ -74,11 +74,10 @@ class CrossrefEventsRelease(StreamRelease):
             deleted_url = f'https://api.eventdata.crossref.org/v1/events/deleted?mailto={self.mailto}' \
                           f'&from-updated-date={start_date}&until-updated-date={end_date}&rows=1000'
 
-            event_type_urls = [events_url]
+            urls.append(events_url)
             if not self.first_release:
-                event_type_urls.append(edited_url)
-                event_type_urls.append(deleted_url)
-            urls.append(event_type_urls)
+                urls.append(edited_url)
+                urls.append(deleted_url)
         return urls
 
     def batch_path(self, url, cursor: bool = False) -> str:
@@ -109,54 +108,46 @@ class CrossrefEventsRelease(StreamRelease):
             logging.info('Downloading events with sequential method')
             no_workers = 1
         # all_file_paths = self.download_events_batch(0)
-        logging.info(f'Downloading using URLs with different start and end dates: {self.urls[0]}')
-        all_events = 0
+        logging.info(f'Downloading using these URLs, but with different start and end dates: {self.urls[0]}')
         with ThreadPoolExecutor(max_workers=no_workers) as executor:
             futures = []
             # select minimum, either no of batches or no of workers
-            for i in range(len(self.urls)):
-                futures.append(executor.submit(self.download_batch, i))
+            for i, url in enumerate(self.urls):
+                futures.append(executor.submit(self.download_batch, i, url))
             for future in as_completed(futures):
-                events = future.result()
-                all_events += events
+                future.result()
         if len(self.download_files) == 0:
             raise AirflowSkipException('No events found')
 
-    def download_batch(self, i: int) -> int:
-        """ Download one batch (time period) of events.
+    def download_batch(self, i: int, url: str):
+        """ Download one day of events.
 
-        :param i: The batch number
-        :return: Count of events (new, edited, deleted) found
+        :param i: URL counter
+        :param url: The url from which to download events
+        :return: None.
         """
-        events = 0
-        # Extract all new, edited and deleted events
-        for url in self.urls[i]:
-            events_path = self.batch_path(url)
-            cursor_path = self.batch_path(url, cursor=True)
+        events_path = self.batch_path(url)
+        cursor_path = self.batch_path(url, cursor=True)
+        event_type, date = parse_event_url(url)
 
-            event_type, date = parse_event_url(url)
+        # if events file exists but no cursor file, previous request has finished & successful
+        if os.path.isfile(events_path) and not os.path.isfile(cursor_path):
+            logging.info(f"{i + 1}.{event_type} Skipped, already finished: {date}")
+            return
 
-            # if events file exists but no cursor file, previous request has finished & successful
-            if os.path.isfile(events_path) and not os.path.isfile(cursor_path):
-                logging.info(f"{i + 1}.{event_type} Skipped, already finished: {date}")
-                continue
+        logging.info(f"{i + 1}.{event_type} Downloading date: {date}")
+        headers = {'User-Agent': get_ao_user_agent()}
+        next_cursor, counts, total_events = download_events(url, headers, events_path, cursor_path)
+        counter = counts
+        while next_cursor:
+            tmp_url = url + f'&cursor={next_cursor}'
+            next_cursor, counts, _ = download_events(tmp_url, headers, events_path, cursor_path)
+            counter += counts
 
-            logging.info(f"{i + 1}.{event_type} Downloading date: {date}")
-
-            headers = {'User-Agent': get_ao_user_agent()}
-            next_cursor, counts, total_events = download_events(url, headers, events_path, cursor_path)
-            counter = counts
-            while next_cursor:
-                tmp_url = url + f'&cursor={next_cursor}'
-                next_cursor, counts, _ = download_events(tmp_url, headers, events_path, cursor_path)
-                counter += counts
-
-            if os.path.isfile(cursor_path):
-                os.remove(cursor_path)
-            logging.info(f'{i + 1}.{event_type} successful, date: {date}, total no. events: {total_events}, downloaded '
-                         f'events: {counter}')
-            events += counter
-        return events
+        if os.path.isfile(cursor_path):
+            os.remove(cursor_path)
+        logging.info(f'{i + 1}.{event_type} successful, date: {date}, total no. events: {total_events}, downloaded '
+                     f'events: {counter}')
 
     def transform(self):
         """ Transform all events.
@@ -179,7 +170,7 @@ class CrossrefEventsRelease(StreamRelease):
                 future.result()
 
     def transform_batch(self, download_path: str):
-        """ Transform one batch (time period) of events.
+        """ Transform one day of events.
 
         :return: None.
         """
@@ -205,8 +196,8 @@ class CrossrefEventsTelescope(StreamTelescope):
                  schedule_interval: str = '@weekly', dataset_id: str = 'crossref',
                  dataset_description: str = 'The Crossref Events dataset: https://www.eventdata.crossref.org/guide/',
                  merge_partition_field: str = 'id', updated_date_field: str = 'timestamp',
-                 bq_merge_days: int = 7, airflow_vars: List = None, mailto: str = 'aniek.roelofs@curtin.edu.au',
-                 download_mode: str = 'parallel', max_processes: int = 21):
+                 bq_merge_days: int = 7, batch_load: bool = True, airflow_vars: List = None,
+                 mailto: str = 'aniek.roelofs@curtin.edu.au', download_mode: str = 'parallel', max_processes: int = 21):
         """ Construct a CrossrefEventsTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -217,6 +208,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param updated_date_field: the BigQuery field used to determine newest entry for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
+        :param batch_load:
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param mailto: Email address used in the download url
         :param download_mode: Whether the events are downloaded in parallel, valid options: 'sequential' and 'parallel'
@@ -228,7 +220,7 @@ class CrossrefEventsTelescope(StreamTelescope):
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
                          updated_date_field, bq_merge_days, dataset_description=dataset_description,
-                         airflow_vars=airflow_vars, batch_load=True)
+                         airflow_vars=airflow_vars, batch_load=batch_load)
         self.mailto = mailto
         self.download_mode = download_mode
         self.max_processes = max_processes
@@ -284,11 +276,11 @@ class CrossrefEventsTelescope(StreamTelescope):
                                               exp_base=3,
                                               max=60 * 10),
        )
-def get_url(url: str, headers: dict):
+def get_response(url: str, headers: dict):
     response = requests.get(url, headers=headers)
     if response.status_code in [500, 400, 429]:
-        logging.info(f'Downloading events from url: {url}, attempt: {get_url.retry.statistics["attempt_number"]}, '
-                     f'idle for: {get_url.retry.statistics["idle_for"]}')
+        logging.info(f'Downloading events from url: {url}, attempt: {get_response.retry.statistics["attempt_number"]}, '
+                     f'idle for: {get_response.retry.statistics["idle_for"]}')
         raise ConnectionError("Retrying url")
     return response
 
@@ -312,14 +304,14 @@ def download_events(url: str, headers: dict, events_path: str, cursor_path: str)
     :param headers: The ao headers used in url.
     :param events_path: Path to the file in which events are stored.
     :param cursor_path: Path to the file where cursors are stored.
-    :return: success, next_cursor and number of total events
+    :return: next_cursor, counter of events and total number of events according to the response
     """
     try:
-        response = get_url(url, headers)
+        response = get_response(url, headers)
     except RetryError:
         # Try again with rows set to 100
         url = re.sub('rows=[0-9]*', 'rows=100', url)
-        response = get_url(url, headers)
+        response = get_response(url, headers)
     if response.status_code == 200:
         response_json = response.json()
         total_events = response_json['message']['total-results']
@@ -336,7 +328,6 @@ def download_events(url: str, headers: dict, events_path: str, cursor_path: str)
             with open(cursor_path, 'a') as f:
                 f.write(next_cursor + '\n')
         return next_cursor, counter, total_events
-
     else:
         raise ConnectionError(f"Error requesting url: {url}, response: {response.text}")
 
