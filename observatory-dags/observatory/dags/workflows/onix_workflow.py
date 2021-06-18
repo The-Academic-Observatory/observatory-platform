@@ -306,11 +306,11 @@ class OnixWorkflow(Telescope):
         # Create OAEBU tables
         self.create_oaebu_output_tasks(data_partners)
 
-        # Create OAEBU Elastic Export tables
-        self.add_task(self.export_oaebu_data)
-
         # Create QA metrics tables
         self.create_oaebu_data_qa_tasks(data_partners)
+
+        # Create OAEBU Elastic Export tables
+        self.create_oaebu_export_tasks(data_partners)
 
         # Cleanup tasks
         self.add_task(self.cleanup)
@@ -621,6 +621,11 @@ class OnixWorkflow(Telescope):
         :param include_jstor: Whether jstor is a relevant data source for this publisher
         :param include_oapen: Whether OAPEN is a relevant data source for this publisher
         :param include_ucl: Whether UCL Discovery is a relevant data source for this publisher
+        :param google_analytics_dataset: dataset_id if it is a relevant data source for this publisher
+        :param google_books_dataset: dataset_id if it is  a relevant data source for this publisher
+        :param jstor_dataset: dataset_id if it is  a relevant data source for this publisher
+        :param oapen_dataset: dataset_id if it is  a relevant data source for this publisher
+        :param ucl_dataset: dataset_id if it is  a relevant data source for this publisher
         """
 
         for release in releases:
@@ -712,9 +717,35 @@ class OnixWorkflow(Telescope):
         # TODO Book Work Family
 
 
-    def export_oaebu_data(self, releases: List[OnixWorkflowRelease], *args, **kwargs):
-        """Create a set of bq tables in the oaebu_elastic dataset
-        :param releases: List of workflow releases.
+    def export_oaebu_data(
+            self,
+            releases: List[OnixWorkflowRelease],
+            *args,
+            include_google_analytics: bool,
+            include_google_books: bool,
+            include_jstor: bool,
+            include_oapen: bool,
+            include_ucl: bool,
+            google_analytics_dataset: str,
+            google_books_dataset: str,
+            jstor_dataset: str,
+            oapen_dataset: str,
+            ucl_dataset: str,
+            **kwargs,
+    ):
+        """Create an intermediate oaebu table.  They are of the form datasource_matched<date>
+        :param releases: Onix workflow release information.
+        :param args: Catching any other positional args (unused).
+        :param include_google_analytics: Whether Google Analytics is a relevant data source for this publisher
+        :param include_google_books: Whether Google Books is a relevant data source for this publisher
+        :param include_jstor: Whether jstor is a relevant data source for this publisher
+        :param include_oapen: Whether OAPEN is a relevant data source for this publisher
+        :param include_ucl: Whether UCL Discovery is a relevant data source for this publisher
+        :param google_analytics_dataset: dataset_id if it is a relevant data source for this publisher
+        :param google_books_dataset: dataset_id if it is  a relevant data source for this publisher
+        :param jstor_dataset: dataset_id if it is  a relevant data source for this publisher
+        :param oapen_dataset: dataset_id if it is  a relevant data source for this publisher
+        :param ucl_dataset: dataset_id if it is  a relevant data source for this publisher
         """
 
         for release in releases:
@@ -882,10 +913,10 @@ class OnixWorkflow(Telescope):
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
 
-            # Publisher Metrics
-            output_table = "book_publisher_metrics"
+            # Book Product Event Metrics
+            output_table = "book_product_metrics_events"
             table_id = bigquery_sharded_table_id(output_table, release_date)
-            table_joining_template_file = "export_book_metrics.sql.jinja2"
+            table_joining_template_file = "export_book_metrics_event.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
             sql = render_template(
@@ -908,7 +939,102 @@ class OnixWorkflow(Telescope):
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
 
+            # Publisher Metrics
+            output_table = "book_publisher_metrics"
+            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_joining_template_file = "export_book_publisher_metrics.sql.jinja2"
+            template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
+            sql = render_template(
+                template_path,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_dataset,
+                release=release_date,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=output_dataset,
+                table_id=table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
+                )
+
+            # Un-matched Metrics
+            output_table = "unmatched_book_metrics"
+            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_joining_template_file = "export_unmatched_metrics.sql.jinja2"
+            template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+
+            sql = render_template(
+                template_path,
+                project_id=release.project_id,
+                dataset_id=release.oaebu_dataset,
+                release=release_date,
+                google_analytics=include_google_analytics,
+                google_books=include_google_books,
+                jstor=include_jstor,
+                oapen=include_oapen,
+                ucl=include_ucl,
+                google_analytics_dataset=google_analytics_dataset,
+                google_books_dataset=google_books_dataset,
+                jstor_dataset=jstor_dataset,
+                oapen_dataset=oapen_dataset,
+                ucl_dataset=ucl_dataset,
+            )
+
+            status = create_bigquery_table_from_query(
+                sql=sql,
+                project_id=release.project_id,
+                dataset_id=output_dataset,
+                table_id=table_id,
+                location=release.dataset_location,
+            )
+
+            if status != True:
+                raise AirflowException(
+                    f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
+                )
+
+    def create_oaebu_export_tasks(self, data_partners: List[OaebuPartners]):
+        """Create tasks for exporting final metrics from our OAEBU data.  It will create output tables in the oaebu_elastic dataset.
+        :param oaebu_data: List of oaebu partner data.
+        """
+
+        data_partner_datasets = {
+            OaebuPartnerName.google_analytics: None,
+            OaebuPartnerName.google_books_traffic: None,
+            OaebuPartnerName.jstor_country: None,
+            OaebuPartnerName.oapen_irus_uk: None,
+            OaebuPartnerName.ucl_discovery: None,
+        }
+        for data in data_partners:
+            data_partner_datasets[data.name] = data.gcp_dataset_id
+
+        # Export Data
+        fn = partial(
+            self.export_oaebu_data,
+            include_google_analytics=data_partner_datasets[OaebuPartnerName.google_analytics] != None,
+            include_google_books=data_partner_datasets[OaebuPartnerName.google_books_traffic] != None,
+            include_jstor=data_partner_datasets[OaebuPartnerName.jstor_country] != None,
+            include_oapen=data_partner_datasets[OaebuPartnerName.oapen_irus_uk] != None,
+            include_ucl=data_partner_datasets[OaebuPartnerName.ucl_discovery] != None,
+            google_analytics_dataset=data_partner_datasets[OaebuPartnerName.google_analytics],
+            google_books_dataset=data_partner_datasets[OaebuPartnerName.google_books_traffic],
+            jstor_dataset=data_partner_datasets[OaebuPartnerName.jstor_country],
+            oapen_dataset=data_partner_datasets[OaebuPartnerName.oapen_irus_uk],
+            ucl_dataset=data_partner_datasets[OaebuPartnerName.ucl_discovery],
+        )
+
+        # Populate the __name__ attribute of the partial object (it lacks one by default).
+        update_wrapper(fn, self.export_oaebu_data)
+
+        self.add_task(fn)
 
     def create_oaebu_data_qa_tasks(self, data_partners: List[OaebuPartners]):
         """Create tasks for outputing QA metrics from our OAEBU data.  It will create output tables in the oaebu_data_qa dataset.
