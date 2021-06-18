@@ -32,7 +32,7 @@
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "referrer": {
+      "event_source": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -41,9 +41,9 @@
           }
         }
       },
-      "google_analytics": {
+      "crossref_events": {
         "properties": {
-          "value": {
+          "count": {
             "type": "integer",
           }
         }
