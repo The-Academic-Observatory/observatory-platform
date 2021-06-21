@@ -284,7 +284,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
     @patch.object(CrossrefEventsRelease, 'download_batch')
     @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
     def test_download(self, mock_variable_get, mock_download_batch):
-        """ Test the download method of the release
+        """ Test the download method of the release in parallel mode
         :return: None.
         """
         mock_variable_get.return_value = "data"
@@ -340,3 +340,21 @@ class TestCrossrefEvents(ObservatoryTestCase):
             self.release.download_batch(batch_number, url)
             mock_download_events.assert_not_called()
             os.remove(events_path)
+
+    @patch.object(CrossrefEventsRelease, 'transform_batch')
+    @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
+    def test_transform(self, mock_variable_get, mock_transform_batch):
+        """ Test the transform method of the release in parallel mode
+        :return: None.
+        """
+        mock_variable_get.return_value = "data"
+        self.release.download_mode = 'parallel'
+
+        with CliRunner().isolated_filesystem():
+            # Create fake download files
+            events_path = os.path.join(self.release.download_folder, 'events.jsonl')
+            with open(events_path, 'w') as f:
+                f.write("[{'test': 'test'}]\n")
+
+            self.release.transform()
+            self.assertEqual(len(self.release.download_files), mock_transform_batch.call_count)

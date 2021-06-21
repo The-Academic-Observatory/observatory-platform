@@ -106,9 +106,9 @@ class CrossrefEventsRelease(StreamRelease):
             logging.info('Downloading events with sequential method')
             no_workers = 1
         logging.info(f'Downloading using these URLs, but with different start and end dates: {self.urls[0]}')
+
         with ThreadPoolExecutor(max_workers=no_workers) as executor:
             futures = []
-            # select minimum, either no of batches or no of workers
             for i, url in enumerate(self.urls):
                 futures.append(executor.submit(self.download_batch, i, url))
             for future in as_completed(futures):
@@ -163,7 +163,6 @@ class CrossrefEventsRelease(StreamRelease):
 
         with ThreadPoolExecutor(max_workers=no_workers) as executor:
             futures = []
-            # select minimum, either no of batches or no of workers
             for file in self.download_files:
                 futures.append(executor.submit(self.transform_batch, file))
             for future in as_completed(futures):
@@ -315,9 +314,8 @@ def parse_event_url(url: str) -> (str, str):
 
 
 def download_events(url: str, headers: dict, events_path: str, cursor_path: str) -> Tuple[Union[str, None], int, int]:
-    """
-    Extract the events from the given url until no new cursor is returned or a RetryError occurs. The extracted events
-    are appended to a jsonl file and the cursors are written to a text file.
+    """ Extract the events from the given url until no new cursor is returned or a RetryError occurs.
+    The extracted events are appended to a jsonl file and the cursors are written to a text file.
 
     :param url: The url
     :param headers: The headers dict

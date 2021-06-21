@@ -83,6 +83,7 @@ class StreamTelescope(Telescope):
         :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
         :param dataset_description: description for the BigQuery dataset.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions
+        :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         """
