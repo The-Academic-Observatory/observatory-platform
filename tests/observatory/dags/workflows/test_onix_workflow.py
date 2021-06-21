@@ -539,7 +539,10 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "export_oaebu_table.book_product_metrics_city": ["export_oaebu_table.book_product_metrics_referrer"],
                     "export_oaebu_table.book_product_metrics_referrer": ["export_oaebu_table.book_product_metrics_events"],
                     "export_oaebu_table.book_product_metrics_events": ["export_oaebu_table.book_publisher_metrics"],
-                    "export_oaebu_table.book_publisher_metrics": ["export_oaebu_qa_metrics"],
+                    "export_oaebu_table.book_publisher_metrics": ["export_oaebu_table.book_subject_metrics"],
+                    "export_oaebu_table.book_subject_metrics": ["export_oaebu_table.book_year_metrics"],
+                    "export_oaebu_table.book_year_metrics": ["export_oaebu_table.book_subject_year_metrics"],
+                    "export_oaebu_table.book_subject_year_metrics": ["export_oaebu_qa_metrics"],
                     "export_oaebu_qa_metrics": ["cleanup"],
                     "cleanup": [],
                 },
@@ -658,7 +661,10 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "export_oaebu_table.book_product_metrics_city": ["export_oaebu_table.book_product_metrics_referrer"],
                     "export_oaebu_table.book_product_metrics_referrer": ["export_oaebu_table.book_product_metrics_events"],
                     "export_oaebu_table.book_product_metrics_events": ["export_oaebu_table.book_publisher_metrics"],
-                    "export_oaebu_table.book_publisher_metrics": ["export_oaebu_qa_metrics"],
+                    "export_oaebu_table.book_publisher_metrics": ["export_oaebu_table.book_subject_metrics"],
+                    "export_oaebu_table.book_subject_metrics": ["export_oaebu_table.book_year_metrics"],
+                    "export_oaebu_table.book_year_metrics": ["export_oaebu_table.book_subject_year_metrics"],
+                    "export_oaebu_table.book_subject_year_metrics": ["export_oaebu_qa_metrics"],
                     "export_oaebu_qa_metrics": ["cleanup"],
                     "cleanup": [],
                 },
@@ -1781,7 +1787,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             oaebu_data_qa_dataset = env.add_dataset()
             onix_workflow_dataset = env.add_dataset()
             oaebu_intermediate_dataset = env.add_dataset()
-            oaebu_dataset = env.add_dataset()
+            oaebu_output_dataset = env.add_dataset()
             oaebu_elastic_dataset = env.add_dataset()
 
             telescope.make_release = MagicMock(
@@ -1796,7 +1802,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                         oaebu_data_qa_dataset=oaebu_data_qa_dataset,
                         workflow_dataset=onix_workflow_dataset,
                         oaebu_intermediate_dataset=oaebu_intermediate_dataset,
-                        oaebu_dataset=oaebu_dataset,
+                        oaebu_dataset=oaebu_output_dataset,
                         oaebu_elastic_dataset=oaebu_elastic_dataset,
                     )
                 ]
@@ -1973,13 +1979,21 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
 
             table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn{release_suffix}"
-
             self.assert_table_integrity(table_id, 3)
 
             table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workfamilyid_isbn{release_suffix}"
             self.assert_table_integrity(table_id, 3)
 
             table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn_errors{release_suffix}"
+            self.assert_table_integrity(table_id, 1)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
+            self.assert_table_integrity(table_id, 2)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            self.assert_table_integrity(table_id, 2)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_publisher_metrics{release_suffix}"
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
@@ -2037,7 +2051,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertEqual(records[0]["no_relatedworks"], 0)
             self.assertEqual(records[0]["no_relatedproducts"], 2)
             self.assertEqual(records[0]["no_doi"], 3)
-            self.assertEqual(records[0]["no_productform"], 3)
+            self.assertEqual(records[0]["no_productform"], 1)
             self.assertEqual(records[0]["no_contributors"], 3)
             self.assertEqual(records[0]["no_titledetails"], 3)
             self.assertEqual(records[0]["no_publisher_urls"], 3)
@@ -2124,17 +2138,31 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("9781111111113" in isbns)
             self.assertTrue("113" in isbns)
 
-            #Check export tables
+            # Check Book Product Table
+            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN13"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("112" in isbns)
+
+            # Check export tables
+            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN13"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("112" in isbns)
 
             # Cleanup
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
 
             # Environment cleanup
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_data_qa_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="oaebu_intermediate")
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_intermediate_dataset)
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="onix_workflow")
-            #delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_elastic_dataset)
-            #delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_dataset)
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_elastic_dataset)
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_output_dataset)
             delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix=self.test_onix_folder)
 
 
@@ -2400,6 +2428,9 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             oaebu_data_qa_dataset = env.add_dataset()
             onix_workflow_dataset = env.add_dataset()
             oaebu_intermediate_dataset = env.add_dataset()
+            oaebu_output_dataset = env.add_dataset()
+            oaebu_elastic_dataset = env.add_dataset()
+
             telescope.make_release = MagicMock(
                 return_value=[
                     OnixWorkflowRelease(
@@ -2412,6 +2443,8 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
                         oaebu_data_qa_dataset=oaebu_data_qa_dataset,
                         workflow_dataset=onix_workflow_dataset,
                         oaebu_intermediate_dataset=oaebu_intermediate_dataset,
+                        oaebu_dataset=oaebu_output_dataset,
+                        oaebu_elastic_dataset=oaebu_elastic_dataset,
                     )
                 ]
             )
@@ -2611,6 +2644,15 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn_errors{release_suffix}"
             self.assert_table_integrity(table_id, 1)
 
+            table_id = f"{self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
+            self.assert_table_integrity(table_id, 2)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            self.assert_table_integrity(table_id, 2)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_publisher_metrics{release_suffix}"
+            self.assert_table_integrity(table_id, 1)
+
             # Validate the joins worked
             # JSTOR
             sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.{oaebu_intermediate_dataset}.{self.fake_partner_dataset}_jstor_country_matched{release_suffix}"
@@ -2666,7 +2708,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             self.assertEqual(records[0]["no_relatedworks"], 0)
             self.assertEqual(records[0]["no_relatedproducts"], 2)
             self.assertEqual(records[0]["no_doi"], 3)
-            self.assertEqual(records[0]["no_productform"], 3)
+            self.assertEqual(records[0]["no_productform"], 1)
             self.assertEqual(records[0]["no_contributors"], 3)
             self.assertEqual(records[0]["no_titledetails"], 3)
             self.assertEqual(records[0]["no_publisher_urls"], 3)
@@ -2768,11 +2810,29 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             self.assertTrue("9781111111113" in isbns)
             self.assertTrue("(none)" in isbns)
 
+            # Check Book Product Table
+            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN13"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("112" in isbns)
+
+            # Check export tables
+            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN13"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("112" in isbns)
+
             # Cleanup
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
 
             # Environment cleanup
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_data_qa_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="oaebu_intermediate")
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_intermediate_dataset)
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_elastic_dataset)
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_output_dataset)
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="onix_workflow")
             delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix=self.test_onix_folder)
