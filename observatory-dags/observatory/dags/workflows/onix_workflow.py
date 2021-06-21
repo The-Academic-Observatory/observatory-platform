@@ -680,16 +680,6 @@ class OnixWorkflow(Telescope):
         :param oaebu_data: List of oaebu partner data.
         """
 
-        data_partner_datasets = {
-            OaebuPartnerName.google_analytics: None,
-            OaebuPartnerName.google_books_traffic: None,
-            OaebuPartnerName.jstor_country: None,
-            OaebuPartnerName.oapen_irus_uk: None,
-            OaebuPartnerName.ucl_discovery: None,
-        }
-        for data in data_partners:
-            data_partner_datasets[data.name] = data.gcp_dataset_id
-
         data_partner_datasets = {data.name: data.gcp_dataset_id for data in data_partners}
 
         # Book Product
@@ -771,11 +761,16 @@ class OnixWorkflow(Telescope):
         include_jstor: bool,
         include_oapen: bool,
         include_ucl: bool,
-        google_analytics_dataset: str,
-        google_books_dataset: str,
-        jstor_dataset: str,
-        oapen_dataset: str,
-        ucl_dataset: str,
+        google_analytics_table: str,
+        google_books_table: str,
+        jstor_table: str,
+        oapen_table: str,
+        ucl_table: str,
+        google_analytics_isbn: str,
+        google_books_isbn: str,
+        jstor_isbn: str,
+        oapen_isbn: str,
+        ucl_isbn: str,
         **kwargs,
     ):
         """Create the unmatched metrics table
@@ -786,11 +781,16 @@ class OnixWorkflow(Telescope):
         :param include_jstor: Whether jstor is a relevant data source for this publisher
         :param include_oapen: Whether OAPEN is a relevant data source for this publisher
         :param include_ucl: Whether UCL Discovery is a relevant data source for this publisher
-        :param google_analytics_dataset: dataset_id if it is a relevant data source for this publisher
-        :param google_books_dataset: dataset_id if it is  a relevant data source for this publisher
-        :param jstor_dataset: dataset_id if it is  a relevant data source for this publisher
-        :param oapen_dataset: dataset_id if it is  a relevant data source for this publisher
-        :param ucl_dataset: dataset_id if it is  a relevant data source for this publisher
+        :param google_analytics_table: table_id if it is a relevant data source for this publisher
+        :param google_books_table: table_id if it is  a relevant data source for this publisher
+        :param jstor_table: table_id if it is  a relevant data source for this publisher
+        :param oapen_table: table_id if it is  a relevant data source for this publisher
+        :param ucl_table: table_id if it is  a relevant data source for this publisher
+        :param google_analytics_isbn: isbn field if it is a relevant data source for this publisher
+        :param google_books_isbn: isbn field if it is  a relevant data source for this publisher
+        :param jstor_isbn: isbn field if it is  a relevant data source for this publisher
+        :param oapen_isbn: isbn field if it is  a relevant data source for this publisher
+        :param ucl_isbn: isbn field if it is  a relevant data source for this publisher
         """
 
         for release in releases:
@@ -810,18 +810,23 @@ class OnixWorkflow(Telescope):
             sql = render_template(
                 template_path,
                 project_id=release.project_id,
-                dataset_id=release.oaebu_dataset,
+                dataset_id=release.oaebu_data_qa_dataset,
                 release=release_date,
                 google_analytics=include_google_analytics,
                 google_books=include_google_books,
                 jstor=include_jstor,
                 oapen=include_oapen,
                 ucl=include_ucl,
-                google_analytics_dataset=google_analytics_dataset,
-                google_books_dataset=google_books_dataset,
-                jstor_dataset=jstor_dataset,
-                oapen_dataset=oapen_dataset,
-                ucl_dataset=ucl_dataset,
+                google_analytics_table=google_analytics_table,
+                google_books_table=google_books_table,
+                jstor_table=jstor_table,
+                oapen_table=oapen_table,
+                ucl_table=ucl_table,
+                google_analytics_isbn=google_analytics_isbn,
+                google_books_isbn=google_books_isbn,
+                jstor_isbn=jstor_isbn,
+                oapen_isbn=oapen_isbn,
+                ucl_isbn=ucl_isbn,
             )
 
             status = create_bigquery_table_from_query(
@@ -853,6 +858,9 @@ class OnixWorkflow(Telescope):
             {"output_table": "book_product_metrics_referrer", "query_template": "export_book_metrics_referrer.sql.jinja2"},
             {"output_table": "book_product_metrics_events", "query_template": "export_book_metrics_event.sql.jinja2"},
             {"output_table": "book_publisher_metrics", "query_template": "export_book_publisher_metrics.sql.jinja2"},
+            {"output_table": "book_subject_metrics", "query_template": "export_book_subject_metrics.sql.jinja2"},
+            {"output_table": "book_year_metrics", "query_template": "export_book_year_metrics.sql.jinja2"},
+            {"output_table": "book_subject_year_metrics", "query_template": "export_book_subject_year_metrics.sql.jinja2"},
         ]
 
         # For each export table
@@ -871,29 +879,27 @@ class OnixWorkflow(Telescope):
 
 
         # Export QA Metrics
-        data_partner_datasets = {
-            OaebuPartnerName.google_analytics: None,
-            OaebuPartnerName.google_books_traffic: None,
-            OaebuPartnerName.jstor_country: None,
-            OaebuPartnerName.oapen_irus_uk: None,
-            OaebuPartnerName.ucl_discovery: None,
-        }
-        for data in data_partners:
-            data_partner_datasets[data.name] = data.gcp_dataset_id
+        data_partner_tables = {data.name: data.gcp_table_id for data in data_partners}
+        data_partner_isbns = {data.name: data.isbn_field_name for data in data_partners}
 
-        # Output QA Metrics
+        # Book Product
         fn = partial(
             self.export_oaebu_qa_metrics,
-            include_google_analytics=data_partner_datasets[OaebuPartnerName.google_analytics] != None,
-            include_google_books=data_partner_datasets[OaebuPartnerName.google_books_traffic] != None,
-            include_jstor=data_partner_datasets[OaebuPartnerName.jstor_country] != None,
-            include_oapen=data_partner_datasets[OaebuPartnerName.oapen_irus_uk] != None,
-            include_ucl=data_partner_datasets[OaebuPartnerName.ucl_discovery] != None,
-            google_analytics_dataset=data_partner_datasets[OaebuPartnerName.google_analytics],
-            google_books_dataset=data_partner_datasets[OaebuPartnerName.google_books_traffic],
-            jstor_dataset=data_partner_datasets[OaebuPartnerName.jstor_country],
-            oapen_dataset=data_partner_datasets[OaebuPartnerName.oapen_irus_uk],
-            ucl_dataset=data_partner_datasets[OaebuPartnerName.ucl_discovery],
+            include_google_analytics=OaebuPartnerName.google_analytics in data_partner_tables,
+            include_google_books=OaebuPartnerName.google_books_traffic in data_partner_tables,
+            include_jstor=OaebuPartnerName.jstor_country in data_partner_tables,
+            include_oapen=OaebuPartnerName.oapen_irus_uk in data_partner_tables,
+            include_ucl=OaebuPartnerName.ucl_discovery in data_partner_tables,
+            google_analytics_table=data_partner_tables.get(OaebuPartnerName.google_analytics, None),
+            google_books_table=data_partner_tables.get(OaebuPartnerName.google_books_traffic, None),
+            jstor_table=data_partner_tables.get(OaebuPartnerName.jstor_country, None),
+            oapen_table=data_partner_tables.get(OaebuPartnerName.oapen_irus_uk, None),
+            ucl_table=data_partner_tables.get(OaebuPartnerName.ucl_discovery, None),
+            google_analytics_isbn=data_partner_isbns.get(OaebuPartnerName.google_analytics, None),
+            google_books_isbn=data_partner_isbns.get(OaebuPartnerName.google_books_traffic, None),
+            jstor_isbn=data_partner_isbns.get(OaebuPartnerName.jstor_country, None),
+            oapen_isbn=data_partner_isbns.get(OaebuPartnerName.oapen_irus_uk, None),
+            ucl_isbn=data_partner_isbns.get(OaebuPartnerName.ucl_discovery, None),
         )
 
         # Populate the __name__ attribute of the partial object (it lacks one by default).

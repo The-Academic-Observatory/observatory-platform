@@ -15,31 +15,63 @@
 # Author: Richard Hosking #}
 
 WITH google_analytics as (
+    {% if google_analytics %}
     SELECT
-        1234 as ISBN,
-        "2021-01-31" as release_date,
+        {{ google_analytics_isbn }} as ISBN,
+        release_date,
         "google_analytics" as source
+    FROM `{{ project_id }}.{{ dataset_id }}.{{ google_analytics_table }}_unmatched_{{ google_analytics_isbn }}{{ release.strftime('%Y%m%d') }}`
+    {% else %}
+    SELECT
+        CAST(NULL as STRING) as ISBN,
+        CAST(NULL as DATE) as release_date,
+        "google_analytics" as source
+    {% endif %}
 ),
 
 google_books as (
+    {% if google_books %}
     SELECT
-        1234 as ISBN,
-        "2021-01-31" as release_date,
+        {{ google_books_isbn }} as ISBN,
+        release_date,
         "google_books" as source
+    FROM `{{ project_id }}.{{ dataset_id }}.{{ google_books_table }}_unmatched_{{ google_books_isbn }}{{ release.strftime('%Y%m%d') }}`
+    {% else %}
+    SELECT
+        CAST(NULL as STRING) as ISBN,
+        CAST(NULL as DATE) as release_date,
+        "google_books" as source
+    {% endif %}
 ),
 
 jstor as (
+    {% if jstor %}
     SELECT
-        1234 as ISBN,
-        "2021-02-31" as release_date,
+        {{ jstor_isbn }} as ISBN,
+        release_date,
         "jstor" as source
+    FROM `{{ project_id }}.{{ dataset_id }}.{{ jstor_table }}_unmatched_{{ jstor_isbn }}{{ release.strftime('%Y%m%d') }}`
+    {% else %}
+    SELECT
+        CAST(NULL as STRING) as ISBN,
+        CAST(NULL as DATE) as release_date,
+        "jstor" as source
+    {% endif %}
 ),
 
 oapen as (
+    {% if oapen %}
     SELECT
-        1234 as ISBN,
-        "2021-01-31" as release_date,
+        {{ oapen_isbn }} as ISBN,
+        release_date,
         "oapen" as source
+    FROM `{{ project_id }}.{{ dataset_id }}.{{ oapen_table }}_unmatched_{{ oapen_isbn }}{{ release.strftime('%Y%m%d') }}`
+    {% else %}
+    SELECT
+        CAST(NULL as STRING) as ISBN,
+        CAST(NULL as DATE) as release_date,
+        "oapen" as source
+    {% endif %}
 ),
 
 all_un_matched as (

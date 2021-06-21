@@ -172,7 +172,7 @@ google_books_sales_metadata as (
 
 google_books_traffic_metrics as (
     SELECT
-        Primary_ISBN  as ISBN13, release_date, STRUCT(Book_Visits_BV_, BV_with_Pages_Viewed, Non_Unique_Buy_Clicks, BV_with_Pages_Viewed, BV_with_Buy_Clicks, Buy_Link_CTR, Pages_Viewed) as metrics
+        Primary_ISBN  as ISBN13, release_date, STRUCT(Book_Visits_BV_, BV_with_Pages_Viewed, Non_Unique_Buy_Clicks, BV_with_Buy_Clicks, Buy_Link_CTR, Pages_Viewed) as metrics
     FROM {% if google_books %} `{{ project_id }}.{{ dataset_id }}.{{ google_books_dataset }}_google_books_traffic_matched{{ release.strftime('%Y%m%d') }}` {% else %} empty_google_books_traffic {% endif %} as google_books
 ),
 
