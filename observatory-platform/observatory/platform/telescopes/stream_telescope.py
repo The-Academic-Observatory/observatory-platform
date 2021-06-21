@@ -122,8 +122,9 @@ class StreamTelescope(Telescope):
             # set start date to the start of the DAG
             start_date = pendulum.instance(kwargs['dag'].default_args['start_date']).start_of('day')
         else:
-            # set start date to end date of previous DAG run
-            start_date = release_info[1]
+            # set start date to end date of previous DAG run, add 1 day, because end date was processed in prev run.
+            start_date = release_info[1] + timedelta(days=1)
+        # set start date to current day, subtract 1 day, because data from same day might not be available yet.
         end_date = pendulum.today('UTC') - timedelta(days=1)
         logging.info(f'Start date: {start_date}, end date: {end_date}, first release: {first_release}')
 
@@ -179,7 +180,7 @@ class StreamTelescope(Telescope):
 
         start_date = pendulum.instance(ti.previous_start_date_success)
         end_date = pendulum.instance(ti.start_date)
-        if (end_date - start_date).days >= self.bq_merge_days:
+        if (end_date - start_date).days + 1 >= self.bq_merge_days:
             logging.info(f'Deleting old data from main table from partitions between dates: {start_date}, {end_date}')
             for transform_path in release.transform_files:
                 if self.batch_load:
@@ -193,7 +194,7 @@ class StreamTelescope(Telescope):
                                   self.merge_partition_field, self.updated_date_field)
         else:
             raise AirflowSkipException(f'Skipped, only delete old records every {self.bq_merge_days} days. '
-                                       f'Last delete was {(end_date - start_date).days} days ago')
+                                       f'Last delete was {(end_date - start_date).days + 1} days ago on {ti.previous_start_date_success}')
 
     def bq_append_new(self, release: StreamRelease, **kwargs):
         """ Append rows to the 'main' table, based on rows that are in a partition of the 'partitions' table.
@@ -222,7 +223,7 @@ class StreamTelescope(Telescope):
 
         start_date = pendulum.instance(ti.previous_start_date_success)
         end_date = pendulum.instance(ti.start_date)
-        if (end_date - start_date).days >= self.bq_merge_days:
+        if (end_date - start_date).days + 1 >= self.bq_merge_days:
             logging.info(f'Appending data to main table from partitions between dates: {start_date}, {end_date}')
             for transform_path in release.transform_files:
                 if self.batch_load:
@@ -237,7 +238,7 @@ class StreamTelescope(Telescope):
         else:
             raise AirflowSkipException(f'Skipped, not first release and only append new records every '
                                        f'{self.bq_merge_days} days. Last append was'
-                                       f' {(end_date - start_date).days} days ago')
+                                       f' {(end_date - start_date).days + 1} days ago on {ti.previous_start_date_success}')
 
     def cleanup(self, release: StreamRelease, **kwargs):
         """ Delete downloaded, extracted and transformed files of the release.

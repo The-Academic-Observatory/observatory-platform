@@ -472,8 +472,8 @@ def bq_delete_old(
     """ Will run a BigQuery query that deletes rows from the main table that are matched with rows from
     specific partitions of the partition table.
     The query is created from a template and the given info.
-    :param start_date: Start date.
-    :param end_date: End date.
+    :param start_date: Start date, excluded.
+    :param end_date: End date, included.
     :param dataset_id: Dataset id.
     :param main_table_id: Main table id.
     :param partition_table_id: Partition table id.
@@ -481,14 +481,12 @@ def bq_delete_old(
     :param updated_date_field: Updated date field.
     :return: None.
     """
-    # include end date in period
     start_date = start_date.strftime("%Y-%m-%d")
-    end_date = (end_date + timedelta(days=1)).strftime("%Y-%m-%d")
+    end_date = end_date.strftime("%Y-%m-%d")
     # Get merge variables
     dataset_id = dataset_id
     main_table = main_table_id
     partitioned_table = partition_table_id
-
     merge_condition_field = merge_partition_field
     updated_date_field = updated_date_field
 
@@ -516,8 +514,8 @@ def bq_append_from_partition(
     schema_version: str = None,
 ):
     """ Appends rows to the main table by coping specific partitions from the partition table to the main table.
-    :param start_date: Start date.
-    :param end_date: End date.
+    :param start_date: Start date, excluded.
+    :param end_date: End date, included.
     :param dataset_id: Dataset id.
     :param main_table_id: Main table id.
     :param partition_table_id: Partition table id.
@@ -528,8 +526,8 @@ def bq_append_from_partition(
     project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
         dataset_id, main_table_id, end_date, prefix, schema_version
     )
-    # include end date in period
-    period = pendulum.period(start_date, end_date)
+    # exclude start date and include end date in period
+    period = pendulum.period(start_date.date() + timedelta(days=1), end_date.date())
     logging.info(f"Getting table partitions: ")
     source_table_ids = []
     for dt in period:
