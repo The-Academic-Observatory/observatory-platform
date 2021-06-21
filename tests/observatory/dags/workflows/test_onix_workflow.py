@@ -531,8 +531,16 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "create_oaebu_data_qa_google_books_traffic_isbn": [
                         "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_books_traffic"
                     ],
-                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_books_traffic": ["export_oaebu_data"],
-                    "export_oaebu_data": ["cleanup"],
+                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_books_traffic": ["export_oaebu_table.book_product_list"],
+                    "export_oaebu_table.book_product_list": ["export_oaebu_table.book_product_metrics"],
+                    "export_oaebu_table.book_product_metrics": ["export_oaebu_table.book_product_metrics_country"],
+                    "export_oaebu_table.book_product_metrics_country": ["export_oaebu_table.book_product_metrics_institution"],
+                    "export_oaebu_table.book_product_metrics_institution": ["export_oaebu_table.book_product_metrics_city"],
+                    "export_oaebu_table.book_product_metrics_city": ["export_oaebu_table.book_product_metrics_referrer"],
+                    "export_oaebu_table.book_product_metrics_referrer": ["export_oaebu_table.book_product_metrics_events"],
+                    "export_oaebu_table.book_product_metrics_events": ["export_oaebu_table.book_publisher_metrics"],
+                    "export_oaebu_table.book_publisher_metrics": ["export_oaebu_qa_metrics"],
+                    "export_oaebu_qa_metrics": ["cleanup"],
                     "cleanup": [],
                 },
                 dag,
@@ -642,8 +650,16 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "create_oaebu_data_qa_google_analytics_isbn": [
                         "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_analytics"
                     ],
-                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_analytics": ["export_oaebu_data"],
-                    "export_oaebu_data": ["cleanup"],
+                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_analytics": ["export_oaebu_table.book_product_list"],
+                    "export_oaebu_table.book_product_list": ["export_oaebu_table.book_product_metrics"],
+                    "export_oaebu_table.book_product_metrics": ["export_oaebu_table.book_product_metrics_country"],
+                    "export_oaebu_table.book_product_metrics_country": ["export_oaebu_table.book_product_metrics_institution"],
+                    "export_oaebu_table.book_product_metrics_institution": ["export_oaebu_table.book_product_metrics_city"],
+                    "export_oaebu_table.book_product_metrics_city": ["export_oaebu_table.book_product_metrics_referrer"],
+                    "export_oaebu_table.book_product_metrics_referrer": ["export_oaebu_table.book_product_metrics_events"],
+                    "export_oaebu_table.book_product_metrics_events": ["export_oaebu_table.book_publisher_metrics"],
+                    "export_oaebu_table.book_publisher_metrics": ["export_oaebu_qa_metrics"],
+                    "export_oaebu_qa_metrics": ["cleanup"],
                     "cleanup": [],
                 },
                 dag,
@@ -1830,13 +1846,6 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 self.timestamp,
             )
 
-            # Export oaebu elastic tables
-            env.run_task(
-                telescope.export_oaebu_data.__name__,
-                workflow_dag,
-                self.timestamp,
-            )
-
             # ONIX isbn check
             env.run_task(
                 telescope.create_oaebu_data_qa_onix_isbn.__name__,
@@ -1917,6 +1926,32 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             # OAPEN IRUS UK intermediate unmatched isbns
             env.run_task(
                 f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[4].gcp_dataset_id}.{data_partners[4].gcp_table_id}",
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # Export oaebu elastic tables
+            export_tables = [
+                "book_product_list",
+                "book_product_metrics",
+                "book_product_metrics_country",
+                "book_product_metrics_institution",
+                "book_product_metrics_city",
+                "book_product_metrics_referrer",
+                "book_product_metrics_events",
+                "book_publisher_metrics",
+            ]
+
+            for table in export_tables:
+                env.run_task(
+                    f"{telescope.export_oaebu_table.__name__}.{table}",
+                    workflow_dag,
+                    self.timestamp,
+                )
+
+            # Export oaebu elastic qa table
+            env.run_task(
+                telescope.export_oaebu_qa_metrics.__name__,
                 workflow_dag,
                 self.timestamp,
             )
@@ -2525,8 +2560,27 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             )
 
             # Export oaebu elastic tables
+            export_tables = [
+                "book_product_list",
+                "book_product_metrics",
+                "book_product_metrics_country",
+                "book_product_metrics_institution",
+                "book_product_metrics_city",
+                "book_product_metrics_referrer",
+                "book_product_metrics_events",
+                "book_publisher_metrics",
+            ]
+
+            for table in export_tables:
+                env.run_task(
+                    f"{telescope.export_oaebu_table.__name__}.{table}",
+                    workflow_dag,
+                    self.timestamp,
+                )
+
+            # Export oaebu elastic qa table
             env.run_task(
-                telescope.export_oaebu_data.__name__,
+                telescope.export_oaebu_qa_metrics.__name__,
                 workflow_dag,
                 self.timestamp,
             )
