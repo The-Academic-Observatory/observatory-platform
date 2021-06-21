@@ -1946,6 +1946,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 "book_product_metrics_referrer",
                 "book_product_metrics_events",
                 "book_publisher_metrics",
+                "book_subject_metrics",
+                "book_year_metrics",
+                "book_subject_year_metrics",
             ]
 
             for table in export_tables:
@@ -2606,6 +2609,9 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
                 "book_product_metrics_referrer",
                 "book_product_metrics_events",
                 "book_publisher_metrics",
+                "book_subject_metrics",
+                "book_year_metrics",
+                "book_subject_year_metrics",
             ]
 
             for table in export_tables:
