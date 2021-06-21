@@ -67,9 +67,9 @@ class CrossrefMetadataRelease(SnapshotRelease):
         return os.path.join(self.download_folder, 'crossref_metadata.json.tar.gz')
 
     def download(self):
-        """ Downloads release
+        """ Download release.
 
-        :return:  None.
+        :return: None.
         """
 
         logging.info(f"Downloading from url: {self.url}")
@@ -97,6 +97,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
     def extract(self):
         """ Extract release. Decompress and unzip file to multiple json files.
 
+        :return: None.
         """
         logging.info(f"extract_release: {self.download_path}")
 
@@ -119,7 +120,6 @@ class CrossrefMetadataRelease(SnapshotRelease):
     def transform(self, max_workers: int):
         """ Transform the Crossref Metadata release.
         Each extracted file is transformed. This is done in parallel using the ThreadPoolExecutor.
-        Once all individual files are transformed they are concatenated together and gzipped.
 
         :param max_workers: the number of processes to use when transforming files (one process per file).
         :return: whether the transformation was successful or not.
