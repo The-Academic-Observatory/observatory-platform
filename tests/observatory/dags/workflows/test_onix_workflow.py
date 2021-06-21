@@ -2124,6 +2124,8 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("9781111111113" in isbns)
             self.assertTrue("113" in isbns)
 
+            #Check export tables
+
             # Cleanup
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
 
@@ -2131,6 +2133,8 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_data_qa_dataset)
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="oaebu_intermediate")
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="onix_workflow")
+            #delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_elastic_dataset)
+            #delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_dataset)
             delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix=self.test_onix_folder)
 
 
