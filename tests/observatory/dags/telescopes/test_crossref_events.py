@@ -176,8 +176,8 @@ class TestCrossrefEvents(ObservatoryTestCase):
                 start_date, end_date, first_release = ti.xcom_pull(key=CrossrefEventsTelescope.RELEASE_INFO,
                                                                    task_ids=telescope.get_release_info.__name__,
                                                                    include_prior_dates=False)
-                self.assertEqual(start_date, release.end_date)
-                self.assertEqual(end_date, pendulum.today('UTC') - timedelta(days=1))
+                self.assertEqual(release.end_date + timedelta(days=1), start_date)
+                self.assertEqual(pendulum.today('UTC') - timedelta(days=1), end_date)
                 self.assertFalse(first_release)
 
                 # use release info for other tasks
@@ -188,7 +188,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
                 with vcr.use_cassette(self.second_cassette):
                     env.run_task(telescope.download.__name__)
 
-                self.assertEqual(23, len(release.download_files))
+                self.assertEqual(20, len(release.download_files))
                 for file in release.download_files:
                     if 'edited' in file:
                         download_hash = 'b1c8c856c29365efeeef8a7c1ccba7da'
@@ -206,7 +206,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
                 # Test that file transformed
                 env.run_task(telescope.transform.__name__)
 
-                self.assertEqual(23, len(release.transform_files))
+                self.assertEqual(20, len(release.transform_files))
                 for file in release.transform_files:
                     if 'edited' in file:
                         transform_hash = '902437a731a4aed529f4e0d176d2222b'
@@ -225,7 +225,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
                 env.run_task(telescope.bq_load_partition.__name__)
                 main_table_id, partition_table_id = release.dag_id, f'{release.dag_id}_partitions'
                 table_id = f'{self.project_id}.{telescope.dataset_id}.{partition_table_id}${pendulum.today().strftime("%Y%m%d")}'
-                expected_rows = 94
+                expected_rows = 82
                 self.assert_table_integrity(table_id, expected_rows)
 
                 # Test task deleted rows from main table
@@ -237,7 +237,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
                 # Test append new adds rows to table
                 env.run_task(telescope.bq_append_new.__name__)
                 table_id = f'{self.project_id}.{telescope.dataset_id}.{main_table_id}'
-                expected_rows = 154
+                expected_rows = 142
                 self.assert_table_integrity(table_id, expected_rows)
 
                 # Test that all telescope data deleted
