@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
 from __future__ import annotations
 
@@ -177,7 +177,22 @@ class TestObservatoryEnvironment(unittest.TestCase):
             env.add_connection(conn)
 
             # Test run task
-            env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+            ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+            self.assertFalse(ti.logger.propagate)
+
+        # Test environment with logging enabled
+        with env.create(task_logging=True):
+            # Test add_variable
+            env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+
+            # Test add_connection
+            conn = Connection(conn_id=MY_CONN_ID)
+            conn.parse_from_uri("mysql://login:password@host:8080/schema?param1=val1&param2=val2")
+            env.add_connection(conn)
+
+            # Test run task
+            ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+            self.assertTrue(ti.logger.propagate)
 
     def test_create_dagrun(self):
         """ Tests create_dag_run """
