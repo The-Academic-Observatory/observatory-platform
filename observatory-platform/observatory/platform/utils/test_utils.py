@@ -313,8 +313,6 @@ class ObservatoryEnvironment:
     def create(self, task_logging: bool = False):
         """Make and destroy an Observatory isolated environment, which involves:
 
-        :param task_logging: display airflow task logging
-
         * Creating a temporary directory.
         * Setting the OBSERVATORY_HOME environment variable.
         * Initialising a temporary Airflow database.
@@ -323,6 +321,7 @@ class ObservatoryEnvironment:
           AirflowVars.DOWNLOAD_BUCKET and AirflowVars.TRANSFORM_BUCKET.
         * Cleaning up all resources when the environment is closed.
 
+        :param task_logging: display airflow task logging
         :yield: Observatory environment temporary directory.
         """
 
@@ -351,7 +350,7 @@ class ObservatoryEnvironment:
                 self.session = settings.Session
                 db.initdb()
 
-                current_level = logging.getLogger().getEffectiveLevel()
+                original_log_level = logging.getLogger().getEffectiveLevel()
                 if task_logging:
                     # Set root logger to INFO level, it seems that custom 'logging.info()' statements inside a task
                     # come from root
@@ -382,7 +381,7 @@ class ObservatoryEnvironment:
                     yield self.temp_dir
             finally:
                 # Set logger settings back to original settings
-                logging.getLogger().setLevel(current_level)
+                logging.getLogger().setLevel(original_log_level)
                 logging.getLogger('airflow.task').propagate = False
 
                 # Revert environment
