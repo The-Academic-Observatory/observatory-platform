@@ -33,3 +33,13 @@ The corresponding table created in BigQuery is `crossref.crossref_metadataYYYYMM
 | Each shard includes all data | Yes     |
 +------------------------------+---------+
 ```
+
+## Airflow connections
+Note that all values need to be urlencoded.
+In the config.yaml file, the following airflow connections are required:  
+
+### crossref
+This contains the Crossref Metadata Plus token (https://www.crossref.org/documentation/metadata-plus/).  
+```yaml
+crossref: http://:<token>@
+```
