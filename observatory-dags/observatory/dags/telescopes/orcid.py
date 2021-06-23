@@ -15,12 +15,8 @@
 
 # Author: Aniek Roelofs
 
-import gzip
-import io
 import logging
-import multiprocessing
 import os
-import pathlib
 import subprocess
 import tarfile
 from datetime import datetime
@@ -32,6 +28,7 @@ import boto3
 import jsonlines
 import pendulum
 import xmltodict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Variable
@@ -43,18 +40,21 @@ from observatory.platform.utils.proc_utils import wait_for_process
 
 
 class OrcidRelease(StreamRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
+    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool,
+                 max_processes: int):
         """ Construct an OrcidRelease instance
 
         :param dag_id: the id of the DAG.
         :param start_date: the start_date of the release.
         :param end_date: the end_date of the release.
         :param first_release: whether this is the first release that is processed for this DAG
+        :param max_processes: Max processes used for parallel downloading
         """
         download_files_regex = r'.*.xml$'
-        transform_files_regex = r'orcid.jsonl.gz'
+        transform_files_regex = r'orcid.jsonl'
         super().__init__(dag_id, start_date, end_date, first_release, download_files_regex=download_files_regex,
                          transform_files_regex=transform_files_regex)
+        self.max_processes = max_processes
 
     @property
     def transform_path(self) -> str:
@@ -62,7 +62,7 @@ class OrcidRelease(StreamRelease):
 
         :return: the file path.
         """
-        return os.path.join(self.transform_folder, 'orcid.jsonl.gz')
+        return os.path.join(self.transform_folder, 'orcid.jsonl')
 
     @property
     def modified_records_path(self) -> str:
@@ -124,11 +124,15 @@ class OrcidRelease(StreamRelease):
         args = ["gcloud", "auth", "activate-service-account", f"--key-file"
                                                               f"={os.environ['GOOGLE_APPLICATION_CREDENTIALS']}"]
         proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        logging.info(f'Executing bash command: {subprocess.list2cmdline(args)}')
         out, err = wait_for_process(proc)
+        if out:
+            logging.info(out)
         if err:
             logging.info(err)
         if proc.returncode != 0:
-            raise AirflowException(f"bash command failed `{args}`: {err}")
+            raise AirflowException("bash command failed")
+        logging.info('Finished cmd successfully')
 
         logging.info(f"Downloading transferred files from Google Cloud bucket: {gc_download_bucket}")
         if self.first_release:
@@ -144,11 +148,15 @@ class OrcidRelease(StreamRelease):
             args = ["gsutil", "-m", "cp", "-I", self.download_folder]
             proc: Popen = subprocess.Popen(args, stdin=open(self.modified_records_path),
                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        logging.info(f'Executing bash command: {subprocess.list2cmdline(args)}')
         out, err = wait_for_process(proc)
+        if out:
+            logging.info(out)
         if err:
             logging.info(err)
         if proc.returncode != 0:
-            raise AirflowException(f"bash command failed `{args}`: {err}")
+            raise AirflowException("bash command failed")
+        logging.info('Finished cmd successfully')
 
     def transform(self):
         """ Transform the ORCID records in parallel.
@@ -156,25 +164,42 @@ class OrcidRelease(StreamRelease):
 
         :return: None.
         """
-        # Delete transform file if it exists already from previous failed run
-        if os.path.exists(self.transform_path):
-            pathlib.Path(self.transform_path).unlink()
+        with ThreadPoolExecutor(max_workers=self.max_processes) as executor:
+            futures = []
+            for file in self.download_files:
+                futures.append(executor.submit(self.transform_single_file, file))
+            for future in as_completed(futures):
+                future.result()
 
-        pool = multiprocessing.Pool()
-        # Transform file
-        for orcid_dict in pool.imap(transform_single_file, self.download_files):
-            # Write transformed data to jsonl.gz file
-            with io.BytesIO() as bytes_io:
-                with gzip.GzipFile(fileobj=bytes_io, mode="a") as gzip_file:
-                    with jsonlines.Writer(gzip_file) as writer:
-                        writer.write_all([orcid_dict])
+    def transform_single_file(self, download_path: str):
+        """ Transform a single ORCID file/record.
+        The xml file is turned into a dictionary, a record should have either a valid 'record' section or an 'error'
+        section. The keys of the dictionary are slightly changed so they are valid BigQuery fields.
+        The dictionary is appended to a jsonl file
 
-                with open(self.transform_path, "ab") as jsonl_gzip_file:
-                    jsonl_gzip_file.write(bytes_io.getvalue())
+        :param download_path: The path to the file with the ORCID record.
+        :return: None.
+        """
+        file_name = os.path.basename(download_path)
+        logging.info(f"Transforming file: {file_name}")
+        # Create dict of data from summary xml file
+        with open(download_path, 'r') as f:
+            orcid_dict = xmltodict.parse(f.read())
 
-        # prevent sigterm error airflow
-        pool.close()
-        pool.join()
+        # Get record
+        orcid_record = orcid_dict.get('record:record')
+
+        # Some records do not have a 'record', but only 'error', this will be stored in the BQ table.
+        if not orcid_record:
+            orcid_record = orcid_dict.get('error:error')
+
+        if not orcid_record:
+            raise AirflowException(f'Key error for file: {download_path}')
+
+        orcid_record = change_keys(orcid_record, convert)
+        with jsonlines.open(self.transform_path, 'a') as writer:
+            writer.write(orcid_record)
+        logging.info(f"Finished: {file_name}")
 
 
 class OrcidTelescope(StreamTelescope):
@@ -193,8 +218,10 @@ class OrcidTelescope(StreamTelescope):
                  dataset_description: str = '', table_descriptions: dict = None,
                  merge_partition_field: str = 'orcid_identifier.uri',
                  updated_date_field: str = 'history.last_modified_date',
-                 bq_merge_days: int = 7, airflow_vars: List = None, airflow_conns: List = None):
+                 bq_merge_days: int = 7, airflow_vars: List = None, airflow_conns: List = None,
+                 max_processes: int = min(32, os.cpu_count() + 4)):
         """ Construct an OrcidTelescope instance.
+
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
@@ -206,6 +233,7 @@ class OrcidTelescope(StreamTelescope):
         :param bq_merge_days: how often partitions should be merged (every x days)
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
+        :param max_processes: Max processes used for parallel downloading
         """
         if table_descriptions is None:
             table_descriptions = {dag_id: 'The ORCID (Open Researcher and Contributor ID) is a nonproprietary '
@@ -220,6 +248,8 @@ class OrcidTelescope(StreamTelescope):
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
                          updated_date_field, bq_merge_days, dataset_description=dataset_description,
                          table_descriptions=table_descriptions, airflow_vars=airflow_vars, airflow_conns=airflow_conns)
+        self.max_processes = max_processes
+
         self.add_setup_task_chain([self.check_dependencies,
                                    self.get_release_info])
         self.add_task_chain([self.transfer,
@@ -243,7 +273,7 @@ class OrcidTelescope(StreamTelescope):
         ti: TaskInstance = kwargs['ti']
         start_date, end_date, first_release = ti.xcom_pull(key=OrcidTelescope.RELEASE_INFO, include_prior_dates=True)
 
-        release = OrcidRelease(self.dag_id, start_date, end_date, first_release)
+        release = OrcidRelease(self.dag_id, start_date, end_date, first_release, self.max_processes)
         return release
 
     def check_dependencies(self, **kwargs) -> bool:
@@ -353,31 +383,31 @@ def write_modified_record_blobs(start_date: datetime, end_date: datetime, aws_ac
     return modified_records_count
 
 
-def transform_single_file(record_file_path: str) -> dict:
-    """ Transform a single ORCID file/record.
-    The xml file is turned into a dictionary, a record should have either a valid 'record' section or an 'error'
-    section.
-    The keys of the dictionary are slightly changed so they are valid BigQuery fields.
-
-    :param record_file_path: The path to the file with the ORCID record.
-    :return: The ORCID record data, transformed in a dictionary
-    """
-    # Create dict of data from summary xml file
-    with open(record_file_path, 'r') as f:
-        orcid_dict = xmltodict.parse(f.read())
-
-    # Get record
-    orcid_record = orcid_dict.get('record:record')
-
-    # Some records do not have a 'record', but only 'error', this will be stored in the BQ table.
-    if not orcid_record:
-        orcid_record = orcid_dict.get('error:error')
-
-    if not orcid_record:
-        raise AirflowException(f'Key error for file: {record_file_path}')
-
-    orcid_record = change_keys(orcid_record, convert)
-    return orcid_record
+# def transform_single_file(record_file_path: str) -> dict:
+#     """ Transform a single ORCID file/record.
+#     The xml file is turned into a dictionary, a record should have either a valid 'record' section or an 'error'
+#     section.
+#     The keys of the dictionary are slightly changed so they are valid BigQuery fields.
+#
+#     :param record_file_path: The path to the file with the ORCID record.
+#     :return: The ORCID record data, transformed in a dictionary
+#     """
+#     # Create dict of data from summary xml file
+#     with open(record_file_path, 'r') as f:
+#         orcid_dict = xmltodict.parse(f.read())
+#
+#     # Get record
+#     orcid_record = orcid_dict.get('record:record')
+#
+#     # Some records do not have a 'record', but only 'error', this will be stored in the BQ table.
+#     if not orcid_record:
+#         orcid_record = orcid_dict.get('error:error')
+#
+#     if not orcid_record:
+#         raise AirflowException(f'Key error for file: {record_file_path}')
+#
+#     orcid_record = change_keys(orcid_record, convert)
+#     return orcid_record
 
 
 def convert(k: str) -> str:
