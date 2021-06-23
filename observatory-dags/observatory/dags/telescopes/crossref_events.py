@@ -37,7 +37,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed, Re
 
 class CrossrefEventsRelease(StreamRelease):
     def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool,
-                 mailto: str, download_mode: str, max_processes: int):
+                 mailto: str, max_processes: int):
         """ Construct a CrossrefEventsRelease instance
 
         :param dag_id: the id of the DAG.
@@ -45,15 +45,13 @@ class CrossrefEventsRelease(StreamRelease):
         :param end_date: the end_date of the release.
         :param first_release: whether this is the first release that is processed for this DAG
         :param mailto: Email address used in the download url
-        :param download_mode: Whether the events are downloaded in parallel, valid options: 'sequential' and 'parallel'
-        :param max_processes: Max processes used for parallel downloading, default is based on 7 days x 3 url categories
+        :param max_processes: Max processes used for parallel downloading
         """
         download_files_regex = r'.*.jsonl$'
         transform_files_regex = r'.*.jsonl$'
         super().__init__(dag_id, start_date, end_date, first_release, download_files_regex=download_files_regex,
                          transform_files_regex=transform_files_regex)
         self.mailto = mailto
-        self.download_mode = download_mode
         self.max_processes = max_processes
 
     @property
@@ -98,16 +96,10 @@ class CrossrefEventsRelease(StreamRelease):
 
         :return: None.
         """
-
-        if self.download_mode == 'parallel':
-            no_workers = self.max_processes
-            logging.info(f'Downloading events with parallel method, no. workers: {no_workers}')
-        else:
-            logging.info('Downloading events with sequential method')
-            no_workers = 1
+        logging.info(f'Downloading events, no. workers: {self.max_processes}')
         logging.info(f'Downloading using these URLs, but with different start and end dates: {self.urls[0]}')
 
-        with ThreadPoolExecutor(max_workers=no_workers) as executor:
+        with ThreadPoolExecutor(max_workers=self.max_processes) as executor:
             futures = []
             for i, url in enumerate(self.urls):
                 futures.append(executor.submit(self.download_batch, i, url))
@@ -154,14 +146,9 @@ class CrossrefEventsRelease(StreamRelease):
 
         :return: None.
         """
-        if self.download_mode == 'parallel':
-            no_workers = self.max_processes
-            logging.info(f'Transforming events with parallel method, no. workers: {no_workers}')
-        else:
-            logging.info('Transforming events with sequential method')
-            no_workers = 1
+        logging.info(f'Transforming events, no. workers: {self.max_processes}')
 
-        with ThreadPoolExecutor(max_workers=no_workers) as executor:
+        with ThreadPoolExecutor(max_workers=self.max_processes) as executor:
             futures = []
             for file in self.download_files:
                 futures.append(executor.submit(self.transform_batch, file))
@@ -197,7 +184,7 @@ class CrossrefEventsTelescope(StreamTelescope):
                  dataset_description: str = 'The Crossref Events dataset: https://www.eventdata.crossref.org/guide/',
                  merge_partition_field: str = 'id', updated_date_field: str = 'timestamp',
                  bq_merge_days: int = 7, batch_load: bool = True, airflow_vars: List = None,
-                 mailto: str = 'aniek.roelofs@curtin.edu.au', download_mode: str = 'parallel', max_processes: int = 21):
+                 mailto: str = 'aniek.roelofs@curtin.edu.au', max_processes: int = min(32, os.cpu_count() + 4)):
         """ Construct a CrossrefEventsTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -211,7 +198,6 @@ class CrossrefEventsTelescope(StreamTelescope):
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param mailto: Email address used in the download url
-        :param download_mode: Whether the events are downloaded in parallel, valid options: 'sequential' and 'parallel'
         :param max_processes: Max processes used for parallel downloading, default is based on 7 days x 3 url categories
         """
 
@@ -222,7 +208,6 @@ class CrossrefEventsTelescope(StreamTelescope):
                          updated_date_field, bq_merge_days, dataset_description=dataset_description,
                          airflow_vars=airflow_vars, batch_load=batch_load)
         self.mailto = mailto
-        self.download_mode = download_mode
         self.max_processes = max_processes
 
         self.add_setup_task_chain([self.check_dependencies,
@@ -247,7 +232,7 @@ class CrossrefEventsTelescope(StreamTelescope):
                                                            include_prior_dates=True)
 
         release = CrossrefEventsRelease(self.dag_id, start_date, end_date, first_release, self.mailto,
-                                        self.download_mode, self.max_processes)
+                                        self.max_processes)
         return release
 
     def download(self, release: CrossrefEventsRelease, **kwargs):

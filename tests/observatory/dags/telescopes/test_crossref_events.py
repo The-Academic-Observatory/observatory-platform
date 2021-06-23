@@ -51,7 +51,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
         self.start_date = pendulum.Pendulum(2021, 5, 6)
         self.end_date = pendulum.Pendulum(2021, 5, 12)
         self.release = CrossrefEventsRelease(CrossrefEventsTelescope.DAG_ID, self.start_date, self.end_date,
-                                             False, 'mailto', 'parallel', 21)
+                                             False, 'mailto', 21)
 
     def test_dag_structure(self):
         """ Test that the Crossref Events DAG has the correct structure.
@@ -91,7 +91,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
 
         # Setup Telescope
         telescope = CrossrefEventsTelescope(dataset_id=dataset_id)
-        telescope.download_mode = 'sequential'
+        telescope.max_processes = 1
         dag = telescope.make_dag()
 
         # Create the Observatory environment and run tests
@@ -112,7 +112,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
 
                 # use release info for other tasks
                 release = CrossrefEventsRelease(telescope.dag_id, start_date, end_date, first_release,
-                                                telescope.mailto, telescope.download_mode, telescope.max_processes)
+                                                telescope.mailto, telescope.max_processes)
 
                 # Test download task
                 with vcr.use_cassette(self.first_cassette):
@@ -182,7 +182,7 @@ class TestCrossrefEvents(ObservatoryTestCase):
 
                 # use release info for other tasks
                 release = CrossrefEventsRelease(telescope.dag_id, start_date, end_date, first_release,
-                                                telescope.mailto, telescope.download_mode, telescope.max_processes)
+                                                telescope.mailto, telescope.max_processes)
 
                 # Test download task
                 with vcr.use_cassette(self.second_cassette):
@@ -288,8 +288,6 @@ class TestCrossrefEvents(ObservatoryTestCase):
         :return: None.
         """
         mock_variable_get.return_value = "data"
-        self.release.download_mode = 'parallel'
-
         with CliRunner().isolated_filesystem():
             # Test download without any events returned
             with self.assertRaises(AirflowSkipException):
@@ -348,8 +346,6 @@ class TestCrossrefEvents(ObservatoryTestCase):
         :return: None.
         """
         mock_variable_get.return_value = "data"
-        self.release.download_mode = 'parallel'
-
         with CliRunner().isolated_filesystem():
             # Create fake download files
             events_path = os.path.join(self.release.download_folder, 'events.jsonl')
