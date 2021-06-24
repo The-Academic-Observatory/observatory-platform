@@ -108,7 +108,10 @@ onix_ebook_titles as (
             Doi,
             ProductForm,
             EditionNumber,
-            onix.TitleDetails[SAFE_OFFSET(0)].TitleElements[SAFE_OFFSET(0)].TitleText as title,
+            IF(
+                onix.TitleDetails[SAFE_OFFSET(0)].TitleElements[SAFE_OFFSET(0)].TitleText is not null,
+                onix.TitleDetails[SAFE_OFFSET(0)].TitleElements[SAFE_OFFSET(0)].TitleText,
+                onix.TitleDetails[SAFE_OFFSET(0)].TitleElements[SAFE_OFFSET(0)].TitleWithoutPrefix) as title,
             ARRAY(SELECT
                 SUBSTRING(CAST(dates.Date as STRING), 0, 4)
             FROM UNNEST(onix.PublishingDates) as dates
