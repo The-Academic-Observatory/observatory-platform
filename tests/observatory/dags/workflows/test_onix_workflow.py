@@ -542,7 +542,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "export_oaebu_table.book_publisher_metrics": ["export_oaebu_table.book_subject_metrics"],
                     "export_oaebu_table.book_subject_metrics": ["export_oaebu_table.book_year_metrics"],
                     "export_oaebu_table.book_year_metrics": ["export_oaebu_table.book_subject_year_metrics"],
-                    "export_oaebu_table.book_subject_year_metrics": ["export_oaebu_qa_metrics"],
+                    "export_oaebu_table.book_subject_year_metrics": ["export_oaebu_table.book_author_metrics"],
+                    "export_oaebu_table.book_author_metrics": ["export_oaebu_qa_metrics"],
                     "export_oaebu_qa_metrics": ["export_and_download_tables"],
                     "export_and_download_tables": ["import_tables"],
                     "import_tables": ["post_import"],
@@ -667,7 +668,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "export_oaebu_table.book_publisher_metrics": ["export_oaebu_table.book_subject_metrics"],
                     "export_oaebu_table.book_subject_metrics": ["export_oaebu_table.book_year_metrics"],
                     "export_oaebu_table.book_year_metrics": ["export_oaebu_table.book_subject_year_metrics"],
-                    "export_oaebu_table.book_subject_year_metrics": ["export_oaebu_qa_metrics"],
+                    "export_oaebu_table.book_subject_year_metrics": ["export_oaebu_table.book_author_metrics"],
+                    "export_oaebu_table.book_author_metrics": ["export_oaebu_qa_metrics"],
                     "export_oaebu_qa_metrics": ["export_and_download_tables"],
                     "export_and_download_tables": ["import_tables"],
                     "import_tables": ["post_import"],
@@ -1955,6 +1957,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 "book_subject_metrics",
                 "book_year_metrics",
                 "book_subject_year_metrics",
+                "book_author_metrics",
             ]
 
             for table in export_tables:
@@ -2618,6 +2621,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
                 "book_subject_metrics",
                 "book_year_metrics",
                 "book_subject_year_metrics",
+                "book_author_metrics",
             ]
 
             for table in export_tables:

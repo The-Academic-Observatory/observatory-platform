@@ -952,6 +952,7 @@ class OnixWorkflow(Telescope):
             {"output_table": "book_subject_metrics", "query_template": "export_book_subject_metrics.sql.jinja2", "file_type": "json"},
             {"output_table": "book_year_metrics", "query_template": "export_book_year_metrics.sql.jinja2", "file_type": "json"},
             {"output_table": "book_subject_year_metrics", "query_template": "export_book_subject_year_metrics.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_author_metrics", "query_template": "export_book_author_metrics.sql.jinja2", "file_type": "json"},
         ]
 
         # Create each export table in BiqQuery
