@@ -19,7 +19,7 @@ import pandas as pd
 import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
-from IPython.display import HTML
+# from IPython.display import HTML
 from matplotlib import animation
 
 from observatory.reports.abstract_chart import AbstractObservatoryChart
@@ -188,7 +188,7 @@ class TimePath(AbstractObservatoryChart):
         self.anim = animation.FuncAnimation(fig, self.anim_frame,
                                             (len(year_range) + 5), interval=1000)
 
-        return HTML(self.anim.to_html5_video())
+        # return HTML(self.anim.to_html5_video())
 
     def anim_frame(self, i):
         """Plot animation frame

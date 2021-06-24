@@ -37,7 +37,7 @@ class ESTable:
     Abstract Class for Tables Filled via an Elastic API Query
     """
 
-    api_url = "https://waypoint-elasticsearch-app-qjb5mfja7a-ue.a.run.app/query"
+    api_url = "https://api.observatory.academy/v1/query"
 
     def __init__(self,
                  aggregation: str,
@@ -126,3 +126,5 @@ class ESTable:
         self.df.published_year = temp.dt.year
         chart_utils.clean_geo_names(self.df)
         chart_utils.nice_column_names(self.df)
+
+
