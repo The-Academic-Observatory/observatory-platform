@@ -160,8 +160,8 @@ class TestDoab(ObservatoryTestCase):
                 start_date, end_date, first_release = ti.xcom_pull(key=DoabTelescope.RELEASE_INFO,
                                                                    task_ids=telescope.get_release_info.__name__,
                                                                    include_prior_dates=False)
-                self.assertEqual(start_date, release.end_date)
-                self.assertEqual(end_date, pendulum.today('UTC') - timedelta(days=1))
+                self.assertEqual(release.end_date + timedelta(days=1), start_date)
+                self.assertEqual(pendulum.today('UTC') - timedelta(days=1), end_date)
                 self.assertFalse(first_release)
 
                 # use release info for other tasks

@@ -3,6 +3,7 @@ Telescopes
 .. toctree::
     :maxdepth: 3
 
+    crossref_events
     crossref_fundref
     crossref_metadata
     doab

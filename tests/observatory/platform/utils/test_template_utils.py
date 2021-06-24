@@ -623,7 +623,7 @@ class TestTemplateUtils(unittest.TestCase):
 
             telescope, release = setup(MockStreamTelescope)
             start_date_str = release.start_date.strftime("%Y-%m-%d")
-            end_date_str = (release.end_date + timedelta(days=1)).strftime("%Y-%m-%d")
+            end_date_str = release.end_date.strftime("%Y-%m-%d")
 
             for transform_path in release.transform_files:
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
@@ -641,7 +641,7 @@ class TestTemplateUtils(unittest.TestCase):
                     "\n\nMERGE\n"
                     "  `{dataset_id}.{main_table}` M\n"
                     "USING\n"
-                    "  (SELECT {merge_partition_field} AS id, {updated_date_field} AS date FROM `{dataset_id}.{partition_table}` WHERE _PARTITIONDATE >= '{start_date}' AND _PARTITIONDATE < '{end_date}') P\n"
+                    "  (SELECT {merge_partition_field} AS id, {updated_date_field} AS date FROM `{dataset_id}.{partition_table}` WHERE _PARTITIONDATE > '{start_date}' AND _PARTITIONDATE <= '{end_date}') P\n"
                     "ON\n"
                     "  M.{merge_partition_field} = P.id\n"
                     "WHEN MATCHED AND M.{updated_date_field} <= P.date OR M.{updated_date_field} is null THEN\n"
@@ -686,7 +686,6 @@ class TestTemplateUtils(unittest.TestCase):
                     telescope.dataset_id, main_table_id, end_date, telescope.schema_prefix, telescope.schema_version
                 )
                 source_table_ids = [
-                    f"project_id.{telescope.dataset_id}.{partition_table_id}$20200201",
                     f"project_id.{telescope.dataset_id}.{partition_table_id}$20200202",
                     f"project_id.{telescope.dataset_id}.{partition_table_id}$20200203",
                 ]

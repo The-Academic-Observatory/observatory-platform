@@ -482,14 +482,16 @@ class ObservatoryTestCase(unittest.TestCase):
         :return: whether the table exists and has the expected number of rows.
         """
 
-        result = False
+        table = None
+        actual_rows = None
         try:
             table = self.bigquery_client.get_table(table_id)
-            result = expected_rows == table.num_rows
+            actual_rows = table.num_rows
         except NotFound:
             pass
 
-        self.assertTrue(result)
+        self.assertIsNotNone(table)
+        self.assertEqual(expected_rows, actual_rows)
 
     def assert_file_integrity(self, file_path: str, expected_hash: str, algorithm: str):
         """Assert that a file exists and it has the correct hash.
