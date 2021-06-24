@@ -842,6 +842,97 @@ class OnixWorkflow(Telescope):
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
 
+    def export_and_download_tables(
+        self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        export_tables: bool,
+        **kwargs,
+    ):
+        """Download all the Export Tables
+        :param releases: Onix workflow release information.
+        :param args: Catching any other positional args (unused).
+        :param export_tables: The list of tables that need to be downloaded
+        """
+
+        for release in releases:
+
+            # Create Feed Object
+            feeds = 1
+
+            #success = export_bigquery_dataset(self.feeds,
+            #                                  release.project_id,
+            #                                  release.dataset_id,
+            #                                  release.bucket_name,
+            #                                  release.bucket_prefix,
+            #                                  release.release_date,
+            #                                  release.data_location)
+
+            #if not success:
+            #    raise AirflowException("export_data task: data failed to export from BigQuery successfully")
+
+            # success = download_blobs_from_cloud_storage(release.bucket_name,
+            #                                            release.bucket_prefix,
+            #                                            release.download_folder)
+
+            # if not success:
+            #    raise AirflowException(
+            #        "download_data task: data failed to download from Google Cloud Storage successfully")
+
+
+    def import_tables(
+        self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        feed: bool,
+        index_prefix: str,
+        **kwargs,
+    ):
+        """Download all the Export Tables
+        :param releases: Onix workflow release information.
+        :param args: Catching any other positional args (unused).
+        :param feed: The list of tables that need to be downloaded
+        :param index_prefix: prefix to add to indexes created
+        """
+
+        for release in releases:
+            feeds = 1
+
+            #success = load_elastic_indexes(self.feeds,
+            #                               release.download_folder,
+            #                               release.release_date,
+            #                               release.elastic_host,
+            #                               self.chunk_size,
+            #                               self.num_threads,
+            #                               self.num_workers)
+
+            #if not success:
+            #    raise AirflowException("import_data task: data failed to import into Elastic successfully")
+
+    def post_import(
+        self,
+        releases: List[OnixWorkflowRelease],
+        *args,
+        feed: bool,
+        **kwargs,
+    ):
+        """Download all the Export Tables
+        :param releases: Onix workflow release information.
+        :param args: Catching any other positional args (unused).
+        :param feed: The list of tables that need to be downloaded
+        """
+
+        for release in releases:
+            feeds = 1
+
+            # Update aliases
+            #success = update_aliases(self.feeds,
+            #                         release.release_date,
+            #                         release.elastic_host)
+
+            #if not success:
+            #    raise AirflowException("post_import task: failed to update aliases")
+
 
     def create_oaebu_export_tasks(self, data_partners: List[OaebuPartners]):
         """Create tasks for exporting final metrics from our OAEBU data.  It will create output tables in the oaebu_elastic dataset.
@@ -850,20 +941,20 @@ class OnixWorkflow(Telescope):
         """
 
         export_tables = [
-            {"output_table": "book_product_list", "query_template": "export_book_list.sql.jinja2"},
-            {"output_table": "book_product_metrics", "query_template": "export_book_metrics.sql.jinja2"},
-            {"output_table": "book_product_metrics_country", "query_template": "export_book_metrics_country.sql.jinja2"},
-            {"output_table": "book_product_metrics_institution", "query_template": "export_book_metrics_institution.sql.jinja2"},
-            {"output_table": "book_product_metrics_city", "query_template": "export_book_metrics_city.sql.jinja2"},
-            {"output_table": "book_product_metrics_referrer", "query_template": "export_book_metrics_referrer.sql.jinja2"},
-            {"output_table": "book_product_metrics_events", "query_template": "export_book_metrics_event.sql.jinja2"},
-            {"output_table": "book_publisher_metrics", "query_template": "export_book_publisher_metrics.sql.jinja2"},
-            {"output_table": "book_subject_metrics", "query_template": "export_book_subject_metrics.sql.jinja2"},
-            {"output_table": "book_year_metrics", "query_template": "export_book_year_metrics.sql.jinja2"},
-            {"output_table": "book_subject_year_metrics", "query_template": "export_book_subject_year_metrics.sql.jinja2"},
+            {"output_table": "book_product_list", "query_template": "export_book_list.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_product_metrics", "query_template": "export_book_metrics.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_product_metrics_country", "query_template": "export_book_metrics_country.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_product_metrics_institution", "query_template": "export_book_metrics_institution.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_product_metrics_city", "query_template": "export_book_metrics_city.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_product_metrics_referrer", "query_template": "export_book_metrics_referrer.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_product_metrics_events", "query_template": "export_book_metrics_event.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_publisher_metrics", "query_template": "export_book_publisher_metrics.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_subject_metrics", "query_template": "export_book_subject_metrics.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_year_metrics", "query_template": "export_book_year_metrics.sql.jinja2", "file_type": "json"},
+            {"output_table": "book_subject_year_metrics", "query_template": "export_book_subject_year_metrics.sql.jinja2", "file_type": "json"},
         ]
 
-        # For each export table
+        # Create each export table in BiqQuery
         for export_table in export_tables:
             fn = partial(
                 self.export_oaebu_table,
@@ -882,7 +973,7 @@ class OnixWorkflow(Telescope):
         data_partner_tables = {data.name: data.gcp_table_id for data in data_partners}
         data_partner_isbns = {data.name: data.isbn_field_name for data in data_partners}
 
-        # Book Product
+        # Export QA Metrics
         fn = partial(
             self.export_oaebu_qa_metrics,
             include_google_analytics=OaebuPartnerName.google_analytics in data_partner_tables,
@@ -905,7 +996,38 @@ class OnixWorkflow(Telescope):
         # Populate the __name__ attribute of the partial object (it lacks one by default).
         # Scheme: create_oaebu_table.dataset.table
         update_wrapper(fn, self.export_oaebu_qa_metrics)
+        self.add_task(fn)
 
+        # TODO
+        feed = True
+        index_prefix = self.org_name
+
+        # Export and Download Tables
+        fn = partial(
+            self.export_and_download_tables,
+            feed,
+        )
+
+        update_wrapper(fn, self.export_and_download_tables)
+        self.add_task(fn)
+
+        # Import indexes into Elastic Task
+        fn = partial(
+            self.import_tables,
+            feed,
+            index_prefix,
+        )
+
+        update_wrapper(fn, self.import_tables)
+        self.add_task(fn)
+
+        # Post Import Elastic Task
+        fn = partial(
+            self.post_import,
+            feed,
+        )
+
+        update_wrapper(fn, self.post_import)
         self.add_task(fn)
 
 
