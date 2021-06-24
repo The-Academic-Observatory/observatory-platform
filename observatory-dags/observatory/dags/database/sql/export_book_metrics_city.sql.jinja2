@@ -1,0 +1,33 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Richard Hosking #}
+
+SELECT
+    ISBN13,
+    MAX(onix.title) as title,
+    MAX(onix.published_year) as published_year,
+    month.month,
+    city.city,
+    CONCAT(CAST(MAX(city.latitude) as STRING), ", ", CAST(MAX(city.longitude) as STRING)) as coordinates,
+    STRUCT(
+        SUM(city.title_requests) as title_requests,
+        SUM(city.total_item_investigations) as total_item_investigations,
+        SUM(city.total_item_requests) as total_item_requests,
+        SUM(city.unique_item_investigations) as unique_item_investigations,
+        SUM(city.unique_item_requests) as unique_item_requests
+    ) as oapen_irus_uk,
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(months) as month, UNNEST(month.oapen_irus_uk.locations) as city
+WHERE city.city IS NOT NULL
+GROUP BY ISBN13, month, city

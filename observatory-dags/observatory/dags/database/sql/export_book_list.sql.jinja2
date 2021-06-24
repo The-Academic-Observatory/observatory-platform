@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Tuan Chien #}
+# Author: Richard Hosking #}
 
 SELECT
-  {{ isbn }},
-  release_date
-FROM
-  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`
-WHERE
-  work_id is null or work_family_id is null
+    ISBN13,
+    onix.ProductForm,
+    onix.EditionNumber,
+    onix.title,
+    onix.bic_subjects,
+    onix.bisac_subjects,
+    onix.thema_subjects,
+    onix.keywords
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`
