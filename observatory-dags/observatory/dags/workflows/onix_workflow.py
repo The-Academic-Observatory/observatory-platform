@@ -842,97 +842,6 @@ class OnixWorkflow(Telescope):
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
 
-    def export_and_download_tables(
-        self,
-        releases: List[OnixWorkflowRelease],
-        *args,
-        export_tables: bool,
-        **kwargs,
-    ):
-        """Download all the Export Tables
-        :param releases: Onix workflow release information.
-        :param args: Catching any other positional args (unused).
-        :param export_tables: The list of tables that need to be downloaded
-        """
-
-        for release in releases:
-
-            # Create Feed Object
-            feeds = 1
-
-            #success = export_bigquery_dataset(self.feeds,
-            #                                  release.project_id,
-            #                                  release.dataset_id,
-            #                                  release.bucket_name,
-            #                                  release.bucket_prefix,
-            #                                  release.release_date,
-            #                                  release.data_location)
-
-            #if not success:
-            #    raise AirflowException("export_data task: data failed to export from BigQuery successfully")
-
-            # success = download_blobs_from_cloud_storage(release.bucket_name,
-            #                                            release.bucket_prefix,
-            #                                            release.download_folder)
-
-            # if not success:
-            #    raise AirflowException(
-            #        "download_data task: data failed to download from Google Cloud Storage successfully")
-
-
-    def import_tables(
-        self,
-        releases: List[OnixWorkflowRelease],
-        *args,
-        feed: bool,
-        index_prefix: str,
-        **kwargs,
-    ):
-        """Download all the Export Tables
-        :param releases: Onix workflow release information.
-        :param args: Catching any other positional args (unused).
-        :param feed: The list of tables that need to be downloaded
-        :param index_prefix: prefix to add to indexes created
-        """
-
-        for release in releases:
-            feeds = 1
-
-            #success = load_elastic_indexes(self.feeds,
-            #                               release.download_folder,
-            #                               release.release_date,
-            #                               release.elastic_host,
-            #                               self.chunk_size,
-            #                               self.num_threads,
-            #                               self.num_workers)
-
-            #if not success:
-            #    raise AirflowException("import_data task: data failed to import into Elastic successfully")
-
-    def post_import(
-        self,
-        releases: List[OnixWorkflowRelease],
-        *args,
-        feed: bool,
-        **kwargs,
-    ):
-        """Download all the Export Tables
-        :param releases: Onix workflow release information.
-        :param args: Catching any other positional args (unused).
-        :param feed: The list of tables that need to be downloaded
-        """
-
-        for release in releases:
-            feeds = 1
-
-            # Update aliases
-            #success = update_aliases(self.feeds,
-            #                         release.release_date,
-            #                         release.elastic_host)
-
-            #if not success:
-            #    raise AirflowException("post_import task: failed to update aliases")
-
 
     def create_oaebu_export_tasks(self, data_partners: List[OaebuPartners]):
         """Create tasks for exporting final metrics from our OAEBU data.  It will create output tables in the oaebu_elastic dataset.
@@ -997,38 +906,6 @@ class OnixWorkflow(Telescope):
         # Populate the __name__ attribute of the partial object (it lacks one by default).
         # Scheme: create_oaebu_table.dataset.table
         update_wrapper(fn, self.export_oaebu_qa_metrics)
-        self.add_task(fn)
-
-        # TODO
-        feed = True
-        index_prefix = self.org_name
-
-        # Export and Download Tables
-        fn = partial(
-            self.export_and_download_tables,
-            feed,
-        )
-
-        update_wrapper(fn, self.export_and_download_tables)
-        self.add_task(fn)
-
-        # Import indexes into Elastic Task
-        fn = partial(
-            self.import_tables,
-            feed,
-            index_prefix,
-        )
-
-        update_wrapper(fn, self.import_tables)
-        self.add_task(fn)
-
-        # Post Import Elastic Task
-        fn = partial(
-            self.post_import,
-            feed,
-        )
-
-        update_wrapper(fn, self.post_import)
         self.add_task(fn)
 
 
