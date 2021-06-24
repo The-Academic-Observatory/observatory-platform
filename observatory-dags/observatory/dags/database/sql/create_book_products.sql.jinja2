@@ -112,7 +112,7 @@ onix_ebook_titles as (
             ARRAY(SELECT
                 SUBSTRING(CAST(dates.Date as STRING), 0, 4)
             FROM UNNEST(onix.PublishingDates) as dates
-            WHERE dates.PublishingDateRole = "Date of first publication")[SAFE_OFFSET(0)] as published_year,
+            WHERE dates.PublishingDateRole = "Publication date")[SAFE_OFFSET(0)] as published_year,
             ARRAY(
                 SELECT
                     subject.SubjectCode
