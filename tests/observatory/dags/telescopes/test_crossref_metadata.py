@@ -169,7 +169,7 @@ class TestCrossrefMetadata(ObservatoryTestCase):
         :param mock_conn: Mock Airflow crossref connection
         :return: None.
         """
-        mock_conn.return_value = Connection(AirflowConns.CROSSREF, 'mysql://:crossref-token@')
+        mock_conn.return_value = Connection(AirflowConns.CROSSREF, 'http://:crossref-token@')
         release = self.release
         with httpretty.enabled():
             httpretty.register_uri(httpretty.GET, release.url, body="", status=400)
