@@ -18,7 +18,6 @@ import matplotlib.axis
 import matplotlib.figure
 import matplotlib.pyplot as plt
 import pandas as pd
-from IPython.display import HTML
 from matplotlib import animation
 import plotly.express as px
 from typing import Union, List, Tuple
@@ -282,7 +281,9 @@ class ScatterPlot(AbstractObservatoryChart):
                                             self.anim_frame,
                                             numframes,
                                             interval=frameinterval)
-        return HTML(self.anim.to_html5_video())
+
+        ## TODO Consider whether to remove this function with cleanup
+        # return HTML(self.anim.to_html5_video())
 
     def anim_frame(self, i: int):
         """Frame animation function for scatterplot
