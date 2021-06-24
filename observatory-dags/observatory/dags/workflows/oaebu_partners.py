@@ -28,6 +28,7 @@ class OaebuPartnerName:
     jstor_country = "JSTOR Country"
     jstor_institution = "JSTOR Institution"
     oapen_irus_uk = "OAPEN IRUS UK"
+    ucl_discovery = "UCL Discovery"
 
 
 @dataclass

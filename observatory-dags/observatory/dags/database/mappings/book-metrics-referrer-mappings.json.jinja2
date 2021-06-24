@@ -1,0 +1,53 @@
+{
+  "mappings": {
+    "properties": {
+      "{{ aggregration_level }}_id": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "title": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "published_year": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "month": {
+        "type": "date",
+        "format": "yyyy-MM-dd"
+      },
+      "referrer": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "google_analytics": {
+        "properties": {
+          "value": {
+            "type": "integer",
+          }
+        }
+      }
+    }
+  }
+}

@@ -12,12 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Tuan Chien #}
+# Author: Richard Hosking #}
 
 SELECT
-  {{ isbn }},
-  release_date
-FROM
-  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`
-WHERE
-  work_id is null or work_family_id is null
+    ISBN13,
+    MAX(onix.title) as title,
+    MAX(onix.published_year) as published_year,
+    month.month,
+    NET.HOST(referrer.name) as referrer,
+    STRUCT(
+        SUM(referrer.value) as value
+    ) as google_analytics,
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(months) as month, UNNEST(month.google_analytics.unique_views.referrer) as referrer
+WHERE referrer IS NOT NULL AND referrer.name != "(direct)"
+GROUP BY ISBN13, month, referrer

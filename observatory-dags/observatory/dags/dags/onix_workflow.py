@@ -26,7 +26,8 @@ from observatory.platform.utils.telescope_utils import make_observatory_api
 
 # Temporary function. Create oaebu partner metadata.
 # Get rid of this when we change the Observatory API.
-def get_oaebu_partner_data(project_id):
+def get_oaebu_partner_data(project_id, org_name):
+
     oaebu_data = [
         OaebuPartners(
             name=OaebuPartnerName.google_analytics,
@@ -76,9 +77,47 @@ def get_oaebu_partner_data(project_id):
             isbn_field_name="ISBN",
             sharded=False,
         ),
+        OaebuPartners(
+            name=OaebuPartnerName.ucl_discovery,
+            gcp_project_id=project_id,
+            gcp_dataset_id="ucl",
+            gcp_table_id="ucl_discovery",
+            isbn_field_name="ISBN",
+            sharded=False,
+        ),
     ]
 
-    return oaebu_data
+    publisher_to_provider_mapping = {
+        "ANU Press": [OaebuPartnerName.google_analytics,
+                            OaebuPartnerName.google_books_sales,
+                            OaebuPartnerName.google_books_traffic,
+                            OaebuPartnerName.jstor_country,
+                            OaebuPartnerName.jstor_institution,
+                            OaebuPartnerName.oapen_irus_uk],
+        "UCL Press": [OaebuPartnerName.google_books_sales,
+                            OaebuPartnerName.google_books_traffic,
+                            OaebuPartnerName.jstor_country,
+                            OaebuPartnerName.jstor_institution,
+                            OaebuPartnerName.oapen_irus_uk,
+                            OaebuPartnerName.ucl_discovery],
+        "Wits University Press": [],
+        "University of Michigan Press": [],
+        "Springer Nature": [],
+        "Oapen Press": [OaebuPartnerName.oapen_irus_uk],
+        "Curtin Press": [OaebuPartnerName.google_books_sales,
+                            OaebuPartnerName.google_books_traffic,
+                            OaebuPartnerName.jstor_country,
+                            OaebuPartnerName.jstor_institution,
+                            OaebuPartnerName.oapen_irus_uk],
+    }
+
+    publisher_data_partners = list()
+
+    for data in oaebu_data:
+        if data.name in publisher_to_provider_mapping[org_name]:
+            publisher_data_partners.append(data)
+
+    return publisher_data_partners
 
 
 # Fetch all ONIX telescopes
@@ -92,7 +131,7 @@ for telescope in telescopes:
     gcp_project_id = telescope.organisation.gcp_project_id
     gcp_bucket_name = telescope.organisation.gcp_transform_bucket
 
-    data_partners = get_oaebu_partner_data(gcp_project_id)
+    data_partners = get_oaebu_partner_data(gcp_project_id, org_name)
 
     onix_workflow = OnixWorkflow(
         org_name=org_name,

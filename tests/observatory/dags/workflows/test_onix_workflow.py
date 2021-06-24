@@ -478,14 +478,6 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 isbn_field_name="Primary_ISBN",
                 sharded=False,
             ),
-            OaebuPartners(
-                name=OaebuPartnerName.google_analytics,
-                gcp_project_id="project",
-                gcp_dataset_id="dataset",
-                gcp_table_id="google_analytics",
-                isbn_field_name="publication_id",
-                sharded=False,
-            ),
         ]
 
         with CliRunner().isolated_filesystem():
@@ -514,7 +506,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "create_oaebu_intermediate_table.dataset.google_books_sales": [
                         "create_oaebu_intermediate_table.dataset.google_books_traffic"
                     ],
-                    "create_oaebu_intermediate_table.dataset.google_books_traffic": ["create_oaebu_data_qa_onix_isbn"],
+                    "create_oaebu_intermediate_table.dataset.google_books_traffic": ["create_oaebu_book_product_table"],
+                    "create_oaebu_book_product_table": ["create_oaebu_data_qa_onix_isbn"],
                     "create_oaebu_data_qa_onix_isbn": ["create_oaebu_data_qa_onix_aggregate"],
                     "create_oaebu_data_qa_onix_aggregate": ["create_oaebu_data_qa_jstor_isbn.dataset.jstor_country"],
                     "create_oaebu_data_qa_jstor_isbn.dataset.jstor_country": [
@@ -538,7 +531,20 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "create_oaebu_data_qa_google_books_traffic_isbn": [
                         "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_books_traffic"
                     ],
-                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_books_traffic": ["cleanup"],
+                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_books_traffic": ["export_oaebu_table.book_product_list"],
+                    "export_oaebu_table.book_product_list": ["export_oaebu_table.book_product_metrics"],
+                    "export_oaebu_table.book_product_metrics": ["export_oaebu_table.book_product_metrics_country"],
+                    "export_oaebu_table.book_product_metrics_country": ["export_oaebu_table.book_product_metrics_institution"],
+                    "export_oaebu_table.book_product_metrics_institution": ["export_oaebu_table.book_product_metrics_city"],
+                    "export_oaebu_table.book_product_metrics_city": ["export_oaebu_table.book_product_metrics_referrer"],
+                    "export_oaebu_table.book_product_metrics_referrer": ["export_oaebu_table.book_product_metrics_events"],
+                    "export_oaebu_table.book_product_metrics_events": ["export_oaebu_table.book_publisher_metrics"],
+                    "export_oaebu_table.book_publisher_metrics": ["export_oaebu_table.book_subject_metrics"],
+                    "export_oaebu_table.book_subject_metrics": ["export_oaebu_table.book_year_metrics"],
+                    "export_oaebu_table.book_year_metrics": ["export_oaebu_table.book_subject_year_metrics"],
+                    "export_oaebu_table.book_subject_year_metrics": ["export_oaebu_table.book_author_metrics"],
+                    "export_oaebu_table.book_author_metrics": ["export_oaebu_qa_metrics"],
+                    "export_oaebu_qa_metrics": ["cleanup"],
                     "cleanup": [],
                 },
                 dag,
@@ -617,7 +623,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "create_oaebu_intermediate_table.dataset.google_books_traffic": [
                         "create_oaebu_intermediate_table.dataset.google_analytics"
                     ],
-                    "create_oaebu_intermediate_table.dataset.google_analytics": ["create_oaebu_data_qa_onix_isbn"],
+                    "create_oaebu_intermediate_table.dataset.google_analytics": ["create_oaebu_book_product_table"],
+                    "create_oaebu_book_product_table": ["create_oaebu_data_qa_onix_isbn"],
                     "create_oaebu_data_qa_onix_isbn": ["create_oaebu_data_qa_onix_aggregate"],
                     "create_oaebu_data_qa_onix_aggregate": ["create_oaebu_data_qa_jstor_isbn.dataset.jstor_country"],
                     "create_oaebu_data_qa_jstor_isbn.dataset.jstor_country": [
@@ -647,7 +654,20 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "create_oaebu_data_qa_google_analytics_isbn": [
                         "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_analytics"
                     ],
-                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_analytics": ["cleanup"],
+                    "create_oaebu_data_qa_intermediate_unmatched_workid.dataset.google_analytics": ["export_oaebu_table.book_product_list"],
+                    "export_oaebu_table.book_product_list": ["export_oaebu_table.book_product_metrics"],
+                    "export_oaebu_table.book_product_metrics": ["export_oaebu_table.book_product_metrics_country"],
+                    "export_oaebu_table.book_product_metrics_country": ["export_oaebu_table.book_product_metrics_institution"],
+                    "export_oaebu_table.book_product_metrics_institution": ["export_oaebu_table.book_product_metrics_city"],
+                    "export_oaebu_table.book_product_metrics_city": ["export_oaebu_table.book_product_metrics_referrer"],
+                    "export_oaebu_table.book_product_metrics_referrer": ["export_oaebu_table.book_product_metrics_events"],
+                    "export_oaebu_table.book_product_metrics_events": ["export_oaebu_table.book_publisher_metrics"],
+                    "export_oaebu_table.book_publisher_metrics": ["export_oaebu_table.book_subject_metrics"],
+                    "export_oaebu_table.book_subject_metrics": ["export_oaebu_table.book_year_metrics"],
+                    "export_oaebu_table.book_year_metrics": ["export_oaebu_table.book_subject_year_metrics"],
+                    "export_oaebu_table.book_subject_year_metrics": ["export_oaebu_table.book_author_metrics"],
+                    "export_oaebu_table.book_author_metrics": ["export_oaebu_qa_metrics"],
+                    "export_oaebu_qa_metrics": ["cleanup"],
                     "cleanup": [],
                 },
                 dag,
@@ -1490,7 +1510,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "4ae11853bcbb43ec48d77341ba2a0fa8"
+            expected_hash = "bca797c0edc0fe8cc30e263a3fb37ee6"
             self.assertEqual(sql_hash, expected_hash)
 
             mock_bq_table_query.return_value = False
@@ -1622,6 +1642,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         # Upload fixture to bucket
         files = [
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_country.json"),
+            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_institution.json"),
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_sales.json"),
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_traffic.json"),
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "oapen_irus_uk.json"),
@@ -1654,10 +1675,10 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         for (name, isbn_field_name), table_id in zip(
             [
                 (OaebuPartnerName.jstor_country, "ISBN"),
+                (OaebuPartnerName.jstor_institution, "ISBN"),
                 (OaebuPartnerName.google_books_sales, "Primary_ISBN"),
                 (OaebuPartnerName.google_books_traffic, "Primary_ISBN"),
                 (OaebuPartnerName.oapen_irus_uk, "ISBN"),
-                (OaebuPartnerName.google_analytics, "ISBN"),
             ],
             table_ids,
         ):
@@ -1768,6 +1789,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             oaebu_data_qa_dataset = env.add_dataset()
             onix_workflow_dataset = env.add_dataset()
             oaebu_intermediate_dataset = env.add_dataset()
+            oaebu_output_dataset = env.add_dataset()
+            oaebu_elastic_dataset = env.add_dataset()
+
             telescope.make_release = MagicMock(
                 return_value=[
                     OnixWorkflowRelease(
@@ -1780,6 +1804,8 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                         oaebu_data_qa_dataset=oaebu_data_qa_dataset,
                         workflow_dataset=onix_workflow_dataset,
                         oaebu_intermediate_dataset=oaebu_intermediate_dataset,
+                        oaebu_dataset=oaebu_output_dataset,
+                        oaebu_elastic_dataset=oaebu_elastic_dataset,
                     )
                 ]
             )
@@ -1821,6 +1847,13 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                     self.timestamp,
                 )
 
+            # Create oaebu output tables
+            env.run_task(
+                telescope.create_oaebu_book_product_table.__name__,
+                workflow_dag,
+                self.timestamp,
+            )
+
             # ONIX isbn check
             env.run_task(
                 telescope.create_oaebu_data_qa_onix_isbn.__name__,
@@ -1835,16 +1868,30 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 self.timestamp,
             )
 
-            # JSTOR isbn check
+            # JSTOR country isbn check
             env.run_task(
                 f"{telescope.create_oaebu_data_qa_jstor_isbn.__name__}.{data_partners[0].gcp_dataset_id}.{data_partners[0].gcp_table_id}",
                 workflow_dag,
                 self.timestamp,
             )
 
-            # JSTOR intermediate unmatched isbns
+            # JSTOR country intermediate unmatched isbns
             env.run_task(
                 f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[0].gcp_dataset_id}.{data_partners[0].gcp_table_id}",
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # JSTOR institution isbn check
+            env.run_task(
+                f"{telescope.create_oaebu_data_qa_jstor_isbn.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # JSTOR institution intermediate unmatched isbns
+            env.run_task(
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
                 workflow_dag,
                 self.timestamp,
             )
@@ -1858,7 +1905,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # Google Books Sales intermediate unmatched isbns
             env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[2].gcp_dataset_id}.{data_partners[2].gcp_table_id}",
                 workflow_dag,
                 self.timestamp,
             )
@@ -1872,7 +1919,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # Google Books Traffic intermediate unmatched isbns
             env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[2].gcp_dataset_id}.{data_partners[2].gcp_table_id}",
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[3].gcp_dataset_id}.{data_partners[3].gcp_table_id}",
                 workflow_dag,
                 self.timestamp,
             )
@@ -1886,7 +1933,37 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
             # OAPEN IRUS UK intermediate unmatched isbns
             env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[3].gcp_dataset_id}.{data_partners[3].gcp_table_id}",
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[4].gcp_dataset_id}.{data_partners[4].gcp_table_id}",
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # Export oaebu elastic tables
+            export_tables = [
+                "book_product_list",
+                "book_product_metrics",
+                "book_product_metrics_country",
+                "book_product_metrics_institution",
+                "book_product_metrics_city",
+                "book_product_metrics_referrer",
+                "book_product_metrics_events",
+                "book_publisher_metrics",
+                "book_subject_metrics",
+                "book_year_metrics",
+                "book_subject_year_metrics",
+                "book_author_metrics",
+            ]
+
+            for table in export_tables:
+                env.run_task(
+                    f"{telescope.export_oaebu_table.__name__}.{table}",
+                    workflow_dag,
+                    self.timestamp,
+                )
+
+            # Export oaebu elastic qa table
+            env.run_task(
+                telescope.export_oaebu_qa_metrics.__name__,
                 workflow_dag,
                 self.timestamp,
             )
@@ -1908,13 +1985,21 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
 
             table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn{release_suffix}"
-
             self.assert_table_integrity(table_id, 3)
 
             table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workfamilyid_isbn{release_suffix}"
             self.assert_table_integrity(table_id, 3)
 
             table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn_errors{release_suffix}"
+            self.assert_table_integrity(table_id, 1)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
+            self.assert_table_integrity(table_id, 2)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            self.assert_table_integrity(table_id, 2)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_publisher_metrics{release_suffix}"
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
@@ -1972,7 +2057,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertEqual(records[0]["no_relatedworks"], 0)
             self.assertEqual(records[0]["no_relatedproducts"], 2)
             self.assertEqual(records[0]["no_doi"], 3)
-            self.assertEqual(records[0]["no_productform"], 3)
+            self.assertEqual(records[0]["no_productform"], 1)
             self.assertEqual(records[0]["no_contributors"], 3)
             self.assertEqual(records[0]["no_titledetails"], 3)
             self.assertEqual(records[0]["no_publisher_urls"], 3)
@@ -2059,13 +2144,31 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("9781111111113" in isbns)
             self.assertTrue("113" in isbns)
 
+            # Check Book Product Table
+            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN13"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("112" in isbns)
+
+            # Check export tables
+            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN13"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("112" in isbns)
+
             # Cleanup
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
 
             # Environment cleanup
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_data_qa_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="oaebu_intermediate")
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_intermediate_dataset)
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="onix_workflow")
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_elastic_dataset)
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_output_dataset)
             delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix=self.test_onix_folder)
 
 
@@ -2177,10 +2280,11 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
         # Upload fixture to bucket
         files = [
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_country.json"),
+            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_institution.json"),
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_sales.json"),
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_traffic.json"),
             os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "oapen_irus_uk.json"),
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "anu_press_google_analytics.json"),
+            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_analytics.json"),
         ]
         blobs = [os.path.join(self.test_onix_folder, os.path.basename(file)) for file in files]
         upload_files_to_cloud_storage(bucket_name=self.gcp_bucket_name, blob_names=blobs, file_paths=files)
@@ -2189,6 +2293,10 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
         table_ids = []
         for file_name, blob in zip(files, blobs):
             table_id, _ = table_ids_from_path(file_name)
+
+            # set schema prefix to 'anu_press' for ANU press, custom dimensions are added in this schema.
+            schema_prefix = 'anu_press_' if table_id == 'google_analytics' else ''
+
             bq_load_partition(
                 project_id=self.gcp_project_id,
                 transform_bucket=self.gcp_bucket_name,
@@ -2199,6 +2307,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
                 release_date=self.onix_release_date,
                 source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
                 partition_type=bigquery.table.TimePartitioningType.MONTH,
+                prefix=schema_prefix,
                 dataset_description="Test Onix data for the workflow",
                 partition_field="release_date",
                 **{},
@@ -2210,6 +2319,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
         for (name, isbn_field_name), table_id in zip(
             [
                 (OaebuPartnerName.jstor_country, "ISBN"),
+                (OaebuPartnerName.jstor_institution, "ISBN"),
                 (OaebuPartnerName.google_books_sales, "Primary_ISBN"),
                 (OaebuPartnerName.google_books_traffic, "Primary_ISBN"),
                 (OaebuPartnerName.oapen_irus_uk, "ISBN"),
@@ -2324,6 +2434,9 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             oaebu_data_qa_dataset = env.add_dataset()
             onix_workflow_dataset = env.add_dataset()
             oaebu_intermediate_dataset = env.add_dataset()
+            oaebu_output_dataset = env.add_dataset()
+            oaebu_elastic_dataset = env.add_dataset()
+
             telescope.make_release = MagicMock(
                 return_value=[
                     OnixWorkflowRelease(
@@ -2336,6 +2449,8 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
                         oaebu_data_qa_dataset=oaebu_data_qa_dataset,
                         workflow_dataset=onix_workflow_dataset,
                         oaebu_intermediate_dataset=oaebu_intermediate_dataset,
+                        oaebu_dataset=oaebu_output_dataset,
+                        oaebu_elastic_dataset=oaebu_elastic_dataset,
                     )
                 ]
             )
@@ -2379,6 +2494,13 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
                     self.timestamp,
                 )
 
+            # Create oaebu output tables
+            env.run_task(
+                telescope.create_oaebu_book_product_table.__name__,
+                workflow_dag,
+                self.timestamp,
+            )
+
             # ONIX isbn check
             env.run_task(
                 telescope.create_oaebu_data_qa_onix_isbn.__name__,
@@ -2407,6 +2529,20 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
                 self.timestamp,
             )
 
+            # JSTOR institution isbn check
+            env.run_task(
+                f"{telescope.create_oaebu_data_qa_jstor_isbn.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # JSTOR institution intermediate unmatched isbns
+            env.run_task(
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
+                workflow_dag,
+                self.timestamp,
+            )
+
             # Google Books Sales isbn check
             env.run_task(
                 telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__,
@@ -2416,7 +2552,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
 
             # Google Books Sales intermediate unmatched isbns
             env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[2].gcp_dataset_id}.{data_partners[2].gcp_table_id}",
                 workflow_dag,
                 self.timestamp,
             )
@@ -2430,7 +2566,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
 
             # Google Books Traffic intermediate unmatched isbns
             env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[2].gcp_dataset_id}.{data_partners[2].gcp_table_id}",
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[3].gcp_dataset_id}.{data_partners[3].gcp_table_id}",
                 workflow_dag,
                 self.timestamp,
             )
@@ -2444,7 +2580,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
 
             # OAPEN IRUS UK intermediate unmatched isbns
             env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[3].gcp_dataset_id}.{data_partners[3].gcp_table_id}",
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[4].gcp_dataset_id}.{data_partners[4].gcp_table_id}",
                 workflow_dag,
                 self.timestamp,
             )
@@ -2458,10 +2594,40 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
 
             # Google Books Analytics unmatched isbns
             print("---------------------------------------")
-            print(f"{data_partners[4].gcp_dataset_id}.{data_partners[4].gcp_table_id}")
+            print(f"{data_partners[5].gcp_dataset_id}.{data_partners[5].gcp_table_id}")
             print("---------------------------------------")
             env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[4].gcp_dataset_id}.{data_partners[4].gcp_table_id}",
+                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[5].gcp_dataset_id}.{data_partners[5].gcp_table_id}",
+                workflow_dag,
+                self.timestamp,
+            )
+
+            # Export oaebu elastic tables
+            export_tables = [
+                "book_product_list",
+                "book_product_metrics",
+                "book_product_metrics_country",
+                "book_product_metrics_institution",
+                "book_product_metrics_city",
+                "book_product_metrics_referrer",
+                "book_product_metrics_events",
+                "book_publisher_metrics",
+                "book_subject_metrics",
+                "book_year_metrics",
+                "book_subject_year_metrics",
+                "book_author_metrics",
+            ]
+
+            for table in export_tables:
+                env.run_task(
+                    f"{telescope.export_oaebu_table.__name__}.{table}",
+                    workflow_dag,
+                    self.timestamp,
+                )
+
+            # Export oaebu elastic qa table
+            env.run_task(
+                telescope.export_oaebu_qa_metrics.__name__,
                 workflow_dag,
                 self.timestamp,
             )
@@ -2486,6 +2652,15 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             self.assert_table_integrity(table_id, 3)
 
             table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn_errors{release_suffix}"
+            self.assert_table_integrity(table_id, 1)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
+            self.assert_table_integrity(table_id, 2)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            self.assert_table_integrity(table_id, 2)
+
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_publisher_metrics{release_suffix}"
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
@@ -2543,7 +2718,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             self.assertEqual(records[0]["no_relatedworks"], 0)
             self.assertEqual(records[0]["no_relatedproducts"], 2)
             self.assertEqual(records[0]["no_doi"], 3)
-            self.assertEqual(records[0]["no_productform"], 3)
+            self.assertEqual(records[0]["no_productform"], 1)
             self.assertEqual(records[0]["no_contributors"], 3)
             self.assertEqual(records[0]["no_titledetails"], 3)
             self.assertEqual(records[0]["no_publisher_urls"], 3)
@@ -2638,18 +2813,36 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             self.assertTrue("(none)" in isbns)
 
             # Check Google Analytics unmatched ISBN picked up
-            sql = f"SELECT publication_id from {self.gcp_project_id}.{oaebu_data_qa_dataset}.anu_press_google_analytics_unmatched_publication_id{release_suffix}"
+            sql = f"SELECT publication_id from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_analytics_unmatched_publication_id{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["publication_id"] for record in records])
             self.assertEqual(len(isbns), 2)
             self.assertTrue("9781111111113" in isbns)
             self.assertTrue("(none)" in isbns)
 
+            # Check Book Product Table
+            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN13"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("112" in isbns)
+
+            # Check export tables
+            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            records = run_bigquery_query(sql)
+            isbns = set([record["ISBN13"] for record in records])
+            self.assertEqual(len(isbns), 2)
+            self.assertTrue("211" in isbns)
+            self.assertTrue("112" in isbns)
+
             # Cleanup
             env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
 
             # Environment cleanup
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_data_qa_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="oaebu_intermediate")
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_intermediate_dataset)
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_elastic_dataset)
+            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_output_dataset)
             delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="onix_workflow")
             delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix=self.test_onix_folder)
