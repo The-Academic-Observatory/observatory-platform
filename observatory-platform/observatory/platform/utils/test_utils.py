@@ -310,7 +310,7 @@ class ObservatoryEnvironment:
                     frozen_time.stop()
 
     @contextlib.contextmanager
-    def create(self):
+    def create(self, task_logging: bool = False):
         """Make and destroy an Observatory isolated environment, which involves:
 
         * Creating a temporary directory.
@@ -321,6 +321,7 @@ class ObservatoryEnvironment:
           AirflowVars.DOWNLOAD_BUCKET and AirflowVars.TRANSFORM_BUCKET.
         * Cleaning up all resources when the environment is closed.
 
+        :param task_logging: display airflow task logging
         :yield: Observatory environment temporary directory.
         """
 
@@ -349,6 +350,14 @@ class ObservatoryEnvironment:
                 self.session = settings.Session
                 db.initdb()
 
+                original_log_level = logging.getLogger().getEffectiveLevel()
+                if task_logging:
+                    # Set root logger to INFO level, it seems that custom 'logging.info()' statements inside a task
+                    # come from root
+                    logging.getLogger().setLevel(20)
+                    # Propagate logging so it is displayed
+                    logging.getLogger('airflow.task').propagate = True
+
                 # Create buckets
                 if self.create_gcp_env:
                     for bucket_id in self.buckets:
@@ -371,6 +380,10 @@ class ObservatoryEnvironment:
                     self.api_session = self.api_env.session
                     yield self.temp_dir
             finally:
+                # Set logger settings back to original settings
+                logging.getLogger().setLevel(original_log_level)
+                logging.getLogger('airflow.task').propagate = False
+
                 # Revert environment
                 os.environ.clear()
                 os.environ.update(prev_env)
