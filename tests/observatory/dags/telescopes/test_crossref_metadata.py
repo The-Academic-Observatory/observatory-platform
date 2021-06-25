@@ -14,29 +14,27 @@
 
 # Author: Aniek Roelofs
 
-import glob
-import logging
+
 import os
-import shutil
-import unittest
-from unittest.mock import patch
-
+import httpretty
 import pendulum
-import vcr
-from click.testing import CliRunner
+from datetime import datetime
 from natsort import natsorted
-from observatory.dags.telescopes.crossref_metadata import (CrossrefMetadataRelease,
-                                                           CrossrefMetadataTelescope,
-                                                           extract_release,
-                                                           transform_release)
-from observatory.platform.utils.file_utils import _hash_file
-from observatory.platform.utils.template_utils import SubFolder, telescope_path
+from unittest.mock import patch
+from airflow.exceptions import AirflowException
+from airflow.models.connection import Connection
 
+from observatory.dags.telescopes.crossref_metadata import CrossrefMetadataRelease, CrossrefMetadataTelescope, \
+    transform_file
+from observatory.platform.utils.airflow_utils import AirflowConns
+from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
+from observatory.platform.utils.template_utils import blob_name
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
 from tests.observatory.test_utils import test_fixtures_path
 
 
-class TestCrossrefMetadata(unittest.TestCase):
-    """ Tests for the functions used by the crossref metadata telescope """
+class TestCrossrefMetadata(ObservatoryTestCase):
+    """ Tests for the Crossref Metadata telescope """
 
     def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
@@ -46,159 +44,187 @@ class TestCrossrefMetadata(unittest.TestCase):
         """
 
         super(TestCrossrefMetadata, self).__init__(*args, **kwargs)
+        self.project_id = os.getenv('TEST_GCP_PROJECT_ID')
+        self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
+        self.download_path = test_fixtures_path('telescopes', 'crossref_metadata', 'crossref_metadata.json.tar.gz')
+        self.extract_file_hashes = ['4a55065d90aaa58c69bc5f5a54da3006', 'c45901a52154789470410aad51485e9c',
+                                    '4c0fd617224a557b9ef04313cca0bd4a', 'd93dc613e299871925532d906c3a44a1',
+                                    'dd1ab247c55191a14bcd1bf32719c337']
+        self.transform_hashes = ['065a8c0bd1ef4239be9f37c0ad199a31', '38b766ec494054e621787de00ff715c8',
+                                 '70437aad7c4568ed07408baf034871e4', 'c3e3285a48867c8b7c10b1c9c0c5ab8a',
+                                 '71ba3612352bcb2a723d4aa33ec35b61']
 
-        self.crossref_release_exists_path = os.path.join(test_fixtures_path(), 'vcr_cassettes',
-                                                         'crossref_release_exists.yaml')
-        self.test_release_path = os.path.join(test_fixtures_path(), 'telescopes', 'crossref_metadata.json.tar.gz')
-        self.year = 3000
-        self.month = 1
-        self.date = pendulum.datetime(year=3000, month=1, day=1)
-        self.download_file_name = 'crossref_metadata_3000_01_01.json.tar.gz'
-        self.extract_folder = 'crossref_metadata_3000_01_01'
-        self.transform_folder = 'crossref_metadata_3000_01_01'
-        self.num_files = 5
-        self.download_hash = 'ddcbcca0f8d63ce57906e76c787f243d'
-        self.extract_hashes = ['d7acd01f729d62fbbaffa50b534025b2', '634724e4c9f773ca3b5a81b20f0ff005',
-                               '2392895c2dacd6176b140435e97e1840', 'd1157cf952d4694d4f4c08ee36a18116',
-                               '4128088d14446682bde8a1a1bc5e15b5']
-        self.transform_hashes = ['5f27af4d3080b56484fa5567230aaf92', '10717291388b1c232416e720f6ec3f3d',
-                                 '92faa40aa9353c832cd66349d32950ad', 'c98c07927b6b978696ffaf81ee632bbb',
-                                 '92a3ac8f3110da83fcaede58e30f6ec3']
+        # release used for tests outside observatory test environment
+        self.release = CrossrefMetadataRelease('crossref_metadata', datetime(2020, 1, 1))
 
-        # Turn logging to warning because vcr prints too much at info level
-        logging.basicConfig()
-        logging.getLogger().setLevel(logging.WARNING)
+    def test_dag_structure(self):
+        """ Test that the Crossref Metadata DAG has the correct structure.
 
-    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-    def test_list_releases(self, mock_variable_get):
-        """ Test that list releases returns a list of string with urls.
+        :return: None
+        """
+
+        dag = CrossrefMetadataTelescope().make_dag()
+        self.assert_dag_structure({
+            'check_dependencies': ['check_release_exists'],
+            'check_release_exists': ['download'],
+            'download': ['upload_downloaded'],
+            'upload_downloaded': ['extract'],
+            'extract': ['transform'],
+            'transform': ['upload_transformed'],
+            'upload_transformed': ['bq_load'],
+            'bq_load': ['cleanup'],
+            'cleanup': []
+        }, dag)
+
+    def test_dag_load(self):
+        """ Test that the Crossref Metadata DAG can be loaded from a DAG bag.
+
+        :return: None
+        """
+
+        with ObservatoryEnvironment().create():
+            dag_file = os.path.join(module_file_path('observatory.dags.dags'), 'crossref_metadata.py')
+            self.assert_dag_load('crossref_metadata', dag_file)
+
+    def test_telescope(self):
+        """ Test the Crossref Metadata telescope end to end.
 
         :return: None.
         """
 
-        # Mock data variable
-        data_path = 'data'
-        mock_variable_get.return_value = data_path
+        # Setup Observatory environment
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        dataset_id = env.add_dataset()
 
-        with CliRunner().isolated_filesystem():
-            with vcr.use_cassette(self.crossref_release_exists_path):
-                # Test a release that exists
-                release = CrossrefMetadataRelease(2020, 6)
-                self.assertTrue(release.exists())
+        # Setup Telescope
+        execution_date = pendulum.datetime(year=2020, month=11, day=1)
+        telescope = CrossrefMetadataTelescope(dataset_id=dataset_id)
+        dag = telescope.make_dag()
 
-                # Test a release that should not exist
-                release = CrossrefMetadataRelease(self.year, self.month)
-                self.assertFalse(release.exists())
+        # Create the Observatory environment and run tests
+        with env.create():
+            # Add Crossref Metadata connection
+            env.add_connection(Connection(conn_id=AirflowConns.CROSSREF, uri="mysql://:crossref-token@"))
 
-    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-    def test_download_path(self, mock_variable_get):
-        """ Test that path of downloaded file is correct for given url.
+            # Test that all dependencies are specified: no error should be thrown
+            env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
 
-        :param home_mock: Mock observatory home path
+            # Test check release exists task, next tasks should not be skipped
+            with httpretty.enabled():
+                url = CrossrefMetadataTelescope.TELESCOPE_URL.format(year=execution_date.year,
+                                                                     month=execution_date.month)
+                httpretty.register_uri(httpretty.HEAD, url, body="", status=302)
+                env.run_task(telescope.check_release_exists.__name__, dag, execution_date)
+
+            release = CrossrefMetadataRelease(telescope.dag_id, execution_date)
+
+            # Test download task
+            with httpretty.enabled():
+                self.setup_mock_file_download(release.url, self.download_path)
+                env.run_task(telescope.download.__name__, dag, execution_date)
+            self.assertEqual(1, len(release.download_files))
+            expected_file_hash = '10210c33936f9ba6b7e053f6f457591b'
+            self.assert_file_integrity(release.download_path, expected_file_hash, 'md5')
+
+            # Test that file uploaded
+            env.run_task(telescope.upload_downloaded.__name__, dag, execution_date)
+            self.assert_blob_integrity(env.download_bucket, blob_name(release.download_path), release.download_path)
+
+            # Test that file extracted
+            env.run_task(telescope.extract.__name__, dag, execution_date)
+            self.assertEqual(5, len(release.extract_files))
+            for i, file in enumerate(natsorted(release.extract_files)):
+                expected_file_hash = self.extract_file_hashes[i]
+                self.assert_file_integrity(file, expected_file_hash, 'md5')
+
+            # Test that files transformed
+            env.run_task(telescope.transform.__name__, dag, execution_date)
+            self.assertEqual(5, len(release.transform_files))
+            for i, file in enumerate(natsorted(release.transform_files)):
+                expected_file_hash = self.transform_hashes[i]
+                self.assert_file_integrity(file, expected_file_hash, 'md5')
+
+            # Test that transformed files uploaded
+            env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
+            for file in release.transform_files:
+                self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
+
+            # Test that data loaded into BigQuery
+            env.run_task(telescope.bq_load.__name__, dag, execution_date)
+            table_id = f'{self.project_id}.{dataset_id}.' \
+                       f'{bigquery_sharded_table_id(telescope.dag_id, release.release_date)}'
+            expected_rows = 20
+            self.assert_table_integrity(table_id, expected_rows)
+
+            # Test that all telescope data deleted
+            download_folder, extract_folder, transform_folder = release.download_folder, release.extract_folder, \
+                                                                release.transform_folder
+            env.run_task(telescope.cleanup.__name__, dag, execution_date)
+            self.assert_cleanup(download_folder, extract_folder, transform_folder)
+
+    @patch('observatory.dags.telescopes.crossref_metadata.BaseHook.get_connection')
+    def test_download(self, mock_conn):
+        """ Test download method of release with failing response
+
+        :param mock_conn: Mock Airflow crossref connection
         :return: None.
         """
+        mock_conn.return_value = Connection(AirflowConns.CROSSREF, 'http://:crossref-token@')
+        release = self.release
+        with httpretty.enabled():
+            httpretty.register_uri(httpretty.GET, release.url, body="", status=400)
+            with self.assertRaises(ConnectionError):
+                release.download()
 
-        # Mock data variable
-        data_path = 'data'
-        mock_variable_get.return_value = data_path
-
-        with CliRunner().isolated_filesystem():
-            release = CrossrefMetadataRelease(self.year, self.month)
-            path = telescope_path(SubFolder.downloaded, CrossrefMetadataTelescope.DAG_ID)
-            self.assertEqual(os.path.join(path, self.download_file_name), release.download_path)
-
+    @patch('observatory.dags.telescopes.crossref_metadata.subprocess.Popen')
     @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-    def test_extract_path(self, mock_variable_get):
-        """ Test that path of decompressed/extracted file is correct for given url.
+    def test_extract(self, mock_variable_get, mock_subprocess):
+        """ Test extract method of release with failing extract command
 
-        :param home_mock: Mock observatory home path
+        :param mock_variable_get: Mock Airflow data path variable
+        :param mock_subprocess: Mock the subprocess output
         :return: None.
         """
+        mock_variable_get.return_value = 'data'
+        release = self.release
 
-        # Mock data variable
-        data_path = 'data'
-        mock_variable_get.return_value = data_path
+        mock_subprocess().returncode = 1
+        mock_subprocess().communicate.return_value = 'stdout'.encode(), 'stderr'.encode()
+        with self.assertRaises(AirflowException):
+            release.extract()
 
-        with CliRunner().isolated_filesystem():
-            release = CrossrefMetadataRelease(self.year, self.month)
-            path = telescope_path(SubFolder.extracted, CrossrefMetadataTelescope.DAG_ID)
-            self.assertEqual(os.path.join(path, self.extract_folder), release.extract_path)
-
-    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-    def test_transform_path(self, mock_variable_get):
-        """ Test that path of transformed file is correct for given url.
-
-        :param home_mock: Mock observatory home path
-        :return: None.
-        """
-
-        # Mock data variable
-        data_path = 'data'
-        mock_variable_get.return_value = data_path
-
-        with CliRunner().isolated_filesystem():
-            release = CrossrefMetadataRelease(self.year, self.month)
-            path = os.path.join(telescope_path(SubFolder.transformed, CrossrefMetadataTelescope.DAG_ID),
-                                self.transform_folder)
-            self.assertEqual(path, release.transform_path)
-
-    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-    def test_extract_release(self, mock_variable_get):
-        """ Test that the release is decompressed as expected.
+    def test_check_release_exists(self):
+        """ Test the 'check_release_exists' task with different responses.
 
         :return: None.
         """
+        release = self.release
+        telescope = CrossrefMetadataTelescope()
+        with httpretty.enabled():
+            # register 3 responses, successful, release not found and 'other'
+            httpretty.register_uri(httpretty.HEAD, uri=release.url,
+                                   responses=[
+                                       httpretty.Response(body='', status=302),
+                                       httpretty.Response(body='', status=404, adding_headers={'reason': 'Not Found'}),
+                                       httpretty.Response(body='', status=400)])
 
-        # Mock data variable
-        data_path = 'data'
-        mock_variable_get.return_value = data_path
+            continue_dag = telescope.check_release_exists(execution_date=release.release_date)
+            self.assertTrue(continue_dag)
 
-        with CliRunner().isolated_filesystem():
-            release = CrossrefMetadataRelease(self.year, self.month)
+            continue_dag = telescope.check_release_exists(execution_date=release.release_date)
+            self.assertFalse(continue_dag)
 
-            # 'download' release
-            shutil.copyfile(self.test_release_path, release.download_path)
+            with self.assertRaises(AirflowException):
+                telescope.check_release_exists(execution_date=release.release_date)
 
-            success = extract_release(release)
-            self.assertTrue(success)
-            self.assertTrue(os.path.exists(release.extract_path))
+    @patch('observatory.dags.telescopes.crossref_metadata.subprocess.Popen')
+    def test_transform_file(self, mock_subprocess):
+        """ Test transform_file function with failing transform command.
 
-            file_paths = natsorted(glob.glob(f'{release.extract_path}/*.json'))
-            self.assertEqual(self.num_files, len(file_paths))
-
-            for md5sum, file_path in zip(self.extract_hashes, file_paths):
-                self.assertEqual(md5sum, _hash_file(file_path, algorithm='md5'))
-
-    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-    def test_transform_release(self, mock_variable_get):
-        """ Test that the release is transformed as expected.
-
+        :param mock_subprocess: Mock the subprocess output
         :return: None.
         """
-
-        # Mock data variable
-        data_path = 'data'
-        mock_variable_get.return_value = data_path
-
-        with CliRunner().isolated_filesystem():
-            release = CrossrefMetadataRelease(self.year, self.month)
-
-            # 'download' release
-            shutil.copyfile(self.test_release_path, release.download_path)
-
-            # Extract release
-            success = extract_release(release)
-            self.assertTrue(success)
-            self.assertTrue(os.path.exists(release.extract_path))
-
-            # Transform release
-            success = transform_release(release)
-            self.assertTrue(success)
-            self.assertTrue(os.path.exists(release.transform_path))
-
-            # Check files are correct
-            file_paths = natsorted(glob.glob(f'{release.transform_path}/*.jsonl'))
-            self.assertEqual(self.num_files, len(file_paths))
-
-            for md5sum, file_path in zip(self.transform_hashes, file_paths):
-                self.assertEqual(md5sum, _hash_file(file_path, algorithm='md5'))
+        mock_subprocess().returncode = 1
+        mock_subprocess().communicate.return_value = 'stdout'.encode(), 'stderr'.encode()
+        with self.assertRaises(AirflowException):
+            transform_file('input_file_path', 'output_file_path')

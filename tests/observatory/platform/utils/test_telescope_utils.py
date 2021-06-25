@@ -14,6 +14,9 @@
 
 # Author: Tuan Chien, Aniek Roelofs
 
+import datetime
+import dateutil
+import os
 import unittest
 from unittest.mock import patch
 from urllib.parse import quote
@@ -22,24 +25,54 @@ import paramiko
 import pendulum
 import pysftp
 from airflow.models.connection import Connection
+from airflow.models.dag import DAG
+from click.testing import CliRunner
+
+from observatory.platform.utils.file_utils import gzip_file_crc
 from observatory.platform.utils.telescope_utils import (
     PeriodCount,
     ScheduleOptimiser,
+    list_to_jsonl_gz,
     make_dag_id,
     make_observatory_api,
     make_sftp_connection,
     make_telescope_sensor,
+    get_prev_execution_date,
+    normalized_schedule_interval
 )
-from observatory.platform.utils.file_utils import gzip_file_crc
-from observatory.platform.utils.telescope_utils import (PeriodCount, ScheduleOptimiser, make_sftp_connection,
-                                                        make_dag_id, make_observatory_api, list_to_jsonl_gz)
-from click.testing import CliRunner
-import os
 
 
 class TestTelescopeUtils(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestTelescopeUtils, self).__init__(*args, **kwargs)
+
+    def test_normalized_schedule_interval(self):
+        """ Test normalized_schedule_interval """
+        schedule_intervals = [
+            (None, None),
+            ("@daily", "0 0 * * *"),
+            ("@weekly", "0 0 * * 0"),
+            ("@monthly", "0 0 1 * *"),
+            ("@quarterly", "0 0 1 */3 *"),
+            ("@yearly", "0 0 1 1 *"),
+            ("@once", None),
+            (datetime.timedelta(days=1), datetime.timedelta(days=1)),
+        ]
+        for test in schedule_intervals:
+            schedule_interval = test[0]
+            expected_n_schedule_interval = test[1]
+            actual_n_schedule_interval = normalized_schedule_interval(schedule_interval)
+
+            self.assertEqual(expected_n_schedule_interval, actual_n_schedule_interval)
+
+    def test_get_prev_execution_date(self):
+        """ Test get_prev_execution_date """
+        execution_date = pendulum.Pendulum(2020, 2, 20)
+        # test for both cron preset and cron expression
+        for schedule_interval in ['@monthly', '0 0 1 * *']:
+            prev_execution_date = get_prev_execution_date(schedule_interval, execution_date)
+            expected = datetime.datetime(2020, 2, 1, tzinfo=dateutil.tz.gettz(execution_date.timezone_name))
+            self.assertEqual(expected, prev_execution_date)
 
     @patch.object(pysftp, "Connection")
     @patch("airflow.hooks.base_hook.BaseHook.get_connection")

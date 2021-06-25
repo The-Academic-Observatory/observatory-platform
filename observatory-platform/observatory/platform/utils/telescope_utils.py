@@ -28,18 +28,22 @@ import sys
 from base64 import b64decode
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import ceil
 from pathlib import Path
-from typing import Any, List, Tuple, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union, Optional
 
+import dateutil
 import jsonlines
 import paramiko
 import pendulum
 import pysftp
+import six
 from airflow.hooks.base_hook import BaseHook
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
+from croniter import croniter
+from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from observatory.api.client.api.observatory_api import ObservatoryApi
 from observatory.api.client.api_client import ApiClient
@@ -51,6 +55,89 @@ from observatory.platform.utils.jinja2_utils import (
     make_jinja2_filename,
     render_template,
 )
+
+ScheduleInterval = Union[str, timedelta, relativedelta]
+
+
+def normalized_schedule_interval(schedule_interval: Optional[str]) -> Optional[ScheduleInterval]:
+    """
+    Copied from https://github.com/apache/airflow/blob/main/airflow/models/dag.py#L851-L866
+    
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+    
+    http://www.apache.org/licenses/LICENSE-2.0
+    
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+    Returns Normalized Schedule Interval. This is used internally by the Scheduler to
+    schedule DAGs.
+
+    1. Converts Cron Preset to a Cron Expression (e.g ``@monthly`` to ``0 0 1 * *``)
+    2. If Schedule Interval is "@once" return "None"
+    3. If not (1) or (2) returns schedule_interval
+    """
+    cron_presets = {
+        '@hourly': '0 * * * *',
+        '@daily': '0 0 * * *',
+        '@weekly': '0 0 * * 0',
+        '@monthly': '0 0 1 * *',
+        '@quarterly': '0 0 1 */3 *',
+        '@yearly': '0 0 1 1 *',
+    }
+    if isinstance(schedule_interval, six.string_types) and schedule_interval in cron_presets:
+        _schedule_interval = cron_presets.get(schedule_interval)  # type: Optional[ScheduleInterval]
+    elif schedule_interval == '@once':
+        _schedule_interval = None
+    else:
+        _schedule_interval = schedule_interval
+    return _schedule_interval
+
+
+def get_prev_execution_date(schedule_interval_target: str, execution_date: pendulum.Pendulum) -> datetime:
+    """ Get the previous execution date of a target DAG based on the given execution date and schedule interval of
+    the target DAG.
+    This can be used as a callable for the execution_delta_fn of the ExternalTaskSensor.
+    For example:
+    execution_date_fn=lambda execution_date: get_prev_execution_date(ExternalTelescope.SCHEDULE_INTERVAL,
+                                                                     execution_date)
+
+    :param schedule_interval_target: Schedule interval of target DAG (can be e.g. '@monthly' or '0 0 1 * *')
+    :param execution_date: The execution date
+    :return: The previous execution date of the target DAG.
+    """
+    # Normalize schedule, converting cron preset to cron expression
+    normalized_schedule = normalized_schedule_interval(schedule_interval_target)
+
+    # Convert exec date to datetime, using pendulum exec date gives error 'list index out of range' related to tz info
+    tz_info = dateutil.tz.gettz(execution_date.timezone_name)
+    dt_execution_date = datetime(
+        execution_date.year,
+        execution_date.month,
+        execution_date.day,
+        execution_date.hour,
+        execution_date.minute,
+        execution_date.second,
+        execution_date.microsecond,
+    ).astimezone(tz_info)
+
+    logging.info(f"Getting last execution date with normalized schedule '{normalized_schedule}' and execution_date "
+                 f"'{dt_execution_date}'")
+    # Create croniter object
+    cron_iter = croniter(normalized_schedule, dt_execution_date)
+    # Get previous execution date
+    execution_date_target = cron_iter.get_prev(datetime)
+    logging.info(f'Found execution date: {execution_date_target}')
+    return execution_date_target
 
 
 def make_sftp_connection() -> pysftp.Connection:
@@ -170,13 +257,13 @@ def make_observatory_api() -> ObservatoryApi:
 
     # Assert connection has required fields
     assert (
-        conn.conn_type != "" and conn.conn_type is not None
+            conn.conn_type != "" and conn.conn_type is not None
     ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} conn_type must not be None"
     assert (
-        conn.host != "" and conn.host is not None
+            conn.host != "" and conn.host is not None
     ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} host must not be None"
     assert (
-        conn.password != "" and conn.password is not None
+            conn.password != "" and conn.password is not None
     ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} password must not be None"
 
     # Make host
@@ -378,7 +465,7 @@ def get_entry_or_none(base: dict, target, var_type=None):
 
 
 def json_to_db(
-    json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str], path_prefix: str = None
+        json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str], path_prefix: str = None
 ) -> List[str]:
     """Transform json from query into database format.
 
@@ -587,7 +674,7 @@ class ScheduleOptimiser:
 
     @staticmethod
     def optimise(
-        max_per_call: int, max_per_query: int, historic_counts: List[Type[PeriodCount]]
+            max_per_call: int, max_per_query: int, historic_counts: List[Type[PeriodCount]]
     ) -> Tuple[List[Type[pendulum.Period]], int]:
         """Calculate and return a schedule that minimises the number of API calls with the given constraints. Behaviour
             if there are 0 results in any of the periods is still to return 1 period covering the entire span, but the
@@ -673,5 +760,3 @@ def add_partition_date(list_of_dicts: List[dict], partition_date: datetime,
     for entry in list_of_dicts:
         entry[partition_field] = partition_date
     return list_of_dicts
-
-
