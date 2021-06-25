@@ -137,7 +137,7 @@ class OrcidRelease(StreamRelease):
         logging.info(f"Downloading transferred files from Google Cloud bucket: {gc_download_bucket}")
         if self.first_release:
             # Download all records from bucket
-            args = ["gsutil", "-m", "cp", "-r", f"gs://{gc_download_bucket}", self.download_folder]
+            args = ["gsutil", "-m", "-q", "cp", "-r", f"gs://{gc_download_bucket}", self.download_folder]
             proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
             # Download only modified records from bucket
@@ -145,7 +145,7 @@ class OrcidRelease(StreamRelease):
                                         aws_access_key_id,
                                         aws_secret_access_key,
                                         gc_download_bucket, self.modified_records_path)
-            args = ["gsutil", "-m", "cp", "-I", self.download_folder]
+            args = ["gsutil", "-m", "-q", "cp", "-I", self.download_folder]
             proc: Popen = subprocess.Popen(args, stdin=open(self.modified_records_path),
                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         logging.info(f'Executing bash command: {subprocess.list2cmdline(args)}')
