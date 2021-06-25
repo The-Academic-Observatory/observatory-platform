@@ -43,6 +43,7 @@ Every week the following tables are overwritten for visualisation in the Data St
 """
 
 from datetime import datetime
+from functools import partial
 
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -56,6 +57,7 @@ from observatory.dags.telescopes.mag import MagTelescope
 from observatory.dags.telescopes.open_citations import OpenCitationsTelescope
 from observatory.dags.telescopes.unpaywall import UnpaywallTelescope
 from observatory.dags.workflows.doi import DoiWorkflow
+from observatory.platform.utils.telescope_utils import get_prev_execution_date
 
 default_args = {
     "owner": "airflow",
@@ -75,6 +77,8 @@ with DAG(dag_id=DoiWorkflow.DAG_ID, schedule_interval='@weekly', default_args=de
     crossref_metadata_sensor = ExternalTaskSensor(
         task_id=SENSOR_ID_CROSSREF_METADATA,
         external_dag_id=CrossrefMetadataTelescope.DAG_ID,
+        execution_date_fn=lambda execution_date: get_prev_execution_date(CrossrefMetadataTelescope.SCHEDULE_INTERVAL,
+                                                                         execution_date),
         mode='reschedule')
 
     fundref_sensor = ExternalTaskSensor(
