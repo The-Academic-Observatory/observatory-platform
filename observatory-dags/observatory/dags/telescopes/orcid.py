@@ -181,6 +181,7 @@ class OrcidRelease(StreamRelease):
         :return: None.
         """
         file_name = os.path.basename(download_path)
+        transform_path = os.path.join(self.transform_folder, os.path.splitext(file_name)[0] + '.jsonl')
         logging.info(f"Transforming file: {file_name}")
         # Create dict of data from summary xml file
         with open(download_path, 'r') as f:
@@ -197,7 +198,8 @@ class OrcidRelease(StreamRelease):
             raise AirflowException(f'Key error for file: {download_path}')
 
         orcid_record = change_keys(orcid_record, convert)
-        with jsonlines.open(self.transform_path, 'a') as writer:
+
+        with jsonlines.open(transform_path, 'w') as writer:
             writer.write(orcid_record)
         logging.info(f"Finished: {file_name}")
 
