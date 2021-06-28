@@ -1,24 +1,6 @@
 {
   "mappings": {
     "properties": {
-      "{{ aggregration_level }}_id": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "title": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
       "published_year": {
         "type": "text",
         "fields": {
@@ -27,6 +9,9 @@
             "ignore_above": 256
           }
         }
+      },
+      "unique_books": {
+        "type": "integer"
       },
       "month": {
         "type": "date",

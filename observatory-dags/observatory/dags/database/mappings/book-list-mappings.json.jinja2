@@ -10,6 +10,19 @@
           }
         }
       },
+      "ProductForm": {
+        "type": "text",
+        "analyzer": "text_analyzer",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "EditionNumber": {
+        "type": "integer"
+      },
       "published_year": {
         "type": "date",
         "format": "yyyy-MM-dd"
@@ -24,17 +37,7 @@
           }
         }
       },
-      "abstract": {
-        "type": "text",
-        "analyzer": "text_analyzer",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "subjects": {
+      "bic_subjects": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -43,13 +46,31 @@
           }
         }
       },
-      "linked_to": {
-        "properties": {
-          "oapen": { "type": "boolean"},
-          "jstor": { "type": "boolean"},
-          "google_books": { "type": "boolean"},
-          "google_analytics": { "type": "boolean"},
-          "ucl_discovery": { "type": "boolean"},
+      "bisac_subjects": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "thema_subjects": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "keywords": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
         }
       }
     }

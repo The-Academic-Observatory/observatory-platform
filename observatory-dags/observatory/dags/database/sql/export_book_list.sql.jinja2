@@ -15,9 +15,10 @@
 # Author: Richard Hosking #}
 
 SELECT
-    ISBN13,
+    ISBN13 as product_id,
     onix.ProductForm,
     onix.EditionNumber,
+    onix.published_year,
     onix.title,
     onix.bic_subjects,
     onix.bisac_subjects,

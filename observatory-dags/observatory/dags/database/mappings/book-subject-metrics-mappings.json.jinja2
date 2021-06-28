@@ -1,7 +1,7 @@
 {
   "mappings": {
     "properties": {
-      "{{ aggregration_level }}_id": {
+      "subject": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -10,23 +10,8 @@
           }
         }
       },
-      "title": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "published_year": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
+      "unique_books": {
+        "type": "integer"
       },
       "month": {
         "type": "date",

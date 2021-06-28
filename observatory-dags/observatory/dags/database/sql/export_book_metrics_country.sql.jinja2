@@ -76,7 +76,7 @@ google_analytics_month_country as (
 )
 
 SELECT
-    month_country.ISBN13,
+    month_country.ISBN13 as product_id,
     month_country.title,
     month_country.published_year,
     month_country.month,

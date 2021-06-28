@@ -16,6 +16,7 @@
 
 SELECT
     month,
+    count(ISBN13) as unique_books,
     STRUCT(SUM(google_analytics.unique_views) as unique_views) as google_analytics,
     STRUCT(SUM(crossref_events.count) as count) as crossref_events,
     STRUCT(
