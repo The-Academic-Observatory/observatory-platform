@@ -332,12 +332,12 @@ EventsList: List[Event]
 class ObservatoryDataset:
     """ The generated observatory dataset.
 
-    :param institutions:
-    :param authors:
-    :param funders:
-    :param publishers:
-    :param papers:
-    :param fields_of_study:
+    :param institutions: list of institutions.
+    :param authors: list of authors.
+    :param funders: list of funders.
+    :param publishers: list of publishers.
+    :param papers: list of papers.
+    :param fields_of_study: list of fields of study.
     """
 
     institutions: InstitutionList
@@ -397,12 +397,12 @@ def make_observatory_dataset(
 
 
 def make_funders(*, n_funders: int, doi_prefix: int, faker: Faker) -> FunderList:
-    """
+    """ Make the funders ground truth dataset.
 
-    :param n_funders:
-    :param doi_prefix:
-    :param faker:
-    :return:
+    :param n_funders: number of funders to generate.
+    :param doi_prefix: the DOI prefix for the funders.
+    :param faker: the faker instance.
+    :return: a list of funders.
     """
 
     funders = []
@@ -434,13 +434,13 @@ def make_publishers(
     min_journals_per_publisher: int = 1,
     max_journals_per_publisher: int = 3,
 ) -> PublisherList:
-    """
+    """ Make publishers ground truth dataset.
 
-    :param n_publishers:
-    :param doi_prefix:
-    :param faker:
-    :param min_journals_per_publisher:
-    :param max_journals_per_publisher:
+    :param n_publishers: number of publishers.
+    :param doi_prefix: the publisher DOI prefix.
+    :param faker: the faker instance.
+    :param min_journals_per_publisher: the min number of journals to generate per publisher.
+    :param max_journals_per_publisher: the max number of journals to generate per publisher.
     :return:
     """
 
@@ -467,14 +467,14 @@ def make_fields_of_study(
     min_title_length: int = 1,
     max_title_length: int = 3,
 ) -> FieldOfStudyList:
-    """
+    """ Generate the fields of study for the ground truth dataset.
 
-    :param n_fields_of_study_per_level:
-    :param faker:
-    :param n_levels:
-    :param min_title_length:
-    :param max_title_length:
-    :return:
+    :param n_fields_of_study_per_level: the number of fields of study per level.
+    :param faker: the faker instance.
+    :param n_levels: the number of levels.
+    :param min_title_length: the minimum field of study title length (words).
+    :param max_title_length: the maximum field of study title length (words).
+    :return: a list of the fields of study.
     """
 
     fields_of_study = []
@@ -491,12 +491,12 @@ def make_fields_of_study(
 
 
 def make_authors(*, n_authors: int, institutions: InstitutionList, faker: Faker) -> AuthorList:
-    """
+    """ Generate the authors ground truth dataset.
 
-    :param n_authors:
-    :param institutions:
-    :param faker:
-    :return:
+    :param n_authors: the number of authors to generate.
+    :param institutions: the institutions.
+    :param faker: the faker instance.
+    :return: a list of authors.
     """
 
     authors = []
@@ -526,25 +526,25 @@ def make_papers(
     min_fields_of_study: int = 1,
     max_fields_of_study: int = 20,
 ) -> PaperList:
-    """
+    """ Generate the list of ground truth papers.
 
-    :param n_papers:
-    :param authors:
-    :param funders:
-    :param publishers:
-    :param fields_of_study:
-    :param faker:
-    :param min_title_length:
-    :param max_title_length:
-    :param min_authors:
-    :param max_authors:
-    :param min_funders:
-    :param max_funders:
-    :param min_events:
-    :param max_events:
-    :param min_fields_of_study:
-    :param max_fields_of_study:
-    :return:
+    :param n_papers: the number of papers to generate.
+    :param authors: the authors list.
+    :param funders: the funders list.
+    :param publishers: the publishers list.
+    :param fields_of_study: the fields of study list.
+    :param faker: the faker instance.
+    :param min_title_length: the min paper title length.
+    :param max_title_length: the max paper title length.
+    :param min_authors: the min number of authors for each paper.
+    :param max_authors: the max number of authors for each paper.
+    :param min_funders: the min number of funders for each paper.
+    :param max_funders: the max number of funders for each paper.
+    :param min_events: the min number of events per paper.
+    :param max_events: the max number of events per paper.
+    :param min_fields_of_study: the min fields of study per paper.
+    :param max_fields_of_study: the max fields of study per paper.
+    :return: the list of papers.
     """
 
     papers = []
@@ -1125,11 +1125,11 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
 
 
 def make_doi_events(doi: str, event_list: EventsList) -> Dict:
-    """
+    """ Make the events for a DOI table row.
 
-    :param doi:
-    :param event_list:
-    :return:
+    :param doi: the DOI.
+    :param event_list: a list of events for the paper.
+    :return: the events for the DOI table.
     """
 
     events_total, events_months, events_years = aggregate_events(event_list)
@@ -1148,20 +1148,20 @@ def make_doi_events(doi: str, event_list: EventsList) -> Dict:
 
 
 def make_doi_grids(author_list: AuthorList) -> List[str]:
-    """
+    """ Make the grid ids for a DOI table row.
 
-    :param author_list:
-    :return:
+    :param author_list: the list of authors for the paper.
+    :return: the grid ids for the paper.
     """
 
     return list(set([author.institution.grid_id for author in author_list]))
 
 
 def make_doi_funders(funder_list: FunderList) -> List[Dict]:
-    """
+    """ Make a DOI table row funders affiliation list.
 
-    :param funder_list:
-    :return:
+    :param funder_list: the funders list.
+    :return: the funders affiliation list.
     """
 
     # Funders
@@ -1190,10 +1190,10 @@ def make_doi_funders(funder_list: FunderList) -> List[Dict]:
 
 
 def make_doi_journals(journal: Journal) -> List[Dict]:
-    """
+    """ Make the journal affiliation list for a DOI table row.
 
-    :param journal:
-    :return:
+    :param journal: the paper's journal.
+    :return: the journal affiliation list.
     """
 
     return [
@@ -1214,10 +1214,10 @@ def make_doi_journals(journal: Journal) -> List[Dict]:
 
 
 def to_affiliations_list(dict_: Dict):
-    """
+    """ Convert affiliation dict into a list.
 
-    :param dict_:
-    :return:
+    :param dict_: affiliation dict.
+    :return: affiliation list.
     """
 
     l_ = []
@@ -1235,10 +1235,10 @@ def to_affiliations_list(dict_: Dict):
 
 
 def make_doi_publishers(publisher: Publisher) -> List[Dict]:
-    """
+    """ Make the publisher affiliations for a DOI table row.
 
-    :param publisher:
-    :return:
+    :param publisher: the paper's publisher.
+    :return: the publisher affiliations list.
     """
 
     return [
@@ -1259,10 +1259,10 @@ def make_doi_publishers(publisher: Publisher) -> List[Dict]:
 
 
 def make_doi_institutions(author_list: AuthorList) -> List[Dict]:
-    """
+    """ Make the institution affiliations for a DOI table row.
 
-    :param author_list:
-    :return:
+    :param author_list: the paper's author list.
+    :return: the institution affiliation list.
     """
 
     institutions = {}
@@ -1289,10 +1289,10 @@ def make_doi_institutions(author_list: AuthorList) -> List[Dict]:
 
 
 def make_doi_countries(author_list: AuthorList):
-    """
+    """ Make the countries affiliations for a DOI table row.
 
-    :param author_list:
-    :return:
+    :param author_list: the paper's author list.
+    :return: the countries affiliation list.
     """
 
     countries = {}
@@ -1324,10 +1324,10 @@ def make_doi_countries(author_list: AuthorList):
 
 
 def make_doi_regions(author_list: AuthorList):
-    """
+    """ Make the regions affiliations for a DOI table row.
 
-    :param author_list:
-    :return:
+    :param author_list: the paper's author list.
+    :return: the regions affiliation list.
     """
 
     regions = {}
@@ -1358,10 +1358,10 @@ def make_doi_regions(author_list: AuthorList):
 
 
 def make_doi_subregions(author_list: AuthorList):
-    """
+    """ Make the subregions affiliations for a DOI table row.
 
-    :param author_list:
-    :return:
+    :param author_list: the paper's author list.
+    :return: the subregions affiliation list.
     """
 
     subregions = {}
