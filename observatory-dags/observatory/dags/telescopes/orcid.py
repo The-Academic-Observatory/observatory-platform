@@ -221,7 +221,7 @@ class OrcidTelescope(StreamTelescope):
                  merge_partition_field: str = 'orcid_identifier.uri',
                  updated_date_field: str = 'history.last_modified_date',
                  bq_merge_days: int = 7, airflow_vars: List = None, airflow_conns: List = None,
-                 max_processes: int = min(32, os.cpu_count() + 4)):
+                 max_processes: int = min(32, os.cpu_count() + 4), batch_load: bool = True):
         """ Construct an OrcidTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -249,7 +249,8 @@ class OrcidTelescope(StreamTelescope):
             airflow_conns = [AirflowConns.ORCID]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
                          updated_date_field, bq_merge_days, dataset_description=dataset_description,
-                         table_descriptions=table_descriptions, airflow_vars=airflow_vars, airflow_conns=airflow_conns)
+                         table_descriptions=table_descriptions, airflow_vars=airflow_vars,
+                         airflow_conns=airflow_conns, batch_load=batch_load)
         self.max_processes = max_processes
 
         self.add_setup_task_chain([self.check_dependencies,
