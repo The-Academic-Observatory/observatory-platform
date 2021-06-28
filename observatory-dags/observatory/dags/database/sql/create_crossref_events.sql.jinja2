@@ -16,9 +16,9 @@
 
 SELECT
   doi,
-  ARRAY(SELECT as STRUCT source, SUM(count) as count FROM UNNEST(months) GROUP BY source ) as events,
+  ARRAY(SELECT as STRUCT source, SUM(count) as count FROM UNNEST(months) GROUP BY source) as events,
   months,
-  ARRAY(SELECT as STRUCT LEFT(month, 4) as year, source, SUM(count) as count FROM UNNEST(months) GROUP BY year, source ) as years
+  ARRAY(SELECT as STRUCT CAST(LEFT(month, 4) as int64) as year, source, SUM(count) as count FROM UNNEST(months) GROUP BY year, source) as years
 FROM (
 SELECT
   doi,
@@ -29,7 +29,7 @@ FROM (
     safe.FORMAT_TIMESTAMP('%Y-%m', occurred_at) as month,
     source_id as source,
     COUNT(id) as count
-  FROM `{{ project_id }}.crossref.crossref_events`
+  FROM `{{ project_id }}.{{ crossref_events.dataset_id }}.{{ crossref_events.table_id }}`
   WHERE safe.FORMAT_TIMESTAMP('%Y-%m', occurred_at) is not null
   GROUP BY
   doi, source_id, month)

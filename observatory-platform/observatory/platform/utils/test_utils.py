@@ -203,6 +203,18 @@ class ObservatoryEnvironment:
         self.assert_gcp_dependencies()
         self.storage_client.create_bucket(bucket_id, location=self.data_location)
 
+    def _create_dataset(self, dataset_id: str) -> None:
+        """Create a BigQuery dataset.
+
+        :param dataset_id: the dataset identifier.
+        :return: None.
+        """
+
+        self.assert_gcp_dependencies()
+        dataset = bigquery.Dataset(f"{self.project_id}.{dataset_id}")
+        dataset.location = self.data_location
+        self.bigquery_client.create_dataset(dataset, exists_ok=True)
+
     def _delete_bucket(self, bucket_id: str) -> None:
         """Delete a Google Cloud Storage Bucket.
 
@@ -214,16 +226,17 @@ class ObservatoryEnvironment:
         bucket = self.storage_client.get_bucket(bucket_id)
         bucket.delete(force=True)
 
-    def add_dataset(self) -> str:
+    def add_dataset(self, prefix: str = "") -> str:
         """Add a BigQuery dataset to the Observatory environment.
 
         The BigQuery dataset will be deleted when the Observatory environment is closed.
 
+        :param prefix: an optional prefix for the dataset.
         :return: the BigQuery dataset identifier.
         """
 
         self.assert_gcp_dependencies()
-        dataset_id = random_id()
+        dataset_id = f"{prefix}_{random_id()}"
         self.datasets.append(dataset_id)
         return dataset_id
 
@@ -350,6 +363,7 @@ class ObservatoryEnvironment:
                 self.session = settings.Session
                 db.initdb()
 
+                # Setup Airflow task logging
                 original_log_level = logging.getLogger().getEffectiveLevel()
                 if task_logging:
                     # Set root logger to INFO level, it seems that custom 'logging.info()' statements inside a task
@@ -358,10 +372,13 @@ class ObservatoryEnvironment:
                     # Propagate logging so it is displayed
                     logging.getLogger('airflow.task').propagate = True
 
-                # Create buckets
+                # Create buckets and datasets
                 if self.create_gcp_env:
                     for bucket_id in self.buckets:
                         self._create_bucket(bucket_id)
+
+                    for dataset_id in self.datasets:
+                        self._create_dataset(dataset_id)
 
                 # Add default Airflow variables
                 self.data_path = os.path.join(self.temp_dir, "data")
@@ -424,7 +441,9 @@ class ObservatoryTestCase(unittest.TestCase):
         :return: None.
         """
 
-        self.assertEqual(expected.keys(), dag.task_dict.keys())
+        expected_keys = expected.keys()
+        actual_keys = dag.task_dict.keys()
+        self.assertEqual(expected_keys, actual_keys)
 
         for task_id, downstream_list in expected.items():
             self.assertTrue(dag.has_task(task_id))
@@ -474,7 +493,7 @@ class ObservatoryTestCase(unittest.TestCase):
 
         self.assertTrue(result)
 
-    def assert_table_integrity(self, table_id: str, expected_rows: int):
+    def assert_table_integrity(self, table_id: str, expected_rows: int = None):
         """Assert whether a BigQuery table exists and has the expected number of rows.
 
         :param table_id: the BigQuery table id.
@@ -491,7 +510,8 @@ class ObservatoryTestCase(unittest.TestCase):
             pass
 
         self.assertIsNotNone(table)
-        self.assertEqual(expected_rows, actual_rows)
+        if expected_rows is not None:
+            self.assertEqual(expected_rows, actual_rows)
 
     def assert_file_integrity(self, file_path: str, expected_hash: str, algorithm: str):
         """Assert that a file exists and it has the correct hash.
@@ -527,8 +547,9 @@ class ObservatoryTestCase(unittest.TestCase):
         self.assertFalse(os.path.exists(extract_folder))
         self.assertFalse(os.path.exists(transform_folder))
 
-    def setup_mock_file_download(self, uri: str, file_path: str, headers: Dict = None, method: str = httpretty.GET) -> \
-            None:
+    def setup_mock_file_download(
+        self, uri: str, file_path: str, headers: Dict = None, method: str = httpretty.GET
+    ) -> None:
         """ Use httpretty to mock a file download.
 
         This function must be called from within an httpretty.enabled() block, for instance:
@@ -548,9 +569,7 @@ class ObservatoryTestCase(unittest.TestCase):
         with open(file_path, "rb") as f:
             body = f.read()
 
-        httpretty.register_uri(method, uri,
-                               adding_headers=headers,
-                               body=body)
+        httpretty.register_uri(method, uri, adding_headers=headers, body=body)
 
 
 class SftpServer:

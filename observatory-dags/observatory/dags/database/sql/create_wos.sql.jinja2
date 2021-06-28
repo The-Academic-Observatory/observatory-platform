@@ -35,7 +35,7 @@ SELECT
   MAX( wos_id ) as wos_id,
   MAX( wos_parent_book_doi ) as wos_parent_book_doi,
   ARRAY_AGG(grid_id) as grids
-FROM `{{ project_id }}.clarivate.wos`
+FROM `{{ project_id }}.{{ dataset_id }}.wos`
 WHERE wos IS NOT NULL AND DOI IS NOT NULL
 GROUP BY
   UPPER(TRIM(doi))

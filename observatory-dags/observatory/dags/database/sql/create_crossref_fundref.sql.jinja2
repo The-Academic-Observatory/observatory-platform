@@ -14,11 +14,9 @@
 
 # Author: Richard Hosking, James Diprose #}
 
-SELECT 
-  grids.*,
-  home_repo.urls as home_repo,
-  STRUCT(regions) as iso3166
-FROM `{{ project_id }}.digital_science.grid{{ grid_release_date.strftime('%Y%m%d') }}` as grids
-LEFT JOIN `{{ project_id }}.iso.iso3166_countries_and_regions` as regions ON (grids.addresses[OFFSET(0)].country_code = regions.alpha2)
-LEFT JOIN `{{ project_id }}.coki.grid_to_home_url` as home_repo ON grids.id = home_repo.grid_id
-WHERE ARRAY_LENGTH(grids.addresses) > 0
+SELECT
+    UPPER(TRIM(crossref.doi)) as doi,
+    ARRAY_AGG(STRUCT(funder, fundref)) as funders
+FROM `{{ project_id }}.{{ crossref_metadata.dataset_id }}.{{ crossref_metadata.table_id }}{{ crossref_metadata.release_date.strftime('%Y%m%d') }}` as crossref, UNNEST(crossref.funder) as funder
+LEFT JOIN `{{ project_id }}.{{ crossref_fundref.dataset_id }}.{{ crossref_fundref.table_id }}{{ crossref_fundref.release_date.strftime('%Y%m%d') }}` as fundref on SUBSTR(fundref.funder, 19) = funder.doi
+GROUP BY UPPER(TRIM(crossref.doi))
