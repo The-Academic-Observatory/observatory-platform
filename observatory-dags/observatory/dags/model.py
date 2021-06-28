@@ -133,7 +133,7 @@ class Institution:
     coordinates: str = None
 
 
-def date_between_dates(start_ts, end_ts) -> pendulum.Pendulum:
+def date_between_dates(start_ts: int, end_ts: int) -> pendulum.Pendulum:
     """ Return a datetime between two timestamps.
 
     :param start_ts: the start timestamp.
