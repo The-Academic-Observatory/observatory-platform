@@ -319,13 +319,13 @@ class Event:
     event_date: pendulum.Pendulum = None
 
 
-InstitutionList: List[Institution]
-AuthorList: List[Author]
-FunderList: List[Funder]
-PublisherList: List[Publisher]
-PaperList: List[Paper]
-FieldOfStudyList: List[FieldOfStudy]
-EventsList: List[Event]
+InstitutionList = List[Institution]
+AuthorList = List[Author]
+FunderList = List[Funder]
+PublisherList = List[Publisher]
+PaperList = List[Paper]
+FieldOfStudyList = List[FieldOfStudy]
+EventsList = List[Event]
 
 
 @dataclass
