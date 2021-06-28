@@ -164,12 +164,16 @@ class OrcidRelease(StreamRelease):
 
         :return: None.
         """
+        count = 0
         with ThreadPoolExecutor(max_workers=self.max_processes) as executor:
             futures = []
             for file in self.download_files:
                 futures.append(executor.submit(self.transform_single_file, file))
             for future in as_completed(futures):
                 future.result()
+                count += 1
+                if count % 1000 == 0:
+                    logging.info(f'Transformed {count} files')
 
     def transform_single_file(self, download_path: str):
         """ Transform a single ORCID file/record.
@@ -182,7 +186,6 @@ class OrcidRelease(StreamRelease):
         """
         file_name = os.path.basename(download_path)
         transform_path = os.path.join(self.transform_folder, os.path.splitext(file_name)[0] + '.jsonl')
-        logging.info(f"Transforming file: {file_name}")
         # Create dict of data from summary xml file
         with open(download_path, 'r') as f:
             orcid_dict = xmltodict.parse(f.read())
@@ -201,7 +204,6 @@ class OrcidRelease(StreamRelease):
 
         with jsonlines.open(transform_path, 'w') as writer:
             writer.write(orcid_record)
-        logging.info(f"Finished: {file_name}")
 
 
 class OrcidTelescope(StreamTelescope):
