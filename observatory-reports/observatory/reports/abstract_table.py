@@ -80,8 +80,7 @@ class AbstractObservatoryTable:
         self.df = pd.io.gbq.read_gbq(self.format_sql(),
                                      project_id=self.project_id,
                                      credentials=self.credentials,
-                                     dialect=dialect,
-                                     verbose=verbose)
+                                     dialect=dialect)
         self.clean_data()
         return self.df
 

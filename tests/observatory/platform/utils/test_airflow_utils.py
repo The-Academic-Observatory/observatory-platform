@@ -1,4 +1,4 @@
-{# Copyright 2020 Curtin University
+# Copyright 2021 Curtin University. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,11 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Richard Hosking, James Diprose #}
+# Author: James Diprose
 
-SELECT
-    UPPER(TRIM(crossref.doi)) as doi,
-    ARRAY_AGG(STRUCT(funder, fundref)) as funders
-FROM `{{ project_id }}.crossref.crossref_metadata{{ crossref_metadata_release_date.strftime('%Y%m%d') }}` as crossref, UNNEST(crossref.funder) as funder
-LEFT JOIN `{{ project_id }}.crossref.fundref{{ fundref_release_date.strftime('%Y%m%d') }}` as fundref on SUBSTR(fundref.funder, 19) = funder.doi
-GROUP BY UPPER(TRIM(crossref.doi))
+
+import unittest
+
+from airflow.exceptions import AirflowException
+
+from observatory.platform.utils.airflow_utils import set_task_state
+
+
+class TestAirflowUtils(unittest.TestCase):
+    def test_set_task_state(self):
+        """ Test set_task_state  """
+
+        task_id = "test_task"
+        set_task_state(True, task_id)
+        with self.assertRaises(AirflowException):
+            set_task_state(False, task_id)

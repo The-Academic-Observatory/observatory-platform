@@ -31,9 +31,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from math import ceil
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Type, Union, Optional
+from typing import Any, List, Tuple, Type, Union, Optional
 
 import dateutil
+import json_lines
 import jsonlines
 import paramiko
 import pendulum
@@ -45,6 +46,7 @@ from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
+
 from observatory.api.client.api.observatory_api import ObservatoryApi
 from observatory.api.client.api_client import ApiClient
 from observatory.api.client.configuration import Configuration
@@ -62,7 +64,7 @@ ScheduleInterval = Union[str, timedelta, relativedelta]
 def normalized_schedule_interval(schedule_interval: Optional[str]) -> Optional[ScheduleInterval]:
     """
     Copied from https://github.com/apache/airflow/blob/main/airflow/models/dag.py#L851-L866
-    
+
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -70,9 +72,9 @@ def normalized_schedule_interval(schedule_interval: Optional[str]) -> Optional[S
     to you under the Apache License, Version 2.0 (the
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
-    
+
     http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -257,13 +259,13 @@ def make_observatory_api() -> ObservatoryApi:
 
     # Assert connection has required fields
     assert (
-            conn.conn_type != "" and conn.conn_type is not None
+        conn.conn_type != "" and conn.conn_type is not None
     ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} conn_type must not be None"
     assert (
-            conn.host != "" and conn.host is not None
+        conn.host != "" and conn.host is not None
     ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} host must not be None"
     assert (
-            conn.password != "" and conn.password is not None
+        conn.password != "" and conn.password is not None
     ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} password must not be None"
 
     # Make host
@@ -312,6 +314,21 @@ def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
 
         with open(file_path, "wb") as jsonl_gzip_file:
             jsonl_gzip_file.write(bytes_io.getvalue())
+
+
+def load_jsonl(file_path: str) -> List[dict]:
+    """ Load a json lines file.
+
+    :param file_path: the path to the file.
+    :return: the rows from the json lines file as a list of dictionaries.
+    """
+
+    records = []
+    with json_lines.open(file_path) as f:
+        for record in f:
+            records.append(record)
+
+    return records
 
 
 def args_list(args) -> list:
@@ -465,7 +482,7 @@ def get_entry_or_none(base: dict, target, var_type=None):
 
 
 def json_to_db(
-        json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str], path_prefix: str = None
+    json_list: List[Tuple[Any]], release_date: str, parser, institutes: List[str], path_prefix: str = None
 ) -> List[str]:
     """Transform json from query into database format.
 
@@ -674,7 +691,7 @@ class ScheduleOptimiser:
 
     @staticmethod
     def optimise(
-            max_per_call: int, max_per_query: int, historic_counts: List[Type[PeriodCount]]
+        max_per_call: int, max_per_query: int, historic_counts: List[Type[PeriodCount]]
     ) -> Tuple[List[Type[pendulum.Period]], int]:
         """Calculate and return a schedule that minimises the number of API calls with the given constraints. Behaviour
             if there are 0 results in any of the periods is still to return 1 period covering the entire span, but the
@@ -740,9 +757,12 @@ def upload_telescope_file_list(bucket_name: str, inst_id: str, telescope_path: s
     return blob_list
 
 
-def add_partition_date(list_of_dicts: List[dict], partition_date: datetime,
-                       partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
-                       partition_field: str = 'release_date'):
+def add_partition_date(
+    list_of_dicts: List[dict],
+    partition_date: datetime,
+    partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
+    partition_field: str = "release_date",
+):
     """ Add a partition date key/value pair to each dictionary in the list of dicts.
     Used to load data into a BigQuery partition.
 
@@ -755,7 +775,7 @@ def add_partition_date(list_of_dicts: List[dict], partition_date: datetime,
     if partition_type == bigquery.TimePartitioningType.HOUR:
         partition_date = partition_date.isoformat()
     else:
-        partition_date = partition_date.strftime('%Y-%m-%d')
+        partition_date = partition_date.strftime("%Y-%m-%d")
 
     for entry in list_of_dicts:
         entry[partition_field] = partition_date

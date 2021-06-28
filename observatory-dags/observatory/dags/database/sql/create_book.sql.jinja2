@@ -117,7 +117,7 @@ SELECT
     crossref.published_year_month,
     (SELECT ARRAY_AGG(normalise_isbn_string(candidate_isbn) IGNORE NULLS) FROM UNNEST(crossref.isbn) as candidate_isbn) as work_isbns
     --ARRAY(SELECT normalise_isbn_string(candidate_isbn) as work_isbn from UNNEST(crossref.isbn) as candidate_isbn) as work_isbns
-FROM `{{ project_id }}.observatory.doi{{ release_date.strftime('%Y%m%d') }}` as original, UNNEST(crossref.ISBN) as isbn),
+FROM `{{ project_id }}.{{ observatory.dataset_id }}.doi{{ observatory.release_date.strftime('%Y%m%d') }}` as original, UNNEST(crossref.ISBN) as isbn),
 
 books as (
 SELECT
@@ -151,7 +151,7 @@ events_matched as (SELECT
   ARRAY_CONCAT_AGG(crossref_events.months) as months,
   ARRAY_CONCAT_AGG(crossref_events.years) as years,
 FROM ISBN_DOI, UNNEST(dois) as doi
-LEFT JOIN `{{ project_id }}.{{ dataset_id }}.crossref_events{{ release_date.strftime('%Y%m%d') }}` as crossref_events ON crossref_events.doi = doi
+LEFT JOIN `{{ project_id }}.{{ crossref_events.dataset_id }}.{{ crossref_events.table_id }}{{ crossref_events.release_date.strftime('%Y%m%d') }}` as crossref_events ON crossref_events.doi = doi
 GROUP BY ISBN),
 
 events_aggregated as (SELECT
