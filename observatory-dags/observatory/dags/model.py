@@ -133,17 +133,16 @@ class Institution:
     coordinates: str = None
 
 
-def date_between_dates(start_ts, end_ts):
+def date_between_dates(start_ts, end_ts) -> pendulum.Pendulum:
     """ Return a datetime between two timestamps.
 
     :param start_ts: the start timestamp.
     :param end_ts: the end timestamp.
-    :return: the datetime.
+    :return: the pendulum.Pendulum datetime.
     """
 
     r_ts = random.randint(start_ts, end_ts - 1)
-    r_date = datetime.fromtimestamp(r_ts)
-    return r_date
+    return pendulum.fromtimestamp(r_ts)
 
 
 @dataclass
@@ -320,6 +319,15 @@ class Event:
     event_date: pendulum.Pendulum = None
 
 
+InstitutionList: List[Institution]
+AuthorList: List[Author]
+FunderList: List[Funder]
+PublisherList: List[Publisher]
+PaperList: List[Paper]
+FieldOfStudyList: List[FieldOfStudy]
+EventsList: List[Event]
+
+
 @dataclass
 class ObservatoryDataset:
     """ The generated observatory dataset.
@@ -332,12 +340,12 @@ class ObservatoryDataset:
     :param fields_of_study:
     """
 
-    institutions: List[Institution]
-    authors: List[Author]
-    funders: List[Funder]
-    publishers: List[Publisher]
-    papers: List[Paper]
-    fields_of_study: List[FieldOfStudy]
+    institutions: InstitutionList
+    authors: AuthorList
+    funders: FunderList
+    publishers: PublisherList
+    papers: PaperList
+    fields_of_study: FieldOfStudyList
 
 
 def make_doi(doi_prefix: int):
@@ -370,10 +378,35 @@ def make_observatory_dataset(
     """
 
     faker = Faker()
+    funder_doi_prefix = 1000
+    funders = make_funders(n_funders=n_funders, doi_prefix=funder_doi_prefix, faker=faker)
+    publisher_doi_prefix = funder_doi_prefix + len(funders)
+    publishers = make_publishers(n_publishers=n_publishers, doi_prefix=publisher_doi_prefix, faker=faker)
+    fields_of_study = make_fields_of_study(n_fields_of_study_per_level=n_fields_of_study_per_level, faker=faker)
+    authors = make_authors(n_authors=n_authors, institutions=institutions, faker=faker)
+    papers = make_papers(
+        n_papers=n_papers,
+        authors=authors,
+        funders=funders,
+        publishers=publishers,
+        fields_of_study=fields_of_study,
+        faker=faker,
+    )
 
-    # Funders
+    return ObservatoryDataset(institutions, authors, funders, publishers, papers, fields_of_study)
+
+
+def make_funders(*, n_funders: int, doi_prefix: int, faker: Faker) -> FunderList:
+    """
+
+    :param n_funders:
+    :param doi_prefix:
+    :param faker:
+    :return:
+    """
+
     funders = []
-    doi_prefix = 1000
+
     for i, _ in enumerate(range(n_funders)):
         country_code = random.choice(FUNDREF_COUNTRY_CODES)
         funding_body_type = random.choice(FUNDING_BODY_TYPES)
@@ -390,42 +423,135 @@ def make_observatory_dataset(
         )
         doi_prefix += 1
 
-    # Publishers and journals
-    journals = []
+    return funders
+
+
+def make_publishers(
+    *,
+    n_publishers: int,
+    doi_prefix: int,
+    faker: Faker,
+    min_journals_per_publisher: int = 1,
+    max_journals_per_publisher: int = 3,
+) -> PublisherList:
+    """
+
+    :param n_publishers:
+    :param doi_prefix:
+    :param faker:
+    :param min_journals_per_publisher:
+    :param max_journals_per_publisher:
+    :return:
+    """
+
     publishers = []
     journal_id = 0
     for i, _ in enumerate(range(n_publishers)):
-        n_journals_ = random.randint(1, 3)
+        n_journals_ = random.randint(min_journals_per_publisher, max_journals_per_publisher)
         journals_ = []
         for _ in range(n_journals_):
             journals_.append(Journal(journal_id, name=faker.company(), license=random.choice(LICENSES)))
             journal_id += 1
 
         publishers.append(Publisher(i, name=faker.company(), doi_prefix=doi_prefix, journals=journals_))
-        journals += journals_
         doi_prefix += 1
 
-    # Fields of study
+    return publishers
+
+
+def make_fields_of_study(
+    *,
+    n_fields_of_study_per_level: int,
+    faker: Faker,
+    n_levels: int = 6,
+    min_title_length: int = 1,
+    max_title_length: int = 3,
+) -> FieldOfStudyList:
+    """
+
+    :param n_fields_of_study_per_level:
+    :param faker:
+    :param n_levels:
+    :param min_title_length:
+    :param max_title_length:
+    :return:
+    """
+
     fields_of_study = []
     fos_id_ = 0
-    for level in range(6):
+    for level in range(n_levels):
         for _ in range(n_fields_of_study_per_level):
-            n_words_ = random.randint(1, 3)
+            n_words_ = random.randint(min_title_length, max_title_length)
             name_ = faker.sentence(nb_words=n_words_)
             fos_ = FieldOfStudy(fos_id_, name=name_, level=level)
             fields_of_study.append(fos_)
             fos_id_ += 1
 
-    # Authors
+    return fields_of_study
+
+
+def make_authors(*, n_authors: int, institutions: InstitutionList, faker: Faker) -> AuthorList:
+    """
+
+    :param n_authors:
+    :param institutions:
+    :param faker:
+    :return:
+    """
+
     authors = []
     for i, _ in enumerate(range(n_authors)):
         author = Author(i, name=faker.name(), institution=random.choice(institutions))
         authors.append(author)
 
+    return authors
+
+
+def make_papers(
+    *,
+    n_papers: int,
+    authors: AuthorList,
+    funders: FunderList,
+    publishers: PublisherList,
+    fields_of_study: List,
+    faker: Faker,
+    min_title_length: int = 2,
+    max_title_length: int = 10,
+    min_authors: int = 1,
+    max_authors: int = 10,
+    min_funders: int = 0,
+    max_funders: int = 3,
+    min_events: int = 0,
+    max_events: int = 100,
+    min_fields_of_study: int = 1,
+    max_fields_of_study: int = 20,
+) -> PaperList:
+    """
+
+    :param n_papers:
+    :param authors:
+    :param funders:
+    :param publishers:
+    :param fields_of_study:
+    :param faker:
+    :param min_title_length:
+    :param max_title_length:
+    :param min_authors:
+    :param max_authors:
+    :param min_funders:
+    :param max_funders:
+    :param min_events:
+    :param max_events:
+    :param min_fields_of_study:
+    :param max_fields_of_study:
+    :return:
+    """
+
     papers = []
+
     for i, _ in enumerate(range(n_papers)):
         # Random title
-        n_words_ = random.randint(2, 10)
+        n_words_ = random.randint(min_title_length, max_title_length)
         title_ = faker.sentence(nb_words=n_words_)
 
         # Random date
@@ -436,11 +562,11 @@ def make_observatory_dataset(
         output_type_ = random.choice(OUTPUT_TYPES)
 
         # Pick a random list of authors
-        n_authors_ = random.randint(1, 10)
+        n_authors_ = random.randint(min_authors, max_authors)
         authors_ = random.sample(authors, n_authors_)
 
         # Random funder
-        n_funders_ = random.randint(0, 3)
+        n_funders_ = random.randint(min_funders, max_funders)
         if n_funders_ > 0:
             funders_ = random.sample(funders, n_funders_)
         else:
@@ -456,7 +582,7 @@ def make_observatory_dataset(
         doi_ = make_doi(publisher_.doi_prefix)
 
         # Random events
-        n_events_ = random.randint(0, 100)
+        n_events_ = random.randint(min_events, max_events)
         events_ = []
         today = datetime.now()
         today_ts = int(today.timestamp())
@@ -468,7 +594,7 @@ def make_observatory_dataset(
             events_.append(Event(source=random.choice(EVENT_TYPES), event_date=event_date_))
 
         # Fields of study
-        n_fos_ = random.randint(1, 20)
+        n_fos_ = random.randint(min_fields_of_study, max_fields_of_study)
         level_0_index = 199
         fields_of_study_ = [random.choice(fields_of_study[:level_0_index])]
         fields_of_study_.extend(random.sample(fields_of_study, n_fos_))
@@ -518,7 +644,7 @@ def make_observatory_dataset(
         n_cited_by = random.randint(0, int(n_papers_forwards / 2))
         paper.cited_by = random.sample(papers[i + 1 :], n_cited_by)
 
-    return ObservatoryDataset(institutions, authors, funders, publishers, papers, fields_of_study)
+    return papers
 
 
 def make_open_citations(dataset: ObservatoryDataset) -> List[Dict]:
@@ -946,196 +1072,21 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
 
     records = []
     for paper in dataset.papers:
+        # Doi, events and grids
         doi = paper.doi.upper()
-        events_total, events_months, events_years = aggregate_events(paper.events)
-        grids = list(set([author.institution.grid_id for author in paper.authors]))
+        events = make_doi_events(doi, paper.events)
+        grids = make_doi_grids(paper.authors)
 
-        # When no events, events is None
-        events = None
-        if len(events_total):
-            events = {
-                "doi": doi,
-                "events": events_total,
-                "months": events_months,
-                "years": events_years,
-            }
+        # Affiliations: institutions, countries, regions, subregion, funders, journals, publishers
+        institutions = make_doi_institutions(paper.authors)
+        countries = make_doi_countries(paper.authors)
+        regions = make_doi_regions(paper.authors)
+        subregions = make_doi_subregions(paper.authors)
+        funders = make_doi_funders(paper.funders)
+        journals = make_doi_journals(paper.journal)
+        publishers = make_doi_journals(paper.publisher)
 
-        #
-        # Make affiliations
-        #
-
-        # Institutions, countries, regions, subregion
-        institutions = {}
-        countries = {}
-        regions = {}
-        subregions = {}
-        authors = []
-        for author in paper.authors:
-            # Institution
-            inst = author.institution
-            if inst.grid_id not in institutions:
-                institutions[inst.grid_id] = {
-                    "identifier": inst.grid_id,
-                    "types": [inst.types],
-                    "name": inst.name,
-                    "home_repo": {inst.home_repo},
-                    "country": inst.country,
-                    "country_code": inst.country_code,
-                    "country_code_2": inst.country_code_2,
-                    "region": inst.region,
-                    "subregion": inst.subregion,
-                    "coordinates": inst.coordinates,
-                    "members": [],
-                }
-
-            # Country
-            if inst.country not in countries:
-                countries[inst.country] = {
-                    "identifier": inst.country_code,
-                    "name": inst.country,
-                    "types": ["Country"],
-                    "home_repo": {inst.home_repo},
-                    "country": inst.country,
-                    "country_code": inst.country_code,
-                    "country_code_2": inst.country_code_2,
-                    "region": inst.region,
-                    "subregion": inst.subregion,
-                    "coordinates": None,
-                    "count": 0,
-                    "members": {inst.grid_id},
-                    "grids": {inst.grid_id},
-                }
-            else:
-                countries[inst.country]["members"].add(inst.grid_id)
-                countries[inst.country]["home_repo"].add(inst.home_repo)
-                countries[inst.country]["grids"].add(inst.grid_id)
-
-            # Region
-            if inst.region not in regions:
-                regions[inst.region] = {
-                    "identifier": inst.region,
-                    "name": inst.region,
-                    "types": ["Region"],
-                    "home_repo": {inst.home_repo},
-                    "country": None,
-                    "country_code": None,
-                    "country_code_2": None,
-                    "region": inst.region,
-                    "subregion": None,
-                    "coordinates": None,
-                    "count": 0,
-                    "members": {inst.subregion},
-                    "grids": {inst.grid_id},
-                }
-            else:
-                regions[inst.region]["members"].add(inst.subregion)
-                regions[inst.region]["home_repo"].add(inst.home_repo)
-                regions[inst.region]["grids"].add(inst.grid_id)
-
-            if inst.subregion not in subregions:
-                subregions[inst.subregion] = {
-                    "identifier": inst.subregion,
-                    "name": inst.subregion,
-                    "types": ["Subregion"],
-                    "home_repo": {inst.home_repo},
-                    "country": None,
-                    "country_code": None,
-                    "country_code_2": None,
-                    "region": inst.region,
-                    "subregion": None,
-                    "coordinates": None,
-                    "count": 0,
-                    "members": {inst.country_code},
-                    "grids": {inst.grid_id},
-                }
-            else:
-                subregions[inst.subregion]["members"].add(inst.country_code)
-                subregions[inst.subregion]["home_repo"].add(inst.home_repo)
-                subregions[inst.subregion]["grids"].add(inst.grid_id)
-
-        def to_list(dict_: Dict):
-            l_ = []
-            for k, v in dict_.items():
-                v["members"] = list(v["members"])
-                v["home_repo"] = list(v["home_repo"])
-                v["members"].sort()
-                if "count" in v:
-                    v["count"] = len(v["grids"])
-                    v.pop("grids", None)
-                v["home_repo"].sort()
-                l_.append(v)
-            l_.sort(key=lambda x: x["identifier"])
-            return l_
-
-        institutions = to_list(institutions)
-        countries = to_list(countries)
-        regions = to_list(regions)
-        subregions = to_list(subregions)
-        authors.sort(key=lambda x: x["identifier"])
-
-        # Groupings
-
-        # Funders
-        funders = {}
-        for funder in paper.funders:
-            funders[funder.doi] = {
-                "identifier": funder.name,
-                "name": funder.name,
-                "doi": funder.doi,
-                "types": ["Funder"],
-                "home_repo": [],
-                "country": None,
-                "country_code": funder.country_code,
-                "country_code_2": None,
-                "region": funder.region,
-                "subregion": None,
-                "coordinates": None,
-                "funding_body_type": funder.funding_body_type,
-                "funding_body_subtype": funder.funding_body_subtype,
-                "members": [],
-            }
-        funders = [v for k, v in funders.items()]
-        funders.sort(key=lambda x: x["identifier"])
-
-        # Journals
-        journal = paper.journal
-        journals = [
-            {
-                "identifier": journal.name,
-                "types": ["Journal"],
-                "name": journal.name,
-                "home_repo": [],
-                "country": None,
-                "country_code": None,
-                "country_code_2": None,
-                "region": None,
-                "subregion": None,
-                "coordinates": None,
-                "members": [],
-            }
-        ]
-
-        # Publishers
-        publisher = paper.publisher
-        publishers = [
-            {
-                "identifier": publisher.name,
-                "types": ["Publisher"],
-                "name": publisher.name,
-                "home_repo": [],
-                "country": None,
-                "country_code": None,
-                "country_code_2": None,
-                "region": None,
-                "subregion": None,
-                "coordinates": None,
-                "members": [],
-            }
-        ]
-
-        #
         # Make final record
-        #
         records.append(
             {
                 "doi": doi,
@@ -1160,7 +1111,7 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
                     "regions": regions,
                     "groupings": [],
                     "funders": funders,
-                    "authors": authors,
+                    "authors": [],
                     "journals": journals,
                     "publishers": publishers,
                 },
@@ -1171,6 +1122,274 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
     records.sort(key=lambda r: r["doi"])
 
     return records
+
+
+def make_doi_events(doi: str, event_list: EventsList) -> Dict:
+    """
+
+    :param doi:
+    :param event_list:
+    :return:
+    """
+
+    events_total, events_months, events_years = aggregate_events(event_list)
+
+    # When no events, events is None
+    events = None
+    if len(events_total):
+        events = {
+            "doi": doi,
+            "events": events_total,
+            "months": events_months,
+            "years": events_years,
+        }
+
+    return events
+
+
+def make_doi_grids(author_list: AuthorList) -> List[str]:
+    """
+
+    :param author_list:
+    :return:
+    """
+
+    return list(set([author.institution.grid_id for author in author_list]))
+
+
+def make_doi_funders(funder_list: FunderList) -> List[Dict]:
+    """
+
+    :param funder_list:
+    :return:
+    """
+
+    # Funders
+    funders = {}
+    for funder in funder_list:
+        funders[funder.doi] = {
+            "identifier": funder.name,
+            "name": funder.name,
+            "doi": funder.doi,
+            "types": ["Funder"],
+            "home_repo": [],
+            "country": None,
+            "country_code": funder.country_code,
+            "country_code_2": None,
+            "region": funder.region,
+            "subregion": None,
+            "coordinates": None,
+            "funding_body_type": funder.funding_body_type,
+            "funding_body_subtype": funder.funding_body_subtype,
+            "members": [],
+        }
+    funders = [v for k, v in funders.items()]
+    funders.sort(key=lambda x: x["identifier"])
+
+    return funders
+
+
+def make_doi_journals(journal: Journal) -> List[Dict]:
+    """
+
+    :param journal:
+    :return:
+    """
+
+    return [
+        {
+            "identifier": journal.name,
+            "types": ["Journal"],
+            "name": journal.name,
+            "home_repo": [],
+            "country": None,
+            "country_code": None,
+            "country_code_2": None,
+            "region": None,
+            "subregion": None,
+            "coordinates": None,
+            "members": [],
+        }
+    ]
+
+
+def to_affiliations_list(dict_: Dict):
+    """
+
+    :param dict_:
+    :return:
+    """
+
+    l_ = []
+    for k, v in dict_.items():
+        v["members"] = list(v["members"])
+        v["home_repo"] = list(v["home_repo"])
+        v["members"].sort()
+        if "count" in v:
+            v["count"] = len(v["grids"])
+            v.pop("grids", None)
+        v["home_repo"].sort()
+        l_.append(v)
+    l_.sort(key=lambda x: x["identifier"])
+    return l_
+
+
+def make_doi_publishers(publisher: Publisher) -> List[Dict]:
+    """
+
+    :param publisher:
+    :return:
+    """
+
+    return [
+        {
+            "identifier": publisher.name,
+            "types": ["Publisher"],
+            "name": publisher.name,
+            "home_repo": [],
+            "country": None,
+            "country_code": None,
+            "country_code_2": None,
+            "region": None,
+            "subregion": None,
+            "coordinates": None,
+            "members": [],
+        }
+    ]
+
+
+def make_doi_institutions(author_list: AuthorList) -> List[Dict]:
+    """
+
+    :param author_list:
+    :return:
+    """
+
+    institutions = {}
+
+    for author in author_list:
+        # Institution
+        inst = author.institution
+        if inst.grid_id not in institutions:
+            institutions[inst.grid_id] = {
+                "identifier": inst.grid_id,
+                "types": [inst.types],
+                "name": inst.name,
+                "home_repo": {inst.home_repo},
+                "country": inst.country,
+                "country_code": inst.country_code,
+                "country_code_2": inst.country_code_2,
+                "region": inst.region,
+                "subregion": inst.subregion,
+                "coordinates": inst.coordinates,
+                "members": [],
+            }
+
+    return to_affiliations_list(institutions)
+
+
+def make_doi_countries(author_list: AuthorList):
+    """
+
+    :param author_list:
+    :return:
+    """
+
+    countries = {}
+
+    for author in author_list:
+        inst = author.institution
+        if inst.country not in countries:
+            countries[inst.country] = {
+                "identifier": inst.country_code,
+                "name": inst.country,
+                "types": ["Country"],
+                "home_repo": {inst.home_repo},
+                "country": inst.country,
+                "country_code": inst.country_code,
+                "country_code_2": inst.country_code_2,
+                "region": inst.region,
+                "subregion": inst.subregion,
+                "coordinates": None,
+                "count": 0,
+                "members": {inst.grid_id},
+                "grids": {inst.grid_id},
+            }
+        else:
+            countries[inst.country]["members"].add(inst.grid_id)
+            countries[inst.country]["home_repo"].add(inst.home_repo)
+            countries[inst.country]["grids"].add(inst.grid_id)
+
+    return to_affiliations_list(countries)
+
+
+def make_doi_regions(author_list: AuthorList):
+    """
+
+    :param author_list:
+    :return:
+    """
+
+    regions = {}
+    for author in author_list:
+        inst = author.institution
+        if inst.region not in regions:
+            regions[inst.region] = {
+                "identifier": inst.region,
+                "name": inst.region,
+                "types": ["Region"],
+                "home_repo": {inst.home_repo},
+                "country": None,
+                "country_code": None,
+                "country_code_2": None,
+                "region": inst.region,
+                "subregion": None,
+                "coordinates": None,
+                "count": 0,
+                "members": {inst.subregion},
+                "grids": {inst.grid_id},
+            }
+        else:
+            regions[inst.region]["members"].add(inst.subregion)
+            regions[inst.region]["home_repo"].add(inst.home_repo)
+            regions[inst.region]["grids"].add(inst.grid_id)
+
+    return to_affiliations_list(regions)
+
+
+def make_doi_subregions(author_list: AuthorList):
+    """
+
+    :param author_list:
+    :return:
+    """
+
+    subregions = {}
+    for author in author_list:
+        inst = author.institution
+
+        if inst.subregion not in subregions:
+            subregions[inst.subregion] = {
+                "identifier": inst.subregion,
+                "name": inst.subregion,
+                "types": ["Subregion"],
+                "home_repo": {inst.home_repo},
+                "country": None,
+                "country_code": None,
+                "country_code_2": None,
+                "region": inst.region,
+                "subregion": None,
+                "coordinates": None,
+                "count": 0,
+                "members": {inst.country_code},
+                "grids": {inst.grid_id},
+            }
+        else:
+            subregions[inst.subregion]["members"].add(inst.country_code)
+            subregions[inst.subregion]["home_repo"].add(inst.home_repo)
+            subregions[inst.subregion]["grids"].add(inst.grid_id)
+
+    return to_affiliations_list(subregions)
 
 
 def calc_percent(value: float, total: float) -> float:
