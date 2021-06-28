@@ -7,19 +7,19 @@
   },
   {
     "description": "Subject persistent ID.",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "name": "subj_id",
     "type": "STRING"
   },
   {
     "description": "Type of the relationship between the subject and object.",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "name": "relation_type_id",
     "type": "STRING"
   },
   {
     "description": "Object persistent ID.",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "name": "obj_id",
     "type": "STRING"
   },

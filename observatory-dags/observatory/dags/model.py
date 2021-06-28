@@ -712,7 +712,13 @@ def make_crossref_events(dataset: ObservatoryDataset) -> List[Dict]:
             occurred_at = f"{event.event_date.to_datetime_string()} UTC"
             source_id = event.source
             events.append(
-                {"obj_id": obj_id, "occurred_at": occurred_at, "source_id": source_id, "id": str(uuid.uuid4())}
+                {
+                    "obj_id": obj_id,
+                    "timestamp": occurred_at,
+                    "occurred_at": occurred_at,
+                    "source_id": source_id,
+                    "id": str(uuid.uuid4()),
+                }
             )
 
     return events
@@ -1084,7 +1090,7 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
         subregions = make_doi_subregions(paper.authors)
         funders = make_doi_funders(paper.funders)
         journals = make_doi_journals(paper.journal)
-        publishers = make_doi_journals(paper.publisher)
+        publishers = make_doi_publishers(paper.publisher)
 
         # Make final record
         records.append(
