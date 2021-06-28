@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Tuan Chien
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ import os
 import random
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Dict, List
 from typing import Tuple
 
@@ -130,6 +131,19 @@ class Institution:
     home_repo: str = None
     country: str = None
     coordinates: str = None
+
+
+def date_between_dates(start_ts, end_ts):
+    """ Return a datetime between two timestamps.
+
+    :param start_ts: the start timestamp.
+    :param end_ts: the end timestamp.
+    :return: the datetime.
+    """
+
+    r_ts = random.randint(start_ts, end_ts - 1)
+    r_date = datetime.fromtimestamp(r_ts)
+    return r_date
 
 
 @dataclass
@@ -444,17 +458,20 @@ def make_observatory_dataset(
         # Random events
         n_events_ = random.randint(0, 100)
         events_ = []
+        today = datetime.now()
+        today_ts = int(today.timestamp())
+        start_date = datetime(today.year - 2, today.month, today.day)
+        start_ts = int(start_date.timestamp())
+
         for _ in range(n_events_):
-            range_months_ = random.randint(1, min(24, max((pendulum.date.today() - published_date_).in_months(), 1)))
-            date_end = published_date_.add(months=range_months_)
-            event_date_ = faker.date_between_dates(date_start=published_date_, date_end=date_end)
-            event_date_ = pendulum.datetime(year=event_date_.year, month=event_date_.month, day=event_date_.day)
+            event_date_ = date_between_dates(start_ts=start_ts, end_ts=today_ts)
             events_.append(Event(source=random.choice(EVENT_TYPES), event_date=event_date_))
 
         # Fields of study
         n_fos_ = random.randint(1, 20)
         level_0_index = 199
-        fields_of_study_ = [random.choice(fields_of_study[:level_0_index])] + random.sample(fields_of_study, n_fos_)
+        fields_of_study_ = [random.choice(fields_of_study[:level_0_index])]
+        fields_of_study_.extend(random.sample(fields_of_study, n_fos_))
 
         # Open access status
         is_free_to_read_at_publisher_ = True
