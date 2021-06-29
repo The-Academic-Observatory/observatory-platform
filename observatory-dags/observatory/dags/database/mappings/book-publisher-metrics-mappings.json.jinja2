@@ -1,55 +1,23 @@
 {
   "mappings": {
     "properties": {
-      "{{ aggregration_level }}_id": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
       "month": {
         "type": "date",
         "format": "yyyy-MM-dd"
       },
+      "unique_books": {
+        "type": "integer"
+      },
+      "google_analytics": {
+        "properties": {
+          "unique_views": {
+            "type": "integer"
+          }
+        }
+      },
       "crossref_events": {
         "properties": {
           "count": {
-            "type": "integer"
-          }
-        }
-      },
-      "oapen_irus_uk": {
-        "properties": {
-          "title_requests": {
-            "type": "integer"
-          },
-          "total_item_investigations": {
-            "type": "integer"
-          },
-          "total_item_requests": {
-            "type": "integer"
-          },
-          "unique_item_investigations": {
-            "type": "integer"
-          },
-          "unique_item_requests": {
-            "type": "integer"
-          }
-        }
-      },
-      "jstor": {
-        "properties": {
-          "Total_Item_Requests": {
-            "type": "integer",
-          }
-        }
-      },
-      "google_books_sales": {
-        "properties": {
-          "qty": {
             "type": "integer"
           }
         }
@@ -76,16 +44,35 @@
           }
         }
       },
-      "google_analytics": {
+      "google_books_sales": {
         "properties": {
-          "unique_views": {
+          "qty": {
             "type": "integer"
           }
         }
       },
-      "ucl_discovery": {
+      "jstor": {
         "properties": {
-          "placeholder": {
+          "Total_Item_Requests": {
+            "type": "integer",
+          }
+        }
+      },
+      "oapen_irus_uk": {
+        "properties": {
+          "title_requests": {
+            "type": "integer"
+          },
+          "total_item_investigations": {
+            "type": "integer"
+          },
+          "total_item_requests": {
+            "type": "integer"
+          },
+          "unique_item_investigations": {
+            "type": "integer"
+          },
+          "unique_item_requests": {
             "type": "integer"
           }
         }

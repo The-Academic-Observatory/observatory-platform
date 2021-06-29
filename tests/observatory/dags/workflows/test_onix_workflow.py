@@ -2153,9 +2153,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("112" in isbns)
 
             # Check export tables
-            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            sql = f"SELECT product_id from {self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
             records = run_bigquery_query(sql)
-            isbns = set([record["ISBN13"] for record in records])
+            isbns = set([record["product_id"] for record in records])
             self.assertEqual(len(isbns), 2)
             self.assertTrue("211" in isbns)
             self.assertTrue("112" in isbns)
@@ -2829,9 +2829,9 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             self.assertTrue("112" in isbns)
 
             # Check export tables
-            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            sql = f"SELECT product_id from {self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
             records = run_bigquery_query(sql)
-            isbns = set([record["ISBN13"] for record in records])
+            isbns = set([record["product_id"] for record in records])
             self.assertEqual(len(isbns), 2)
             self.assertTrue("211" in isbns)
             self.assertTrue("112" in isbns)
