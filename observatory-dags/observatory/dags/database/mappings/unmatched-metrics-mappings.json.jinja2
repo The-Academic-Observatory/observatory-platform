@@ -1,7 +1,7 @@
 {
   "mappings": {
     "properties": {
-      "{{ aggregration_level }}_id": {
+      "ISBN": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -10,34 +10,11 @@
           }
         }
       },
-      "ProductForm": {
-        "type": "text",
-        "analyzer": "text_analyzer",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "EditionNumber": {
-        "type": "integer"
-      },
-      "published_year": {
+      "release_date": {
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "title": {
-        "type": "text",
-        "analyzer": "text_analyzer",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "bic_subjects": {
+      "in_google_analytics": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -46,7 +23,7 @@
           }
         }
       },
-      "bisac_subjects": {
+      "in_google_books": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -55,7 +32,7 @@
           }
         }
       },
-      "thema_subjects": {
+      "in_jstor": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -64,7 +41,7 @@
           }
         }
       },
-      "keywords": {
+      "in_oapen": {
         "type": "text",
         "fields": {
           "keyword": {
