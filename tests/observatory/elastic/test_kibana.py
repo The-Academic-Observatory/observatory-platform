@@ -22,6 +22,21 @@ from observatory.platform.elastic.kibana import Kibana, ObjectType, parse_kibana
 from observatory.platform.utils.test_utils import random_id
 
 
+class TestParseKibanaUrl(unittest.TestCase):
+
+    def test_parse_kibana_url(self):
+        """ Parse Kibana URL """
+
+        url = "https://user.account:password@random-id.us-west1.gcp.cloud.es.io:9243"
+        expected_host = "https://random-id.us-west1.gcp.cloud.es.io:9243"
+        expected_username = "user.account"
+        expected_password = "password"
+        kibana_host, username, password = parse_kibana_url(url)
+        self.assertEqual(expected_host, kibana_host)
+        self.assertEqual(expected_username, username)
+        self.assertEqual(expected_password, password)
+
+
 class TestKibana(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestKibana, self).__init__(*args, **kwargs)

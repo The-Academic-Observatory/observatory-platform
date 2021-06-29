@@ -28,7 +28,7 @@ from observatory.platform.elastic.elastic import (
     make_index_prefix,
 )
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.file_utils import load_csv_gz, load_file
+from observatory.platform.utils.file_utils import yield_csv, load_file
 from observatory.platform.utils.test_utils import random_id, test_fixtures_path
 
 
@@ -53,7 +53,7 @@ class TestElastic(unittest.TestCase):
         """ Test that the Elasticsearch schema path is correct """
 
         file_name = "schema.json"
-        expected_path = os.path.join(module_file_path("academic_observatory.dags.database.schema"), file_name)
+        expected_path = os.path.join(module_file_path("observatory.dags.database.mappings"), file_name)
         actual_path = elastic_mappings_path(file_name)
         self.assertEqual(expected_path, actual_path)
 
@@ -105,7 +105,7 @@ class TestElastic(unittest.TestCase):
         try:
             # Index
             mapping_dict = json.loads(load_file(self.mappings_file_path))
-            success = client.index_documents(index_id, mapping_dict, load_csv_gz(self.csv_file_path, yield_items=True))
+            success = client.index_documents(index_id, mapping_dict, yield_csv(self.csv_file_path))
             self.assertTrue(success)
             self.assertTrue(index_exists())
             self.assertEqual(4, doc_count())
