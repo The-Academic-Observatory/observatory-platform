@@ -59,6 +59,7 @@
 # Author: James Diprose
 
 import contextlib
+import datetime
 import logging
 import os
 import shutil
@@ -69,9 +70,9 @@ import unittest
 import uuid
 from functools import partial
 from typing import Dict
+from unittest.mock import patch
 
 import croniter
-import datetime
 import httpretty
 import paramiko
 import pendulum
@@ -92,7 +93,6 @@ from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
-from unittest.mock import patch
 
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
@@ -123,7 +123,12 @@ class ObservatoryEnvironment:
     OBSERVATORY_HOME_KEY = "OBSERVATORY_HOME"
 
     def __init__(
-        self, project_id: str = None, data_location: str = None, api_host: str = "localhost", api_port: int = 5000
+        self,
+        project_id: str = None,
+        data_location: str = None,
+        api_host: str = "localhost",
+        api_port: int = 5000,
+        enable_api: bool = True,
     ):
         """Constructor for an Observatory environment.
 
@@ -136,6 +141,7 @@ class ObservatoryEnvironment:
         :param data_location: the Google Cloud data location.
         :param api_host: the Observatory API host.
         :param api_port: the Observatory API port.
+        :param api_port: whether to enable the observatory API or not.
         """
 
         self.project_id = project_id
@@ -149,6 +155,7 @@ class ObservatoryEnvironment:
         self.temp_dir = None
         self.api_env = None
         self.api_session = None
+        self.enable_api = enable_api
         self.dag_run: DagRun = None
 
         if self.create_gcp_env:
@@ -370,7 +377,7 @@ class ObservatoryEnvironment:
                     # come from root
                     logging.getLogger().setLevel(20)
                     # Propagate logging so it is displayed
-                    logging.getLogger('airflow.task').propagate = True
+                    logging.getLogger("airflow.task").propagate = True
 
                 # Create buckets and datasets
                 if self.create_gcp_env:
@@ -392,14 +399,17 @@ class ObservatoryEnvironment:
                     self.add_variable(Variable(key=AirflowVars.TRANSFORM_BUCKET, val=self.transform_bucket))
 
                 # Create ObservatoryApiEnvironment
-                self.api_env = ObservatoryApiEnvironment(host=self.api_host, port=self.api_port)
-                with self.api_env.create():
-                    self.api_session = self.api_env.session
+                if self.enable_api:
+                    self.api_env = ObservatoryApiEnvironment(host=self.api_host, port=self.api_port)
+                    with self.api_env.create():
+                        self.api_session = self.api_env.session
+                        yield self.temp_dir
+                else:
                     yield self.temp_dir
             finally:
                 # Set logger settings back to original settings
                 logging.getLogger().setLevel(original_log_level)
-                logging.getLogger('airflow.task').propagate = False
+                logging.getLogger("airflow.task").propagate = False
 
                 # Revert environment
                 os.environ.clear()

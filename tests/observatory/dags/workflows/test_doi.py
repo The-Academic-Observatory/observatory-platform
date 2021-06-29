@@ -221,7 +221,8 @@ class TestDoiWorkflow(ObservatoryTestCase):
         """
 
         # Create datasets
-        env = ObservatoryEnvironment(project_id=self.gcp_project_id, data_location=self.gcp_data_location)
+        env = ObservatoryEnvironment(project_id=self.gcp_project_id, data_location=self.gcp_data_location,
+                                     enable_api=False)
         fake_dataset_id = env.add_dataset(prefix="fake")
         intermediate_dataset_id = env.add_dataset(prefix="intermediate")
         dashboards_dataset_id = env.add_dataset(prefix="dashboards")
