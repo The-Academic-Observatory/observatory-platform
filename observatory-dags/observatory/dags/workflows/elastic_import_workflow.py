@@ -47,7 +47,7 @@ from observatory.platform.elastic.kibana import Kibana, ObjectType
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease
 from observatory.platform.telescopes.telescope import Telescope
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, AirflowConns
-from observatory.platform.utils.file_utils import load_jsonl, load_csv_gz
+from observatory.platform.utils.file_utils import yield_jsonl, yield_csv
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     select_table_shard_dates,
@@ -177,9 +177,9 @@ def load_elastic_index(
     else:
         # Load function
         if file_type == "csv":
-            load_func = load_csv_gz
+            load_func = yield_csv
         elif file_type == "jsonl":
-            load_func = load_jsonl
+            load_func = yield_jsonl
         else:
             raise ValueError(f"load_index: file type '{file_type}' is not supported")
 

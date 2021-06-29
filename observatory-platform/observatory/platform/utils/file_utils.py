@@ -23,17 +23,18 @@ import gzip
 import hashlib
 import io
 import logging
-import numpy as np
 import os
 import re
 import shutil
 import subprocess
+from functools import partial
 from pathlib import Path
 from subprocess import Popen
 from typing import List
 
 import json_lines
 import jsonlines
+import numpy as np
 import pandas as pd
 from google_crc32c import Checksum as Crc32cChecksum
 
@@ -152,39 +153,75 @@ def crc32c_base64_hash(file_path: str, chunk_size: int = 8 * 1024) -> str:
     return hex_to_base64_str(hash_alg.hexdigest())
 
 
-def load_csv_gz(file_path: str, yield_items: bool = False):
-    """ Return or yield each row of a gzipped CSV file as a dictionary for importing into an Elasticsearch index.
+def load_csv(file_path: str):
+    """ Return a CSV file as a list of dictionaries. It will check if the file is gzipped and unzip it if so.
 
-    :param file_path: the path to the gzipped CSV file.
-    :param yield_items: whether to yield or return a list of items.
-    :return: a list or a generator.
+    :param file_path: the path to the CSV file.
+    :return: a list.
     """
 
-    if yield_items:
-        with gzip.open(file_path, "rb") as f:
-            df = pd.read_csv(f)
-            df = df.replace({np.nan: None})
-            for index, row in df.iterrows():
-                yield row.to_dict()
+    return list(yield_csv(file_path))
+
+
+def is_gzip(file_path: str) -> bool:
+    """ Return whether a file is a gzip file or not
+
+    :param file_path: the path to the file.
+    :return: whether the file is a gzip file or not.
+    """
+
+    is_gzip_ = False
+    with gzip.open(file_path, "rb") as f:
+        try:
+            f.read(1)
+            is_gzip_ = True
+        except OSError:
+            pass
+
+    return is_gzip_
+
+
+def yield_csv(file_path: str):
+    """ Yield each row of a CSV file as a dictionary. It will check if the file is gzipped and unzip it if so.
+
+    :param file_path: the path to the CSV file.
+    :return: a generator.
+    """
+
+    if is_gzip(file_path):
+        func = partial(gzip.open, file_path, mode="rb")
     else:
-        return list(load_csv_gz(file_path, yield_items=True))
+        func = partial(open, file_path, mode="r")
+
+    with func() as f:
+        df = pd.read_csv(f)
+        df = df.replace({np.nan: None})
+        for index, row in df.iterrows():
+            yield row.to_dict()
 
 
-def load_jsonl(file_path: str, yield_items: bool = False):
+def load_jsonl(file_path: str):
+    """ Return all rows of a JSON lines file as a list of dictionaries. If the file
+    is gz compressed then it will be extracted.
+
+    :param file_path: the path to the JSON lines file.
+    :return: a list.
+    """
+
+    return list(yield_jsonl(file_path))
+
+
+def yield_jsonl(file_path: str):
     """ Return or yield row of a JSON lines file as a dictionary. If the file
     is gz compressed then it will be extracted.
 
     :param file_path: the path to the JSON lines file.
-    :param yield_items: whether to yield or return a list of items.
     :return: generator.
     """
 
-    if yield_items:
-        with json_lines.open(file_path) as file:
-            for row in file:
-                yield row
-    else:
-        return list(load_jsonl(file_path, yield_items=True))
+    with json_lines.open(file_path) as file:
+        for row in file:
+            yield row
 
 
 def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
