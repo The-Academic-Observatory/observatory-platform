@@ -20,12 +20,7 @@
 
 from observatory.dags.workflows.elastic_import_workflow import ElasticImportWorkflow
 
-DAG_ID = 'observatory_elastic_import'
-EXPORT_DATASET_ID = 'observatory_elastic'
-EXPORT_FILE_TYPE = 'csv'
 
-workflow = ElasticImportWorkflow(export_dataset_id=EXPORT_DATASET_ID,
-                                 export_file_type=EXPORT_FILE_TYPE,
-                                 dag_id=DAG_ID).make_dag()
+workflow = ElasticImportWorkflow().make_dag()
 
 globals()[workflow.dag_id] = workflow

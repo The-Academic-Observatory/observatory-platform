@@ -209,8 +209,8 @@ class ElasticImportRelease(SnapshotRelease):
         *,
         dag_id: str,
         release_date: Pendulum,
-        export_dataset_id: str,
-        export_file_type: str,
+        input_dataset_id: str,
+        input_file_type: str,
         table_ids: List,
         project_id: str,
         bucket_name: str,
@@ -225,8 +225,8 @@ class ElasticImportRelease(SnapshotRelease):
         num_workers: int = cpu_count(),
     ):
         super().__init__(dag_id, release_date, "", "", "")
-        self.export_dataset_id = export_dataset_id
-        self.export_file_type = export_file_type
+        self.input_dataset_id = input_dataset_id
+        self.input_file_type = input_file_type
         self.table_ids = table_ids
         self.project_id = project_id
         self.bucket_name = bucket_name
@@ -252,17 +252,17 @@ class ElasticImportRelease(SnapshotRelease):
             futures_msgs = {}
             for table_id in self.table_ids:
                 destination_uri = (
-                    f"gs://{self.bucket_name}/{self.bucket_prefix}/{table_id}_*.{self.export_file_type}.gz"
+                    f"gs://{self.bucket_name}/{self.bucket_prefix}/{table_id}_*.{self.input_file_type}.gz"
                 )
                 msg = f"Exporting table_id={table_id} to: {destination_uri}"
                 logging.info(msg)
                 future = executor.submit(
                     export_bigquery_table,
                     self.project_id,
-                    self.export_dataset_id,
+                    self.input_dataset_id,
                     table_id,
                     self.data_location,
-                    self.export_file_type,
+                    self.input_file_type,
                     destination_uri,
                 )
                 futures.append(future)
@@ -303,7 +303,7 @@ class ElasticImportRelease(SnapshotRelease):
                     self.download_folder,
                     table_id,
                     self.release_date,
-                    self.export_file_type,
+                    self.input_file_type,
                     self.elastic_host,
                     self.chunk_size,
                     self.num_threads,
@@ -386,9 +386,9 @@ class ElasticImportWorkflow(Telescope):
     def __init__(
         self,
         *,
-        export_dataset_id: str,
-        export_file_type: str,
-        dag_id: Optional[str] = "doi",
+        input_dataset_id: str = "observatory_elastic",
+        input_file_type: str = "csv",
+        dag_id: Optional[str] = "elastic_import",
         start_date: Optional[Pendulum] = Pendulum(2020, 11, 1),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
@@ -396,6 +396,8 @@ class ElasticImportWorkflow(Telescope):
         airflow_conns: List = None,
     ):
         """ Create the DoiWorkflow.
+        :param input_dataset_id: the dataset id to import data from.
+        :param input_file_type: the file type to import, can be csv or jsonl.
         :param dag_id: the DAG id.
         :param start_date: the start date.
         :param schedule_interval: the schedule interval.
@@ -426,8 +428,8 @@ class ElasticImportWorkflow(Telescope):
             airflow_conns=airflow_conns,
         )
 
-        self.export_dataset_id = export_dataset_id
-        self.export_file_type = export_file_type
+        self.input_dataset_id = input_dataset_id
+        self.input_file_type = input_file_type
 
         # Add sensors
         for ext_dag_id in self.SENSOR_DAG_IDS:
@@ -458,7 +460,7 @@ class ElasticImportWorkflow(Telescope):
         # Get release date
         release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
         project_id = Variable.get(AirflowVars.PROJECT_ID)
-        table_ids = list_table_ids(project_id, self.export_dataset_id, release_date)
+        table_ids = list_table_ids(project_id, self.input_dataset_id, release_date)
         table_ids = [table_id for table_id in table_ids if table_id.startswith("institution")]
 
         # Push table ids and release date
@@ -505,8 +507,8 @@ class ElasticImportWorkflow(Telescope):
         return ElasticImportRelease(
             dag_id=self.dag_id,
             release_date=release_date,
-            export_dataset_id=self.export_dataset_id,
-            export_file_type=self.export_file_type,
+            input_dataset_id=self.input_dataset_id,
+            input_file_type=self.input_file_type,
             table_ids=table_ids,
             project_id=project_id,
             bucket_name=bucket_name,
