@@ -43,7 +43,7 @@ Every week the following tables are overwritten for visualisation in the Data St
     <project_id>.coki_dashboards.subregion
 """
 
-from observatory.dags.workflows.doi import DoiWorkflow
+from observatory.dags.workflows.doi_workflow import DoiWorkflow
 
 # Outputs data into:
 doi_workflow = DoiWorkflow()
