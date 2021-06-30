@@ -363,34 +363,30 @@ class TestDoiWorkflow(ObservatoryTestCase):
                     self.assert_table_integrity(f"{self.gcp_project_id}.{dashboards_dataset_id}.{table_id}_comparison")
 
                 # Test create exported tables for Elasticsearch
-                try:
-                    for agg in DoiWorkflow.AGGREGATIONS:
-                        table_id = agg.table_id
-                        task_id = f"export_{table_id}"
-                        ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
-                        self.assertEqual(expected_state, ti.state)
+                for agg in DoiWorkflow.AGGREGATIONS:
+                    table_id = agg.table_id
+                    task_id = f"export_{table_id}"
+                    ti = env.run_task(task_id, doi_dag, execution_date=execution_date)
+                    self.assertEqual(expected_state, ti.state)
 
-                        # Check that the correct tables exist for each aggregation
-                        tables = make_elastic_tables(
-                            table_id,
-                            relate_to_institutions=agg.relate_to_institutions,
-                            relate_to_countries=agg.relate_to_countries,
-                            relate_to_groups=agg.relate_to_groups,
-                            relate_to_members=agg.relate_to_members,
-                            relate_to_journals=agg.relate_to_journals,
-                            relate_to_funders=agg.relate_to_funders,
-                            relate_to_publishers=agg.relate_to_publishers,
+                    # Check that the correct tables exist for each aggregation
+                    tables = make_elastic_tables(
+                        table_id,
+                        relate_to_institutions=agg.relate_to_institutions,
+                        relate_to_countries=agg.relate_to_countries,
+                        relate_to_groups=agg.relate_to_groups,
+                        relate_to_members=agg.relate_to_members,
+                        relate_to_journals=agg.relate_to_journals,
+                        relate_to_funders=agg.relate_to_funders,
+                        relate_to_publishers=agg.relate_to_publishers,
+                    )
+                    for table in tables:
+                        aggregate = table["aggregate"]
+                        facet = table["facet"]
+                        expected_table_id = (
+                            f"{self.gcp_project_id}.{elastic_dataset_id}.{aggregate}_{facet}{release_suffix}"
                         )
-                        for table in tables:
-                            aggregate = table["aggregate"]
-                            facet = table["facet"]
-                            expected_table_id = (
-                                f"{self.gcp_project_id}.{elastic_dataset_id}.{aggregate}_{facet}{release_suffix}"
-                            )
-                            self.assert_table_integrity(expected_table_id)
-                except socket.timeout as e:
-                    logging.error("Socket timeout error")
-                    logging.error(e)
+                        self.assert_table_integrity(expected_table_id)
 
     def query_table(self, observatory_dataset_id: str, table_id: str, order_by_field: str) -> List[Dict]:
         """ Query a BigQuery table, sorting the results and returning results as a list of dicts.
