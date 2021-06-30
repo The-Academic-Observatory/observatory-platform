@@ -32,7 +32,7 @@ import google.cloud.bigquery as bigquery
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import TaskInstance, Variable
+from airflow.models import TaskInstance
 from airflow.operators.sensors import ExternalTaskSensor
 from natsort import natsorted
 from pendulum import Pendulum, Date
@@ -46,7 +46,7 @@ from observatory.platform.elastic.elastic import (
 from observatory.platform.elastic.kibana import Kibana, ObjectType
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease
 from observatory.platform.telescopes.telescope import Telescope
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, AirflowConns
+from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
 from observatory.platform.utils.file_utils import yield_jsonl, yield_csv
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
@@ -54,6 +54,17 @@ from observatory.platform.utils.gc_utils import (
     download_blobs_from_cloud_storage,
 )
 from observatory.platform.utils.jinja2_utils import render_template
+
+CSV_TYPES = ["csv", "csv.gz"]
+JSONL_TYPES = ["jsonl", "jsonl.gz"]
+
+
+def make_index_prefix(table_id: str):
+    return table_id.replace("_", "-")
+
+
+def make_table_prefix(table_id: str):
+    return table_id[:-8]
 
 
 def extract_table_id(table_id: str):
@@ -101,9 +112,9 @@ def export_bigquery_table(
     """
 
     # Set destination format
-    if file_type == "csv":
+    if file_type in CSV_TYPES:
         destination_format = bigquery.DestinationFormat.CSV
-    elif file_type == "jsonl":
+    elif file_type in JSONL_TYPES:
         destination_format = bigquery.DestinationFormat.NEWLINE_DELIMITED_JSON
     else:
         raise ValueError(f"export_bigquery_table: file type '{file_type}' is not supported")
@@ -112,7 +123,11 @@ def export_bigquery_table(
     client = bigquery.Client()
     source_table_id = f"{project_id}.{dataset_id}.{table_id}"
     extract_job_config = bigquery.ExtractJobConfig()
-    extract_job_config.compression = bigquery.Compression.GZIP
+
+    # Set gz compression if file type ends in .gz
+    if file_type.endswith(".gz"):
+        extract_job_config.compression = bigquery.Compression.GZIP
+
     extract_job_config.destination_format = destination_format
     extract_job: bigquery.ExtractJob = client.extract_table(
         source_table_id, destination_uri, job_config=extract_job_config, location=location
@@ -120,14 +135,6 @@ def export_bigquery_table(
     extract_job.result()
 
     return extract_job.state == "DONE"
-
-
-def make_index_prefix(table_id: str):
-    return table_id.replace("_", "-")
-
-
-def make_table_prefix(table_id: str):
-    return table_id[:-8]
 
 
 def load_elastic_index(
@@ -168,7 +175,7 @@ def load_elastic_index(
     mappings = json.loads(mappings_render)
 
     # Fetch all files that should be loaded into this index
-    file_pattern = os.path.join(data_path, f"{table_id}_*.{file_type}.gz")
+    file_pattern = os.path.join(data_path, f"{table_id}_*.{file_type}")
     file_paths = natsorted(glob.glob(file_pattern))
 
     if len(file_paths) == 0:
@@ -176,9 +183,9 @@ def load_elastic_index(
         results.append(False)
     else:
         # Load function
-        if file_type == "csv":
+        if file_type in CSV_TYPES:
             load_func = yield_csv
-        elif file_type == "jsonl":
+        elif file_type in JSONL_TYPES:
             load_func = yield_jsonl
         else:
             raise ValueError(f"load_index: file type '{file_type}' is not supported")
@@ -209,8 +216,8 @@ class ElasticImportRelease(SnapshotRelease):
         *,
         dag_id: str,
         release_date: Pendulum,
-        input_dataset_id: str,
-        input_file_type: str,
+        dataset_id: str,
+        file_type: str,
         table_ids: List,
         project_id: str,
         bucket_name: str,
@@ -225,8 +232,8 @@ class ElasticImportRelease(SnapshotRelease):
         num_workers: int = cpu_count(),
     ):
         super().__init__(dag_id, release_date, "", "", "")
-        self.input_dataset_id = input_dataset_id
-        self.input_file_type = input_file_type
+        self.dataset_id = dataset_id
+        self.file_type = file_type
         self.table_ids = table_ids
         self.project_id = project_id
         self.bucket_name = bucket_name
@@ -251,18 +258,16 @@ class ElasticImportRelease(SnapshotRelease):
             futures = list()
             futures_msgs = {}
             for table_id in self.table_ids:
-                destination_uri = (
-                    f"gs://{self.bucket_name}/{self.bucket_prefix}/{table_id}_*.{self.input_file_type}.gz"
-                )
+                destination_uri = f"gs://{self.bucket_name}/{self.bucket_prefix}/{table_id}_*.{self.file_type}"
                 msg = f"Exporting table_id={table_id} to: {destination_uri}"
                 logging.info(msg)
                 future = executor.submit(
                     export_bigquery_table,
                     self.project_id,
-                    self.input_dataset_id,
+                    self.dataset_id,
                     table_id,
                     self.data_location,
-                    self.input_file_type,
+                    self.file_type,
                     destination_uri,
                 )
                 futures.append(future)
@@ -303,7 +308,7 @@ class ElasticImportRelease(SnapshotRelease):
                     self.download_folder,
                     table_id,
                     self.release_date,
-                    self.input_file_type,
+                    self.file_type,
                     self.elastic_host,
                     self.chunk_size,
                     self.num_threads,
@@ -381,13 +386,16 @@ class ElasticImportRelease(SnapshotRelease):
 
 
 class ElasticImportWorkflow(Telescope):
-    SENSOR_DAG_IDS = ["doi"]
-
     def __init__(
         self,
         *,
-        input_dataset_id: str = "observatory_elastic",
-        input_file_type: str = "csv",
+        project_id: str,
+        dataset_id: str,
+        bucket_name: str,
+        data_location="us",
+        file_type: str = "csv.gz",
+        sensor_dag_ids: List[str] = None,
+        kibana_spaces: List[str] = None,
         dag_id: Optional[str] = "elastic_import",
         start_date: Optional[Pendulum] = Pendulum(2020, 11, 1),
         schedule_interval: Optional[str] = "@weekly",
@@ -396,8 +404,13 @@ class ElasticImportWorkflow(Telescope):
         airflow_conns: List = None,
     ):
         """ Create the DoiWorkflow.
-        :param input_dataset_id: the dataset id to import data from.
-        :param input_file_type: the file type to import, can be csv or jsonl.
+        :param project_id: the project id to import data from.
+        :param dataset_id: the dataset id to import data from.
+        :param bucket_name: the bucket name where the exported BigQuery data will be saved.
+        :param data_location: the location of?
+        :param file_type:  the file type to import, can be csv or jsonl.
+        :param sensor_dag_ids: a list of the DAG ids to wait for with sensors.
+        :param kibana_spaces: the kibana spaces to update after Elastic indexes.
         :param dag_id: the DAG id.
         :param start_date: the start date.
         :param schedule_interval: the schedule interval.
@@ -407,13 +420,7 @@ class ElasticImportWorkflow(Telescope):
         """
 
         if airflow_vars is None:
-            airflow_vars = [
-                AirflowVars.DATA_PATH,
-                AirflowVars.PROJECT_ID,
-                AirflowVars.DATA_LOCATION,
-                AirflowVars.TRANSFORM_BUCKET,
-                AirflowVars.KIBANA_SPACES,
-            ]
+            airflow_vars = [AirflowVars.DATA_PATH]
 
         if airflow_conns is None:
             airflow_conns = [AirflowConns.ELASTIC, AirflowConns.KIBANA]
@@ -428,11 +435,22 @@ class ElasticImportWorkflow(Telescope):
             airflow_conns=airflow_conns,
         )
 
-        self.input_dataset_id = input_dataset_id
-        self.input_file_type = input_file_type
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.bucket_name = bucket_name
+        self.data_location = data_location
+        self.file_type = file_type
+
+        self.sensor_dag_ids = sensor_dag_ids
+        if sensor_dag_ids is None:
+            self.sensor_dag_ids = []
+
+        self.kibana_spaces = kibana_spaces
+        if kibana_spaces is None:
+            self.kibana_spaces = []
 
         # Add sensors
-        for ext_dag_id in self.SENSOR_DAG_IDS:
+        for ext_dag_id in self.sensor_dag_ids:
             sensor = ExternalTaskSensor(task_id=f"{ext_dag_id}_sensor", external_dag_id=ext_dag_id, mode="reschedule")
             self.add_sensor(sensor)
 
@@ -459,8 +477,7 @@ class ElasticImportWorkflow(Telescope):
 
         # Get release date
         release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        table_ids = list_table_ids(project_id, self.input_dataset_id, release_date)
+        table_ids = list_table_ids(self.project_id, self.dataset_id, release_date)
         table_ids = [table_id for table_id in table_ids if table_id.startswith("institution")]
 
         # Push table ids and release date
@@ -486,11 +503,6 @@ class ElasticImportWorkflow(Telescope):
 
         release_date = record["release_date"]
         table_ids = record["table_ids"]
-
-        # Get Airflow variables
-        project_id = Variable.get(AirflowVars.PROJECT_ID)
-        bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
-        data_location = Variable.get(AirflowVars.DATA_LOCATION)
         scheme = "https"
 
         # Get Airflow connections
@@ -501,23 +513,20 @@ class ElasticImportWorkflow(Telescope):
         kibana_conn = BaseHook.get_connection(AirflowConns.KIBANA)
         kibana_host = f"{scheme}://{kibana_conn.host}:{kibana_conn.port}"
 
-        # Parse Kibana spaces
-        kibana_spaces = json.loads(Variable.get(AirflowVars.KIBANA_SPACES))
-
         return ElasticImportRelease(
             dag_id=self.dag_id,
             release_date=release_date,
-            input_dataset_id=self.input_dataset_id,
-            input_file_type=self.input_file_type,
+            dataset_id=self.dataset_id,
+            file_type=self.file_type,
             table_ids=table_ids,
-            project_id=project_id,
-            bucket_name=bucket_name,
-            data_location=data_location,
+            project_id=self.project_id,
+            bucket_name=self.bucket_name,
+            data_location=self.data_location,
             elastic_host=elastic_host,
             kibana_host=kibana_host,
             kibana_username=kibana_conn.login,
             kibana_password=kibana_conn.password,
-            kibana_spaces=kibana_spaces,
+            kibana_spaces=self.kibana_spaces,
         )
 
     def export_bigquery_tables(self, release: ElasticImportRelease, **kwargs):
@@ -553,6 +562,8 @@ class ElasticImportWorkflow(Telescope):
         to this argument.
         :return: None.
         """
+
+        # pull xcom
 
         release.import_to_elastic()
 
