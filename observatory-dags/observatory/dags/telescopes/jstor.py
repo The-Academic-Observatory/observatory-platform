@@ -44,7 +44,8 @@ from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import add_partition_date, convert, list_to_jsonl_gz, make_dag_id
+from observatory.platform.utils.file_utils import list_to_jsonl_gz
+from observatory.platform.utils.telescope_utils import add_partition_date, convert, make_dag_id
 from observatory.platform.utils.template_utils import (
     SubFolder,
     blob_name,
@@ -397,7 +398,7 @@ def get_header_info(url: str) -> [str, str]:
     :return: Filename and file extension
     """
     logging.info(
-        f'Getting HEAD of report: {url}, '
+        f"Getting HEAD of report: {url}, "
         f'attempt: {get_header_info.retry.statistics["attempt_number"]}, '
         f'idle for: {get_header_info.retry.statistics["idle_for"]}'
     )
@@ -427,8 +428,8 @@ def download_report(url: str, download_path: str):
     :return: Whether download was successful
     """
     logging.info(
-        f'Downloading report: {url}, '
-        f'to: {download_path}, '
+        f"Downloading report: {url}, "
+        f"to: {download_path}, "
         f'attempt: {download_report.retry.statistics["attempt_number"]}, '
         f'idle for: {download_report.retry.statistics["idle_for"]}'
     )

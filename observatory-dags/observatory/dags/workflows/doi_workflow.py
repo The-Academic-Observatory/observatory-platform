@@ -632,13 +632,11 @@ class ObservatoryRelease:
         output_clustering_fields: List,
     ):
         """ Create an intermediate table.
-        :param input_dataset_id: the input dataset id.
-        :param input_table_id: the input table id.
-        :param input_sharded: whether the input table is sharded or not. The most recent sharded table will be
-        selected, up until the release date.
+        :param inputs: the input datasets.
+        :param output_dataset_id: the output dataset id.
         :param output_table_id: the output table id.
-        :param cluster: whether to cluster or not.
-        :param clustering_fields: the fields to cluster on.
+        :param output_cluster: whether to cluster or not.
+        :param output_clustering_fields: the fields to cluster on.
         :return: None.
         """
 

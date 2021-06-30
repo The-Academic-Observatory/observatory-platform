@@ -68,7 +68,6 @@ def pull_releases(ti: TaskInstance) -> List[MagRelease]:
 
 def list_mag_release_files(release_path: str) -> List[PosixPath]:
     """ List the MAG release file paths in a particular folder. Excludes the samples directory.
-    :param release_name: the name of the MAG release.
     :param release_path: the path to the MAG release.
     :return: a list of PosixPath files.
     """

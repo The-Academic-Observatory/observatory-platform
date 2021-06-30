@@ -31,3 +31,4 @@ google-auth-oauthlib==0.4.*
 paramiko==2.7.*
 sftpserver==0.3
 json_lines==0.5.*
+elasticsearch==7.11.*

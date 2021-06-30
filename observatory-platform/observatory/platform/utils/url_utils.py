@@ -15,15 +15,13 @@
 # Author: James Diprose
 
 import hashlib
-import os
+import time
 import urllib.error
 import urllib.request
 from typing import Tuple, Union
 from urllib.parse import urlparse, urljoin, ParseResult
-from observatory.platform.utils.config_utils import module_file_path
 
 import requests
-import time
 import tldextract
 from importlib_metadata import metadata
 from requests.adapters import HTTPAdapter
@@ -48,7 +46,7 @@ def unique_id(string: str) -> str:
     :param string: a string.
     :return: the unique identifier.
     """
-    return hashlib.md5(string.encode('utf-8')).hexdigest()
+    return hashlib.md5(string.encode("utf-8")).hexdigest()
 
 
 def is_url_absolute(url: Union[str, ParseResult]) -> bool:
@@ -74,8 +72,9 @@ def strip_query_params(url: str) -> str:
     return urljoin(url, urlparse(url).path)
 
 
-def retry_session(num_retries: int = 3, backoff_factor: float = 0.5,
-                  status_forcelist: Tuple = (500, 502, 503, 50)) -> requests.Session:
+def retry_session(
+    num_retries: int = 3, backoff_factor: float = 0.5, status_forcelist: Tuple = (500, 502, 503, 50)
+) -> requests.Session:
     """ Create a session object that is able to retry a given number of times.
 
     :param num_retries: the number of times to retry.
@@ -86,8 +85,14 @@ def retry_session(num_retries: int = 3, backoff_factor: float = 0.5,
     :return: the session.
     """
     session = requests.Session()
-    retry = Retry(total=num_retries, connect=num_retries, read=num_retries, redirect=num_retries,
-                  status_forcelist=status_forcelist, backoff_factor=backoff_factor)
+    retry = Retry(
+        total=num_retries,
+        connect=num_retries,
+        read=num_retries,
+        redirect=num_retries,
+        status_forcelist=status_forcelist,
+        backoff_factor=backoff_factor,
+    )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
@@ -131,10 +136,10 @@ def get_ao_user_agent():
     :return: User agent string.
     """
 
-    pkg_info = metadata('observatory-dags')
-    version = pkg_info.get('Version')
-    url = pkg_info.get('Home-page')
-    mailto = pkg_info.get('Author-email')
-    ua = f'Observatory Platform v{version} (+{url}; mailto: {mailto})'
+    pkg_info = metadata("observatory-dags")
+    version = pkg_info.get("Version")
+    url = pkg_info.get("Home-page")
+    mailto = pkg_info.get("Author-email")
+    ua = f"Observatory Platform v{version} (+{url}; mailto: {mailto})"
 
     return ua
