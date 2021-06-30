@@ -729,7 +729,7 @@ class OnixWorkflow(Telescope):
 
             create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
 
-            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_id = bigquery_sharded_table_id(f"{release.project_id}_{output_table}", release_date)
             template_path = os.path.join(workflow_sql_templates_path(), query_template)
 
             sql = render_template(

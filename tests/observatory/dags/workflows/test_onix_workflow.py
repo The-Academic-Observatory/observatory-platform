@@ -1996,10 +1996,10 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             table_id = f"{self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
             self.assert_table_integrity(table_id, 2)
 
-            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id}_book_product_list{release_suffix}"
             self.assert_table_integrity(table_id, 2)
 
-            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_publisher_metrics{release_suffix}"
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id}_book_publisher_metrics{release_suffix}"
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
@@ -2153,7 +2153,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             self.assertTrue("112" in isbns)
 
             # Check export tables
-            sql = f"SELECT product_id from {self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            sql = f"SELECT product_id from {self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id}_book_product_list{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["product_id"] for record in records])
             self.assertEqual(len(isbns), 2)
@@ -2657,10 +2657,10 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             table_id = f"{self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
             self.assert_table_integrity(table_id, 2)
 
-            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id}_book_product_list{release_suffix}"
             self.assert_table_integrity(table_id, 2)
 
-            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.book_publisher_metrics{release_suffix}"
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id}_book_publisher_metrics{release_suffix}"
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
@@ -2829,7 +2829,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             self.assertTrue("112" in isbns)
 
             # Check export tables
-            sql = f"SELECT product_id from {self.gcp_project_id}.{oaebu_elastic_dataset}.book_product_list{release_suffix}"
+            sql = f"SELECT product_id from {self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id}_book_product_list{release_suffix}"
             records = run_bigquery_query(sql)
             isbns = set([record["product_id"] for record in records])
             self.assertEqual(len(isbns), 2)
