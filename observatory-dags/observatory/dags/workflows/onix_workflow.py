@@ -129,7 +129,7 @@ class OnixWorkflowRelease(AbstractRelease):
         # OAEBU Elastic tables
         self.oaebu_elastic_dataset = oaebu_elastic_dataset
         if self.oaebu_elastic_dataset is None:
-            self.oaebu_elastic_dataset = "oaebu_elastic"
+            self.oaebu_elastic_dataset = "data_export"
 
         self.oaebu_data_qa_dataset = oaebu_data_qa_dataset
         if self.oaebu_data_qa_dataset is None:
@@ -721,7 +721,7 @@ class OnixWorkflow(Telescope):
 
             create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
 
-            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_id = bigquery_sharded_table_id(f"{release.project_id.replace('-', '_')}_{output_table}", release_date)
             template_path = os.path.join(workflow_sql_templates_path(), query_template)
 
             sql = render_template(
@@ -792,7 +792,7 @@ class OnixWorkflow(Telescope):
 
             # Un-matched Metrics
             output_table = "unmatched_book_metrics"
-            table_id = bigquery_sharded_table_id(output_table, release_date)
+            table_id = bigquery_sharded_table_id(f"{release.project_id.replace('-', '_')}_{output_table}", release_date)
             table_joining_template_file = "export_unmatched_metrics.sql.jinja2"
             template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
 
