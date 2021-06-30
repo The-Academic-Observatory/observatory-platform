@@ -26,9 +26,10 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 
-from observatory.platform.telescopes.stream_telescope import (StreamRelease, StreamTelescope)
+from observatory.platform.telescopes.stream_telescope import StreamRelease, StreamTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.telescope_utils import convert, list_to_jsonl_gz
+from observatory.platform.utils.file_utils import list_to_jsonl_gz
+from observatory.platform.utils.telescope_utils import convert
 from observatory.platform.utils.template_utils import upload_files_from_list
 from observatory.platform.utils.url_utils import get_ao_user_agent, retry_session
 
@@ -46,29 +47,27 @@ class OapenMetadataRelease(StreamRelease):
     @property
     def csv_path(self) -> str:
         """ Path to store the original oapen metadata csv file"""
-        return os.path.join(self.download_folder, 'oapen_metadata.csv')
+        return os.path.join(self.download_folder, "oapen_metadata.csv")
 
     @property
     def transform_path(self) -> str:
         """ Path to store the transformed oapen metadata file"""
-        return os.path.join(self.transform_folder, 'metadata.jsonl.gz')
+        return os.path.join(self.transform_folder, "metadata.jsonl.gz")
 
     def download(self) -> bool:
         """ Download Oapen metadata CSV.
         :return: True if download is successful
         """
-        logging.info(f'Downloading csv from url: {OapenMetadataTelescope.CSV_URL}')
-        headers = {
-            'User-Agent': f'{get_ao_user_agent()}'
-        }
+        logging.info(f"Downloading csv from url: {OapenMetadataTelescope.CSV_URL}")
+        headers = {"User-Agent": f"{get_ao_user_agent()}"}
         response = retry_session().get(OapenMetadataTelescope.CSV_URL, headers=headers)
         if response.status_code == 200:
-            with open(self.csv_path, 'w') as f:
-                f.write(response.content.decode('utf-8'))
-            logging.info(f'Downloaded csv successful to {self.csv_path}')
+            with open(self.csv_path, "w") as f:
+                f.write(response.content.decode("utf-8"))
+            logging.info(f"Downloaded csv successful to {self.csv_path}")
             return True
         else:
-            raise AirflowException(f'Download csv unsuccessful, {response.text}')
+            raise AirflowException(f"Download csv unsuccessful, {response.text}")
 
     def transform(self):
         """ Transform the oapen metadata csv file by storing in a jsonl format and restructuring lists/dicts.
@@ -78,21 +77,50 @@ class OapenMetadataRelease(StreamRelease):
         See our readthedocs for an example row before and after transformation
         :return: None
         """
-        with open(self.csv_path, 'r') as f:
+        with open(self.csv_path, "r") as f:
             csv_entries = [{k: v for k, v in row.items()} for row in csv.DictReader(f, skipinitialspace=True)]
 
         nested_fields = get_nested_fieldnames(csv_entries)
         # values of these fields should be transformed to a list
-        list_fields = {'oapen.grant.number', 'oapen.grant.acronym', 'oapen.relation.hasChapter_dc.title',
-                       'dc.subject.classification', 'oapen.grant.program', 'oapen.redirect', 'oapen.imprint',
-                       'dc.subject.other', 'oapen.notes', 'dc.title', 'collection', 'dc.relation.ispartofseries',
-                       'BITSTREAM Download URL', 'BITSTREAM ISBN', 'oapen.collection', 'dc.contributor.author',
-                       'oapen.remark.public', 'oapen.relation.isPublisherOf', 'dc.contributor.other',
-                       'dc.contributor.editor', 'dc.relation.isreplacedbydouble', 'dc.date.issued',
-                       'dc.description.abstract', 'BITSTREAM Webshop URL', 'dc.type', 'dc.identifier.isbn',
-                       'dc.description.provenance', 'oapen.grant.project', 'oapen.relation.isbn', 'dc.identifier',
-                       'dc.date.accessioned', 'BITSTREAM License', 'oapen.relation.isFundedBy_grantor.name',
-                       'dc.relation.isnodouble', 'dc.language', 'grantor.number', 'dc.date.available'}
+        list_fields = {
+            "oapen.grant.number",
+            "oapen.grant.acronym",
+            "oapen.relation.hasChapter_dc.title",
+            "dc.subject.classification",
+            "oapen.grant.program",
+            "oapen.redirect",
+            "oapen.imprint",
+            "dc.subject.other",
+            "oapen.notes",
+            "dc.title",
+            "collection",
+            "dc.relation.ispartofseries",
+            "BITSTREAM Download URL",
+            "BITSTREAM ISBN",
+            "oapen.collection",
+            "dc.contributor.author",
+            "oapen.remark.public",
+            "oapen.relation.isPublisherOf",
+            "dc.contributor.other",
+            "dc.contributor.editor",
+            "dc.relation.isreplacedbydouble",
+            "dc.date.issued",
+            "dc.description.abstract",
+            "BITSTREAM Webshop URL",
+            "dc.type",
+            "dc.identifier.isbn",
+            "dc.description.provenance",
+            "oapen.grant.project",
+            "oapen.relation.isbn",
+            "dc.identifier",
+            "dc.date.accessioned",
+            "BITSTREAM License",
+            "oapen.relation.isFundedBy_grantor.name",
+            "dc.relation.isnodouble",
+            "dc.language",
+            "grantor.number",
+            "dc.date.available",
+        }
         entries = transform_dict(csv_entries, convert, nested_fields, list_fields)
 
         # Transform release into JSON Lines format saving in memory buffer
@@ -103,12 +131,20 @@ class OapenMetadataRelease(StreamRelease):
 class OapenMetadataTelescope(StreamTelescope):
     """ Oapen Metadata telescope """
 
-    CSV_URL = 'https://library.oapen.org/download-export?format=csv'
+    CSV_URL = "https://library.oapen.org/download-export?format=csv"
 
-    def __init__(self, dag_id: str = 'oapen_metadata', start_date: datetime = datetime(2018, 5, 14),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'oapen', merge_partition_field: str = 'id',
-                 updated_date_field: str = 'dc.date.available', bq_merge_days: int = 7, schema_prefix: str =
-                 'oapen_', airflow_vars: List = None):
+    def __init__(
+        self,
+        dag_id: str = "oapen_metadata",
+        start_date: datetime = datetime(2018, 5, 14),
+        schedule_interval: str = "@weekly",
+        dataset_id: str = "oapen",
+        merge_partition_field: str = "id",
+        updated_date_field: str = "dc.date.available",
+        bq_merge_days: int = 7,
+        schema_prefix: str = "oapen_",
+        airflow_vars: List = None,
+    ):
         """ Construct a OapenMetadataTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -123,28 +159,37 @@ class OapenMetadataTelescope(StreamTelescope):
         """
 
         if airflow_vars is None:
-            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
-                         updated_date_field, bq_merge_days, schema_prefix=schema_prefix, airflow_vars=airflow_vars)
+            airflow_vars = [
+                AirflowVars.DATA_PATH,
+                AirflowVars.PROJECT_ID,
+                AirflowVars.DATA_LOCATION,
+                AirflowVars.DOWNLOAD_BUCKET,
+                AirflowVars.TRANSFORM_BUCKET,
+            ]
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            dataset_id,
+            merge_partition_field,
+            updated_date_field,
+            bq_merge_days,
+            schema_prefix=schema_prefix,
+            airflow_vars=airflow_vars,
+        )
 
-        self.add_setup_task_chain([self.check_dependencies,
-                                   self.get_release_info])
-        self.add_task_chain([self.download,
-                             self.upload_downloaded,
-                             self.transform,
-                             self.upload_transformed,
-                             self.bq_load_partition])
-        self.add_task_chain([self.bq_delete_old,
-                             self.bq_append_new,
-                             self.cleanup],
-                            trigger_rule='none_failed')
+        self.add_setup_task_chain([self.check_dependencies, self.get_release_info])
+        self.add_task_chain(
+            [self.download, self.upload_downloaded, self.transform, self.upload_transformed, self.bq_load_partition]
+        )
+        self.add_task_chain([self.bq_delete_old, self.bq_append_new, self.cleanup], trigger_rule="none_failed")
 
     def make_release(self, **kwargs) -> OapenMetadataRelease:
         # Make Release instance
-        ti: TaskInstance = kwargs['ti']
-        start_date, end_date, first_release = ti.xcom_pull(key=OapenMetadataTelescope.RELEASE_INFO,
-                                                           include_prior_dates=True)
+        ti: TaskInstance = kwargs["ti"]
+        start_date, end_date, first_release = ti.xcom_pull(
+            key=OapenMetadataTelescope.RELEASE_INFO, include_prior_dates=True
+        )
 
         release = OapenMetadataRelease(self.dag_id, start_date, end_date, first_release)
         return release
@@ -187,7 +232,7 @@ def get_nested_fieldnames(csv_entries: dict) -> set:
     nested_fields = set()
     for key in keys:
         # split string in two, starting from the right
-        split_key = key.rsplit('.', 1)
+        split_key = key.rsplit(".", 1)
         # add key to set if there is at least one '.' in key name
         if len(split_key) > 1:
             nested_fields.add(split_key[0])
@@ -206,18 +251,18 @@ def transform_value_to_list(k: str, v: str) -> Tuple[list, list]:
     """
     # Get classification code for custom added column
     classification_code = []
-    if k == 'BITSTREAM ISBN':
-        v = v.replace('-', '')
-    if k == 'dc.subject.other':
-        v = v.replace(';', '||')
-        v = v.replace(',', '||')
-    v = list(dict.fromkeys([x.strip() for x in v.split('||')]))
-    if k == 'dc.date.issued':
+    if k == "BITSTREAM ISBN":
+        v = v.replace("-", "")
+    if k == "dc.subject.other":
+        v = v.replace(";", "||")
+        v = v.replace(",", "||")
+    v = list(dict.fromkeys([x.strip() for x in v.split("||")]))
+    if k == "dc.date.issued":
         v = [pendulum.parse(date).to_date_string() for date in v]
-    if k == 'dc.subject.classification':
+    if k == "dc.subject.classification":
         for c in v:
-            if c.startswith('bic Book Industry Communication::'):
-                code = c.split('::')[-1].split(' ')[0]
+            if c.startswith("bic Book Industry Communication::"):
+                code = c.split("::")[-1].split(" ")[0]
                 classification_code.append(code)
             else:
                 classification_code.append(c)
@@ -240,7 +285,7 @@ def transform_key_to_nested_dict(k: str, v, nested_fields: set, list_fields: set
     :return: None.
     """
     # Get all (nested) fields of a specific key
-    fields = k.split('.')
+    fields = k.split(".")
     tmp = new
     # Create one dictionary for each field
     for key in fields:
@@ -251,10 +296,11 @@ def transform_key_to_nested_dict(k: str, v, nested_fields: set, list_fields: set
             # Add the value to the most nested level
             if key == fields[-1]:
                 tmp[key] = transform_dict(v, convert, nested_fields, list_fields)
-                if key == 'classification':
+                if key == "classification":
                     # Add classification code column
-                    tmp['classification_code'] = transform_dict(classification_code, convert, nested_fields,
-                                                                list_fields)
+                    tmp["classification_code"] = transform_dict(
+                        classification_code, convert, nested_fields, list_fields
+                    )
             # Create empty dictionary for key
             else:
                 tmp[key] = {}
@@ -275,15 +321,15 @@ def transform_dict(obj, convert, nested_fields, list_fields):
         new = obj.__class__()
         for k, v in list(obj.items()):
             classification_code = []
-            if v == '':
+            if v == "":
                 continue
             if k in list_fields:
                 v, classification_code = transform_value_to_list(k, v)
             # change key name for top level of nested dictionary
             if k in nested_fields:
-                k = k + '.value'
+                k = k + ".value"
             # parse key/value of lower levels of nested dictionary
-            if k.rsplit('.', 1)[0] in nested_fields:
+            if k.rsplit(".", 1)[0] in nested_fields:
                 transform_key_to_nested_dict(k, v, nested_fields, list_fields, classification_code, new)
             else:
                 new[convert(k)] = transform_dict(v, convert, nested_fields, list_fields)

@@ -16,7 +16,9 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import socket
 from datetime import datetime
 from typing import Dict, List
 
@@ -33,7 +35,7 @@ from observatory.dags.model import (
     make_country_table,
     sort_events,
 )
-from observatory.dags.workflows.doi import DoiWorkflow, make_dataset_transforms, make_elastic_tables
+from observatory.dags.workflows.doi_workflow import DoiWorkflow, make_dataset_transforms, make_elastic_tables
 from observatory.platform.utils.airflow_utils import set_task_state
 from observatory.platform.utils.gc_utils import run_bigquery_query
 from observatory.platform.utils.test_utils import (
@@ -221,7 +223,9 @@ class TestDoiWorkflow(ObservatoryTestCase):
         """
 
         # Create datasets
-        env = ObservatoryEnvironment(project_id=self.gcp_project_id, data_location=self.gcp_data_location)
+        env = ObservatoryEnvironment(
+            project_id=self.gcp_project_id, data_location=self.gcp_data_location, enable_api=False
+        )
         fake_dataset_id = env.add_dataset(prefix="fake")
         intermediate_dataset_id = env.add_dataset(prefix="intermediate")
         dashboards_dataset_id = env.add_dataset(prefix="dashboards")
@@ -244,7 +248,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
         )
         transforms, transform_doi, transform_book = dataset_transforms
 
-        with env.create():
+        with env.create(task_logging=True):
             # Make dag
             start_date = pendulum.datetime(year=2021, month=5, day=9)
             doi_dag = DoiWorkflow(

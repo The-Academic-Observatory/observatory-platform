@@ -31,13 +31,13 @@ from airflow.exceptions import AirflowException
 from click.testing import CliRunner
 from faker import Faker
 
+from observatory.platform.utils.file_utils import list_to_jsonl_gz, load_jsonl
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     load_bigquery_table,
     SourceFormat,
     upload_files_to_cloud_storage,
 )
-from observatory.platform.utils.telescope_utils import list_to_jsonl_gz, load_jsonl
 from observatory.platform.utils.template_utils import schema_path, find_schema
 from observatory.platform.utils.test_utils import test_fixtures_path
 

@@ -19,12 +19,13 @@ import os
 import shutil
 from functools import partial, update_wrapper
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
+
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
@@ -33,6 +34,7 @@ from observatory.dags.workflows.onix_work_aggregation import (
     BookWorkFamilyAggregator,
 )
 from observatory.platform.telescopes.telescope import AbstractRelease, Telescope
+from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     create_bigquery_dataset,
@@ -43,7 +45,6 @@ from observatory.platform.utils.gc_utils import (
 )
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.telescope_utils import (
-    list_to_jsonl_gz,
     make_dag_id,
     make_telescope_sensor,
 )
@@ -215,10 +216,7 @@ def make_table_id(*, project_id: str, dataset_id: str, table_id: str, end_date: 
     new_table_id = table_id
     if sharded:
         table_date = select_table_shard_dates(
-            project_id=project_id,
-            dataset_id=dataset_id,
-            table_id=table_id,
-            end_date=end_date,
+            project_id=project_id, dataset_id=dataset_id, table_id=table_id, end_date=end_date,
         )[0]
         new_table_id = f"{table_id}{table_date.strftime('%Y%m%d')}"
 
@@ -576,7 +574,7 @@ class OnixWorkflow(Telescope):
 
     def create_oaebu_intermediate_table_tasks(self, data_partners: List[OaebuPartners]):
         """Create tasks for generating oaebu intermediate tables for each OAEBU data partner.
-        :param oaebu_data: List of oaebu partner data.
+        :param data_partners: List of oaebu partner data.
         """
 
         for data in data_partners:
@@ -677,7 +675,7 @@ class OnixWorkflow(Telescope):
 
     def create_oaebu_output_tasks(self, data_partners: List[OaebuPartners]):
         """Create tasks for outputing final metrics from our OAEBU data.  It will create output tables in the oaebu dataset.
-        :param oaebu_data: List of oaebu partner data.
+        :param data_partners: List of oaebu partner data.
         """
 
         data_partner_datasets = {data.name: data.gcp_dataset_id for data in data_partners}
@@ -707,14 +705,8 @@ class OnixWorkflow(Telescope):
 
         # TODO Book Work Family
 
-
     def export_oaebu_table(
-        self,
-        releases: List[OnixWorkflowRelease],
-        *args,
-        output_table: str,
-        query_template: str,
-        **kwargs,
+        self, releases: List[OnixWorkflowRelease], *args, output_table: str, query_template: str, **kwargs,
     ):
         """Create an intermediate oaebu table.  They are of the form datasource_matched<date>
         :param releases: Onix workflow release information.
@@ -733,10 +725,7 @@ class OnixWorkflow(Telescope):
             template_path = os.path.join(workflow_sql_templates_path(), query_template)
 
             sql = render_template(
-                template_path,
-                project_id=release.project_id,
-                dataset_id=release.oaebu_dataset,
-                release=release_date,
+                template_path, project_id=release.project_id, dataset_id=release.oaebu_dataset, release=release_date,
             )
 
             status = create_bigquery_table_from_query(
@@ -842,34 +831,76 @@ class OnixWorkflow(Telescope):
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
 
-
     def create_oaebu_export_tasks(self, data_partners: List[OaebuPartners]):
         """Create tasks for exporting final metrics from our OAEBU data.  It will create output tables in the oaebu_elastic dataset.
-        :param releases: Onix workflow release information.
-        :param args: Catching any other positional args (unused).
+        :param data_partners: Onix workflow release information.
         """
 
         export_tables = [
             {"output_table": "book_product_list", "query_template": "export_book_list.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_product_metrics", "query_template": "export_book_metrics.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_product_metrics_country", "query_template": "export_book_metrics_country.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_product_metrics_institution", "query_template": "export_book_metrics_institution.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_product_metrics_city", "query_template": "export_book_metrics_city.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_product_metrics_referrer", "query_template": "export_book_metrics_referrer.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_product_metrics_events", "query_template": "export_book_metrics_event.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_publisher_metrics", "query_template": "export_book_publisher_metrics.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_subject_metrics", "query_template": "export_book_subject_metrics.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_year_metrics", "query_template": "export_book_year_metrics.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_subject_year_metrics", "query_template": "export_book_subject_year_metrics.sql.jinja2", "file_type": "json"},
-            {"output_table": "book_author_metrics", "query_template": "export_book_author_metrics.sql.jinja2", "file_type": "json"},
+            {
+                "output_table": "book_product_metrics",
+                "query_template": "export_book_metrics.sql.jinja2",
+                "file_type": "json",
+            },
+            {
+                "output_table": "book_product_metrics_country",
+                "query_template": "export_book_metrics_country.sql.jinja2",
+                "file_type": "json",
+            },
+            {
+                "output_table": "book_product_metrics_institution",
+                "query_template": "export_book_metrics_institution.sql.jinja2",
+                "file_type": "json",
+            },
+            {
+                "output_table": "book_product_metrics_city",
+                "query_template": "export_book_metrics_city.sql.jinja2",
+                "file_type": "json",
+            },
+            {
+                "output_table": "book_product_metrics_referrer",
+                "query_template": "export_book_metrics_referrer.sql.jinja2",
+                "file_type": "json",
+            },
+            {
+                "output_table": "book_product_metrics_events",
+                "query_template": "export_book_metrics_event.sql.jinja2",
+                "file_type": "json",
+            },
+            {
+                "output_table": "book_publisher_metrics",
+                "query_template": "export_book_publisher_metrics.sql.jinja2",
+                "file_type": "json",
+            },
+            {
+                "output_table": "book_subject_metrics",
+                "query_template": "export_book_subject_metrics.sql.jinja2",
+                "file_type": "json",
+            },
+            {
+                "output_table": "book_year_metrics",
+                "query_template": "export_book_year_metrics.sql.jinja2",
+                "file_type": "json",
+            },
+            {
+                "output_table": "book_subject_year_metrics",
+                "query_template": "export_book_subject_year_metrics.sql.jinja2",
+                "file_type": "json",
+            },
+            {
+                "output_table": "book_author_metrics",
+                "query_template": "export_book_author_metrics.sql.jinja2",
+                "file_type": "json",
+            },
         ]
 
         # Create each export table in BiqQuery
         for export_table in export_tables:
             fn = partial(
                 self.export_oaebu_table,
-                output_table=export_table['output_table'],
-                query_template=export_table['query_template'],
+                output_table=export_table["output_table"],
+                query_template=export_table["query_template"],
             )
 
             # Populate the __name__ attribute of the partial object (it lacks one by default).
@@ -877,7 +908,6 @@ class OnixWorkflow(Telescope):
             fn.__name__ += f".{export_table['output_table']}"
 
             self.add_task(fn)
-
 
         # Export QA Metrics
         data_partner_tables = {data.name: data.gcp_table_id for data in data_partners}
@@ -908,10 +938,9 @@ class OnixWorkflow(Telescope):
         update_wrapper(fn, self.export_oaebu_qa_metrics)
         self.add_task(fn)
 
-
     def create_oaebu_data_qa_tasks(self, data_partners: List[OaebuPartners]):
         """Create tasks for outputing QA metrics from our OAEBU data.  It will create output tables in the oaebu_data_qa dataset.
-        :param oaebu_data: List of oaebu partner data.
+        :param data_partners: List of oaebu partner data.
         """
 
         self.create_oaebu_data_qa_onix()
@@ -1029,7 +1058,6 @@ class OnixWorkflow(Telescope):
         """Create a BQ table of invalid ISBNs for the ONIX feed that can be fed back to publishers.
         No attempt is made to normalise the string so we catch as many string issues as we can.
 
-        :param output_table: Name of the output table.
         :param project_id: GCP Project ID of the data.
         :param orig_dataset_id: GCP Dataset ID of the source data.
         :param orig_table_id: Table ID of the source data (excluding date).
@@ -1045,19 +1073,13 @@ class OnixWorkflow(Telescope):
         template_path = os.path.join(workflow_sql_templates_path(), isbn_validate_template_file)
 
         sql = render_template(
-            template_path,
-            project_id=project_id,
-            dataset_id=orig_dataset_id,
-            table_id=orig_table_id,
-            isbn=isbn,
+            template_path, project_id=project_id, dataset_id=orig_dataset_id, table_id=orig_table_id, isbn=isbn,
         )
 
         sql = isbn_utils_sql + sql
 
         create_bigquery_dataset(
-            project_id=project_id,
-            dataset_id=output_dataset_id,
-            location=dataset_location,
+            project_id=project_id, dataset_id=output_dataset_id, location=dataset_location,
         )
 
         status = create_bigquery_table_from_query(
@@ -1404,7 +1426,7 @@ class OnixWorkflow(Telescope):
 
     def create_oaebu_data_qa_intermediate_tasks(self, data_partner: OaebuPartners):
         """Create tasks for generating oaebu intermediate metrics for each OAEBU data partner.
-        :param oaebu_data: List of oaebu partner data.
+        :param data_partner: List of oaebu partner data.
         """
 
         # Record unmatched work_id. This is indicative of invalid ISBN or missing ONIX product records.

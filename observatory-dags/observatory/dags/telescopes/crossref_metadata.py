@@ -23,23 +23,24 @@ import logging
 import os
 import shutil
 import subprocess
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from subprocess import Popen
 from typing import Dict, List
 
-import requests
 import pendulum
-import xml.etree.ElementTree as ET
+import requests
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from natsort import natsorted
+from pendulum import Pendulum
+
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.proc_utils import wait_for_process
-from observatory.platform.utils.template_utils import upload_files_from_list, bq_load_shard, table_ids_from_path, blob_name
+from observatory.platform.utils.template_utils import upload_files_from_list, bq_load_shard, blob_name
 from observatory.platform.utils.url_utils import retry_session
-from pendulum import Pendulum
 
 
 class CrossrefMetadataRelease(SnapshotRelease):
@@ -50,9 +51,9 @@ class CrossrefMetadataRelease(SnapshotRelease):
         :param release_date: the date of the release.
         """
 
-        download_files_regex = '.*.json.tar.gz$'
-        extract_files_regex = f'.*.json$'
-        transform_files_regex = f'.*.jsonl$'
+        download_files_regex = ".*.json.tar.gz$"
+        extract_files_regex = f".*.json$"
+        transform_files_regex = f".*.jsonl$"
         super().__init__(dag_id, release_date, download_files_regex, extract_files_regex, transform_files_regex)
 
         self.url = CrossrefMetadataTelescope.TELESCOPE_URL.format(year=release_date.year, month=release_date.month)
@@ -64,7 +65,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
         :return: the file path.
         """
 
-        return os.path.join(self.download_folder, 'crossref_metadata.json.tar.gz')
+        return os.path.join(self.download_folder, "crossref_metadata.json.tar.gz")
 
     def download(self):
         """ Download release.
@@ -77,9 +78,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
         # Set API token header
         connection = BaseHook.get_connection(AirflowConns.CROSSREF)
         api_token = connection.password
-        header = {
-            'Crossref-Plus-API-Token': f'Bearer {api_token}'
-        }
+        header = {"Crossref-Plus-API-Token": f"Bearer {api_token}"}
 
         # Download release
         with requests.get(self.url, headers=header, stream=True) as response:
@@ -88,7 +87,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
                 raise ConnectionError(f"Error downloading file {self.url}, status_code={response.status_code}")
 
             # Open file for saving
-            with open(self.download_path, 'wb') as file:
+            with open(self.download_path, "wb") as file:
                 response.raw.read = functools.partial(response.raw.read, decode_content=True)
                 shutil.copyfileobj(response.raw, file)
 
@@ -104,11 +103,12 @@ class CrossrefMetadataRelease(SnapshotRelease):
         # Run command using GNUtar, bsdtar (on e.g. OS x) might give error: 'Error inclusion pattern: Failed to open
         # 'pigz -d'
         cmd = f'tar -xv -I "pigz -d" -f {self.download_path} -C {self.extract_folder}'
-        p: Popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    executable='/bin/bash')
+        p: Popen = subprocess.Popen(
+            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable="/bin/bash"
+        )
         stdout, stderr = wait_for_process(p)
         logging.debug(stdout)
-        success = p.returncode == 0 and 'error' not in stderr.lower()
+        success = p.returncode == 0 and "error" not in stderr.lower()
 
         if success:
             logging.info(f"extract_release success: {self.download_path}")
@@ -124,7 +124,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
         :param max_workers: the number of processes to use when transforming files (one process per file).
         :return: whether the transformation was successful or not.
         """
-        logging.info(f'Transform input folder: {self.extract_folder}, output folder: {self.transform_folder}')
+        logging.info(f"Transform input folder: {self.extract_folder}, output folder: {self.transform_folder}")
         finished = 0
         # Transform each file in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -136,7 +136,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
             # Create tasks for each file
             for input_file in input_file_paths:
                 # The output file will be a json lines file, hence adding the 'l' to the file extension
-                output_file = os.path.join(self.transform_folder, os.path.basename(input_file) + 'l')
+                output_file = os.path.join(self.transform_folder, os.path.basename(input_file) + "l")
                 future = executor.submit(transform_file, input_file, output_file)
                 futures.append(future)
 
@@ -145,7 +145,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
                 future.result()
                 finished += 1
                 if finished % 1000 == 0:
-                    logging.info(f'Transformed {finished} files')
+                    logging.info(f"Transformed {finished} files")
 
 
 class CrossrefMetadataTelescope(SnapshotTelescope):
@@ -155,18 +155,26 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
     Saved to the BigQuery table: <project_id>.crossref.crossref_metadataYYYYMMDD
     """
 
-    DAG_ID = 'crossref_metadata'
-    DATASET_ID = 'crossref'
-    SCHEDULE_INTERVAL = '0 0 7 * *'
-    TELESCOPE_URL = 'https://api.crossref.org/snapshots/monthly/{year}/{month:02d}/all.json.tar.gz'
+    DAG_ID = "crossref_metadata"
+    DATASET_ID = "crossref"
+    SCHEDULE_INTERVAL = "0 0 7 * *"
+    TELESCOPE_URL = "https://api.crossref.org/snapshots/monthly/{year}/{month:02d}/all.json.tar.gz"
 
-    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2020, 6, 7),
-                 schedule_interval: str = SCHEDULE_INTERVAL, dataset_id: str = 'crossref',
-                 dataset_description: str = 'The Crossref Metadata Plus dataset: '
-                                            'https://www.crossref.org/services/metadata-retrieval/metadata-plus/',
-                 load_bigquery_table_kwargs: Dict = None, table_descriptions: Dict = None,
-                 airflow_vars: List = None, airflow_conns: List = None, max_active_runs: int = 1,
-                 max_processes: int = min(32, os.cpu_count() + 4)):
+    def __init__(
+        self,
+        dag_id: str = DAG_ID,
+        start_date: datetime = datetime(2020, 6, 7),
+        schedule_interval: str = SCHEDULE_INTERVAL,
+        dataset_id: str = "crossref",
+        dataset_description: str = "The Crossref Metadata Plus dataset: "
+        "https://www.crossref.org/services/metadata-retrieval/metadata-plus/",
+        load_bigquery_table_kwargs: Dict = None,
+        table_descriptions: Dict = None,
+        airflow_vars: List = None,
+        airflow_conns: List = None,
+        max_active_runs: int = 1,
+        max_processes: int = min(32, os.cpu_count() + 4),
+    ):
 
         """ The Crossref Metadata telescope
 
@@ -184,20 +192,30 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         """
 
         if table_descriptions is None:
-            table_descriptions = {dag_id: 'A single Crossref Metadata snapshot.'}
+            table_descriptions = {dag_id: "A single Crossref Metadata snapshot."}
 
         if airflow_vars is None:
-            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
+            airflow_vars = [
+                AirflowVars.DATA_PATH,
+                AirflowVars.PROJECT_ID,
+                AirflowVars.DATA_LOCATION,
+                AirflowVars.DOWNLOAD_BUCKET,
+                AirflowVars.TRANSFORM_BUCKET,
+            ]
         if airflow_conns is None:
             airflow_conns = [AirflowConns.CROSSREF]
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id,
-                         load_bigquery_table_kwargs=load_bigquery_table_kwargs,
-                         dataset_description=dataset_description,
-                         table_descriptions=table_descriptions,
-                         airflow_vars=airflow_vars,
-                         airflow_conns=airflow_conns,
-                         max_active_runs=max_active_runs)
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            dataset_id,
+            load_bigquery_table_kwargs=load_bigquery_table_kwargs,
+            dataset_description=dataset_description,
+            table_descriptions=table_descriptions,
+            airflow_vars=airflow_vars,
+            airflow_conns=airflow_conns,
+            max_active_runs=max_active_runs,
+        )
         self.max_processes = max_processes
 
         self.add_setup_task(self.check_dependencies)
@@ -220,7 +238,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         :return: a list of CrossrefMetadataRelease instances.
         """
 
-        release_date = kwargs['execution_date']
+        release_date = kwargs["execution_date"]
         return [CrossrefMetadataRelease(self.dag_id, release_date)]
 
     def check_release_exists(self, **kwargs):
@@ -232,33 +250,36 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         :return: None.
         """
         # List all available releases
-        logging.info(f'Listing available releases since start date ({self.start_date}):')
-        for dt in pendulum.period(pendulum.instance(self.start_date), pendulum.today('UTC')).range('years'):
-            response = requests.get(f'https://api.crossref.org/snapshots/monthly/{dt.year}')
+        logging.info(f"Listing available releases since start date ({self.start_date}):")
+        for dt in pendulum.period(pendulum.instance(self.start_date), pendulum.today("UTC")).range("years"):
+            response = requests.get(f"https://api.crossref.org/snapshots/monthly/{dt.year}")
             root = ET.fromstring(response.content)
-            for child in root.iter('a'):
-                href = child.attrib['href']
+            for child in root.iter("a"):
+                href = child.attrib["href"]
                 logging.info(href)
 
         # Construct the release for the execution date and check if it exists.
         # The release release for a given execution_date is added on the 5th day of the following month.
         # E.g. the 2020-05 release is added to the website on 2020-06-05.
-        execution_date = kwargs['execution_date']
+        execution_date = kwargs["execution_date"]
 
         url = CrossrefMetadataTelescope.TELESCOPE_URL.format(year=execution_date.year, month=execution_date.month)
-        logging.info(f'Checking if available release exists for {execution_date.year}-{execution_date.month}')
+        logging.info(f"Checking if available release exists for {execution_date.year}-{execution_date.month}")
 
         response = retry_session().head(url)
         if response.status_code == 302:
-            logging.info(f'Snapshot exists at url: {url}, response code: {response.status_code}')
+            logging.info(f"Snapshot exists at url: {url}, response code: {response.status_code}")
             return True
-        elif response.reason == 'Not Found':
-            logging.info(f'Snapshot does not exist at url: {url}, response code: {response.status_code}, '
-                         f'reason: {response.reason}')
+        elif response.reason == "Not Found":
+            logging.info(
+                f"Snapshot does not exist at url: {url}, response code: {response.status_code}, "
+                f"reason: {response.reason}"
+            )
             return False
         else:
-            raise AirflowException(f"Could not get head of url: {url}, response code: {response.status_code},"
-                                   f"reason: {response.reason}")
+            raise AirflowException(
+                f"Could not get head of url: {url}, response code: {response.status_code}," f"reason: {response.reason}"
+            )
 
     def download(self, releases: List[CrossrefMetadataRelease], **kwargs):
         """ Task to download the CrossrefMetadataRelease release for a given month.
@@ -312,12 +333,20 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
 
         # Load each transformed release
         for release in releases:
-            transform_blob = f'{blob_name(release.transform_folder)}/*'
-            table_description = self.table_descriptions.get(self.dag_id, '')
-            bq_load_shard(release.release_date, transform_blob, self.dataset_id, self.dag_id, self.source_format,
-                          prefix=self.schema_prefix, schema_version=self.schema_version,
-                          dataset_description=self.dataset_description, table_description=table_description,
-                          **self.load_bigquery_table_kwargs)
+            transform_blob = f"{blob_name(release.transform_folder)}/*"
+            table_description = self.table_descriptions.get(self.dag_id, "")
+            bq_load_shard(
+                release.release_date,
+                transform_blob,
+                self.dataset_id,
+                self.dag_id,
+                self.source_format,
+                prefix=self.schema_prefix,
+                schema_version=self.schema_version,
+                dataset_description=self.dataset_description,
+                table_description=table_description,
+                **self.load_bigquery_table_kwargs,
+            )
 
 
 def transform_file(input_file_path: str, output_file_path: str):
@@ -329,14 +358,17 @@ def transform_file(input_file_path: str, output_file_path: str):
     :return: None.
     """
 
-    cmd = 'mawk \'BEGIN {FS="\\":";RS=",\\"";OFS=FS;ORS=RS} {for (i=1; i<=NF;i++) if(i != NF) gsub("-", "_", $i)}1\'' \
-          f' {input_file_path} | ' \
-          'mawk \'!/^\}$|^\]$|,\\"$/{gsub("\[\[", "[");gsub("]]", "]");gsub(/,[ \\t]*$/,"");' \
-          'gsub("\\"timestamp\\":_", "\\"timestamp\\":");gsub("\\"date_parts\\":\[null]", "\\"date_parts\\":[]");' \
-          'gsub(/^\{\\"items\\":\[/,"");print}\' > ' \
-          f'{output_file_path}'
-    p: Popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
+    cmd = (
+        'mawk \'BEGIN {FS="\\":";RS=",\\"";OFS=FS;ORS=RS} {for (i=1; i<=NF;i++) if(i != NF) gsub("-", "_", $i)}1\''
+        f" {input_file_path} | "
+        'mawk \'!/^\}$|^\]$|,\\"$/{gsub("\[\[", "[");gsub("]]", "]");gsub(/,[ \\t]*$/,"");'
+        'gsub("\\"timestamp\\":_", "\\"timestamp\\":");gsub("\\"date_parts\\":\[null]", "\\"date_parts\\":[]");'
+        'gsub(/^\{\\"items\\":\[/,"");print}\' > '
+        f"{output_file_path}"
+    )
+    p: Popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable="/bin/bash")
     stdout, stderr = wait_for_process(p)
     if p.returncode != 0:
-        raise AirflowException(f"transform unsuccessful for file: {input_file_path}. "
-                               f"stdout: {stdout}, stderr: {stderr}")
+        raise AirflowException(
+            f"transform unsuccessful for file: {input_file_path}. " f"stdout: {stdout}, stderr: {stderr}"
+        )

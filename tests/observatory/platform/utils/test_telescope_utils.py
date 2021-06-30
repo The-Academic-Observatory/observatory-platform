@@ -28,14 +28,16 @@ import pysftp
 from airflow.models.connection import Connection
 from click.testing import CliRunner
 
-from observatory.platform.utils.file_utils import gzip_file_crc
+from observatory.platform.utils.file_utils import load_jsonl, list_to_jsonl_gz, gzip_file_crc
 from observatory.platform.utils.telescope_utils import (
+    make_telescope_sensor,
+    PeriodCount,
+    ScheduleOptimiser,
+    make_sftp_connection,
+    make_dag_id,
+    make_observatory_api,
     get_prev_execution_date,
-    normalized_schedule_interval
-)
-from observatory.platform.utils.telescope_utils import (
-    load_jsonl, make_telescope_sensor, PeriodCount, ScheduleOptimiser, make_sftp_connection,
-    make_dag_id, make_observatory_api, list_to_jsonl_gz
+    normalized_schedule_interval,
 )
 
 
@@ -66,7 +68,7 @@ class TestTelescopeUtils(unittest.TestCase):
         """ Test get_prev_execution_date """
         execution_date = pendulum.Pendulum(2020, 2, 20)
         # test for both cron preset and cron expression
-        for schedule_interval in ['@monthly', '0 0 1 * *']:
+        for schedule_interval in ["@monthly", "0 0 1 * *"]:
             prev_execution_date = get_prev_execution_date(schedule_interval, execution_date)
             expected = datetime.datetime(2020, 2, 1, tzinfo=dateutil.tz.gettz(execution_date.timezone_name))
             self.assertEqual(expected, prev_execution_date)

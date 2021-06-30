@@ -17,13 +17,10 @@
 """ Utility functions that support specific telescope(s) """
 
 import calendar
-import gzip
-import io
 import json
 import logging
 import os
 import re
-import shutil
 import sys
 from base64 import b64decode
 from collections import deque
@@ -34,7 +31,6 @@ from pathlib import Path
 from typing import Any, List, Tuple, Type, Union, Optional
 
 import dateutil
-import json_lines
 import jsonlines
 import paramiko
 import pendulum
@@ -52,6 +48,7 @@ from observatory.api.client.api_client import ApiClient
 from observatory.api.client.configuration import Configuration
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.utils.airflow_utils import AirflowConns
+from observatory.platform.utils.file_utils import load_file, write_to_file
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
 from observatory.platform.utils.jinja2_utils import (
     make_jinja2_filename,
@@ -89,16 +86,16 @@ def normalized_schedule_interval(schedule_interval: Optional[str]) -> Optional[S
     3. If not (1) or (2) returns schedule_interval
     """
     cron_presets = {
-        '@hourly': '0 * * * *',
-        '@daily': '0 0 * * *',
-        '@weekly': '0 0 * * 0',
-        '@monthly': '0 0 1 * *',
-        '@quarterly': '0 0 1 */3 *',
-        '@yearly': '0 0 1 1 *',
+        "@hourly": "0 * * * *",
+        "@daily": "0 0 * * *",
+        "@weekly": "0 0 * * 0",
+        "@monthly": "0 0 1 * *",
+        "@quarterly": "0 0 1 */3 *",
+        "@yearly": "0 0 1 1 *",
     }
     if isinstance(schedule_interval, six.string_types) and schedule_interval in cron_presets:
         _schedule_interval = cron_presets.get(schedule_interval)  # type: Optional[ScheduleInterval]
-    elif schedule_interval == '@once':
+    elif schedule_interval == "@once":
         _schedule_interval = None
     else:
         _schedule_interval = schedule_interval
@@ -132,13 +129,15 @@ def get_prev_execution_date(schedule_interval_target: str, execution_date: pendu
         execution_date.microsecond,
     ).astimezone(tz_info)
 
-    logging.info(f"Getting last execution date with normalized schedule '{normalized_schedule}' and execution_date "
-                 f"'{dt_execution_date}'")
+    logging.info(
+        f"Getting last execution date with normalized schedule '{normalized_schedule}' and execution_date "
+        f"'{dt_execution_date}'"
+    )
     # Create croniter object
     cron_iter = croniter(normalized_schedule, dt_execution_date)
     # Get previous execution date
     execution_date_target = cron_iter.get_prev(datetime)
-    logging.info(f'Found execution date: {execution_date_target}')
+    logging.info(f"Found execution date: {execution_date_target}")
     return execution_date_target
 
 
@@ -299,36 +298,6 @@ def make_org_id(organisation_name: str) -> str:
     """
 
     return organisation_name.strip().replace(" ", "_").lower()
-
-
-def list_to_jsonl_gz(file_path: str, list_of_dicts: List[dict]):
-    """Takes a list of dictionaries and writes this to a gzipped jsonl file.
-    :param file_path: Path to the .jsonl.gz file
-    :param list_of_dicts: A list containing dictionaries that can be written out with jsonlines
-    :return: None.
-    """
-    with io.BytesIO() as bytes_io:
-        with gzip.GzipFile(fileobj=bytes_io, mode="w") as gzip_file:
-            with jsonlines.Writer(gzip_file) as writer:
-                writer.write_all(list_of_dicts)
-
-        with open(file_path, "wb") as jsonl_gzip_file:
-            jsonl_gzip_file.write(bytes_io.getvalue())
-
-
-def load_jsonl(file_path: str) -> List[dict]:
-    """ Load a json lines file.
-
-    :param file_path: the path to the file.
-    :return: the rows from the json lines file as a list of dictionaries.
-    """
-
-    records = []
-    with json_lines.open(file_path) as f:
-        for record in f:
-            records.append(record)
-
-    return records
 
 
 def args_list(args) -> list:
@@ -528,18 +497,6 @@ def json_to_db(
     return jsonlines_files
 
 
-def load_file(file_name: str, modes="r"):
-    """Load a file.
-
-    :param file_name: file to load.
-    :param modes: File open modes. Defaults to 'r'
-    :return: contents of file.
-    """
-
-    with open(file_name, modes) as f:
-        return f.read()
-
-
 def validate_date(date_string):
     """Validate a date string is pendulum parsable.
 
@@ -552,20 +509,6 @@ def validate_date(date_string):
         print(f"Pendulum parsing encountered exception: {e}")
         return False
     return True
-
-
-def write_to_file(record, file_name: str):
-    """Write a structure to file.
-
-    :param record: Structure to write.
-    :param file_name: File name to write to.
-    """
-
-    directory = os.path.dirname(file_name)
-    Path(directory).mkdir(parents=True, exist_ok=True)
-
-    with open(file_name, "w") as f:
-        f.write(record)
 
 
 def write_xml_to_json(transform_path: str, release_date: str, inst_id: str, in_files: List[str], parser):
@@ -603,25 +546,6 @@ def write_xml_to_json(transform_path: str, release_date: str, inst_id: str, in_f
         write_to_file(json_record, json_path)
 
     return json_file_list, schema_vers
-
-
-def zip_files(file_list: List[str]):
-    """GZip up the list of files.
-
-    :param file_list: List of files to zip up.
-    :return: List of zipped up file names.
-    """
-
-    zip_list = list()
-    for file_path in file_list:
-        logging.info(f"Zipping file {file_path}")
-        zip_file = f"{file_path}.gz"
-        zip_list.append(zip_file)
-        with open(file_path, "rb") as f_in:
-            with gzip.open(zip_file, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
-
-    return zip_list
 
 
 def make_telescope_sensor(telescope_name: str, dag_prefix: str) -> ExternalTaskSensor:
