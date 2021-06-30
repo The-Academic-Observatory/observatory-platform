@@ -128,7 +128,7 @@ class OnixWorkflowRelease(AbstractRelease):
         # OAEBU Elastic tables
         self.oaebu_elastic_dataset = oaebu_elastic_dataset
         if self.oaebu_elastic_dataset is None:
-            self.oaebu_elastic_dataset = "oaebu_elastic"
+            self.oaebu_elastic_dataset = "data_export"
 
         self.oaebu_data_qa_dataset = oaebu_data_qa_dataset
         if self.oaebu_data_qa_dataset is None:
