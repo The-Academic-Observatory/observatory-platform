@@ -55,6 +55,7 @@ from observatory.platform.utils.gc_utils import (
 )
 from observatory.platform.utils.jinja2_utils import render_template
 
+ES_INDEX_STATE_TOPIC_NAME = "es_index_state"
 CSV_TYPES = ["csv", "csv.gz"]
 JSONL_TYPES = ["jsonl", "jsonl.gz"]
 
@@ -208,6 +209,17 @@ def load_elastic_index(
     return all(results)
 
 
+def update_index_state(indexed_table_ids: List[str], ti: TaskInstance, execution_date):
+    ti.xcom_push(ES_INDEX_STATE_TOPIC_NAME, indexed_table_ids, execution_date)
+
+
+def pull_index_state(ti: TaskInstance) -> List[str]:
+    results = ti.xcom_pull(key=ES_INDEX_STATE_TOPIC_NAME, task_ids="import_to_elastic", include_prior_dates=False)
+    if results is None:
+        return []
+    return results
+
+
 class ElasticImportRelease(SnapshotRelease):
     MAX_PARALLEL_QUERIES = 100
 
@@ -248,7 +260,12 @@ class ElasticImportRelease(SnapshotRelease):
         self.num_workers = num_workers
         self.bucket_prefix = f"telescopes/{dag_id}/{self.release_id}"
 
-    def export_bigquery_tables(self):
+    def export_bigquery_tables(self) -> bool:
+        """
+
+        :return:
+        """
+
         # Calculate the number of parallel queries. Since all of the real work is done on BigQuery run each export task
         # in a separate thread so that they can be done in parallel.
         num_queries = min(len(self.table_ids), self.MAX_PARALLEL_QUERIES)
@@ -283,25 +300,37 @@ class ElasticImportRelease(SnapshotRelease):
                 else:
                     logging.error(f"Export failed: {msg}")
 
-        if not all(results):
-            raise AirflowException("export_bigquery_tables task: failed to export tables")
+        return all(results)
 
-    def download_exported_data(self):
-        success = download_blobs_from_cloud_storage(self.bucket_name, self.bucket_prefix, self.download_folder)
+    def download_exported_data(self) -> bool:
+        """
 
-        if not success:
-            raise AirflowException(
-                "download_exported_data task: data failed to download from " "Google Cloud Storage successfully"
-            )
+        :return:
+        """
 
-    def import_to_elastic(self):
+        return download_blobs_from_cloud_storage(self.bucket_name, self.bucket_prefix, self.download_folder)
+
+    def import_to_elastic(self, ti: TaskInstance, execution_date) -> bool:
+        """
+
+        :param ti:
+        :return:
+        """
+
         results = []
+        indexed_table_ids = pull_index_state(ti)
+        logging.info(f"The following tables have already been indexed: {indexed_table_ids}")
+
         with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
             futures = list()
             futures_msgs = {}
 
+            # Decide what tables need indexing
+            to_index_table_ids = list(set(self.table_ids) - set(indexed_table_ids))
+            logging.info(f"The following tables will be indexed: {to_index_table_ids}")
+
             # Load each table into an Elastic index
-            for table_id in self.table_ids:
+            for table_id in to_index_table_ids:
                 logging.info(f"Starting indexing task: {table_id}")
                 future = executor.submit(
                     load_elastic_index,
@@ -320,17 +349,24 @@ class ElasticImportRelease(SnapshotRelease):
             # Wait for completed tasks
             for future in as_completed(futures):
                 success = future.result()
-                msg = futures_msgs[future]
                 results.append(success)
                 if success:
-                    logging.info(f"Loading index success: {msg}")
+                    # Update the state of table_ids that have been indexed
+                    table_id = futures_msgs[future]
+                    indexed_table_ids.append(table_id)
+                    update_index_state(indexed_table_ids, ti, execution_date)
+                    logging.info(f"Loading index success: {table_id}")
                 else:
-                    logging.error(f"Loading index failed: {msg}")
+                    logging.error(f"Loading index failed: {table_id}")
 
-        if not all(results):
-            raise AirflowException("import_to_elastic task: failed to load Elasticsearch indexes")
+        return all(results)
 
-    def update_elastic_aliases(self):
+    def update_elastic_aliases(self) -> bool:
+        """
+
+        :return:
+        """
+
         client = Elastic(host=self.elastic_host)
 
         # Make aliases and indexes
@@ -362,10 +398,14 @@ class ElasticImportRelease(SnapshotRelease):
         except elasticsearch.exceptions.NotFoundError:
             pass
 
-        if not success:
-            raise AirflowException("update_elastic_aliases failed")
+        return success
 
     def create_kibana_index_patterns(self):
+        """
+
+        :return:
+        """
+
         kibana = Kibana(host=self.kibana_host, username=self.kibana_username, password=self.kibana_password)
 
         results = []
@@ -381,8 +421,7 @@ class ElasticImportRelease(SnapshotRelease):
                 )
                 results.append(result)
 
-        if not all(results):
-            raise AirflowException("create_kibana_index_patterns failed")
+        return all(results)
 
 
 class ElasticImportWorkflow(Telescope):
@@ -539,7 +578,9 @@ class ElasticImportWorkflow(Telescope):
         :return: None.
         """
 
-        release.export_bigquery_tables()
+        success = release.export_bigquery_tables()
+        if not success:
+            raise AirflowException("export_bigquery_tables task: failed to export tables")
 
     def download_exported_data(self, release: ElasticImportRelease, **kwargs):
         """ Download the exported data.
@@ -551,7 +592,11 @@ class ElasticImportWorkflow(Telescope):
         :return: None.
         """
 
-        release.download_exported_data()
+        success = release.download_exported_data()
+        if not success:
+            raise AirflowException(
+                "download_exported_data task: data failed to download from " "Google Cloud Storage successfully"
+            )
 
     def import_to_elastic(self, release: ElasticImportRelease, **kwargs):
         """ Import the data into Elasticsearch.
@@ -563,9 +608,11 @@ class ElasticImportWorkflow(Telescope):
         :return: None.
         """
 
-        # pull xcom
-
-        release.import_to_elastic()
+        ti: TaskInstance = kwargs["ti"]
+        execution_date = kwargs["execution_date"]
+        success = release.import_to_elastic(ti, execution_date)
+        if not success:
+            raise AirflowException("import_to_elastic task: failed to load Elasticsearch indexes")
 
     def update_elastic_aliases(self, release: ElasticImportRelease, **kwargs):
         """ Update Elasticsearch aliases.
@@ -577,7 +624,9 @@ class ElasticImportWorkflow(Telescope):
         :return: None.
         """
 
-        release.update_elastic_aliases()
+        success = release.update_elastic_aliases()
+        if not success:
+            raise AirflowException("update_elastic_aliases failed")
 
     def create_kibana_index_patterns(self, release: ElasticImportRelease, **kwargs):
         """ Create Kibana index patterns.
@@ -589,7 +638,9 @@ class ElasticImportWorkflow(Telescope):
         :return: None.
         """
 
-        release.create_kibana_index_patterns()
+        success = release.create_kibana_index_patterns()
+        if not success:
+            raise AirflowException("create_kibana_index_patterns failed")
 
     def cleanup(self, release: ElasticImportRelease, **kwargs):
         """ Cleanup local files.
