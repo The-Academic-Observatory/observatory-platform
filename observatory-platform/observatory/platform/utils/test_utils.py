@@ -76,6 +76,7 @@ import croniter
 import httpretty
 import paramiko
 import pendulum
+import requests
 from airflow import settings
 from airflow.models import DagBag
 from airflow.models.connection import Connection
@@ -230,8 +231,11 @@ class ObservatoryEnvironment:
         """
 
         self.assert_gcp_dependencies()
-        bucket = self.storage_client.get_bucket(bucket_id)
-        bucket.delete(force=True)
+        try:
+            bucket = self.storage_client.get_bucket(bucket_id)
+            bucket.delete(force=True)
+        except requests.exceptions.ReadTimeout:
+            pass
 
     def add_dataset(self, prefix: str = "") -> str:
         """Add a BigQuery dataset to the Observatory environment.
@@ -255,7 +259,10 @@ class ObservatoryEnvironment:
         """
 
         self.assert_gcp_dependencies()
-        self.bigquery_client.delete_dataset(dataset_id, not_found_ok=True, delete_contents=True)
+        try:
+            self.bigquery_client.delete_dataset(dataset_id, not_found_ok=True, delete_contents=True)
+        except requests.exceptions.ReadTimeout:
+            pass
 
     def add_variable(self, var: Variable) -> None:
         """Add an Airflow variable to the Observatory environment.
