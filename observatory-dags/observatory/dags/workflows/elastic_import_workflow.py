@@ -167,7 +167,7 @@ def load_elastic_index(
     aggregate, facet = table_prefix.split("_", 1)
 
     if aggregrate == "oaebu":
-        parts = make_index_prefix.split('-')[3:]
+        parts = index_prefix.split('-')[3:]
         mappings_file_name = parts[0] + "-" + "-".join(parts[2:]) + "-mappings.json.jinja2"
         aggregration_level = parts[1]
 
@@ -423,7 +423,21 @@ class ElasticImportRelease(SnapshotRelease):
         for table_id in self.table_ids:
             table_prefix = make_table_prefix(table_id)
             index_pattern_id = make_index_prefix(table_prefix)
-            attributes = {"title": index_pattern_id, "timeFieldName": "published_year"}
+
+            aggregate, facet = table_prefix.split("_", 1)
+
+            if aggregrate == "oaebu":
+                selector = "-".join(index_pattern_id.split('-')[3:])
+                if selector == "unmatched-book-metrics":
+                    timeFieldName = "release_date"
+                elif selector == "book-product-list":
+                    timeFieldName = "published_year"
+                else:
+                    timeFieldName = "month"
+            else:
+                timeFieldName = "published_year"
+
+            attributes = {"title": index_pattern_id, "timeFieldName": timeFieldName}
 
             # Create an index pattern for each space
             for space_id in self.kibana_spaces:
