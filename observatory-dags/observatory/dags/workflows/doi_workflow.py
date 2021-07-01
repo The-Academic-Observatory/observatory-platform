@@ -863,7 +863,7 @@ class ObservatoryRelease:
             facet=facet,
         )
 
-        export_table_id = f"{aggregate}_{facet}"
+        export_table_id = f"ao_{aggregate}_{facet}"
         processed_table_id = bigquery_sharded_table_id(export_table_id, self.release_date)
 
         success = create_bigquery_table_from_query(
