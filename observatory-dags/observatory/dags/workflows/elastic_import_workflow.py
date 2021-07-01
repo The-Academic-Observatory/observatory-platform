@@ -167,7 +167,7 @@ def load_elastic_index(
     aggregate, facet = table_prefix.split("_", 1)
 
     if aggregrate == "oaebu":
-        parts = table_prefix.split('-')[3:]
+        parts = make_index_prefix.split('-')[3:]
         mappings_file_name = parts[0] + "-" + "-".join(parts[2:]) + "-mappings.json.jinja2"
         aggregration_level = parts[1]
 
