@@ -517,7 +517,6 @@ class ElasticImportWorkflow(Telescope):
         # Get release date
         release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
         table_ids = list_table_ids(self.project_id, self.dataset_id, release_date)
-        table_ids = [table_id for table_id in table_ids if table_id.startswith("institution")]
 
         # Push table ids and release date
         ti: TaskInstance = kwargs["ti"]

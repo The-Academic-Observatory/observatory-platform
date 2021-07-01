@@ -555,7 +555,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
@@ -656,7 +656,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
@@ -724,7 +724,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
@@ -814,7 +814,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
@@ -1000,7 +1000,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{output_table_id}"
                 )
@@ -1078,7 +1078,7 @@ class OnixWorkflow(Telescope):
             location=dataset_location,
         )
 
-        if status != True:
+        if not status:
             raise AirflowException(
                 f"create_bigquery_table_from_query failed on {project_id}.{output_dataset_id}.{output_table_id}"
             )
@@ -1494,7 +1494,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{output_table_id}"
                 )
