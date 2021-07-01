@@ -857,27 +857,27 @@ class OnixWorkflow(Telescope):
                 "file_type": "json",
             },
             {
-                "output_table": "book_publisher_metrics",
+                "output_table": "book_product_publisher_metrics",
                 "query_template": "export_book_publisher_metrics.sql.jinja2",
                 "file_type": "json",
             },
             {
-                "output_table": "book_subject_metrics",
+                "output_table": "book_product_subject_metrics",
                 "query_template": "export_book_subject_metrics.sql.jinja2",
                 "file_type": "json",
             },
             {
-                "output_table": "book_year_metrics",
+                "output_table": "book_product_year_metrics",
                 "query_template": "export_book_year_metrics.sql.jinja2",
                 "file_type": "json",
             },
             {
-                "output_table": "book_subject_year_metrics",
+                "output_table": "book_product_subject_year_metrics",
                 "query_template": "export_book_subject_year_metrics.sql.jinja2",
                 "file_type": "json",
             },
             {
-                "output_table": "book_author_metrics",
+                "output_table": "book_product_author_metrics",
                 "query_template": "export_book_author_metrics.sql.jinja2",
                 "file_type": "json",
             },

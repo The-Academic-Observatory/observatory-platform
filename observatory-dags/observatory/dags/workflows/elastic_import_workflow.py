@@ -165,15 +165,26 @@ def load_elastic_index(
     table_prefix = make_table_prefix(table_id)
     index_prefix = make_index_prefix(table_prefix)
     aggregate, facet = table_prefix.split("_", 1)
-    mappings_file_name = "relations_mappings.json.jinja2"
-    is_fixed_facet = facet in ["unique_list", "access_types", "disciplines", "output_types", "events", "metrics"]
-    if is_fixed_facet:
-        mappings_file_name = f"{facet}_mappings.json.jinja2"
 
-    # Make mapping for aggregation and facet
-    mappings_path = elastic_mappings_path(mappings_file_name)
-    mappings_render = render_template(mappings_path, aggregate=aggregate, facet=facet)
-    mappings = json.loads(mappings_render)
+    if aggregrate == "oaebu":
+        parts = table_prefix.split('-')[3:]
+        mappings_file_name = parts[0] + "-" + "-".join(parts[2:]) + "-mappings.json.jinja2"
+        aggregration_level = parts[1]
+
+        # Make mapping for aggregation and facet
+        mappings_path = elastic_mappings_path(mappings_file_name)
+        mappings_render = render_template(mappings_path, aggregration_level=aggregration_level)
+        mappings = json.loads(mappings_render)
+    else:
+        mappings_file_name = "relations_mappings.json.jinja2"
+        is_fixed_facet = facet in ["unique_list", "access_types", "disciplines", "output_types", "events", "metrics"]
+        if is_fixed_facet:
+            mappings_file_name = f"{facet}_mappings.json.jinja2"
+
+        # Make mapping for aggregation and facet
+        mappings_path = elastic_mappings_path(mappings_file_name)
+        mappings_render = render_template(mappings_path, aggregate=aggregate, facet=facet)
+        mappings = json.loads(mappings_render)
 
     # Fetch all files that should be loaded into this index
     file_pattern = os.path.join(data_path, f"{table_id}_*.{file_type}")
