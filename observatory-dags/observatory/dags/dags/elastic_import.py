@@ -51,7 +51,7 @@ configs = [
         data_location=DATA_LOCATION,
         file_type=FILE_TYPE_JSONL,
         sensor_dag_ids=["doi"],
-        kibana_spaces=["coki-scratch-space"],
+        kibana_spaces=["coki-scratch-space", "coki-dashboards", "dev-coki-dashboards"],
     ),
     ElasticImportConfig(
         dag_id=make_dag_id(DAG_PREFIX, "anu_press"),
