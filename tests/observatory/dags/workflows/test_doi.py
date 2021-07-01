@@ -384,7 +384,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                         aggregate = table["aggregate"]
                         facet = table["facet"]
                         expected_table_id = (
-                            f"{self.gcp_project_id}.{elastic_dataset_id}.{aggregate}_{facet}{release_suffix}"
+                            f"{self.gcp_project_id}.{elastic_dataset_id}.ao_{aggregate}_{facet}{release_suffix}"
                         )
                         self.assert_table_integrity(expected_table_id)
 
