@@ -702,7 +702,6 @@ class OnixWorkflow(Telescope):
         """
 
         for release in releases:
-
             output_dataset = release.oaebu_elastic_dataset
             data_location = release.dataset_location
             release_date = release.release_date
@@ -771,7 +770,6 @@ class OnixWorkflow(Telescope):
         """
 
         for release in releases:
-
             output_dataset = release.oaebu_elastic_dataset
             data_location = release.dataset_location
             release_date = release.release_date
@@ -1458,16 +1456,8 @@ class OnixWorkflow(Telescope):
         template_path = os.path.join(workflow_sql_templates_path(), template_file)
 
         for release in releases:
-            intermediate_table = f"{orig_dataset_id}_{orig_table}{release.oaebu_intermediate_match_suffix}"
-            release_date = select_table_shard_dates(
-                project_id=project_id,
-                dataset_id=release.oaebu_intermediate_dataset,
-                table_id=intermediate_table,
-                end_date=release.release_date,
-            )[0]
-
-            intermediate_table_id = intermediate_table + release_date.strftime("%Y%m%d")
-
+            release_date = release.release_date
+            intermediate_table_id = f"{orig_dataset_id}_{orig_table}{release.oaebu_intermediate_match_suffix}{release_date.strftime('%Y%m%d')}"
             output_dataset = release.oaebu_data_qa_dataset
             output_table = f"{orig_table}_unmatched_{orig_isbn}"
             output_table_id = bigquery_sharded_table_id(output_table, release_date)
