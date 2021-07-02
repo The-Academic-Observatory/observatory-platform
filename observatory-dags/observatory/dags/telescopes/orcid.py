@@ -37,6 +37,8 @@ from observatory.platform.telescopes.stream_telescope import (StreamRelease, Str
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVariable as Variable, AirflowVars
 from observatory.platform.utils.gc_utils import (aws_to_google_cloud_storage_transfer, storage_bucket_exists)
 from observatory.platform.utils.proc_utils import wait_for_process
+import gzip
+import shutil
 
 
 class OrcidRelease(StreamRelease):
@@ -51,7 +53,7 @@ class OrcidRelease(StreamRelease):
         :param max_processes: Max processes used for parallel downloading
         """
         download_files_regex = r'.*.xml$'
-        transform_files_regex = r'orcid.jsonl'
+        transform_files_regex = r'.*.jsonl.gz'
         super().__init__(dag_id, start_date, end_date, first_release, download_files_regex=download_files_regex,
                          transform_files_regex=transform_files_regex)
         self.max_processes = max_processes
@@ -175,6 +177,20 @@ class OrcidRelease(StreamRelease):
                 if count % 1000 == 0:
                     logging.info(f'Transformed {count} files')
 
+        # Loop through directories with individual files, concatenate files in each directory into 1 gzipped file.
+        logging.info('Finished transforming individual files, concatenating & compressing files')
+        for root, dirs, files in os.walk(self.transform_folder):
+            if root == self.transform_folder:
+                continue
+            file_dir = os.path.basename(root)
+            tranform_path = os.path.join(self.transform_folder, file_dir + '.jsonl.gz')
+            with gzip.GzipFile(tranform_path, mode="wb") as f_out:
+                for name in files:
+                    if not name.endswith('.jsonl'):
+                        continue
+                    with open(os.path.join(root, name), 'rb') as f_in:
+                        shutil.copyfileobj(f_in, f_out)
+
     def transform_single_file(self, download_path: str):
         """ Transform a single ORCID file/record.
         The xml file is turned into a dictionary, a record should have either a valid 'record' section or an 'error'
@@ -185,7 +201,13 @@ class OrcidRelease(StreamRelease):
         :return: None.
         """
         file_name = os.path.basename(download_path)
-        transform_path = os.path.join(self.transform_folder, os.path.splitext(file_name)[0] + '.jsonl')
+        file_dir = os.path.dirname(download_path)
+        transform_path = os.path.join(self.transform_folder, file_dir, os.path.splitext(file_name)[0] + '.jsonl')
+
+        # Skip if file already exists
+        if os.path.exists(transform_path):
+            return
+
         # Create dict of data from summary xml file
         with open(download_path, 'r') as f:
             orcid_dict = xmltodict.parse(f.read())
@@ -223,7 +245,7 @@ class OrcidTelescope(StreamTelescope):
                  merge_partition_field: str = 'orcid_identifier.uri',
                  updated_date_field: str = 'history.last_modified_date',
                  bq_merge_days: int = 7, airflow_vars: List = None, airflow_conns: List = None,
-                 max_processes: int = min(32, os.cpu_count() + 4), batch_load: bool = True):
+                 max_processes: int = min(32, os.cpu_count() + 4)):
         """ Construct an OrcidTelescope instance.
 
         :param dag_id: the id of the DAG.
