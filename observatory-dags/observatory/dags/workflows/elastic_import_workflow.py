@@ -47,7 +47,7 @@ from observatory.platform.elastic.kibana import Kibana, ObjectType
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease
 from observatory.platform.telescopes.telescope import Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
-from observatory.platform.utils.file_utils import yield_jsonl, yield_csv
+from observatory.platform.utils.file_utils import yield_jsonl, yield_csv, load_file, write_to_file
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     select_table_shard_dates,
@@ -166,25 +166,23 @@ def load_elastic_index(
     index_prefix = make_index_prefix(table_prefix)
     aggregate, facet = table_prefix.split("_", 1)
 
-    if aggregrate == "oaebu":
-        parts = index_prefix.split('-')[3:]
+    if aggregate == "oaebu":
+        parts = index_prefix.split("-")[3:]
         mappings_file_name = parts[0] + "-" + "-".join(parts[2:]) + "-mappings.json.jinja2"
-        aggregration_level = parts[1]
+        aggregation_level = parts[1]
 
-        # Make mapping for aggregation and facet
         mappings_path = elastic_mappings_path(mappings_file_name)
-        mappings_render = render_template(mappings_path, aggregration_level=aggregration_level)
-        mappings = json.loads(mappings_render)
+        mappings_render = render_template(mappings_path, aggregration_level=aggregation_level)
     else:
-        mappings_file_name = "relations_mappings.json.jinja2"
-        is_fixed_facet = facet in ["unique_list", "access_types", "disciplines", "output_types", "events", "metrics"]
+        mappings_file_name = "relations-mappings.json.jinja2"
+        is_fixed_facet = facet in ["unique-list", "access-types", "disciplines", "output-types", "events", "metrics"]
         if is_fixed_facet:
-            mappings_file_name = f"{facet}_mappings.json.jinja2"
-
-        # Make mapping for aggregation and facet
+            mappings_file_name = f"{facet}-mappings.json.jinja2"
         mappings_path = elastic_mappings_path(mappings_file_name)
         mappings_render = render_template(mappings_path, aggregate=aggregate, facet=facet)
-        mappings = json.loads(mappings_render)
+
+    # Make mapping for aggregation and facet
+    mappings = json.loads(mappings_render)
 
     # Fetch all files that should be loaded into this index
     file_pattern = os.path.join(data_path, f"{table_id}_*.{file_type}")
@@ -218,17 +216,6 @@ def load_elastic_index(
             results.append(result)
 
     return all(results)
-
-
-def update_index_state(indexed_table_ids: List[str], ti: TaskInstance, execution_date):
-    ti.xcom_push(ES_INDEX_STATE_TOPIC_NAME, indexed_table_ids, execution_date)
-
-
-def pull_index_state(ti: TaskInstance) -> List[str]:
-    results = ti.xcom_pull(key=ES_INDEX_STATE_TOPIC_NAME, task_ids="import_to_elastic", include_prior_dates=False)
-    if results is None:
-        return []
-    return results
 
 
 class ElasticImportRelease(SnapshotRelease):
@@ -270,6 +257,7 @@ class ElasticImportRelease(SnapshotRelease):
         self.num_threads = num_threads
         self.num_workers = num_workers
         self.bucket_prefix = f"telescopes/{dag_id}/{self.release_id}"
+        self.elastic_import_task_state_path = os.path.join(self.extract_folder, "elastic_import_task_state.json")
 
     def export_bigquery_tables(self) -> bool:
         """
@@ -321,15 +309,17 @@ class ElasticImportRelease(SnapshotRelease):
 
         return download_blobs_from_cloud_storage(self.bucket_name, self.bucket_prefix, self.download_folder)
 
-    def import_to_elastic(self, ti: TaskInstance, execution_date) -> bool:
-        """
+    def read_index_state(self) -> List[str]:
+        if os.path.isfile(self.elastic_import_task_state_path):
+            return json.loads(load_file(self.elastic_import_task_state_path))
+        return []
 
-        :param ti:
-        :return:
-        """
+    def write_index_state(self, indexed_table_ids: List[str]):
+        write_to_file(json.dumps(indexed_table_ids), self.elastic_import_task_state_path)
 
+    def import_to_elastic(self) -> bool:
         results = []
-        indexed_table_ids = pull_index_state(ti)
+        indexed_table_ids = self.read_index_state()
         logging.info(f"The following tables have already been indexed: {indexed_table_ids}")
 
         with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
@@ -365,7 +355,7 @@ class ElasticImportRelease(SnapshotRelease):
                     # Update the state of table_ids that have been indexed
                     table_id = futures_msgs[future]
                     indexed_table_ids.append(table_id)
-                    update_index_state(indexed_table_ids, ti, execution_date)
+                    self.write_index_state(indexed_table_ids)
                     logging.info(f"Loading index success: {table_id}")
                 else:
                     logging.error(f"Loading index failed: {table_id}")
@@ -423,21 +413,19 @@ class ElasticImportRelease(SnapshotRelease):
         for table_id in self.table_ids:
             table_prefix = make_table_prefix(table_id)
             index_pattern_id = make_index_prefix(table_prefix)
-
             aggregate, facet = table_prefix.split("_", 1)
-
-            if aggregrate == "oaebu":
-                selector = "-".join(index_pattern_id.split('-')[3:])
+            if aggregate == "oaebu":
+                selector = "-".join(index_pattern_id.split("-")[3:])
                 if selector == "unmatched-book-metrics":
-                    timeFieldName = "release_date"
+                    time_field_name = "release_date"
                 elif selector == "book-product-list":
-                    timeFieldName = "published_year"
+                    time_field_name = "published_year"
                 else:
-                    timeFieldName = "month"
+                    time_field_name = "month"
             else:
-                timeFieldName = "published_year"
+                time_field_name = "published_year"
 
-            attributes = {"title": index_pattern_id, "timeFieldName": timeFieldName}
+            attributes = {"title": index_pattern_id, "timeFieldName": time_field_name}
 
             # Create an index pattern for each space
             for space_id in self.kibana_spaces:
@@ -632,9 +620,7 @@ class ElasticImportWorkflow(Telescope):
         :return: None.
         """
 
-        ti: TaskInstance = kwargs["ti"]
-        execution_date = kwargs["execution_date"]
-        success = release.import_to_elastic(ti, execution_date)
+        success = release.import_to_elastic()
         if not success:
             raise AirflowException("import_to_elastic task: failed to load Elasticsearch indexes")
 
