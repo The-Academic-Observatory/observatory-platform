@@ -2611,7 +2611,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
                 "book_product_metrics_city",
                 "book_product_metrics_referrer",
                 "book_product_metrics_events",
-                "book_publisher_metrics",
+                "book_product_publisher_metrics",
                 "book_subject_metrics",
                 "book_year_metrics",
                 "book_subject_year_metrics",
