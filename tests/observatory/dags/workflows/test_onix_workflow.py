@@ -324,7 +324,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 release.worksfamilylookup_filename, "onix_workflow_test/20210101/onix_workfamilyid_isbn.jsonl.gz"
             )
 
-            self.assertEqual(release.workflow_dataset_id, "onix_workflow")
+            self.assertEqual(release.workflow_dataset, "onix_workflow")
             self.assertEqual(release.project_id, "project_id")
             self.assertEqual(release.onix_dataset_id, "onix")
             self.assertEqual(release.dataset_location, "us")
@@ -343,7 +343,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_project_id="project",
                 gcp_bucket_name="bucket",
             )
-            self.assertEqual(release.workflow_dataset_id, "onix_workflow")
+            self.assertEqual(release.workflow_dataset, "onix_workflow")
             self.assertEqual(release.oaebu_intermediate_dataset, "oaebu_intermediate")
             self.assertEqual(release.oaebu_data_qa_dataset, "oaebu_data_qa")
 
@@ -358,7 +358,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 oaebu_data_qa_dataset="override",
             )
 
-            self.assertEqual(release.workflow_dataset_id, "override")
+            self.assertEqual(release.workflow_dataset, "override")
             self.assertEqual(release.oaebu_intermediate_dataset, "override")
             self.assertEqual(release.oaebu_data_qa_dataset, "override")
 
@@ -538,12 +538,12 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "export_oaebu_table.book_product_metrics_institution": ["export_oaebu_table.book_product_metrics_city"],
                     "export_oaebu_table.book_product_metrics_city": ["export_oaebu_table.book_product_metrics_referrer"],
                     "export_oaebu_table.book_product_metrics_referrer": ["export_oaebu_table.book_product_metrics_events"],
-                    "export_oaebu_table.book_product_metrics_events": ["export_oaebu_table.book_publisher_metrics"],
-                    "export_oaebu_table.book_publisher_metrics": ["export_oaebu_table.book_subject_metrics"],
-                    "export_oaebu_table.book_subject_metrics": ["export_oaebu_table.book_year_metrics"],
-                    "export_oaebu_table.book_year_metrics": ["export_oaebu_table.book_subject_year_metrics"],
-                    "export_oaebu_table.book_subject_year_metrics": ["export_oaebu_table.book_author_metrics"],
-                    "export_oaebu_table.book_author_metrics": ["export_oaebu_qa_metrics"],
+                    "export_oaebu_table.book_product_metrics_events": ["export_oaebu_table.book_product_publisher_metrics"],
+                    "export_oaebu_table.book_product_publisher_metrics": ["export_oaebu_table.book_product_subject_metrics"],
+                    "export_oaebu_table.book_product_subject_metrics": ["export_oaebu_table.book_product_year_metrics"],
+                    "export_oaebu_table.book_product_year_metrics": ["export_oaebu_table.book_product_subject_year_metrics"],
+                    "export_oaebu_table.book_product_subject_year_metrics": ["export_oaebu_table.book_product_author_metrics"],
+                    "export_oaebu_table.book_product_author_metrics": ["export_oaebu_qa_metrics"],
                     "export_oaebu_qa_metrics": ["cleanup"],
                     "cleanup": [],
                 },
@@ -661,12 +661,12 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     "export_oaebu_table.book_product_metrics_institution": ["export_oaebu_table.book_product_metrics_city"],
                     "export_oaebu_table.book_product_metrics_city": ["export_oaebu_table.book_product_metrics_referrer"],
                     "export_oaebu_table.book_product_metrics_referrer": ["export_oaebu_table.book_product_metrics_events"],
-                    "export_oaebu_table.book_product_metrics_events": ["export_oaebu_table.book_publisher_metrics"],
-                    "export_oaebu_table.book_publisher_metrics": ["export_oaebu_table.book_subject_metrics"],
-                    "export_oaebu_table.book_subject_metrics": ["export_oaebu_table.book_year_metrics"],
-                    "export_oaebu_table.book_year_metrics": ["export_oaebu_table.book_subject_year_metrics"],
-                    "export_oaebu_table.book_subject_year_metrics": ["export_oaebu_table.book_author_metrics"],
-                    "export_oaebu_table.book_author_metrics": ["export_oaebu_qa_metrics"],
+                    "export_oaebu_table.book_product_metrics_events": ["export_oaebu_table.book_product_publisher_metrics"],
+                    "export_oaebu_table.book_product_publisher_metrics": ["export_oaebu_table.book_product_subject_metrics"],
+                    "export_oaebu_table.book_product_subject_metrics": ["export_oaebu_table.book_product_year_metrics"],
+                    "export_oaebu_table.book_product_year_metrics": ["export_oaebu_table.book_product_subject_year_metrics"],
+                    "export_oaebu_table.book_product_subject_year_metrics": ["export_oaebu_table.book_product_author_metrics"],
+                    "export_oaebu_table.book_product_author_metrics": ["export_oaebu_qa_metrics"],
                     "export_oaebu_qa_metrics": ["cleanup"],
                     "cleanup": [],
                 },
@@ -1947,11 +1947,11 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 "book_product_metrics_city",
                 "book_product_metrics_referrer",
                 "book_product_metrics_events",
-                "book_publisher_metrics",
-                "book_subject_metrics",
-                "book_year_metrics",
-                "book_subject_year_metrics",
-                "book_author_metrics",
+                "book_product_publisher_metrics",
+                "book_product_subject_metrics",
+                "book_product_year_metrics",
+                "book_product_subject_year_metrics",
+                "book_product_author_metrics",
             ]
 
             for table in export_tables:
