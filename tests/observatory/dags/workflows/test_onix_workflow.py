@@ -1999,7 +1999,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
             self.assert_table_integrity(table_id, 2)
 
-            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_publisher_metrics{release_suffix}"
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_product_publisher_metrics{release_suffix}"
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
@@ -2612,10 +2612,10 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
                 "book_product_metrics_referrer",
                 "book_product_metrics_events",
                 "book_product_publisher_metrics",
-                "book_subject_metrics",
-                "book_year_metrics",
-                "book_subject_year_metrics",
-                "book_author_metrics",
+                "book_product_subject_metrics",
+                "book_product_year_metrics",
+                "book_product_subject_year_metrics",
+                "book_product_author_metrics",
             ]
 
             for table in export_tables:
@@ -2660,7 +2660,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
             table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
             self.assert_table_integrity(table_id, 2)
 
-            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_publisher_metrics{release_suffix}"
+            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_product_publisher_metrics{release_suffix}"
             self.assert_table_integrity(table_id, 1)
 
             # Validate the joins worked
