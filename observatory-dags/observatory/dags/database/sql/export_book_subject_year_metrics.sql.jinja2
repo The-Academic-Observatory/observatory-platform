@@ -28,7 +28,7 @@ CREATE TEMP FUNCTION top_level_subjects(subjects ARRAY<STRING>) AS (
 
 SELECT
     subject,
-    onix.published_year as published_year,
+    CAST(onix.published_year as INT64) as published_year,
     count(ISBN13) as unique_books,
     month.month,
     STRUCT(group_counts(ARRAY_CONCAT_AGG(month.google_analytics.unique_views.country)) as unique_views) as google_analytics,

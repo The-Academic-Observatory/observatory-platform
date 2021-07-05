@@ -419,16 +419,13 @@ class ElasticImportRelease(SnapshotRelease):
                 if selector == "unmatched-book-metrics":
                     time_field_name = "release_date"
                 elif selector == "book-product-list":
-                    time_field_name = None
+                    time_field_name = "time_field"
                 else:
                     time_field_name = "month"
             else:
                 time_field_name = "published_year"
 
-            if time_field_name != None:
-                attributes = {"title": index_pattern_id, "timeFieldName": time_field_name}
-            else:
-                attributes = {"title": index_pattern_id}
+            attributes = {"title": index_pattern_id, "timeFieldName": time_field_name}
 
             # Create an index pattern for each space
             for space_id in self.kibana_spaces:

@@ -23,15 +23,12 @@
       "EditionNumber": {
         "type": "integer"
       },
+      "time_field": {
+         "type": "date",
+         "format": "yyyy-MM-dd"
+      },
       "published_year": {
-        "type": "text",
-        "analyzer": "text_analyzer",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
+        "type": "long"
       },
       "title": {
         "type": "text",
