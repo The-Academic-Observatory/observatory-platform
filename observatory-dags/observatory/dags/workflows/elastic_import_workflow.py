@@ -208,10 +208,11 @@ def load_elastic_index(
 
         # Load files into index
         for file_path in file_paths:
+            logging.info(f'Loading file: {file_path}')
             try:
                 result = client.index_documents(index_id_sharded, mappings, load_func(file_path))
             except Exception as e:
-                logging.error(f"load_index error: {e}")
+                logging.error(f"Loading file error: {file_path}, {e}")
                 result = False
             results.append(result)
 
