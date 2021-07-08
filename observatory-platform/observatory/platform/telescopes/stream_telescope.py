@@ -179,7 +179,8 @@ class StreamTelescope(Telescope):
         start_date = pendulum.instance(ti.previous_start_date_success)
         end_date = pendulum.instance(ti.start_date)
         if (end_date - start_date).days + 1 >= self.bq_merge_days:
-            logging.info(f'Deleting old data from main table from partitions between dates: {start_date}, {end_date}')
+            logging.info(f'Deleting old data from main table using partitions after {start_date} and on or before'
+                         f' {end_date}')
             for transform_path in release.transform_files:
                 if self.batch_load:
                     main_table_id, partition_table_id = self.dag_id, f'{self.dag_id}_partitions'
@@ -222,7 +223,7 @@ class StreamTelescope(Telescope):
         start_date = pendulum.instance(ti.previous_start_date_success)
         end_date = pendulum.instance(ti.start_date)
         if (end_date - start_date).days + 1 >= self.bq_merge_days:
-            logging.info(f'Appending data to main table from partitions between dates: {start_date}, {end_date}')
+            logging.info(f'Appending data to main table from partitions after {start_date} and on or before {end_date}')
             for transform_path in release.transform_files:
                 if self.batch_load:
                     main_table_id, partition_table_id = self.dag_id, f'{self.dag_id}_partitions'
@@ -235,8 +236,8 @@ class StreamTelescope(Telescope):
                                              self.schema_prefix, self.schema_version)
         else:
             raise AirflowSkipException(f'Skipped, not first release and only append new records every '
-                                       f'{self.bq_merge_days} days. Last append was'
-                                       f' {(end_date - start_date).days + 1} days ago on {ti.previous_start_date_success}')
+                                       f'{self.bq_merge_days} days. Last append was {(end_date - start_date).days + 1} '
+                                       f'days ago on {ti.previous_start_date_success}')
 
     def cleanup(self, release: StreamRelease, **kwargs):
         """ Delete downloaded, extracted and transformed files of the release.
