@@ -161,8 +161,6 @@ class OrcidRelease(StreamRelease):
             transform_path = os.path.join(self.transform_folder, file_dir + '.jsonl.gz')
             with gzip.GzipFile(transform_path, mode="wb") as f_out:
                 for name in files:
-                    if not name.endswith('.jsonl'):
-                        continue
                     with open(os.path.join(root, name), 'rb') as f_in:
                         shutil.copyfileobj(f_in, f_out)
 

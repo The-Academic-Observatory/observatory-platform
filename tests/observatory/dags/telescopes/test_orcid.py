@@ -437,6 +437,10 @@ class TestOrcid(ObservatoryTestCase):
                         '</record:record>')
             self.release.transform_single_file(file_name)
             self.assert_file_integrity(transform_path, '6d7dbc0fc69db96025b82c018b3d6305', 'md5')
+
+            # Test transform standard record is skipped, because file already exists
+            self.release.transform_single_file(file_name)
+            self.assert_file_integrity(transform_path, '6d7dbc0fc69db96025b82c018b3d6305', 'md5')
             os.remove(transform_path)
 
             # Test record with error
