@@ -17,7 +17,6 @@
 import gzip
 import io
 import os
-from collections import OrderedDict
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import ANY, patch
@@ -28,12 +27,10 @@ from airflow.models.connection import Connection
 from airflow.models.variable import Variable
 from botocore.response import StreamingBody
 from click.testing import CliRunner
-from observatory.dags.telescopes import orcid
-from observatory.dags.telescopes.orcid import (OrcidRelease, OrcidTelescope, transform_single_file)
+from observatory.dags.telescopes.orcid import OrcidRelease, OrcidTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars, BaseHook
-from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage, upload_files_to_cloud_storage
-from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
+from observatory.platform.utils.template_utils import blob_name
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path, \
     test_fixtures_path
 
@@ -55,14 +52,15 @@ class TestOrcid(ObservatoryTestCase):
 
         # orcid records
         self.records = {}
-        for file in ['0000-0002-9227-8514.xml', '0000-0002-9228-8514.xml', '0000-0002-9229-8514.xml']:
-            self.records[file] = {'blob': f"514/{file}",
+        for file in ['0000-0002-9227-8610.xml', '0000-0002-9228-8514.xml', '0000-0002-9229-8514.xml']:
+            self.records[file] = {'blob': f"{file[-7:-4]}/{file}",
                                   'path': os.path.join(test_fixtures_path("telescopes", "orcid"), file)}
         # last modified file
         self.last_modified_path = os.path.join(test_fixtures_path("telescopes", "orcid"), 'last_modified.csv.tar')
 
         # release used for method tests
-        self.release = OrcidRelease(OrcidTelescope.DAG_ID, datetime(2020, 1, 1), datetime(2020, 2, 1), False)
+        self.release = OrcidRelease(OrcidTelescope.DAG_ID, datetime(2020, 1, 1), datetime(2020, 2, 1), False,
+                                    max_processes=1)
 
     def test_dag_structure(self):
         """ Test that the ORCID DAG has the correct structure.
@@ -136,7 +134,7 @@ class TestOrcid(ObservatoryTestCase):
                 self.assertTrue(first_release)
 
                 # use release info for other tasks
-                release = OrcidRelease(telescope.dag_id, start_date, end_date, first_release)
+                release = OrcidRelease(telescope.dag_id, start_date, end_date, first_release, max_processes=1)
 
                 # Test transfer task
                 mock_transfer.return_value = True, 2
@@ -152,10 +150,9 @@ class TestOrcid(ObservatoryTestCase):
                                                                   'gc_bucket': orcid_bucket,
                                                                   'description': 'Transfer ORCID data from airflow '
                                                                                  'telescope',
-                                                                  'last_modified_since': None,
-                                                                  'last_modified_before': release.end_date})
+                                                                  'last_modified_since': None})
                 # Upload files to bucket, to mock transfer
-                record1 = self.records['0000-0002-9227-8514.xml']
+                record1 = self.records['0000-0002-9227-8610.xml']
                 record2 = self.records['0000-0002-9228-8514.xml']
                 upload_files_to_cloud_storage(orcid_bucket, [record1['blob'], record2['blob']],
                                               [record1['path'], record2['path']])
@@ -164,25 +161,29 @@ class TestOrcid(ObservatoryTestCase):
 
                 # Test that file was downloaded
                 env.run_task(telescope.download_transferred.__name__)
+                downloaded_hashes = {'0000-0002-9227-8610.xml': '31d17a63cd04cbd5733cafe7f3561cb7',
+                                     '0000-0002-9228-8514.xml': '0e3426db67d221c9cc53737478ea968c'}
                 self.assertEqual(2, len(release.download_files))
                 for file in release.download_files:
-                    expected_file_hash = _hash_file(self.records[os.path.basename(file)]['path'], algorithm='md5')
-                    self.assert_file_integrity(file, expected_file_hash, 'md5')
+                    self.assert_file_integrity(file, downloaded_hashes[os.path.basename(file)], 'md5')
 
                 # Test that files transformed
                 env.run_task(telescope.transform.__name__)
-                self.assertEqual(1, len(release.transform_files))
-                transform_path = release.transform_files[0]
-                with gzip.open(transform_path, "rb") as f_in:
-                    lines = sorted(f_in.readlines())
-                with gzip.open(transform_path, "wb") as f_out:
-                    f_out.writelines(lines)
-                expected_file_hash = '57068d40'
-                self.assert_file_integrity(transform_path, expected_file_hash, 'gzip_crc')
+                transform_hashes = {'610.jsonl.gz': '33f64619',
+                                    '514.jsonl.gz': 'f1179546'}
+                self.assertEqual(2, len(release.transform_files))
+                # Sort lines so that gzip crc is always the same
+                for file in release.transform_files:
+                    with gzip.open(file, "rb") as f_in:
+                        lines = sorted(f_in.readlines())
+                    with gzip.open(file, "wb") as f_out:
+                        f_out.writelines(lines)
+                    self.assert_file_integrity(file, transform_hashes[os.path.basename(file)], 'gzip_crc')
 
                 # Test that transformed file uploaded
                 env.run_task(telescope.upload_transformed.__name__)
-                self.assert_blob_integrity(env.transform_bucket, blob_name(transform_path), transform_path)
+                for file in release.transform_files:
+                    self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
                 # Test that load partition task is skipped for the first release
                 ti = env.run_task(telescope.bq_load_partition.__name__)
@@ -194,7 +195,7 @@ class TestOrcid(ObservatoryTestCase):
 
                 # Test append new creates table
                 env.run_task(telescope.bq_append_new.__name__)
-                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                main_table_id, partition_table_id = release.dag_id, f'{release.dag_id}_partitions'
                 table_id = f'{self.project_id}.{telescope.dataset_id}.{main_table_id}'
                 expected_rows = 2
                 self.assert_table_integrity(table_id, expected_rows)
@@ -215,12 +216,12 @@ class TestOrcid(ObservatoryTestCase):
                 start_date, end_date, first_release = ti.xcom_pull(key=OrcidTelescope.RELEASE_INFO,
                                                                    task_ids=telescope.get_release_info.__name__,
                                                                    include_prior_dates=False)
-                self.assertEqual(start_date, release.end_date)
-                self.assertEqual(end_date, pendulum.today('UTC') - timedelta(days=1))
+                self.assertEqual(release.end_date + timedelta(days=1), start_date)
+                self.assertEqual(pendulum.today('UTC') - timedelta(days=1), end_date)
                 self.assertFalse(first_release)
 
                 # use release info for other tasks
-                release = OrcidRelease(telescope.dag_id, start_date, end_date, first_release)
+                release = OrcidRelease(telescope.dag_id, start_date, end_date, first_release, max_processes=1)
 
                 # Test transfer task
                 mock_transfer.return_value = True, 2
@@ -235,9 +236,9 @@ class TestOrcid(ObservatoryTestCase):
                                                                   'include_prefixes': [],
                                                                   'gc_project_id': self.project_id,
                                                                   'gc_bucket': orcid_bucket,
-                                                                  'description': 'Transfer ORCID data from airflow telescope',
-                                                                  'last_modified_since': release.start_date,
-                                                                  'last_modified_before': release.end_date})
+                                                                  'description': 'Transfer ORCID data from airflow '
+                                                                                 'telescope',
+                                                                  'last_modified_since': release.start_date})
                 # Upload files to bucket, to mock transfer
                 record3 = self.records['0000-0002-9229-8514.xml']
                 upload_file_to_cloud_storage(orcid_bucket, record3['blob'], record3['path'])
@@ -254,8 +255,9 @@ class TestOrcid(ObservatoryTestCase):
                 env.run_task(telescope.download_transferred.__name__)
                 self.assertEqual(2, len(release.download_files))
                 for file in release.download_files:
-                    expected_file_hash = _hash_file(self.records[os.path.basename(file)]['path'], algorithm='md5')
-                    self.assert_file_integrity(file, expected_file_hash, 'md5')
+                    downloaded_hashes = {'0000-0002-9228-8514.xml': '0e3426db67d221c9cc53737478ea968c',
+                                         '0000-0002-9229-8514.xml': '38472bea0cc72cbefa54f0bf5f98d95f'}
+                    self.assert_file_integrity(file, downloaded_hashes[os.path.basename(file)], 'md5')
 
                 # Test that files transformed
                 env.run_task(telescope.transform.__name__)
@@ -274,7 +276,7 @@ class TestOrcid(ObservatoryTestCase):
 
                 # Test that load partition task creates partition
                 env.run_task(telescope.bq_load_partition.__name__)
-                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                main_table_id, partition_table_id = release.dag_id, f'{release.dag_id}_partitions'
                 table_id = f'{self.project_id}.{telescope.dataset_id}.{partition_table_id}'
                 expected_rows = 2
                 self.assert_table_integrity(table_id, expected_rows)
@@ -322,8 +324,7 @@ class TestOrcid(ObservatoryTestCase):
                                               gc_project_id='project_id',
                                               gc_bucket='bucket',
                                               description='Transfer ORCID data from airflow telescope',
-                                              last_modified_since=self.release.start_date,
-                                              last_modified_before=self.release.end_date)
+                                              last_modified_since=self.release.start_date)
         mock_transfer.reset_mock()
 
         # Test transfer in case of later release
@@ -335,8 +336,7 @@ class TestOrcid(ObservatoryTestCase):
                                               gc_project_id='project_id',
                                               gc_bucket='bucket',
                                               description='Transfer ORCID data from airflow telescope',
-                                              last_modified_since=None,
-                                              last_modified_before=self.release.end_date)
+                                              last_modified_since=None)
         # Test failed transfer
         mock_transfer.return_value = False, 4
         with self.assertRaises(AirflowException):
@@ -374,7 +374,7 @@ class TestOrcid(ObservatoryTestCase):
         mock_subprocess.assert_any_call(['gcloud', 'auth', 'activate-service-account',
                                          f'--key-file={os.environ["GOOGLE_APPLICATION_CREDENTIALS"]}'],
                                         stdout=-1, stderr=-1)
-        mock_subprocess.assert_called_with(['gsutil', '-m', 'cp', '-r', 'gs://orcid_bucket',
+        mock_subprocess.assert_called_with(['gsutil', '-m', '-q', 'cp', '-r', 'gs://orcid_bucket',
                                             'orcid_bucket/telescopes/download/orcid/2020_01_01-2020_02_01'],
                                            stdout=-1, stderr=-1)
 
@@ -386,13 +386,13 @@ class TestOrcid(ObservatoryTestCase):
                 f.write('unit test')
             self.release.download_transferred()
             mock_write_blobs.assert_called_once_with(self.release.start_date, self.release.end_date, 'key_id',
-                                                        'secret_key', 'orcid_bucket',
+                                                     'secret_key', 'orcid_bucket',
                                                      self.release.modified_records_path)
             self.assertEqual(2, mock_subprocess.call_count)
             mock_subprocess.assert_any_call(['gcloud', 'auth', 'activate-service-account',
                                              f'--key-file={os.environ["GOOGLE_APPLICATION_CREDENTIALS"]}'],
                                             stdout=-1, stderr=-1)
-            mock_subprocess.assert_called_with(['gsutil', '-m', 'cp', '-I', self.release.download_folder],
+            mock_subprocess.assert_called_with(['gsutil', '-m', '-q', 'cp', '-I', self.release.download_folder],
                                                stdin=ANY, stdout=-1, stderr=-1)
             self.assertEqual(self.release.modified_records_path, mock_subprocess.call_args[1]['stdin'].name)
 
@@ -411,81 +411,84 @@ class TestOrcid(ObservatoryTestCase):
             with self.assertRaises(AirflowException):
                 self.release.download_transferred()
 
-    @patch.object(orcid.multiprocessing.pool.Pool, 'imap')
-    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-    def test_transform(self, mock_variable_get, mock_pool_imap):
-        """ Test the transform method of the ORCID release.
+    # @patch.object(orcid.multiprocessing.pool.Pool, 'imap')
+    # @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
+    # def test_transform(self, mock_variable_get, mock_pool_imap):
+    #     """ Test the transform method of the ORCID release.
+    #
+    #     :param mock_variable_get: Mock Airflow Variable get() method
+    #     :param mock_pool_imap: Mock the imap method used in multiprocessing.
+    #     :return: None.
+    #     """
+    #     expected_file_hash = '272ecdc1'
+    #
+    #     with CliRunner().isolated_filesystem():
+    #         mock_variable_get.return_value = os.path.join(os.getcwd(), 'data')
+    #         # Create mock download files
+    #         with open(os.path.join(self.release.download_folder, 'file1.xml'), 'w') as f1, \
+    #                 open(os.path.join(self.release.download_folder, 'file2.xml'), 'w') as f2:
+    #             f1.write('hello')
+    #             f2.write('hello')
+    #         orcid_dict = {'k': 'v'}
+    #         mock_pool_imap.return_value = [orcid_dict, orcid_dict]
+    #
+    #         # Test when no previous file exists
+    #         self.release.transform()
+    #         mock_pool_imap.assert_called_once_with(self.release.transform_single_file, self.release.download_files)
+    #         self.assert_file_integrity(self.release.transform_files[0], expected_file_hash, 'gzip_crc')
+    #
+    #         # Test when previous (failed) transform file already exists
+    #         mock_pool_imap.reset_mock()
+    #         with open(os.path.join(self.release.transform_folder, 'orcid.jsonl.gz'), 'w') as f:
+    #             f.write('hello')
+    #         self.release.transform()
+    #         mock_pool_imap.assert_called_once_with(self.release.transform_single_file, self.release.download_files)
+    #         self.assert_file_integrity(self.release.transform_files[0], expected_file_hash, 'gzip_crc')
 
-        :param mock_variable_get: Mock Airflow Variable get() method
-        :param mock_pool_imap: Mock the imap method used in multiprocessing.
+    @patch('observatory.dags.telescopes.orcid.Variable.get')
+    def test_transform_single_file(self, mock_variable_get):
+        """ Test the transform_single_file method.
+
         :return: None.
         """
-        expected_file_hash = '272ecdc1'
-
         with CliRunner().isolated_filesystem():
             mock_variable_get.return_value = os.path.join(os.getcwd(), 'data')
-            # Create mock download files
-            with open(os.path.join(self.release.download_folder, 'file1.xml'), 'w') as f1, \
-                    open(os.path.join(self.release.download_folder, 'file2.xml'), 'w') as f2:
-                f1.write('hello')
-                f2.write('hello')
-            orcid_dict = {'k': 'v'}
-            mock_pool_imap.return_value = [orcid_dict, orcid_dict]
 
-            # Test when no previous file exists
-            self.release.transform()
-            mock_pool_imap.assert_called_once_with(transform_single_file, self.release.download_files)
-            self.assert_file_integrity(self.release.transform_files[0], expected_file_hash, 'gzip_crc')
-
-            # Test when previous (failed) transform file already exists
-            mock_pool_imap.reset_mock()
-            with open(os.path.join(self.release.transform_folder, 'orcid.jsonl.gz'), 'w') as f:
-                f.write('hello')
-            self.release.transform()
-            mock_pool_imap.assert_called_once_with(transform_single_file, self.release.download_files)
-            self.assert_file_integrity(self.release.transform_files[0], expected_file_hash, 'gzip_crc')
-
-    def test_transform_single_file(self):
-        """ Test the transform_single_file function.
-
-        :return: None.
-        """
-        with CliRunner().isolated_filesystem():
-            record_file_path = 'record.xml'
+            file_name = '0000-0002-9228-8514.xml'
+            file_dir = os.path.join(self.release.transform_folder, file_name[-7:-4])
+            transform_path = os.path.join(file_dir, os.path.splitext(file_name)[0] + '.jsonl')
 
             # Test standard record
-            with open(record_file_path, 'w') as f:
+            with open(file_name, 'w') as f:
                 f.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                         '<record:record path="/0000-0002-9227-8514">'
                         '<common:orcid-identifier>'
                         '<common:path>0000-0002-9227-8514</common:path>'
                         '</common:orcid-identifier>'
                         '</record:record>')
-            orcid_record = transform_single_file(record_file_path)
-            self.assertDictEqual(OrderedDict([('path', '/0000-0002-9227-8514'),
-                                              ('orcid_identifier', OrderedDict([('path', '0000-0002-9227-8514')]))]),
-                                 orcid_record)
+            self.release.transform_single_file(file_name)
+            self.assert_file_integrity(transform_path, '6d7dbc0fc69db96025b82c018b3d6305', 'md5')
+            os.remove(transform_path)
 
             # Test record with error
-            with open(record_file_path, 'w') as f:
+            with open(file_name, 'w') as f:
                 f.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                         '<error:error path="/0000-0002-9227-8514">'
                         '<common:orcid-identifier>'
                         '<common:path>0000-0002-9227-8514</common:path>'
                         '</common:orcid-identifier>'
                         '</error:error>')
-            orcid_record = transform_single_file(record_file_path)
-            self.assertDictEqual(OrderedDict([('path', '/0000-0002-9227-8514'),
-                                              ('orcid_identifier', OrderedDict([('path', '0000-0002-9227-8514')]))]),
-                                 orcid_record)
+            self.release.transform_single_file(file_name)
+            self.assert_file_integrity(transform_path, '6d7dbc0fc69db96025b82c018b3d6305', 'md5')
+            os.remove(transform_path)
 
             # Test invalid record
-            with open(record_file_path, 'w') as f:
+            with open(file_name, 'w') as f:
                 f.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                         '<invalid:invalid> test="test">'
                         '</invalid:invalid>')
             with self.assertRaises(AirflowException):
-                transform_single_file(record_file_path)
+                self.release.transform_single_file(file_name)
 
     @patch('observatory.dags.telescopes.orcid.Variable.get')
     @patch.object(BaseHook, 'get_connection')
