@@ -96,6 +96,7 @@ from google.cloud.exceptions import NotFound
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import _hash_file, crc32c_base64_hash, gzip_file_crc
@@ -130,6 +131,7 @@ class ObservatoryEnvironment:
         api_host: str = "localhost",
         api_port: int = 5000,
         enable_api: bool = True,
+        enable_elastic: bool = False,
     ):
         """Constructor for an Observatory environment.
 
@@ -157,7 +159,9 @@ class ObservatoryEnvironment:
         self.api_env = None
         self.api_session = None
         self.enable_api = enable_api
+        self.enable_elastic = enable_elastic
         self.dag_run: DagRun = None
+        self.elastic_env: ElasticEnvironment = None
 
         if self.create_gcp_env:
             self.download_bucket = self.add_bucket()
@@ -405,6 +409,12 @@ class ObservatoryEnvironment:
                     self.add_variable(Variable(key=AirflowVars.DOWNLOAD_BUCKET, val=self.download_bucket))
                     self.add_variable(Variable(key=AirflowVars.TRANSFORM_BUCKET, val=self.transform_bucket))
 
+                # Start elastic
+                if self.enable_elastic:
+                    elastic_build_path = os.path.join(self.temp_dir, "elastic")
+                    self.elastic_env = ElasticEnvironment(build_path=elastic_build_path)
+                    self.elastic_env.start()
+
                 # Create ObservatoryApiEnvironment
                 if self.enable_api:
                     self.api_env = ObservatoryApiEnvironment(host=self.api_host, port=self.api_port)
@@ -430,6 +440,10 @@ class ObservatoryEnvironment:
                     # Remove BigQuery datasets
                     for dataset_id in self.datasets:
                         self._delete_dataset(dataset_id)
+
+                # Stop elastic
+                if self.enable_elastic:
+                    self.elastic_env.stop()
 
 
 class ObservatoryTestCase(unittest.TestCase):
