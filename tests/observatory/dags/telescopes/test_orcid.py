@@ -220,7 +220,7 @@ class TestOrcid(ObservatoryTestCase):
                 self.assertEqual(pendulum.today('UTC') - timedelta(days=1), end_date)
                 self.assertFalse(first_release)
 
-                # use release info for other tasks
+                # Use release info for other tasks
                 release = OrcidRelease(telescope.dag_id, start_date, end_date, first_release, max_processes=1)
 
                 # Test transfer task
@@ -244,7 +244,7 @@ class TestOrcid(ObservatoryTestCase):
                 upload_file_to_cloud_storage(orcid_bucket, record3['blob'], record3['path'])
                 self.assert_blob_integrity(orcid_bucket, record3['blob'], record3['path'])
 
-                # Mock response of get_object on last_modified file
+                # Mock response of get_object on last_modified file, mocking lambda file
                 with open(self.last_modified_path, 'rb') as f:
                     file_bytes = f.read()
                     mock_client().get_object.return_value = {'Body': StreamingBody(
@@ -374,8 +374,9 @@ class TestOrcid(ObservatoryTestCase):
         mock_subprocess.assert_any_call(['gcloud', 'auth', 'activate-service-account',
                                          f'--key-file={os.environ["GOOGLE_APPLICATION_CREDENTIALS"]}'],
                                         stdout=-1, stderr=-1)
-        mock_subprocess.assert_called_with(['gsutil', '-m', '-q', 'cp', '-r', 'gs://orcid_bucket',
-                                            'orcid_bucket/telescopes/download/orcid/2020_01_01-2020_02_01'],
+        mock_subprocess.assert_called_with(['gsutil', '-m', '-q', 'cp', '-L',
+                                            os.path.join(self.release.download_folder, 'cp.log'),
+                                            '-r', 'gs://orcid_bucket', self.release.download_folder],
                                            stdout=-1, stderr=-1)
 
         # Test download in case of second release, using modified records file
@@ -392,7 +393,9 @@ class TestOrcid(ObservatoryTestCase):
             mock_subprocess.assert_any_call(['gcloud', 'auth', 'activate-service-account',
                                              f'--key-file={os.environ["GOOGLE_APPLICATION_CREDENTIALS"]}'],
                                             stdout=-1, stderr=-1)
-            mock_subprocess.assert_called_with(['gsutil', '-m', '-q', 'cp', '-I', self.release.download_folder],
+            mock_subprocess.assert_called_with(['gsutil', '-m', '-q', 'cp', '-L',
+                                                os.path.join(self.release.download_folder, 'cp.log'),
+                                                '-I', self.release.download_folder],
                                                stdin=ANY, stdout=-1, stderr=-1)
             self.assertEqual(self.release.modified_records_path, mock_subprocess.call_args[1]['stdin'].name)
 
@@ -410,40 +413,6 @@ class TestOrcid(ObservatoryTestCase):
                                            SimpleNamespace(communicate=communicate, returncode=-1)]
             with self.assertRaises(AirflowException):
                 self.release.download_transferred()
-
-    # @patch.object(orcid.multiprocessing.pool.Pool, 'imap')
-    # @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
-    # def test_transform(self, mock_variable_get, mock_pool_imap):
-    #     """ Test the transform method of the ORCID release.
-    #
-    #     :param mock_variable_get: Mock Airflow Variable get() method
-    #     :param mock_pool_imap: Mock the imap method used in multiprocessing.
-    #     :return: None.
-    #     """
-    #     expected_file_hash = '272ecdc1'
-    #
-    #     with CliRunner().isolated_filesystem():
-    #         mock_variable_get.return_value = os.path.join(os.getcwd(), 'data')
-    #         # Create mock download files
-    #         with open(os.path.join(self.release.download_folder, 'file1.xml'), 'w') as f1, \
-    #                 open(os.path.join(self.release.download_folder, 'file2.xml'), 'w') as f2:
-    #             f1.write('hello')
-    #             f2.write('hello')
-    #         orcid_dict = {'k': 'v'}
-    #         mock_pool_imap.return_value = [orcid_dict, orcid_dict]
-    #
-    #         # Test when no previous file exists
-    #         self.release.transform()
-    #         mock_pool_imap.assert_called_once_with(self.release.transform_single_file, self.release.download_files)
-    #         self.assert_file_integrity(self.release.transform_files[0], expected_file_hash, 'gzip_crc')
-    #
-    #         # Test when previous (failed) transform file already exists
-    #         mock_pool_imap.reset_mock()
-    #         with open(os.path.join(self.release.transform_folder, 'orcid.jsonl.gz'), 'w') as f:
-    #             f.write('hello')
-    #         self.release.transform()
-    #         mock_pool_imap.assert_called_once_with(self.release.transform_single_file, self.release.download_files)
-    #         self.assert_file_integrity(self.release.transform_files[0], expected_file_hash, 'gzip_crc')
 
     @patch('observatory.dags.telescopes.orcid.Variable.get')
     def test_transform_single_file(self, mock_variable_get):

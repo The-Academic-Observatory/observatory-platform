@@ -116,20 +116,14 @@ class OrcidRelease(StreamRelease):
         args = ["gcloud", "auth", "activate-service-account", f"--key-file"
                                                               f"={os.environ['GOOGLE_APPLICATION_CREDENTIALS']}"]
         proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        logging.info(f'Executing bash command: {subprocess.list2cmdline(args)}')
-        out, err = wait_for_process(proc)
-        if out:
-            logging.info(out)
-        if err:
-            logging.info(err)
-        if proc.returncode != 0:
-            raise AirflowException("bash command failed")
-        logging.info('Finished cmd successfully')
+        run_subprocess_cmd(proc, args)
 
         logging.info(f"Downloading transferred files from Google Cloud bucket: {gc_download_bucket}")
+        log_path = os.path.join(self.download_folder, 'cp.log')
         if self.first_release:
             # Download all records from bucket
-            args = ["gsutil", "-m", "-q", "cp", "-r", f"gs://{gc_download_bucket}", self.download_folder]
+            args = ["gsutil", "-m", "-q", "cp", "-L", log_path, "-r", f"gs://{gc_download_bucket}",
+                    self.download_folder]
             proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
             # Download only modified records from bucket
@@ -137,18 +131,10 @@ class OrcidRelease(StreamRelease):
                                         aws_access_key_id,
                                         aws_secret_access_key,
                                         gc_download_bucket, self.modified_records_path)
-            args = ["gsutil", "-m", "-q", "cp", "-I", self.download_folder]
+            args = ["gsutil", "-m", "-q", "cp", "-L", log_path, "-I", self.download_folder]
             proc: Popen = subprocess.Popen(args, stdin=open(self.modified_records_path),
                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        logging.info(f'Executing bash command: {subprocess.list2cmdline(args)}')
-        out, err = wait_for_process(proc)
-        if out:
-            logging.info(out)
-        if err:
-            logging.info(err)
-        if proc.returncode != 0:
-            raise AirflowException("bash command failed")
-        logging.info('Finished cmd successfully')
+        run_subprocess_cmd(proc, args)
 
     def transform(self):
         """ Transform the ORCID records in parallel.
@@ -172,8 +158,8 @@ class OrcidRelease(StreamRelease):
             if root == self.transform_folder:
                 continue
             file_dir = os.path.basename(root)
-            tranform_path = os.path.join(self.transform_folder, file_dir + '.jsonl.gz')
-            with gzip.GzipFile(tranform_path, mode="wb") as f_out:
+            transform_path = os.path.join(self.transform_folder, file_dir + '.jsonl.gz')
+            with gzip.GzipFile(transform_path, mode="wb") as f_out:
                 for name in files:
                     if not name.endswith('.jsonl'):
                         continue
@@ -351,6 +337,30 @@ def get_aws_conn_info() -> (str, str):
     secret_access_key = conn.password
 
     return access_key_id, secret_access_key
+
+
+def run_subprocess_cmd(proc: Popen, args: list):
+    """ Execute and wait for subprocess to finish, also handle stdout & stderr from process.
+
+    :param proc: subprocess proc
+    :param args: args list that was passed on to subprocess
+    :return: None.
+    """
+    logging.info(f'Executing bash command: {subprocess.list2cmdline(args)}')
+    out, err = wait_for_process(proc)
+    if out:
+        logging.info(out)
+    if err:
+        logging.info(err)
+    if proc.returncode != 0:
+        # Don't raise exception if the only error is because blobs could not be found in bucket
+        err_lines = err.split('\n')
+        for line in err_lines[:]:
+            if not line or 'CommandException: No URLs matched:' in line or 'could not be transferred.' in line:
+                err_lines.remove(line)
+        if err_lines:
+            raise AirflowException("bash command failed")
+    logging.info('Finished cmd successfully')
 
 
 def write_modified_record_blobs(start_date: datetime, end_date: datetime, aws_access_key_id: str,
