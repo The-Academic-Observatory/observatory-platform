@@ -59,14 +59,6 @@ class OrcidRelease(StreamRelease):
         self.max_processes = max_processes
 
     @property
-    def transform_path(self) -> str:
-        """ Get the path to the transformed file.
-
-        :return: the file path.
-        """
-        return os.path.join(self.transform_folder, 'orcid.jsonl')
-
-    @property
     def modified_records_path(self) -> str:
         """ Get the path to the file with ids of modified records.
 
@@ -85,7 +77,6 @@ class OrcidRelease(StreamRelease):
         gc_download_bucket = Variable.get(AirflowVars.ORCID_BUCKET)
         gc_project_id = Variable.get(AirflowVars.PROJECT_ID)
         last_modified_since = None if self.first_release else self.start_date
-        last_modified_before = self.end_date
 
         success = False
         total_count = 0
@@ -100,8 +91,7 @@ class OrcidRelease(StreamRelease):
                                                                           gc_bucket=gc_download_bucket,
                                                                           description="Transfer ORCID data from "
                                                                                       "airflow telescope",
-                                                                          last_modified_since=last_modified_since,
-                                                                          last_modified_before=last_modified_before)
+                                                                          last_modified_since=last_modified_since)
             total_count += objects_count
 
         if not success:
@@ -200,11 +190,15 @@ class OrcidRelease(StreamRelease):
         :return: None.
         """
         file_name = os.path.basename(download_path)
-        file_dir = os.path.join(self.transform_folder, os.path.basename(os.path.dirname(download_path)))
+        file_dir = os.path.join(self.transform_folder, file_name[-7:-4])  # last three digits are used for subdir
 
-        # Create subdirectory if it does not exist yet
+        # Create subdirectory if it does not exist yet, even with if statement it will still raise FileExistsError
+        # sometimes
         if not os.path.exists(file_dir):
-            os.mkdir(file_dir)
+            try:
+                os.mkdir(file_dir)
+            except FileExistsError:
+                pass
 
         transform_path = os.path.join(file_dir, os.path.splitext(file_name)[0] + '.jsonl')
         # Skip if file already exists
