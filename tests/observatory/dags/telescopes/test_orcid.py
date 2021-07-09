@@ -36,7 +36,7 @@ from observatory.platform.utils.test_utils import ObservatoryEnvironment, Observ
 
 
 class TestOrcid(ObservatoryTestCase):
-    """ Tests for the Orcid telescope """
+    """ Tests for the ORCID telescope """
 
     def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.

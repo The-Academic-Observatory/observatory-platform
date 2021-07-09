@@ -218,15 +218,13 @@ class OrcidTelescope(StreamTelescope):
     LAMBDA_BUCKET = 'orcid-lambda-file'
     LAMBDA_OBJECT = 'last_modified.csv.tar'
     S3_HOST = "s3.eu-west-1.amazonaws.com"
-    UNIT_TEST = False
 
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2018, 5, 14),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'orcid',
-                 dataset_description: str = '', table_descriptions: dict = None,
-                 merge_partition_field: str = 'orcid_identifier.uri',
-                 updated_date_field: str = 'history.last_modified_date',
-                 bq_merge_days: int = 7, airflow_vars: List = None, airflow_conns: List = None,
-                 max_processes: int = min(32, os.cpu_count() + 4), batch_load: bool = True):
+                 schedule_interval: str = '@weekly', dataset_id: str = 'orcid', dataset_description: str = '',
+                 table_descriptions: dict = None, merge_partition_field: str = 'orcid_identifier.uri',
+                 updated_date_field: str = 'history.last_modified_date', bq_merge_days: int = 7,
+                 batch_load: bool = True, airflow_vars: List = None, airflow_conns: List = None,
+                 max_processes: int = min(32, os.cpu_count() + 4)):
         """ Construct an OrcidTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -238,6 +236,7 @@ class OrcidTelescope(StreamTelescope):
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param updated_date_field: the BigQuery field used to determine newest entry for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
+        :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         :param max_processes: Max processes used for parallel downloading
@@ -303,7 +302,6 @@ class OrcidTelescope(StreamTelescope):
         :param release: an OrcidRelease instance.
         :return: None.
         """
-        # Transfer release
         release.transfer(self.max_retries)
 
     def download_transferred(self, release: OrcidRelease, **kwargs):
@@ -312,7 +310,6 @@ class OrcidTelescope(StreamTelescope):
         :param release: an OrcidRelease instance.
         :return: None.
         """
-        # Transfer release
         release.download_transferred()
 
     def transform(self, release: OrcidRelease, **kwargs):
@@ -321,7 +318,6 @@ class OrcidTelescope(StreamTelescope):
         :param release: an OrcidRelease instance.
         :return: None.
         """
-        # Transfer release
         release.transform()
 
 
