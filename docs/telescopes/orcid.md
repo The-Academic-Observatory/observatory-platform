@@ -8,9 +8,9 @@ The corresponding tables created in BigQuery are `orcid.orcid` and `orcid.orcid_
 
 | Summary                 |        |
 |-------------------------|--------|
-| Average runtime         |   ? min |
-| Average download size   |   ? mb |
-| Harvest Type            |  API   |
+| Average runtime         |  ? min |
+| Average download size   |  ? mb  |
+| Harvest Type            |   API  |
 | Harvest Frequency       | Monthly|
 | Runs on remote worker   |  True  |
 | Catchup missed runs     |  False |
@@ -99,7 +99,7 @@ orcid: aws://<access_key_id>:<secret_access_key>@
 ```
 
 ## Airflow variables
-In the config.yaml file, the following airflow variables are required:  
+In the config.yaml file, the following airflow variables are required (without gs:// prefix):  
 
 ## orcid_bucket
 ```yaml
