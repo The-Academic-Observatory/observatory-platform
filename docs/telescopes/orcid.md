@@ -48,10 +48,10 @@ Search for the Storage Transfer API and enable this.
 ### Setting permissions on Google Cloud bucket
 A separate bucket needs to be created for the ORCID records.
 The following permissions are required on this Google Cloud bucket:
-- storage.buckets.get
-- storage.objects.list
-- storage.objects.get
-- storage.objects.create
+* storage.buckets.get
+* storage.objects.list
+* storage.objects.get
+* storage.objects.create
 
 The roles/storage.objectViewer and roles/storage.legacyBucketWriter roles together contain the permissions that are
  always required.
@@ -61,9 +61,9 @@ The Storage Transfer Service uses the `project-[$PROJECT_NUMBER]@storage-transfe
 
 ### Setting permissions on AWS bucket
 The AWS buckets are managed by ORCID. There are three different buckets:
-- orcid-lambda-file
-- v2.0-summaries
-- v2.0-activities
+* orcid-lambda-file
+* v2.0-summaries
+* v2.0-activities
 
 In this telescope only the first two are used.
 The required policy for these buckets is:
