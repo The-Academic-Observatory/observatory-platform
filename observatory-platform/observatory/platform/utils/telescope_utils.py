@@ -301,34 +301,6 @@ def args_list(args) -> list:
     return args
 
 
-# def misc_templates_path() -> str:
-#     """ Return the path to the misc templates.
-#
-#     :return: the path.
-#     """
-#
-#     return module_file_path('observatory.dags.database.misc')
-
-
-# def write_boto_config(s3_host: str, aws_access_key_id: str, aws_secret_access_key: str, boto_config_path: str):
-#     """Write a boto3 configuration file, created by using a template and given info.
-#
-#     :param s3_host: Host of the s3 bucket.
-#     :param aws_access_key_id: Access key id to bucket.
-#     :param aws_secret_access_key: Secret access key to bucket.
-#     :param boto_config_path: Path to write the boto config file to.
-#     :return: None.
-#     """
-#     logging.info(f"Writing boto config file to {boto_config_path}")
-#
-#     template_path = os.path.join(misc_templates_path(), make_jinja2_filename("boto_config"))
-#     rendered = render_template(
-#         template_path, s3_host=s3_host, aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key
-#     )
-#     with open(boto_config_path, "w") as f:
-#         f.write(rendered)
-
-
 def convert(k: str) -> str:
     """Convert a key name.
     BigQuery specification for field names: Fields must contain only letters, numbers, and underscores, start with a
