@@ -16,6 +16,7 @@
 
 import os
 import unittest
+from datetime import timedelta
 from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
@@ -580,6 +581,22 @@ class TestGoogleCloudUtils(unittest.TestCase):
             aws_blob = s3.Object(self.aws_bucket_name, blob_name)
             aws_blob.put(Body=self.data)
 
+            # Test transfer where no data is found, because modified date is not between dates
+            success, objects_count = aws_to_google_cloud_storage_transfer(
+                                        self.aws_key_id,
+                                        self.aws_secret_key,
+                                        self.aws_bucket_name,
+                                        include_prefixes=[blob_name],
+                                        gc_project_id=self.gc_project_id,
+                                        gc_bucket=self.gc_bucket_name,
+                                        description=f"Test AWS to Google Cloud Storage Transfer "
+                                        f"{pendulum.datetime.utcnow().to_datetime_string()}",
+                                        last_modified_before=pendulum.Pendulum(2021, 1, 1)
+            )
+            # Check that transfer was successful, but no objects were transferred
+            self.assertTrue(success)
+            self.assertEqual(0, objects_count)
+
             # Transfer data
             success, objects_count = aws_to_google_cloud_storage_transfer(
                                         self.aws_key_id,
@@ -590,9 +607,10 @@ class TestGoogleCloudUtils(unittest.TestCase):
                                         gc_bucket=self.gc_bucket_name,
                                         description=f"Test AWS to Google Cloud Storage Transfer "
                                         f"{pendulum.datetime.utcnow().to_datetime_string()}",
+                                        last_modified_since=pendulum.Pendulum(2021, 1, 1),
+                                        last_modified_before=pendulum.utcnow() + timedelta(days=1)
             )
-
-            # Check that transfer was successful
+            # Check that transfer was successful and 1 object was transferred
             self.assertTrue(success)
             self.assertEqual(1, objects_count)
 
