@@ -18,15 +18,22 @@ from __future__ import annotations
 
 import json
 import os
+import random
+import time
 from datetime import datetime
-from typing import Dict
+from typing import Dict, List
 
 import pendulum
 from airflow import DAG
+from airflow.models import Connection
 from airflow.operators.dummy_operator import DummyOperator
+from faker import Faker
 
+from observatory.dags.model import Table, bq_load_tables
 from observatory.dags.workflows.elastic_import_workflow import ElasticImportWorkflow
 from observatory.platform.elastic.elastic import elastic_mappings_path
+from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
+from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.telescope_utils import make_dag_id
 from observatory.platform.utils.test_utils import (
@@ -34,6 +41,18 @@ from observatory.platform.utils.test_utils import (
     ObservatoryTestCase,
     module_file_path,
 )
+
+
+def generate_authors_table(num_rows: int = 1000, min_age: int = 1, max_age: int = 100) -> List[Dict]:
+    faker = Faker()
+    rows = []
+    for _ in range(num_rows):
+        name = faker.name()
+        age = random.randint(min_age, max_age)
+        dob = pendulum.now().subtract(years=age)
+        rows.append({"name": name, "age": age, "dob": dob.strftime("%Y-%m-%d")})
+
+    return rows
 
 
 def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
@@ -61,8 +80,11 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.elastic_port = 9201
+        self.kibana_port = 5602
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
+        self.cwd = os.path.dirname(os.path.abspath(__file__))
 
     def test_load_mappings(self):
         """ Test that all mappings files can be parsed """
@@ -135,95 +157,134 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             dag_file = os.path.join(module_file_path("observatory.dags.dags"), "elastic_import.py")
             for dag_id in expected_dag_ids:
                 self.assert_dag_load(dag_id, dag_file)
-    #
-    # def test_telescope(self):
-    #     """Test the DAG end to end.
-    #
-    #     :return: None.
-    #     """
-    #
-    #     env = ObservatoryEnvironment(self.project_id, self.data_location, enable_api=False, enable_elastic=True)
-    #     with env.create():
-    #         # Create settings
-    #         start_date = pendulum.datetime(year=2021, month=5, day=9)
-    #         dataset_id = env.add_dataset(prefix="data_export")
-    #         dag_id_sensor = "doi"
-    #         workflow = ElasticImportWorkflow(
-    #             dag_id="elastic_import",
-    #             project_id=self.project_id,
-    #             dataset_id=dataset_id,
-    #             bucket_name=env.transform_bucket,
-    #             data_location=self.data_location,
-    #             file_type="jsonl.gz",
-    #             sensor_dag_ids=[dag_id_sensor],
-    #             kibana_spaces=[],
-    #             start_date=start_date,
-    #         )
-    #         dag = workflow.make_dag()
-    #
-    #         # Test that DAG waits for sensor
-    #         # Test that sensors do go into the 'up_for_reschedule' state as the DAGs that they wait for haven't run
-    #         # execution_date = pendulum.datetime(year=2021, month=5, day=9)
-    #         expected_state = "up_for_reschedule"
-    #         with env.create_dag_run(dag, start_date):
-    #             ti = env.run_task(dag_id_sensor, dag, execution_date=start_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #
-    #         # Run Dummy Dags
-    #         execution_date = pendulum.datetime(year=2021, month=5, day=16)
-    #         release_date = pendulum.datetime(year=2021, month=5, day=22)
-    #         release_suffix = release_date.strftime("%Y%m%d")
-    #         expected_state = "success"
-    #         dag = make_dummy_dag(dag_id_sensor, execution_date)
-    #         with env.create_dag_run(dag, execution_date):
-    #             # Running all of a DAGs tasks sets the DAG to finished
-    #             ti = env.run_task("dummy_task", dag, execution_date=execution_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #
-    #         # Make dataset with a small number of tables
-    #
-    #         # Run end to end tests for DOI DAG
-    #         expected_state = "success"
-    #         with env.create_dag_run(dag, execution_date):
-    #             # Test that sensor goes into 'success' state as the DAGs that they are waiting for have finished
-    #             ti = env.run_task(dag_id_sensor, dag, execution_date=execution_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #
-    #             # Test that all dependencies are specified: no error should be thrown
-    #             ti = env.run_task(workflow.check_dependencies.__name__, dag, execution_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #
-    #             # Test list_release_info task
-    #             ti = env.run_task(workflow.list_release_info.__name__, dag, execution_date=execution_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #             # TODO: test expected XCom
-    #
-    #             # Test export_bigquery_tables info task
-    #             ti = env.run_task(workflow.export_bigquery_tables.__name__, dag, execution_date=execution_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #             # TODO: test that expected files exist in Cloud Storage
-    #
-    #             # Test list download_exported_data info task
-    #             ti = env.run_task(workflow.download_exported_data.__name__, dag, execution_date=execution_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #             # TODO: test that expected files were downloaded
-    #
-    #             # Test list import_to_elastic info task
-    #             ti = env.run_task(workflow.import_to_elastic.__name__, dag, execution_date=execution_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #             # TODO: check that expected indexes exist
-    #
-    #             # Test list update_elastic_aliases info task
-    #             ti = env.run_task(workflow.update_elastic_aliases.__name__, dag, execution_date=execution_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #             # TODO: check that aliases have been updated as expected
-    #
-    #             # Test list create_kibana_index_patterns info task
-    #             ti = env.run_task(workflow.create_kibana_index_patterns.__name__, dag, execution_date=execution_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #             # TODO: check that expected index patterns exist
-    #
-    #             # Test list cleanup info task
-    #             ti = env.run_task(workflow.cleanup.__name__, dag, execution_date=execution_date)
-    #             self.assertEqual(expected_state, ti.state)
-    #             # self.assert_cleanup(download_folder, extract_folder, transform_folder)
+
+    def setup_data_export(self, dataset_id: str, bucket_name: str, release_date: pendulum.Pendulum):
+        tables = [
+            Table(
+                table_name="author",
+                is_sharded=True,
+                dataset_id=dataset_id,
+                records=generate_authors_table(),
+                schema_prefix="author",
+                schema_path=self.cwd,
+            )
+        ]
+
+        bq_load_tables(
+            tables=tables, bucket_name=bucket_name, release_date=release_date, data_location=self.data_location
+        )
+
+    def test_telescope(self):
+        """Test the DAG end to end.
+
+        :return: None.
+        """
+
+        env = ObservatoryEnvironment(
+            self.project_id,
+            self.data_location,
+            enable_api=False,
+            enable_elastic=True,
+            elastic_port=self.elastic_port,
+            kibana_port=self.kibana_port,
+        )
+        dataset_id = env.add_dataset(prefix="data_export")
+        with env.create():
+            time.sleep(10)
+
+            # Create connections
+            env.add_connection(Connection(conn_id=AirflowConns.ELASTIC, uri=f"http://localhost:{self.elastic_port}"))
+            env.add_connection(Connection(conn_id=AirflowConns.KIBANA, uri=f"http://localhost:{self.kibana_port}"))
+
+            # Create settings
+            start_date = pendulum.datetime(year=2021, month=5, day=9)
+            dag_id_sensor = "doi"
+            workflow = ElasticImportWorkflow(
+                dag_id="elastic_import",
+                project_id=self.project_id,
+                dataset_id=dataset_id,
+                bucket_name=env.transform_bucket,
+                data_location=self.data_location,
+                file_type="jsonl.gz",
+                sensor_dag_ids=[dag_id_sensor],
+                kibana_spaces=[],
+                start_date=start_date,
+                mappings_path=self.cwd
+            )
+            es_dag = workflow.make_dag()
+
+            # Test that DAG waits for sensor
+            # Test that sensors do go into the 'up_for_reschedule' state as the DAGs that they wait for haven't run
+            # execution_date = pendulum.datetime(year=2021, month=5, day=9)
+            expected_state = "up_for_reschedule"
+            task_id_sensor = "doi_sensor"
+            with env.create_dag_run(es_dag, start_date):
+                ti = env.run_task(task_id_sensor, es_dag, execution_date=start_date)
+                self.assertEqual(expected_state, ti.state)
+
+            # Run Dummy Dags
+            execution_date = pendulum.datetime(year=2021, month=5, day=16)
+            release_date = pendulum.datetime(year=2021, month=5, day=22)
+            release_suffix = release_date.strftime("%Y%m%d")
+            expected_state = "success"
+            doi_dag = make_dummy_dag(dag_id_sensor, execution_date)
+            with env.create_dag_run(doi_dag, execution_date):
+                # Running all of a DAGs tasks sets the DAG to finished
+                ti = env.run_task("dummy_task", doi_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+
+            # Make dataset with a small number of tables
+            self.setup_data_export(dataset_id, env.transform_bucket, release_date)
+
+            # Run end to end tests for DOI DAG
+            expected_state = "success"
+            with env.create_dag_run(es_dag, execution_date):
+                # Test that sensor goes into 'success' state as the DAGs that they are waiting for have finished
+                ti = env.run_task(task_id_sensor, es_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+
+                # Test that all dependencies are specified: no error should be thrown
+                ti = env.run_task(workflow.check_dependencies.__name__, es_dag, execution_date)
+                self.assertEqual(expected_state, ti.state)
+
+                # Test list_release_info task
+                ti = env.run_task(workflow.list_release_info.__name__, es_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                expected_msg = {
+                    "release_date": release_date.date(),
+                    "table_ids": [bigquery_sharded_table_id("author", release_date)],
+                }
+                actual_msg = ti.xcom_pull(
+                    key="releases", task_ids=workflow.list_release_info.__name__, include_prior_dates=False
+                )
+                self.assertEqual(expected_msg, actual_msg)
+
+                # Test export_bigquery_tables info task
+                ti = env.run_task(workflow.export_bigquery_tables.__name__, es_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: test that expected files exist in Cloud Storage
+
+                # Test list download_exported_data info task
+                ti = env.run_task(workflow.download_exported_data.__name__, es_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: test that expected files were downloaded
+
+                # Test list import_to_elastic info task
+                ti = env.run_task(workflow.import_to_elastic.__name__, es_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that expected indexes exist
+
+                # Test list update_elastic_aliases info task
+                ti = env.run_task(workflow.update_elastic_aliases.__name__, es_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that aliases have been updated as expected
+
+                # Test list create_kibana_index_patterns info task
+                ti = env.run_task(workflow.create_kibana_index_patterns.__name__, es_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # TODO: check that expected index patterns exist
+
+                # Test list cleanup info task
+                ti = env.run_task(workflow.cleanup.__name__, es_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                # self.assert_cleanup(download_folder, extract_folder, transform_folder)

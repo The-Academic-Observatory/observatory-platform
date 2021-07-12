@@ -132,6 +132,8 @@ class ObservatoryEnvironment:
         api_port: int = 5000,
         enable_api: bool = True,
         enable_elastic: bool = False,
+        elastic_port: int = 9200,
+        kibana_port: int = 5601,
     ):
         """Constructor for an Observatory environment.
 
@@ -160,6 +162,8 @@ class ObservatoryEnvironment:
         self.api_session = None
         self.enable_api = enable_api
         self.enable_elastic = enable_elastic
+        self.elastic_port = elastic_port
+        self.kibana_port = kibana_port
         self.dag_run: DagRun = None
         self.elastic_env: ElasticEnvironment = None
 
@@ -412,8 +416,11 @@ class ObservatoryEnvironment:
                 # Start elastic
                 if self.enable_elastic:
                     elastic_build_path = os.path.join(self.temp_dir, "elastic")
-                    self.elastic_env = ElasticEnvironment(build_path=elastic_build_path)
+                    self.elastic_env = ElasticEnvironment(
+                        build_path=elastic_build_path, elastic_port=self.elastic_port, kibana_port=self.kibana_port
+                    )
                     self.elastic_env.start()
+                self.dag_run: DagRun = None
 
                 # Create ObservatoryApiEnvironment
                 if self.enable_api:

@@ -16,13 +16,14 @@
 
 import dataclasses
 import os
-import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from subprocess import Popen
 from typing import Dict
 from typing import List
 
+from observatory.platform.utils.file_utils import write_to_file
+from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
 
 
@@ -53,9 +54,12 @@ class ComposeRunner(ComposeRunnerInterface):
     COMPOSE_START_ARGS = ["up", "-d"]
     COMPOSE_STOP_ARGS = ["down"]
 
-    def __init__(self, *, compose_file_path: str, build_path: str, debug: bool = False):
+    def __init__(self, *, compose_file_path: str, build_path: str, compose_args: Dict = None, debug: bool = False):
         self.compose_file_path = compose_file_path
         self.build_path = build_path
+        self.compose_args = compose_args
+        if compose_args is None:
+            self.compose_args = {}
         self.debug = debug
 
     def start(self) -> ProcessOutput:
@@ -84,11 +88,12 @@ class ComposeRunner(ComposeRunnerInterface):
         # Make environment
         env = self.make_environment()
 
-        # Copy compose file to build directory
-        build_file_path = os.path.join(self.build_path, os.path.basename(self.compose_file_path))
-        shutil.copy(self.compose_file_path, build_file_path)
+        # Render Docker compose file into directory
+        compose_file_name = os.path.basename(self.compose_file_path).replace(".jinja2", "")
+        build_file_path = os.path.join(self.build_path, compose_file_name)
+        render = render_template(self.compose_file_path, **self.compose_args)
+        write_to_file(render, build_file_path)
 
-        compose_file_name = os.path.basename(self.compose_file_path)
         # Build the containers first
         proc: Popen = subprocess.Popen(
             self.COMPOSE_ARGS_PREFIX + [compose_file_name] + args,
