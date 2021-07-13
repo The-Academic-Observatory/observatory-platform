@@ -303,9 +303,6 @@ class ElasticImportRelease(SnapshotRelease):
 
     def load_mappings(self, table_id: str):
         return json.loads(load_file(os.path.join(self.mappings_path, f"{table_id[:-8]}.json")))
-        #
-        #
-        # self.mappings_index
 
     def import_to_elastic(self) -> bool:
         results = []
@@ -547,15 +544,11 @@ class ElasticImportWorkflow(Telescope):
 
         release_date = record["release_date"]
         table_ids = record["table_ids"]
-        scheme = "https"
 
         # Get Airflow connections
-        elastic_conn = BaseHook.get_connection(AirflowConns.ELASTIC)
-        elastic_host = elastic_conn.get_uri()  # make_elastic_uri(
-        #   scheme, elastic_conn.login, elastic_conn.password, elastic_conn.host, elastic_conn.port
-        #  )
+        elastic_host = BaseHook.get_connection(AirflowConns.ELASTIC).get_uri()
         kibana_conn = BaseHook.get_connection(AirflowConns.KIBANA)
-        kibana_host = kibana_conn.get_uri()  # f"{scheme}://{kibana_conn.host}:{kibana_conn.port}"
+        kibana_host = kibana_conn.get_uri()
 
         return ElasticImportRelease(
             dag_id=self.dag_id,

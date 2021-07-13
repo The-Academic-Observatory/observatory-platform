@@ -24,8 +24,7 @@ from observatory.platform.elastic.elastic import (
     Elastic,
     make_sharded_index,
     elastic_mappings_path,
-    make_elastic_uri,
-    make_index_prefix,
+    make_elastic_uri
 )
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import yield_csv, load_file
@@ -78,14 +77,14 @@ class TestElastic(unittest.TestCase):
         actual_uri = make_elastic_uri(schema, user, secret, hostname, port)
         self.assertEqual(expected_uri, actual_uri)
 
-    def test_make_index_prefix(self):
-        """ Test building an Elasticsearch index prefix """
-
-        feed_name = "oa-metrics"
-        table_name = "country"
-        expected_prefix = "oa-metrics-country"
-        actual_prefix = make_index_prefix(feed_name, table_name)
-        self.assertEqual(expected_prefix, actual_prefix)
+    # def test_make_index_prefix(self):
+    #     """ Test building an Elasticsearch index prefix """
+    #
+    #     feed_name = "oa-metrics"
+    #     table_name = "country"
+    #     expected_prefix = "oa-metrics-country"
+    #     actual_prefix = make_index_prefix(feed_name, table_name)
+    #     self.assertEqual(expected_prefix, actual_prefix)
 
     ################
     # Elastic tests

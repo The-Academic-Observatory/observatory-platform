@@ -505,6 +505,12 @@ class ObservatoryTestCase(unittest.TestCase):
             self.assertIsNotNone(dag)
             self.assertGreaterEqual(len(dag.tasks), 1)
 
+    def assert_blob_exists(self, bucket_id: str, blob_name: str):
+        # Get blob
+        bucket = self.storage_client.get_bucket(bucket_id)
+        blob = bucket.blob(blob_name)
+        self.assertTrue(blob.exists())
+
     def assert_blob_integrity(self, bucket_id: str, blob_name: str, local_file_path: str):
         """Assert whether the blob uploaded and that it has the expected hash.
 

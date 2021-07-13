@@ -77,6 +77,7 @@ class Kibana:
         self.username = username
         self.password = password
 
+        self.auth = None
         if self.username is not None and self.password is not None:
             self.auth = (self.username, self.password)
 
@@ -234,3 +235,23 @@ class Kibana:
             parts += ["s", space_id]
         parts += ["api", "saved_objects", object_type.value, object_id]
         return urljoin(self.host, *parts)
+
+    def _make_index_pattern_url(self, index_pattern_id: str, space_id: str = None):
+        parts = []
+        if space_id is not None:
+            parts += ["s", space_id]
+        parts += ["api", "index_patterns", "index_pattern", index_pattern_id]
+        return urljoin(self.host, *parts)
+
+    def create_index_pattern(self):
+        pass
+
+    def get_index_pattern(self, index_pattern_id: str, space_id: str = None):
+        url = self._make_index_pattern_url(index_pattern_id, space_id=space_id)
+        response = requests.get(url, headers=self.headers, auth=self.auth)
+
+        if response.status_code == 404:
+            logging.error(response.text)
+            return None
+
+        return response.text

@@ -15,11 +15,9 @@
 # Author: James Diprose
 
 import os.path
-import time
 import unittest
 
 from click.testing import CliRunner
-from elasticsearch import Elasticsearch
 
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 
@@ -34,7 +32,13 @@ class TestElasticEnvironment(unittest.TestCase):
         """ Test that the elastic kibana environment starts and stops """
 
         with CliRunner().isolated_filesystem() as t:
-            env = ElasticEnvironment(build_path=t, elastic_port=self.elastic_port, kibana_port=self.kibana_port)
+            env = ElasticEnvironment(
+                build_path=t,
+                elastic_port=self.elastic_port,
+                kibana_port=self.kibana_port,
+                wait=False,
+                wait_time_secs=self.wait_time_secs,
+            )
             try:
                 # Test start
                 response = env.start()
@@ -44,17 +48,9 @@ class TestElasticEnvironment(unittest.TestCase):
                 self.assertTrue(os.path.isfile(os.path.join(t, ElasticEnvironment.ELASTICSEARCH_FILE_NAME)))
                 self.assertTrue(os.path.isfile(os.path.join(t, "docker-compose.yml")))
 
-                # Test ping elastic
-                es = Elasticsearch([f"http://localhost:{self.elastic_port}/"])
-                start = time.time()
-                while True:
-                    elastic_found = es.ping()
-                    if elastic_found:
-                        break
-                    elapsed = time.time() - start
-                    if elapsed > self.wait_time_secs:
-                        break
-                self.assertTrue(elastic_found)
+                # Wait until found
+                services_found = env.wait_until_started()
+                self.assertTrue(services_found)
 
                 # Stop
                 response = env.stop()
