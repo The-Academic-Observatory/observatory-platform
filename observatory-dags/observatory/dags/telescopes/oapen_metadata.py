@@ -140,7 +140,6 @@ class OapenMetadataTelescope(StreamTelescope):
         schedule_interval: str = "@weekly",
         dataset_id: str = "oapen",
         merge_partition_field: str = "id",
-        updated_date_field: str = "dc.date.available",
         bq_merge_days: int = 7,
         schema_prefix: str = "oapen_",
         airflow_vars: List = None,
@@ -152,7 +151,6 @@ class OapenMetadataTelescope(StreamTelescope):
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the dataset id.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
-        :param updated_date_field: the BigQuery field used to determine newest entry for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
         :param schema_prefix: the prefix used to find the schema path
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
@@ -166,17 +164,8 @@ class OapenMetadataTelescope(StreamTelescope):
                 AirflowVars.DOWNLOAD_BUCKET,
                 AirflowVars.TRANSFORM_BUCKET,
             ]
-        super().__init__(
-            dag_id,
-            start_date,
-            schedule_interval,
-            dataset_id,
-            merge_partition_field,
-            updated_date_field,
-            bq_merge_days,
-            schema_prefix=schema_prefix,
-            airflow_vars=airflow_vars,
-        )
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field, bq_merge_days,
+                         schema_prefix=schema_prefix, airflow_vars=airflow_vars)
 
         self.add_setup_task_chain([self.check_dependencies, self.get_release_info])
         self.add_task_chain(

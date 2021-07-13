@@ -164,7 +164,6 @@ class DoabTelescope(StreamTelescope):
         schedule_interval: str = "@monthly",
         dataset_id: str = "doab",
         merge_partition_field: str = "id",
-        updated_date_field: str = "dc.date.accessioned",
         bq_merge_days: int = 7,
         airflow_vars: list = None,
     ):
@@ -176,16 +175,8 @@ class DoabTelescope(StreamTelescope):
                 AirflowVars.DOWNLOAD_BUCKET,
                 AirflowVars.TRANSFORM_BUCKET,
             ]
-        super().__init__(
-            dag_id,
-            start_date,
-            schedule_interval,
-            dataset_id,
-            merge_partition_field,
-            updated_date_field,
-            bq_merge_days,
-            airflow_vars=airflow_vars,
-        )
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field, bq_merge_days,
+                         airflow_vars=airflow_vars)
 
         self.add_setup_task_chain([self.check_dependencies, self.get_release_info])
         self.add_task_chain(

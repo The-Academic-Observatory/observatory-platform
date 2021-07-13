@@ -17,7 +17,7 @@
 import copy
 import os
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import Mock, patch
 import pendulum
 
@@ -91,7 +91,6 @@ class MockStreamTelescope(StreamTelescope):
         schedule_interval: str = "@weekly",
         dataset_id: str = random_id(),
         merge_partition_field: str = "id",
-        updated_date_field: str = "timestamp",
         bq_merge_days: int = 7,
         source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "prefix",
@@ -99,20 +98,9 @@ class MockStreamTelescope(StreamTelescope):
         dataset_description: str = "dataset_description",
     ):
         table_descriptions = {"file": "table description"}
-        super().__init__(
-            dag_id,
-            start_date,
-            schedule_interval,
-            dataset_id,
-            merge_partition_field,
-            updated_date_field,
-            bq_merge_days,
-            source_format=source_format,
-            schema_prefix=schema_prefix,
-            schema_version=schema_version,
-            dataset_description=dataset_description,
-            table_descriptions=table_descriptions,
-        )
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field, bq_merge_days,
+                         source_format=source_format, schema_prefix=schema_prefix, schema_version=schema_version,
+                         dataset_description=dataset_description, table_descriptions=table_descriptions)
 
     def make_release(self, **kwargs):
         return StreamRelease(
@@ -633,24 +621,22 @@ class TestTemplateUtils(unittest.TestCase):
                     telescope.dataset_id,
                     main_table_id,
                     partition_table_id,
-                    telescope.merge_partition_field,
-                    telescope.updated_date_field,
+                    telescope.merge_partition_field
                 )
 
                 expected_query = (
                     "\n\nMERGE\n"
                     "  `{dataset_id}.{main_table}` M\n"
                     "USING\n"
-                    "  (SELECT {merge_partition_field} AS id, {updated_date_field} AS date FROM `{dataset_id}.{partition_table}` WHERE _PARTITIONDATE > '{start_date}' AND _PARTITIONDATE <= '{end_date}') P\n"
+                    "  (SELECT {merge_partition_field} AS id FROM `{dataset_id}.{partition_table}` WHERE _PARTITIONDATE > '{start_date}' AND _PARTITIONDATE <= '{end_date}') P\n"
                     "ON\n"
                     "  M.{merge_partition_field} = P.id\n"
-                    "WHEN MATCHED AND M.{updated_date_field} <= P.date OR M.{updated_date_field} is null THEN\n"
+                    "WHEN MATCHED THEN\n"
                     "  DELETE".format(
                         dataset_id=telescope.dataset_id,
                         main_table=main_table_id,
                         partition_table=partition_table_id,
                         merge_partition_field=telescope.merge_partition_field,
-                        updated_date_field=telescope.updated_date_field,
                         start_date=start_date_str,
                         end_date=end_date_str,
                     )
