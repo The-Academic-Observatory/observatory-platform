@@ -59,6 +59,10 @@ These roles or permissions need to be assigned at the specific bucket to the ser
 
 The Storage Transfer Service uses the `project-[$PROJECT_NUMBER]@storage-transfer-service.iam.gserviceaccount.com` service account.
 
+Additionally, the Airflow Service account requires the `storage.buckets.get` permission on the ORCID bucket, in order to
+ check whether the bucket exists before starting the telescope, the role Storage Admin contains this permission. 
+The Airflow Service account is in the format of `<project_id>@<project_id>.iam.gserviceaccount.com`
+
 ### Setting permissions on AWS bucket
 The AWS buckets are managed by ORCID. There are three different buckets:
 * orcid-lambda-file
