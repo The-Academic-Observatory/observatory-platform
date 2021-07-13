@@ -21,7 +21,7 @@ class ElasticEnvironment(ComposeRunner):
         elastic_port: int = 9200,
         kibana_port: int = 5601,
         wait: bool = True,
-        wait_time_secs: int = 30,
+        wait_time_secs: int = 120,
     ):
         self.elastic_module_path = module_file_path("observatory.platform.elastic")
         self.elasticsearch_config_path = os.path.join(self.elastic_module_path, self.ELASTICSEARCH_FILE_NAME)
