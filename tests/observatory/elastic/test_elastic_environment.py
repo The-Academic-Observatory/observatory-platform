@@ -26,7 +26,7 @@ class TestElasticEnvironment(unittest.TestCase):
     def setUp(self) -> None:
         self.elastic_port = 9201
         self.kibana_port = 5602
-        self.wait_time_secs = 30
+        self.wait_time_secs = 120
 
     def test_elastic_environment(self):
         """ Test that the elastic kibana environment starts and stops """
