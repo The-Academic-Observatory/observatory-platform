@@ -45,18 +45,6 @@ from observatory.platform.utils.test_utils import (
 )
 
 
-def generate_authors_table(num_rows: int = 1000, min_age: int = 1, max_age: int = 100) -> List[Dict]:
-    faker = Faker()
-    rows = []
-    for _ in range(num_rows):
-        name = faker.name()
-        age = random.randint(min_age, max_age)
-        dob = pendulum.now().subtract(years=age)
-        rows.append({"name": name, "age": age, "dob": dob.strftime("%Y-%m-%d")})
-
-    return rows
-
-
 def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
     """ A Dummy DAG for testing purposes.
 
@@ -76,7 +64,33 @@ def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
     return dag
 
 
+def generate_authors_table(num_rows: int = 1000, min_age: int = 1, max_age: int = 100) -> List[Dict]:
+    """ Generate records for the test authors table.
+
+    :param num_rows: number of rows to generate.
+    :param min_age: the minimum age of an author.
+    :param max_age: the maximum age of an author.
+    :return: the author table rows.
+    """
+
+    faker = Faker()
+    rows = []
+    for _ in range(num_rows):
+        name = faker.name()
+        age = random.randint(min_age, max_age)
+        dob = pendulum.now().subtract(years=age)
+        rows.append({"name": name, "age": age, "dob": dob.strftime("%Y-%m-%d")})
+
+    return rows
+
+
 def author_records_to_bq(author_records: List[Dict]):
+    """ Convert author records into BigQuery records, i.e. convert the age field from a long into a string.
+
+    :param author_records: the author records.
+    :return: the converted author records.
+    """
+
     records = []
 
     for record in author_records:
