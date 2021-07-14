@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import os
 import random
 from datetime import datetime
@@ -30,11 +31,16 @@ from airflow.operators.dummy_operator import DummyOperator
 from faker import Faker
 
 from observatory.dags.model import Table, bq_load_tables
-from observatory.dags.workflows.elastic_import_workflow import ElasticImportWorkflow
-from observatory.platform.elastic.elastic import Elastic, elastic_mappings_path
-from observatory.platform.elastic.kibana import Kibana
+from observatory.dags.workflows.elastic_import_workflow import (
+    ElasticImportWorkflow,
+    load_elastic_mappings_ao,
+    load_elastic_mappings_simple,
+    load_elastic_mappings_oaebu,
+)
+from observatory.platform.elastic.elastic import Elastic, make_elastic_mappings_path
+from observatory.platform.elastic.kibana import Kibana, TimeField
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.file_utils import load_jsonl
+from observatory.platform.utils.file_utils import load_jsonl, load_file
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.telescope_utils import make_dag_id
@@ -115,31 +121,209 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         self.kibana = Kibana(host=self.kibana_uri)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
+        self.table_name = "ao_author"
         self.cwd = os.path.dirname(os.path.abspath(__file__))
 
-    def test_load_mappings(self):
-        """ Test that all mappings files can be parsed """
+    def test_load_elastic_mappings_simple(self):
+        """ Test load_elastic_mappings_simple """
 
-        file_names = [
-            "book-author-metrics-mappings.json.jinja2",
-            "book-list-mappings.json.jinja2",
-            "book-metrics-city-mappings.json.jinja2",
-            "book-metrics-country-mappings.json.jinja2",
-            "book-metrics-events-mappings.json.jinja2",
-            "book-metrics-institution-mappings.json.jinja2",
-            "book-metrics-mappings.json.jinja2",
-            "book-metrics-referrer-mappings.json.jinja2",
-            "book-publisher-metrics-mappings.json.jinja2",
-            "book-subject-metrics-mappings.json.jinja2",
-            "book-subject-year-metrics-mappings.json.jinja2",
-            "book-year-metrics-mappings.json.jinja2",
+        mappings = load_elastic_mappings_simple(self.cwd, self.table_name)
+        self.assertIsInstance(mappings, Dict)
+
+    def test_load_elastic_mappings_ao(self):
+        """ Test load_elastic_mappings_ao """
+
+        path = make_elastic_mappings_path()
+        aggregate = "author"
+        expected = [
+            ("ao_dois", load_file(os.path.join(path, "ao-dois-mappings.json"))),
+            (
+                "ao_author_access_types",
+                render_template(
+                    os.path.join(path, "ao-access-types-mappings.json.jinja2"),
+                    aggregate=aggregate,
+                    facet="access_types",
+                ),
+            ),
+            (
+                "ao_author_disciplines",
+                render_template(
+                    os.path.join(path, "ao-disciplines-mappings.json.jinja2"), aggregate=aggregate, facet="disciplines"
+                ),
+            ),
+            (
+                "ao_author_events",
+                render_template(
+                    os.path.join(path, "ao-events-mappings.json.jinja2"), aggregate=aggregate, facet="events"
+                ),
+            ),
+            (
+                "ao_author_metrics",
+                render_template(
+                    os.path.join(path, "ao-metrics-mappings.json.jinja2"), aggregate=aggregate, facet="metrics"
+                ),
+            ),
+            (
+                "ao_author_output_types",
+                render_template(
+                    os.path.join(path, "ao-output-types-mappings.json.jinja2"),
+                    aggregate=aggregate,
+                    facet="output_types",
+                ),
+            ),
+            (
+                "ao_author_unique_list",
+                render_template(
+                    os.path.join(path, "ao-unique-list-mappings.json.jinja2"), aggregate=aggregate, facet="unique_list"
+                ),
+            ),
+            (
+                "ao_author_output_types",
+                render_template(
+                    os.path.join(path, "ao-output-types-mappings.json.jinja2"),
+                    aggregate=aggregate,
+                    facet="output_types",
+                ),
+            ),
+            (
+                "ao_author_countries",
+                render_template(
+                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="countries"
+                ),
+            ),
+            (
+                "ao_author_funders",
+                render_template(
+                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="funders"
+                ),
+            ),
+            (
+                "ao_author_groupings",
+                render_template(
+                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="groupings"
+                ),
+            ),
+            (
+                "ao_author_institutions",
+                render_template(
+                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="institutions"
+                ),
+            ),
+            (
+                "ao_author_journals",
+                render_template(
+                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="journals"
+                ),
+            ),
+            (
+                "ao_author_publishers",
+                render_template(
+                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="publishers"
+                ),
+            ),
         ]
 
-        for file_name in file_names:
-            path = elastic_mappings_path(file_name)
-            render = render_template(path, aggregration_level="hello")
-            mapping = json.loads(render)
-            self.assertIsInstance(mapping, Dict)
+        for table_id, expected_mappings_str in expected:
+            logging.info(table_id)
+            expected_mappings = json.loads(expected_mappings_str)
+            actual_mappings = load_elastic_mappings_ao(path, table_id)
+            self.assertEqual(expected_mappings, actual_mappings)
+
+    def test_load_elastic_mappings_oaebu(self):
+        """ Test load_elastic_mappings_oaebu """
+
+        aggregate_level = "product"
+        path = make_elastic_mappings_path()
+        expected = [
+            (
+                "oaebu_anu_press_book_product_author_metrics",
+                render_template(
+                    os.path.join(path, "oaebu-author-metrics-mappings.json.jinja2"), aggregation_level=aggregate_level
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_list",
+                render_template(
+                    os.path.join(path, "oaebu-list-mappings.json.jinja2"), aggregation_level=aggregate_level
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_metrics",
+                render_template(
+                    os.path.join(path, "oaebu-metrics-mappings.json.jinja2"), aggregation_level=aggregate_level
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_metrics_city",
+                render_template(
+                    os.path.join(path, "oaebu-metrics-city-mappings.json.jinja2"), aggregation_level=aggregate_level
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_metrics_country",
+                render_template(
+                    os.path.join(path, "oaebu-metrics-country-mappings.json.jinja2"), aggregation_level=aggregate_level
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_metrics_events",
+                render_template(
+                    os.path.join(path, "oaebu-metrics-events-mappings.json.jinja2"), aggregation_level=aggregate_level
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_metrics_institution",
+                render_template(
+                    os.path.join(path, "oaebu-metrics-institution-mappings.json.jinja2"),
+                    aggregation_level=aggregate_level,
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_metrics_referrer",
+                render_template(
+                    os.path.join(path, "oaebu-metrics-referrer-mappings.json.jinja2"), aggregation_level=aggregate_level
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_publisher_metrics",
+                render_template(
+                    os.path.join(path, "oaebu-publisher-metrics-mappings.json.jinja2"),
+                    aggregation_level=aggregate_level,
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_subject_metrics",
+                render_template(
+                    os.path.join(path, "oaebu-subject-metrics-mappings.json.jinja2"), aggregation_level=aggregate_level
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_subject_year_metrics",
+                render_template(
+                    os.path.join(path, "oaebu-subject-year-metrics-mappings.json.jinja2"),
+                    aggregation_level=aggregate_level,
+                ),
+            ),
+            (
+                "oaebu_anu_press_book_product_year_metrics",
+                render_template(
+                    os.path.join(path, "oaebu-year-metrics-mappings.json.jinja2"), aggregation_level=aggregate_level
+                ),
+            ),
+            (
+                "oaebu_anu_press_unmatched_book_metrics",
+                render_template(
+                    os.path.join(path, "oaebu-unmatched-metrics-mappings.json.jinja2"),
+                    aggregation_level=aggregate_level,
+                ),
+            ),
+        ]
+
+        for table_id, expected_mappings_str in expected:
+            print(table_id)
+            expected_mappings = json.loads(expected_mappings_str)
+            actual_mappings = load_elastic_mappings_oaebu(path, table_id)
+            self.assertEqual(expected_mappings, actual_mappings)
 
     def test_dag_structure(self):
         """Test that the DAG has the correct structure.
@@ -190,15 +374,20 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assert_dag_load(dag_id, dag_file)
 
     def setup_data_export(
-        self, author_records: List[Dict], dataset_id: str, bucket_name: str, release_date: pendulum.Pendulum
+        self,
+        table_name: str,
+        author_records: List[Dict],
+        dataset_id: str,
+        bucket_name: str,
+        release_date: pendulum.Pendulum,
     ):
         tables = [
             Table(
-                table_name="author",
+                table_name=table_name,
                 is_sharded=True,
                 dataset_id=dataset_id,
                 records=author_records,
-                schema_prefix="author",
+                schema_prefix=table_name,
                 schema_path=self.cwd,
             )
         ]
@@ -236,6 +425,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             start_date = pendulum.datetime(year=2021, month=5, day=9)
             dag_id_sensor = "doi"
             space_id = "spce"
+            kibana_time_fields = [TimeField("^.*$", "dob")]
             workflow = ElasticImportWorkflow(
                 dag_id="elastic_import",
                 project_id=self.project_id,
@@ -244,9 +434,11 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 data_location=self.data_location,
                 file_type="jsonl.gz",
                 sensor_dag_ids=[dag_id_sensor],
+                elastic_mappings_path=self.cwd,
+                elastic_mappings_func=load_elastic_mappings_simple,
                 kibana_spaces=[space_id],
+                kibana_time_fields=kibana_time_fields,
                 start_date=start_date,
-                mappings_path=self.cwd,
             )
             es_dag = workflow.make_dag()
 
@@ -272,7 +464,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertEqual(expected_state, ti.state)
 
             # Make dataset with a small number of tables
-            self.setup_data_export(author_records, dataset_id, env.transform_bucket, release_date)
+            self.setup_data_export(self.table_name, author_records, dataset_id, env.transform_bucket, release_date)
 
             # Run end to end tests for DOI DAG
             expected_state = "success"
@@ -294,7 +486,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 # Test list_release_info task
                 ti = env.run_task(workflow.list_release_info.__name__, es_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
-                table_id = bigquery_sharded_table_id("author", release_date)
+                table_id = bigquery_sharded_table_id(self.table_name, release_date)
                 expected_msg = {
                     "release_date": release_date.date(),
                     "table_ids": [table_id],
@@ -324,7 +516,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertListEqual(expected_rows, actual_rows)  # Check that exported rows match
 
                 # Test list import_to_elastic info task
-                index_id = f"author-{release_date.strftime('%Y%m%d')}"
+                index_id = f"ao-author-{release_date.strftime('%Y%m%d')}"
                 ti = env.run_task(workflow.import_to_elastic.__name__, es_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
                 self.assertTrue(self.elastic.es.indices.exists(index=index_id))  # Check that index exists
@@ -334,7 +526,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertListEqual(expected_rows, actual_rows)  # check that author records matches es index
 
                 # Test list update_elastic_aliases info task
-                expected_alias_id = "author"
+                expected_alias_id = "ao-author"
                 ti = env.run_task(workflow.update_elastic_aliases.__name__, es_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
                 expected_indexes = [index_id]
@@ -342,7 +534,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertListEqual(expected_indexes, actual_indexes)  # Check that aliases updated
 
                 # Test list create_kibana_index_patterns info task
-                expected_index_pattern_id = "author"
+                expected_index_pattern_id = expected_alias_id
                 ti = env.run_task(workflow.create_kibana_index_patterns.__name__, es_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
                 self.assertTrue(

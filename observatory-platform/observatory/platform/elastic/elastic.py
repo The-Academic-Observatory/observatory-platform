@@ -28,14 +28,13 @@ from pendulum import Date
 from observatory.platform.utils.config_utils import module_file_path
 
 
-def elastic_mappings_path(mappings_filename: str) -> str:
+def make_elastic_mappings_path() -> str:
     """ Get the Elasticsearch mappings path.
 
-    :param mappings_filename: the name of the Elasticsearch mapping.
     :return: the elastic search schema path.
     """
 
-    return os.path.join(module_file_path("observatory.dags.database.mappings"), mappings_filename)
+    return module_file_path("observatory.dags.database.mappings")
 
 
 def make_sharded_index(index_prefix: str, release_date: Date) -> str:

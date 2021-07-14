@@ -19,6 +19,7 @@
 
 # Author: James Diprose
 
+import dataclasses
 import json
 import logging
 from enum import Enum
@@ -27,6 +28,12 @@ from typing import Dict, List
 from urllib.parse import urlparse
 
 import requests
+
+
+@dataclasses.dataclass
+class TimeField:
+    pattern: str = None
+    field_name: str = None
 
 
 def parse_kibana_url(url):

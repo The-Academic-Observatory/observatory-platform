@@ -24,7 +24,7 @@ import re
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
-from typing import List, Dict, Optional
+from typing import List, Optional, Callable
 
 import elasticsearch.exceptions
 import google.cloud.bigquery as bigquery
@@ -40,8 +40,8 @@ from observatory.platform.elastic.elastic import (
     Elastic,
     make_sharded_index,
 )
-from observatory.platform.elastic.elastic import module_file_path
-from observatory.platform.elastic.kibana import Kibana, ObjectType
+from observatory.platform.elastic.elastic import make_elastic_mappings_path
+from observatory.platform.elastic.kibana import Kibana, ObjectType, TimeField
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease
 from observatory.platform.telescopes.telescope import Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
@@ -51,10 +51,45 @@ from observatory.platform.utils.gc_utils import (
     select_table_shard_dates,
     download_blobs_from_cloud_storage,
 )
+from observatory.platform.utils.jinja2_utils import render_template
 
 ES_INDEX_STATE_TOPIC_NAME = "es_index_state"
 CSV_TYPES = ["csv", "csv.gz"]
 JSONL_TYPES = ["jsonl", "jsonl.gz"]
+
+
+def load_elastic_mappings_simple(path: str, table_prefix: str):
+    return json.loads(load_file(os.path.join(path, f"{table_prefix.replace('_', '-')}-mappings.json")))
+
+
+def load_elastic_mappings_ao(path: str, table_prefix: str):
+    if not table_prefix.startswith("ao"):
+        raise ValueError("Table must begin with 'ao'")
+    elif table_prefix.startswith("ao_doi"):
+        return load_elastic_mappings_simple(path, table_prefix)
+    else:
+        prefix, aggregate, facet = table_prefix.split("_", 2)
+        mappings_file_name = "ao-relations-mappings.json.jinja2"
+        is_fixed_facet = facet in ["unique_list", "access_types", "disciplines", "output_types", "events", "metrics"]
+        if is_fixed_facet:
+            mappings_file_name = f"ao-{facet.replace('_', '-')}-mappings.json.jinja2"
+        mappings_path = os.path.join(path, mappings_file_name)
+        return json.loads(render_template(mappings_path, aggregate=aggregate, facet=facet))
+
+
+def load_elastic_mappings_oaebu(path: str, table_prefix: str):
+    if not table_prefix.startswith("oaebu"):
+        raise ValueError("Table must begin with 'oaebu'")
+    elif "unmatched" in table_prefix:
+        mappings_path = os.path.join(path, "oaebu-unmatched-metrics-mappings.json.jinja2")
+        return json.loads(render_template(mappings_path))
+    else:
+        parts = table_prefix.split("_")[3:]
+        mappings_file_name = "oaebu" + "-" + "-".join(parts[2:]) + "-mappings.json.jinja2"
+        mappings_path = os.path.join(path, mappings_file_name)
+        print(mappings_path)
+        aggregation_level = parts[1]
+        return json.loads(render_template(mappings_path, aggregation_level=aggregation_level))
 
 
 def make_index_prefix(table_id: str):
@@ -140,7 +175,8 @@ def load_elastic_index(
     data_path: str,
     table_id: str,
     release_date: Date,
-    mappings: Dict,
+    elastic_mappings_path: str,
+    elastic_mappings_func: Callable,
     file_type: str,
     elastic_host: str,
     chunk_size: int,
@@ -152,7 +188,8 @@ def load_elastic_index(
     :param table_id: the id of the table that will be loaded into Elasticsearch.
     :param release_date: the release date.
     :param file_type: the file type of the data that will be loaded.
-    :param mappings: the mappings Dict.
+    :param elastic_mappings_path: the mappings path.
+    :param elastic_mappings_func: the mappings Callable.
     :param elastic_host: the full Elasticsearch host including username and password.
     :param chunk_size: the size of the batches to load.
     :param num_threads: the number of threads to use for loading.
@@ -168,6 +205,9 @@ def load_elastic_index(
     # Fetch all files that should be loaded into this index
     file_pattern = os.path.join(data_path, f"{table_id}_*.{file_type}")
     file_paths = natsorted(glob.glob(file_pattern))
+
+    # Load mappings file
+    mappings = elastic_mappings_func(elastic_mappings_path, table_prefix)
 
     if len(file_paths) == 0:
         # If no files found then set result to False
@@ -215,11 +255,13 @@ class ElasticImportRelease(SnapshotRelease):
         bucket_name: str,
         data_location: str,
         elastic_host: str,
+        elastic_mappings_path: str,
+        elastic_mappings_func: Callable,
         kibana_host: str,
         kibana_username: str,
         kibana_password: str,
         kibana_spaces: List,
-        mappings_path: str,
+        kibana_time_fields: List[TimeField],
         chunk_size: int = 10000,
         num_threads: int = 2,
         num_workers: int = cpu_count(),
@@ -232,11 +274,13 @@ class ElasticImportRelease(SnapshotRelease):
         self.bucket_name = bucket_name
         self.data_location = data_location
         self.elastic_host = elastic_host
+        self.elastic_mappings_path = elastic_mappings_path
+        self.elastic_mappings_func = elastic_mappings_func
         self.kibana_host = kibana_host
         self.kibana_username = kibana_username
         self.kibana_password = kibana_password
         self.kibana_spaces = kibana_spaces
-        self.mappings_path = mappings_path
+        self.kibana_time_fields = kibana_time_fields
         self.chunk_size = chunk_size
         self.num_threads = num_threads
         self.num_workers = num_workers
@@ -301,8 +345,8 @@ class ElasticImportRelease(SnapshotRelease):
     def write_index_state(self, indexed_table_ids: List[str]):
         write_to_file(json.dumps(indexed_table_ids), self.elastic_import_task_state_path)
 
-    def load_mappings(self, table_id: str):
-        return json.loads(load_file(os.path.join(self.mappings_path, f"{table_id[:-8]}.json")))
+    # def load_mappings(self, table_id: str):
+    #     return json.loads(load_file(os.path.join(self.mappings_path, f"{table_id[:-8]}.json")))
 
     def import_to_elastic(self) -> bool:
         results = []
@@ -325,7 +369,8 @@ class ElasticImportRelease(SnapshotRelease):
                     data_path=self.download_folder,
                     table_id=table_id,
                     release_date=self.release_date,
-                    mappings=self.load_mappings(table_id),
+                    elastic_mappings_path=self.elastic_mappings_path,
+                    elastic_mappings_func=self.elastic_mappings_func,
                     file_type=self.file_type,
                     elastic_host=self.elastic_host,
                     chunk_size=self.chunk_size,
@@ -389,6 +434,16 @@ class ElasticImportRelease(SnapshotRelease):
 
         return success
 
+    def get_kibana_time_field(self, index_pattern_id):
+        time_field_name = None
+
+        for time_field in self.kibana_time_fields:
+            if re.match(time_field.pattern, index_pattern_id):
+                time_field_name = time_field.field_name
+                break
+
+        return time_field_name
+
     def create_kibana_index_patterns(self):
         """
 
@@ -401,19 +456,7 @@ class ElasticImportRelease(SnapshotRelease):
         for table_id in self.table_ids:
             table_prefix = make_table_prefix(table_id)
             index_pattern_id = make_index_prefix(table_prefix)
-            # aggregate, facet = table_prefix.split("_", 1)
-            # if aggregate == "oaebu":
-            #     selector = "-".join(index_pattern_id.split("-")[3:])
-            #     if selector == "unmatched-book-metrics":
-            #         time_field_name = "release_date"
-            #     elif selector == "book-product-list":
-            #         time_field_name = "time_field"
-            #     else:
-            #         time_field_name = "month"
-            # else:
-            #     time_field_name = "published_year"
-
-            attributes = {"title": index_pattern_id, "timeFieldName":  "dob"} #time_field_name}
+            attributes = {"title": index_pattern_id, "timeFieldName": self.get_kibana_time_field(index_pattern_id)}
 
             # Create an index pattern for each space
             for space_id in self.kibana_spaces:
@@ -435,8 +478,10 @@ class ElasticImportWorkflow(Telescope):
         data_location="us",
         file_type: str = "csv.gz",
         sensor_dag_ids: List[str] = None,
+        elastic_mappings_path: str = make_elastic_mappings_path(),
+        elastic_mappings_func: Callable = None,
         kibana_spaces: List[str] = None,
-        mappings_path: str = module_file_path("observatory.dags.database.mappings"),
+        kibana_time_fields: List[TimeField] = None,
         dag_id: Optional[str] = "elastic_import",
         start_date: Optional[Pendulum] = Pendulum(2020, 11, 1),
         schedule_interval: Optional[str] = "@weekly",
@@ -481,7 +526,9 @@ class ElasticImportWorkflow(Telescope):
         self.bucket_name = bucket_name
         self.data_location = data_location
         self.file_type = file_type
-        self.mappings_path = mappings_path
+        self.elastic_mappings_path = elastic_mappings_path
+        self.elastic_mappings_func = elastic_mappings_func
+        self.kibana_time_fields = kibana_time_fields
 
         self.sensor_dag_ids = sensor_dag_ids
         if sensor_dag_ids is None:
@@ -560,11 +607,13 @@ class ElasticImportWorkflow(Telescope):
             bucket_name=self.bucket_name,
             data_location=self.data_location,
             elastic_host=elastic_host,
+            elastic_mappings_path=self.elastic_mappings_path,
+            elastic_mappings_func=self.elastic_mappings_func,
             kibana_host=kibana_host,
             kibana_username=kibana_conn.login,
             kibana_password=kibana_conn.password,
             kibana_spaces=self.kibana_spaces,
-            mappings_path=self.mappings_path,
+            kibana_time_fields=self.kibana_time_fields,
         )
 
     def export_bigquery_tables(self, release: ElasticImportRelease, **kwargs):
@@ -606,24 +655,6 @@ class ElasticImportWorkflow(Telescope):
         to this argument.
         :return: None.
         """
-
-        # aggregate, facet = table_prefix.split("_", 1)
-        #
-        # if aggregate == "oaebu":
-        #     parts = index_prefix.split("-")[3:]
-        #     mappings_file_name = parts[0] + "-" + "-".join(parts[2:]) + "-mappings.json.jinja2"
-        #     aggregation_level = parts[1]
-        #
-        #     mappings_path = elastic_mappings_path(mappings_file_name)
-        #     mappings_render = render_template(mappings_path, aggregration_level=aggregation_level)
-        # else:
-        #     mappings_file_name = "relations-mappings.json.jinja2"
-        #     is_fixed_facet = facet in ["unique-list", "access-types", "disciplines", "output-types", "events",
-        #                                "metrics"]
-        #     if is_fixed_facet:
-        #         mappings_file_name = f"{facet}-mappings.json.jinja2"
-        #     mappings_path = elastic_mappings_path(mappings_file_name)
-        #     mappings_render = render_template(mappings_path, aggregate=aggregate, facet=facet)
 
         success = release.import_to_elastic()
         if not success:
