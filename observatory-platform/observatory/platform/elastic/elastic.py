@@ -16,13 +16,13 @@
 
 
 import logging
-import os
 from multiprocessing import cpu_count
 from typing import Dict, Iterator, List
-from elasticsearch.helpers import parallel_bulk, scan
+
 import elasticsearch.exceptions
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import parallel_bulk
+from elasticsearch.helpers import scan
 from pendulum import Date
 
 from observatory.platform.utils.config_utils import module_file_path
@@ -62,17 +62,6 @@ def make_elastic_uri(schema: str, user: str, secret: str, hostname: str, port: i
     return f"{schema}://{user}:{secret}@{hostname}:{port}"
 
 
-# def make_index_prefix(feed_name: str, table_name: str):
-#     """ Make an index prefix from a feed name and a table name.
-#
-#     :param feed_name: the feed name.
-#     :param table_name: the table name
-#     :return: the index prefix.
-#     """
-#
-#     return f"{feed_name}-{table_name}"
-
-
 class Elastic:
     def __init__(
         self,
@@ -94,9 +83,6 @@ class Elastic:
         self.chunk_size = chunk_size
         self.timeout = timeout
         self.es = Elasticsearch(hosts=[self.host], timeout=timeout)
-
-        # logging.basicConfig()
-        # logging.getLogger().setLevel(logging.WARNING)
 
     def query(self, index: str, query: Dict = None):
         if query is None:

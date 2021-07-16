@@ -32,8 +32,9 @@ class TestElasticEnvironment(unittest.TestCase):
         """ Test that the elastic kibana environment starts and stops """
 
         with CliRunner().isolated_filesystem() as t:
+            build_path = os.path.join(t, "docker")
             env = ElasticEnvironment(
-                build_path=t,
+                build_path=build_path,
                 elastic_port=self.elastic_port,
                 kibana_port=self.kibana_port,
                 wait=False,
@@ -45,8 +46,8 @@ class TestElasticEnvironment(unittest.TestCase):
                 self.assertEqual(response.return_code, 0)
 
                 # Check that files are copied
-                self.assertTrue(os.path.isfile(os.path.join(t, ElasticEnvironment.ELASTICSEARCH_FILE_NAME)))
-                self.assertTrue(os.path.isfile(os.path.join(t, "docker-compose.yml")))
+                self.assertTrue(os.path.isfile(os.path.join(build_path, "elasticsearch.yml")))
+                self.assertTrue(os.path.isfile(os.path.join(build_path, "docker-compose.yml")))
 
                 # Wait until found
                 services_found = env.wait_until_started()

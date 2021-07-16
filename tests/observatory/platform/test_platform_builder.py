@@ -148,7 +148,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
             # Make observatory files
             cmd = self.make_platform_command()
-            cmd.make_files()
+            cmd.build()
 
             # Test that the expected files have been written
             build_file_names = ['docker-compose.observatory.yml', 'Dockerfile.observatory', 'elasticsearch.yml',
@@ -299,11 +299,11 @@ class TestPlatformBuilder(unittest.TestCase):
             cmd.debug = True
 
             # Build the platform
-            output, error, return_code = cmd.build()
+            response = cmd.build()
 
             # Assert that the platform builds
             expected_return_code = 0
-            self.assertEqual(expected_return_code, return_code)
+            self.assertEqual(expected_return_code, response.return_code)
 
     @unittest.skip
     def test_build_start_stop(self):

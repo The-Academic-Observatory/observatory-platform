@@ -24,7 +24,7 @@ import re
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
-from typing import List, Optional, Callable
+from typing import List, Optional, Callable, Tuple, Dict
 
 import elasticsearch.exceptions
 import google.cloud.bigquery as bigquery
@@ -58,11 +58,25 @@ CSV_TYPES = ["csv", "csv.gz"]
 JSONL_TYPES = ["jsonl", "jsonl.gz"]
 
 
-def load_elastic_mappings_simple(path: str, table_prefix: str):
-    return json.loads(load_file(os.path.join(path, f"{table_prefix.replace('_', '-')}-mappings.json")))
+def load_elastic_mappings_simple(path: str, table_prefix: str) -> Dict:
+    """ Load the Elastic mappings for a given table prefix.
+
+    :param path: the path to the Elastic mappings.
+    :param table_prefix: the table prefix.
+    :return: the rendered mapping as a Dict.
+    """
+
+    return json.loads(load_file(os.path.join(path, f"{make_index_prefix(table_prefix)}-mappings.json")))
 
 
 def load_elastic_mappings_ao(path: str, table_prefix: str):
+    """ For the Observatory project, load the Elastic mappings for a given table_prefix.
+
+    :param path: the path to the mappings files.
+    :param table_prefix: the table_id prefix (without shard date).
+    :return: the rendered mapping as a Dict.
+    """
+
     if not table_prefix.startswith("ao"):
         raise ValueError("Table must begin with 'ao'")
     elif table_prefix.startswith("ao_doi"):
@@ -77,7 +91,14 @@ def load_elastic_mappings_ao(path: str, table_prefix: str):
         return json.loads(render_template(mappings_path, aggregate=aggregate, facet=facet))
 
 
-def load_elastic_mappings_oaebu(path: str, table_prefix: str):
+def load_elastic_mappings_oaebu(path: str, table_prefix: str) -> Dict:
+    """ For the OAEBU project, load the Elastic mappings for a given table_prefix.
+
+    :param path: the path to the mappings files.
+    :param table_prefix: the table_id prefix (without shard date).
+    :return: the rendered mapping as a Dict.
+    """
+
     if not table_prefix.startswith("oaebu"):
         raise ValueError("Table must begin with 'oaebu'")
     elif "unmatched" in table_prefix:
@@ -87,29 +108,55 @@ def load_elastic_mappings_oaebu(path: str, table_prefix: str):
         parts = table_prefix.split("_")[3:]
         mappings_file_name = "oaebu" + "-" + "-".join(parts[2:]) + "-mappings.json.jinja2"
         mappings_path = os.path.join(path, mappings_file_name)
-        print(mappings_path)
         aggregation_level = parts[1]
         return json.loads(render_template(mappings_path, aggregation_level=aggregation_level))
 
 
 def make_index_prefix(table_id: str):
+    """ Convert a table_id into an Elastic / Kibana index.
+
+    :param table_id: the table_id.
+    :return: the Elastic / Kibana index.
+    """
+
     return table_id.replace("_", "-")
 
 
 def make_table_prefix(table_id: str):
+    """ Remove the date from a table_id.
+
+    :param table_id: the table id including a shard date.
+    :return: the table id.
+    """
+
+    # -8 is removing the date from the string.
     return table_id[:-8]
 
 
-def extract_table_id(table_id: str):
+def extract_table_id(table_id: str) -> Tuple[str, Optional[str]]:
+    """ Extract the table_id and and the date from an index.
+
+    :param table_id: the table id.
+    :return: table_id and date.
+    """
+
     results = re.search(r"\d{8}$", table_id)
 
     if results is None:
         return table_id, None
 
-    return table_id[:-8], results.group(0)
+    return make_table_prefix(table_id), results.group(0)
 
 
-def list_table_ids(project_id: str, dataset_id: str, release_date: pendulum.Pendulum):
+def list_table_ids(project_id: str, dataset_id: str, release_date: pendulum.Pendulum) -> List[str]:
+    """ List all of the table_ids within a BigQuery dataset.
+
+    :param project_id: the Google Cloud project id.
+    :param dataset_id: the BigQuery dataset id.
+    :param release_date: the release date.
+    :return: the table ids.
+    """
+
     src_client = bigquery.Client(project=project_id)
 
     table_ids = []
@@ -288,9 +335,9 @@ class ElasticImportRelease(SnapshotRelease):
         self.elastic_import_task_state_path = os.path.join(self.extract_folder, "elastic_import_task_state.json")
 
     def export_bigquery_tables(self) -> bool:
-        """
+        """ Export the BigQuery tables to Google Cloud Storage.
 
-        :return:
+        :return: whether the tables were exported successfully.
         """
 
         # Calculate the number of parallel queries. Since all of the real work is done on BigQuery run each export task
@@ -330,27 +377,40 @@ class ElasticImportRelease(SnapshotRelease):
         return all(results)
 
     def download_exported_data(self) -> bool:
-        """
+        """ Download the exported data from Cloud Storage.
 
-        :return:
+        :return: whether the data was downloaded successfully or not.
         """
 
         return download_blobs_from_cloud_storage(self.bucket_name, self.bucket_prefix, self.download_folder)
 
-    def read_index_state(self) -> List[str]:
+    def read_import_state(self) -> List[str]:
+        """ Loads which tables have been indexed.
+
+        :return: the list of table ids.
+        """
+
         if os.path.isfile(self.elastic_import_task_state_path):
             return json.loads(load_file(self.elastic_import_task_state_path))
         return []
 
-    def write_index_state(self, indexed_table_ids: List[str]):
+    def write_import_state(self, indexed_table_ids: List[str]):
+        """ Saves which tables have been indexed.
+
+        :param indexed_table_ids: the table ids.
+        :return: None.
+        """
+
         write_to_file(json.dumps(indexed_table_ids), self.elastic_import_task_state_path)
 
-    # def load_mappings(self, table_id: str):
-    #     return json.loads(load_file(os.path.join(self.mappings_path, f"{table_id[:-8]}.json")))
-
     def import_to_elastic(self) -> bool:
+        """ Import data into Elasticsearch.
+
+        :return: whether the data imported successfully or not.
+        """
+
         results = []
-        indexed_table_ids = self.read_index_state()
+        indexed_table_ids = self.read_import_state()
         logging.info(f"The following tables have already been indexed: {indexed_table_ids}")
 
         with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
@@ -388,7 +448,7 @@ class ElasticImportRelease(SnapshotRelease):
                     # Update the state of table_ids that have been indexed
                     table_id = futures_msgs[future]
                     indexed_table_ids.append(table_id)
-                    self.write_index_state(indexed_table_ids)
+                    self.write_import_state(indexed_table_ids)
                     logging.info(f"Loading index success: {table_id}")
                 else:
                     logging.error(f"Loading index failed: {table_id}")
@@ -396,9 +456,9 @@ class ElasticImportRelease(SnapshotRelease):
         return all(results)
 
     def update_elastic_aliases(self) -> bool:
-        """
+        """ Update the elasticsearch aliases.
 
-        :return:
+        :return: whether the aliases updated correctly or not,
         """
 
         client = Elastic(host=self.elastic_host)
@@ -444,10 +504,10 @@ class ElasticImportRelease(SnapshotRelease):
 
         return time_field_name
 
-    def create_kibana_index_patterns(self):
-        """
+    def create_kibana_index_patterns(self) -> bool:
+        """ Create the Kibana index patterns.
 
-        :return:
+        :return: whether the index patterns were created successfully or not.
         """
 
         kibana = Kibana(host=self.kibana_host, username=self.kibana_username, password=self.kibana_password)
@@ -490,6 +550,7 @@ class ElasticImportWorkflow(Telescope):
         airflow_conns: List = None,
     ):
         """ Create the DoiWorkflow.
+
         :param project_id: the project id to import data from.
         :param dataset_id: the dataset id to import data from.
         :param bucket_name: the bucket name where the exported BigQuery data will be saved.

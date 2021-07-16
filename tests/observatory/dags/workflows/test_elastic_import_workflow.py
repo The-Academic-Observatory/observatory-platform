@@ -381,6 +381,16 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         bucket_name: str,
         release_date: pendulum.Pendulum,
     ):
+        """ Setup the fake dataset in BigQuery.
+
+        :param table_name: the table name to load.
+        :param author_records: the author records.
+        :param dataset_id: the BigQuery dataset id.
+        :param bucket_name: the Google Cloud Storage bucket name.
+        :param release_date: the dataset release date.
+        :return: None.
+        """
+
         tables = [
             Table(
                 table_name=table_name,

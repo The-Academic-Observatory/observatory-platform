@@ -891,6 +891,16 @@ def make_crossref_metadata(dataset: ObservatoryDataset) -> List[Dict]:
 
 @dataclass
 class Table:
+    """ A table to be loaded into Elasticsearch.
+
+    :param table_name: the table name.
+    :param is_sharded: whether the table is sharded or not.
+    :param dataset_id: the dataset id.
+    :param records: the records to load.
+    :param schema_prefix: the schema prefix.
+    :param schema_path: the schema path.
+    """
+
     table_name: str
     is_sharded: bool
     dataset_id: str

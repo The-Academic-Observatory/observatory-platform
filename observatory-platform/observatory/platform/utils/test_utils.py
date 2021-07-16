@@ -146,7 +146,10 @@ class ObservatoryEnvironment:
         :param data_location: the Google Cloud data location.
         :param api_host: the Observatory API host.
         :param api_port: the Observatory API port.
-        :param api_port: whether to enable the observatory API or not.
+        :param enable_api: whether to enable the observatory API or not.
+        :param enable_elastic: whether to enable the Elasticsearch and Kibana test services.
+        :param elastic_port: the Elastic port.
+        :param kibana_port: the Kibana port.
         """
 
         self.project_id = project_id
@@ -506,6 +509,13 @@ class ObservatoryTestCase(unittest.TestCase):
             self.assertGreaterEqual(len(dag.tasks), 1)
 
     def assert_blob_exists(self, bucket_id: str, blob_name: str):
+        """Assert whether a blob exists or not.
+
+        :param bucket_id: the Google Cloud storage bucket id.
+        :param blob_name: the blob name (full path except for bucket)
+        :return: None.
+        """
+
         # Get blob
         bucket = self.storage_client.get_bucket(bucket_id)
         blob = bucket.blob(blob_name)
