@@ -12,36 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose, Aniek Roelofs
+# Author: James Diprose, Aniek Roelofs, Tuan Chien
 
 import os
 from typing import Union
 
 import click
-
-from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2, INDENT3
+from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
 from observatory.platform.platform_builder import (
+    AIRFLOW_UI_PORT,
     BUILD_PATH,
     DAGS_MODULE,
     DATA_PATH,
+    DEBUG,
+    DOCKER_COMPOSE_PROJECT_NAME,
+    DOCKER_NETWORK_NAME,
+    ELASTIC_PORT,
+    FLOWER_UI_PORT,
+    HOST_GID,
+    HOST_UID,
+    KIBANA_PORT,
     LOGS_PATH,
     POSTGRES_PATH,
-    HOST_UID,
-    HOST_GID,
     REDIS_PORT,
-    FLOWER_UI_PORT,
-    AIRFLOW_UI_PORT,
-    ELASTIC_PORT,
-    KIBANA_PORT,
-    DOCKER_NETWORK_NAME,
-    DOCKER_COMPOSE_PROJECT_NAME,
-    DEBUG,
 )
+from observatory.platform.utils.config_utils import observatory_home
 from observatory.platform.utils.config_utils import (
-    observatory_home,
     terraform_credentials_path as default_terraform_credentials_path,
 )
 
@@ -54,7 +53,7 @@ TERRAFORM_CONFIG_PATH = os.path.join(observatory_home(), "config-terraform.yaml"
 
 @click.group()
 def cli():
-    """ The Observatory Platform command line tool.
+    """The Observatory Platform command line tool.
 
     COMMAND: the commands to run include:\n
       - platform: start and stop the local Observatory Platform platform.\n
@@ -182,7 +181,7 @@ def platform(
     docker_compose_project_name: str,
     debug,
 ):
-    """ Run the local Observatory Platform platform.\n
+    """Run the local Observatory Platform platform.\n
 
     COMMAND: the command to give the platform:\n
       - start: start the platform.\n
@@ -223,7 +222,7 @@ def platform(
 
 
 def platform_check_dependencies(platform_cmd: PlatformCommand, generate_cmd: GenerateCommand, min_line_chars: int = 80):
-    """ Check Platform dependencies.
+    """Check Platform dependencies.
 
     :param platform_cmd: the platform command instance.
     :param generate_cmd: the generate command instance.
@@ -282,7 +281,7 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, generate_cmd: Gen
 
 
 def platform_start(platform_cmd: PlatformCommand, min_line_chars: int = 80):
-    """ Check Platform dependencies.
+    """Check Platform dependencies.
 
     :param platform_cmd: the platform command instance.
     :param min_line_chars: the minimum number of lines when printing to the command line interface.
@@ -317,7 +316,7 @@ def platform_start(platform_cmd: PlatformCommand, min_line_chars: int = 80):
 
 
 def platform_stop(platform_cmd: PlatformCommand, min_line_chars: int = 80):
-    """ Start the Observatory platform.
+    """Start the Observatory platform.
 
     :param platform_cmd: the platform command instance.
     :param min_line_chars: the minimum number of lines when printing to the command line interface.
@@ -340,7 +339,7 @@ def platform_stop(platform_cmd: PlatformCommand, min_line_chars: int = 80):
 
 @cli.group()
 def generate():
-    """ The Observatory Platform generate command.
+    """The Observatory Platform generate command.
 
     COMMAND: the commands to run include:\n
       - secrets: generate secrets.\n
@@ -351,9 +350,23 @@ def generate():
 
 
 @generate.command()
+@click.argument("telescope_type", nargs=1)
+@click.argument("telescope_name", nargs=1)
+def telescope(telescope_type: str, telescope_name: str):
+    """Generate boiler plate code for a new telescope.
+
+    telescope_type: Type of telescope. Options are Telescope, StreamTelescope, SnapshotTelescope.
+    telescope_name: Name of your new telescope.
+    """
+
+    cmd = GenerateCommand()
+    cmd.generate_new_telescope(telescope_type, telescope_name)
+
+
+@generate.command()
 @click.argument("command", type=click.Choice(["fernet-key"]))
 def secrets(command: str):
-    """ Generate secrets for the Observatory Platform.\n
+    """Generate secrets for the Observatory Platform.\n
 
     COMMAND: the type of secret to generate:\n
       - fernet-key: generate a random Fernet Key.\n
@@ -374,7 +387,7 @@ def secrets(command: str):
     show_default=True,
 )
 def config(command: str, config_path: str):
-    """ Generate config files for the Observatory Platform.\n
+    """Generate config files for the Observatory Platform.\n
 
     COMMAND: the type of config file to generate:\n
       - local: generate a config file for running the Observatory Platform locally.\n
@@ -422,7 +435,7 @@ def config(command: str, config_path: str):
 )
 @click.option("--debug", is_flag=True, default=DEBUG, help="Print debugging information.")
 def terraform(command, config_path, terraform_credentials_path, debug):
-    """ Commands to manage the deployment of the Observatory Platform with Terraform Cloud.\n
+    """Commands to manage the deployment of the Observatory Platform with Terraform Cloud.\n
 
     COMMAND: the type of config file to generate:\n
       - create-workspace: create a Terraform Cloud workspace.\n
@@ -463,7 +476,7 @@ def terraform(command, config_path, terraform_credentials_path, debug):
 def terraform_check_dependencies(
     terraform_cmd: TerraformCommand, generate_cmd: GenerateCommand, min_line_chars: int = 80
 ):
-    """ Check Terraform dependencies.
+    """Check Terraform dependencies.
 
     :param terraform_cmd: the Terraform command instance.
     :param generate_cmd: the generate command instance.
