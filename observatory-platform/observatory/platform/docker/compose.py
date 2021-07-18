@@ -74,6 +74,13 @@ class ComposeRunnerInterface(ABC):
         pass
 
     @abstractmethod
+    def make_files(self) -> None:
+        """ Render all Jinja templates and copy all files into the build directory.
+
+        :return: None.
+        """
+
+    @abstractmethod
     def build(self) -> ProcessOutput:
         """ Build Docker Compose.
 
@@ -194,6 +201,27 @@ class ComposeRunner(ComposeRunnerInterface):
 
         self.files.append(File(path=path, output_file_name=output_file_name))
 
+    def make_files(self):
+        """ Render all Jinja templates and copy all files into the build directory.
+
+        :return: None.
+        """
+
+        # Clear Docker directory and make build path
+        if os.path.exists(self.build_path):
+            shutil.rmtree(self.build_path)
+        os.makedirs(self.build_path)
+
+        # Render templates
+        for template in self.templates:
+            output_path = os.path.join(self.build_path, template.output_file_name)
+            self.render_template(template, output_path)
+
+        # Copy files
+        for file in self.files:
+            output_path = os.path.join(self.build_path, file.output_file_name)
+            shutil.copy(file.path, output_path)
+
     def build(self) -> ProcessOutput:
         """ Build the Docker containers.
 
@@ -240,20 +268,8 @@ class ComposeRunner(ComposeRunnerInterface):
         # Make environment
         env = self.make_environment()
 
-        # Clear Docker directory and make build path
-        if os.path.exists(self.build_path):
-            shutil.rmtree(self.build_path)
-        os.makedirs(self.build_path)
-
-        # Render templates
-        for template in self.templates:
-            output_path = os.path.join(self.build_path, template.output_file_name)
-            self.render_template(template, output_path)
-
-        # Copy files
-        for file in self.files:
-            output_path = os.path.join(self.build_path, file.output_file_name)
-            shutil.copy(file.path, output_path)
+        # Make files
+        self.make_files()
 
         # Build the containers first
         proc: Popen = subprocess.Popen(
