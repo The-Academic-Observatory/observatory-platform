@@ -2,7 +2,7 @@ Tutorials
 ----------------------------
 
 Telescope Programming
-########
+#######################
 
 .. toctree::
     :maxdepth: 3

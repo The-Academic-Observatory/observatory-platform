@@ -17,7 +17,7 @@ Tutorials
     license
 
 Observatory Platform API
-=======================
+=========================
 .. toctree::
     :maxdepth: 2
 
