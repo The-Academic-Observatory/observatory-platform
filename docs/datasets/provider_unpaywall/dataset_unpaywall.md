@@ -7,68 +7,44 @@ hybrid, and bronze.
 ” _- source: [Unpaywall](https://unpaywall.org/)_ 
 and [data details](https://unpaywall.org/data-format)
 
----
+## Schemas
 
-**Schema**
+### Schema date: 2021-02-18
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/unpaywall_2021-02-18.csv
+   :width: 100%
+   :header-rows: 1
+```
 
-+ **journal_is_in_doaj** [*Boolean*]
-+ **published_date** [*Date*]
-+ **journal_issns** [*String*]
-+ **journal_issn_l** [*String*]
-+ **issn_l** [*String*]
-+ **data_standard** [*Integer*]
-+ **x_reported_noncompliant_copies** [*Record*]
-    + **blank** [*String*]
-+ **oa_locations** [*Record*]
-    + **pmh_id** [*String*]
-    + **url** [*String*]
-    + **license** [*String*]
-    + **url_for_landing_page** [*String*]
-    + **version** [*String*]
-    + **url_for_pdf** [*String*]
-    + **is_best** [*Boolean*]
-    + **updated** [*Timestamp*]
-    + **evidence** [*String*]
-    + **host_type** [*String*]
-    + **repository_institution** [*String*]
-    + **endpoint_id** [*String*]
-    + **id** [*String*]
-+ **doi** [*String*]
-+ **best_oa_location** [*Record*]
-    + **pmh_id** [*String*]
-    + **url** [*String*]
-    + **license** [*String*]
-    + **url_for_landing_page** [*String*]
-    + **version** [*String*]
-    + **url_for_pdf** [*String*]
-    + **is_best** [*Boolean*]
-    + **updated** [*Timestamp*]
-    + **evidence** [*String*]
-    + **host_type** [*String*]
-    + **repository_institution** [*String*]
-    + **endpoint_id** [*String*]
-    + **id** [*String*]
-+ **updated** [*Timestamp*]
-+ **oa_status** [*String*]
-+ **title** [*String*]
-+ **genre** [*String*]
-+ **year** [*Integer*]
-+ **is_oa** [*Boolean*]
-+ **publisher** [*String*]
-+ **doi_url** [*String*]
-+ **z_authors** [*Record*]
-    + **sequence** [*String*]
-    + **authenticated_orcid** [*Boolean*]
-    + **suffix** [*String*]
-    + **affiliation** [*Record*]
-        + **name** [*String*]
-    + **name** [*String*]
-    + **ORCID** [*String*]
-    + **family** [*String*]
-    + **given** [*String*]
-+ **journal_is_oa** [*Boolean*]
-+ **has_repository_copy** [*Boolean*]
-+ **x_error** [*Boolean*]
-+ **journal_name** [*String*]
-+ **is_paratext** [*Boolean*]
+### Schema date: 2020-10-06
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/unpaywall_2020-10-06.csv
+   :width: 100%
+   :header-rows: 1
+```
 
+### Schema date: 2020-02-25
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/unpaywall_2020-02-25.csv
+   :width: 100%
+   :header-rows: 1
+```
+
+### Schema date: 2019-11-22
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/unpaywall_2019-11-22.csv
+   :width: 100%
+   :header-rows: 1
+```
+
+### Schema date: 2018-09-24
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/unpaywall_2018-09-24.csv
+   :width: 100%
+   :header-rows: 1
+```

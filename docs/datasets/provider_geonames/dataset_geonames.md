@@ -9,27 +9,12 @@ elevation, population and others from various sources.
  _- source: [GeoNames](https://www.geonames.org/about.html)_ 
 and [data details](https://download.geonames.org/export/dump/readme.txt)
 
----
+## Schemas
 
-**Schema**
-
-+ **geonameid** [*Integer*]
-+ **name** [*String*]
-+ **asciiname** [*String*]
-+ **alternatenames** [*String*]
-+ **latitude** [*Float*]
-+ **longitude** [*Float*]
-+ **featureclass** [*String*]
-+ **featurecode** [*String*]
-+ **countrycode** [*String*]
-+ **cc2** [*String*]
-+ **admin1code** [*String*]
-+ **admin2code** [*String*]
-+ **admin3code** [*String*]
-+ **admin4code** [*String*]
-+ **population** [*Integer*]
-+ **elevation** [*String*]
-+ **dem** [*Integer*]
-+ **timezone** [*String*]
-+ **modificationdate** [*Date*]
-
+### Schema date: 2020-06-01
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/geonames_2020-06-01.csv
+   :width: 100%
+   :header-rows: 1
+```
