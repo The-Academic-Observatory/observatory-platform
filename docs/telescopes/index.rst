@@ -1,5 +1,14 @@
 Telescopes
 ----------------------------
+
+What is a telescope?
+########
+
+A telescope is a workflow abstraction built on top of Apache Airflow's DAGs. Telescopes are used in the Academic Observatory to ingest data from different data sources, and to run workflows that process and output data to other places.
+
+Telescopes in the Academic Observatory
+########
+
 .. toctree::
     :maxdepth: 3
 
@@ -21,3 +30,4 @@ Telescopes
     ucl_discovery
     unpaywall
     wos
+    programming_tutorial

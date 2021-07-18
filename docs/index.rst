@@ -55,6 +55,14 @@ Reports
     reports/index
 
 
+Tutorials
+=======================
+.. toctree::
+    :maxdepth: 2
+
+    tutorials/index
+
+
 API Reference
 =======================
 .. toctree::
