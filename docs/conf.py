@@ -17,7 +17,7 @@ import os
 import shutil
 from pathlib import Path
 
-from observatory.platform.generate_schema_csv import generate_csv
+from generate_schema_csv import generate_csv
 from recommonmark.transform import AutoStructify
 
 # -- Project information -----------------------------------------------------
