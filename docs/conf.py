@@ -13,7 +13,8 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
-
+import os
+import shutil
 from pathlib import Path
 
 from observatory.platform.generate_schema_csv import generate_csv
@@ -74,4 +75,11 @@ def setup(app):
 
 
 generate_csv()
-# Path("_build/html").mkdir(exists_ok=True, parents=True)
+html_build_dir = "_build/html"
+src_graphics_dir = "graphics"
+dst_graphics_dir = os.path.join(html_build_dir, "graphics")
+Path(html_build_dir).mkdir(exist_ok=True, parents=True)
+
+# In case of older version of shutil. Newer versions of copytree have dirs_exists_ok as a kwarg.
+if not os.path.exists(dst_graphics_dir):
+    shutil.copytree(src_graphics_dir, dst_graphics_dir)
