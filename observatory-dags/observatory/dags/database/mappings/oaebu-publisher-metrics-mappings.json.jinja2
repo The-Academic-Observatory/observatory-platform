@@ -1,30 +1,12 @@
 {
   "mappings": {
     "properties": {
-      "subject": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "published_year": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "unique_books": {
-        "type": "integer"
-      },
       "month": {
         "type": "date",
         "format": "yyyy-MM-dd"
+      },
+      "unique_books": {
+        "type": "integer"
       },
       "google_analytics": {
         "properties": {
@@ -72,7 +54,7 @@
       "jstor": {
         "properties": {
           "Total_Item_Requests": {
-            "type": "integer",
+            "type": "integer"
           }
         }
       },

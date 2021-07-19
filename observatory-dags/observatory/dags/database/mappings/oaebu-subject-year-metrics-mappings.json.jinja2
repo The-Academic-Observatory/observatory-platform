@@ -10,6 +10,15 @@
           }
         }
       },
+      "published_year": {
+        "type": "long",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
       "unique_books": {
         "type": "integer"
       },
@@ -63,7 +72,7 @@
       "jstor": {
         "properties": {
           "Total_Item_Requests": {
-            "type": "integer",
+            "type": "integer"
           }
         }
       },

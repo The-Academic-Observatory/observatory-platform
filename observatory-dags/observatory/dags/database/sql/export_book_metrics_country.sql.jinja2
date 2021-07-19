@@ -17,7 +17,7 @@
 WITH months as (SELECT
     ISBN13,
     onix.title as title,
-    onix.published_year as published_year,
+    CAST(onix.published_year as INT64) as published_year,
     month.month,
     month.jstor_country as jstor,
     month.oapen_irus_uk.locations as oapen_irus_uk,

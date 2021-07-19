@@ -20,7 +20,7 @@
         }
       },
       "published_year": {
-        "type": "text",
+        "type": "long",
         "fields": {
           "keyword": {
             "type": "keyword",
@@ -32,7 +32,7 @@
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "city": {
+      "country_code": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -41,8 +41,21 @@
           }
         }
       },
-      "coordinates": {
-        "type": "geo_point"
+      "country_name": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "jstor": {
+        "properties": {
+          "Total_Item_Requests": {
+            "type": "integer"
+          }
+        }
       },
       "oapen_irus_uk": {
         "properties": {
@@ -59,6 +72,13 @@
             "type": "integer"
           },
           "unique_item_requests": {
+            "type": "integer"
+          }
+        }
+      },
+      "google_analytics": {
+        "properties": {
+          "value": {
             "type": "integer"
           }
         }

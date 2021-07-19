@@ -1,0 +1,28 @@
+{
+  "mappings": {
+    "properties": {
+      "name": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "age": {
+        "type": "long",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "dob": {
+        "type": "date",
+        "format": "yyyy-MM-dd"
+      }
+    }
+  }
+}

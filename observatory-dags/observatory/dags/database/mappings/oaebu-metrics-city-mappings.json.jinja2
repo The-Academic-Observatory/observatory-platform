@@ -20,7 +20,7 @@
         }
       },
       "published_year": {
-        "type": "text",
+        "type": "long",
         "fields": {
           "keyword": {
             "type": "keyword",
@@ -32,7 +32,7 @@
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "referrer": {
+      "city": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -41,10 +41,25 @@
           }
         }
       },
-      "google_analytics": {
+      "coordinates": {
+        "type": "geo_point"
+      },
+      "oapen_irus_uk": {
         "properties": {
-          "value": {
-            "type": "integer",
+          "title_requests": {
+            "type": "integer"
+          },
+          "total_item_investigations": {
+            "type": "integer"
+          },
+          "total_item_requests": {
+            "type": "integer"
+          },
+          "unique_item_investigations": {
+            "type": "integer"
+          },
+          "unique_item_requests": {
+            "type": "integer"
           }
         }
       }

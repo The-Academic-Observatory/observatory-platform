@@ -148,7 +148,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
             # Make observatory files
             cmd = self.make_platform_command()
-            cmd.make_files()
+            cmd.build()
 
             # Test that the expected files have been written
             build_file_names = ['docker-compose.observatory.yml', 'Dockerfile.observatory', 'elasticsearch.yml',
@@ -299,11 +299,11 @@ class TestPlatformBuilder(unittest.TestCase):
             cmd.debug = True
 
             # Build the platform
-            output, error, return_code = cmd.build()
+            response = cmd.build()
 
             # Assert that the platform builds
             expected_return_code = 0
-            self.assertEqual(expected_return_code, return_code)
+            self.assertEqual(expected_return_code, response.return_code)
 
     @unittest.skip
     def test_build_start_stop(self):
@@ -330,17 +330,17 @@ class TestPlatformBuilder(unittest.TestCase):
             expected_ports = [cmd.airflow_ui_port, cmd.flower_ui_port, cmd.elastic_port, cmd.kibana_port]
 
             # Build the platform and assert that the platform builds
-            output, error, return_code = cmd.build()
-            logging.info(output)
-            logging.error(error)
-            self.assertEqual(expected_return_code, return_code)
+            response = cmd.build()
+            logging.info(response.output)
+            logging.error(response.error)
+            self.assertEqual(expected_return_code, response.return_code)
 
             try:
                 # Start the platform
-                output, error, return_code = cmd.start()
-                logging.info(output)
-                logging.error(error)
-                self.assertEqual(expected_return_code, return_code)
+                response = cmd.start()
+                logging.info(response.output)
+                logging.error(response.error)
+                self.assertEqual(expected_return_code, response.return_code)
 
                 # Verify that ports are active
                 urls = []
@@ -362,10 +362,10 @@ class TestPlatformBuilder(unittest.TestCase):
                 self.assertTrue(redis.ping())
 
                 # Verify that platform stops
-                output, error, return_code = cmd.stop()
-                logging.info(output)
-                logging.error(error)
-                self.assertEqual(expected_return_code, return_code)
+                response = cmd.stop()
+                logging.info(response.output)
+                logging.error(response.error)
+                self.assertEqual(expected_return_code, response.return_code)
             finally:
                 # Always the observatory, e.g. in case the start command got half way through
                 cmd.stop()

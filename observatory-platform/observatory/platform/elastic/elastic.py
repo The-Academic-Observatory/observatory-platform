@@ -16,26 +16,25 @@
 
 
 import logging
-import os
 from multiprocessing import cpu_count
 from typing import Dict, Iterator, List
 
 import elasticsearch.exceptions
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import parallel_bulk
+from elasticsearch.helpers import scan
 from pendulum import Date
 
 from observatory.platform.utils.config_utils import module_file_path
 
 
-def elastic_mappings_path(mappings_filename: str) -> str:
+def make_elastic_mappings_path() -> str:
     """ Get the Elasticsearch mappings path.
 
-    :param mappings_filename: the name of the Elasticsearch mapping.
     :return: the elastic search schema path.
     """
 
-    return os.path.join(module_file_path("observatory.dags.database.mappings"), mappings_filename)
+    return module_file_path("observatory.dags.database.mappings")
 
 
 def make_sharded_index(index_prefix: str, release_date: Date) -> str:
@@ -63,17 +62,6 @@ def make_elastic_uri(schema: str, user: str, secret: str, hostname: str, port: i
     return f"{schema}://{user}:{secret}@{hostname}:{port}"
 
 
-def make_index_prefix(feed_name: str, table_name: str):
-    """ Make an index prefix from a feed name and a table name.
-
-    :param feed_name: the feed name.
-    :param table_name: the table name
-    :return: the index prefix.
-    """
-
-    return f"{feed_name}-{table_name}"
-
-
 class Elastic:
     def __init__(
         self,
@@ -96,8 +84,14 @@ class Elastic:
         self.timeout = timeout
         self.es = Elasticsearch(hosts=[self.host], timeout=timeout)
 
-        # logging.basicConfig()
-        # logging.getLogger().setLevel(logging.WARNING)
+    def query(self, index: str, query: Dict = None):
+        if query is None:
+            query = {"query": {"match_all": {}}}
+        records = []
+        for result in scan(self.es, query=query, index=index):
+            records.append(result["_source"])
+
+        return records
 
     def delete_index(self, index_id: str) -> None:
         """ Delete an Elastic index.
