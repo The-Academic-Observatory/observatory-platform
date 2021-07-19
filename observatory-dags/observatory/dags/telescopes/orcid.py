@@ -222,8 +222,7 @@ class OrcidTelescope(StreamTelescope):
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2018, 5, 14),
                  schedule_interval: str = '@weekly', dataset_id: str = 'orcid', dataset_description: str = '',
                  table_descriptions: dict = None, merge_partition_field: str = 'orcid_identifier.uri',
-                 updated_date_field: str = 'history.last_modified_date', bq_merge_days: int = 7,
-                 batch_load: bool = True, airflow_vars: List = None, airflow_conns: List = None,
+                 bq_merge_days: int = 7, batch_load: bool = True, airflow_vars: List = None, airflow_conns: List = None,
                  max_processes: int = min(32, os.cpu_count() + 4)):
         """ Construct an OrcidTelescope instance.
 
@@ -234,7 +233,6 @@ class OrcidTelescope(StreamTelescope):
         :param dataset_description: the dataset description.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
-        :param updated_date_field: the BigQuery field used to determine newest entry for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
@@ -252,7 +250,7 @@ class OrcidTelescope(StreamTelescope):
         if airflow_conns is None:
             airflow_conns = [AirflowConns.ORCID]
         super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
-                         updated_date_field, bq_merge_days, dataset_description=dataset_description,
+                         bq_merge_days, dataset_description=dataset_description,
                          table_descriptions=table_descriptions, airflow_vars=airflow_vars,
                          airflow_conns=airflow_conns, batch_load=batch_load)
         self.max_processes = max_processes
