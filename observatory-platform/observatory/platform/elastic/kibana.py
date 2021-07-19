@@ -19,6 +19,7 @@
 
 # Author: James Diprose
 
+import dataclasses
 import json
 import logging
 from enum import Enum
@@ -27,6 +28,18 @@ from typing import Dict, List
 from urllib.parse import urlparse
 
 import requests
+
+
+@dataclasses.dataclass
+class TimeField:
+    """ A Kibana time field.
+
+    :param pattern: a regex pattern. If the regex pattern matches an index, the associated time field name will be applied.
+    :param field_name: the name of the Kibana time field.
+    """
+
+    pattern: str = None
+    field_name: str = None
 
 
 def parse_kibana_url(url):
@@ -60,6 +73,8 @@ class ObjectType(Enum):
 
 
 class Kibana:
+    HTTP_NOT_FOUND = 404
+
     headers = {
         "Content-Type": "application/json",
         "kbn-xsrf": "true",
@@ -77,6 +92,7 @@ class Kibana:
         self.username = username
         self.password = password
 
+        self.auth = None
         if self.username is not None and self.password is not None:
             self.auth = (self.username, self.password)
 
@@ -234,3 +250,35 @@ class Kibana:
             parts += ["s", space_id]
         parts += ["api", "saved_objects", object_type.value, object_id]
         return urljoin(self.host, *parts)
+
+    def _make_index_pattern_url(self, index_pattern_id: str, space_id: str = None):
+        """ Make an index pattern URL.
+
+        :param index_pattern_id: the id of the index pattern.
+        :param space_id: the Kibana space id.
+        :return: the URL.
+        """
+
+        parts = []
+        if space_id is not None:
+            parts += ["s", space_id]
+        parts += ["api", "index_patterns", "index_pattern", index_pattern_id]
+        return urljoin(self.host, *parts)
+
+    def get_index_pattern(self, index_pattern_id: str, space_id: str = None):
+        """ Get an index pattern.
+
+        :param index_pattern_id: the id of the index pattern.
+        :param space_id: the Kibana space id.
+        :return: the index pattern details.
+        """
+
+        url = self._make_index_pattern_url(index_pattern_id, space_id=space_id)
+        response = requests.get(url, headers=self.headers, auth=self.auth)
+
+        # If index pattern is not found (404) return None
+        if response.status_code == self.HTTP_NOT_FOUND:
+            logging.error(response.text)
+            return None
+
+        return response.text

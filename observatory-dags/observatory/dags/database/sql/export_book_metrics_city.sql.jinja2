@@ -17,7 +17,7 @@
 SELECT
     ISBN13 as product_id,
     MAX(onix.title) as title,
-    MAX(onix.published_year) as published_year,
+    CAST(MAX(onix.published_year) as INT64) as published_year,
     month.month,
     city.city,
     CONCAT(CAST(MAX(city.latitude) as STRING), ", ", CAST(MAX(city.longitude) as STRING)) as coordinates,

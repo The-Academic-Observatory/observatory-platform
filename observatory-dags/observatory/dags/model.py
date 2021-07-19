@@ -889,6 +889,26 @@ def make_crossref_metadata(dataset: ObservatoryDataset) -> List[Dict]:
     return records
 
 
+@dataclass
+class Table:
+    """ A table to be loaded into Elasticsearch.
+
+    :param table_name: the table name.
+    :param is_sharded: whether the table is sharded or not.
+    :param dataset_id: the dataset id.
+    :param records: the records to load.
+    :param schema_prefix: the schema prefix.
+    :param schema_path: the schema path.
+    """
+
+    table_name: str
+    is_sharded: bool
+    dataset_id: str
+    records: List[Dict]
+    schema_prefix: str
+    schema_path: str
+
+
 def bq_load_observatory_dataset(
     observatory_dataset: ObservatoryDataset,
     bucket_name: str,
@@ -924,61 +944,113 @@ def bq_load_observatory_dataset(
     groupings = load_jsonl(os.path.join(test_doi_path, "groupings.jsonl"))
     mag_affiliation_override = load_jsonl(os.path.join(test_doi_path, "mag_affiliation_override.jsonl"))
 
+    analysis_schema_path = schema_path()
     with CliRunner().isolated_filesystem() as t:
-        records = [
-            ("crossref_events", False, dataset_id_all, crossref_events, "crossref_events"),
-            ("crossref_metadata", True, dataset_id_all, crossref_metadata, "crossref_metadata"),
-            ("crossref_fundref", True, dataset_id_all, crossref_fundref, "crossref_fundref"),
-            ("Affiliations", True, dataset_id_all, mag.affiliations, "MagAffiliations"),
-            ("FieldsOfStudy", True, dataset_id_all, mag.fields_of_study, "MagFieldsOfStudy"),
-            (
+        tables = [
+            Table("crossref_events", False, dataset_id_all, crossref_events, "crossref_events", analysis_schema_path),
+            Table(
+                "crossref_metadata", True, dataset_id_all, crossref_metadata, "crossref_metadata", analysis_schema_path
+            ),
+            Table("crossref_fundref", True, dataset_id_all, crossref_fundref, "crossref_fundref", analysis_schema_path),
+            Table("Affiliations", True, dataset_id_all, mag.affiliations, "MagAffiliations", analysis_schema_path),
+            Table("FieldsOfStudy", True, dataset_id_all, mag.fields_of_study, "MagFieldsOfStudy", analysis_schema_path),
+            Table(
                 "PaperAuthorAffiliations",
                 True,
                 dataset_id_all,
                 mag.paper_author_affiliations,
                 "MagPaperAuthorAffiliations",
+                analysis_schema_path,
             ),
-            ("PaperFieldsOfStudy", True, dataset_id_all, mag.paper_fields_of_study, "MagPaperFieldsOfStudy"),
-            ("Papers", True, dataset_id_all, mag.papers, "MagPapers"),
-            ("open_citations", True, dataset_id_all, open_citations, "open_citations"),
-            ("unpaywall", True, dataset_id_all, unpaywall, "unpaywall"),
-            ("grid", True, dataset_id_all, grid, "grid"),
-            (
+            Table(
+                "PaperFieldsOfStudy",
+                True,
+                dataset_id_all,
+                mag.paper_fields_of_study,
+                "MagPaperFieldsOfStudy",
+                analysis_schema_path,
+            ),
+            Table("Papers", True, dataset_id_all, mag.papers, "MagPapers", analysis_schema_path),
+            Table("open_citations", True, dataset_id_all, open_citations, "open_citations", analysis_schema_path),
+            Table("unpaywall", True, dataset_id_all, unpaywall, "unpaywall", analysis_schema_path),
+            Table("grid", True, dataset_id_all, grid, "grid", analysis_schema_path),
+            Table(
                 "iso3166_countries_and_regions",
                 False,
                 dataset_id_all,
                 iso3166_countries_and_regions,
                 "iso3166_countries_and_regions",
+                analysis_schema_path,
             ),
-            ("grid_to_home_url", False, dataset_id_settings, grid_to_home_url, "grid_to_home_url"),
-            ("groupings", False, dataset_id_settings, groupings, "groupings"),
-            (
+            Table(
+                "grid_to_home_url",
+                False,
+                dataset_id_settings,
+                grid_to_home_url,
+                "grid_to_home_url",
+                analysis_schema_path,
+            ),
+            Table("groupings", False, dataset_id_settings, groupings, "groupings", analysis_schema_path),
+            Table(
                 "mag_affiliation_override",
                 False,
                 dataset_id_settings,
                 mag_affiliation_override,
                 "mag_affiliation_override",
+                analysis_schema_path,
             ),
-            ("PaperAbstractsInvertedIndex", True, dataset_id_all, [], "MagPaperAbstractsInvertedIndex"),
-            ("Journals", True, dataset_id_all, [], "MagJournals"),
-            ("ConferenceInstances", True, dataset_id_all, [], "MagConferenceInstances"),
-            ("ConferenceSeries", True, dataset_id_all, [], "MagConferenceSeries"),
-            ("FieldOfStudyExtendedAttributes", True, dataset_id_all, [], "MagFieldOfStudyExtendedAttributes"),
-            ("PaperExtendedAttributes", True, dataset_id_all, [], "MagPaperExtendedAttributes"),
-            ("PaperResources", True, dataset_id_all, [], "MagPaperResources"),
-            ("PaperUrls", True, dataset_id_all, [], "MagPaperUrls"),
-            ("PaperMeSH", True, dataset_id_all, [], "MagPaperMeSH"),
-            ("orcid", False, dataset_id_all, [], "orcid"),
+            Table(
+                "PaperAbstractsInvertedIndex",
+                True,
+                dataset_id_all,
+                [],
+                "MagPaperAbstractsInvertedIndex",
+                analysis_schema_path,
+            ),
+            Table("Journals", True, dataset_id_all, [], "MagJournals", analysis_schema_path),
+            Table("ConferenceInstances", True, dataset_id_all, [], "MagConferenceInstances", analysis_schema_path),
+            Table("ConferenceSeries", True, dataset_id_all, [], "MagConferenceSeries", analysis_schema_path),
+            Table(
+                "FieldOfStudyExtendedAttributes",
+                True,
+                dataset_id_all,
+                [],
+                "MagFieldOfStudyExtendedAttributes",
+                analysis_schema_path,
+            ),
+            Table(
+                "PaperExtendedAttributes", True, dataset_id_all, [], "MagPaperExtendedAttributes", analysis_schema_path
+            ),
+            Table("PaperResources", True, dataset_id_all, [], "MagPaperResources", analysis_schema_path),
+            Table("PaperUrls", True, dataset_id_all, [], "MagPaperUrls", analysis_schema_path),
+            Table("PaperMeSH", True, dataset_id_all, [], "MagPaperMeSH", analysis_schema_path),
+            Table("orcid", False, dataset_id_all, [], "orcid", analysis_schema_path),
         ]
 
+        bq_load_tables(tables=tables, bucket_name=bucket_name, release_date=release_date, data_location=data_location)
+
+
+def bq_load_tables(
+    *, tables: List[Table], bucket_name: str, release_date: pendulum.Pendulum, data_location: str,
+):
+    """ Load the fake Observatory Dataset in BigQuery.
+
+    :param tables: the list of tables and records to load.
+    :param bucket_name: the Google Cloud Storage bucket name.
+    :param release_date: the release date for the observatory dataset.
+    :param data_location: the location of the BigQuery dataset.
+    :return: None.
+    """
+
+    with CliRunner().isolated_filesystem() as t:
         files_list = []
         blob_names = []
 
         # Save to JSONL
-        for table_name, is_sharded, dataset_id, dataset, schema in records:
-            blob_name = f"{table_name}.jsonl.gz"
+        for table in tables:
+            blob_name = f"{table.table_name}.jsonl.gz"
             file_path = os.path.join(t, blob_name)
-            list_to_jsonl_gz(file_path, dataset)
+            list_to_jsonl_gz(file_path, table.records)
             files_list.append(file_path)
             blob_names.append(blob_name)
 
@@ -987,19 +1059,18 @@ def bq_load_observatory_dataset(
         assert success, "Data did not load into BigQuery"
 
         # Save to BigQuery tables
-        for blob_name, (table_name, is_sharded, dataset_id, dataset, schema) in zip(blob_names, records):
-            if is_sharded:
-                table_id = bigquery_sharded_table_id(table_name, release_date)
+        for blob_name, table in zip(blob_names, tables):
+            if table.is_sharded:
+                table_id = bigquery_sharded_table_id(table.table_name, release_date)
             else:
-                table_id = table_name
+                table_id = table.table_name
 
             # Select schema file based on release date
-            analysis_schema_path = schema_path()
-            schema_file_path = find_schema(analysis_schema_path, schema, release_date)
+            schema_file_path = find_schema(table.schema_path, table.schema_prefix, release_date)
             if schema_file_path is None:
                 logging.error(
-                    f"No schema found with search parameters: analysis_schema_path={analysis_schema_path}, "
-                    f"table_name={table_name}, release_date={release_date}"
+                    f"No schema found with search parameters: analysis_schema_path={table.schema_path}, "
+                    f"table_name={table.table_name}, release_date={release_date}"
                 )
                 exit(os.EX_CONFIG)
 
@@ -1007,7 +1078,7 @@ def bq_load_observatory_dataset(
             uri = f"gs://{bucket_name}/{blob_name}"
             logging.info(f"URI: {uri}")
             success = load_bigquery_table(
-                uri, dataset_id, data_location, table_id, schema_file_path, SourceFormat.NEWLINE_DELIMITED_JSON,
+                uri, table.dataset_id, data_location, table_id, schema_file_path, SourceFormat.NEWLINE_DELIMITED_JSON,
             )
             if not success:
                 raise AirflowException("bq_load task: data failed to load data into BigQuery")

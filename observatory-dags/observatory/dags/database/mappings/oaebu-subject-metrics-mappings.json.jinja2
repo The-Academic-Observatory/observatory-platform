@@ -1,12 +1,21 @@
 {
   "mappings": {
     "properties": {
-      "month": {
-        "type": "date",
-        "format": "yyyy-MM-dd"
+      "subject": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
       },
       "unique_books": {
         "type": "integer"
+      },
+      "month": {
+        "type": "date",
+        "format": "yyyy-MM-dd"
       },
       "google_analytics": {
         "properties": {
@@ -54,7 +63,7 @@
       "jstor": {
         "properties": {
           "Total_Item_Requests": {
-            "type": "integer",
+            "type": "integer"
           }
         }
       },

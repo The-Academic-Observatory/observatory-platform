@@ -23,9 +23,8 @@ import pendulum
 from observatory.platform.elastic.elastic import (
     Elastic,
     make_sharded_index,
-    elastic_mappings_path,
+    make_elastic_mappings_path,
     make_elastic_uri,
-    make_index_prefix,
 )
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import yield_csv, load_file
@@ -52,9 +51,8 @@ class TestElastic(unittest.TestCase):
     def test_elastic_schema_path(self):
         """ Test that the Elasticsearch schema path is correct """
 
-        file_name = "schema.json"
-        expected_path = os.path.join(module_file_path("observatory.dags.database.mappings"), file_name)
-        actual_path = elastic_mappings_path(file_name)
+        expected_path = module_file_path("observatory.dags.database.mappings")
+        actual_path = make_elastic_mappings_path()
         self.assertEqual(expected_path, actual_path)
 
     def test_make_sharded_index(self):
@@ -77,15 +75,6 @@ class TestElastic(unittest.TestCase):
         expected_uri = "https://user:secret@localhost:8080"
         actual_uri = make_elastic_uri(schema, user, secret, hostname, port)
         self.assertEqual(expected_uri, actual_uri)
-
-    def test_make_index_prefix(self):
-        """ Test building an Elasticsearch index prefix """
-
-        feed_name = "oa-metrics"
-        table_name = "country"
-        expected_prefix = "oa-metrics-country"
-        actual_prefix = make_index_prefix(feed_name, table_name)
-        self.assertEqual(expected_prefix, actual_prefix)
 
     ################
     # Elastic tests

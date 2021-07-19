@@ -99,6 +99,11 @@ class TerraformBuilder:
         return shutil.which("gcloud")
 
     def make_files(self):
+        # Clear Terraform build path and create fresh folder
+        if os.path.exists(self.build_path):
+            shutil.rmtree(self.build_path)
+        os.makedirs(self.build_path)
+
         ignore = shutil.ignore_patterns('__pycache__', '*.eggs', '*.egg-info')
 
         # Copy Observatory Platform
@@ -151,8 +156,8 @@ class TerraformBuilder:
         :return: None.
         """
 
-        self.platform_builder.make_files()
         self.make_files()
+        self.platform_builder.make_files()
 
     def build_image(self) -> Tuple[str, str, int]:
         """ Build the Observatory Platform Google Compute image with Packer.

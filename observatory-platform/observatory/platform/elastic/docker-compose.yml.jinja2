@@ -1,0 +1,16 @@
+services:
+  elasticsearch:
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.13.3"
+    restart: always
+    volumes:
+      - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
+    ports:
+      - {{ elastic_port }}:9200
+    environment:
+      - discovery.type=single-node
+
+  kibana:
+    image: "docker.elastic.co/kibana/kibana:7.13.3"
+    restart: always
+    ports:
+      - {{ kibana_port }}:5601

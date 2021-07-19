@@ -23,9 +23,18 @@
       "EditionNumber": {
         "type": "integer"
       },
-      "published_year": {
+      "time_field": {
         "type": "date",
         "format": "yyyy-MM-dd"
+      },
+      "published_year": {
+        "type": "long",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
       },
       "title": {
         "type": "text",

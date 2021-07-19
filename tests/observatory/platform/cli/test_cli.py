@@ -28,6 +28,7 @@ from click.testing import CliRunner
 from observatory.platform.cli.cli import cli
 from observatory.platform.observatory_config import TerraformConfig
 from observatory.platform.observatory_config import ValidationError
+from observatory.platform.docker.compose import ProcessOutput
 from observatory.platform.platform_builder import (BUILD_PATH, DAGS_MODULE, DATA_PATH, LOGS_PATH,
                                                    POSTGRES_PATH, HOST_UID, HOST_GID, REDIS_PORT, FLOWER_UI_PORT,
                                                    AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
@@ -147,13 +148,13 @@ class MockPlatformCommand(Mock):
         return 'http://localhost:8080'
 
     def build(self):
-        return 'output', 'error', self._build_return_code
+        return ProcessOutput('output', 'error', self._build_return_code)
 
     def start(self):
-        return 'output', 'error', self._start_return_code
+        return ProcessOutput('output', 'error', self._start_return_code)
 
     def stop(self):
-        return 'output', 'error', self._stop_return_code
+        return ProcessOutput('output', 'error', self._stop_return_code)
 
     def wait_for_airflow_ui(self, timeout: int = 60):
         return self._wait_for_airflow_ui

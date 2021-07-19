@@ -96,6 +96,7 @@ from google.cloud.exceptions import NotFound
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import _hash_file, crc32c_base64_hash, gzip_file_crc
@@ -130,6 +131,9 @@ class ObservatoryEnvironment:
         api_host: str = "localhost",
         api_port: int = 5000,
         enable_api: bool = True,
+        enable_elastic: bool = False,
+        elastic_port: int = 9200,
+        kibana_port: int = 5601,
     ):
         """Constructor for an Observatory environment.
 
@@ -142,7 +146,10 @@ class ObservatoryEnvironment:
         :param data_location: the Google Cloud data location.
         :param api_host: the Observatory API host.
         :param api_port: the Observatory API port.
-        :param api_port: whether to enable the observatory API or not.
+        :param enable_api: whether to enable the observatory API or not.
+        :param enable_elastic: whether to enable the Elasticsearch and Kibana test services.
+        :param elastic_port: the Elastic port.
+        :param kibana_port: the Kibana port.
         """
 
         self.project_id = project_id
@@ -157,7 +164,11 @@ class ObservatoryEnvironment:
         self.api_env = None
         self.api_session = None
         self.enable_api = enable_api
+        self.enable_elastic = enable_elastic
+        self.elastic_port = elastic_port
+        self.kibana_port = kibana_port
         self.dag_run: DagRun = None
+        self.elastic_env: ElasticEnvironment = None
 
         if self.create_gcp_env:
             self.download_bucket = self.add_bucket()
@@ -405,6 +416,15 @@ class ObservatoryEnvironment:
                     self.add_variable(Variable(key=AirflowVars.DOWNLOAD_BUCKET, val=self.download_bucket))
                     self.add_variable(Variable(key=AirflowVars.TRANSFORM_BUCKET, val=self.transform_bucket))
 
+                # Start elastic
+                if self.enable_elastic:
+                    elastic_build_path = os.path.join(self.temp_dir, "elastic")
+                    self.elastic_env = ElasticEnvironment(
+                        build_path=elastic_build_path, elastic_port=self.elastic_port, kibana_port=self.kibana_port
+                    )
+                    self.elastic_env.start()
+                self.dag_run: DagRun = None
+
                 # Create ObservatoryApiEnvironment
                 if self.enable_api:
                     self.api_env = ObservatoryApiEnvironment(host=self.api_host, port=self.api_port)
@@ -430,6 +450,10 @@ class ObservatoryEnvironment:
                     # Remove BigQuery datasets
                     for dataset_id in self.datasets:
                         self._delete_dataset(dataset_id)
+
+                # Stop elastic
+                if self.enable_elastic:
+                    self.elastic_env.stop()
 
 
 class ObservatoryTestCase(unittest.TestCase):
@@ -483,6 +507,19 @@ class ObservatoryTestCase(unittest.TestCase):
             self.assertEqual({}, dag_bag.import_errors)
             self.assertIsNotNone(dag)
             self.assertGreaterEqual(len(dag.tasks), 1)
+
+    def assert_blob_exists(self, bucket_id: str, blob_name: str):
+        """Assert whether a blob exists or not.
+
+        :param bucket_id: the Google Cloud storage bucket id.
+        :param blob_name: the blob name (full path except for bucket)
+        :return: None.
+        """
+
+        # Get blob
+        bucket = self.storage_client.get_bucket(bucket_id)
+        blob = bucket.blob(blob_name)
+        self.assertTrue(blob.exists())
 
     def assert_blob_integrity(self, bucket_id: str, blob_name: str, local_file_path: str):
         """Assert whether the blob uploaded and that it has the expected hash.

@@ -17,23 +17,20 @@
 
 import os
 import shutil
-import subprocess
-from subprocess import Popen
-from typing import List, Tuple, Union
+from typing import Union
 
 import docker
 import requests
 
+from observatory.platform.docker.compose import ComposeRunner
 from observatory.platform.observatory_config import ObservatoryConfig, BackendType, TerraformConfig, DagsProject
 from observatory.platform.utils.config_utils import observatory_home, module_file_path
-from observatory.platform.utils.jinja2_utils import render_template
-from observatory.platform.utils.proc_utils import stream_process
 
-DAGS_MODULE = module_file_path('observatory.platform.dags')
-DATA_PATH = observatory_home('data')
-LOGS_PATH = observatory_home('logs')
-POSTGRES_PATH = observatory_home('postgres')
-BUILD_PATH = observatory_home('build', 'local')
+DAGS_MODULE = module_file_path("observatory.platform.dags")
+DATA_PATH = observatory_home("data")
+LOGS_PATH = observatory_home("logs")
+POSTGRES_PATH = observatory_home("postgres")
+BUILD_PATH = observatory_home("build", "local")
 HOST_UID = os.getuid()
 HOST_GID = os.getgid()
 REDIS_PORT = 6379
@@ -42,25 +39,31 @@ AIRFLOW_UI_PORT = 8080
 ELASTIC_PORT = 9200
 KIBANA_PORT = 5601
 DOCKER_NETWORK_NAME = None
-DOCKER_COMPOSE_PROJECT_NAME = 'observatory'
+DOCKER_COMPOSE_PROJECT_NAME = "observatory"
 DEBUG = False
 
 
-class PlatformBuilder:
-    COMPOSE_ARGS = ['docker-compose', '-f', 'docker-compose.observatory.yml']
-    COMPOSE_BUILD_ARGS = ['build']
-    COMPOSE_START_ARGS = ['up', '-d']
-    COMPOSE_STOP_ARGS = ['down']
-
-    def __init__(self, config_path: str, build_path: str = BUILD_PATH, dags_path: str = DAGS_MODULE,
-                 data_path: str = DATA_PATH, logs_path: str = LOGS_PATH, postgres_path: str = POSTGRES_PATH,
-                 host_uid: int = HOST_UID, host_gid: int = HOST_GID, redis_port: int = REDIS_PORT,
-                 flower_ui_port: int = FLOWER_UI_PORT, airflow_ui_port: int = AIRFLOW_UI_PORT,
-                 elastic_port: int = ELASTIC_PORT, kibana_port: int = KIBANA_PORT,
-                 docker_network_name: Union[None, int] = DOCKER_NETWORK_NAME,
-                 docker_compose_project_name: str = DOCKER_COMPOSE_PROJECT_NAME,
-                 debug: bool = DEBUG,
-                 backend_type: BackendType = BackendType.local):
+class PlatformBuilder(ComposeRunner):
+    def __init__(
+        self,
+        config_path: str,
+        build_path: str = BUILD_PATH,
+        dags_path: str = DAGS_MODULE,
+        data_path: str = DATA_PATH,
+        logs_path: str = LOGS_PATH,
+        postgres_path: str = POSTGRES_PATH,
+        host_uid: int = HOST_UID,
+        host_gid: int = HOST_GID,
+        redis_port: int = REDIS_PORT,
+        flower_ui_port: int = FLOWER_UI_PORT,
+        airflow_ui_port: int = AIRFLOW_UI_PORT,
+        elastic_port: int = ELASTIC_PORT,
+        kibana_port: int = KIBANA_PORT,
+        docker_network_name: Union[None, int] = DOCKER_NETWORK_NAME,
+        docker_compose_project_name: str = DOCKER_COMPOSE_PROJECT_NAME,
+        debug: bool = DEBUG,
+        backend_type: BackendType = BackendType.local,
+    ):
         """ Create a PlatformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
         :param config_path: The path to the config.yaml configuration file.
@@ -88,11 +91,9 @@ class PlatformBuilder:
         self.postgres_path = postgres_path
         self.host_uid = host_uid
         self.host_gid = host_gid
-        self.debug = debug
-        self.platform_package_path = module_file_path('observatory.platform', nav_back_steps=-3)
-        self.api_package_path = module_file_path('observatory.api', nav_back_steps=-3)
-        self.docker_build_path = os.path.join(build_path, 'docker')
-        os.makedirs(self.docker_build_path, exist_ok=True)
+        self.platform_package_path = module_file_path("observatory.platform", nav_back_steps=-3)
+        self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
+        self.docker_build_path = os.path.join(build_path, "docker")
         self.redis_port = redis_port
         self.flower_ui_port = flower_ui_port
         self.airflow_ui_port = airflow_ui_port
@@ -107,7 +108,7 @@ class PlatformBuilder:
             self.config_class = TerraformConfig
 
         # Set Docker Network name
-        self.docker_network_name = 'observatory-network'
+        self.docker_network_name = "observatory-network"
         self.docker_network_is_external = docker_network_name is not None
         if self.docker_network_is_external:
             self.docker_network_name = docker_network_name
@@ -120,6 +121,42 @@ class PlatformBuilder:
             self.config: Union[ObservatoryConfig, TerraformConfig] = self.config_class.load(config_path)
             self.config_is_valid = self.config.is_valid
 
+        path = self.docker_module_path
+        super().__init__(
+            compose_template_path=os.path.join(path, "docker-compose.observatory.yml.jinja2"),
+            build_path=self.docker_build_path,
+            compose_template_kwargs={
+                "config": self.config,
+                "docker_network_is_external": self.docker_network_is_external,
+                "docker_network_name": self.docker_network_name,
+                "dags_projects_to_str": DagsProject.dags_projects_to_str,
+            },
+            debug=debug,
+        )
+
+        # Add files
+        self.add_template(path=os.path.join(path, "Dockerfile.observatory.jinja2"), config=self.config)
+        self.add_template(path=os.path.join(path, "entrypoint-airflow.sh.jinja2"), config=self.config)
+        self.add_file(path=os.path.join(path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh")
+        self.add_file(path=os.path.join(path, "elasticsearch.yml"), output_file_name="elasticsearch.yml")
+        self.add_file(
+            path=os.path.join(self.platform_package_path, "requirements.txt"),
+            output_file_name="requirements.observatory-platform.txt",
+        )
+        self.add_file(
+            path=os.path.join(self.api_package_path, "requirements.txt"),
+            output_file_name="requirements.observatory-api.txt",
+        )
+
+        # Add all project requirements files for local projects
+        if self.config is not None:
+            for project in self.config.dags_projects:
+                if project.type == "local":
+                    self.add_file(
+                        path=os.path.join(project.path, "requirements.txt"),
+                        output_file_name=f"requirements.{project.package_name}.txt",
+                    )
+
     @property
     def is_environment_valid(self) -> bool:
         """ Return whether the environment for building the Observatory Platform is valid.
@@ -127,12 +164,16 @@ class PlatformBuilder:
         :return: whether the environment for building the Observatory Platform is valid.
         """
 
-        return all([self.docker_exe_path is not None,
-                    self.docker_compose_path is not None,
-                    self.is_docker_running,
-                    self.config_exists,
-                    self.config_is_valid,
-                    self.config is not None])
+        return all(
+            [
+                self.docker_exe_path is not None,
+                self.docker_compose_path is not None,
+                self.is_docker_running,
+                self.config_exists,
+                self.config_is_valid,
+                self.config is not None,
+            ]
+        )
 
     @property
     def docker_module_path(self) -> str:
@@ -141,7 +182,7 @@ class PlatformBuilder:
         :return: the path.
         """
 
-        return module_file_path('observatory.platform.docker')
+        return module_file_path("observatory.platform.docker")
 
     @property
     def docker_exe_path(self) -> str:
@@ -175,74 +216,6 @@ class PlatformBuilder:
             is_running = False
         return is_running
 
-    def make_files(self):
-        """ Make the files required to build the Observatory Platform.
-
-        :return: None.
-        """
-
-        # Build Docker files
-        self.__make_file('Dockerfile.observatory.jinja2', 'Dockerfile.observatory', self.docker_build_path,
-                         config=self.config)
-        self.__make_file('docker-compose.observatory.yml.jinja2', 'docker-compose.observatory.yml',
-                         self.docker_build_path,
-                         config=self.config,
-                         docker_network_is_external=self.docker_network_is_external,
-                         docker_network_name=self.docker_network_name,
-                         dags_projects_to_str=DagsProject.dags_projects_to_str)
-        self.__make_file('entrypoint-airflow.sh.jinja2', 'entrypoint-airflow.sh', self.docker_build_path,
-                         config=self.config)
-
-        # Build requirements files
-        self.__make_requirements_files()
-
-        # Copy other files
-        file_names = ['entrypoint-root.sh', 'elasticsearch.yml']
-        for file_name in file_names:
-            input_file = os.path.join(self.docker_module_path, file_name)
-            output_file = os.path.join(self.docker_build_path, file_name)
-            shutil.copy(input_file, output_file)
-
-    def __make_file(self, template_file_name: str, output_file_name: str, working_dir: str, **kwargs):
-        """ Make a file from a template.
-
-        :param template_file_name:
-        :param output_file_name:
-        :param working_dir:
-        :param kwargs:
-        :return:
-        """
-
-        template_path = os.path.join(self.docker_module_path, template_file_name)
-        render = render_template(template_path, **kwargs)
-
-        output_path = os.path.join(working_dir, output_file_name)
-        with open(output_path, 'w') as f:
-            f.write(render)
-
-    def __make_requirements_files(self):
-        """ Make the requirements files by copying them into the build folder.
-
-        :return: None.
-        """
-
-        # Copy observatory platform requirements.txt
-        input_file = os.path.join(self.platform_package_path, 'requirements.txt')
-        output_file = os.path.join(self.docker_build_path, 'requirements.observatory-platform.txt')
-        shutil.copy(input_file, output_file)
-
-        # Copy observatory api requirements.txt
-        input_file = os.path.join(self.api_package_path, 'requirements.txt')
-        output_file = os.path.join(self.docker_build_path, 'requirements.observatory-api.txt')
-        shutil.copy(input_file, output_file)
-
-        # Copy all project requirements files for local projects
-        for project in self.config.dags_projects:
-            if project.type == 'local':
-                input_file = os.path.join(project.path, 'requirements.txt')
-                output_file = os.path.join(self.docker_build_path, f'requirements.{project.package_name}.txt')
-                shutil.copy(input_file, output_file)
-
     def make_environment(self):
         """ Make an environment containing the environment variables that are required to build and start the
         Observatory docker environment.
@@ -253,28 +226,28 @@ class PlatformBuilder:
         env = os.environ.copy()
 
         # Sets the name
-        env['COMPOSE_PROJECT_NAME'] = self.docker_compose_project_name
+        env["COMPOSE_PROJECT_NAME"] = self.docker_compose_project_name
 
         # Host settings
-        env['HOST_USER_ID'] = str(self.host_uid)
-        env['HOST_GROUP_ID'] = str(self.host_gid)
-        env['HOST_LOGS_PATH'] = self.logs_path
-        env['HOST_DAGS_PATH'] = self.dags_path
-        env['HOST_DATA_PATH'] = self.data_path
-        env['HOST_POSTGRES_PATH'] = self.postgres_path
-        env['HOST_PLATFORM_PACKAGE_PATH'] = self.platform_package_path
-        env['HOST_API_PACKAGE_PATH'] = self.api_package_path
-        env['HOST_REDIS_PORT'] = str(self.redis_port)
-        env['HOST_FLOWER_UI_PORT'] = str(self.flower_ui_port)
-        env['HOST_AIRFLOW_UI_PORT'] = str(self.airflow_ui_port)
-        env['HOST_ELASTIC_PORT'] = str(self.elastic_port)
-        env['HOST_KIBANA_PORT'] = str(self.kibana_port)
+        env["HOST_USER_ID"] = str(self.host_uid)
+        env["HOST_GROUP_ID"] = str(self.host_gid)
+        env["HOST_LOGS_PATH"] = self.logs_path
+        env["HOST_DAGS_PATH"] = self.dags_path
+        env["HOST_DATA_PATH"] = self.data_path
+        env["HOST_POSTGRES_PATH"] = self.postgres_path
+        env["HOST_PLATFORM_PACKAGE_PATH"] = self.platform_package_path
+        env["HOST_API_PACKAGE_PATH"] = self.api_package_path
+        env["HOST_REDIS_PORT"] = str(self.redis_port)
+        env["HOST_FLOWER_UI_PORT"] = str(self.flower_ui_port)
+        env["HOST_AIRFLOW_UI_PORT"] = str(self.airflow_ui_port)
+        env["HOST_ELASTIC_PORT"] = str(self.elastic_port)
+        env["HOST_KIBANA_PORT"] = str(self.kibana_port)
 
         # Secrets
         if self.config.google_cloud.credentials is not None:
-            env['HOST_GOOGLE_APPLICATION_CREDENTIALS'] = self.config.google_cloud.credentials
-        env['FERNET_KEY'] = self.config.airflow.fernet_key
-        env['SECRET_KEY'] = self.config.airflow.secret_key
+            env["HOST_GOOGLE_APPLICATION_CREDENTIALS"] = self.config.google_cloud.credentials
+        env["FERNET_KEY"] = self.config.airflow.fernet_key
+        env["SECRET_KEY"] = self.config.airflow.secret_key
 
         # Create Airflow variables
         airflow_variables = self.config.make_airflow_variables()
@@ -286,53 +259,3 @@ class PlatformBuilder:
             env[conn.conn_name] = conn.value
 
         return env
-
-    def build(self) -> Tuple[str, str, int]:
-        """ Build the Observatory Platform.
-
-        :return: output and error stream results and proc return code.
-        """
-
-        # Make observatory Docker files
-        self.make_files()
-
-        # Build observatory Docker containers
-        return self.__run_docker_compose_cmd(PlatformBuilder.COMPOSE_BUILD_ARGS)
-
-    def start(self) -> Tuple[str, str, int]:
-        """ Start the Observatory Platform.
-
-        :return: output and error stream results and proc return code.
-        """
-
-        return self.__run_docker_compose_cmd(PlatformBuilder.COMPOSE_START_ARGS)
-
-    def stop(self) -> Tuple[str, str, int]:
-        """ Stop the Observatory Platform.
-
-        :return: output and error stream results and proc return code.
-        """
-
-        return self.__run_docker_compose_cmd(PlatformBuilder.COMPOSE_STOP_ARGS)
-
-    def __run_docker_compose_cmd(self, args: List) -> Tuple[str, str, int]:
-        """ Run a set of Docker Compose arguments.
-
-        :param args: the list of arguments.
-        :return: output and error stream results and proc return code.
-        """
-
-        # Make the environment for running the Docker Compose process
-        env = self.make_environment()
-
-        # Build the containers first
-        proc: Popen = subprocess.Popen(PlatformBuilder.COMPOSE_ARGS + args,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE,
-                                       env=env,
-                                       cwd=self.docker_build_path)
-
-        # Wait for results
-        output, error = stream_process(proc, self.debug)
-
-        return output, error, proc.returncode

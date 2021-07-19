@@ -18,6 +18,6 @@ SELECT DISTINCT
   PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) as suffix
 FROM
   `{{ project_id }}.{{ dataset_id }}.{{ table_id }}*`
-WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) <= DATE('{{ end_date }}')
+WHERE CHAR_LENGTH(_TABLE_SUFFIX) = 8 AND REGEXP_CONTAINS(_TABLE_SUFFIX, r"\d{8}") AND PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) <= DATE('{{ end_date }}')
 ORDER BY suffix DESC
-LIMIT {{ limit }};
+LIMIT 1;

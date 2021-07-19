@@ -1,7 +1,7 @@
 {
   "mappings": {
     "properties": {
-      "{{ aggregration_level }}_id": {
+      "PersonName": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -10,7 +10,7 @@
           }
         }
       },
-      "title": {
+      "orcid": {
         "type": "text",
         "fields": {
           "keyword": {
@@ -19,41 +19,60 @@
           }
         }
       },
-      "published_year": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
+      "unique_books": {
+        "type": "integer"
       },
       "month": {
         "type": "date",
         "format": "yyyy-MM-dd"
       },
-      "country_code": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
+      "google_analytics": {
+        "properties": {
+          "unique_views": {
+            "type": "integer"
           }
         }
       },
-      "country_name": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
+      "crossref_events": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "google_books_traffic": {
+        "properties": {
+          "BV_with_Buy_Clicks": {
+            "type": "integer"
+          },
+          "BV_with_Pages_Viewed": {
+            "type": "integer"
+          },
+          "Book_Visits_BV_": {
+            "type": "integer"
+          },
+          "Buy_Link_CTR": {
+            "type": "float"
+          },
+          "Non_Unique_Buy_Clicks": {
+            "type": "integer"
+          },
+          "Pages_Viewed": {
+            "type": "integer"
+          }
+        }
+      },
+      "google_books_sales": {
+        "properties": {
+          "qty": {
+            "type": "integer"
           }
         }
       },
       "jstor": {
         "properties": {
           "Total_Item_Requests": {
-            "type": "integer",
+            "type": "integer"
           }
         }
       },
@@ -73,13 +92,6 @@
           },
           "unique_item_requests": {
             "type": "integer"
-          }
-        }
-      },
-      "google_analytics": {
-        "properties": {
-          "value": {
-            "type": "integer",
           }
         }
       }

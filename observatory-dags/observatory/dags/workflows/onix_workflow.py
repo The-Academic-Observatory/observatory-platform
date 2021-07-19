@@ -65,14 +65,20 @@ class OnixWorkflowRelease(AbstractRelease):
         dag_id: str,
         release_date: pendulum.Pendulum,
         gcp_project_id: str,
+        gcp_bucket_name: str,
         onix_dataset_id: str = "onix",
         onix_table_id: str = "onix",
-        gcp_bucket_name: str,
-        oaebu_data_qa_dataset: str = None,
-        workflow_dataset: str = None,
-        oaebu_intermediate_dataset: str = None,
-        oaebu_dataset: str = None,
-        oaebu_elastic_dataset: str = None,
+        oaebu_data_qa_dataset: str = "oaebu_data_qa",
+        workflow_dataset: str = "onix_workflow",
+        oaebu_intermediate_dataset: str = "oaebu_intermediate",
+        oaebu_dataset: str = "oaebu",
+        oaebu_elastic_dataset: str = "data_export",
+        worksid_table: str = "onix_workid_isbn",
+        worksid_error_table: str = "onix_workid_isbn_errors",
+        workfamilyid_table: str = "onix_workfamilyid_isbn",
+        dataset_location: str = "us",
+        dataset_description: str = "ONIX workflow tables",
+        oaebu_intermediate_match_suffix: str = "_matched",
     ):
         """
         :param dag_id: DAG ID.
@@ -92,9 +98,9 @@ class OnixWorkflowRelease(AbstractRelease):
         self.release_date = release_date
 
         # Prepare filesystem
-        self.worksid_table = "onix_workid_isbn"
-        self.worksid_error_table = "onix_workid_isbn_errors"
-        self.workfamilyid_table = "onix_workfamilyid_isbn"
+        self.worksid_table = worksid_table
+        self.worksid_error_table = worksid_error_table
+        self.workfamilyid_table = workfamilyid_table
 
         self.workslookup_filename = os.path.join(self.transform_folder, f"{self.worksid_table}.jsonl.gz")
         self.workslookup_errors_filename = os.path.join(self.transform_folder, f"{self.worksid_error_table}.jsonl.gz")
@@ -103,12 +109,8 @@ class OnixWorkflowRelease(AbstractRelease):
         # GCP parameters
         self.project_id = gcp_project_id
         self.onix_dataset_id = onix_dataset_id
-        self.dataset_location = "us"
-        self.dataset_description = "ONIX workflow tables"
-
-        self.workflow_dataset_id = workflow_dataset
-        if self.workflow_dataset_id is None:
-            self.workflow_dataset_id = "onix_workflow"
+        self.dataset_location = dataset_location
+        self.dataset_description = dataset_description
 
         # ONIX release info
         self.onix_table_id = onix_table_id
@@ -116,26 +118,12 @@ class OnixWorkflowRelease(AbstractRelease):
 
         Path(".", self.transform_folder).mkdir(exist_ok=True, parents=True)
 
-        # OAEBU intermediate tables
-        self.oaebu_intermediate_dataset = oaebu_intermediate_dataset
-        if self.oaebu_intermediate_dataset is None:
-            self.oaebu_intermediate_dataset = "oaebu_intermediate"
-
-        # OAEBU tables
-        self.oaebu_dataset = oaebu_dataset
-        if self.oaebu_dataset is None:
-            self.oaebu_dataset = "oaebu"
-
-        # OAEBU Elastic tables
-        self.oaebu_elastic_dataset = oaebu_elastic_dataset
-        if self.oaebu_elastic_dataset is None:
-            self.oaebu_elastic_dataset = "data_export"
-
         self.oaebu_data_qa_dataset = oaebu_data_qa_dataset
-        if self.oaebu_data_qa_dataset is None:
-            self.oaebu_data_qa_dataset = "oaebu_data_qa"
-
-        self.oaebu_intermediate_match_suffix = "_matched"
+        self.workflow_dataset = workflow_dataset
+        self.oaebu_intermediate_dataset = oaebu_intermediate_dataset
+        self.oaebu_dataset = oaebu_dataset
+        self.oaebu_elastic_dataset = oaebu_elastic_dataset
+        self.oaebu_intermediate_match_suffix = oaebu_intermediate_match_suffix
 
     @property
     def transform_bucket(self) -> str:
@@ -437,7 +425,7 @@ class OnixWorkflow(Telescope):
                 project_id=release.project_id,
                 transform_bucket=release.transform_bucket,
                 transform_blob=blob,
-                dataset_id=release.workflow_dataset_id,
+                dataset_id=release.workflow_dataset,
                 dataset_location=release.dataset_location,
                 table_id=table_id,
                 release_date=release.release_date,
@@ -460,7 +448,7 @@ class OnixWorkflow(Telescope):
                 project_id=release.project_id,
                 transform_bucket=release.transform_bucket,
                 transform_blob=blob,
-                dataset_id=release.workflow_dataset_id,
+                dataset_id=release.workflow_dataset,
                 dataset_location=release.dataset_location,
                 table_id=table_id,
                 release_date=release.release_date,
@@ -485,7 +473,7 @@ class OnixWorkflow(Telescope):
                 project_id=release.project_id,
                 transform_bucket=release.transform_bucket,
                 transform_blob=blob,
-                dataset_id=release.workflow_dataset_id,
+                dataset_id=release.workflow_dataset,
                 dataset_location=release.dataset_location,
                 table_id=table_id,
                 release_date=release.release_date,
@@ -552,7 +540,7 @@ class OnixWorkflow(Telescope):
                 orig_dataset=orig_dataset,
                 orig_table=orig_table_id,
                 orig_isbn=orig_isbn,
-                onix_workflow_dataset=release.workflow_dataset_id,
+                onix_workflow_dataset=release.workflow_dataset,
                 wid_table=release.worksid_table + dst_table_suffix,
                 wfam_table=release.workfamilyid_table + dst_table_suffix,
             )
@@ -567,7 +555,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
@@ -668,7 +656,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
@@ -714,7 +702,6 @@ class OnixWorkflow(Telescope):
         """
 
         for release in releases:
-
             output_dataset = release.oaebu_elastic_dataset
             data_location = release.dataset_location
             release_date = release.release_date
@@ -736,7 +723,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
@@ -783,7 +770,6 @@ class OnixWorkflow(Telescope):
         """
 
         for release in releases:
-
             output_dataset = release.oaebu_elastic_dataset
             data_location = release.dataset_location
             release_date = release.release_date
@@ -826,7 +812,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{table_id}"
                 )
@@ -869,27 +855,27 @@ class OnixWorkflow(Telescope):
                 "file_type": "json",
             },
             {
-                "output_table": "book_publisher_metrics",
+                "output_table": "book_product_publisher_metrics",
                 "query_template": "export_book_publisher_metrics.sql.jinja2",
                 "file_type": "json",
             },
             {
-                "output_table": "book_subject_metrics",
+                "output_table": "book_product_subject_metrics",
                 "query_template": "export_book_subject_metrics.sql.jinja2",
                 "file_type": "json",
             },
             {
-                "output_table": "book_year_metrics",
+                "output_table": "book_product_year_metrics",
                 "query_template": "export_book_year_metrics.sql.jinja2",
                 "file_type": "json",
             },
             {
-                "output_table": "book_subject_year_metrics",
+                "output_table": "book_product_subject_year_metrics",
                 "query_template": "export_book_subject_year_metrics.sql.jinja2",
                 "file_type": "json",
             },
             {
-                "output_table": "book_author_metrics",
+                "output_table": "book_product_author_metrics",
                 "query_template": "export_book_author_metrics.sql.jinja2",
                 "file_type": "json",
             },
@@ -1012,7 +998,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{output_table_id}"
                 )
@@ -1090,7 +1076,7 @@ class OnixWorkflow(Telescope):
             location=dataset_location,
         )
 
-        if status != True:
+        if not status:
             raise AirflowException(
                 f"create_bigquery_table_from_query failed on {project_id}.{output_dataset_id}.{output_table_id}"
             )
@@ -1470,16 +1456,8 @@ class OnixWorkflow(Telescope):
         template_path = os.path.join(workflow_sql_templates_path(), template_file)
 
         for release in releases:
-            intermediate_table = f"{orig_dataset_id}_{orig_table}{release.oaebu_intermediate_match_suffix}"
-            release_date = select_table_shard_dates(
-                project_id=project_id,
-                dataset_id=release.oaebu_intermediate_dataset,
-                table_id=intermediate_table,
-                end_date=release.release_date,
-            )[0]
-
-            intermediate_table_id = intermediate_table + release_date.strftime("%Y%m%d")
-
+            release_date = release.release_date
+            intermediate_table_id = f"{orig_dataset_id}_{orig_table}{release.oaebu_intermediate_match_suffix}{release_date.strftime('%Y%m%d')}"
             output_dataset = release.oaebu_data_qa_dataset
             output_table = f"{orig_table}_unmatched_{orig_isbn}"
             output_table_id = bigquery_sharded_table_id(output_table, release_date)
@@ -1506,7 +1484,7 @@ class OnixWorkflow(Telescope):
                 location=release.dataset_location,
             )
 
-            if status != True:
+            if not status:
                 raise AirflowException(
                     f"create_bigquery_table_from_query failed on {release.project_id}.{output_dataset}.{output_table_id}"
                 )
