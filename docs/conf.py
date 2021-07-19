@@ -17,8 +17,9 @@ import os
 import shutil
 from pathlib import Path
 
-from generate_schema_csv import generate_csv
 from recommonmark.transform import AutoStructify
+
+from generate_schema_csv import generate_csv
 
 # -- Project information -----------------------------------------------------
 
@@ -74,7 +75,7 @@ def setup(app):
     app.add_transform(AutoStructify)
 
 
-generate_csv()
+generate_csv(schema_dir="../observatory-dags/observatory/database/schemas")
 html_build_dir = "_build/html"
 src_graphics_dir = "graphics"
 dst_graphics_dir = os.path.join(html_build_dir, "graphics")

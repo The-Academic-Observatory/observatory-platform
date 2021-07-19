@@ -43,8 +43,7 @@ class TestSchemaCSVGenerator(unittest.TestCase):
         self.assertEqual(rows[2]["mode"], "test_mode")
         self.assertEqual(rows[2]["description"], None)
 
-    @patch.object(gsc.observatory.dags.database.schema, "__path__", [test_fixtures_path("test_schemas")])
     def test_generate_csv(self):
         with CliRunner().isolated_filesystem():
-            gsc.generate_csv()
+            gsc.generate_csv(schema_dir=test_fixtures_path("test_schemas"))
             self.assertTrue(os.path.exists("schemas/test_schema.csv"))

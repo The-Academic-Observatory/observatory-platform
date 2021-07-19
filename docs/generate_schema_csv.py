@@ -49,11 +49,11 @@ def schema_to_csv(*, schema: List, output: List, prefix: str = ""):
             schema_to_csv(schema=ffield, output=output, prefix=f"{prefix}{fname}.")
 
 
-def generate_csv():
-    """Convert all observatory schema files in JSON format to CSV for inclusion in Sphinx. """
+def generate_csv(*, schema_dir):
+    """Convert all observatory schema files in JSON format to CSV for inclusion in Sphinx.
+    :param schema_dir: Path to schema directory.
+    """
 
-    schema_dir = observatory.dags.database.schema.__path__[0]
-    print(schema_dir)
     schema_files = glob(os.path.join(schema_dir, "*.json"))
     dst_dir = "schemas"
     Path(dst_dir).mkdir(exist_ok=True, parents=True)
@@ -71,4 +71,4 @@ def generate_csv():
 
 
 if __name__ == "__main__":
-    generate_csv()
+    generate_csv(schema_dir="../observatory-dags/observatory/database/schemas")
