@@ -69,17 +69,22 @@ def load_elastic_mappings_simple(path: str, table_prefix: str) -> Dict:
     return json.loads(load_file(os.path.join(path, f"{make_index_prefix(table_prefix)}-mappings.json")))
 
 
-def load_elastic_mappings_ao(path: str, table_prefix: str):
+def load_elastic_mappings_ao(path: str, table_prefix: str, simple_prefixes: List = None):
     """ For the Observatory project, load the Elastic mappings for a given table_prefix.
 
     :param path: the path to the mappings files.
     :param table_prefix: the table_id prefix (without shard date).
+    :param simple_prefixes: the prefixes of mappings to load with the load_elastic_mappings_simple function.
     :return: the rendered mapping as a Dict.
     """
 
+    # Set default simple_prefixes
+    if simple_prefixes is None:
+        simple_prefixes = ["ao_doi"]
+
     if not table_prefix.startswith("ao"):
         raise ValueError("Table must begin with 'ao'")
-    elif table_prefix.startswith("ao_doi"):
+    elif any([table_prefix.startswith(prefix) for prefix in simple_prefixes]):
         return load_elastic_mappings_simple(path, table_prefix)
     else:
         prefix, aggregate, facet = table_prefix.split("_", 2)
