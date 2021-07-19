@@ -2,10 +2,7 @@
 
 The `StreamTelescope` is a `Telescope` specialisation that deals with cases where there is an initial snapshot release of the entire dataset, followed by incremental updates.  The StreamTelescope outputs a main table that is a live snapshot of the current dataset, with all the updates reconciled.  Once the changes are merged, there is no way to rollback changes without recreating the table.
 
-Examples of stream telescopes found in the Academic Observatory include:
-- OAPEN Metadata,
-- DOAB,
-- Crossref Events.
+Examples of stream telescopes found in the Academic Observatory include OAPEN Metadata, DOAB, and Crossref Events.
 
 ## StreamRelease class
 

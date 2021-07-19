@@ -6,12 +6,7 @@ This tutorial assumes you have a basic understanding of how Airflow works, and t
 
 Each workflow in the Academic Observatory consists of set of tasks.  The tasks are organised as nodes on a directed acyclic graph (DAG) which describe the order of execution, and dependencies. Telescope tasks are Python functions with a specific signature, that are turned into Airflow PythonOperator objects.  The exception is the sensor tasks, which are Airflow Sensor objects, e.g., ExternalTaskSensor.
 
-The telescope class groups tasks into:
-- sensor tasks,
-- setup tasks,
-- generic tasks.
-
-The Telescope class provides methods to add tasks to each group.  Once all tasks have been added, there is a method to create the DAG object for Airflow to use.
+The telescope class groups tasks into sensor tasks, setup tasks, and generic tasks. The Telescope class provides methods to add tasks to each group.  Once all tasks have been added, there is a method to create the DAG object for Airflow to use.
 
 <p align="center">
 <img title="Telescope flow" alt="Telescope flow" src="../graphics/telescope_flow.png">
@@ -28,11 +23,12 @@ If any of those task groups are empty, execution skips to the next non empty gro
 ## A typical development pipeline
 
 A typical telescope pipeline will:
-1. Create a DAG file for that telescope in `observatory-dags/observatory/dags/dags` that calls code to construct the telescope.
-2. Create a telescope file for the telescope definition in `observatory-dags/observatory/telescopes` containing code for the telesecope itself.
-3. Create tests in `tests/observatory/dags/telescopes` for the telescope.
-4. Create documentation for the telescope in `docs/telescopes`.
-
+``` eval_rst
+#. Create a DAG file for that telescope in observatory-dags/observatory/dags/dags that calls code to construct the telescope.
+#. Create a telescope file for the telescope definition in observatory-dags/observatory/telescopes containing code for the telesecope itself.
+#. Create tests in tests/observatory/dags/telescopes for the telescope.
+#. Create documentation for the telescope in docs/telescopes.
+```
 
 ### Creating a DAG file
 
@@ -57,22 +53,19 @@ Put your new telescope class in the directory `observatory-dags/observatory/tele
 Datasets often have release information associated with each release, e.g., a date or release version.  Multiple releases can be ingested for each dataset on a regular schedule by the Acacdemic Observatory.  Release information for the dataset is stored in a release class object.  The release object is constructed and passed to each task in the telescope as a parameter. It is done this way because Airflow assumes each task is assumed to be sandboxed, so any inter-task communication requires RPC or local disk storage for communication.
 
 The release class contains:
-- the DAG ID,
-- the release ID,
-- regex patterns used to find files in the download, extract, and transform folders,
-- lists of download, extract, and transform files,
-- a method for cleaning up the download, extract, and transform files.
+``` eval_rst
+#. The DAG ID.
+#. The release ID.
+#. Regex patterns used to find files in the download, extract, and transform folders.
+#. Lists of download, extract, and transform files.
+#. A method for cleaning up the download, extract, and transform files.
+```
 
 The interface is defined in `AbstractRelease`. There is also a `Release` class you can use which implements all of those functions if you want to just let the API generate all those folders and file lists based on the `dag_id` and `release_id`.  See the API documentation for the `Release` class for more information.  Your telescope file should contain a **release** class if it's required for your workflow.
 
 #### Telescope class
 
-The interface specification is defined in `AbstractTelescope`.  There is a `Telescope` class you can use with an implementation of that interface. Your telescope file should contain a telescope class.  See the API documentation for more details.
-
-The telesecope class is responsible for:
-- Adding tasks to the DAG.
-- Constructing a DAG for Airflow to use.
-- Constructing release objects to pass to each task during execution.
+The interface specification is defined in `AbstractTelescope`.  There is a `Telescope` class you can use with an implementation of that interface. Your telescope file should contain a telescope class.  See the API documentation for more details. The telesecope class is responsible for adding tasks to the DAG, constructing a DAG for Airflow to use, and onstructing release objects to pass to each task during execution.
 
 #### Example telescope file
 
@@ -176,8 +169,10 @@ The BigQuery table loading utility functions in the Academic Observatory platfor
 #### Specialised telescopes
 
 Currently there are two types of specialised telescope patterns implemented by the Academic Observatory.  These are:
-- the `StreamTelescope`, where the datasets have an initial full snapshot, followed by differential releases, and
-- the `SnapshotTelescope`, where each release is a full snapshot of the data.
+```eval_rst
+#. the `StreamTelescope`, where the datasets have an initial full snapshot, followed by differential releases, and
+#. the `SnapshotTelescope`, where each release is a full snapshot of the data.
+```
 
 The stream and snapshot telescopes derive the `Telescope` class.
 
@@ -239,9 +234,7 @@ The `..` follows the parent directory, and we need to do this twice to reach `do
 
 ### Style
 
-We try to conform to the Python PEP-8 standard, and the default format style of the `Black` formatter.  This is done with the:
-- [autopep8 package](https://pypi.org/project/autopep8), and the
-- [black formatter](https://pypi.org/project/black/).
+We try to conform to the Python PEP-8 standard, and the default format style of the `Black` formatter.  This is done with the [autopep8 package](https://pypi.org/project/autopep8), and the [black formatter](https://pypi.org/project/black/).
 
 We recommend you use those format tools as part of your coding workflow.
 

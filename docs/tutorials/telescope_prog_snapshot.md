@@ -2,15 +2,7 @@
 
 A `SnapshotTelescope` is a specialisation of the `Telescope` class used to create tables for datasets that give full snapshots of data with each new release.  Each new release is saved in its own BigQuery table shard with timestamps to differentiate the releases.
 
-Examples of snapshot telescopes found in the Academic Observatory include:
-- UCL Discovery,
-- GRID,
-- Google Analytics,
-- Google Books,
-- Crossref Metadata,
-- OAPEN IRUS UK,
-- ONIX,
-- Crossref FundRef.
+Examples of snapshot telescopes found in the Academic Observatory include UCL Discovery, GRID, Google Analytics, Google Books, Crossref Metadata, OAPEN IRUS UK, ONIX, and Crossref FundRef.
 
 ## SnapshotRelease class
 
