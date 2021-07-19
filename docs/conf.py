@@ -75,7 +75,7 @@ def setup(app):
     app.add_transform(AutoStructify)
 
 
-generate_csv(schema_dir="../observatory-dags/observatory/database/schemas")
+generate_csv(schema_dir="../observatory-dags/observatory/dags/database/schema")
 html_build_dir = "_build/html"
 src_graphics_dir = "graphics"
 dst_graphics_dir = os.path.join(html_build_dir, "graphics")

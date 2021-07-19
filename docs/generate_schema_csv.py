@@ -70,4 +70,4 @@ def generate_csv(*, schema_dir):
 
 
 if __name__ == "__main__":
-    generate_csv(schema_dir="../observatory-dags/observatory/database/schemas")
+    generate_csv(schema_dir="../observatory-dags/observatory/dags/database/schema")
