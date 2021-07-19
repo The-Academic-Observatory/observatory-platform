@@ -467,7 +467,6 @@ def bq_delete_old(
     main_table_id: str,
     partition_table_id: str,
     merge_partition_field: str,
-    updated_date_field: str,
 ):
     """ Will run a BigQuery query that deletes rows from the main table that are matched with rows from
     specific partitions of the partition table.
@@ -478,7 +477,6 @@ def bq_delete_old(
     :param main_table_id: Main table id.
     :param partition_table_id: Partition table id.
     :param merge_partition_field: Merge partition field.
-    :param updated_date_field: Updated date field.
     :return: None.
     """
     start_date = start_date.strftime("%Y-%m-%d")
@@ -488,7 +486,6 @@ def bq_delete_old(
     main_table = main_table_id
     partitioned_table = partition_table_id
     merge_condition_field = merge_partition_field
-    updated_date_field = updated_date_field
 
     template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("merge_delete_matched"))
     query = render_template(
@@ -499,7 +496,6 @@ def bq_delete_old(
         merge_condition_field=merge_condition_field,
         start_date=start_date,
         end_date=end_date,
-        updated_date_field=updated_date_field,
     )
     run_bigquery_query(query)
 

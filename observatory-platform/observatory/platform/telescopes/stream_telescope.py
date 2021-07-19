@@ -58,12 +58,12 @@ class StreamRelease(Release):
 
 class StreamTelescope(Telescope):
     def __init__(self, dag_id: str, start_date: datetime, schedule_interval: str, dataset_id: str,
-                 merge_partition_field: str, updated_date_field: str, bq_merge_days: int, catchup: bool = False,
-                 queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1, source_format: SourceFormat =
-                 SourceFormat.NEWLINE_DELIMITED_JSON, schema_prefix: str = '',
-                 schema_version: str = None, load_bigquery_table_kwargs: Dict = None,
-                 dataset_description: str = '', table_descriptions: Dict[str, str] = None, batch_load: bool = False,
-                 airflow_vars: list = None, airflow_conns: list = None):
+                 merge_partition_field: str, bq_merge_days: int, catchup: bool = False, queue: str = 'default',
+                 max_retries: int = 3, max_active_runs: int = 1,
+                 source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON, schema_prefix: str = '',
+                 schema_version: str = None, load_bigquery_table_kwargs: Dict = None, dataset_description: str = '',
+                 table_descriptions: Dict[str, str] = None, batch_load: bool = False, airflow_vars: list = None,
+                 airflow_conns: list = None):
         """ Construct a StreamTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -71,7 +71,6 @@ class StreamTelescope(Telescope):
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the dataset id.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
-        :param updated_date_field: the BigQuery field used to determine newest entry for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
         :param catchup: whether to catchup the DAG or not.
         :param queue: the Airflow queue name.
@@ -101,7 +100,6 @@ class StreamTelescope(Telescope):
         self.dataset_id = dataset_id
         self.source_format = source_format
         self.merge_partition_field = merge_partition_field
-        self.updated_date_field = updated_date_field
         self.bq_merge_days = bq_merge_days
         self.load_bigquery_table_kwargs = load_bigquery_table_kwargs if load_bigquery_table_kwargs else dict()
         self.dataset_description = dataset_description
@@ -186,12 +184,12 @@ class StreamTelescope(Telescope):
                 if self.batch_load:
                     main_table_id, partition_table_id = self.dag_id, f'{self.dag_id}_partitions'
                     bq_delete_old(start_date, end_date, self.dataset_id, main_table_id, partition_table_id,
-                                  self.merge_partition_field, self.updated_date_field)
+                                  self.merge_partition_field)
                     return
                 else:
                     main_table_id, partition_table_id = table_ids_from_path(transform_path)
                     bq_delete_old(start_date, end_date, self.dataset_id, main_table_id, partition_table_id,
-                                  self.merge_partition_field, self.updated_date_field)
+                                  self.merge_partition_field)
         else:
             raise AirflowSkipException(f'Skipped, only delete old records every {self.bq_merge_days} days. '
                                        f'Last delete was {(end_date - start_date).days + 1} days ago on {ti.previous_start_date_success}')

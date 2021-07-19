@@ -182,9 +182,9 @@ class CrossrefEventsTelescope(StreamTelescope):
     def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2018, 5, 14),
                  schedule_interval: str = '@weekly', dataset_id: str = 'crossref',
                  dataset_description: str = 'The Crossref Events dataset: https://www.eventdata.crossref.org/guide/',
-                 merge_partition_field: str = 'id', updated_date_field: str = 'timestamp',
-                 bq_merge_days: int = 7, batch_load: bool = True, airflow_vars: List = None,
-                 mailto: str = 'aniek.roelofs@curtin.edu.au', max_processes: int = min(32, os.cpu_count() + 4)):
+                 merge_partition_field: str = 'id', bq_merge_days: int = 7, batch_load: bool = True,
+                 airflow_vars: List = None, mailto: str = 'aniek.roelofs@curtin.edu.au',
+                 max_processes: int = min(32, os.cpu_count() + 4)):
         """ Construct a CrossrefEventsTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -193,7 +193,6 @@ class CrossrefEventsTelescope(StreamTelescope):
         :param dataset_id: the dataset id.
         :param dataset_description: the dataset description.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
-        :param updated_date_field: the BigQuery field used to determine newest entry for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
@@ -204,9 +203,8 @@ class CrossrefEventsTelescope(StreamTelescope):
         if airflow_vars is None:
             airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
                             AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
-                         updated_date_field, bq_merge_days, dataset_description=dataset_description,
-                         airflow_vars=airflow_vars, batch_load=batch_load)
+        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field, bq_merge_days,
+                         dataset_description=dataset_description, batch_load=batch_load, airflow_vars=airflow_vars)
         self.mailto = mailto
         self.max_processes = max_processes
 
