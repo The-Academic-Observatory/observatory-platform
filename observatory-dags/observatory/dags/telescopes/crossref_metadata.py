@@ -166,6 +166,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         start_date: datetime = datetime(2020, 6, 7),
         schedule_interval: str = SCHEDULE_INTERVAL,
         dataset_id: str = "crossref",
+        queue: str = 'remote_queue',
         dataset_description: str = "The Crossref Metadata Plus dataset: "
         "https://www.crossref.org/services/metadata-retrieval/metadata-plus/",
         load_bigquery_table_kwargs: Dict = None,
@@ -175,13 +176,13 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         max_active_runs: int = 1,
         max_processes: int = min(32, os.cpu_count() + 4),
     ):
-
         """ The Crossref Metadata telescope
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the BigQuery dataset id.
+        :param queue: Crossref Metadata tasks run on the worker VM, indicated by the 'remote_queue'.
         :param dataset_description: description for the BigQuery dataset.
         :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
@@ -209,6 +210,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            queue=queue,
             load_bigquery_table_kwargs=load_bigquery_table_kwargs,
             dataset_description=dataset_description,
             table_descriptions=table_descriptions,
