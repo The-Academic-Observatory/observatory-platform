@@ -30,4 +30,3 @@ Telescopes in the Academic Observatory
     ucl_discovery
     unpaywall
     wos
-    programming_tutorial
