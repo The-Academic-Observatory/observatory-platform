@@ -9,9 +9,7 @@ Useful links:
 - [Field name descriptions](http://help.incites.clarivate.com/wosWebServicesExpanded/appendix1Group/wosfieldNameTable.html)
 
 
-## Schemas
-
-### Schema date: 2020-09-01 (WOK 5.4)
+## Latest schema (2020-09-01 (WOK 5.4))
 ``` eval_rst
 .. csv-table::
    :file: ../../schemas/wos_wok5.4_2020-09-01.csv

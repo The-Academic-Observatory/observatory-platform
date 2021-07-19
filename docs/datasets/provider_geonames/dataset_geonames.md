@@ -9,9 +9,7 @@ elevation, population and others from various sources.
  _- source: [GeoNames](https://www.geonames.org/about.html)_ 
 and [data details](https://download.geonames.org/export/dump/readme.txt)
 
-## Schemas
-
-### Schema date: 2020-06-01
+## Latest schema (2020-06-01)
 ``` eval_rst
 .. csv-table::
    :file: ../../schemas/geonames_2020-06-01.csv
