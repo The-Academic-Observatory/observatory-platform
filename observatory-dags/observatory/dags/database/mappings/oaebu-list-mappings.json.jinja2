@@ -28,7 +28,13 @@
         "format": "yyyy-MM-dd"
       },
       "published_year": {
-        "type": "long"
+        "type": "long",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
       },
       "title": {
         "type": "text",

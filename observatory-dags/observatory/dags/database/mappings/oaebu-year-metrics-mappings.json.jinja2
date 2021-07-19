@@ -2,7 +2,13 @@
   "mappings": {
     "properties": {
       "published_year": {
-        "type": "long"
+        "type": "long",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
       },
       "unique_books": {
         "type": "integer"

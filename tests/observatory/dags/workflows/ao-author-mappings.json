@@ -11,7 +11,13 @@
         }
       },
       "age": {
-        "type": "long"
+        "type": "long",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
       },
       "dob": {
         "type": "date",
