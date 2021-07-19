@@ -6,7 +6,7 @@ We provide data, analytics and insights, as well as workflow tools and bespoke p
 - source `WOS <https://www.clarivate.com/webofsciencegroup>`_
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
 
     dataset_wos.md
 

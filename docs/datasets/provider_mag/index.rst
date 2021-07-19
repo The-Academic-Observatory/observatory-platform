@@ -9,7 +9,7 @@ as well as authors, institutions, journals, conferences, and fields of study.”
 - source `MAG <https://academic.microsoft.com/home>`_
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
 
     dataset_mag.md
 

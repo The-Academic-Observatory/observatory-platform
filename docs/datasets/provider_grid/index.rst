@@ -8,7 +8,7 @@ database of over 90,000 institutes.”
 - source `GRID <https://www.grid.ac/>`_
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
 
     dataset_grid.md
 

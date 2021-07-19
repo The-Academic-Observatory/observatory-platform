@@ -7,7 +7,7 @@ services—all to help put scholarly content in context.”
 - source `Crossref <https://www.crossref.org/>`_
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
 
     dataset_crossref_metadata.md
     dataset_crossref_events.md

@@ -6,7 +6,7 @@ over 50,000 publishers and repositories, and make it easy to find, track, and us
 - source `Unpaywall <https://unpaywall.org/>`_
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
 
     dataset_unpaywall.md
 

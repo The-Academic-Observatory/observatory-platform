@@ -6,7 +6,7 @@ Quickly find relevant and trusted research, identify experts, and access reliabl
 - source `SCOPUS <https://www.elsevier.com/solutions/scopus>`_
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
 
     dataset_elsevier.md
 

@@ -5,7 +5,7 @@ new names.”
 - source `GeoNames <https://www.geonames.org/>`_
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
 
     dataset_geonames.md
 
