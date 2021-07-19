@@ -1,3 +1,13 @@
+resource "google_compute_address" "vm_static_external_ip" {
+  count = var.metadata_variables["environment"] == "production" ? 1 : 0
+  name = "${var.name}-static-external-ip"
+  address_type = "EXTERNAL"
+  region = var.region
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "google_compute_address" "vm_private_ip" {
   name = "${var.name}-private-ip"
   address_type = "INTERNAL"
@@ -23,7 +33,7 @@ resource "google_compute_instance" "vm_instance" {
     network_ip = google_compute_address.vm_private_ip.address
     subnetwork = var.subnetwork.name # Subnetwork should be specified for custom subnetmode network
     access_config {
-      nat_ip = var.static_external_ip.address
+      nat_ip = try(google_compute_address.vm_static_external_ip[0].address, null)
     }
   }
 

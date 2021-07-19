@@ -26,14 +26,6 @@ variable "subnetwork" {
   description = ""
 }
 
-variable "static_external_ip" {
-  type = object({
-    id=string
-    address=string
-  })
-  description = "The static external IP address for the VM"
-}
-
 variable "region" {
   type = string
   description = ""

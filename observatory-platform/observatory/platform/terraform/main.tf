@@ -555,16 +555,6 @@ data "google_compute_image" "observatory_image" {
   depends_on = [google_project_service.compute_engine]
 }
 
-resource "google_compute_address" "airflow_main_vm_static_external_ip" {
-  name = "${local.main_vm_name}-static-external-ip"
-  address_type = "EXTERNAL"
-  region = var.google_cloud.region
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-
 module "airflow_main_vm" {
   source = "./vm"
   name = local.main_vm_name
@@ -584,21 +574,11 @@ module "airflow_main_vm" {
   service_account_email = local.compute_service_account_email
   startup_script_path = "./startup-main.tpl"
   metadata_variables = local.metadata_variables
-  static_external_ip = google_compute_address.airflow_main_vm_static_external_ip
 }
 
 ########################################################################################################################
 # Observatory Platform Worker VM
 ########################################################################################################################
-
-resource "google_compute_address" "airflow_worker_vm_static_external_ip" {
-  name = "${local.worker_vm_name}-static-external-ip"
-  address_type = "EXTERNAL"
-  region = var.google_cloud.region
-  lifecycle {
-    prevent_destroy = true
-  }
-}
 
 module "airflow_worker_vm" {
   count = var.airflow_worker_vm.create == true ? 1 : 0
@@ -615,7 +595,6 @@ module "airflow_worker_vm" {
   service_account_email = local.compute_service_account_email
   startup_script_path = "./startup-worker.tpl"
   metadata_variables = local.metadata_variables
-  static_external_ip = google_compute_address.airflow_worker_vm_static_external_ip
 }
 
 ########################################################################################################################
