@@ -10,7 +10,7 @@ Telescopes in the Academic Observatory
 #########################################
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
 
     crossref_events
     crossref_fundref

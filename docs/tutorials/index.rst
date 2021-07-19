@@ -5,7 +5,7 @@ Telescope Programming
 #######################
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
 
     telescope_prog_intro
     telescope_prog_stream
