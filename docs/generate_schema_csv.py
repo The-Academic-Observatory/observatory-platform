@@ -21,7 +21,6 @@ from glob import glob
 from pathlib import Path
 from typing import Dict, List, Union
 
-import observatory.dags.database.schema
 import pandas as pd
 
 
