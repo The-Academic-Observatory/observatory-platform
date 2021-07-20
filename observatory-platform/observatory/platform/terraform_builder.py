@@ -99,10 +99,10 @@ class TerraformBuilder:
         return shutil.which("gcloud")
 
     def make_files(self):
-        # Clear Terraform build path and create fresh folder
-        if os.path.exists(self.build_path):
-            shutil.rmtree(self.build_path)
-        os.makedirs(self.build_path)
+        # Clear terraform/packages path
+        if os.path.exists(self.packages_build_path):
+            shutil.rmtree(self.packages_build_path)
+        os.makedirs(self.packages_build_path)
 
         ignore = shutil.ignore_patterns('__pycache__', '*.eggs', '*.egg-info')
 
