@@ -561,7 +561,7 @@ data "google_compute_image" "observatory_image" {
 }
 
 resource "google_compute_address" "airflow_main_vm_static_external_ip" {
-  count = var.environment == "develop" ? 1 : 0
+  count = var.environment == "production" ? 1 : 0
   name = "${local.main_vm_name}-static-external-ip"
   address_type = "EXTERNAL"
   region = var.google_cloud.region
