@@ -543,6 +543,11 @@ locals {
     environment = var.environment
     airflow_variables = local.airflow_variables
   }
+
+  worker_vm_static_external_ip_address = try(google_compute_address.airflow_worker_vm_static_external_ip[0].address,
+  null)
+  main_vm_static_external_ip_address = try(google_compute_address.airflow_main_vm_static_external_ip[0].address, null)
+
 }
 
 ########################################################################################################################
@@ -553,6 +558,16 @@ locals {
 data "google_compute_image" "observatory_image" {
   name = "observatory-image-${var.environment}"
   depends_on = [google_project_service.compute_engine]
+}
+
+resource "google_compute_address" "airflow_main_vm_static_external_ip" {
+  count = var.environment == "develop" ? 1 : 0
+  name = "${local.main_vm_name}-static-external-ip"
+  address_type = "EXTERNAL"
+  region = var.google_cloud.region
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 module "airflow_main_vm" {
@@ -574,11 +589,22 @@ module "airflow_main_vm" {
   service_account_email = local.compute_service_account_email
   startup_script_path = "./startup-main.tpl"
   metadata_variables = local.metadata_variables
+  static_external_ip_address = local.main_vm_static_external_ip_address
 }
 
 ########################################################################################################################
 # Observatory Platform Worker VM
 ########################################################################################################################
+
+resource "google_compute_address" "airflow_worker_vm_static_external_ip" {
+  count = var.environment == "production" ? 1 : 0
+  name = "${local.worker_vm_name}-static-external-ip"
+  address_type = "EXTERNAL"
+  region = var.google_cloud.region
+  lifecycle {
+    prevent_destroy = true
+  }
+}
 
 module "airflow_worker_vm" {
   count = var.airflow_worker_vm.create == true ? 1 : 0
@@ -595,6 +621,7 @@ module "airflow_worker_vm" {
   service_account_email = local.compute_service_account_email
   startup_script_path = "./startup-worker.tpl"
   metadata_variables = local.metadata_variables
+  static_external_ip_address = local.worker_vm_static_external_ip_address
 }
 
 ########################################################################################################################
