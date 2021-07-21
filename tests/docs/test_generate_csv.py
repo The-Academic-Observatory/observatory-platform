@@ -46,4 +46,10 @@ class TestSchemaCSVGenerator(unittest.TestCase):
     def test_generate_csv(self):
         with CliRunner().isolated_filesystem():
             gsc.generate_csv(schema_dir=test_fixtures_path("test_schemas"))
-            self.assertTrue(os.path.exists("schemas/test_schema.csv"))
+            self.assertTrue(os.path.exists("schemas/test_schema_2021-01-01.csv"))
+
+    def test_generate_latest_files(self):
+        with CliRunner().isolated_filesystem():
+            gsc.generate_csv(schema_dir=test_fixtures_path("test_schemas"))
+            gsc.generate_latest_files()
+            self.assertTrue(os.path.exists("schemas/test_schema_latest.csv"))

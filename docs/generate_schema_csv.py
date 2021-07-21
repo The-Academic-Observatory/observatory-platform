@@ -17,6 +17,8 @@
 
 import json
 import os
+import re
+import shutil
 from glob import glob
 from pathlib import Path
 from typing import Dict, List, Union
@@ -55,6 +57,10 @@ def generate_csv(*, schema_dir):
 
     schema_files = glob(os.path.join(schema_dir, "*.json"))
     dst_dir = "schemas"
+
+    if os.path.exists(dst_dir):
+        shutil.rmtree(dst_dir)
+
     Path(dst_dir).mkdir(exist_ok=True, parents=True)
 
     for schema_file in schema_files:
@@ -69,5 +75,41 @@ def generate_csv(*, schema_dir):
         df.to_csv(os.path.join(dst_dir, filename), index=False)
 
 
+def generate_latest_files():
+    """For each schema, generate a schema_latest.csv to indicate it is the latest dataset schema. Then if people just
+    want to refer to the latest schema in the documentation they can refer to this link rather than having to update
+    the documentation when there is a schema change.
+
+    Does not handle versioned schemas  (wos/scopus). But maybe we should get rid of versioned schemas when those
+    telescopes are ported to the new template framework anyway.
+    """
+
+    table_files = glob("schemas/*.csv")
+    r = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+    # Build a database of schema files
+    table_schemas = {}
+    for file in table_files:
+        filename = os.path.basename(file)
+        date_str = r.search(filename)
+        date_str_start = date_str.span()[0]
+        table_name = filename[: date_str_start - 1]  # -1 accounts for _
+        table_schemas[table_name] = table_schemas.get(table_name, list())
+        table_schemas[table_name].append(file)
+
+    # Sort schemas
+    for table in table_schemas:
+        table_schemas[table].sort()
+
+    # Copy the last schema in list since it's latest, to a table_latest.csv
+    for table in table_schemas:
+        dst_dir = "schemas"
+        dst_filename = f"{table}_latest.csv"
+        dst_path = os.path.join(dst_dir, dst_filename)
+        src_file = table_schemas[table][-1]
+        shutil.copyfile(src_file, dst_path)
+
+
 if __name__ == "__main__":
     generate_csv(schema_dir="../observatory-dags/observatory/dags/database/schema")
+    generate_latest_files()
