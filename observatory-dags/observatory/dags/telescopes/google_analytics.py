@@ -16,10 +16,9 @@
 
 from __future__ import annotations
 
-import datetime
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, List, Optional, Tuple
 
 import pendulum
@@ -110,7 +109,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         view_id: str,
         pagepath_regex: str,
         dag_id: Optional[str] = None,
-        start_date: datetime = datetime(2018, 1, 1),
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 1, 1),
         schedule_interval: str = "@monthly",
         dataset_id: str = "google",
         catchup: bool = True,

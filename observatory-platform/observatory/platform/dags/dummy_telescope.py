@@ -14,14 +14,13 @@
 
 # Author: Aniek Roelofs
 
-from datetime import datetime
-
+import pendulum
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2020, 8, 10)
+    "start_date": pendulum.Pendulum(2020, 8, 10)
 }
 
 with DAG(dag_id="dummy_telescope", schedule_interval="@daily", default_args=default_args, catchup=True) as dag:

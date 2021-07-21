@@ -17,7 +17,6 @@
 
 from __future__ import annotations, annotations
 
-import datetime
 import functools
 import logging
 import os
@@ -25,7 +24,6 @@ import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 from subprocess import Popen
 from typing import Dict, List
 
@@ -163,7 +161,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: datetime = datetime(2020, 6, 7),
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2020, 6, 7),
         schedule_interval: str = SCHEDULE_INTERVAL,
         dataset_id: str = "crossref",
         queue: str = 'remote_queue',

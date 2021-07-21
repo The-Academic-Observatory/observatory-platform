@@ -26,8 +26,7 @@ Does not work with the following releases:
 * 2018-03-29, 2018-04-28, 2018-06-21, 2018-09-02, 2018-09-06
 """
 
-from datetime import datetime
-
+import pendulum
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
@@ -36,7 +35,7 @@ from observatory.dags.telescopes.unpaywall import UnpaywallTelescope
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2018, 9, 7)
+    "start_date": pendulum.Pendulum(2018, 9, 7)
 }
 
 with DAG(dag_id="unpaywall", schedule_interval="@weekly", default_args=default_args) as dag:

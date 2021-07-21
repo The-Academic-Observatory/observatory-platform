@@ -14,8 +14,7 @@
 
 # Author: Aniek Roelofs
 
-from datetime import datetime
-
+import pendulum
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
@@ -24,7 +23,7 @@ from observatory.platform.tasks.terraform import TerraformTasks
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2020, 7, 1)
+    "start_date": pendulum.Pendulum(2020, 7, 1)
 }
 
 with DAG(dag_id=TerraformTasks.DAG_ID_CREATE_VM, schedule_interval="@weekly", default_args=default_args,

@@ -14,8 +14,7 @@
 
 # Author: Aniek Roelofs
 
-from datetime import datetime
-
+import pendulum
 from airflow import DAG
 from airflow.operators.python_operator import BranchPythonOperator
 from airflow.operators.python_operator import PythonOperator
@@ -25,7 +24,7 @@ from observatory.platform.tasks.terraform import TerraformTasks
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2020, 1, 1)
+    "start_date": pendulum.Pendulum(2020, 1, 1)
 }
 
 with DAG(dag_id=TerraformTasks.DAG_ID_DESTROY_VM, schedule_interval="*/10 * * * *", default_args=default_args,

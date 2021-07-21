@@ -19,7 +19,6 @@ from __future__ import annotations
 import csv
 import logging
 import os
-from datetime import datetime
 from typing import Tuple, List
 
 import pendulum
@@ -136,7 +135,7 @@ class OapenMetadataTelescope(StreamTelescope):
     def __init__(
         self,
         dag_id: str = "oapen_metadata",
-        start_date: datetime = datetime(2018, 5, 14),
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 5, 14),
         schedule_interval: str = "@weekly",
         dataset_id: str = "oapen",
         merge_partition_field: str = "id",
