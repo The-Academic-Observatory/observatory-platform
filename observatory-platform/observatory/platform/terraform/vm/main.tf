@@ -23,7 +23,7 @@ resource "google_compute_instance" "vm_instance" {
     network_ip = google_compute_address.vm_private_ip.address
     subnetwork = var.subnetwork.name # Subnetwork should be specified for custom subnetmode network
     access_config {
-      nat_ip = var.static_external_ip.address
+      nat_ip = var.static_external_ip_address
     }
   }
 
