@@ -18,14 +18,12 @@ from __future__ import annotations
 
 import base64
 import csv
-import datetime
 import logging
 import os
 import os.path
 import os.path
 import shutil
 from collections import OrderedDict
-from datetime import datetime
 from typing import List, Optional
 
 import pendulum
@@ -167,7 +165,7 @@ class JstorTelescope(SnapshotTelescope):
         organisation: Organisation,
         publisher_id: str,
         dag_id: Optional[str] = None,
-        start_date: datetime = datetime(2018, 1, 1),
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 1, 1),
         schedule_interval: str = "@monthly",
         dataset_id: str = "jstor",
         source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
@@ -579,11 +577,18 @@ def list_reports(service: Resource, publisher_id: str, processed_label_id: str) 
             logging.info(f"Skipping unrecognized report type, filename {filename}")
 
         # check format
-        if extension != "tsv":
-            raise AirflowException(f'File "{filename}.{extension}" does not have ".tsv" extension')
+        original_email = f"https://mail.google.com/mail/u/0/#all/{message_id}"
+        if extension == "tsv":
+            # add report info
+            logging.info(
+                f"Adding report. Report type: {report_type}, url: {download_url}, "
+                f"original email: {original_email}."
+            )
+            available_reports.append({"type": report_type, "url": download_url, "id": message_id})
+        else:
+            logging.warning(
+                f'Excluding file "{filename}.{extension}", as it does not have ".tsv" extension. '
+                f'Original email: {original_email}'
+            )
 
-        # add report info
-        available_reports.append({"type": report_type, "url": download_url, "id": message_id})
-
-        logging.info(f"Processing report. Report type: {report_type}, url: {download_url}, message id: {message_id}.")
     return available_reports
