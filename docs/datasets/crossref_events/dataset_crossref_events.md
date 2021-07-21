@@ -1,5 +1,11 @@
 # Crossref Events
 
+"Crossref makes research outputs easy to find, cite, link, assess, and reuse. We’re a not-for-profit
+membership organization that exists to make scholarly communications better. We rally the community;
+tag and share metadata; run an open infrastructure; play with technology; and make tools and
+services—all to help put scholarly content in context."
+-- [Crossref website](https://www.crossref.org/).
+
 When someone links their data online, or mentions research on, for example, Twitter, 
 Wikipedia, or Reddit, Crossref’s uses a set of APIs to captures and records those events in 
 their ‘Event dataset’. Events are tracked via their DOI and URLs, which enables Crossref to 
