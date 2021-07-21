@@ -88,27 +88,39 @@ def get_oaebu_partner_data(project_id, org_name):
     ]
 
     publisher_to_provider_mapping = {
-        "ANU Press": [OaebuPartnerName.google_analytics,
-                            OaebuPartnerName.google_books_sales,
-                            OaebuPartnerName.google_books_traffic,
-                            OaebuPartnerName.jstor_country,
-                            OaebuPartnerName.jstor_institution,
-                            OaebuPartnerName.oapen_irus_uk],
-        "UCL Press": [OaebuPartnerName.google_books_sales,
-                            OaebuPartnerName.google_books_traffic,
-                            OaebuPartnerName.jstor_country,
-                            OaebuPartnerName.jstor_institution,
-                            OaebuPartnerName.oapen_irus_uk,
-                            OaebuPartnerName.ucl_discovery],
+        "ANU Press": [
+            OaebuPartnerName.google_analytics,
+            OaebuPartnerName.google_books_sales,
+            OaebuPartnerName.google_books_traffic,
+            OaebuPartnerName.jstor_country,
+            OaebuPartnerName.jstor_institution,
+            OaebuPartnerName.oapen_irus_uk,
+        ],
+        "UCL Press": [
+            OaebuPartnerName.google_books_sales,
+            OaebuPartnerName.google_books_traffic,
+            OaebuPartnerName.jstor_country,
+            OaebuPartnerName.jstor_institution,
+            OaebuPartnerName.oapen_irus_uk,
+            OaebuPartnerName.ucl_discovery,
+        ],
         "Wits University Press": [],
-        "University of Michigan Press": [],
+        "University of Michigan Press": [
+            OaebuPartnerName.google_books_sales,
+            OaebuPartnerName.google_books_traffic,
+            OaebuPartnerName.jstor_country,
+            OaebuPartnerName.jstor_institution,
+            OaebuPartnerName.oapen_irus_uk,
+        ],
         "Springer Nature": [],
         "Oapen Press": [OaebuPartnerName.oapen_irus_uk],
-        "Curtin Press": [OaebuPartnerName.google_books_sales,
-                            OaebuPartnerName.google_books_traffic,
-                            OaebuPartnerName.jstor_country,
-                            OaebuPartnerName.jstor_institution,
-                            OaebuPartnerName.oapen_irus_uk],
+        "Curtin Press": [
+            OaebuPartnerName.google_books_sales,
+            OaebuPartnerName.google_books_traffic,
+            OaebuPartnerName.jstor_country,
+            OaebuPartnerName.jstor_institution,
+            OaebuPartnerName.oapen_irus_uk,
+        ],
     }
 
     publisher_data_partners = list()
@@ -134,10 +146,7 @@ for telescope in telescopes:
     data_partners = get_oaebu_partner_data(gcp_project_id, org_name)
 
     onix_workflow = OnixWorkflow(
-        org_name=org_name,
-        gcp_project_id=gcp_project_id,
-        gcp_bucket_name=gcp_bucket_name,
-        data_partners=data_partners,
+        org_name=org_name, gcp_project_id=gcp_project_id, gcp_bucket_name=gcp_bucket_name, data_partners=data_partners,
     )
 
     globals()[onix_workflow.dag_id] = onix_workflow.make_dag()
