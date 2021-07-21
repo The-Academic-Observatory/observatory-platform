@@ -543,6 +543,11 @@ locals {
     environment = var.environment
     airflow_variables = local.airflow_variables
   }
+
+  worker_vm_static_external_ip_address = try(google_compute_address.airflow_worker_vm_static_external_ip[0].address,
+  null)
+  main_vm_static_external_ip_address = try(google_compute_address.airflow_main_vm_static_external_ip[0].address, null)
+
 }
 
 ########################################################################################################################
@@ -556,6 +561,7 @@ data "google_compute_image" "observatory_image" {
 }
 
 resource "google_compute_address" "airflow_main_vm_static_external_ip" {
+  count = var.environment == "production" ? 1 : 0
   name = "${local.main_vm_name}-static-external-ip"
   address_type = "EXTERNAL"
   region = var.google_cloud.region
@@ -563,7 +569,6 @@ resource "google_compute_address" "airflow_main_vm_static_external_ip" {
     prevent_destroy = true
   }
 }
-
 
 module "airflow_main_vm" {
   source = "./vm"
@@ -584,7 +589,7 @@ module "airflow_main_vm" {
   service_account_email = local.compute_service_account_email
   startup_script_path = "./startup-main.tpl"
   metadata_variables = local.metadata_variables
-  static_external_ip = google_compute_address.airflow_main_vm_static_external_ip
+  static_external_ip_address = local.main_vm_static_external_ip_address
 }
 
 ########################################################################################################################
@@ -592,6 +597,7 @@ module "airflow_main_vm" {
 ########################################################################################################################
 
 resource "google_compute_address" "airflow_worker_vm_static_external_ip" {
+  count = var.environment == "production" ? 1 : 0
   name = "${local.worker_vm_name}-static-external-ip"
   address_type = "EXTERNAL"
   region = var.google_cloud.region
@@ -615,7 +621,7 @@ module "airflow_worker_vm" {
   service_account_email = local.compute_service_account_email
   startup_script_path = "./startup-worker.tpl"
   metadata_variables = local.metadata_variables
-  static_external_ip = google_compute_address.airflow_worker_vm_static_external_ip
+  static_external_ip_address = local.worker_vm_static_external_ip_address
 }
 
 ########################################################################################################################
