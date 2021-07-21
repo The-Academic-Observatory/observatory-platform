@@ -17,10 +17,10 @@ Twitter, Wikipedia, and Wordpress.com
 . _- source: [Crossref Events](https://www.crossref.org/services/event-data/)_ 
 and [data details](https://www.eventdata.crossref.org/guide/data/events/)
 
-## Latest schema (2017-02-17)
+## Latest schema
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/crossref_events_2017-02-17.csv
+   :file: ../../schemas/crossref_events_latest.csv
    :width: 100%
    :header-rows: 1
 ```

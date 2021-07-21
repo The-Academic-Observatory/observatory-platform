@@ -13,10 +13,10 @@ relationships, types, and whether it is an active institution
 . _- source: [GRID](https://www.grid.ac/)_ 
 and [data details](https://www.grid.ac/format)
 
-## Latest schema (2021-03-25)
+## Latest schema
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/grid_2021-03-25.csv
+   :file: ../../schemas/grid_latest.csv
    :width: 100%
    :header-rows: 1
 ```

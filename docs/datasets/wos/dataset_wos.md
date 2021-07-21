@@ -12,10 +12,10 @@ Useful links:
 - [Field name descriptions](http://help.incites.clarivate.com/wosWebServicesExpanded/appendix1Group/wosfieldNameTable.html)
 
 
-## Latest schema (2020-09-01 (WOK 5.4))
+## Latest schema
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/wos_wok5.4_2020-09-01.csv
+   :file: ../../schemas/wos_wok5.4_latest.csv
    :width: 100%
    :header-rows: 1
 ```

@@ -19,165 +19,166 @@ The dataset is provided as a set of related tables of data
 and [data details](https://docs.microsoft.com/en-us/academic-services/graph/reference-data-schema
 )
 
-## Affiliations schema (2020-09-01)
+## Latest schema
+### Affiliations
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagAffiliations_2020-09-01.csv
+   :file: ../../schemas/MagAffiliations_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## AuthorExtendedAttributes schema (2020-07-02)
+### AuthorExtendedAttributes
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagAuthorExtendedAttributes_2020-07-02.csv
+   :file: ../../schemas/MagAuthorExtendedAttributes_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## Authors schema (2020-05-21)
+### Authors
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagAuthors_2020-05-21.csv
+   :file: ../../schemas/MagAuthors_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## ConferenceInstances schema (2020-05-21)
+### ConferenceInstances
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagConferenceInstances_2020-05-21.csv
+   :file: ../../schemas/MagConferenceInstances_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## ConferenceSeries schema (2020-05-21)
+### ConferenceSeries
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagConferenceSeries_2020-05-21.csv
+   :file: ../../schemas/MagConferenceSeries_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## EntityRelatedEntites schema (2020-05-21)
+### EntityRelatedEntites
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagEntityRelatedEntities_2020-05-21.csv
-   :width: 100%
-   :header-rows: 1
-```
-
-## FieldOfStudyChildren schema (2020-05-21)
-``` eval_rst
-.. csv-table::
-   :file: ../../schemas/MagFieldOfStudyChildren_2020-05-21.csv
-   :width: 100%
-   :header-rows: 1
-```
-## FieldOfStudyExtendedAttributes schema (2020-05-21)
-``` eval_rst
-.. csv-table::
-   :file: ../../schemas/MagFieldOfStudyExtendedAttributes_2020-05-21.csv
-   :width: 100%
-   :header-rows: 1
-```
-## FieldsOfStudy schema (2020-05-21)
-``` eval_rst
-.. csv-table::
-   :file: ../../schemas/MagFieldsOfStudy_2020-05-21.csv
-   :width: 100%
-   :header-rows: 1
-```
-## Journals schema (2020-05-21)
-``` eval_rst
-.. csv-table::
-   :file: ../../schemas/MagJournals_2020-05-21.csv
-   :width: 100%
-   :header-rows: 1
-```
-## PaperAbstractsInvertedIndex schema (2020-05-21)
-``` eval_rst
-.. csv-table::
-   :file: ../../schemas/MagPaperAbstractsInvertedIndex_2020-05-21.csv
-   :width: 100%
-   :header-rows: 1
-```
-## PaperAuthorAffiliations schema (2020-05-21)
-``` eval_rst
-.. csv-table::
-   :file: ../../schemas/MagPaperAuthorAffiliations_2020-05-21.csv
-   :width: 100%
-   :header-rows: 1
-```
-## PaperCitationContexts schema (2020-05-21)
-``` eval_rst
-.. csv-table::
-   :file: ../../schemas/MagPaperCitationContexts_2020-05-21.csv
-   :width: 100%
-   :header-rows: 1
-```
-## PaperExtendedAttributes schema (2020-05-21)
-``` eval_rst
-.. csv-table::
-   :file: ../../schemas/MagPaperExtendedAttributes_2020-05-21.csv
+   :file: ../../schemas/MagEntityRelatedEntities_latest.csv
    :width: 100%
    :header-rows: 1
 ```
 
-## PaperFieldsOfStudy schema (2020-05-21)
+### FieldOfStudyChildren
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagPaperFieldsOfStudy_2020-05-21.csv
+   :file: ../../schemas/MagFieldOfStudyChildren_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## PaperLanguages schema (2020-05-21)
+### FieldOfStudyExtendedAttributes
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagPaperLanguages_2020-05-21.csv
+   :file: ../../schemas/MagFieldOfStudyExtendedAttributes_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## PaperMeSH schema (2020-09-25)
+### FieldsOfStudy
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagPaperMeSH_2020-09-25.csv
+   :file: ../../schemas/MagFieldsOfStudy_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## PaperRecommendations schema (2020-05-21)
+### Journals
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagPaperRecommendations_2020-05-21.csv
+   :file: ../../schemas/MagJournals_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## PaperReferences schema (2020-05-21)
+### PaperAbstractsInvertedIndex
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagPaperReferences_2020-05-21.csv
+   :file: ../../schemas/MagPaperAbstractsInvertedIndex_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## PaperResources schema (2020-05-21)
+### PaperAuthorAffiliations
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagPaperResources_2020-05-21.csv
+   :file: ../../schemas/MagPaperAuthorAffiliations_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## Papers schema (2021-05-24)
+### PaperCitationContexts
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagPapers_2021-05-24.csv
+   :file: ../../schemas/MagPaperCitationContexts_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## PaperUrls schema (2020-05-21)
+### PaperExtendedAttributes
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagPaperUrls_2020-05-21.csv
+   :file: ../../schemas/MagPaperExtendedAttributes_latest.csv
    :width: 100%
    :header-rows: 1
 ```
-## RelatedFieldOfStudy schema (2020-05-21)
+
+### PaperFieldsOfStudy
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/MagRelatedFieldOfStudy_2020-05-21.csv
+   :file: ../../schemas/MagPaperFieldsOfStudy_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
+### PaperLanguages
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/MagPaperLanguages_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
+### PaperMeSH
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/MagPaperMeSH_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
+### PaperRecommendations
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/MagPaperRecommendations_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
+### PaperReferences
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/MagPaperReferences_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
+### PaperResources
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/MagPaperResources_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
+### Papers
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/MagPapers_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
+### PaperUrls
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/MagPaperUrls_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
+### RelatedFieldOfStudy
+``` eval_rst
+.. csv-table::
+   :file: ../../schemas/MagRelatedFieldOfStudy_latest.csv
    :width: 100%
    :header-rows: 1

@@ -13,10 +13,10 @@ library systems, author profiling, specialist subject databases, scholarly shari
 . _- source: [Crossref Metadata](https://www.crossref.org/services/metadata-retrieval/)_ 
 and [schema details](https://github.com/Crossref/rest-api-doc/blob/master/api_format.md)
 
-## Latest schema (2021-01-01)
+## Latest schema
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/crossref_metadata_2021-01-01.csv
+   :file: ../../schemas/crossref_metadata_latest.csv
    :width: 100%
    :header-rows: 1
 ```

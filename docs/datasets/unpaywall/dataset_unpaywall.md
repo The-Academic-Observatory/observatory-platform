@@ -13,10 +13,10 @@ hybrid, and bronze."
 ” _- source: [Unpaywall](https://unpaywall.org/)_ 
 and [data details](https://unpaywall.org/data-format)
 
-## Latest schema (2021-02-18)
+## Latest schema
 ``` eval_rst
 .. csv-table::
-   :file: ../../schemas/unpaywall_2021-02-18.csv
+   :file: ../../schemas/unpaywall_latest.csv
    :width: 100%
    :header-rows: 1
 ```
