@@ -197,4 +197,22 @@ ssh-keyscan oaebu.exavault.com
 sftp_service: ssh://<username>:<password>@<host>?host_key=<host_key>
 ```
 
+## Latest schema
 
+### Google Books Sales
+
+``` eval_rst
+.. csv-table::
+   :file: ../schemas/google_books_sales_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
+
+### Google Books Traffic
+
+``` eval_rst
+.. csv-table::
+   :file: ../schemas/google_books_traffic_latest.csv
+   :width: 100%
+   :header-rows: 1
+```

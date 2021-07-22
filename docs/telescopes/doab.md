@@ -39,3 +39,11 @@ There are two tables containing data related to this telescope:
 
 If there are any edited or deleted entries, the old versions of these entries will first be deleted from the main table 
 (using a MERGE statement) after which the updated versions are appended to this table.  
+
+## Latest schema
+``` eval_rst
+.. csv-table::
+   :file: ../schemas/doab_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
