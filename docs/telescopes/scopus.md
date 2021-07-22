@@ -1,4 +1,4 @@
-# SCOPUS
+# Scopus
 
 "Scopus uniquely combines a comprehensive, curated abstract and citation database with enriched data and linked scholarly content.
 
