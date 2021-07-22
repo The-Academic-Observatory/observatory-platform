@@ -265,7 +265,8 @@ class DoiWorkflow(Telescope):
     EXPORT_OUTPUT_TYPES_FILENAME = make_sql_jinja2_filename("export_output_types")
     EXPORT_RELATIONS_FILENAME = make_sql_jinja2_filename("export_relations")
 
-    SENSOR_DAG_IDS = ["crossref_metadata", "crossref_fundref", "geonames", "grid", "mag", "open_citations", "unpaywall"]
+    SENSOR_DAG_IDS = ["crossref_metadata", "crossref_fundref", "geonames", "grid", "mag", "open_citations",
+                      "unpaywall", "orcid"]
 
     AGGREGATIONS = [
         Aggregation(

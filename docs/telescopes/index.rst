@@ -15,6 +15,7 @@ Telescopes
     mag
     oapen_metadata
     oapen_irus_uk
+    orcid
     scopus
     terraform
     ucl_discovery

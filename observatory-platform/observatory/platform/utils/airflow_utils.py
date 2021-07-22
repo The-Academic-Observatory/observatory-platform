@@ -45,6 +45,7 @@ class AirflowVars:
     DAGS_MODULE_NAMES = "dags_module_names"
     KIBANA_SPACES = "kibana_spaces"
     OBSERVATORY_API = "observatory_api"
+    ORCID_BUCKET = "orcid_bucket"
 
 
 class AirflowConns:
@@ -64,6 +65,7 @@ class AirflowConns:
     SFTP_SERVICE = "sftp_service"
     OBSERVATORY_API = "observatory_api"
     GMAIL_API = "gmail_api"
+    ORCID = "orcid"
 
 
 def get_variable(key: str) -> Optional[str]:
