@@ -12,21 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
 import os
 import unittest
+from datetime import timedelta
 from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
 
 import pendulum
+import boto3
 from azure.storage.blob import BlobClient, BlobServiceClient
 from click.testing import CliRunner
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat
 from observatory.platform.utils.file_utils import crc32c_base64_hash, hex_to_base64_str
 from observatory.platform.utils.gc_utils import (
+    aws_to_google_cloud_storage_transfer,
     azure_to_google_cloud_storage_transfer,
     bigquery_sharded_table_id,
     bigquery_table_exists,
@@ -152,6 +155,9 @@ class TestGoogleCloudUtils(unittest.TestCase):
         self.az_storage_account_name: str = os.getenv("TEST_AZURE_STORAGE_ACCOUNT_NAME")
         self.az_container_sas_token: str = os.getenv("TEST_AZURE_CONTAINER_SAS_TOKEN")
         self.az_container_name: str = os.getenv("TEST_AZURE_CONTAINER_NAME")
+        self.aws_key_id: str = os.getenv("TEST_AWS_KEY_ID")
+        self.aws_secret_key: str = os.getenv("TEST_AWS_SECRET_KEY")
+        self.aws_bucket_name: str = os.getenv("TEST_AWS_BUCKET_NAME")
         self.gc_project_id: str = os.getenv("TEST_GCP_PROJECT_ID")
         self.gc_bucket_name: str = os.getenv("TEST_GCP_BUCKET_NAME")
         self.gc_bucket_location: str = os.getenv("TEST_GCP_DATA_LOCATION")
@@ -559,6 +565,69 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Delete file on Azure
             if az_blob is not None:
                 az_blob.delete_blob()
+
+    def test_aws_to_google_cloud_storage_transfer(self):
+        blob_name = f"{random_id()}.txt"
+        aws_blob = None
+
+        # Create client for working with Google Cloud storage bucket
+        storage_client = storage.Client()
+        bucket = storage_client.get_bucket(self.gc_bucket_name)
+        gc_blob = bucket.blob(blob_name)
+
+        try:
+            # Create client for working with AWS storage bucket
+            s3 = boto3.resource('s3', aws_access_key_id=self.aws_key_id, aws_secret_access_key=self.aws_secret_key)
+            aws_blob = s3.Object(self.aws_bucket_name, blob_name)
+            aws_blob.put(Body=self.data)
+
+            # Test transfer where no data is found, because modified date is not between dates
+            success, objects_count = aws_to_google_cloud_storage_transfer(
+                                        self.aws_key_id,
+                                        self.aws_secret_key,
+                                        self.aws_bucket_name,
+                                        include_prefixes=[blob_name],
+                                        gc_project_id=self.gc_project_id,
+                                        gc_bucket=self.gc_bucket_name,
+                                        description=f"Test AWS to Google Cloud Storage Transfer "
+                                        f"{pendulum.datetime.utcnow().to_datetime_string()}",
+                                        last_modified_before=pendulum.Pendulum(2021, 1, 1)
+            )
+            # Check that transfer was successful, but no objects were transferred
+            self.assertTrue(success)
+            self.assertEqual(0, objects_count)
+
+            # Transfer data
+            success, objects_count = aws_to_google_cloud_storage_transfer(
+                                        self.aws_key_id,
+                                        self.aws_secret_key,
+                                        self.aws_bucket_name,
+                                        include_prefixes=[blob_name],
+                                        gc_project_id=self.gc_project_id,
+                                        gc_bucket=self.gc_bucket_name,
+                                        description=f"Test AWS to Google Cloud Storage Transfer "
+                                        f"{pendulum.datetime.utcnow().to_datetime_string()}",
+                                        last_modified_since=pendulum.Pendulum(2021, 1, 1),
+                                        last_modified_before=pendulum.utcnow() + timedelta(days=1)
+            )
+            # Check that transfer was successful and 1 object was transferred
+            self.assertTrue(success)
+            self.assertEqual(1, objects_count)
+
+            # Check that blob exists
+            self.assertTrue(gc_blob.exists())
+
+            # Check that blob has expected crc32c token
+            gc_blob.update()
+            self.assertEqual(gc_blob.crc32c, self.expected_crc32c)
+        finally:
+            # Delete file on Google Cloud
+            if gc_blob.exists():
+                gc_blob.delete()
+
+            # Delete file on AWS
+            if aws_blob is not None:
+                aws_blob.delete()
 
     def test_delete_bigquery_dataset(self):
         def dataset_exists(project_id, dataset_id):

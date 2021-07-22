@@ -140,6 +140,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 "mag_sensor": ["check_dependencies"],
                 "open_citations_sensor": ["check_dependencies"],
                 "unpaywall_sensor": ["check_dependencies"],
+                "orcid_sensor": ["check_dependencies"],
                 "check_dependencies": ["create_datasets"],
                 "create_datasets": [
                     "create_crossref_events",
