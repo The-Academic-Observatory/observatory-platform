@@ -27,7 +27,6 @@ from typing import Union
 
 import pendulum
 from natsort import natsorted
-from pendulum import Pendulum
 
 
 def module_file_path(module_path: str, nav_back_steps: int = -1) -> str:
@@ -76,7 +75,7 @@ def terraform_credentials_path() -> str:
 
 
 def find_schema(
-    path: str, table_name: str, release_date: Pendulum, prefix: str = "", ver: str = None
+    path: str, table_name: str, release_date: pendulum.datetime, prefix: str = "", ver: str = None
 ) -> Union[str, None]:
 
     """Finds a schema file on a given path, with a particular table name, release date and optional prefix.

@@ -15,7 +15,7 @@
 # Author: Aniek Roelofs, James Diprose
 
 
-from __future__ import annotations, annotations
+from __future__ import annotations
 
 import functools
 import logging
@@ -30,20 +30,25 @@ from typing import Dict, List
 import pendulum
 import requests
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from natsort import natsorted
-from pendulum import Pendulum
-
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.telescopes.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.proc_utils import wait_for_process
-from observatory.platform.utils.template_utils import upload_files_from_list, bq_load_shard, blob_name
+from observatory.platform.utils.template_utils import (
+    blob_name,
+    bq_load_shard,
+    upload_files_from_list,
+)
 from observatory.platform.utils.url_utils import retry_session
 
 
 class CrossrefMetadataRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: Pendulum):
-        """ Create a CrossrefMetadataRelease instance.
+    def __init__(self, dag_id: str, release_date: pendulum.datetime):
+        """Create a CrossrefMetadataRelease instance.
 
         :param dag_id: the DAG id.
         :param release_date: the date of the release.
@@ -58,7 +63,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
 
     @property
     def download_path(self) -> str:
-        """ Get the path to the downloaded file.
+        """Get the path to the downloaded file.
 
         :return: the file path.
         """
@@ -66,7 +71,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
         return os.path.join(self.download_folder, "crossref_metadata.json.tar.gz")
 
     def download(self):
-        """ Download release.
+        """Download release.
 
         :return: None.
         """
@@ -92,7 +97,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
         logging.info(f"Successfully download url to {self.download_path}")
 
     def extract(self):
-        """ Extract release. Decompress and unzip file to multiple json files.
+        """Extract release. Decompress and unzip file to multiple json files.
 
         :return: None.
         """
@@ -116,7 +121,7 @@ class CrossrefMetadataRelease(SnapshotRelease):
             raise AirflowException(f"extract_release error: {self.download_path}")
 
     def transform(self, max_workers: int):
-        """ Transform the Crossref Metadata release.
+        """Transform the Crossref Metadata release.
         Each extracted file is transformed. This is done in parallel using the ThreadPoolExecutor.
 
         :param max_workers: the number of processes to use when transforming files (one process per file).
@@ -164,7 +169,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         start_date: pendulum.Pendulum = pendulum.Pendulum(2020, 6, 7),
         schedule_interval: str = SCHEDULE_INTERVAL,
         dataset_id: str = "crossref",
-        queue: str = 'remote_queue',
+        queue: str = "remote_queue",
         dataset_description: str = "The Crossref Metadata Plus dataset: "
         "https://www.crossref.org/services/metadata-retrieval/metadata-plus/",
         load_bigquery_table_kwargs: Dict = None,
@@ -174,7 +179,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         max_active_runs: int = 1,
         max_processes: int = min(32, os.cpu_count() + 4),
     ):
-        """ The Crossref Metadata telescope
+        """The Crossref Metadata telescope
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -229,7 +234,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         self.add_task(self.cleanup)
 
     def make_release(self, **kwargs) -> List[CrossrefMetadataRelease]:
-        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        """Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -242,7 +247,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         return [CrossrefMetadataRelease(self.dag_id, release_date)]
 
     def check_release_exists(self, **kwargs):
-        """ Check that the release for this month exists.
+        """Check that the release for this month exists.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -282,7 +287,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
             )
 
     def download(self, releases: List[CrossrefMetadataRelease], **kwargs):
-        """ Task to download the CrossrefMetadataRelease release for a given month.
+        """Task to download the CrossrefMetadataRelease release for a given month.
 
         :param releases: the list of CrossrefMetadataRelease instances.
         :return: None.
@@ -293,7 +298,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
             release.download()
 
     def upload_downloaded(self, releases: List[CrossrefMetadataRelease], **kwargs):
-        """ Task to upload the downloaded CrossrefMetadataRelease release for a given month.
+        """Task to upload the downloaded CrossrefMetadataRelease release for a given month.
 
         :param releases: the list of CrossrefMetadataRelease instances.
         :return: None.
@@ -303,7 +308,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def extract(self, releases: List[CrossrefMetadataRelease], **kwargs):
-        """ Task to extract the CrossrefMetadataRelease release for a given month.
+        """Task to extract the CrossrefMetadataRelease release for a given month.
 
         :param releases: the list of CrossrefMetadataRelease instances.
         :return: None.
@@ -313,7 +318,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
             release.extract()
 
     def transform(self, releases: List[CrossrefMetadataRelease], **kwargs):
-        """ Task to transform the CrossrefMetadataRelease release for a given month.
+        """Task to transform the CrossrefMetadataRelease release for a given month.
 
         :param releases: the list of CrossrefMetadataRelease instances.
         :return: None.
@@ -323,7 +328,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
             release.transform(max_workers=self.max_processes)
 
     def bq_load(self, releases: List[SnapshotRelease], **kwargs):
-        """ Task to load each transformed release to BigQuery.
+        """Task to load each transformed release to BigQuery.
 
         The table_id is set to the file name without the extension.
 
@@ -350,7 +355,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
 
 
 def transform_file(input_file_path: str, output_file_path: str):
-    """ Transform a single crossref metadata json file.
+    """Transform a single crossref metadata json file.
     The json file is converted to a jsonl file and field names are transformed so they are accepted by BigQuery.
 
     :param input_file_path: the path of the file to transform.

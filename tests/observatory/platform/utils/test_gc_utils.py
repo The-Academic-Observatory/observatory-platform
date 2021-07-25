@@ -140,7 +140,7 @@ class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
 
     @patch("observatory.platform.utils.gc_utils.run_bigquery_query")
     def test_select_table_shard_dates(self, mock_run_bq_query):
-        end_date = pendulum.Pendulum(2021, 1, 1)
+        end_date = pendulum.datetime(2021, 1, 1)
         mock_run_bq_query.return_value = [{"suffix": end_date}]
 
         results = select_table_shard_dates(project_id="proj", dataset_id="ds", table_id="table", end_date=end_date)
@@ -249,10 +249,18 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
             # Test loading time partitioned and clustered table
             table_name = random_id()
-            result = load_bigquery_table(uri, dataset_id, self.gc_bucket_location, table_name,
-                                         schema_file_path=schema_path,
-                                         source_format=SourceFormat.NEWLINE_DELIMITED_JSON, partition=True,
-                                         partition_field='dob', cluster=True, clustering_fields=['first_name'])
+            result = load_bigquery_table(
+                uri,
+                dataset_id,
+                self.gc_bucket_location,
+                table_name,
+                schema_file_path=schema_path,
+                source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                partition=True,
+                partition_field="dob",
+                cluster=True,
+                clustering_fields=["first_name"],
+            )
             self.assertTrue(result)
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
         finally:
@@ -378,7 +386,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_create_cloud_storage_bucket(self):
-        """ Test that storage bucket is created """
+        """Test that storage bucket is created"""
         client = storage.Client()
         bucket_name = "a" + random_id() + "a"
         bucket = client.bucket(bucket_name)
@@ -400,7 +408,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             bucket.delete()
 
     def test_copy_blob_from_cloud_storage(self):
-        """ Test that blob is copied from one bucket to another """
+        """Test that blob is copied from one bucket to another"""
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Create file
@@ -545,7 +553,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 gc_project_id=self.gc_project_id,
                 gc_bucket=self.gc_bucket_name,
                 description=f"Test Azure to Google Cloud Storage Transfer "
-                f"{pendulum.datetime.utcnow().to_datetime_string()}",
+                f"{pendulum.now('UTC').to_datetime_string()}",
             )
 
             # Check that transfer was successful
@@ -680,7 +688,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
     def test_select_table_shard_dates(self):
         client = bigquery.Client()
         dataset_id = random_id()
-        table_id = 'fundref'
+        table_id = "fundref"
         # end_date = pendulum.date(year=2019, month=5, day=1)
         release_1 = pendulum.datetime(year=2019, month=5, day=1)
         release_2 = pendulum.datetime(year=2019, month=6, day=1)
@@ -689,15 +697,27 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
         try:
             create_bigquery_dataset(self.gc_project_id, dataset_id, self.gc_bucket_location)
-            create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
-                                             bigquery_sharded_table_id(table_id, release_1),
-                                             self.gc_bucket_location)
-            create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
-                                             bigquery_sharded_table_id(table_id, release_2),
-                                             self.gc_bucket_location)
-            create_bigquery_table_from_query(query, self.gc_project_id, dataset_id,
-                                             bigquery_sharded_table_id(table_id, release_3),
-                                             self.gc_bucket_location)
+            create_bigquery_table_from_query(
+                query,
+                self.gc_project_id,
+                dataset_id,
+                bigquery_sharded_table_id(table_id, release_1),
+                self.gc_bucket_location,
+            )
+            create_bigquery_table_from_query(
+                query,
+                self.gc_project_id,
+                dataset_id,
+                bigquery_sharded_table_id(table_id, release_2),
+                self.gc_bucket_location,
+            )
+            create_bigquery_table_from_query(
+                query,
+                self.gc_project_id,
+                dataset_id,
+                bigquery_sharded_table_id(table_id, release_3),
+                self.gc_bucket_location,
+            )
 
             suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_1)
             self.assertTrue(len(suffixes), 1)

@@ -43,7 +43,6 @@ from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
 )
-from pendulum import Pendulum
 from requests.exceptions import ChunkedEncodingError
 
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
@@ -67,7 +66,7 @@ def table_name_from_blob(blob_name: str, file_extension: str):
 
 
 class TransferStatus(Enum):
-    """ The status of the Google Cloud Data Transfer operation """
+    """The status of the Google Cloud Data Transfer operation"""
 
     in_progress = "IN_PROGRESS"
     success = "SUCCESS"
@@ -97,7 +96,7 @@ def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str) -> 
     return table_exists
 
 
-def bigquery_sharded_table_id(table_name, datetime: Pendulum) -> str:
+def bigquery_sharded_table_id(table_name, datetime: pendulum.datetime) -> str:
     """Create a sharded table identifier for a BigQuery table.
 
     :param table_name: the name of the table.
@@ -169,7 +168,7 @@ def load_bigquery_table(
     table_description: str = "",
     project_id: str = None,
     cluster: bool = False,
-    clustering_fields = None
+    clustering_fields=None,
 ) -> bool:
     """Load a BigQuery table from an object on Google Cloud Storage.
 
@@ -405,7 +404,7 @@ def create_bigquery_table_from_query(
 
 
 def storage_bucket_exists(bucket_name: str):
-    """ Check whether the Google Cloud Storage bucket exists
+    """Check whether the Google Cloud Storage bucket exists
 
     :param bucket_name: Bucket name (without gs:// prefix)
     :return: Whether the bucket exists or not
@@ -418,10 +417,11 @@ def storage_bucket_exists(bucket_name: str):
     return exists
 
 
-def create_cloud_storage_bucket(bucket_name: str, location: str = None, project_id: str = None,
-                                lifecycle_delete_age: int = None) -> bool:
-    """ Create a cloud storage bucket
-    
+def create_cloud_storage_bucket(
+    bucket_name: str, location: str = None, project_id: str = None, lifecycle_delete_age: int = None
+) -> bool:
+    """Create a cloud storage bucket
+
     :param bucket_name: The name of the bucket. Bucket names must start and end with a number or letter.
     :param location: (Optional) The location of the bucket. If not passed, the default location, US, will be used.
     :param project_id: The project which the client acts on behalf of. Will be passed when creating a topic. If not
@@ -767,30 +767,27 @@ def upload_file_to_cloud_storage(
 
 
 def google_cloud_storage_transfer_job(job: dict, func_name: str, gc_project_id: str) -> Tuple[bool, int]:
-    """ Start a google cloud storage transfer job
+    """Start a google cloud storage transfer job
 
     :param job: contains the details of the transfer job
     :param func_name: function name used for detailed logging info
     :param gc_project_id: the Google Cloud project id that holds the Google Cloud Storage bucket.
     :return: whether the transfer was a success or not and the number of objects transferred.
     """
-    client = gcp_api.build('storagetransfer', 'v1')
+    client = gcp_api.build("storagetransfer", "v1")
     create_result = client.transferJobs().create(body=job).execute()
-    transfer_job_name = create_result['name']
+    transfer_job_name = create_result["name"]
 
-    transfer_job_filter = json.dumps({
-        'project_id': gc_project_id,
-        'job_names': [transfer_job_name]
-    })
+    transfer_job_filter = json.dumps({"project_id": gc_project_id, "job_names": [transfer_job_name]})
     wait_time = 60
     while True:
-        response = client.transferOperations().list(name='transferOperations', filter=transfer_job_filter).execute()
-        if 'operations' in response:
-            operations = response['operations']
+        response = client.transferOperations().list(name="transferOperations", filter=transfer_job_filter).execute()
+        if "operations" in response:
+            operations = response["operations"]
 
             in_progress_count, success_count, failed_count, aborted_count, objects_count = 0, 0, 0, 0, 0
             for op in operations:
-                status = op['metadata']['status']
+                status = op["metadata"]["status"]
                 if status == TransferStatus.success.value:
                     success_count += 1
                 elif status == TransferStatus.failed.value:
@@ -801,15 +798,17 @@ def google_cloud_storage_transfer_job(job: dict, func_name: str, gc_project_id: 
                     in_progress_count += 1
 
                 try:
-                    objects_found = int(op['metadata']['counters']['objectsFoundFromSource'])
+                    objects_found = int(op["metadata"]["counters"]["objectsFoundFromSource"])
                 except KeyError:
                     objects_found = 0
                 objects_count += objects_found
 
             num_operations = len(operations)
-            logging.info(f"{func_name}: transfer job {transfer_job_name} operations success={success_count}, "
-                         f"failed={failed_count}, aborted={aborted_count}, in_progress_count={in_progress_count}, "
-                         f"objects_count={objects_count}")
+            logging.info(
+                f"{func_name}: transfer job {transfer_job_name} operations success={success_count}, "
+                f"failed={failed_count}, aborted={aborted_count}, in_progress_count={in_progress_count}, "
+                f"objects_count={objects_count}"
+            )
 
             if success_count >= num_operations:
                 status = TransferStatus.success
@@ -826,10 +825,17 @@ def google_cloud_storage_transfer_job(job: dict, func_name: str, gc_project_id: 
     return status == TransferStatus.success, objects_count
 
 
-def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azure_sas_token: str, azure_container: str,
-                                           include_prefixes: List[str], gc_project_id: str, gc_bucket: str,
-                                           description: str, start_date: Pendulum = pendulum.utcnow()) -> bool:
-    """ Transfer files from an Azure blob container to a Google Cloud Storage bucket.
+def azure_to_google_cloud_storage_transfer(
+    azure_storage_account_name: str,
+    azure_sas_token: str,
+    azure_container: str,
+    include_prefixes: List[str],
+    gc_project_id: str,
+    gc_bucket: str,
+    description: str,
+    start_date: Pendulum = pendulum.utcnow(),
+) -> bool:
+    """Transfer files from an Azure blob container to a Google Cloud Storage bucket.
 
     :param azure_storage_account_name: the name of the Azure Storage account that holds the Azure blob container.
     :param azure_sas_token: the shared access signature (SAS) for the Azure blob container.
@@ -847,49 +853,43 @@ def azure_to_google_cloud_storage_transfer(azure_storage_account_name: str, azur
     func_name = azure_to_google_cloud_storage_transfer.__name__
 
     job = {
-        'description': description,
-        'status': 'ENABLED',
-        'projectId': gc_project_id,
-        'schedule': {
-            'scheduleStartDate': {
-                'day': start_date.day,
-                'month': start_date.month,
-                'year': start_date.year
-            },
-            'scheduleEndDate': {
-                'day': start_date.day,
-                'month': start_date.month,
-                'year': start_date.year
-            },
+        "description": description,
+        "status": "ENABLED",
+        "projectId": gc_project_id,
+        "schedule": {
+            "scheduleStartDate": {"day": start_date.day, "month": start_date.month, "year": start_date.year},
+            "scheduleEndDate": {"day": start_date.day, "month": start_date.month, "year": start_date.year},
         },
-        'transferSpec': {
-            'azureBlobStorageDataSource': {
-                'storageAccount': azure_storage_account_name,
-                'azureCredentials': {
-                    'sasToken': azure_sas_token,
+        "transferSpec": {
+            "azureBlobStorageDataSource": {
+                "storageAccount": azure_storage_account_name,
+                "azureCredentials": {
+                    "sasToken": azure_sas_token,
                 },
-                'container': azure_container,
-
+                "container": azure_container,
             },
-            'objectConditions': {
-                'includePrefixes': include_prefixes
-            },
-            'gcsDataSink': {
-                'bucketName': gc_bucket
-            }
-        }
+            "objectConditions": {"includePrefixes": include_prefixes},
+            "gcsDataSink": {"bucketName": gc_bucket},
+        },
     }
 
     success, objects_count = google_cloud_storage_transfer_job(job, func_name, gc_project_id)
     return success
 
 
-def aws_to_google_cloud_storage_transfer(aws_access_key_id: str, aws_secret_key: str, aws_bucket: str,
-                                         include_prefixes: List[str], gc_project_id: str, gc_bucket: str,
-                                         description: str, last_modified_since: datetime = None,
-                                         last_modified_before: datetime = None, start_date: Pendulum =
-                                         pendulum.utcnow()) -> Tuple[bool, int]:
-    """ Transfer files from an AWS bucket to a Google Cloud Storage bucket.
+def aws_to_google_cloud_storage_transfer(
+    aws_access_key_id: str,
+    aws_secret_key: str,
+    aws_bucket: str,
+    include_prefixes: List[str],
+    gc_project_id: str,
+    gc_bucket: str,
+    description: str,
+    last_modified_since: datetime = None,
+    last_modified_before: datetime = None,
+    start_date: Pendulum = pendulum.utcnow(),
+) -> Tuple[bool, int]:
+    """Transfer files from an AWS bucket to a Google Cloud Storage bucket.
 
     :param aws_access_key_id: the id of the key for the aws S3 bucket.
     :param aws_secret_key: the secret key for the aws S3 bucket.
@@ -909,43 +909,33 @@ def aws_to_google_cloud_storage_transfer(aws_access_key_id: str, aws_secret_key:
     func_name = aws_to_google_cloud_storage_transfer.__name__
 
     job = {
-        'description': description,
-        'status': 'ENABLED',
-        'projectId': gc_project_id,
-        'schedule': {
-            'scheduleStartDate': {
-                'day': start_date.day,
-                'month': start_date.month,
-                'year': start_date.year
-            },
-            'scheduleEndDate': {
-                'day': start_date.day,
-                'month': start_date.month,
-                'year': start_date.year
-            },
+        "description": description,
+        "status": "ENABLED",
+        "projectId": gc_project_id,
+        "schedule": {
+            "scheduleStartDate": {"day": start_date.day, "month": start_date.month, "year": start_date.year},
+            "scheduleEndDate": {"day": start_date.day, "month": start_date.month, "year": start_date.year},
         },
-        'transferSpec': {
-            'awsS3DataSource': {
-                'bucketName': aws_bucket,
-                'awsAccessKey': {
-                    'accessKeyId': aws_access_key_id,
-                    'secretAccessKey': aws_secret_key,
-                }
+        "transferSpec": {
+            "awsS3DataSource": {
+                "bucketName": aws_bucket,
+                "awsAccessKey": {
+                    "accessKeyId": aws_access_key_id,
+                    "secretAccessKey": aws_secret_key,
+                },
             },
-            'objectConditions': {
-                'includePrefixes': include_prefixes
-            },
-            'gcsDataSink': {
-                'bucketName': gc_bucket
-            }
-        }
+            "objectConditions": {"includePrefixes": include_prefixes},
+            "gcsDataSink": {"bucketName": gc_bucket},
+        },
     }
     if last_modified_since:
-        job['transferSpec']['objectConditions']['lastModifiedSince'] = last_modified_since.isoformat().replace('+00:00',
-                                                                                                               'Z')
+        job["transferSpec"]["objectConditions"]["lastModifiedSince"] = last_modified_since.isoformat().replace(
+            "+00:00", "Z"
+        )
     if last_modified_before:
-        job['transferSpec']['objectConditions']['lastModifiedBefore'] = last_modified_before.isoformat().replace(
-            '+00:00', 'Z')
+        job["transferSpec"]["objectConditions"]["lastModifiedBefore"] = last_modified_before.isoformat().replace(
+            "+00:00", "Z"
+        )
 
     success, objects_count = google_cloud_storage_transfer_job(job, func_name, gc_project_id)
     return success, objects_count

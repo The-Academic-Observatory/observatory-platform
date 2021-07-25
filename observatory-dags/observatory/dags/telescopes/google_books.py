@@ -25,9 +25,11 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud import bigquery
-
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.telescopes.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.telescope_utils import (
@@ -37,13 +39,17 @@ from observatory.platform.utils.telescope_utils import (
     make_dag_id,
     make_sftp_connection,
 )
-from observatory.platform.utils.template_utils import blob_name, bq_load_partition, table_ids_from_path
-from observatory.platform.utils.template_utils import upload_files_from_list
+from observatory.platform.utils.template_utils import (
+    blob_name,
+    bq_load_partition,
+    table_ids_from_path,
+    upload_files_from_list,
+)
 
 
 class GoogleBooksRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, sftp_files: List[str], organisation: Organisation):
-        """ Construct a GoogleBooksRelease.
+    def __init__(self, dag_id: str, release_date: pendulum.datetime, sftp_files: List[str], organisation: Organisation):
+        """Construct a GoogleBooksRelease.
 
         :param dag_id: the DAG id.
         :param release_date: the release date, corresponds to the last day of the month being processed.
@@ -66,7 +72,7 @@ class GoogleBooksRelease(SnapshotRelease):
 
     @property
     def download_bucket(self):
-        """ The download bucket name.
+        """The download bucket name.
 
         :return: the download bucket name.
         """
@@ -74,14 +80,14 @@ class GoogleBooksRelease(SnapshotRelease):
 
     @property
     def transform_bucket(self):
-        """ The transform bucket name.
+        """The transform bucket name.
 
         :return: the transform bucket name.
         """
         return self.organisation.gcp_transform_bucket
 
     def download_path(self, remote_path: str) -> str:
-        """ Creates full download path
+        """Creates full download path
 
         :param remote_path: filepath of remote sftp tile
         :return: Download path
@@ -90,7 +96,7 @@ class GoogleBooksRelease(SnapshotRelease):
         return os.path.join(self.download_folder, f"{GoogleBooksTelescope.DAG_ID_PREFIX}_{report_type}.csv")
 
     def transform_path(self, path: str) -> str:
-        """ Creates full transform path
+        """Creates full transform path
 
         :param path: filepath of download file
         :return: Transform path
@@ -99,7 +105,7 @@ class GoogleBooksRelease(SnapshotRelease):
         return os.path.join(self.transform_folder, f"{GoogleBooksTelescope.DAG_ID_PREFIX}_{report_type}.jsonl.gz")
 
     def download(self):
-        """ Downloads Google Books reports.
+        """Downloads Google Books reports.
 
         :return: the paths on the system of the downloaded files.
         """
@@ -108,7 +114,7 @@ class GoogleBooksRelease(SnapshotRelease):
                 sftp.get(file, localpath=self.download_path(file))
 
     def transform(self):
-        """ Transforms sales and traffic report. For both reports it transforms the csv into a jsonl file and
+        """Transforms sales and traffic report. For both reports it transforms the csv into a jsonl file and
         replaces spaces in the keys with underscores.
 
         :return: None
@@ -153,7 +159,7 @@ class GoogleBooksRelease(SnapshotRelease):
 
 
 class GoogleBooksTelescope(SnapshotTelescope):
-    """ The Google Books telescope."""
+    """The Google Books telescope."""
 
     DAG_ID_PREFIX = "google_books"
 
@@ -168,7 +174,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
         airflow_vars=None,
         airflow_conns=None,
     ):
-        """ Construct a GoogleBooksTelescope instance.
+        """Construct a GoogleBooksTelescope instance.
 
         :param organisation: the Organisation the DAG will process.
         :param dag_id: the id of the DAG.
@@ -222,7 +228,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
         )
 
     def make_release(self, **kwargs) -> List[GoogleBooksRelease]:
-        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        """Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -240,7 +246,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
         return releases
 
     def list_release_info(self, **kwargs):
-        """ Lists all Google Books releases available on the SFTP server and publishes sftp file paths and
+        """Lists all Google Books releases available on the SFTP server and publishes sftp file paths and
         release_date's as an XCom.
 
         :param kwargs: the context passed from the BranchPythonOperator. See
@@ -269,7 +275,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
         return continue_dag
 
     def move_files_to_in_progress(self, releases: List[GoogleBooksRelease], **kwargs):
-        """ Move Google Books files to SFTP in-progress folder.
+        """Move Google Books files to SFTP in-progress folder.
 
         :param releases: a list of Google Books releases.
         :return: None.
@@ -279,7 +285,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
             self.sftp_folders.move_files_to_in_progress(release.sftp_files)
 
     def download(self, releases: List[GoogleBooksRelease], **kwargs):
-        """ Task to download the Google Books releases for a given month.
+        """Task to download the Google Books releases for a given month.
 
         :param releases: a list of Google Books releases.
         :return: None.
@@ -289,7 +295,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
             release.download()
 
     def upload_downloaded(self, releases: List[GoogleBooksRelease], **kwargs):
-        """ Task to upload the downloaded Google Books releases for a given month.
+        """Task to upload the downloaded Google Books releases for a given month.
 
         :param releases: a list of Google Books releases.
         :return: None.
@@ -299,7 +305,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def transform(self, releases: List[GoogleBooksRelease], **kwargs):
-        """ Task to transform the Google Books releases for a given month.
+        """Task to transform the Google Books releases for a given month.
 
         :param releases: a list of Google Books releases.
         :return: None.
@@ -309,7 +315,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
             release.transform()
 
     def bq_load_partition(self, releases: List[GoogleBooksRelease], **kwargs):
-        """ Task to load each transformed release to BigQuery.
+        """Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
         :param releases: a list of releases.
         :return: None.
@@ -340,7 +346,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
                 )
 
     def move_files_to_finished(self, releases: List[GoogleBooksRelease], **kwargs):
-        """ Move Google Books files to SFTP finished folder.
+        """Move Google Books files to SFTP finished folder.
 
         :param releases: a list of Google Books releases.
         :return: None.

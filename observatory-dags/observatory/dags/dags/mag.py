@@ -43,15 +43,10 @@ Saved to the BigQuery tables:
 
 import pendulum
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.python_operator import ShortCircuitOperator
-
+from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
 from observatory.dags.telescopes.mag import MagTelescope
 
-default_args = {
-    "owner": "airflow",
-    "start_date": pendulum.Pendulum(2020, 7, 1)
-}
+default_args = {"owner": "airflow", "start_date": pendulum.datetime(2020, 7, 1)}
 
 with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=default_args, max_active_runs=1) as dag:
     # Check that dependencies exist before starting
@@ -59,7 +54,7 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=d
         task_id=MagTelescope.TASK_ID_CHECK_DEPENDENCIES,
         python_callable=MagTelescope.check_dependencies,
         provide_context=True,
-        queue=MagTelescope.QUEUE
+        queue=MagTelescope.QUEUE,
     )
 
     # List releases and skip all subsequent tasks if there is no release to process
@@ -67,7 +62,7 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=d
         task_id=MagTelescope.TASK_ID_LIST,
         python_callable=MagTelescope.list_releases,
         provide_context=True,
-        queue=MagTelescope.QUEUE
+        queue=MagTelescope.QUEUE,
     )
 
     # Transfer all MAG releases to Google Cloud storage that were processed in the given interval
@@ -75,7 +70,7 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=d
         task_id=MagTelescope.TASK_ID_TRANSFER,
         python_callable=MagTelescope.transfer,
         provide_context=True,
-        queue=MagTelescope.QUEUE
+        queue=MagTelescope.QUEUE,
     )
 
     # Download all MAG releases for a given interval
@@ -83,7 +78,7 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=d
         task_id=MagTelescope.TASK_ID_DOWNLOAD,
         python_callable=MagTelescope.download,
         provide_context=True,
-        queue=MagTelescope.QUEUE
+        queue=MagTelescope.QUEUE,
     )
 
     # Transform all MAG releases for a given interval
@@ -91,7 +86,7 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=d
         task_id=MagTelescope.TASK_ID_TRANSFORM,
         python_callable=MagTelescope.transform,
         provide_context=True,
-        queue=MagTelescope.QUEUE
+        queue=MagTelescope.QUEUE,
     )
 
     # Upload all transformed MAG releases for a given interval to Google Cloud
@@ -100,7 +95,7 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=d
         python_callable=MagTelescope.upload_transformed,
         provide_context=True,
         queue=MagTelescope.QUEUE,
-        retries=MagTelescope.RETRIES
+        retries=MagTelescope.RETRIES,
     )
 
     # Load all MAG releases for a given interval to BigQuery
@@ -108,7 +103,7 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=d
         task_id=MagTelescope.TASK_ID_BQ_LOAD,
         python_callable=MagTelescope.bq_load,
         provide_context=True,
-        queue=MagTelescope.QUEUE
+        queue=MagTelescope.QUEUE,
     )
 
     # Cleanup local files
@@ -116,7 +111,7 @@ with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=d
         task_id=MagTelescope.TASK_ID_CLEANUP,
         python_callable=MagTelescope.cleanup,
         provide_context=True,
-        queue=MagTelescope.QUEUE
+        queue=MagTelescope.QUEUE,
     )
 
     check >> list_releases >> transfer >> download >> transform >> upload_transformed >> bq_load >> cleanup

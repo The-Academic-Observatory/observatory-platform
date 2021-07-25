@@ -21,16 +21,14 @@ import logging
 import shutil
 from abc import ABC, abstractmethod
 from functools import partial
-from typing import Any, Callable, List, Union, Dict
+from typing import Any, Callable, Dict, List, Union
 
 import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowException
-from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.helpers import chain
-from typing_extensions import Protocol
-
+from airflow.models.baseoperator import chain
+from airflow.operators.python import PythonOperator, ShortCircuitOperator
+from airflow.sensors.base import BaseSensorOperator
 from observatory.platform.utils.airflow_utils import (
     AirflowVariable,
     AirflowVars,
@@ -43,6 +41,7 @@ from observatory.platform.utils.template_utils import (
     on_failure_callback,
     telescope_path,
 )
+from typing_extensions import Protocol
 
 
 class ReleaseFunction(Protocol):
@@ -177,7 +176,7 @@ class AbstractTelescope(ABC):
 
 
 def make_task_id(func: Callable, kwargs: Dict) -> str:
-    """ Set a task_id from a func or kwargs.
+    """Set a task_id from a func or kwargs.
     :param func: the task function.
     :param kwargs: the task kwargs parameter.
     :return: the task id.
@@ -195,7 +194,7 @@ def make_task_id(func: Callable, kwargs: Dict) -> str:
 
 @dataclasses.dataclass
 class Operator:
-    """ A container for data to be passed to an Airflow Operator.
+    """A container for data to be passed to an Airflow Operator.
     :param func: the task function.
     :param kwargs: the task kwargs parameter.
     """
@@ -324,7 +323,7 @@ class Telescope(AbstractTelescope):
 
     @contextlib.contextmanager
     def parallel_tasks(self):
-        """ When called, all tasks added to the telescope within the `with` block will run in parallel.
+        """When called, all tasks added to the telescope within the `with` block will run in parallel.
         add_task and add_task_chain can be used with this function.
 
         :return: None.
@@ -362,7 +361,7 @@ class Telescope(AbstractTelescope):
         return result
 
     def to_python_operators(self, input_operators: List[Operator]):
-        """ Converts a list of Operator objects (task functions and kwarg arguments) into PythonOperator objects.
+        """Converts a list of Operator objects (task functions and kwarg arguments) into PythonOperator objects.
 
         Recursively processes parallel tasks.
 
@@ -382,7 +381,6 @@ class Telescope(AbstractTelescope):
                         python_callable=partial(self.task_callable, op.func),
                         queue=self.queue,
                         default_args=self.default_args,
-                        provide_context=True,
                         **kwargs_,
                     )
                     python_operators.append(task_)
@@ -408,7 +406,6 @@ class Telescope(AbstractTelescope):
                     python_callable=op.func,
                     queue=self.queue,
                     default_args=self.default_args,
-                    provide_context=True,
                     **kwargs_,
                 )
                 tasks.append(task)
@@ -443,7 +440,7 @@ class Telescope(AbstractTelescope):
 
 
 class AbstractRelease(ABC):
-    """ The abstract release interface """
+    """The abstract release interface"""
 
     @property
     @abstractmethod
@@ -519,7 +516,7 @@ class AbstractRelease(ABC):
 
 
 class Release(AbstractRelease):
-    """ Used to store info on a given release"""
+    """Used to store info on a given release"""
 
     def __init__(
         self,

@@ -17,17 +17,20 @@
 import os
 import shutil
 
+import observatory.api.server.orm as orm
 import pendulum
 from airflow.models.connection import Connection
-
-import observatory.api.server.orm as orm
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.telescope_utils import SftpFolders
-from observatory.platform.utils.template_utils import SubFolder, blob_name, telescope_path
+from observatory.platform.utils.template_utils import (
+    SubFolder,
+    blob_name,
+    telescope_path,
+)
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -38,7 +41,7 @@ from observatory.platform.utils.test_utils import (
 
 
 class TestOnix(ObservatoryTestCase):
-    """ Tests for the ONIX telescope """
+    """Tests for the ONIX telescope"""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -103,7 +106,7 @@ class TestOnix(ObservatoryTestCase):
             env.add_connection(conn)
 
             # Add an ONIX telescope
-            dt = pendulum.utcnow()
+            dt = pendulum.now("UTC")
             telescope_type = orm.TelescopeType(
                 name="ONIX Telescope", type_id=TelescopeTypes.onix, created=dt, modified=dt
             )

@@ -23,7 +23,6 @@ from typing import Any, ClassVar, Dict, Union
 
 import pendulum
 from observatory.api.client.identifiers import TelescopeTypes
-from pendulum import Pendulum
 from sqlalchemy import (
     JSON,
     Column,
@@ -97,7 +96,7 @@ def init_db(session: scoped_session):
     for type_id, name in telescope_types:
         item = session.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
         if item is None:
-            dt = pendulum.utcnow()
+            dt = pendulum.now("UTC")
             obj = TelescopeType(type_id=type_id, name=name, created=dt, modified=dt)
             session.add(obj)
 
@@ -146,19 +145,19 @@ def fetch_db_object(cls: ClassVar, body: Any):
     return item
 
 
-def to_datetime_utc(obj: Union[None, Pendulum]) -> Union[Pendulum, None]:
-    """Converts Pendulum into UTC object.
+def to_datetime_utc(obj: Union[None, pendulum.DateTime]) -> Union[pendulum.DateTime, None]:
+    """Converts pendulum.DateTime into UTC object.
 
-    :param obj: a Pendulum object (which will just be converted to UTC) or None which will be returned.
-    :return: a datetime object.
+    :param obj: a pendulum.DateTime object (which will just be converted to UTC) or None which will be returned.
+    :return: a DateTime object.
     """
 
-    if isinstance(obj, Pendulum):
+    if isinstance(obj, pendulum.DateTime):
         return obj.in_tz(tz="UTC")
     elif obj is None:
         return None
 
-    raise ValueError("body should be None or Pendulum")
+    raise ValueError("body should be None or pendulum.DateTime")
 
 
 @dataclass
@@ -170,8 +169,8 @@ class Organisation(Base):
     gcp_project_id: str
     gcp_download_bucket: str
     gcp_transform_bucket: str
-    created: Pendulum
-    modified: Pendulum
+    created: pendulum.DateTime
+    modified: pendulum.DateTime
 
     id = Column(Integer, primary_key=True)
     name = Column(String(250))
@@ -189,8 +188,8 @@ class Organisation(Base):
         gcp_project_id: str = None,
         gcp_download_bucket: str = None,
         gcp_transform_bucket: str = None,
-        created: Pendulum = None,
-        modified: Pendulum = None,
+        created: pendulum.DateTime = None,
+        modified: pendulum.DateTime = None,
     ):
         """Construct an Organisation object, which contains information about what Google Cloud project an
         organisation uses, what are it's download and transform buckets and what telescopes does it have.
@@ -224,7 +223,7 @@ class Organisation(Base):
         gcp_project_id: str = None,
         gcp_download_bucket: str = None,
         gcp_transform_bucket: str = None,
-        modified: Pendulum = None,
+        modified: pendulum.DateTime = None,
     ):
         """Update the properties of an existing Organisation object. This method is handy when you want to update
         the Organisation from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
@@ -261,8 +260,8 @@ class Telescope(Base):
     id: int
     name: str
     extra: Dict
-    created: Pendulum
-    modified: Pendulum
+    created: pendulum.DateTime
+    modified: pendulum.DateTime
     telescope_type: TelescopeType = None
     organisation: Organisation = None
 
@@ -279,8 +278,8 @@ class Telescope(Base):
         id: int = None,
         name: str = None,
         extra: Dict = None,
-        created: Pendulum = None,
-        modified: Pendulum = None,
+        created: pendulum.DateTime = None,
+        modified: pendulum.DateTime = None,
         organisation: Union[Organisation, Dict] = None,
         telescope_type: Union[TelescopeType, Dict] = None,
     ):
@@ -309,7 +308,7 @@ class Telescope(Base):
         self,
         name: str = None,
         extra: Dict = None,
-        modified: Pendulum = None,
+        modified: pendulum.DateTime = None,
         organisation: Union[Organisation, Dict] = None,
         telescope_type: Union[TelescopeType, Dict] = None,
     ):
@@ -347,8 +346,8 @@ class TelescopeType(Base):
     id: int
     type_id: str
     name: str
-    created: Pendulum
-    modified: Pendulum
+    created: pendulum.DateTime
+    modified: pendulum.DateTime
 
     id = Column(Integer, primary_key=True)
     type_id = Column(String(250), unique=True, nullable=False)
@@ -358,7 +357,12 @@ class TelescopeType(Base):
     telescopes = relationship("Telescope", backref="telescope_type")
 
     def __init__(
-        self, id: int = None, type_id: str = None, name: str = None, created: Pendulum = None, modified: Pendulum = None
+        self,
+        id: int = None,
+        type_id: str = None,
+        name: str = None,
+        created: pendulum.DateTime = None,
+        modified: pendulum.DateTime = None,
     ):
         """Construct a TelescopeType object.
 
@@ -375,7 +379,7 @@ class TelescopeType(Base):
         self.created = to_datetime_utc(created)
         self.modified = to_datetime_utc(modified)
 
-    def update(self, type_id: str = None, name: str = None, modified: Pendulum = None):
+    def update(self, type_id: str = None, name: str = None, modified: pendulum.DateTime = None):
         """Update the properties of an existing TelescopeType object. This method is handy when you want to update
         the TelescopeType from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
 

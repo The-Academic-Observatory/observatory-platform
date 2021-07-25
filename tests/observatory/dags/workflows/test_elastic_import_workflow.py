@@ -29,18 +29,17 @@ from airflow import DAG
 from airflow.models import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from faker import Faker
-
 from observatory.dags.model import Table, bq_load_tables
 from observatory.dags.workflows.elastic_import_workflow import (
     ElasticImportWorkflow,
     load_elastic_mappings_ao,
-    load_elastic_mappings_simple,
     load_elastic_mappings_oaebu,
+    load_elastic_mappings_simple,
 )
 from observatory.platform.elastic.elastic import Elastic, make_elastic_mappings_path
 from observatory.platform.elastic.kibana import Kibana, TimeField
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.file_utils import load_jsonl, load_file
+from observatory.platform.utils.file_utils import load_file, load_jsonl
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.telescope_utils import make_dag_id
@@ -52,7 +51,7 @@ from observatory.platform.utils.test_utils import (
 
 
 def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
-    """ A Dummy DAG for testing purposes.
+    """A Dummy DAG for testing purposes.
 
     :param dag_id: the DAG id.
     :param execution_date: the DAGs execution date.
@@ -71,7 +70,7 @@ def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
 
 
 def generate_authors_table(num_rows: int = 1000, min_age: int = 1, max_age: int = 100) -> List[Dict]:
-    """ Generate records for the test authors table.
+    """Generate records for the test authors table.
 
     :param num_rows: number of rows to generate.
     :param min_age: the minimum age of an author.
@@ -91,7 +90,7 @@ def generate_authors_table(num_rows: int = 1000, min_age: int = 1, max_age: int 
 
 
 def author_records_to_bq(author_records: List[Dict]):
-    """ Convert author records into BigQuery records, i.e. convert the age field from a long into a string.
+    """Convert author records into BigQuery records, i.e. convert the age field from a long into a string.
 
     :param author_records: the author records.
     :return: the converted author records.
@@ -108,7 +107,7 @@ def author_records_to_bq(author_records: List[Dict]):
 
 
 class TestElasticImportWorkflow(ObservatoryTestCase):
-    """ Tests for the Elastic Import Workflow """
+    """Tests for the Elastic Import Workflow"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -125,13 +124,13 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         self.cwd = os.path.dirname(os.path.abspath(__file__))
 
     def test_load_elastic_mappings_simple(self):
-        """ Test load_elastic_mappings_simple """
+        """Test load_elastic_mappings_simple"""
 
         mappings = load_elastic_mappings_simple(self.cwd, self.table_name)
         self.assertIsInstance(mappings, Dict)
 
     def test_load_elastic_mappings_ao(self):
-        """ Test load_elastic_mappings_ao """
+        """Test load_elastic_mappings_ao"""
 
         path = make_elastic_mappings_path()
         aggregate = "author"
@@ -230,7 +229,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             self.assertEqual(expected_mappings, actual_mappings)
 
     def test_load_elastic_mappings_oaebu(self):
-        """ Test load_elastic_mappings_oaebu """
+        """Test load_elastic_mappings_oaebu"""
 
         aggregate_level = "product"
         path = make_elastic_mappings_path()
@@ -379,9 +378,9 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         author_records: List[Dict],
         dataset_id: str,
         bucket_name: str,
-        release_date: pendulum.Pendulum,
+        release_date: pendulum.datetime,
     ):
-        """ Setup the fake dataset in BigQuery.
+        """Setup the fake dataset in BigQuery.
 
         :param table_name: the table name to load.
         :param author_records: the author records.

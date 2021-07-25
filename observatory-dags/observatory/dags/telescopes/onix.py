@@ -26,14 +26,20 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from pendulum import Pendulum
-
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.telescopes.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.config_utils import observatory_home
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.proc_utils import wait_for_process
-from observatory.platform.utils.telescope_utils import SftpFolders, make_dag_id, make_org_id, make_sftp_connection
+from observatory.platform.utils.telescope_utils import (
+    SftpFolders,
+    make_dag_id,
+    make_org_id,
+    make_sftp_connection,
+)
 from observatory.platform.utils.template_utils import (
     blob_name,
     bq_load_shard_v2,
@@ -53,21 +59,21 @@ class OnixRelease(SnapshotRelease):
         self,
         *,
         dag_id: str,
-        release_date: Pendulum,
+        release_date: pendulum.datetime,
         file_name: str,
         organisation_name: str,
         download_bucket: str,
         transform_bucket: str,
     ):
-        """ Construct an OnixRelease.
+        """Construct an OnixRelease.
 
-       :param dag_id: the DAG id.
-       :param release_date: the release date.
-       :param file_name: the ONIX file name.
-       :param organisation_name: the organisation name.
-       :param download_bucket: the download bucket name.
-       :param transform_bucket: the transform bucket name.
-       """
+        :param dag_id: the DAG id.
+        :param release_date: the release date.
+        :param file_name: the ONIX file name.
+        :param organisation_name: the organisation name.
+        :param download_bucket: the download bucket name.
+        :param transform_bucket: the transform bucket name.
+        """
 
         self.organisation_name = organisation_name
         self._download_bucket = download_bucket
@@ -80,7 +86,7 @@ class OnixRelease(SnapshotRelease):
 
     @property
     def download_file(self) -> str:
-        """ Get the path to the downloaded file.
+        """Get the path to the downloaded file.
 
         :return: the file path.
         """
@@ -89,7 +95,7 @@ class OnixRelease(SnapshotRelease):
 
     @property
     def download_bucket(self):
-        """ The download bucket name.
+        """The download bucket name.
 
         :return: the download bucket name.
         """
@@ -97,21 +103,21 @@ class OnixRelease(SnapshotRelease):
 
     @property
     def transform_bucket(self):
-        """ The transform bucket name.
+        """The transform bucket name.
 
         :return: the transform bucket name.
         """
         return self._transform_bucket
 
     def move_files_to_in_progress(self):
-        """ Move ONIX file to in-progress folder
+        """Move ONIX file to in-progress folder
         :return: None.
         """
 
         self.sftp_folders.move_files_to_in_progress(self.file_name)
 
     def download(self):
-        """ Downloads an individual ONIX release from the SFTP server.
+        """Downloads an individual ONIX release from the SFTP server.
 
         :return: None.
         """
@@ -121,7 +127,7 @@ class OnixRelease(SnapshotRelease):
             sftp.get(in_progress_file, localpath=self.download_file)
 
     def transform(self):
-        """ Transform ONIX release.
+        """Transform ONIX release.
 
         :return: None.
         """
@@ -159,15 +165,20 @@ class OnixRelease(SnapshotRelease):
         )
 
     def move_files_to_finished(self):
-        """ Move ONIX file to finished folder
+        """Move ONIX file to finished folder
         :return: None.
         """
 
         self.sftp_folders.move_files_to_finished(self.file_name)
 
 
-def list_release_info(*, sftp_upload_folder: str, date_regex: str, date_format: str,) -> List[Dict]:
-    """ List the ONIX release info, a release date and a file name for each release.
+def list_release_info(
+    *,
+    sftp_upload_folder: str,
+    date_regex: str,
+    date_format: str,
+) -> List[Dict]:
+    """List the ONIX release info, a release date and a file name for each release.
 
     :param sftp_upload_folder: the SFTP upload folder.
     :param date_regex: the regex for extracting the date from the filename.
@@ -214,7 +225,7 @@ class OnixTelescope(SnapshotTelescope):
         airflow_vars: List = None,
         airflow_conns: List = None,
     ):
-        """ Construct an OnixTelescope instance.
+        """Construct an OnixTelescope instance.
 
         :param organisation_name: the organisation name.
         :param project_id: the Google Cloud project id.
@@ -284,7 +295,7 @@ class OnixTelescope(SnapshotTelescope):
         self.add_task(self.cleanup)
 
     def list_release_info(self, **kwargs):
-        """ Lists all ONIX releases and publishes their file names as an XCom.
+        """Lists all ONIX releases and publishes their file names as an XCom.
 
         :param kwargs: the context passed from the BranchPythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -307,7 +318,7 @@ class OnixTelescope(SnapshotTelescope):
         return continue_dag
 
     def make_release(self, **kwargs) -> List[OnixRelease]:
-        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        """Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -337,7 +348,7 @@ class OnixTelescope(SnapshotTelescope):
         return releases
 
     def move_files_to_in_progress(self, releases: List[OnixRelease], **kwargs):
-        """ Move ONIX files to SFTP in-progress folder.
+        """Move ONIX files to SFTP in-progress folder.
 
         :param releases: a list of ONIX releases.
         :return: None.
@@ -347,7 +358,7 @@ class OnixTelescope(SnapshotTelescope):
             release.move_files_to_in_progress()
 
     def download(self, releases: List[OnixRelease], **kwargs):
-        """ Task to download the ONIX releases.
+        """Task to download the ONIX releases.
 
         :param releases: a list of ONIX releases.
         :return: None.
@@ -357,7 +368,7 @@ class OnixTelescope(SnapshotTelescope):
             release.download()
 
     def upload_downloaded(self, releases: List[OnixRelease], **kwargs):
-        """ Task to upload the downloaded ONIX releases.
+        """Task to upload the downloaded ONIX releases.
 
         :param releases: a list of ONIX releases.
         :return: None.
@@ -367,7 +378,7 @@ class OnixTelescope(SnapshotTelescope):
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def transform(self, releases: List[OnixRelease], **kwargs):
-        """ Task to transform the ONIX releases.
+        """Task to transform the ONIX releases.
 
         :param releases: a list of ONIX releases.
         :return: None.
@@ -378,7 +389,7 @@ class OnixTelescope(SnapshotTelescope):
             release.transform()
 
     def bq_load(self, releases: List[SnapshotRelease], **kwargs):
-        """ Task to load each transformed release to BigQuery.
+        """Task to load each transformed release to BigQuery.
 
         The table_id is set to the file name without the extension.
 
@@ -408,7 +419,7 @@ class OnixTelescope(SnapshotTelescope):
                 )
 
     def move_files_to_finished(self, releases: List[OnixRelease], **kwargs):
-        """ Move ONIX files to SFTP finished folder.
+        """Move ONIX files to SFTP finished folder.
 
         :param releases: a list of ONIX releases.
         :return: None.

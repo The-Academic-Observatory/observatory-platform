@@ -94,14 +94,17 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
-
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.file_utils import _hash_file, crc32c_base64_hash, gzip_file_crc
+from observatory.platform.utils.file_utils import (
+    _hash_file,
+    crc32c_base64_hash,
+    gzip_file_crc,
+)
 from observatory.platform.utils.template_utils import reset_variables
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 
 def random_id():
@@ -299,7 +302,7 @@ class ObservatoryEnvironment:
         self.session.add(conn)
         self.session.commit()
 
-    def run_task(self, task_id: str, dag: DAG = None, execution_date: pendulum.Pendulum = None) -> TaskInstance:
+    def run_task(self, task_id: str, dag: DAG = None, execution_date: pendulum.datetime = None) -> TaskInstance:
         """Run an Airflow task.
 
         :param dag: the Airflow DAG instance.
@@ -323,7 +326,7 @@ class ObservatoryEnvironment:
         return ti
 
     @contextlib.contextmanager
-    def create_dag_run(self, dag: DAG, execution_date: pendulum.Pendulum, freeze: bool = True):
+    def create_dag_run(self, dag: DAG, execution_date: pendulum.datetime, freeze: bool = True):
         """Create a DagRun that can be used when running tasks.
         During cleanup the DAG run state is updated.
 
@@ -461,7 +464,7 @@ class ObservatoryEnvironment:
 
 
 class ObservatoryTestCase(unittest.TestCase):
-    """ Common test functions for testing Observatory Platform DAGs """
+    """Common test functions for testing Observatory Platform DAGs"""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -608,7 +611,7 @@ class ObservatoryTestCase(unittest.TestCase):
     def setup_mock_file_download(
         self, uri: str, file_path: str, headers: Dict = None, method: str = httpretty.GET
     ) -> None:
-        """ Use httpretty to mock a file download.
+        """Use httpretty to mock a file download.
 
         This function must be called from within an httpretty.enabled() block, for instance:
 
@@ -631,7 +634,7 @@ class ObservatoryTestCase(unittest.TestCase):
 
 
 class SftpServer:
-    """ A Mock SFTP server for testing purposes """
+    """A Mock SFTP server for testing purposes"""
 
     def __init__(
         self,

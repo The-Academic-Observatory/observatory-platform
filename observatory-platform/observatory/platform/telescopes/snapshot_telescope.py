@@ -14,21 +14,30 @@
 
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 
-from typing import List, Dict
+from typing import Dict, List
 
 import pendulum
 from google.cloud.bigquery import SourceFormat
-
 from observatory.platform.telescopes.telescope import Release, Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.template_utils import (blob_name, bq_load_shard, table_ids_from_path,
-                                                       upload_files_from_list)
+from observatory.platform.utils.template_utils import (
+    blob_name,
+    bq_load_shard,
+    table_ids_from_path,
+    upload_files_from_list,
+)
 
 
 class SnapshotRelease(Release):
-    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, download_files_regex: str = None,
-                 extract_files_regex: str = None, transform_files_regex: str = None):
-        """ Construct a SnapshotRelease instance.
+    def __init__(
+        self,
+        dag_id: str,
+        release_date: pendulum.datetime,
+        download_files_regex: str = None,
+        extract_files_regex: str = None,
+        transform_files_regex: str = None,
+    ):
+        """Construct a SnapshotRelease instance.
 
         :param dag_id: the id of the DAG.
         :param release_date: the release date (used to construct release_id).
@@ -42,13 +51,26 @@ class SnapshotRelease(Release):
 
 
 class SnapshotTelescope(Telescope):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, schedule_interval: str, dataset_id: str, catchup: bool = True,
-                 queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1,
-                 source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON, schema_prefix: str = '',
-                 schema_version: str = None, load_bigquery_table_kwargs: Dict = None,
-                 dataset_description: str = '', table_descriptions: Dict[str, str] = None,
-                 airflow_vars: list = None, airflow_conns: list = None):
-        """ Construct a SnapshotTelescope instance.
+    def __init__(
+        self,
+        dag_id: str,
+        start_date: pendulum.datetime,
+        schedule_interval: str,
+        dataset_id: str,
+        catchup: bool = True,
+        queue: str = "default",
+        max_retries: int = 3,
+        max_active_runs: int = 1,
+        source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
+        schema_prefix: str = "",
+        schema_version: str = None,
+        load_bigquery_table_kwargs: Dict = None,
+        dataset_description: str = "",
+        table_descriptions: Dict[str, str] = None,
+        airflow_vars: list = None,
+        airflow_conns: list = None,
+    ):
+        """Construct a SnapshotTelescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -72,8 +94,17 @@ class SnapshotTelescope(Telescope):
         if not airflow_vars:
             airflow_vars = []
         airflow_vars = list(set([AirflowVars.TRANSFORM_BUCKET] + airflow_vars))
-        super().__init__(dag_id, start_date, schedule_interval, catchup, queue, max_retries, max_active_runs,
-                         airflow_vars, airflow_conns)
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            catchup,
+            queue,
+            max_retries,
+            max_active_runs,
+            airflow_vars,
+            airflow_conns,
+        )
         self.dataset_id = dataset_id
         self.source_format = source_format
         self.schema_prefix = schema_prefix
@@ -83,7 +114,7 @@ class SnapshotTelescope(Telescope):
         self.table_descriptions = table_descriptions if table_descriptions else dict()
 
     def upload_transformed(self, releases: List[SnapshotRelease], **kwargs):
-        """ Task to upload each transformed release to a google cloud bucket
+        """Task to upload each transformed release to a google cloud bucket
         :param releases:
         :param kwargs:
         :return:
@@ -93,7 +124,7 @@ class SnapshotTelescope(Telescope):
             upload_files_from_list(release.transform_files, release.transform_bucket)
 
     def bq_load(self, releases: List[SnapshotRelease], **kwargs):
-        """ Task to load each transformed release to BigQuery.
+        """Task to load each transformed release to BigQuery.
 
         The table_id is set to the file name without the extension.
 
@@ -106,14 +137,22 @@ class SnapshotTelescope(Telescope):
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
-                table_description = self.table_descriptions.get(table_id, '')
-                bq_load_shard(release.release_date, transform_blob, self.dataset_id, table_id, self.source_format,
-                              prefix=self.schema_prefix, schema_version=self.schema_version,
-                              dataset_description=self.dataset_description, table_description=table_description,
-                              **self.load_bigquery_table_kwargs)
+                table_description = self.table_descriptions.get(table_id, "")
+                bq_load_shard(
+                    release.release_date,
+                    transform_blob,
+                    self.dataset_id,
+                    table_id,
+                    self.source_format,
+                    prefix=self.schema_prefix,
+                    schema_version=self.schema_version,
+                    dataset_description=self.dataset_description,
+                    table_description=table_description,
+                    **self.load_bigquery_table_kwargs,
+                )
 
     def cleanup(self, releases: List[SnapshotRelease], **kwargs):
-        """ Delete files of downloaded, extracted and transformed release.
+        """Delete files of downloaded, extracted and transformed release.
         :param releases: the oapen metadata release
         :return: None.
         """

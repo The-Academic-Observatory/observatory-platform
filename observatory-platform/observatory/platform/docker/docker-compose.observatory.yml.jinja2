@@ -56,7 +56,7 @@ version: '3.8'
 x-environment: &environment
   # Airflow settings
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres+psycopg2://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
   AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
   AIRFLOW__CORE__AIRFLOW_HOME: /opt/airflow
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
@@ -152,24 +152,37 @@ x-build: &build
 
 services:
   redis:
-    image: "redis:6.0.5"
+    image: redis:latest
     restart: always
     ports:
       - ${HOST_REDIS_PORT}:6379
     networks:
       - {{ docker_network_name }}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 30s
+      retries: 50
 
   flower:
-    image: apache/airflow:1.10.14-python3.7
+    image: apache/airflow:2.1.2-python3.8
     environment: *environment
     restart: always
     networks:
       - {{ docker_network_name }}
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     ports:
       - ${HOST_FLOWER_UI_PORT}:5555
-    command: flower
+    command: celery flower
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
   webserver:
     build: *build
@@ -179,7 +192,10 @@ services:
     networks:
       - {{ docker_network_name }}
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     {% if config.google_cloud.credentials is not none -%}
     secrets:
       - google_application_credentials.json
@@ -201,7 +217,8 @@ services:
     networks:
       - {{ docker_network_name }}
     depends_on:
-      - webserver
+      webserver:
+        condition: service_healthy
     {% if config.google_cloud.credentials is not none -%}
     secrets:
       - google_application_credentials.json
@@ -220,7 +237,7 @@ services:
     secrets:
       - google_application_credentials.json
     {%- endif %}
-    command: worker -q default
+    command: celery worker -q default
 
   worker_remote:
     build: *build
@@ -232,11 +249,11 @@ services:
     secrets:
       - google_application_credentials.json
     {%- endif %}
-    command: worker -q remote_queue
+    command: celery worker -q remote_queue
 
   {%- if config.backend.type.value == 'local' %}
   elasticsearch:
-    image: "docker.elastic.co/elasticsearch/elasticsearch:7.9.0"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.13.3"
     restart: always
     volumes:
       - "{{ host_data_path }}/elastic:/usr/share/elasticsearch/data"
@@ -249,7 +266,7 @@ services:
       - discovery.type=single-node
 
   kibana:
-    image: "docker.elastic.co/kibana/kibana:7.9.0"
+    image: "docker.elastic.co/kibana/kibana:7.13.3"
     restart: always
     ports:
       - ${HOST_KIBANA_PORT}:5601
@@ -257,7 +274,7 @@ services:
       - {{ docker_network_name }}
 
   postgres:
-    image: postgres:12.2
+    image: postgres:13
     environment:
       - POSTGRES_DB={{ airflow_db_name }}
       - POSTGRES_USER={{ postgres_user }}
@@ -267,6 +284,10 @@ services:
     restart: always
     networks:
       - {{ docker_network_name }}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
   {%- endif %}
 
 {% if config.google_cloud.credentials is not none -%}

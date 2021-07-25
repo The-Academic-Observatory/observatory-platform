@@ -21,9 +21,9 @@
 # Only run if webserver is command as there should only be one webserver
 if [ "$1" = "webserver" ]; then
   # Initialise / upgrade the Airflow database
-  airflow upgradedb
+  airflow db upgrade
 
-  # Create the Admin user. This command will just print "airflow already exist in the db" if the user already exists
+  #Create the Admin user. This command will just print "airflow already exist in the db" if the user already exists
   airflow users create -r Admin -u ${AIRFLOW_UI_USER_EMAIL} -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
 fi
 
@@ -48,13 +48,15 @@ cd /opt/observatory-platform
 # Install the Observatory Platform Python package
 pip3 install -e . --user
 
+
 #########################
 # Install dags projects
 #########################
+
 {% for project in config.dags_projects %}
 {% if project.type == 'local' -%}
 cd /opt/{{ project.package_name }}
-pip3 install -e . --user
+pip3 install --use-deprecated=legacy-resolver -e . --user
 {% endif %}
 {% endfor %}
 

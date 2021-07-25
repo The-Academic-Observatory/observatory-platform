@@ -19,31 +19,33 @@ import csv
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 import pendulum
 from airflow.exceptions import AirflowException, AirflowSkipException
 from google.cloud import bigquery
-
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.telescopes.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.telescope_utils import add_partition_date, make_dag_id
 from observatory.platform.utils.template_utils import (
-    upload_files_from_list,
     blob_name,
     bq_load_partition,
     table_ids_from_path,
+    upload_files_from_list,
 )
 from observatory.platform.utils.url_utils import retry_session
 
 
 class UclDiscoveryRelease(SnapshotRelease):
     def __init__(
-        self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, organisation: Organisation
+        self, dag_id: str, start_date: pendulum.datetime, end_date: pendulum.datetime, organisation: Organisation
     ):
-        """ Construct a UclDiscoveryRelease instance.
+        """Construct a UclDiscoveryRelease instance.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the download period.
         :param end_date: the end date of the download period, also used as release date for BigQuery table and
@@ -74,34 +76,34 @@ class UclDiscoveryRelease(SnapshotRelease):
 
     @property
     def download_bucket(self):
-        """ The download bucket name.
+        """The download bucket name.
         :return: the download bucket name.
         """
         return self.organisation.gcp_download_bucket
 
     @property
     def transform_bucket(self):
-        """ The transform bucket name.
+        """The transform bucket name.
         :return: the transform bucket name.
         """
         return self.organisation.gcp_transform_bucket
 
     @property
     def download_path(self) -> str:
-        """ Creates path to store the downloaded UCL discovery data
+        """Creates path to store the downloaded UCL discovery data
         :return: Full path to the download file
         """
         return os.path.join(self.download_folder, f"{self.dag_id_prefix}.txt")
 
     @property
     def transform_path(self) -> str:
-        """ Creates path to store the transformed and gzipped UCL discovery data
+        """Creates path to store the transformed and gzipped UCL discovery data
         :return: Full path to the transform file
         """
         return os.path.join(self.transform_folder, f"{self.dag_id_prefix}.jsonl.gz")
 
     def download(self):
-        """ Download metadata for all eprints that are published before a specific date
+        """Download metadata for all eprints that are published before a specific date
 
         :return: None.
         """
@@ -124,7 +126,7 @@ class UclDiscoveryRelease(SnapshotRelease):
             )
 
     def transform(self):
-        """ Parse the csv file and for each eprint id store the relevant metadata in a dictionary and get the downloads
+        """Parse the csv file and for each eprint id store the relevant metadata in a dictionary and get the downloads
         per country (between begin_date and end_date). The list of dictionaries is stored in a gzipped json lines file.
         There might be multiple rows for 1 eprint id. Some columns only have a value in the first row, some columns
         have values in multiple rows.
@@ -223,7 +225,7 @@ class UclDiscoveryRelease(SnapshotRelease):
 
 
 class UclDiscoveryTelescope(SnapshotTelescope):
-    """ The UCL Discovery telescope. """
+    """The UCL Discovery telescope."""
 
     DAG_ID_PREFIX = "ucl_discovery"
 
@@ -237,7 +239,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         airflow_vars: list = None,
         max_active_runs: int = 10,
     ):
-        """ Construct a UclDiscoveryTelescope instance.
+        """Construct a UclDiscoveryTelescope instance.
         :param organisation: the Organisation of which data is processed.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -282,7 +284,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         )
 
     def make_release(self, **kwargs) -> List[UclDiscoveryRelease]:
-        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        """Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'. There will only be 1 release, but it is passed on as a list so the
         SnapshotTelescope template methods can be used.
 
@@ -301,7 +303,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         return releases
 
     def download(self, releases: List[UclDiscoveryRelease], **kwargs):
-        """ Task to download the ucldiscovery release for a given month.
+        """Task to download the ucldiscovery release for a given month.
         :param releases: a list with the ucldiscovery release.
         :return: None.
         """
@@ -310,7 +312,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
             release.download()
 
     def upload_downloaded(self, releases: List[UclDiscoveryRelease], **kwargs):
-        """ Task to upload the downloaded ucldiscovery release for a given month.
+        """Task to upload the downloaded ucldiscovery release for a given month.
         :param releases: a list with the ucldiscovery release.
         :return: None.
         """
@@ -319,7 +321,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def transform(self, releases: List[UclDiscoveryRelease], **kwargs):
-        """ Task to transform the ucldiscovery release for a given month.
+        """Task to transform the ucldiscovery release for a given month.
         :param releases: a list with the ucldiscovery release.
         :return: None.
         """
@@ -328,7 +330,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
             release.transform()
 
     def bq_load_partition(self, releases: List[UclDiscoveryRelease], **kwargs):
-        """ Task to load each transformed release to BigQuery.
+        """Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
         :param releases: a list of releases.
         :return: None.
@@ -360,7 +362,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
 
 
 def get_downloads_per_country(countries_url: str) -> Tuple[List[dict], int]:
-    """ Requests info on downloads per country for a specific eprint id
+    """Requests info on downloads per country for a specific eprint id
 
     :param countries_url: The url to the downloads per country info
     :return: Number of total downloads and list of downloads per country, country code and country name.
@@ -390,7 +392,7 @@ def create_result_dict(
     multi_row_columns: dict,
     single_row_columns: dict,
 ) -> dict:
-    """ Create one result dictionary with info on downloads for a specific eprint id in a given time period.
+    """Create one result dictionary with info on downloads for a specific eprint id in a given time period.
 
     :param begin_date: The begin date of download period
     :param end_date: The end date of download period

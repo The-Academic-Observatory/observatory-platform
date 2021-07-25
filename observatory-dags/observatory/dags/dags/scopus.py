@@ -19,19 +19,19 @@ import logging
 
 import pendulum
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.subdag_operator import SubDagOperator
-
+from airflow.operators.python import PythonOperator
+from airflow.operators.subdag import SubDagOperator
 from observatory.dags.telescopes.scopus import ScopusTelescope
 from observatory.platform.utils.airflow_utils import list_connections
 
-default_args = {'owner': 'airflow',
-                'start_date': pendulum.Pendulum(2018, 1, 1),
-                }
+default_args = {
+    "owner": "airflow",
+    "start_date": pendulum.datetime(2018, 1, 1),
+}
 
 
 def subdag_factory(parent_dag_id, connection, args):
-    """ Factory for making the ETL subdags.
+    """Factory for making the ETL subdags.
 
     :param parent_dag_id: parent dag's id.
     :param connection: Airflow Connection object.
@@ -39,14 +39,14 @@ def subdag_factory(parent_dag_id, connection, args):
     :return: DAG object.
     """
 
-    institution = str(connection)[ScopusTelescope.ID_STRING_OFFSET:]
-    logging.info(f'Spawning ETL subdag for: {institution}')
+    institution = str(connection)[ScopusTelescope.ID_STRING_OFFSET :]
+    logging.info(f"Spawning ETL subdag for: {institution}")
 
     subdag = DAG(
-        dag_id=f'{parent_dag_id}.{institution}',
+        dag_id=f"{parent_dag_id}.{institution}",
         default_args=args,
         catchup=False,
-        schedule_interval=ScopusTelescope.SCHEDULE_INTERVAL
+        schedule_interval=ScopusTelescope.SCHEDULE_INTERVAL,
     )
 
     with subdag:
@@ -54,44 +54,39 @@ def subdag_factory(parent_dag_id, connection, args):
         check_dependencies = PythonOperator(
             task_id=ScopusTelescope.TASK_ID_CHECK_DEPENDENCIES,
             python_callable=ScopusTelescope.check_dependencies,
-            op_kwargs={'dag_start': '{{dag_run.start_date}}', 'conn': connection, 'institution': institution},
-            provide_context=True,
-            queue=ScopusTelescope.QUEUE
+            op_kwargs={"dag_start": "{{dag_run.start_date}}", "conn": connection, "institution": institution},
+            queue=ScopusTelescope.QUEUE,
         )
 
         download = PythonOperator(
             task_id=ScopusTelescope.TASK_ID_DOWNLOAD,
             python_callable=ScopusTelescope.download,
-            op_kwargs={'conn': connection},
-            provide_context=True,
+            op_kwargs={"conn": connection},
             queue=ScopusTelescope.QUEUE,
-            retries=ScopusTelescope.RETRIES
+            retries=ScopusTelescope.RETRIES,
         )
 
         # Upload gzipped response (json)
         upload_downloaded = PythonOperator(
             task_id=ScopusTelescope.TASK_ID_UPLOAD_DOWNLOADED,
             python_callable=ScopusTelescope.upload_downloaded,
-            provide_context=True,
             queue=ScopusTelescope.QUEUE,
-            retries=ScopusTelescope.RETRIES
+            retries=ScopusTelescope.RETRIES,
         )
 
         # Transform into database schema format (jsonline output)
         transform_db_format = PythonOperator(
             task_id=ScopusTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
             python_callable=ScopusTelescope.transform_db_format,
-            provide_context=True,
-            queue=ScopusTelescope.QUEUE
+            queue=ScopusTelescope.QUEUE,
         )
 
         # # Upload the gzipped transformed jsonline entries to Google Cloud Storage
         upload_transformed = PythonOperator(
             task_id=ScopusTelescope.TASK_ID_UPLOAD_TRANSFORMED,
             python_callable=ScopusTelescope.upload_transformed,
-            provide_context=True,
             queue=ScopusTelescope.QUEUE,
-            retries=ScopusTelescope.RETRIES
+            retries=ScopusTelescope.RETRIES,
         )
 
         # Load the transformed SCOPUS snapshot to BigQuery
@@ -99,30 +94,38 @@ def subdag_factory(parent_dag_id, connection, args):
         bq_load = PythonOperator(
             task_id=ScopusTelescope.TASK_ID_BQ_LOAD,
             python_callable=ScopusTelescope.bq_load,
-            provide_context=True,
-            queue=ScopusTelescope.QUEUE
+            queue=ScopusTelescope.QUEUE,
         )
 
         cleanup = PythonOperator(
             task_id=ScopusTelescope.TASK_ID_CLEANUP,
             python_callable=ScopusTelescope.cleanup,
-            provide_context=True,
-            queue=ScopusTelescope.QUEUE
+            queue=ScopusTelescope.QUEUE,
         )
 
-        check_dependencies >> download >> upload_downloaded >> transform_db_format >> upload_transformed \
-        >> bq_load >> cleanup
+        (
+            check_dependencies
+            >> download
+            >> upload_downloaded
+            >> transform_db_format
+            >> upload_transformed
+            >> bq_load
+            >> cleanup
+        )
 
     return subdag
 
 
-with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDULE_INTERVAL, catchup=False,
-         default_args=default_args) as dag:
+with DAG(
+    dag_id=ScopusTelescope.DAG_ID,
+    schedule_interval=ScopusTelescope.SCHEDULE_INTERVAL,
+    catchup=False,
+    default_args=default_args,
+) as dag:
     # Only process if the SCOPUS API server is up.
     check_api_server = PythonOperator(
         task_id=ScopusTelescope.TASK_CHECK_API_SERVER,
         python_callable=ScopusTelescope.check_api_server,
-        provide_context=False,
         queue=ScopusTelescope.QUEUE,
         retries=ScopusTelescope.RETRIES,
     )
@@ -132,10 +135,10 @@ with DAG(dag_id=ScopusTelescope.DAG_ID, schedule_interval=ScopusTelescope.SCHEDU
     conns = list_connections(ScopusTelescope.DAG_ID)
     for conn in conns:
         subdag = SubDagOperator(
-            task_id=str(conn)[ScopusTelescope.ID_STRING_OFFSET:],
+            task_id=str(conn)[ScopusTelescope.ID_STRING_OFFSET :],
             subdag=subdag_factory(ScopusTelescope.DAG_ID, conn, default_args),
             default_args=default_args,
-            dag=dag
+            dag=dag,
         )
 
         # Task dependencies

@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from math import ceil
 from pathlib import Path
-from typing import Any, List, Tuple, Type, Union, Optional
+from typing import Any, List, Optional, Tuple, Type, Union
 
 import dateutil
 import jsonlines
@@ -36,13 +36,12 @@ import paramiko
 import pendulum
 import pysftp
 import six
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models.taskinstance import TaskInstance
-from airflow.sensors.external_task_sensor import ExternalTaskSensor
+from airflow.sensors.external_task import ExternalTaskSensor
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
-
 from observatory.api.client.api.observatory_api import ObservatoryApi
 from observatory.api.client.api_client import ApiClient
 from observatory.api.client.configuration import Configuration
@@ -99,8 +98,8 @@ def normalized_schedule_interval(schedule_interval: Optional[str]) -> Optional[S
     return _schedule_interval
 
 
-def get_prev_execution_date(schedule_interval_target: str, execution_date: pendulum.Pendulum) -> datetime:
-    """ Get the previous execution date of a target DAG based on the given execution date and schedule interval of
+def get_prev_execution_date(schedule_interval_target: str, execution_date: pendulum.datetime) -> datetime:
+    """Get the previous execution date of a target DAG based on the given execution date and schedule interval of
     the target DAG.
     This can be used as a callable for the execution_delta_fn of the ExternalTaskSensor.
     For example:
@@ -349,7 +348,7 @@ def build_schedule(sched_start_date, sched_end_date):
 
     for start_date in pendulum.Period(start=sched_start_date, end=sched_end_date).range("months"):
         last_day = calendar.monthrange(start_date.year, start_date.month)[1]
-        end_date = pendulum.date(start_date.year, start_date.month, last_day)
+        end_date = pendulum.datetime(start_date.year, start_date.month, last_day)
         schedule.append(pendulum.Period(start_date, end_date))
 
     return schedule
@@ -544,7 +543,7 @@ def make_telescope_sensor(telescope_name: str, dag_prefix: str) -> ExternalTaskS
 
 @dataclass
 class PeriodCount:
-    """ Descriptive wrapper for a (period, count) object. """
+    """Descriptive wrapper for a (period, count) object."""
 
     period: pendulum.Period  # The schedule period in question
     count: int  # Number of results for this period.
@@ -666,7 +665,7 @@ def add_partition_date(
     partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
     partition_field: str = "release_date",
 ):
-    """ Add a partition date key/value pair to each dictionary in the list of dicts.
+    """Add a partition date key/value pair to each dictionary in the list of dicts.
     Used to load data into a BigQuery partition.
 
     :param list_of_dicts: List of dictionaries with original data

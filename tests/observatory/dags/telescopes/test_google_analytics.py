@@ -28,14 +28,21 @@ from googleapiclient.http import HttpMockSequence
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
-from observatory.dags.telescopes.google_analytics import GoogleAnalyticsRelease, GoogleAnalyticsTelescope
+from observatory.dags.telescopes.google_analytics import (
+    GoogleAnalyticsRelease,
+    GoogleAnalyticsTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, module_file_path
+from observatory.platform.utils.test_utils import (
+    ObservatoryEnvironment,
+    ObservatoryTestCase,
+    module_file_path,
+)
 
 
 class TestGoogleAnalytics(ObservatoryTestCase):
-    """ Tests for the Google Analytics telescope """
+    """Tests for the Google Analytics telescope"""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -52,8 +59,8 @@ class TestGoogleAnalytics(ObservatoryTestCase):
         """Test that the Google Analytics DAG has the correct structure.
         :return: None
         """
-        organisation = Organisation(name='Organisation Name')
-        dag = GoogleAnalyticsTelescope(organisation, '1234', r'regex').make_dag()
+        organisation = Organisation(name="Organisation Name")
+        dag = GoogleAnalyticsTelescope(organisation, "1234", r"regex").make_dag()
         self.assert_dag_structure(
             {
                 "check_dependencies": ["download_transform"],
@@ -77,7 +84,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
             env.add_connection(conn)
 
             # Add a telescope
-            dt = pendulum.utcnow()
+            dt = pendulum.now("UTC")
             telescope_type = orm.TelescopeType(
                 name="Google Analytics Telescope", type_id=TelescopeTypes.google_analytics, created=dt, modified=dt
             )
@@ -164,46 +171,59 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                 with gzip.open(file, "rb") as f:
                     for line in f:
                         actual_list.append(json.loads(line))
-                expected_list = [{'url': '/base/path/151420',
-                                  'title': 'Anything public program drive north.',
-                                  'start_date': '2020-04-01',
-                                  'end_date': '2020-04-30',
-                                  'release_date': '2020-04-30',
-                                  'average_time': 59.5,
-                                  'unique_views': {
-                                      'country': [{'name': 'country 1', 'value': 3}, {'name': 'country 2', 'value': 3}],
-                                      'referrer': [{'name': 'referrer 1', 'value': 3},
-                                                   {'name': 'referrer 2', 'value': 3}],
-                                      'social_network': [{'name': 'social_network 1', 'value': 3},
-                                                         {'name': 'social_network 2', 'value': 3}]},
-                                  'sessions': {'country': [{'name': 'country 1', 'value': 1},
-                                                           {'name': 'country 2', 'value': 1}],
-                                               'source': [{'name': 'source 1', 'value': 1},
-                                                          {'name': 'source 2', 'value': 1}]}},
-                                 {'url': '/base/path/833557',
-                                  'title': 'Standard current never no.',
-                                  'start_date': '2020-04-01',
-                                  'end_date': '2020-04-30',
-                                  'release_date': '2020-04-30',
-                                  'average_time': 44.2,
-                                  'unique_views': {
-                                      'country': [{'name': 'country 2', 'value': 2}, {'name': 'country 1', 'value': 1}],
-                                      'referrer': [{'name': 'referrer 1', 'value': 1},
-                                                   {'name': 'referrer 2', 'value': 2}],
-                                      'social_network': [{'name': 'social_network 2', 'value': 2},
-                                                         {'name': 'social_network 1', 'value': 1}]},
-                                  'sessions': {'country': [], 'source': []}},
-                                 {'url': '/base/path/833557?fbclid=123',
-                                  'title': 'Standard current never no.',
-                                  'start_date': '2020-04-01',
-                                  'end_date': '2020-04-30',
-                                  'average_time': 38.8,
-                                  'unique_views': {
-                                      'country': [{'name': 'country 2', 'value': 2}],
-                                      'referrer': [{'name': 'referrer 2', 'value': 2}],
-                                      'social_network': [{'name': 'social_network 2', 'value': 2}]},
-                                  'sessions': {'country': [], 'source': []},
-                                  'release_date': '2020-04-30'}]
+                expected_list = [
+                    {
+                        "url": "/base/path/151420",
+                        "title": "Anything public program drive north.",
+                        "start_date": "2020-04-01",
+                        "end_date": "2020-04-30",
+                        "release_date": "2020-04-30",
+                        "average_time": 59.5,
+                        "unique_views": {
+                            "country": [{"name": "country 1", "value": 3}, {"name": "country 2", "value": 3}],
+                            "referrer": [{"name": "referrer 1", "value": 3}, {"name": "referrer 2", "value": 3}],
+                            "social_network": [
+                                {"name": "social_network 1", "value": 3},
+                                {"name": "social_network 2", "value": 3},
+                            ],
+                        },
+                        "sessions": {
+                            "country": [{"name": "country 1", "value": 1}, {"name": "country 2", "value": 1}],
+                            "source": [{"name": "source 1", "value": 1}, {"name": "source 2", "value": 1}],
+                        },
+                    },
+                    {
+                        "url": "/base/path/833557",
+                        "title": "Standard current never no.",
+                        "start_date": "2020-04-01",
+                        "end_date": "2020-04-30",
+                        "release_date": "2020-04-30",
+                        "average_time": 44.2,
+                        "unique_views": {
+                            "country": [{"name": "country 2", "value": 2}, {"name": "country 1", "value": 1}],
+                            "referrer": [{"name": "referrer 1", "value": 1}, {"name": "referrer 2", "value": 2}],
+                            "social_network": [
+                                {"name": "social_network 2", "value": 2},
+                                {"name": "social_network 1", "value": 1},
+                            ],
+                        },
+                        "sessions": {"country": [], "source": []},
+                    },
+                    {
+                        "url": "/base/path/833557?fbclid=123",
+                        "title": "Standard current never no.",
+                        "start_date": "2020-04-01",
+                        "end_date": "2020-04-30",
+                        "average_time": 38.8,
+                        "unique_views": {
+                            "country": [{"name": "country 2", "value": 2}],
+                            "referrer": [{"name": "referrer 2", "value": 2}],
+                            "social_network": [{"name": "social_network 2", "value": 2}],
+                        },
+                        "sessions": {"country": [], "source": []},
+                        "release_date": "2020-04-30",
+                    },
+                ]
                 self.assertEqual(3, len(actual_list))
                 self.assertEqual(frozenset(expected_list[0]), frozenset(actual_list[0]))
                 self.assertEqual(frozenset(expected_list[1]), frozenset(actual_list[1]))
@@ -262,8 +282,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
             gcp_transform_bucket=env.transform_bucket,
         )
         telescope = GoogleAnalyticsTelescope(
-            organisation=organisation, view_id=self.view_id, pagepath_regex=self.pagepath_regex,
-            dataset_id=dataset_id
+            organisation=organisation, view_id=self.view_id, pagepath_regex=self.pagepath_regex, dataset_id=dataset_id
         )
         dag = telescope.make_dag()
 
@@ -273,9 +292,9 @@ class TestGoogleAnalytics(ObservatoryTestCase):
             conn = Connection(
                 conn_id=AirflowConns.OAEBU_SERVICE_ACCOUNT,
                 uri=f"google-cloud-platform://?type=service_account&private_key_id=private_key_id"
-                    f"&private_key=private_key"
-                    f"&client_email=client_email"
-                    f"&client_id=client_id",
+                f"&private_key=private_key"
+                f"&client_email=client_email"
+                f"&client_id=client_id",
             )
             env.add_connection(conn)
 
@@ -298,66 +317,77 @@ class TestGoogleAnalytics(ObservatoryTestCase):
                 with gzip.open(file, "rb") as f:
                     for line in f:
                         actual_list.append(json.loads(line))
-                expected_list = [{'url': '/base/path/151420',
-                                  'title': 'Anything public program drive north.',
-                                  'start_date': '2020-04-01',
-                                  'end_date': '2020-04-30',
-                                  'average_time': 59.5,
-                                  'unique_views': {
-                                      'country': [{'name': 'country 1', 'value': 3},
-                                                  {'name': 'country 2', 'value': 3}],
-                                      'referrer': [{'name': 'referrer 1', 'value': 3},
-                                                   {'name': 'referrer 2', 'value': 3}],
-                                      'social_network': [{'name': 'social_network 1', 'value': 3},
-                                                         {'name': 'social_network 2', 'value': 3}]},
-                                  'sessions': {'country': [{'name': 'country 1', 'value': 1},
-                                                           {'name': 'country 2', 'value': 1}],
-                                               'source': [{'name': 'source 1', 'value': 1},
-                                                          {'name': 'source 2', 'value': 1}]},
-                                  'publication_id': '1234567890123',
-                                  'publication_type': 'book',
-                                  'publication_imprint': 'imprint',
-                                  'publication_group': 'group',
-                                  'publication_whole_or_part': 'whole',
-                                  'publication_format': 'PDF',
-                                  'release_date': '2020-04-30'},
-                                 {'url': '/base/path/833557',
-                                  'title': 'Standard current never no.',
-                                  'start_date': '2020-04-01',
-                                  'end_date': '2020-04-30',
-                                  'average_time': 44.2,
-                                  'unique_views': {
-                                      'country': [{'name': 'country 2', 'value': 2},
-                                                  {'name': 'country 1', 'value': 1}],
-                                      'referrer': [{'name': 'referrer 1', 'value': 1},
-                                                   {'name': 'referrer 2', 'value': 2}],
-                                      'social_network': [{'name': 'social_network 2', 'value': 2},
-                                                         {'name': 'social_network 1', 'value': 1}]},
-                                  'sessions': {'country': [], 'source': []},
-                                  'publication_id': '1234567891234',
-                                  'publication_type': 'book',
-                                  'publication_imprint': 'imprint',
-                                  'publication_group': '(none)',
-                                  'publication_whole_or_part': 'part',
-                                  'publication_format': 'HTML',
-                                  'release_date': '2020-04-30'},
-                                 {'url': '/base/path/833557?fbclid=123',
-                                  'title': 'Standard current never no.',
-                                  'start_date': '2020-04-01',
-                                  'end_date': '2020-04-30',
-                                  'average_time': 38.8,
-                                  'unique_views': {
-                                      'country': [{'name': 'country 2', 'value': 2}],
-                                      'referrer': [{'name': 'referrer 2', 'value': 2}],
-                                      'social_network': [{'name': 'social_network 2', 'value': 2}]},
-                                  'sessions': {'country': [], 'source': []},
-                                  'publication_id': '1234567891234',
-                                  'publication_type': 'book',
-                                  'publication_imprint': 'imprint',
-                                  'publication_group': '(none)',
-                                  'publication_whole_or_part': 'part',
-                                  'publication_format': 'HTML',
-                                  'release_date': '2020-04-30'}]
+                expected_list = [
+                    {
+                        "url": "/base/path/151420",
+                        "title": "Anything public program drive north.",
+                        "start_date": "2020-04-01",
+                        "end_date": "2020-04-30",
+                        "average_time": 59.5,
+                        "unique_views": {
+                            "country": [{"name": "country 1", "value": 3}, {"name": "country 2", "value": 3}],
+                            "referrer": [{"name": "referrer 1", "value": 3}, {"name": "referrer 2", "value": 3}],
+                            "social_network": [
+                                {"name": "social_network 1", "value": 3},
+                                {"name": "social_network 2", "value": 3},
+                            ],
+                        },
+                        "sessions": {
+                            "country": [{"name": "country 1", "value": 1}, {"name": "country 2", "value": 1}],
+                            "source": [{"name": "source 1", "value": 1}, {"name": "source 2", "value": 1}],
+                        },
+                        "publication_id": "1234567890123",
+                        "publication_type": "book",
+                        "publication_imprint": "imprint",
+                        "publication_group": "group",
+                        "publication_whole_or_part": "whole",
+                        "publication_format": "PDF",
+                        "release_date": "2020-04-30",
+                    },
+                    {
+                        "url": "/base/path/833557",
+                        "title": "Standard current never no.",
+                        "start_date": "2020-04-01",
+                        "end_date": "2020-04-30",
+                        "average_time": 44.2,
+                        "unique_views": {
+                            "country": [{"name": "country 2", "value": 2}, {"name": "country 1", "value": 1}],
+                            "referrer": [{"name": "referrer 1", "value": 1}, {"name": "referrer 2", "value": 2}],
+                            "social_network": [
+                                {"name": "social_network 2", "value": 2},
+                                {"name": "social_network 1", "value": 1},
+                            ],
+                        },
+                        "sessions": {"country": [], "source": []},
+                        "publication_id": "1234567891234",
+                        "publication_type": "book",
+                        "publication_imprint": "imprint",
+                        "publication_group": "(none)",
+                        "publication_whole_or_part": "part",
+                        "publication_format": "HTML",
+                        "release_date": "2020-04-30",
+                    },
+                    {
+                        "url": "/base/path/833557?fbclid=123",
+                        "title": "Standard current never no.",
+                        "start_date": "2020-04-01",
+                        "end_date": "2020-04-30",
+                        "average_time": 38.8,
+                        "unique_views": {
+                            "country": [{"name": "country 2", "value": 2}],
+                            "referrer": [{"name": "referrer 2", "value": 2}],
+                            "social_network": [{"name": "social_network 2", "value": 2}],
+                        },
+                        "sessions": {"country": [], "source": []},
+                        "publication_id": "1234567891234",
+                        "publication_type": "book",
+                        "publication_imprint": "imprint",
+                        "publication_group": "(none)",
+                        "publication_whole_or_part": "part",
+                        "publication_format": "HTML",
+                        "release_date": "2020-04-30",
+                    },
+                ]
                 self.assertEqual(3, len(actual_list))
                 self.assertEqual(frozenset(expected_list[0]), frozenset(actual_list[0]))
                 self.assertEqual(frozenset(expected_list[1]), frozenset(actual_list[1]))
@@ -387,7 +417,7 @@ class TestGoogleAnalytics(ObservatoryTestCase):
 
 
 def create_http_mock_sequence(organisation_name: str) -> list:
-    """ Create a list of http mock sequences for listing books and getting dimension data
+    """Create a list of http mock sequences for listing books and getting dimension data
 
     :param organisation_name: The organisation name (add custom dimensions for ANU)
     :return: A list with HttpMockSequence instances
@@ -423,11 +453,23 @@ def create_http_mock_sequence(organisation_name: str) -> list:
     }
     # Add custom dimensions from ANU Press
     if organisation_name == GoogleAnalyticsTelescope.ANU_ORG_NAME:
-        list_books['reports'][0]['columnHeader']['dimensions'] += [f'ga:dimension{(str(i))}' for i in range(1, 7)]
-        list_books['reports'][0]['data']['rows'][0]['dimensions'] += ['1234567890123', 'book', 'imprint', 'group',
-                                                                      'whole', 'PDF']
-        list_books['reports'][0]['data']['rows'][1]['dimensions'] += ['1234567891234', 'book', 'imprint', '(none)',
-                                                                      'part', 'HTML']
+        list_books["reports"][0]["columnHeader"]["dimensions"] += [f"ga:dimension{(str(i))}" for i in range(1, 7)]
+        list_books["reports"][0]["data"]["rows"][0]["dimensions"] += [
+            "1234567890123",
+            "book",
+            "imprint",
+            "group",
+            "whole",
+            "PDF",
+        ]
+        list_books["reports"][0]["data"]["rows"][1]["dimensions"] += [
+            "1234567891234",
+            "book",
+            "imprint",
+            "(none)",
+            "part",
+            "HTML",
+        ]
     list_books_next_page = {
         "reports": [
             {
@@ -453,9 +495,17 @@ def create_http_mock_sequence(organisation_name: str) -> list:
     }
     # Add custom dimensions from ANU Press
     if organisation_name == GoogleAnalyticsTelescope.ANU_ORG_NAME:
-        list_books_next_page['reports'][0]['columnHeader']['dimensions'] += [f'ga:dimension{(str(i))}' for i in range(1, 7)]
-        list_books_next_page['reports'][0]['data']['rows'][0]['dimensions'] += ['1234567891234', 'book', 'imprint',
-                                                                                '(none)', 'part', 'HTML']
+        list_books_next_page["reports"][0]["columnHeader"]["dimensions"] += [
+            f"ga:dimension{(str(i))}" for i in range(1, 7)
+        ]
+        list_books_next_page["reports"][0]["data"]["rows"][0]["dimensions"] += [
+            "1234567891234",
+            "book",
+            "imprint",
+            "(none)",
+            "part",
+            "HTML",
+        ]
     http_mock_sequence.append(({"status": "200"}, json.dumps(list_books)))
     http_mock_sequence.append(({"status": "200"}, json.dumps(list_books_next_page)))
     for dimension in ["country", "referrer", "social_network", "source"]:

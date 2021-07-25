@@ -30,7 +30,11 @@ from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 from observatory.dags.config import schema_path, workflow_sql_templates_path
 from observatory.platform.observatory_config import Environment
-from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars, create_slack_webhook
+from observatory.platform.utils.airflow_utils import (
+    AirflowVariable,
+    AirflowVars,
+    create_slack_webhook,
+)
 from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
@@ -40,8 +44,10 @@ from observatory.platform.utils.gc_utils import (
     run_bigquery_query,
     upload_files_to_cloud_storage,
 )
-from observatory.platform.utils.jinja2_utils import make_sql_jinja2_filename, render_template
-
+from observatory.platform.utils.jinja2_utils import (
+    make_sql_jinja2_filename,
+    render_template,
+)
 
 # To avoid hitting the airflow database and the secret backend unnecessarily, some variables are stored as a global
 # variable and only requested once
@@ -50,7 +56,7 @@ test_data_path_val_ = None
 
 
 def reset_variables():
-    """ Rest Airflow variables.
+    """Rest Airflow variables.
 
     :return: None.
     """
@@ -63,7 +69,7 @@ def reset_variables():
 
 
 def telescope_path(*subdirs) -> str:
-    """ Return a path for saving telescope data. Create it if it doesn't exist.
+    """Return a path for saving telescope data. Create it if it doesn't exist.
     :param subdirs: the subdirectories.
     :return: the path.
     """
@@ -82,7 +88,7 @@ def telescope_path(*subdirs) -> str:
 
 
 def test_data_path() -> str:
-    """ Return the path for the test data.
+    """Return the path for the test data.
 
     :return: the path.
     """
@@ -95,7 +101,7 @@ def test_data_path() -> str:
 
 
 def blob_name(path: str) -> str:
-    """ Convert a file path into the full path of the Blob, excluding the bucket name.
+    """Convert a file path into the full path of the Blob, excluding the bucket name.
     E.g.: '/workdir/data/telescopes/transform/dag_id/dag_id_2021_03_01/file.txt' ->
     'telescopes/dag_id/dag_id_2021_03_01/file.txt'
 
@@ -121,7 +127,7 @@ def batch_blob_name(path: str) -> str:
 
 
 def upload_files_from_list(files_list: List[str], bucket_name: str) -> bool:
-    """ Upload all files in a list to the google cloud download bucket.
+    """Upload all files in a list to the google cloud download bucket.
 
     :param files_list: List of full path of files that will be uploaded
     :param bucket_name: The name of the google cloud bucket
@@ -156,7 +162,7 @@ def table_ids_from_path(transform_path: str) -> Tuple[str, str]:
 
 
 def create_date_table_id(table_id: str, date: datetime, partition_type: bigquery.TimePartitioningType):
-    """ Create a table id string, which includes the date in the correct format corresponding to the partition type.
+    """Create a table id string, which includes the date in the correct format corresponding to the partition type.
 
     :param table_id: The table id
     :param date: The date used for the partition identifier
@@ -178,7 +184,7 @@ def create_date_table_id(table_id: str, date: datetime, partition_type: bigquery
 def prepare_bq_load(
     dataset_id: str,
     table_id: str,
-    release_date: pendulum.Pendulum,
+    release_date: pendulum.datetime,
     prefix: str,
     schema_version: str,
     dataset_description: str = "",
@@ -222,7 +228,7 @@ def prepare_bq_load_v2(
     dataset_id: str,
     dataset_location: str,
     table_id: str,
-    release_date: pendulum.Pendulum,
+    release_date: pendulum.datetime,
     prefix: str,
     schema_version: str,
     dataset_description: str = "",
@@ -256,7 +262,7 @@ def prepare_bq_load_v2(
 
 
 def bq_load_shard(
-    release_date: pendulum.Pendulum,
+    release_date: pendulum.datetime,
     transform_blob: str,
     dataset_id: str,
     table_id: str,
@@ -266,7 +272,7 @@ def bq_load_shard(
     dataset_description: str = "",
     **load_bigquery_table_kwargs,
 ):
-    """ Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
+    """Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
     :param release_date: Release date.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
@@ -302,14 +308,14 @@ def bq_load_shard_v2(
     dataset_id: str,
     dataset_location: str,
     table_id: str,
-    release_date: pendulum.Pendulum,
+    release_date: pendulum.datetime,
     source_format: SourceFormat,
     prefix: str = "",
     schema_version: str = None,
     dataset_description: str = "",
     **load_bigquery_table_kwargs,
 ):
-    """ Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
+    """Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
 
     :param project_id: project id.
     :param transform_bucket: transform bucket name.
@@ -351,7 +357,7 @@ def bq_load_shard_v2(
 
 
 def bq_load_ingestion_partition(
-    end_date: pendulum.Pendulum,
+    end_date: pendulum.datetime,
     transform_blob: str,
     dataset_id: str,
     main_table_id: str,
@@ -363,7 +369,7 @@ def bq_load_ingestion_partition(
     partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
     **load_bigquery_table_kwargs,
 ):
-    """ Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
+    """Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
     given it will automatically partition by ingestion datetime.
 
     :param end_date: End date.
@@ -408,7 +414,7 @@ def bq_load_partition(
     dataset_id: str,
     dataset_location: str,
     table_id: str,
-    release_date: pendulum.Pendulum,
+    release_date: pendulum.datetime,
     source_format: SourceFormat,
     partition_type: bigquery.TimePartitioningType,
     prefix: str = "",
@@ -417,7 +423,7 @@ def bq_load_partition(
     partition_field: str = "release_date",
     **load_bigquery_table_kwargs,
 ):
-    """ Load data from a specific file (blob) in the transform bucket to a partition.
+    """Load data from a specific file (blob) in the transform bucket to a partition.
 
     :param project_id: project id.
     :param transform_bucket: transform bucket name.
@@ -461,14 +467,14 @@ def bq_load_partition(
 
 
 def bq_delete_old(
-    start_date: pendulum.Pendulum,
-    end_date: pendulum.Pendulum,
+    start_date: pendulum.datetime,
+    end_date: pendulum.datetime,
     dataset_id: str,
     main_table_id: str,
     partition_table_id: str,
     merge_partition_field: str,
 ):
-    """ Will run a BigQuery query that deletes rows from the main table that are matched with rows from
+    """Will run a BigQuery query that deletes rows from the main table that are matched with rows from
     specific partitions of the partition table.
     The query is created from a template and the given info.
     :param start_date: Start date, excluded.
@@ -501,15 +507,15 @@ def bq_delete_old(
 
 
 def bq_append_from_partition(
-    start_date: pendulum.Pendulum,
-    end_date: pendulum.Pendulum,
+    start_date: pendulum.datetime,
+    end_date: pendulum.datetime,
     dataset_id: str,
     main_table_id: str,
     partition_table_id: str,
     prefix: str = "",
     schema_version: str = None,
 ):
-    """ Appends rows to the main table by coping specific partitions from the partition table to the main table.
+    """Appends rows to the main table by coping specific partitions from the partition table to the main table.
     :param start_date: Start date, excluded.
     :param end_date: End date, included.
     :param dataset_id: Dataset id.
@@ -539,7 +545,7 @@ def bq_append_from_partition(
 
 
 def bq_append_from_file(
-    end_date: pendulum.Pendulum,
+    end_date: pendulum.datetime,
     transform_blob: str,
     dataset_id: str,
     main_table_id: str,
@@ -549,7 +555,7 @@ def bq_append_from_file(
     dataset_description: str = "",
     **load_bigquery_table_kwargs,
 ):
-    """ Appends rows to the main table by loading data from a specific file (blob) in the transform bucket.
+    """Appends rows to the main table by loading data from a specific file (blob) in the transform bucket.
     :param end_date: End date.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
@@ -610,7 +616,7 @@ def on_failure_callback(**kwargs):
 
 
 class SubFolder(Enum):
-    """ The type of subfolder to create for telescope data """
+    """The type of subfolder to create for telescope data"""
 
     downloaded = "download"
     extracted = "extract"

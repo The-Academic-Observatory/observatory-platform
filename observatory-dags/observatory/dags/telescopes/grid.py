@@ -28,9 +28,10 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from pendulum import Pendulum
-
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.telescopes.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
@@ -39,8 +40,8 @@ from observatory.platform.utils.url_utils import retry_session
 
 
 class GridRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, article_ids: List[str], release_date: Pendulum):
-        """ Construct a GridRelease.
+    def __init__(self, dag_id: str, article_ids: List[str], release_date: pendulum.datetime):
+        """Construct a GridRelease.
 
         :param article_ids: the titles of the Figshare articles.
         :param release_date: the release date.
@@ -58,7 +59,7 @@ class GridRelease(SnapshotRelease):
         return os.path.join(self.transform_folder, f"{self.dag_id}.jsonl.gz")
 
     def download(self, timeout: float = 30.0) -> List[str]:
-        """ Downloads an individual GRID release from Figshare.
+        """Downloads an individual GRID release from Figshare.
 
         :param timeout: the timeout in seconds when calling the Figshare API.
         :return: the paths on the system of the downloaded files.
@@ -96,7 +97,7 @@ class GridRelease(SnapshotRelease):
         return downloads
 
     def extract(self) -> None:
-        """ Extract a single GRID release to a given extraction path. The release will be extracted into the following
+        """Extract a single GRID release to a given extraction path. The release will be extracted into the following
         directory structure: extraction_path/file_name (without extension).
 
         If the release is a .zip file, it will be extracted, otherwise it will be copied to a directory within the
@@ -124,7 +125,7 @@ class GridRelease(SnapshotRelease):
                 logging.info(f"File saved to: {output_file_path}")
 
     def transform(self) -> str:
-        """ Transform an extracted GRID release .json file into json lines format and gzip the result.
+        """Transform an extracted GRID release .json file into json lines format and gzip the result.
 
         :return: the GRID version, the file name and the file path.
         """
@@ -153,9 +154,9 @@ class GridRelease(SnapshotRelease):
 
 
 def list_grid_records(
-    start_date: Pendulum, end_date: Pendulum, grid_dataset_url: str, timeout: float = 30.0
+    start_date: pendulum.datetime, end_date: pendulum.datetime, grid_dataset_url: str, timeout: float = 30.0
 ) -> List[dict]:
-    """ List all GRID records available on Figshare between two dates.
+    """List all GRID records available on Figshare between two dates.
 
     :param timeout: the number of seconds to wait until timing out.
     :return: the list of GRID releases with required variables stored as a dictionary.
@@ -167,7 +168,7 @@ def list_grid_records(
     records: List[dict] = []
     release_articles = {}
     for item in response_json:
-        published_date: Pendulum = pendulum.parse(item["published_date"])
+        published_date: pendulum.datetime = pendulum.parse(item["published_date"])
 
         if start_date <= published_date < end_date:
             article_id = item["id"]
@@ -215,7 +216,7 @@ class GridTelescope(SnapshotTelescope):
         catchup: bool = True,
         airflow_vars: List = None,
     ):
-        """ Construct a GridTelescope instance.
+        """Construct a GridTelescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -260,7 +261,7 @@ class GridTelescope(SnapshotTelescope):
         )
 
     def make_release(self, **kwargs) -> List[GridRelease]:
-        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        """Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -282,7 +283,7 @@ class GridTelescope(SnapshotTelescope):
         return releases
 
     def list_releases(self, **kwargs):
-        """ Lists all GRID releases for a given month and publishes their article_id's and
+        """Lists all GRID releases for a given month and publishes their article_id's and
         release_date's as an XCom.
 
         :param kwargs: the context passed from the BranchPythonOperator. See
@@ -304,7 +305,7 @@ class GridTelescope(SnapshotTelescope):
         return continue_dag
 
     def download(self, releases: List[GridRelease], **kwargs):
-        """ Task to download the GRID releases for a given month.
+        """Task to download the GRID releases for a given month.
 
         :param releases: a list of GRID releases.
         :return: None.
@@ -315,7 +316,7 @@ class GridTelescope(SnapshotTelescope):
             release.download()
 
     def upload_downloaded(self, releases: List[GridRelease], **kwargs):
-        """ Task to upload the downloaded GRID releases for a given month.
+        """Task to upload the downloaded GRID releases for a given month.
 
         :param releases: a list of GRID releases.
         :return: None.
@@ -326,7 +327,7 @@ class GridTelescope(SnapshotTelescope):
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def extract(self, releases: List[GridRelease], **kwargs):
-        """ Task to extract the GRID releases for a given month.
+        """Task to extract the GRID releases for a given month.
 
         :param releases: a list of GRID releases.
         :return: None.
@@ -337,7 +338,7 @@ class GridTelescope(SnapshotTelescope):
             release.extract()
 
     def transform(self, releases: List[GridRelease], **kwargs):
-        """ Task to transform the GRID releases for a given month.
+        """Task to transform the GRID releases for a given month.
 
         :param releases: a list of GRID releases.
         :return: None.

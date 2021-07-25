@@ -20,22 +20,24 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import List, Optional, Tuple, Dict
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 import pendulum
 import requests
-from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.hooks.base_hook import BaseHook
+from airflow.exceptions import AirflowException
+from airflow.hooks.base import BaseHook
 from google.auth import environment_vars
 from google.auth.transport.requests import AuthorizedSession
 from google.cloud import bigquery
 from google.oauth2.service_account import IDTokenCredentials
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
-
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.telescopes.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.file_utils import _hash_file, list_to_jsonl_gz
@@ -45,19 +47,23 @@ from observatory.platform.utils.gc_utils import (
     download_blob_from_cloud_storage,
     upload_file_to_cloud_storage,
 )
-from observatory.platform.utils.telescope_utils import make_dag_id, make_org_id, add_partition_date
+from observatory.platform.utils.telescope_utils import (
+    add_partition_date,
+    make_dag_id,
+    make_org_id,
+)
 from observatory.platform.utils.template_utils import (
     SubFolder,
     blob_name,
-    telescope_path,
     bq_load_partition,
     table_ids_from_path,
+    telescope_path,
 )
 
 
 class OapenIrusUkRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, organisation: Organisation):
-        """Create a OapenIrusUkRelease instance.
+    def __init__(self, dag_id: str, release_date: pendulum.datetime, organisation: Organisation):
+        """Create a OapenIrusUkReleaes instance.
 
         :param dag_id: the DAG id.
         :param release_date: the date of the release.

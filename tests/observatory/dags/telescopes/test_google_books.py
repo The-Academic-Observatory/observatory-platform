@@ -26,7 +26,10 @@ from airflow.models.connection import Connection
 from click.testing import CliRunner
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.client.model.organisation import Organisation
-from observatory.dags.telescopes.google_books import GoogleBooksRelease, GoogleBooksTelescope
+from observatory.dags.telescopes.google_books import (
+    GoogleBooksRelease,
+    GoogleBooksTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.telescope_utils import SftpFolders
 from observatory.platform.utils.template_utils import blob_name, table_ids_from_path
@@ -37,12 +40,11 @@ from observatory.platform.utils.test_utils import (
     module_file_path,
     test_fixtures_path,
 )
-
 from tests.observatory.test_utils import test_fixtures_path
 
 
 class TestGoogleBooks(ObservatoryTestCase):
-    """ Tests for the GoogleBooks telescope """
+    """Tests for the GoogleBooks telescope"""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -107,7 +109,7 @@ class TestGoogleBooks(ObservatoryTestCase):
             env.add_connection(conn)
 
             # Add a Google Books telescope
-            dt = pendulum.utcnow()
+            dt = pendulum.now("UTC")
             telescope_type = orm.TelescopeType(
                 name="Google Books Telescope", type_id=TelescopeTypes.google_books, created=dt, modified=dt
             )
@@ -178,7 +180,7 @@ class TestGoogleBooks(ObservatoryTestCase):
 
                 expected_release_files = []
                 for file_name, file_path in self.test_files.items():
-                    expected_release_date = pendulum.strptime(file_name[-11:].strip(".csv"), "%Y_%m").end_of('month')
+                    expected_release_date = pendulum.strptime(file_name[-11:].strip(".csv"), "%Y_%m").end_of("month")
                     expected_release_files.append(os.path.join(telescope.sftp_folders.in_progress, file_name))
                 expected_release_info = defaultdict(list, {expected_release_date: expected_release_files})
                 self.assertEqual(expected_release_info, release_info)
@@ -262,40 +264,40 @@ class TestGoogleBooks(ObservatoryTestCase):
                 env.run_task(telescope.cleanup.__name__, dag, execution_date)
                 self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
-    @patch('observatory.platform.utils.template_utils.AirflowVariable.get')
+    @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
     def test_transform(self, mock_variable_get):
-        """ Test sanity check in transform method when transaction date falls outside release month
+        """Test sanity check in transform method when transaction date falls outside release month
 
         :param mock_variable_get: Mock Airflow Variable 'data'
         :return: None.
         """
         with CliRunner().isolated_filesystem():
-            mock_variable_get.return_value = os.path.join(os.getcwd(), 'data')
+            mock_variable_get.return_value = os.path.join(os.getcwd(), "data")
 
             # Objects to create release instance
             org = Organisation(
                 name=self.organisation_name,
                 gcp_project_id=self.project_id,
-                gcp_download_bucket='download_bucket',
-                gcp_transform_bucket='transform_bucket'
+                gcp_download_bucket="download_bucket",
+                gcp_transform_bucket="transform_bucket",
             )
-            telescope = GoogleBooksTelescope(org, dataset_id='dataset_id')
+            telescope = GoogleBooksTelescope(org, dataset_id="dataset_id")
             file_name = list(self.test_files)[1]
             release_files = [os.path.join(telescope.sftp_folders.in_progress, file_name)]
 
             # test transaction date inside of release month
-            release = GoogleBooksRelease(telescope.dag_id, pendulum.parse('2020-02-01'), release_files, org)
-            shutil.copy(self.test_files[file_name], os.path.join(release.download_folder, 'google_books_sales.csv'))
+            release = GoogleBooksRelease(telescope.dag_id, pendulum.parse("2020-02-01"), release_files, org)
+            shutil.copy(self.test_files[file_name], os.path.join(release.download_folder, "google_books_sales.csv"))
             release.transform()
 
             # test transaction date before release month
-            release = GoogleBooksRelease(telescope.dag_id, pendulum.parse('2020-01-31'), release_files, org)
-            shutil.copy(self.test_files[file_name], os.path.join(release.download_folder, 'google_books_sales.csv'))
+            release = GoogleBooksRelease(telescope.dag_id, pendulum.parse("2020-01-31"), release_files, org)
+            shutil.copy(self.test_files[file_name], os.path.join(release.download_folder, "google_books_sales.csv"))
             with self.assertRaises(AirflowException):
                 release.transform()
 
             # test transaction date after release month
-            release = GoogleBooksRelease(telescope.dag_id, pendulum.parse('2020-03-01'), release_files, org)
-            shutil.copy(self.test_files[file_name], os.path.join(release.download_folder, 'google_books_sales.csv'))
+            release = GoogleBooksRelease(telescope.dag_id, pendulum.parse("2020-03-01"), release_files, org)
+            shutil.copy(self.test_files[file_name], os.path.join(release.download_folder, "google_books_sales.csv"))
             with self.assertRaises(AirflowException):
                 release.transform()

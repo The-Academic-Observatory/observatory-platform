@@ -20,14 +20,12 @@ import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models import Variable
-from airflow.sensors.external_task_sensor import ExternalTaskSensor
-from pendulum import Pendulum
-
+from airflow.sensors.external_task import ExternalTaskSensor
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.telescopes.telescope import Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars, set_task_state
@@ -52,7 +50,7 @@ class Table:
     dataset_id: str
     table_id: str = None
     sharded: bool = False
-    release_date: Pendulum = None
+    release_date: pendulum.datetime = None
 
 
 @dataclass
@@ -214,24 +212,44 @@ def make_elastic_tables(
         )
     if relate_to_countries:
         tables.append(
-            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "countries",}
+            {
+                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
+                "aggregate": aggregate_table_id,
+                "facet": "countries",
+            }
         )
     if relate_to_groups:
         tables.append(
-            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "groupings",}
+            {
+                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
+                "aggregate": aggregate_table_id,
+                "facet": "groupings",
+            }
         )
     if relate_to_members:
         tables.append(
-            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "members",}
+            {
+                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
+                "aggregate": aggregate_table_id,
+                "facet": "members",
+            }
         )
     if relate_to_journals:
         tables.append(
-            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "journals",}
+            {
+                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
+                "aggregate": aggregate_table_id,
+                "facet": "journals",
+            }
         )
 
     if relate_to_funders:
         tables.append(
-            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "funders",}
+            {
+                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
+                "aggregate": aggregate_table_id,
+                "facet": "funders",
+            }
         )
 
     if relate_to_publishers:
@@ -354,12 +372,12 @@ class DoiWorkflow(Telescope):
         elastic_dataset_id: str = ELASTIC_DATASET_ID,
         transforms: Tuple = None,
         dag_id: Optional[str] = "doi",
-        start_date: Optional[Pendulum] = pendulum.Pendulum(2020, 8, 30),
+        start_date: Optional[pendulum.datetime] = pendulum.datetime(2020, 8, 30),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
         airflow_vars: List = None,
     ):
-        """ Create the DoiWorkflow.
+        """Create the DoiWorkflow.
         :param intermediate_dataset_id: the BigQuery intermediate dataset id.
         :param dashboards_dataset_id: the BigQuery dashboards dataset id.
         :param observatory_dataset_id: the BigQuery observatory dataset id.
@@ -480,7 +498,7 @@ class DoiWorkflow(Telescope):
         )
 
     def create_datasets(self, release: ObservatoryRelease, **kwargs):
-        """ Create required BigQuery datasets.
+        """Create required BigQuery datasets.
 
         :param release: the ObservatoryRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -492,7 +510,7 @@ class DoiWorkflow(Telescope):
         release.create_datasets()
 
     def create_intermediate_table(self, release: ObservatoryRelease, **kwargs):
-        """ Create an intermediate table.
+        """Create an intermediate table.
 
         :param release: the ObservatoryRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -511,7 +529,7 @@ class DoiWorkflow(Telescope):
         )
 
     def create_aggregate_table(self, release: ObservatoryRelease, **kwargs):
-        """ Runs the aggregate table query.
+        """Runs the aggregate table query.
 
         :param release: the ObservatoryRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -536,7 +554,7 @@ class DoiWorkflow(Telescope):
         set_task_state(success, kwargs["task_id"])
 
     def copy_to_dashboards(self, release: ObservatoryRelease, **kwargs):
-        """ Copy tables to dashboards dataset.
+        """Copy tables to dashboards dataset.
 
         :param release: the ObservatoryRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -549,7 +567,7 @@ class DoiWorkflow(Telescope):
         set_task_state(success, self.copy_to_dashboards.__name__)
 
     def create_dashboard_views(self, release: ObservatoryRelease, **kwargs):
-        """ Create views for dashboards dataset.
+        """Create views for dashboards dataset.
 
         :param release: the ObservatoryRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -561,7 +579,7 @@ class DoiWorkflow(Telescope):
         release.create_dashboard_views()
 
     def export_for_elastic(self, release: ObservatoryRelease, **kwargs):
-        """ Export data in a de-nested form for Elasticsearch.
+        """Export data in a de-nested form for Elasticsearch.
 
         :param release: the ObservatoryRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -590,13 +608,13 @@ class ObservatoryRelease:
         *,
         project_id: str,
         data_location: str,
-        release_date: Pendulum,
+        release_date: pendulum.datetime,
         intermediate_dataset_id: str,
         dashboards_dataset_id: str,
         observatory_dataset_id: str,
         elastic_dataset_id: str,
     ):
-        """ Construct an ObservatoryRelease.
+        """Construct an ObservatoryRelease.
 
         :param project_id: the Google Cloud project id.
         :param data_location: the location for BigQuery datasets.
@@ -616,7 +634,7 @@ class ObservatoryRelease:
         self.elastic_dataset_id = elastic_dataset_id
 
     def create_datasets(self):
-        """ Create the BigQuery datasets where data will be saved.
+        """Create the BigQuery datasets where data will be saved.
         :return: None.
         """
 
@@ -629,7 +647,10 @@ class ObservatoryRelease:
 
         for dataset_id, description in datasets:
             create_bigquery_dataset(
-                self.project_id, dataset_id, self.data_location, description=description,
+                self.project_id,
+                dataset_id,
+                self.data_location,
+                description=description,
             )
 
     def create_intermediate_table(
@@ -641,7 +662,7 @@ class ObservatoryRelease:
         output_cluster: bool,
         output_clustering_fields: List,
     ):
-        """ Create an intermediate table.
+        """Create an intermediate table.
         :param inputs: the input datasets.
         :param output_dataset_id: the output dataset id.
         :param output_table_id: the output table id.
@@ -746,7 +767,7 @@ class ObservatoryRelease:
         return success
 
     def copy_to_dashboards(self) -> bool:
-        """ Copy all tables in the observatory dataset to the dashboards dataset.
+        """Copy all tables in the observatory dataset to the dashboards dataset.
         :return: whether successful or not.
         """
 
@@ -764,7 +785,7 @@ class ObservatoryRelease:
         return all(results)
 
     def create_dashboard_views(self):
-        """ Create views.
+        """Create views.
         :return: None.
         """
 

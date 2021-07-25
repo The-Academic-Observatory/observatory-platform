@@ -21,7 +21,6 @@ import csv
 import logging
 import os
 import os.path
-import os.path
 import shutil
 from collections import OrderedDict
 from typing import List, Optional
@@ -29,21 +28,25 @@ from typing import List, Optional
 import pendulum
 import requests
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models.taskinstance import TaskInstance
 from bs4 import BeautifulSoup, SoupStrainer
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import Resource, build
-from pendulum import Pendulum
-from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
-
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.telescopes.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
-from observatory.platform.utils.telescope_utils import add_partition_date, convert, make_dag_id
+from observatory.platform.utils.telescope_utils import (
+    add_partition_date,
+    convert,
+    make_dag_id,
+)
 from observatory.platform.utils.template_utils import (
     SubFolder,
     blob_name,
@@ -53,11 +56,14 @@ from observatory.platform.utils.template_utils import (
     upload_files_from_list,
 )
 from observatory.platform.utils.url_utils import get_ao_user_agent
+from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
 
 
 class JstorRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: Pendulum, reports_info: List[dict], organisation: Organisation):
-        """ Construct a JstorRelease.
+    def __init__(
+        self, dag_id: str, release_date: pendulum.datetime, reports_info: List[dict], organisation: Organisation
+    ):
+        """Construct a JstorRelease.
 
         :param release_date: the release date, corresponds to the last day of the month being processed..
         :param reports_info: list with report_type (country or institution) and url of reports
@@ -72,20 +78,20 @@ class JstorRelease(SnapshotRelease):
 
     @property
     def download_bucket(self):
-        """ The download bucket name.
+        """The download bucket name.
         :return: the download bucket name.
         """
         return self.organisation.gcp_download_bucket
 
     @property
     def transform_bucket(self):
-        """ The transform bucket name.
+        """The transform bucket name.
         :return: the transform bucket name.
         """
         return self.organisation.gcp_transform_bucket
 
     def download_path(self, report_type: str) -> str:
-        """ Creates full download path
+        """Creates full download path
 
         :param report_type: The report type (country or institution)
         :return: Download path
@@ -93,7 +99,7 @@ class JstorRelease(SnapshotRelease):
         return os.path.join(self.download_folder, f"{JstorTelescope.DAG_ID_PREFIX}_{report_type}.tsv")
 
     def transform_path(self, report_type: str) -> str:
-        """ Creates full transform path
+        """Creates full transform path
 
         :param report_type: The report type (country or institution)
         :return: Transform path
@@ -101,7 +107,7 @@ class JstorRelease(SnapshotRelease):
         return os.path.join(self.transform_folder, f"{JstorTelescope.DAG_ID_PREFIX}_{report_type}.jsonl.gz")
 
     def transform(self):
-        """ Transform a Jstor release into json lines format and gzip the result.
+        """Transform a Jstor release into json lines format and gzip the result.
 
         :return: None.
         """
@@ -118,7 +124,7 @@ class JstorRelease(SnapshotRelease):
             list_to_jsonl_gz(self.transform_path(report_type), results)
 
     def cleanup(self) -> None:
-        """ Delete files of downloaded, extracted and transformed release. Add to parent method cleanup and assign a
+        """Delete files of downloaded, extracted and transformed release. Add to parent method cleanup and assign a
         label to the gmail messages that have been processed.
 
         :return: None.
@@ -175,7 +181,7 @@ class JstorTelescope(SnapshotTelescope):
         airflow_conns: List = None,
         max_active_runs: int = 1,
     ):
-        """ Construct a JstorTelescope instance.
+        """Construct a JstorTelescope instance.
         :param organisation: the Organisation of which data is processed.
         :param publisher_id: the publisher ID, obtained from the 'extra' info from the API regarding the telescope.
         :param dag_id: the id of the DAG.
@@ -226,7 +232,7 @@ class JstorTelescope(SnapshotTelescope):
         )
 
     def make_release(self, **kwargs) -> List[JstorRelease]:
-        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        """Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -246,7 +252,7 @@ class JstorTelescope(SnapshotTelescope):
         return releases
 
     def check_dependencies(self, **kwargs) -> bool:
-        """ Check dependencies of DAG. Add to parent method to additionally check for a publisher id
+        """Check dependencies of DAG. Add to parent method to additionally check for a publisher id
         :return: True if dependencies are valid.
         """
         super().check_dependencies()
@@ -257,7 +263,7 @@ class JstorTelescope(SnapshotTelescope):
         return True
 
     def list_reports(self, **kwargs) -> bool:
-        """ Lists all Jstor releases for a given month and publishes their report_type, download_url and
+        """Lists all Jstor releases for a given month and publishes their report_type, download_url and
         release_date's as an XCom.
 
         :param kwargs: the context passed from the BranchPythonOperator. See
@@ -279,7 +285,7 @@ class JstorTelescope(SnapshotTelescope):
         return continue_dag
 
     def download_reports(self, **kwargs) -> bool:
-        """ Download the JSTOR reports based on the list with available reports.
+        """Download the JSTOR reports based on the list with available reports.
         The release date for each report is only known after downloading the report. Therefore they are first
         downloaded to a temporary location, afterwards the release info can be pushed as an xcom and the report is
         moved to the correct location.
@@ -318,7 +324,7 @@ class JstorTelescope(SnapshotTelescope):
         return True
 
     def upload_downloaded(self, releases: List[JstorRelease], **kwargs):
-        """ Task to upload the downloaded Jstor releases for a given month.
+        """Task to upload the downloaded Jstor releases for a given month.
 
         :param releases: a list of Jstor releases.
         :return: None.
@@ -329,7 +335,7 @@ class JstorTelescope(SnapshotTelescope):
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def transform(self, releases: List[JstorRelease], **kwargs):
-        """ Task to transform the Jstor releases for a given month.
+        """Task to transform the Jstor releases for a given month.
 
         :param releases: a list of Jstor releases.
         :return: None.
@@ -340,7 +346,7 @@ class JstorTelescope(SnapshotTelescope):
             release.transform()
 
     def bq_load_partition(self, releases: List[JstorRelease], **kwargs):
-        """ Task to load each transformed release to BigQuery.
+        """Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
         :param releases: a list of releases.
         :return: None.
@@ -372,7 +378,7 @@ class JstorTelescope(SnapshotTelescope):
 
 
 def create_headers() -> dict:
-    """ Create a headers dict that can be used to make a request
+    """Create a headers dict that can be used to make a request
 
     :return: headers dictionary
     """
@@ -390,7 +396,7 @@ def create_headers() -> dict:
     ),
 )
 def get_header_info(url: str) -> [str, str]:
-    """ Get header info from url and parse for filename and extension of file.
+    """Get header info from url and parse for filename and extension of file.
 
     :param url: Download url
     :return: Filename and file extension
@@ -419,7 +425,7 @@ def get_header_info(url: str) -> [str, str]:
     ),
 )
 def download_report(url: str, download_path: str):
-    """ Download report from url to a file.
+    """Download report from url to a file.
 
     :param url: Download url
     :param download_path: Path to download data to
@@ -444,7 +450,7 @@ def download_report(url: str, download_path: str):
 
 
 def get_release_date(report_path: str) -> pendulum:
-    """ Get the release date from the "Usage Month" column in the first row of the report.
+    """Get the release date from the "Usage Month" column in the first row of the report.
     Also checks if the reports contains data from the same month only.
 
     :param report_path: The path to the JSTOR report
@@ -472,7 +478,7 @@ def get_release_date(report_path: str) -> pendulum:
 
 
 def create_gmail_service() -> Resource:
-    """ Build the gmail service.
+    """Build the gmail service.
 
     :return: Gmail service instance
     """
@@ -486,7 +492,7 @@ def create_gmail_service() -> Resource:
 
 
 def get_label_id(service: Resource, label_name: str) -> str:
-    """ Get the id of a label based on the label name.
+    """Get the id of a label based on the label name.
 
     :param service: Gmail service
     :param label_name: The name of the label
@@ -510,7 +516,7 @@ def get_label_id(service: Resource, label_name: str) -> str:
 
 
 def message_has_label(message: dict, label_id: str) -> bool:
-    """ Checks if a message has the given label
+    """Checks if a message has the given label
 
     :param message: A Gmail message
     :param label_id: The label id
@@ -523,7 +529,7 @@ def message_has_label(message: dict, label_id: str) -> bool:
 
 
 def list_reports(service: Resource, publisher_id: str, processed_label_id: str) -> List[dict]:
-    """ List the available releases by going through the messages of a gmail account and looking for a specific pattern.
+    """List the available releases by going through the messages of a gmail account and looking for a specific pattern.
 
     If a message has been processed previously it has a specific label, messages with this label will be skipped.
     The message should include a download url. The head of this download url contains the filename, from which the

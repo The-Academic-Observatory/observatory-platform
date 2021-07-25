@@ -32,10 +32,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat, WriteDisposition
-from ratelimit import limits, sleep_and_retry
-from suds import WebFault
-from wos import WosClient
-
 from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
@@ -57,10 +53,14 @@ from observatory.platform.utils.telescope_utils import (
     write_xml_to_json,
 )
 from observatory.platform.utils.template_utils import SubFolder, telescope_path
+from ratelimit import limits, sleep_and_retry
+from suds import WebFault
+
+from wos import WosClient
 
 
 class WosUtilConst:
-    """ Class containing some WosUtility constants. Makes these values accessible by decorators. """
+    """Class containing some WosUtility constants. Makes these values accessible by decorators."""
 
     # WoS limits as a guide for reference. Throttle limits more conservative than this.
     RESULT_LIMIT = 100  # Return 100 results max per query.
@@ -72,11 +72,11 @@ class WosUtilConst:
 
 
 class WosUtility:
-    """ Handles the interaction with Web of Science """
+    """Handles the interaction with Web of Science"""
 
     @staticmethod
     def build_query(wos_inst_id: List[str], period: Type[pendulum.Period]) -> OrderedDict:
-        """ Build a WoS API query.
+        """Build a WoS API query.
 
         :param wos_inst_id: List of Institutional ID to query, e.g, "Curtin University"
         :param period: A tuple containing start and end dates.
@@ -108,7 +108,7 @@ class WosUtility:
 
     @staticmethod
     def parse_query(records: Any) -> (dict, str):
-        """ Parse XML tree record into a dict.
+        """Parse XML tree record into a dict.
 
         :param records: XML tree returned by the web query.
         :return: Dictionary version of the web response and a schema version string.
@@ -146,14 +146,14 @@ class WosUtility:
     def download_wos_period(
         client: WosClient, conn: str, period: pendulum.Period, wos_inst_id: List[str], download_path: str
     ) -> List[str]:
-        """ Download records for a stated date range.
+        """Download records for a stated date range.
 
         :param client: WebClient object.
         :param conn: file name for saved response as a pickle file.
         :param period: Period tuple containing (start date, end date).
         :param wos_inst_id: List of Institutional ID to query, e.g, "Curtin University"
         :param download_path: Path to download files to.
-         """
+        """
 
         timestamp = pendulum.datetime.now().isoformat()
         inst_str = conn[WosTelescope.ID_STRING_OFFSET :]
@@ -181,7 +181,7 @@ class WosUtility:
     def download_wos_batch(
         login: str, password: str, batch: list, conn: str, wos_inst_id: List[str], download_path: str
     ) -> List[str]:
-        """ Download one batch of WoS snapshots. Throttling limits are more conservative than WoS limits.
+        """Download one batch of WoS snapshots. Throttling limits are more conservative than WoS limits.
         Throttle limits may or may not be enforced. Probably depends on how executors spin up tasks.
 
         :param login: login.
@@ -204,7 +204,7 @@ class WosUtility:
     def download_wos_parallel(
         login: str, password: str, schedule: list, conn: str, wos_inst_id: List[str], download_path: str
     ) -> List[str]:
-        """ Download WoS snapshot with parallel sessions. Using threads.
+        """Download WoS snapshot with parallel sessions. Using threads.
 
         :param login: WoS login
         :param password: WoS password
@@ -241,7 +241,7 @@ class WosUtility:
     def download_wos_sequential(
         login: str, password: str, schedule: list, conn: str, wos_inst_id: List[str], download_path: str
     ) -> List[str]:
-        """ Download WoS snapshot sequentially.
+        """Download WoS snapshot sequentially.
 
         :param login: WoS login
         :param password: WoS password
@@ -256,7 +256,7 @@ class WosUtility:
 
     @staticmethod
     def download_wos_snapshot(download_path: str, conn, wos_inst_id: List[str], end_date, mode: str) -> List[str]:
-        """ Download snapshot from Web of Science for the given institution.
+        """Download snapshot from Web of Science for the given institution.
 
         :param download_path: the directory where the downloaded wos snapshot should be saved.
         :param conn: Airflow connection object.
@@ -304,7 +304,7 @@ class WosUtility:
     @sleep_and_retry
     @limits(calls=WosUtilConst.CALL_LIMIT, period=WosUtilConst.CALL_PERIOD)
     def wos_search(client: WosClient, query: OrderedDict) -> Any:
-        """ Throttling wrapper for the API call. This is a global limit for this API when called from a program on the
+        """Throttling wrapper for the API call. This is a global limit for this API when called from a program on the
         same machine. If you are throttled, it will throw a WebFault and the exception message will contain the phrase
         'Request denied by Throttle server'
 
@@ -320,7 +320,7 @@ class WosUtility:
 
 
 class WosRelease:
-    """ Used to store info on a given WoS release.
+    """Used to store info on a given WoS release.
 
     :param inst_id: institution id from the airflow connection (minus the wos_)
     :param wos_inst_id: List of institution ids to use in the WoS query.
@@ -336,8 +336,8 @@ class WosRelease:
         self,
         inst_id: str,
         wos_inst_id: List[str],
-        release_date: pendulum.Pendulum,
-        dag_start: pendulum.Pendulum,
+        release_date: pendulum.datetime,
+        dag_start: pendulum.datetime,
         project_id: str,
         download_bucket_name: str,
         transform_bucket_name: str,
@@ -359,9 +359,9 @@ class WosRelease:
 
 
 class WosTelescope:
-    """ A container for holding the constants and static functions for the Web of Science telescope."""
+    """A container for holding the constants and static functions for the Web of Science telescope."""
 
-    DAG_ID = "wos"
+    DAG_ID = "webofscience"
     ID_STRING_OFFSET = len(DAG_ID) + 1
     DESCRIPTION = "Web of Science: https://www.clarivate.com/webofsciencegroup"
     SCHEDULE_INTERVAL = "@monthly"
@@ -399,7 +399,7 @@ class WosTelescope:
 
     @staticmethod
     def check_dependencies(**kwargs):
-        """ Check that all variables exist that are required to run the DAG.
+        """Check that all variables exist that are required to run the DAG.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -497,7 +497,7 @@ class WosTelescope:
 
     @staticmethod
     def check_api_server():
-        """ Check that http://scientific.thomsonreuters.com is still contactable.
+        """Check that http://scientific.thomsonreuters.com is still contactable.
 
         :return: the identifier of the task to execute next.
         """
@@ -516,7 +516,7 @@ class WosTelescope:
 
     @staticmethod
     def download(**kwargs):
-        """ Task to download the WoS snapshots.
+        """Task to download the WoS snapshots.
 
         Pushes the following xcom:
             download_path (str): the path to a pickled file containing the list of xml responses in a month query.
@@ -540,7 +540,7 @@ class WosTelescope:
 
     @staticmethod
     def upload_downloaded(**kwargs):
-        """ Task to upload the downloaded WoS snapshots.
+        """Task to upload the downloaded WoS snapshots.
 
         Pushes the following xcom:
             upload_zip_path (str): the path to pickle zip file of downloaded response.
@@ -569,7 +569,7 @@ class WosTelescope:
 
     @staticmethod
     def transform_xml(**kwargs):
-        """ Task to transform the XML from the query to json.
+        """Task to transform the XML from the query to json.
 
         Pushes the following xcom:
             json_path (str): the path to json file of a converted xml response.
@@ -613,7 +613,7 @@ class WosTelescope:
 
     @staticmethod
     def transform_db_format(**kwargs):
-        """ Task to transform the json into db field format (and in jsonlines form).
+        """Task to transform the json into db field format (and in jsonlines form).
 
         Pushes the following xcom:
             version (str): the version of the GRID release.
@@ -653,7 +653,7 @@ class WosTelescope:
 
     @staticmethod
     def upload_transformed(**kwargs):
-        """ Task to upload the transformed WoS data into jsonlines files.
+        """Task to upload the transformed WoS data into jsonlines files.
 
         Pushes the following xcom:
             release_date (str): the release date of the GRID release.
@@ -688,7 +688,7 @@ class WosTelescope:
 
     @staticmethod
     def bq_load(**kwargs):
-        """ Task to load the transformed WoS snapshot into BigQuery.
+        """Task to load the transformed WoS snapshot into BigQuery.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -744,7 +744,7 @@ class WosTelescope:
 
     @staticmethod
     def cleanup(**kwargs):
-        """ Delete files of downloaded, extracted and transformed releases.
+        """Delete files of downloaded, extracted and transformed releases.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -762,21 +762,21 @@ class WosTelescope:
 
     @staticmethod
     def pull_release(ti: TaskInstance):
-        """ Get the WosRelease object from XCOM message. """
+        """Get the WosRelease object from XCOM message."""
         return ti.xcom_pull(
             key=WosTelescope.XCOM_RELEASES, task_ids=WosTelescope.TASK_ID_CHECK_DEPENDENCIES, include_prior_dates=False
         )
 
 
 class WosNameAttributes:
-    """ Helper class for parsing name attributes."""
+    """Helper class for parsing name attributes."""
 
     def __init__(self, data: dict):
         self._contribs = WosNameAttributes._get_contribs(data)
 
     @staticmethod
     def _get_contribs(data: dict) -> dict:
-        """ Helper function to parse the contributors structure to aid extraction of fields.
+        """Helper function to parse the contributors structure to aid extraction of fields.
 
         :param data: dictionary to query.
         :return: Dictionary of attributes keyed by full_name string.
@@ -801,22 +801,22 @@ class WosNameAttributes:
         return contrib_dict
 
     def get_orcid(self, full_name: str) -> str:
-        """ Get the orcid id of a person. Note that full name must be the combination of first and last name.
-            This is not necessarily the full_name field.
+        """Get the orcid id of a person. Note that full name must be the combination of first and last name.
+        This is not necessarily the full_name field.
 
-            :param full_name: The 'first_name last_name' string.
-            :return: orcid id.
+        :param full_name: The 'first_name last_name' string.
+        :return: orcid id.
         """
         if full_name is None or full_name not in self._contribs or "orcid" not in self._contribs[full_name]:
             return None
         return self._contribs[full_name]["orcid"]
 
     def get_r_id(self, full_name: str) -> str:
-        """ Get the r_id of a person. Note that full name must be the combination of first and last name.
-            This is not necessarily the full_name field.
+        """Get the r_id of a person. Note that full name must be the combination of first and last name.
+        This is not necessarily the full_name field.
 
-            :param full_name: The 'first_name last_name' string.
-            :return: r_id.
+        :param full_name: The 'first_name last_name' string.
+        :return: r_id.
         """
 
         if full_name is None or full_name not in self._contribs or "r_id" not in self._contribs[full_name]:
@@ -825,11 +825,11 @@ class WosNameAttributes:
 
 
 class WosJsonParser:
-    """ Helper methods to process the the converted json from Web of Science. """
+    """Helper methods to process the the converted json from Web of Science."""
 
     @staticmethod
     def get_identifiers(data: dict) -> Dict[str, Any]:
-        """ Extract identifier information.
+        """Extract identifier information.
 
         :param data: dictionary of web response.
         :return: Identifier record.
@@ -881,7 +881,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_pub_info(data: dict) -> Dict[str, Any]:
-        """ Extract publication information fields.
+        """Extract publication information fields.
 
         :param data: dictionary of web response.
         :return: Publication info record.
@@ -924,7 +924,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_title(data: dict) -> Union[None, str]:
-        """ Extract title. May raise exception on error.
+        """Extract title. May raise exception on error.
 
         :param data: dictionary of web response.
         :return: String of title or None if not found.
@@ -940,7 +940,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_names(data: dict) -> List[Dict[str, Any]]:
-        """ Extract names fields.
+        """Extract names fields.
 
         :param data: dictionary of web response.
         :return: List of name records.
@@ -979,7 +979,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_languages(data: dict) -> List[Dict[str, str]]:
-        """ Extract language fields.
+        """Extract language fields.
 
         :param data: dictionary of web response.
         :return: List of language records.
@@ -999,7 +999,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_refcount(data: dict) -> Union[int, None]:
-        """ Extract reference count.
+        """Extract reference count.
 
         :param data: dictionary of web response.
         :return: Reference count.
@@ -1015,7 +1015,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_abstract(data: dict) -> List[str]:
-        """ Extract abstracts.
+        """Extract abstracts.
 
         :param data: dictionary of web response.
         :return: List of abstracts.
@@ -1036,7 +1036,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_keyword(data: dict) -> List[str]:
-        """ Extract keywords. Will also get the keywords from keyword plus if they are available.
+        """Extract keywords. Will also get the keywords from keyword plus if they are available.
 
         :param data: dictionary of web response.
         :return: List of keywords.
@@ -1056,7 +1056,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_conference(data: dict) -> List[Dict[str, Any]]:
-        """ Extract conference information.
+        """Extract conference information.
 
         :param data: dictionary of web response.
         :return: List of conferences.
@@ -1084,7 +1084,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_orgs(data: dict) -> list:
-        """ Extract the organisation information.
+        """Extract the organisation information.
 
         :param data: dictionary of web response.
         :return: list of organisations or None
@@ -1141,7 +1141,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_fund_ack(data: dict) -> dict:
-        """ Extract funding acknowledgements.
+        """Extract funding acknowledgements.
 
         :param data: dictionary of web response.
         :return: Funding acknowledgement information.
@@ -1173,7 +1173,7 @@ class WosJsonParser:
 
     @staticmethod
     def get_categories(data: dict) -> dict:
-        """ Extract categories.
+        """Extract categories.
 
         :param data: dictionary of web response.
         :return: categories dictionary.
@@ -1201,7 +1201,7 @@ class WosJsonParser:
 
     @staticmethod
     def parse_json(data: dict, harvest_datetime: str, release_date: str, institutes: List[str]) -> dict:
-        """ Turn json data into db schema format.
+        """Turn json data into db schema format.
 
         :param data: dictionary of web response.
         :param harvest_datetime: isoformat string of time the fetch took place.

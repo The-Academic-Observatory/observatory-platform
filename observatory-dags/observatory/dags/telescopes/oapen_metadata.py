@@ -19,13 +19,15 @@ from __future__ import annotations
 import csv
 import logging
 import os
-from typing import Tuple, List
+from typing import List, Tuple
 
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-
-from observatory.platform.telescopes.stream_telescope import StreamRelease, StreamTelescope
+from observatory.platform.telescopes.stream_telescope import (
+    StreamRelease,
+    StreamTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.telescope_utils import convert
@@ -34,8 +36,8 @@ from observatory.platform.utils.url_utils import get_ao_user_agent, retry_sessio
 
 
 class OapenMetadataRelease(StreamRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
-        """ Construct a OapenMetadataRelease instance
+    def __init__(self, dag_id: str, start_date: pendulum.datetime, end_date: pendulum.datetime, first_release: bool):
+        """Construct a OapenMetadataRelease instance
         :param dag_id: the id of the DAG.
         :param start_date: the start_date of the release.
         :param end_date: the end_date of the release.
@@ -45,16 +47,16 @@ class OapenMetadataRelease(StreamRelease):
 
     @property
     def csv_path(self) -> str:
-        """ Path to store the original oapen metadata csv file"""
+        """Path to store the original oapen metadata csv file"""
         return os.path.join(self.download_folder, "oapen_metadata.csv")
 
     @property
     def transform_path(self) -> str:
-        """ Path to store the transformed oapen metadata file"""
+        """Path to store the transformed oapen metadata file"""
         return os.path.join(self.transform_folder, "metadata.jsonl.gz")
 
     def download(self) -> bool:
-        """ Download Oapen metadata CSV.
+        """Download Oapen metadata CSV.
         :return: True if download is successful
         """
         logging.info(f"Downloading csv from url: {OapenMetadataTelescope.CSV_URL}")
@@ -69,7 +71,7 @@ class OapenMetadataRelease(StreamRelease):
             raise AirflowException(f"Download csv unsuccessful, {response.text}")
 
     def transform(self):
-        """ Transform the oapen metadata csv file by storing in a jsonl format and restructuring lists/dicts.
+        """Transform the oapen metadata csv file by storing in a jsonl format and restructuring lists/dicts.
         Values of field names with '.' are formatted into nested dictionaries.
         Values of field names in list_fields are split on - , ; and ||.
         Values of the field 'dc.subject.classification' are parsed to create a custom field 'classification_code'.
@@ -128,7 +130,7 @@ class OapenMetadataRelease(StreamRelease):
 
 
 class OapenMetadataTelescope(StreamTelescope):
-    """ Oapen Metadata telescope """
+    """Oapen Metadata telescope"""
 
     CSV_URL = "https://library.oapen.org/download-export?format=csv"
 
@@ -143,7 +145,7 @@ class OapenMetadataTelescope(StreamTelescope):
         schema_prefix: str = "oapen_",
         airflow_vars: List = None,
     ):
-        """ Construct a OapenMetadataTelescope instance.
+        """Construct a OapenMetadataTelescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -163,8 +165,16 @@ class OapenMetadataTelescope(StreamTelescope):
                 AirflowVars.DOWNLOAD_BUCKET,
                 AirflowVars.TRANSFORM_BUCKET,
             ]
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field, bq_merge_days,
-                         schema_prefix=schema_prefix, airflow_vars=airflow_vars)
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            dataset_id,
+            merge_partition_field,
+            bq_merge_days,
+            schema_prefix=schema_prefix,
+            airflow_vars=airflow_vars,
+        )
 
         self.add_setup_task_chain([self.check_dependencies, self.get_release_info])
         self.add_task_chain(
@@ -183,7 +193,7 @@ class OapenMetadataTelescope(StreamTelescope):
         return release
 
     def download(self, release: OapenMetadataRelease, **kwargs):
-        """ Task to download the OapenMetadataRelease release.
+        """Task to download the OapenMetadataRelease release.
         :param release: an OapenMetadataRelease instance.
         :return: None.
         """
@@ -191,7 +201,7 @@ class OapenMetadataTelescope(StreamTelescope):
         release.download()
 
     def upload_downloaded(self, release: OapenMetadataRelease, **kwargs):
-        """ Task to upload the downloadeded OapenMetadataRelease release.
+        """Task to upload the downloadeded OapenMetadataRelease release.
         :param release: an OapenMetadataRelease instance.
         :return: None.
         """
@@ -199,7 +209,7 @@ class OapenMetadataTelescope(StreamTelescope):
         upload_files_from_list(release.download_files, release.download_bucket)
 
     def transform(self, release: OapenMetadataRelease, **kwargs):
-        """ Task to transform the OapenMetadataRelease release.
+        """Task to transform the OapenMetadataRelease release.
         :param release: an OapenMetadataRelease instance.
         :return: None.
         """
@@ -208,7 +218,7 @@ class OapenMetadataTelescope(StreamTelescope):
 
 
 def get_nested_fieldnames(csv_entries: dict) -> set:
-    """ Fieldnames with '.' should be converted to nested dictionaries. This function will return a set of
+    """Fieldnames with '.' should be converted to nested dictionaries. This function will return a set of
     fieldnames for nested dictionaries from the highest to second lowest levels.
     E.g these fieldnames: dc.date.available, dc.date.issued, dc.description
     Will give this set: dc, dc.date, dc.description
@@ -228,7 +238,7 @@ def get_nested_fieldnames(csv_entries: dict) -> set:
 
 
 def transform_value_to_list(k: str, v: str) -> Tuple[list, list]:
-    """ Takes a key and value from the dictionary of csv entries. The value is always in a string format. Based on the
+    """Takes a key and value from the dictionary of csv entries. The value is always in a string format. Based on the
     key name (k) the delimiter in the the value (v) is replaced with '||'. All values are then split on '||' so they
     are transformed into a list. The values of 'dc.subject.classification' are parsed and stored in a variable,
     so they can later be added to a custom key of the csv entries dictionary.
@@ -259,7 +269,7 @@ def transform_value_to_list(k: str, v: str) -> Tuple[list, list]:
 
 
 def transform_key_to_nested_dict(k: str, v, nested_fields: set, list_fields: set, classification_code: list, new: dict):
-    """ Takes a dictionary key and value. The key is split on '.', a nested dictionary is created and the value will be
+    """Takes a dictionary key and value. The key is split on '.', a nested dictionary is created and the value will be
     added to the most nested level. The dictionary is updated in place so it is not returned.
     For example first k = 'dc.date.issued', the dictionary = {'dc': {'date': {'issued': v1}}
     Second k = 'dc.date.accessed', the dictionary = {'dc': {'date': {'issued': v1, 'accessed': v2}}
@@ -296,7 +306,7 @@ def transform_key_to_nested_dict(k: str, v, nested_fields: set, list_fields: set
 
 
 def transform_dict(obj, convert, nested_fields, list_fields):
-    """ Recursively goes through the dictionary obj, replaces keys with the convert function.
+    """Recursively goes through the dictionary obj, replaces keys with the convert function.
     :param obj: object, can be of any type
     :param convert: convert function
     :param nested_fields: fields

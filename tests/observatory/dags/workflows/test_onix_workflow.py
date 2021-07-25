@@ -19,15 +19,13 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
+import observatory.api.server.orm as orm
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
-from pendulum import Pendulum
-
-import observatory.api.server.orm as orm
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.server.orm import Organisation
 from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
@@ -46,11 +44,12 @@ from observatory.platform.utils.template_utils import (
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
+    make_dummy_dag,
     module_file_path,
     random_id,
     test_fixtures_path,
-    make_dummy_dag,
 )
+from pendulum import Pendulum
 
 
 class TestOnixWorkflowRelease(unittest.TestCase):
@@ -58,11 +57,11 @@ class TestOnixWorkflowRelease(unittest.TestCase):
         super().__init__(*args, **kwargs)
 
         with patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates") as mock_sel_table_suffixes:
-            mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+            mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
             self.release = OnixWorkflowRelease(
                 dag_id="did",
-                release_date=pendulum.Pendulum(2021, 4, 20),
-                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                release_date=pendulum.datetime(2021, 4, 20),
+                onix_release_date=pendulum.datetime(2021, 1, 1),
                 gcp_project_id="pid",
                 gcp_bucket_name="bucket",
             )
@@ -110,21 +109,29 @@ class TestOnixWorkflow(ObservatoryTestCase):
             "RelatedWorks": [
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "112"},],
+                    "WorkIdentifiers": [
+                        {"WorkIDType": "ISBN-13", "IDValue": "112"},
+                    ],
                 },
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "113"},],
+                    "WorkIdentifiers": [
+                        {"WorkIDType": "ISBN-13", "IDValue": "113"},
+                    ],
                 },
             ],
-            "RelatedProducts": [{"ProductRelationCodes": ["Replaces", "something random"], "ISBN13": "211"},],
+            "RelatedProducts": [
+                {"ProductRelationCodes": ["Replaces", "something random"], "ISBN13": "211"},
+            ],
         },
         {
             "ISBN13": "112",
             "RelatedWorks": [
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "112"},],
+                    "WorkIdentifiers": [
+                        {"WorkIDType": "ISBN-13", "IDValue": "112"},
+                    ],
                 },
             ],
             "RelatedProducts": [],
@@ -134,7 +141,9 @@ class TestOnixWorkflow(ObservatoryTestCase):
             "RelatedWorks": [
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "211"},],
+                    "WorkIdentifiers": [
+                        {"WorkIDType": "ISBN-13", "IDValue": "211"},
+                    ],
                 },
             ],
             "RelatedProducts": [],
@@ -143,7 +152,10 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
     class MockTelescopeResponse:
         def __init__(self):
-            self.organisation = Organisation(name="test", gcp_project_id="project_id",)
+            self.organisation = Organisation(
+                name="test",
+                gcp_project_id="project_id",
+            )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -157,12 +169,12 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_ctor_gen_dag_id(self, mock_sel_table_suffixes, mock_mr):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
             mock_mr.return_value = OnixWorkflowRelease(
                 dag_id="onix_workflow_test",
-                release_date=pendulum.Pendulum(2021, 1, 1),
-                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                release_date=pendulum.datetime(2021, 1, 1),
+                onix_release_date=pendulum.datetime(2021, 1, 1),
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
                 onix_dataset_id="",
@@ -174,7 +186,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_bucket_name=self.bucket_name,
             )
 
-            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            release = wf.make_release(execution_date=pendulum.datetime(2021, 1, 1))
             self.assertEqual(wf.dag_id, "onix_workflow_test")
             self.assertEqual(release.workslookup_filename, "onix_workflow_test/20210101/onix_workid_isbn.jsonl.gz")
             self.assertEqual(
@@ -185,7 +197,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             )
 
             self.assertEqual(release.onix_table_id, "onix")
-            self.assertEqual(release.release_date, pendulum.Pendulum(2021, 1, 1, 0, 0, 0, 0))
+            self.assertEqual(release.release_date, pendulum.datetime(2021, 1, 1, 0, 0, 0, 0))
             self.assertEqual(release.project_id, "project_id")
             self.assertEqual(release.transform_bucket, "bucket_name")
             self.assertTrue(wf.sensors[0] != None)
@@ -193,7 +205,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_ctor_gen_assign_dag_id(self, mock_sel_table_suffixes, mock_mr):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
@@ -204,15 +216,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             mock_mr.return_value = OnixWorkflowRelease(
                 dag_id="dagid",
-                release_date=pendulum.Pendulum(2021, 1, 1),
-                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                release_date=pendulum.datetime(2021, 1, 1),
+                onix_release_date=pendulum.datetime(2021, 1, 1),
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
                 onix_dataset_id="",
                 onix_table_id="onix",
             )
 
-            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            release = wf.make_release(execution_date=pendulum.datetime(2021, 1, 1))
 
             self.assertEqual(release.dag_id, "dagid")
             self.assertEqual(release.workslookup_filename, "dagid/20210101/onix_workid_isbn.jsonl.gz")
@@ -220,7 +232,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(release.worksfamilylookup_filename, "dagid/20210101/onix_workfamilyid_isbn.jsonl.gz")
 
             self.assertEqual(release.onix_table_id, "onix")
-            self.assertEqual(release.release_date, pendulum.Pendulum(2021, 1, 1, 0, 0, 0, 0))
+            self.assertEqual(release.release_date, pendulum.datetime(2021, 1, 1, 0, 0, 0, 0))
             self.assertEqual(release.project_id, "project_id")
             self.assertEqual(release.transform_bucket, "bucket_name")
             self.assertTrue(wf.sensors[0] != None)
@@ -228,7 +240,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_ctor(self, mock_sel_table_suffixes, mock_mr):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
@@ -238,22 +250,22 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             mock_mr.return_value = OnixWorkflowRelease(
                 dag_id="onix_workflow_test",
-                release_date=pendulum.Pendulum(2021, 1, 1),
-                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                release_date=pendulum.datetime(2021, 1, 1),
+                onix_release_date=pendulum.datetime(2021, 1, 1),
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
                 onix_dataset_id="onix",
                 onix_table_id="onix",
             )
 
-            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            release = wf.make_release(execution_date=pendulum.datetime(2021, 1, 1))
 
             self.assertEqual(wf.dag_id, "onix_workflow_test")
             self.assertEqual(wf.org_name, "test")
             self.assertEqual(wf.gcp_bucket_name, "bucket_name")
 
             self.assertEqual(release.dag_id, "onix_workflow_test")
-            self.assertEqual(release.release_date, pendulum.Pendulum(2021, 1, 1))
+            self.assertEqual(release.release_date, pendulum.datetime(2021, 1, 1))
             self.assertEqual(release.transform_folder, "onix_workflow_test/20210101")
             self.assertEqual(release.worksid_table, "onix_workid_isbn")
             self.assertEqual(release.worksid_error_table, "onix_workid_isbn_errors")
@@ -278,12 +290,12 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_ctor_dataset_overrides(self, mock_sel_table_suffixes, mock_mr):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
             release = OnixWorkflowRelease(
                 dag_id="dag",
-                release_date=pendulum.Pendulum(2000, 1, 1),
-                onix_release_date=pendulum.Pendulum(2000, 1, 1),
+                release_date=pendulum.datetime(2000, 1, 1),
+                onix_release_date=pendulum.datetime(2000, 1, 1),
                 gcp_project_id="project",
                 gcp_bucket_name="bucket",
             )
@@ -294,8 +306,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             # Override
             release = OnixWorkflowRelease(
                 dag_id="dag",
-                release_date=pendulum.Pendulum(2000, 1, 1),
-                onix_release_date=pendulum.Pendulum(2000, 1, 1),
+                release_date=pendulum.datetime(2000, 1, 1),
+                onix_release_date=pendulum.datetime(2000, 1, 1),
                 gcp_project_id="project",
                 gcp_bucket_name="bucket",
                 workflow_dataset="override",
@@ -310,7 +322,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.run_bigquery_query")
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_get_onix_records(self, mock_sel_table_suffixes, mock_bq_query):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
         mock_bq_query.return_value = TestOnixWorkflow.onix_data
         with CliRunner().isolated_filesystem():
             wf = OnixWorkflow(
@@ -324,7 +336,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_make_release(self, mock_sel_table_suffixes):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
 
         with CliRunner().isolated_filesystem():
             wf = OnixWorkflow(
@@ -333,12 +345,12 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_bucket_name=self.bucket_name,
             )
 
-            kwargs = {"next_execution_date": pendulum.Pendulum(2021, 2, 1)}
+            kwargs = {"next_execution_date": pendulum.datetime(2021, 2, 1)}
             release = wf.make_release(**kwargs)
             self.assertIsInstance(release, OnixWorkflowRelease)
             self.assertEqual(release.dag_id, "onix_workflow_test")
-            self.assertEqual(release.release_date, pendulum.Pendulum(2021, 1, 31))
-            self.assertEqual(release.onix_release_date, pendulum.Pendulum(2021, 1, 1))
+            self.assertEqual(release.release_date, pendulum.datetime(2021, 1, 31))
+            self.assertEqual(release.onix_release_date, pendulum.datetime(2021, 1, 1))
             self.assertEqual(release.project_id, "project_id")
             self.assertEqual(release.onix_dataset_id, "onix")
             self.assertEqual(release.onix_table_id, "onix")
@@ -356,13 +368,13 @@ class TestOnixWorkflow(ObservatoryTestCase):
             )
 
             with self.assertRaises(AirflowException):
-                kwargs = {"next_execution_date": pendulum.Pendulum(2021, 2, 1)}
+                kwargs = {"next_execution_date": pendulum.datetime(2021, 2, 1)}
                 wf.make_release(**kwargs)
 
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_cleanup(self, mock_sel_table_suffixes, mock_mr):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
@@ -372,15 +384,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             mock_mr.return_value = OnixWorkflowRelease(
                 dag_id="onix_workflow_test",
-                release_date=pendulum.Pendulum(2021, 1, 1),
-                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                release_date=pendulum.datetime(2021, 1, 1),
+                onix_release_date=pendulum.datetime(2021, 1, 1),
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
                 onix_dataset_id="onix",
                 onix_table_id="onix",
             )
 
-            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
+            release = wf.make_release(execution_date=pendulum.datetime(2021, 1, 1))
             self.assertTrue(os.path.isdir(release.transform_folder))
             wf.cleanup(release)
             self.assertFalse(os.path.isdir(release.transform_folder))
@@ -680,7 +692,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         mock_bq_query,
         mock_mr,
     ):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
         mock_bq_query.return_value = TestOnixWorkflow.onix_data
         env = ObservatoryEnvironment(self.project_id, self.data_location)
         with env.create():
@@ -693,8 +705,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
                 mock_mr.return_value = OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -757,7 +769,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 self.assertEqual(call_args["dataset_id"], "onix_workflow")
                 self.assertEqual(call_args["dataset_location"], "us")
                 self.assertEqual(call_args["table_id"], "onix_workid_isbn")
-                self.assertEqual(call_args["release_date"], pendulum.Pendulum(2021, 1, 1))
+                self.assertEqual(call_args["release_date"], pendulum.datetime(2021, 1, 1))
                 self.assertEqual(call_args["source_format"], "NEWLINE_DELIMITED_JSON")
                 self.assertEqual(call_args["dataset_description"], "ONIX workflow tables")
 
@@ -773,7 +785,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 self.assertEqual(call_args["dataset_id"], "onix_workflow")
                 self.assertEqual(call_args["dataset_location"], "us")
                 self.assertEqual(call_args["table_id"], "onix_workid_isbn_errors")
-                self.assertEqual(call_args["release_date"], pendulum.Pendulum(2021, 1, 1))
+                self.assertEqual(call_args["release_date"], pendulum.datetime(2021, 1, 1))
                 self.assertEqual(call_args["source_format"], "NEWLINE_DELIMITED_JSON")
                 self.assertEqual(call_args["prefix"], "")
                 self.assertEqual(call_args["schema_version"], "")
@@ -794,7 +806,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         mock_bq_query,
         mock_mr,
     ):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
         mock_bq_query.return_value = TestOnixWorkflow.onix_data
 
         env = ObservatoryEnvironment(self.project_id, self.data_location)
@@ -808,8 +820,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
                 mock_mr.return_value = OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -855,8 +867,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
                         wf.create_oaebu_intermediate_table,
                         release=OnixWorkflowRelease(
                             dag_id="onix_workflow_test",
-                            release_date=pendulum.Pendulum(2021, 1, 1),
-                            onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                            release_date=pendulum.datetime(2021, 1, 1),
+                            onix_release_date=pendulum.datetime(2021, 1, 1),
                             gcp_project_id=self.telescope.organisation.gcp_project_id,
                             gcp_bucket_name=self.bucket_name,
                             onix_dataset_id="onix",
@@ -897,7 +909,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             ),
         ]
 
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
         mock_create_bq_table.return_value = True
 
         with CliRunner().isolated_filesystem():
@@ -911,8 +923,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             mock_mr.return_value = OnixWorkflowRelease(
                 dag_id="onix_workflow_test",
-                release_date=pendulum.Pendulum(2021, 1, 1),
-                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                release_date=pendulum.datetime(2021, 1, 1),
+                onix_release_date=pendulum.datetime(2021, 1, 1),
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
                 onix_dataset_id="onix",
@@ -975,8 +987,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_onix_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1004,8 +1016,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 wf.create_oaebu_data_qa_onix_isbn,
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1026,8 +1038,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_onix_aggregate(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1055,8 +1067,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 wf.create_oaebu_data_qa_onix_aggregate,
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1068,7 +1080,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
     def test_create_oaebu_data_qa_jstor_isbn(self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
 
         data_partners = [
             OaebuPartners(
@@ -1092,8 +1104,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_jstor_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1110,8 +1122,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_jstor_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1141,7 +1153,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     def test_create_oaebu_data_qa_google_books_sales_isbn(
         self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes
     ):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
 
         data_partners = [
             OaebuPartners(
@@ -1165,8 +1177,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_google_books_sales_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1183,8 +1195,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_google_books_sales_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1214,7 +1226,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     def test_create_oaebu_data_qa_google_books_traffic_isbn(
         self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes
     ):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
 
         data_partners = [
             OaebuPartners(
@@ -1238,8 +1250,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_google_books_traffic_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1256,8 +1268,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_google_books_traffic_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1285,7 +1297,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
     def test_create_oaebu_data_qa_oapen_irus_uk_isbn(self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
 
         data_partners = [
             OaebuPartners(
@@ -1309,8 +1321,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_oapen_irus_uk_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1327,8 +1339,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_oapen_irus_uk_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1356,7 +1368,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_dataset")
     def test_create_oaebu_data_qa_google_analytics_isbn(self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
 
         data_partners = [
             OaebuPartners(
@@ -1380,8 +1392,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_google_analytics_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1398,8 +1410,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_google_analytics_isbn(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1429,7 +1441,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
     def test_create_oaebu_data_qa_intermediate_unmatched_workid(
         self, mock_bq_ds, mock_bq_table_query, mock_sel_table_suffixes
     ):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
+        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
 
         data_partners = [
             OaebuPartners(
@@ -1453,8 +1465,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             wf.create_oaebu_data_qa_intermediate_unmatched_workid(
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1485,8 +1497,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 wf.create_oaebu_data_qa_intermediate_unmatched_workid,
                 OnixWorkflowRelease(
                     dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    release_date=pendulum.datetime(2021, 1, 1),
+                    onix_release_date=pendulum.datetime(2021, 1, 1),
                     gcp_project_id=self.telescope.organisation.gcp_project_id,
                     gcp_bucket_name=self.bucket_name,
                     onix_dataset_id="onix",
@@ -1500,7 +1512,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
 
 class TestOnixWorkflowFunctional(ObservatoryTestCase):
-    """ Functionally test the workflow.  No Google Analytics."""
+    """Functionally test the workflow.  No Google Analytics."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1515,7 +1527,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         self.test_onix_folder = random_id()  # "onix_workflow_test_onix_table"
 
     def test_dag_load(self):
-        """ Test that the DAG loads for each organisation """
+        """Test that the DAG loads for each organisation"""
 
         dag_file = os.path.join(module_file_path("observatory.dags.dags"), "onix_workflow.py")
         org_names = ["ANU Press", "UCL Press", "University of Michigan Press"]
@@ -1644,13 +1656,13 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         return partners
 
     def run_telescope_tests(self, org_name: str, include_google_analytics: bool = False):
-        """ Functional test of the ONIX workflow"""
+        """Functional test of the ONIX workflow"""
 
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.gcp_project_id, self.data_location, enable_api=False)
 
         # Create datasets
-        partner_release_date = pendulum.Pendulum(2021, 1, 1)
+        partner_release_date = pendulum.datetime(2021, 1, 1)
         onix_dataset_id = env.add_dataset(prefix="onix")
         oaebu_data_qa_dataset_id = env.add_dataset(prefix="oaebu_data_qa")
         onix_workflow_dataset_id = env.add_dataset(prefix="onix_workflow")
@@ -1773,15 +1785,27 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                     self.assertEqual(expected_state, ti.state)
 
                 # Create oaebu output tables
-                ti = env.run_task(telescope.create_oaebu_book_product_table.__name__, workflow_dag, execution_date,)
+                ti = env.run_task(
+                    telescope.create_oaebu_book_product_table.__name__,
+                    workflow_dag,
+                    execution_date,
+                )
                 self.assertEqual(expected_state, ti.state)
 
                 # ONIX isbn check
-                ti = env.run_task(telescope.create_oaebu_data_qa_onix_isbn.__name__, workflow_dag, execution_date,)
+                ti = env.run_task(
+                    telescope.create_oaebu_data_qa_onix_isbn.__name__,
+                    workflow_dag,
+                    execution_date,
+                )
                 self.assertEqual(expected_state, ti.state)
 
                 # ONIX aggregate metrics
-                ti = env.run_task(telescope.create_oaebu_data_qa_onix_aggregate.__name__, workflow_dag, execution_date,)
+                ti = env.run_task(
+                    telescope.create_oaebu_data_qa_onix_aggregate.__name__,
+                    workflow_dag,
+                    execution_date,
+                )
                 self.assertEqual(expected_state, ti.state)
 
                 # JSTOR country isbn check
@@ -1818,7 +1842,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
                 # Google Books Sales isbn check
                 ti = env.run_task(
-                    telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__, workflow_dag, execution_date,
+                    telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__,
+                    workflow_dag,
+                    execution_date,
                 )
                 self.assertEqual(expected_state, ti.state)
 
@@ -1832,7 +1858,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
                 # Google Books Traffic isbn check
                 ti = env.run_task(
-                    telescope.create_oaebu_data_qa_google_books_traffic_isbn.__name__, workflow_dag, execution_date,
+                    telescope.create_oaebu_data_qa_google_books_traffic_isbn.__name__,
+                    workflow_dag,
+                    execution_date,
                 )
                 self.assertEqual(expected_state, ti.state)
 
@@ -1846,7 +1874,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
                 # OAPEN IRUS UK isbn check
                 ti = env.run_task(
-                    telescope.create_oaebu_data_qa_oapen_irus_uk_isbn.__name__, workflow_dag, execution_date,
+                    telescope.create_oaebu_data_qa_oapen_irus_uk_isbn.__name__,
+                    workflow_dag,
+                    execution_date,
                 )
                 self.assertEqual(expected_state, ti.state)
 
@@ -1861,7 +1891,9 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 if include_google_analytics:
                     # Google Analytics isbn check
                     env.run_task(
-                        telescope.create_oaebu_data_qa_google_analytics_isbn.__name__, workflow_dag, execution_date,
+                        telescope.create_oaebu_data_qa_google_analytics_isbn.__name__,
+                        workflow_dag,
+                        execution_date,
                     )
 
                     # Google Books Analytics unmatched isbns
@@ -1891,11 +1923,19 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 ]
 
                 for table in export_tables:
-                    ti = env.run_task(f"{telescope.export_oaebu_table.__name__}.{table}", workflow_dag, execution_date,)
+                    ti = env.run_task(
+                        f"{telescope.export_oaebu_table.__name__}.{table}",
+                        workflow_dag,
+                        execution_date,
+                    )
                     self.assertEqual(expected_state, ti.state)
 
                 # Export oaebu elastic qa table
-                ti = env.run_task(telescope.export_oaebu_qa_metrics.__name__, workflow_dag, execution_date,)
+                ti = env.run_task(
+                    telescope.export_oaebu_qa_metrics.__name__,
+                    workflow_dag,
+                    execution_date,
+                )
                 self.assertEqual(expected_state, ti.state)
 
                 # Test conditions
@@ -2108,11 +2148,11 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 env.run_task(telescope.cleanup.__name__, workflow_dag, execution_date)
 
     def test_telescope(self):
-        """ Test that ONIX Workflow runs when Google Analytics is not included """
+        """Test that ONIX Workflow runs when Google Analytics is not included"""
 
         self.run_telescope_tests(org_name="Curtin Press", include_google_analytics=False)
 
     def test_telescope_with_google_analytics(self):
-        """ Test that ONIX Workflow runs when Google Analytics is included """
+        """Test that ONIX Workflow runs when Google Analytics is included"""
 
         self.run_telescope_tests(org_name="ANU Press", include_google_analytics=True)
