@@ -37,10 +37,9 @@ DAG_PREFIX = "elastic_import"
 ELASTIC_MAPPINGS_PATH = make_elastic_mappings_path()
 AO_KIBANA_TIME_FIELDS = [TimeField("^.*$", "published_year")]
 OAEBU_KIBANA_TIME_FIELDS = [
-    TimeField("^oaebu-unmatched-book-metrics$", "release_date"),
-    TimeField("^oaebu-book-product-list$", "release_date"),
+    TimeField("^oaebu-.*-unmatched-book-metrics$", "release_date"),
+    TimeField("^oaebu-.*-book-product-list$", "time_field"),
     TimeField("^oaebu-.*$", "month"),
-    TimeField("^.*$", "published_year"),
 ]
 
 
@@ -113,13 +112,13 @@ configs = [
         kibana_time_fields=OAEBU_KIBANA_TIME_FIELDS,
     ),
     ElasticImportConfig(
-        dag_id=make_dag_id(DAG_PREFIX, "umich_press"),
+        dag_id=make_dag_id(DAG_PREFIX, "university_of_michigan_press"),
         project_id="oaebu-umich-press",
         dataset_id=DATASET_ID,
         bucket_name="oaebu-umich-press-transform",
         data_location=DATA_LOCATION,
         file_type=FILE_TYPE_JSONL,
-        sensor_dag_ids=[make_dag_id(DAG_ONIX_WORKFLOW_PREFIX, "umich_press")],
+        sensor_dag_ids=[make_dag_id(DAG_ONIX_WORKFLOW_PREFIX, "university_of_michigan_press")],
         elastic_mappings_path=ELASTIC_MAPPINGS_PATH,
         elastic_mappings_func=load_elastic_mappings_oaebu,
         kibana_spaces=["oaebu-umich-press", "dev-oaebu-umich-press"],

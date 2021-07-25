@@ -161,7 +161,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
         self,
         organisation: Organisation,
         dag_id: Optional[str] = None,
-        start_date: datetime = datetime(2018, 1, 1),
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 1, 1),
         schedule_interval: str = "@monthly",
         dataset_id: str = "google",
         catchup: bool = False,

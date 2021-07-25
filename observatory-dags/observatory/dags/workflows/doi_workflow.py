@@ -20,9 +20,9 @@ import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 
+import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
@@ -265,8 +265,17 @@ class DoiWorkflow(Telescope):
     EXPORT_OUTPUT_TYPES_FILENAME = make_sql_jinja2_filename("export_output_types")
     EXPORT_RELATIONS_FILENAME = make_sql_jinja2_filename("export_relations")
 
-    SENSOR_DAG_IDS = ["crossref_metadata", "crossref_fundref", "geonames", "grid", "mag", "open_citations",
-                      "unpaywall", "orcid"]
+    SENSOR_DAG_IDS = [
+        "crossref_metadata",
+        "crossref_fundref",
+        "geonames",
+        "grid",
+        "mag",
+        "open_citations",
+        "unpaywall",
+        "orcid",
+        "crossref_events",
+    ]
 
     AGGREGATIONS = [
         Aggregation(
@@ -345,7 +354,7 @@ class DoiWorkflow(Telescope):
         elastic_dataset_id: str = ELASTIC_DATASET_ID,
         transforms: Tuple = None,
         dag_id: Optional[str] = "doi",
-        start_date: Optional[Pendulum] = datetime(2020, 8, 30),
+        start_date: Optional[Pendulum] = pendulum.Pendulum(2020, 8, 30),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
         airflow_vars: List = None,

@@ -17,13 +17,13 @@
 import contextlib
 import copy
 import dataclasses
-import datetime
 import logging
 import shutil
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, List, Union, Dict
 
+import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
@@ -210,7 +210,7 @@ class Telescope(AbstractTelescope):
     def __init__(
         self,
         dag_id: str,
-        start_date: datetime,
+        start_date: pendulum.Pendulum,
         schedule_interval: str,
         catchup: bool = False,
         queue: str = "default",

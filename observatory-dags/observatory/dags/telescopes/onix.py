@@ -206,7 +206,7 @@ class OnixTelescope(SnapshotTelescope):
         date_regex: str,
         date_format: str,
         dag_id: Optional[str] = None,
-        start_date: datetime = datetime(2021, 3, 28),
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2021, 3, 28),
         schedule_interval: str = "@weekly",
         dataset_id: str = "onix",
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,

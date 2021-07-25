@@ -16,16 +16,17 @@
 
 
 import logging
-from datetime import datetime
 
+import pendulum
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
+
 from observatory.dags.telescopes.wos import WosTelescope
 from observatory.platform.utils.airflow_utils import list_connections
 
 default_args = {'owner': 'airflow',
-                'start_date': datetime(2018, 1, 1),
+                'start_date': pendulum.Pendulum(2018, 1, 1),
                 }
 
 

@@ -25,7 +25,6 @@ import random
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
-from datetime import datetime
 from typing import Dict, List, Tuple
 
 import jsonlines
@@ -34,13 +33,14 @@ import requests
 from airflow.api.common.experimental.pool import create_pool
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
+from pendulum import Pendulum
+
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id, bigquery_table_exists
 from observatory.platform.utils.proc_utils import wait_for_process
 from observatory.platform.utils.template_utils import upload_files_from_list
 from observatory.platform.utils.url_utils import retry_session
-from pendulum import Pendulum
 
 
 class CrossrefFundrefRelease(SnapshotRelease):
@@ -175,7 +175,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: datetime = datetime(2014, 3, 1),
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2014, 3, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = DATASET_ID,
         table_descriptions: Dict = None,

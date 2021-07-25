@@ -18,7 +18,6 @@
 import csv
 import logging
 import os
-from datetime import datetime
 from typing import Tuple
 
 import pendulum
@@ -160,7 +159,7 @@ class DoabTelescope(StreamTelescope):
     def __init__(
         self,
         dag_id: str = "doab",
-        start_date: datetime = datetime(2018, 5, 14),
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 5, 14),
         schedule_interval: str = "@monthly",
         dataset_id: str = "doab",
         merge_partition_field: str = "id",

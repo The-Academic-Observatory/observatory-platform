@@ -41,8 +41,7 @@ Saved to the BigQuery tables:
     <project_id>.mag.RelatedFieldOfStudyYYYYMMDD
 """
 
-from datetime import datetime
-
+import pendulum
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
@@ -51,7 +50,7 @@ from observatory.dags.telescopes.mag import MagTelescope
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2020, 7, 1)
+    "start_date": pendulum.Pendulum(2020, 7, 1)
 }
 
 with DAG(dag_id=MagTelescope.DAG_ID, schedule_interval="@weekly", default_args=default_args, max_active_runs=1) as dag:

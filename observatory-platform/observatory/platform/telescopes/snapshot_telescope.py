@@ -14,7 +14,6 @@
 
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 
-import datetime
 from typing import List, Dict
 
 import pendulum
@@ -43,7 +42,7 @@ class SnapshotRelease(Release):
 
 
 class SnapshotTelescope(Telescope):
-    def __init__(self, dag_id: str, start_date: datetime, schedule_interval: str, dataset_id: str, catchup: bool = True,
+    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, schedule_interval: str, dataset_id: str, catchup: bool = True,
                  queue: str = 'default', max_retries: int = 3, max_active_runs: int = 1,
                  source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON, schema_prefix: str = '',
                  schema_version: str = None, load_bigquery_table_kwargs: Dict = None,

@@ -20,8 +20,7 @@ A DAG that harvests the OpenCitations Indexes: http://opencitations.net/
 Saved to the BigQuery table: <project_id>.open_citations.open_citationsYYYYMMDD
 """
 
-from datetime import datetime
-
+import pendulum
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
@@ -30,7 +29,7 @@ from observatory.dags.telescopes.open_citations import OpenCitationsTelescope
 
 default_args = {
     "owner": "airflow",
-    "start_date": datetime(2018, 7, 1)
+    "start_date": pendulum.Pendulum(2018, 7, 1)
 }
 
 with DAG(dag_id=OpenCitationsTelescope.DAG_ID, schedule_interval="@weekly", default_args=default_args) as dag:
