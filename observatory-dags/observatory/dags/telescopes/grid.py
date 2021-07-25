@@ -16,12 +16,10 @@
 
 from __future__ import annotations
 
-import datetime
 import json
 import logging
 import os
 import re
-from datetime import datetime
 from shutil import copyfile
 from typing import List
 from zipfile import BadZipFile, ZipFile
@@ -209,7 +207,7 @@ class GridTelescope(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: datetime = datetime(2015, 9, 1),
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2015, 9, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = DATASET_ID,
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,

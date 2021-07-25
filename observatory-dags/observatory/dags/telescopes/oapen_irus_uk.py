@@ -19,7 +19,6 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
 from typing import List, Optional, Tuple, Dict
 from urllib.parse import quote
 
@@ -166,7 +165,7 @@ class OapenIrusUkRelease(SnapshotRelease):
         function_url = f"https://{function_region}-{oapen_project_id}.cloudfunctions.net/{function_name}"
         geoip_license_key = BaseHook.get_connection(AirflowConns.GEOIP_LICENSE_KEY).password
 
-        if self.release_date >= datetime(2020, 4, 1):
+        if self.release_date >= pendulum.Pendulum(2020, 4, 1):
             publisher_uuid = get_publisher_uuid(publisher_id)
             airflow_conn = AirflowConns.OAPEN_IRUS_UK_API
         else:
@@ -239,7 +238,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         organisation: Organisation,
         publisher_id: str,
         dag_id: Optional[str] = None,
-        start_date: datetime = datetime(2018, 1, 1),
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 1, 1),
         schedule_interval: str = "0 0 14 * *",
         dataset_id: str = "oapen",
         dataset_description: str = "OAPEN dataset",

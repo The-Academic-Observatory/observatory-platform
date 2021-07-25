@@ -20,7 +20,6 @@ import logging
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 from typing import List, Tuple, Union
 
 import jsonlines
@@ -28,11 +27,12 @@ import pendulum
 import requests
 from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
+from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed, RetryError
+
 from observatory.platform.telescopes.stream_telescope import (StreamRelease, StreamTelescope)
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.url_utils import get_ao_user_agent
 from observatory.platform.utils.template_utils import upload_files_from_list
-from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed, RetryError
+from observatory.platform.utils.url_utils import get_ao_user_agent
 
 
 class CrossrefEventsRelease(StreamRelease):
@@ -179,7 +179,7 @@ class CrossrefEventsTelescope(StreamTelescope):
 
     DAG_ID = 'crossref_events'
 
-    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2018, 5, 14),
+    def __init__(self, dag_id: str = DAG_ID, start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 5, 14),
                  schedule_interval: str = '@weekly', dataset_id: str = 'crossref',
                  dataset_description: str = 'The Crossref Events dataset: https://www.eventdata.crossref.org/guide/',
                  merge_partition_field: str = 'id', bq_merge_days: int = 7, batch_load: bool = True,
