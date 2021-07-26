@@ -30,7 +30,17 @@ def get_oaebu_partner_data(project_id, org_name):
 
     oaebu_data = [
         OaebuPartners(
+            name=OaebuPartnerName.onix,
+            dag_id_prefix="onix",
+            gcp_project_id=project_id,
+            gcp_dataset_id="onix",
+            gcp_table_id="onix",
+            isbn_field_name="ISBN13",
+            sharded=True,
+        ),
+        OaebuPartners(
             name=OaebuPartnerName.google_analytics,
+            dag_id_prefix="google_analytics",
             gcp_project_id=project_id,
             gcp_dataset_id="google",
             gcp_table_id="google_analytics",
@@ -39,6 +49,7 @@ def get_oaebu_partner_data(project_id, org_name):
         ),
         OaebuPartners(
             name=OaebuPartnerName.google_books_sales,
+            dag_id_prefix="google_books",
             gcp_project_id=project_id,
             gcp_dataset_id="google",
             gcp_table_id="google_books_sales",
@@ -47,6 +58,7 @@ def get_oaebu_partner_data(project_id, org_name):
         ),
         OaebuPartners(
             name=OaebuPartnerName.google_books_traffic,
+            dag_id_prefix="google_books",
             gcp_project_id=project_id,
             gcp_dataset_id="google",
             gcp_table_id="google_books_traffic",
@@ -55,6 +67,7 @@ def get_oaebu_partner_data(project_id, org_name):
         ),
         OaebuPartners(
             name=OaebuPartnerName.jstor_country,
+            dag_id_prefix="jstor",
             gcp_project_id=project_id,
             gcp_dataset_id="jstor",
             gcp_table_id="jstor_country",
@@ -63,6 +76,7 @@ def get_oaebu_partner_data(project_id, org_name):
         ),
         OaebuPartners(
             name=OaebuPartnerName.jstor_institution,
+            dag_id_prefix="jstor",
             gcp_project_id=project_id,
             gcp_dataset_id="jstor",
             gcp_table_id="jstor_institution",
@@ -71,6 +85,7 @@ def get_oaebu_partner_data(project_id, org_name):
         ),
         OaebuPartners(
             name=OaebuPartnerName.oapen_irus_uk,
+            dag_id_prefix="oapen_irus_uk",
             gcp_project_id=project_id,
             gcp_dataset_id="oapen",
             gcp_table_id="oapen_irus_uk",
@@ -79,6 +94,7 @@ def get_oaebu_partner_data(project_id, org_name):
         ),
         OaebuPartners(
             name=OaebuPartnerName.ucl_discovery,
+            dag_id_prefix="ucl_discovery",
             gcp_project_id=project_id,
             gcp_dataset_id="ucl",
             gcp_table_id="ucl_discovery",
@@ -104,17 +120,7 @@ def get_oaebu_partner_data(project_id, org_name):
             OaebuPartnerName.oapen_irus_uk,
             OaebuPartnerName.ucl_discovery,
         ],
-        "Wits University Press": [],
         "University of Michigan Press": [
-            OaebuPartnerName.google_books_sales,
-            OaebuPartnerName.google_books_traffic,
-            OaebuPartnerName.jstor_country,
-            OaebuPartnerName.jstor_institution,
-            OaebuPartnerName.oapen_irus_uk,
-        ],
-        "Springer Nature": [],
-        "Oapen Press": [OaebuPartnerName.oapen_irus_uk],
-        "Curtin Press": [
             OaebuPartnerName.google_books_sales,
             OaebuPartnerName.google_books_traffic,
             OaebuPartnerName.jstor_country,
