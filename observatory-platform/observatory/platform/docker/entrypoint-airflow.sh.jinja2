@@ -19,7 +19,7 @@
 
 # Initialise or upgrade the Airflow database and create the admin user
 # Only run if webserver is command as there should only be one webserver
-if [ $1="webserver" ]; then
+if [ "$1" = "webserver" ]; then
   # Initialise / upgrade the Airflow database
   airflow upgradedb
 
