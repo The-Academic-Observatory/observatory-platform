@@ -30,7 +30,7 @@ A typical telescope pipeline will:
 #. Create documentation for the telescope in docs/telescopes.
 ```
 
-### Creating a DAG file
+## Creating a DAG file
 
 For Airflow to pickup new DAGs, we currently require you to create a new Python file in `observatory-dags/observatory/dags/dags` with content similar to:
 
@@ -44,7 +44,7 @@ telescope = MyTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()
 ```
 
-### Creating a telescope file
+## Creating a telescope file
 
 Put your new telescope class in the directory `observatory-dags/observatory/telescopes`
 
@@ -155,13 +155,13 @@ This telescope adds `task1, task2, cleanup` tasks that just print some statement
 
 If you start the observatory platform with these changes, you will see a new DAG in Airflow called **my_dag_id** with the DAG structure `task1 -> task2 -> cleanup`.  When you run the DAG, you should see the logging messages in the log of each task.
 
-### BigQuery schemas
+## BigQuery schemas
 
 BigQuery database schema json files are put in `observatory-dags/dags/database/schema`.  They follow the scheme: `<table_name>_YYYY-MM-DD.json`.  If you wish to provide an additional custom version as well as the date, then the files should follow the scheme: `<table_name>_customversion_YYYY-MM-DD.json`.
 
 The BigQuery table loading utility functions in the Academic Observatory platform API will try to find the correct schema to use for loading table data, based on release date information.
 
-#### Specialised telescopes
+## Specialised telescopes
 
 Currently there are two types of specialised telescope patterns implemented by the Academic Observatory.  These are:
 ```eval_rst
@@ -175,7 +175,7 @@ These telescopes provide extra methods for loading data into BigQuery.  Currentl
 
 If you wish to design your own telescope templates, you can choose to derive the `Telescope` class if it suits your needs, or implement the `AbstractTelescope` interface yourself.
 
-### Generating a telescope template
+## Generating a telescope template
 
 You can use the observatory cli tool to generate a telescope template for a new `Telescope`, `StreamTelescope` or `SnapshotTelescope` telescope and release class. Use the command:
 ```
@@ -189,7 +189,7 @@ observatory generate telescope SnapshotTelescope MyNewTelescope
 ```
 creates the files `observatory-dags/observatory/dags/dags/mynewtelescope.py` and `observatory-dags/observatory/dags/telescopes/mynewtelescope.py`
 
-### Documentation
+## Documentation
 
 The Academic Observatory builds documentation using [Sphinx](https://www.sphinx-doc.org).  Documentation is contained in the `docs` directory. Currently index pages are written in [RST format (Restructured Text)](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html), and content pages are written with [Markdown](https://www.sphinx-doc.org/en/master/usage/markdown.html) for simplicity.
 
@@ -200,7 +200,7 @@ make html
 ```
 This will output html documentation in the `docs/_build/html` directory.
 
-#### Including schemas in documentation
+### Including schemas in documentation
 
 The documentation build system automatically converts all the schema files from `observatory-dags/observatory/dags/database/schemas` into CSV files.  This is temporarily stored in the `docs/schemas` folder. The csv files have the same filename as the original schema files, except for the suffix, which is changed to csv.  The schemas folder is cleaned up as part of the build process so you will not be able to see the directory unless you disable the cleanup code in the `Makefile`.
 
