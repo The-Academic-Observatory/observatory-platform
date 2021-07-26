@@ -121,3 +121,11 @@ oapen_irus_uk_login: mysql://email_address:password@
 oapen_irus_uk_api: mysql://requestor_id:api_key@
 geoip_license_key: mysql://user_id:license_key@
 ```
+
+## Latest schema
+``` eval_rst
+.. csv-table::
+   :file: ../schemas/oapen_irus_uk_latest.csv
+   :width: 100%
+   :header-rows: 1
+```

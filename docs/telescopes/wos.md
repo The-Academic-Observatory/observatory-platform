@@ -1,9 +1,16 @@
 # WOS (Web of science)
 
-It will follow general ETL design pattern of the other DAGs.  SubDAGs will be used for handling ETL for each
+"The Web of Science is the information and technology provider for the global scientific research community. We provide data, analytics and insights, as well as workflow tools and bespoke professional services to researchers and the entire research community that underpins research – universities and research institutions, national and local governments, private and public research funding organizations, publishers and research-intensive corporations, across the world."
+-- [Web of Science website](https://www.clarivate.com/webofsciencegroup>).
+
+Web of science, previously Web of knowledge, provides bibliometric information, including funding acknowledgements,
+international publication identifiers, and abstracts. - source: [WOS](https://clarivate.com/webofsciencegroup) and
+[data details](https://clarivate.com/webofsciencegroup/solutions/xml-and-apis).
+
+This telescope will follow general ETL design pattern of the other DAGs.  SubDAGs will be used for handling ETL for each
 institution. SubDAGs might be taskgroups in the future once Airflow 2.0 lands.
 
-The DAG will check for any connection id entries for institutions where we want to pull.  Each institution must have
+The telescope will check for any connection id entries for institutions where we want to pull.  Each institution must have
 access credentials, and entries will be pulled from the specified start date in the connection id to the start date of
 the dag.
 
@@ -115,9 +122,13 @@ Load the entries into BigQuery.
 
 Do any necessary cleanup/deletion.
 
-## Database schema
-
-Refer to docs/datasets/provider_wos for schema information.
-
+## Latest schema
+``` eval_rst
+.. csv-table::
+   :file: ../schemas/wos_wok5.4_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
 ## External references
  * [Web of Science API documentation](http://help.incites.clarivate.com/wosWebServicesExpanded/WebServicesExpandedOverviewGroup/Introduction.html)
+ * [Field name descriptions](http://help.incites.clarivate.com/wosWebServicesExpanded/appendix1Group/wosfieldNameTable.html)

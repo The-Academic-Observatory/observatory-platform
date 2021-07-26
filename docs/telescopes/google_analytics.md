@@ -98,3 +98,11 @@ URL encode each of the fields 'private_key_id', 'private_key', 'client_email' an
 ```yaml
 oaebu_service_account: google-cloud-platform://?type=service_account&private_key_id=<private_key_id>&private_key=<private_key>&client_email=<client_email>&client_id=<client_id>
 ```
+
+## Latest schema
+``` eval_rst
+.. csv-table::
+   :file: ../schemas/google_analytics_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
