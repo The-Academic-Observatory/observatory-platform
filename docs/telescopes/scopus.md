@@ -1,6 +1,13 @@
-# SCOPUS
+# Scopus
 
-The DAG will look for connections conforming to the Airflow connection ID naming convention (below) and generate a
+"Scopus uniquely combines a comprehensive, curated abstract and citation database with enriched data and linked scholarly content.
+
+Quickly find relevant and trusted research, identify experts, and access reliable data, metrics, and analytical tools for confident research strategy decisions – all from one database and one subscription."
+
+"SCOPUS is an Elsevier bibliometrics database containing abstracts, citations, of journals, books, and conference
+proceedings." -- [SCOPUS website](https://www.elsevier.com/solutions/scopus).
+
+The telescope will look for connections conforming to the Airflow connection ID naming convention (below) and generate a
 subdag to handle the entire ETL pipeline for each institution.
 
 ## Airflow Connection ID naming
@@ -79,9 +86,13 @@ Loads the jsonlines entries into BigQuery.
 
 Deletes any temporary files.
 
-## Database schema
-
-Refer to docs/datasets/provider_wos for schema information.
+## Latest schema
+``` eval_rst
+.. csv-table::
+   :file: ../schemas/scopus_scopus1_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
 
 ## External references
 * [Developer API portal](https://dev.elsevier.com/scopus.html)
@@ -89,3 +100,5 @@ Refer to docs/datasets/provider_wos for schema information.
 * [Search tips](https://dev.elsevier.com/sc_search_tips.html)
 * [Search views (response description)](https://dev.elsevier.com/sc_search_views.html)
 * [API key settings](https://dev.elsevier.com/api_key_settings.html)
+* [SCOPUS](https://www.elsevier.com/en-gb/solutions/scopus)
+* [API details](https://dev.elsevier.com/sc_api_spec.html)

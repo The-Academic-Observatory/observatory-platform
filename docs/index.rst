@@ -17,7 +17,7 @@ Tutorials
     license
 
 Observatory Platform API
-=======================
+=========================
 .. toctree::
     :maxdepth: 2
 
@@ -53,6 +53,14 @@ Reports
     :maxdepth: 2
 
     reports/index
+
+
+Tutorials
+=======================
+.. toctree::
+    :maxdepth: 2
+
+    tutorials/index
 
 
 API Reference

@@ -345,3 +345,24 @@ Use the values from the Gmail API credentials as described above.
 ```yaml
 gmail_api: google-cloud-platform://?token=<token>&refresh_token=<refresh_token>&client_id=<client_id>&client_secret=<client_secret>
 ```
+
+
+## Latest schema
+
+### JSTOR Institution
+
+``` eval_rst
+.. csv-table::
+   :file: ../schemas/jstor_institution_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
+
+### JSTOR Country
+
+``` eval_rst
+.. csv-table::
+   :file: ../schemas/jstor_country_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
