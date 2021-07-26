@@ -44,11 +44,6 @@ class {{ telescope_name }}(Telescope):
         :param catchup: whether to catchup the DAG or not.
         """
 
-        self.dag_id = dag_id
-        self.start_date = start_date
-        self.schedule_interval = schedule_interval
-        self.catchup = catchup
-
         super().__init__(
             dag_id=self.dag_id,
             start_date=self.start_date,

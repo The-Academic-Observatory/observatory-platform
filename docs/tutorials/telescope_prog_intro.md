@@ -63,11 +63,11 @@ The release class contains:
 
 The interface is defined in `AbstractRelease`. There is also a `Release` class you can use which implements all of those functions if you want to just let the API generate all those folders and file lists based on the `dag_id` and `release_id`.  See the API documentation for the `Release` class for more information.  Your telescope file should contain a **release** class if it's required for your workflow.
 
-#### Telescope class
+## Telescope class
 
 The interface specification is defined in `AbstractTelescope`.  There is a `Telescope` class you can use with an implementation of that interface. Your telescope file should contain a telescope class.  See the API documentation for more details. The telesecope class is responsible for adding tasks to the DAG, constructing a DAG for Airflow to use, and onstructing release objects to pass to each task during execution.
 
-#### Example telescope file
+## Example telescope file
 
 ```
 import logging
@@ -113,12 +113,7 @@ class MyRelease(AbstractRelease):
 
 class MyTelescope(Telescope):
     # dag_id, start_date, schedule_interval, catchup correspond to the DAG parameters in Airflow with the same name.
-    def __init__(self):
-        self.dag_id = "my_dag_id"  # This member is required.
-        self.catchup = False  # This member is required.
-        self.schedule_interval = "@weekly"  # This member is required.
-        self.start_date = pendulum.Pendulum(2021, 1, 1)  # This member is required.
-
+    def __init__(self, *, dag_id: str, start_date: pendulum.Pendulum = pendulum.Pendulum(2021, 1, 1), schedule_interval:str = "@weekly", catchup: bool = False):
         # Initialise base class
         super().__init__(
             dag_id=self.dag_id,
@@ -160,7 +155,7 @@ This telescope adds `task1, task2, cleanup` tasks that just print some statement
 
 If you start the observatory platform with these changes, you will see a new DAG in Airflow called **my_dag_id** with the DAG structure `task1 -> task2 -> cleanup`.  When you run the DAG, you should see the logging messages in the log of each task.
 
-#### BigQuery schemas
+### BigQuery schemas
 
 BigQuery database schema json files are put in `observatory-dags/dags/database/schema`.  They follow the scheme: `<table_name>_YYYY-MM-DD.json`.  If you wish to provide an additional custom version as well as the date, then the files should follow the scheme: `<table_name>_customversion_YYYY-MM-DD.json`.
 
@@ -193,10 +188,6 @@ For example:
 observatory generate telescope SnapshotTelescope MyNewTelescope
 ```
 creates the files `observatory-dags/observatory/dags/dags/mynewtelescope.py` and `observatory-dags/observatory/dags/telescopes/mynewtelescope.py`
-
-### Testing
-
-You can test telescopes by running them in Airflow.  The Academic Observatory has additional infrastructure to facilitate unit testing of telescopes without needing to run the telescopes in Airflow.
 
 ### Documentation
 
@@ -232,16 +223,16 @@ then you should set
 ```
 The `..` follows the parent directory, and we need to do this twice to reach `docs` from `docs/datasets/mydataset`.
 
-### Style
+## Style
 
 We try to conform to the Python PEP-8 standard, and the default format style of the `Black` formatter.  This is done with the [autopep8 package](https://pypi.org/project/autopep8), and the [black formatter](https://pypi.org/project/black/).
 
 We recommend you use those format tools as part of your coding workflow.
 
-##### Type hinting
+### Type hinting
 
 You should provide type hints for all of the function arguments you use, and for return types.  Because Python is a weakly typed language, it can be confusing to those unacquainted with the codebase what type of objects are being manipulated in a particular function.  Type hints help reduce this ambiguity.
 
-##### Docstring
+### Docstring
 
 Please provide docstring comments for all your classes, methods, and functions.  This includes descriptions of arguments, and returned objects.  These comments will be automatically compiled into the Academic Observatory API reference documentation section.

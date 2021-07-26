@@ -8,9 +8,7 @@ Test methods can be found in the module `observatory.platform.utils.test_utils`.
 
 To take advantage of the framework, instead of inheriting `unittest.TestCase` in test classes, each test class inherits `ObservatoryTestCase`.
 
-## Testing DAGs
-
-### DAG structure
+## Testing DAG structure
 
 The telescope's DAG can be tested through the `assert_dag_structure` method of `ObservatoryTestCase`.  The DAG object is compared against a dictionary, where the key is the source node, and value is a list of sink nodes.  This expresses the relationship that the source node task is a dependency of all of the sink node tasks.
 
@@ -51,7 +49,7 @@ class MyTestClass(ObservatoryTestCase):
 
 To functionally test without using Airflow itself, Academic Observatory provides the `ObservatoryEnvironment` class to simulate some of the functionality of Airflow.
 
-### Dag loading
+## Testing DAG loading
 
 To test if a DAG loads from a DagBag, we can create an `ObservatoryEnvironment` object, and run `assert_dag_load` in the environment. Example:
 ```
