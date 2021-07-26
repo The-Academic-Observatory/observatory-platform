@@ -30,15 +30,6 @@ def get_oaebu_partner_data(project_id, org_name):
 
     oaebu_data = [
         OaebuPartners(
-            name=OaebuPartnerName.onix,
-            dag_id_prefix="onix",
-            gcp_project_id=project_id,
-            gcp_dataset_id="onix",
-            gcp_table_id="onix",
-            isbn_field_name="ISBN13",
-            sharded=True,
-        ),
-        OaebuPartners(
             name=OaebuPartnerName.google_analytics,
             dag_id_prefix="google_analytics",
             gcp_project_id=project_id,
