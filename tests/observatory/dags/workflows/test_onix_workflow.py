@@ -17,7 +17,7 @@
 import hashlib
 import os
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pendulum
 from airflow.exceptions import AirflowException
@@ -34,7 +34,6 @@ from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPar
 from observatory.dags.workflows.onix_workflow import OnixWorkflow, OnixWorkflowRelease
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import (
-    delete_bucket_dir,
     run_bigquery_query,
     upload_files_to_cloud_storage,
 )
@@ -63,6 +62,7 @@ class TestOnixWorkflowRelease(unittest.TestCase):
             self.release = OnixWorkflowRelease(
                 dag_id="did",
                 release_date=pendulum.Pendulum(2021, 4, 20),
+                onix_release_date=pendulum.Pendulum(2021, 1, 1),
                 gcp_project_id="pid",
                 gcp_bucket_name="bucket",
             )
@@ -154,67 +154,27 @@ class TestOnixWorkflow(ObservatoryTestCase):
         self.data_location = os.getenv("TESTS_DATA_LOCATION")
         self.bucket_name = "bucket_name"
 
-    def setup_observatory_env(self, env):
-        # Add Observatory API connection
-        conn = Connection(conn_id=AirflowConns.OBSERVATORY_API, uri=f"http://:password@{self.host}:{self.api_port}")
-        env.add_connection(conn)
-
-        # Add an ONIX telescope
-        dt = pendulum.utcnow()
-        telescope_type = orm.TelescopeType(name="ONIX Telescope", type_id=TelescopeTypes.onix, created=dt, modified=dt)
-        env.api_session.add(telescope_type)
-        organisation = orm.Organisation(name="Curtin Press", created=dt, modified=dt)
-        env.api_session.add(organisation)
-        telescope = orm.Telescope(
-            name="Curtin Press ONIX Telescope",
-            telescope_type=telescope_type,
-            organisation=organisation,
-            modified=dt,
-            created=dt,
-        )
-        env.api_session.add(telescope)
-
-        # Add an ONIX workflow
-        dt = pendulum.utcnow()
-        telescope_type = orm.TelescopeType(
-            name="ONIX Telescope Workflow", type_id=TelescopeTypes.onix_workflow, created=dt, modified=dt
-        )
-        env.api_session.add(telescope_type)
-        organisation = orm.Organisation(name="Curtin Press", created=dt, modified=dt)
-        env.api_session.add(organisation)
-        telescope = orm.Telescope(
-            name="Curtin Press ONIX Workflow",
-            telescope_type=telescope_type,
-            organisation=organisation,
-            modified=dt,
-            created=dt,
-        )
-        env.api_session.add(telescope)
-        env.api_session.commit()
-
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
     def test_ctor_gen_dag_id(self, mock_sel_table_suffixes, mock_mr):
         mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
-            mock_mr.return_value = [
-                OnixWorkflowRelease(
-                    dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    gcp_project_id=self.telescope.organisation.gcp_project_id,
-                    gcp_bucket_name=self.bucket_name,
-                    onix_dataset_id="",
-                    onix_table_id="onix",
-                )
-            ]
+            mock_mr.return_value = OnixWorkflowRelease(
+                dag_id="onix_workflow_test",
+                release_date=pendulum.Pendulum(2021, 1, 1),
+                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+                onix_dataset_id="",
+                onix_table_id="onix",
+            )
             wf = OnixWorkflow(
                 org_name=self.telescope.organisation.name,
                 gcp_project_id=self.telescope.organisation.gcp_project_id,
                 gcp_bucket_name=self.bucket_name,
             )
 
-            releases = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
-            release = releases[0]
+            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
             self.assertEqual(wf.dag_id, "onix_workflow_test")
             self.assertEqual(release.workslookup_filename, "onix_workflow_test/20210101/onix_workid_isbn.jsonl.gz")
             self.assertEqual(
@@ -242,19 +202,17 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 dag_id="dagid",
             )
 
-            mock_mr.return_value = [
-                OnixWorkflowRelease(
-                    dag_id="dagid",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    gcp_project_id=self.telescope.organisation.gcp_project_id,
-                    gcp_bucket_name=self.bucket_name,
-                    onix_dataset_id="",
-                    onix_table_id="onix",
-                )
-            ]
+            mock_mr.return_value = OnixWorkflowRelease(
+                dag_id="dagid",
+                release_date=pendulum.Pendulum(2021, 1, 1),
+                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+                onix_dataset_id="",
+                onix_table_id="onix",
+            )
 
-            releases = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
-            release = releases[0]
+            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
 
             self.assertEqual(release.dag_id, "dagid")
             self.assertEqual(release.workslookup_filename, "dagid/20210101/onix_workid_isbn.jsonl.gz")
@@ -278,19 +236,17 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_bucket_name=self.bucket_name,
             )
 
-            mock_mr.return_value = [
-                OnixWorkflowRelease(
-                    dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    gcp_project_id=self.telescope.organisation.gcp_project_id,
-                    gcp_bucket_name=self.bucket_name,
-                    onix_dataset_id="onix",
-                    onix_table_id="onix",
-                )
-            ]
+            mock_mr.return_value = OnixWorkflowRelease(
+                dag_id="onix_workflow_test",
+                release_date=pendulum.Pendulum(2021, 1, 1),
+                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+                onix_dataset_id="onix",
+                onix_table_id="onix",
+            )
 
-            releases = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
-            release = releases[0]
+            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
 
             self.assertEqual(wf.dag_id, "onix_workflow_test")
             self.assertEqual(wf.org_name, "test")
@@ -327,6 +283,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             release = OnixWorkflowRelease(
                 dag_id="dag",
                 release_date=pendulum.Pendulum(2000, 1, 1),
+                onix_release_date=pendulum.Pendulum(2000, 1, 1),
                 gcp_project_id="project",
                 gcp_bucket_name="bucket",
             )
@@ -338,6 +295,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             release = OnixWorkflowRelease(
                 dag_id="dag",
                 release_date=pendulum.Pendulum(2000, 1, 1),
+                onix_release_date=pendulum.Pendulum(2000, 1, 1),
                 gcp_project_id="project",
                 gcp_bucket_name="bucket",
                 workflow_dataset="override",
@@ -364,9 +322,9 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(len(records), 3)
             self.assertEqual(records[0]["ISBN13"], "111")
 
-    def test_make_release(self):
-        ti_mock = Mock()
-        ti_mock.xcom_pull = MagicMock(return_value=[{"release_date": pendulum.Pendulum(2021, 1, 1)}])
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
+    def test_make_release(self, mock_sel_table_suffixes):
+        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
 
         with CliRunner().isolated_filesystem():
             wf = OnixWorkflow(
@@ -375,21 +333,20 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_bucket_name=self.bucket_name,
             )
 
-            kwargs = {"ti": ti_mock}
-            releases = wf.make_release(**kwargs)
-            self.assertEqual(len(releases), 1)
-            self.assertEqual(releases[0].dag_id, "onix_workflow_test")
-            self.assertEqual(releases[0].release_date, pendulum.Pendulum(2021, 1, 1))
-            self.assertEqual(releases[0].project_id, "project_id")
-            self.assertEqual(releases[0].onix_dataset_id, "onix")
-            self.assertEqual(releases[0].onix_table_id, "onix")
-            self.assertEqual(releases[0].bucket_name, "bucket_name")
+            kwargs = {"next_execution_date": pendulum.Pendulum(2021, 2, 1)}
+            release = wf.make_release(**kwargs)
+            self.assertIsInstance(release, OnixWorkflowRelease)
+            self.assertEqual(release.dag_id, "onix_workflow_test")
+            self.assertEqual(release.release_date, pendulum.Pendulum(2021, 1, 31))
+            self.assertEqual(release.onix_release_date, pendulum.Pendulum(2021, 1, 1))
+            self.assertEqual(release.project_id, "project_id")
+            self.assertEqual(release.onix_dataset_id, "onix")
+            self.assertEqual(release.onix_table_id, "onix")
+            self.assertEqual(release.bucket_name, "bucket_name")
 
-            self.assertEqual(wf.continue_workflow(**kwargs), True)
-
-    def test_make_release_no_releases(self):
-        ti_mock = Mock()
-        ti_mock.xcom_pull = MagicMock(return_value=None)
+    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
+    def test_make_release_no_releases(self, mock_sel_table_suffixes):
+        mock_sel_table_suffixes.return_value = []
 
         with CliRunner().isolated_filesystem():
             wf = OnixWorkflow(
@@ -398,10 +355,9 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_bucket_name=self.bucket_name,
             )
 
-            kwargs = {"ti": ti_mock}
-            releases = wf.make_release(**kwargs)
-            self.assertEqual(len(releases), 0)
-            self.assertEqual(wf.continue_workflow(**kwargs), False)
+            with self.assertRaises(AirflowException):
+                kwargs = {"next_execution_date": pendulum.Pendulum(2021, 2, 1)}
+                wf.make_release(**kwargs)
 
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
@@ -414,21 +370,19 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_bucket_name=self.bucket_name,
             )
 
-            mock_mr.return_value = [
-                OnixWorkflowRelease(
-                    dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    gcp_project_id=self.telescope.organisation.gcp_project_id,
-                    gcp_bucket_name=self.bucket_name,
-                    onix_dataset_id="onix",
-                    onix_table_id="onix",
-                )
-            ]
+            mock_mr.return_value = OnixWorkflowRelease(
+                dag_id="onix_workflow_test",
+                release_date=pendulum.Pendulum(2021, 1, 1),
+                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+                onix_dataset_id="onix",
+                onix_table_id="onix",
+            )
 
-            releases = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
-            release = releases[0]
+            release = wf.make_release(execution_date=pendulum.Pendulum(2021, 1, 1))
             self.assertTrue(os.path.isdir(release.transform_folder))
-            wf.cleanup(releases)
+            wf.cleanup(release)
             self.assertFalse(os.path.isdir(release.transform_folder))
 
     def test_dag_structure_ignore_google_analytics(self):
@@ -711,18 +665,6 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 dag,
             )
 
-    @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
-    def test_dag_load(self, mock_sel_table_suffixes):
-        mock_sel_table_suffixes.return_value = [pendulum.Pendulum(2021, 1, 1)]
-        with CliRunner().isolated_filesystem():
-            env = ObservatoryEnvironment(
-                self.project_id, self.data_location, api_host=self.host, api_port=self.api_port
-            )
-            with env.create():
-                self.setup_observatory_env(env)
-                dag_file = os.path.join(module_file_path("observatory.dags.dags"), "onix_workflow.py")
-                self.assert_dag_load("onix_workflow_curtin_press", dag_file)
-
     @patch("observatory.dags.workflows.onix_workflow.OnixWorkflow.make_release")
     @patch("observatory.dags.workflows.onix_workflow.run_bigquery_query")
     @patch("observatory.dags.workflows.onix_workflow.bq_load_shard_v2")
@@ -749,22 +691,20 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     gcp_bucket_name=self.bucket_name,
                 )
 
-                mock_mr.return_value = [
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ]
+                mock_mr.return_value = OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                )
 
-                releases = wf.make_release()
-                release = releases[0]
+                release = wf.make_release()
 
                 # Test works aggregation
-                wf.aggregate_works(releases)
+                wf.aggregate_works(release)
                 self.assertEqual(mock_write_to_file.call_count, 3)
                 call_args = mock_write_to_file.call_args_list
                 self.assertEqual(len(call_args[0][0][1]), 3)
@@ -786,7 +726,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 self.assertEqual(call_args[1][0][0], "onix_workflow_test/20210101/onix_workid_isbn_errors.jsonl.gz")
 
                 # Test upload_aggregation_tables
-                wf.upload_aggregation_tables(releases)
+                wf.upload_aggregation_tables(release)
                 self.assertEqual(mock_upload_files_from_list.call_count, 1)
                 _, call_args = mock_upload_files_from_list.call_args
                 self.assertEqual(call_args["bucket_name"], "bucket_name")
@@ -808,7 +748,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 )
 
                 # Test bq_load_workid_lookup
-                wf.bq_load_workid_lookup(releases)
+                wf.bq_load_workid_lookup(release)
                 self.assertEqual(mock_bq_load_lookup.call_count, 1)
                 _, call_args = mock_bq_load_lookup.call_args
                 self.assertEqual(call_args["project_id"], "project_id")
@@ -822,7 +762,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 self.assertEqual(call_args["dataset_description"], "ONIX workflow tables")
 
                 # Test bq_load_workid_lookup_errors
-                wf.bq_load_workid_lookup_errors(releases)
+                wf.bq_load_workid_lookup_errors(release)
                 self.assertEqual(mock_bq_load_lookup.call_count, 2)
                 _, call_args = mock_bq_load_lookup.call_args
                 self.assertEqual(call_args["project_id"], "project_id")
@@ -866,21 +806,19 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     gcp_bucket_name=self.bucket_name,
                 )
 
-                mock_mr.return_value = [
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ]
-                releases = wf.make_release()
-                release = releases[0]
+                mock_mr.return_value = OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                )
+                release = wf.make_release()
 
                 # Test works family aggregation
-                wf.aggregate_works(releases)
+                wf.aggregate_works(release)
                 self.assertEqual(mock_write_to_file.call_count, 3)
                 call_args = mock_write_to_file.call_args_list
                 lookup_table = {arg["isbn13"]: arg["work_family_id"] for arg in call_args[2][0][1]}
@@ -891,8 +829,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 self.assertEqual(call_args[0][0][0], "onix_workflow_test/20210101/onix_workid_isbn.jsonl.gz")
 
                 # Test bq_load_workfamilyid_lookup
-                wf.upload_aggregation_tables(releases)
-                wf.bq_load_workfamilyid_lookup(releases)
+                wf.upload_aggregation_tables(release)
+                wf.bq_load_workfamilyid_lookup(release)
                 self.assertEqual(mock_bq_load_lookup.call_count, 1)
                 _, call_args = mock_bq_load_lookup.call_args
                 self.assertEqual(call_args["project_id"], "project_id")
@@ -915,16 +853,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
                     self.assertRaises(
                         AirflowException,
                         wf.create_oaebu_intermediate_table,
-                        releases=[
-                            OnixWorkflowRelease(
-                                dag_id="onix_workflow_test",
-                                release_date=pendulum.Pendulum(2021, 1, 1),
-                                gcp_project_id=self.telescope.organisation.gcp_project_id,
-                                gcp_bucket_name=self.bucket_name,
-                                onix_dataset_id="onix",
-                                onix_table_id="onix",
-                            )
-                        ],
+                        release=OnixWorkflowRelease(
+                            dag_id="onix_workflow_test",
+                            release_date=pendulum.Pendulum(2021, 1, 1),
+                            onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                            gcp_project_id=self.telescope.organisation.gcp_project_id,
+                            gcp_bucket_name=self.bucket_name,
+                            onix_dataset_id="onix",
+                            onix_table_id="onix",
+                        ),
                         orig_project_id="project",
                         orig_dataset="dataset",
                         orig_table="table",
@@ -942,6 +879,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         data_partners = [
             OaebuPartners(
                 name="Test Partner",
+                dag_id_prefix="test_dag",
                 gcp_project_id="test_project",
                 gcp_dataset_id="test_dataset",
                 gcp_table_id="test_table",
@@ -950,6 +888,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             ),
             OaebuPartners(
                 name="Test Partner",
+                dag_id_prefix="test_dag",
                 gcp_project_id="test_project",
                 gcp_dataset_id="test_dataset",
                 gcp_table_id="test_table2",
@@ -970,19 +909,17 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 data_partners=data_partners,
             )
 
-            mock_mr.return_value = [
-                OnixWorkflowRelease(
-                    dag_id="onix_workflow_test",
-                    release_date=pendulum.Pendulum(2021, 1, 1),
-                    gcp_project_id=self.telescope.organisation.gcp_project_id,
-                    gcp_bucket_name=self.bucket_name,
-                    onix_dataset_id="onix",
-                    onix_table_id="onix",
-                )
-            ]
+            mock_mr.return_value = OnixWorkflowRelease(
+                dag_id="onix_workflow_test",
+                release_date=pendulum.Pendulum(2021, 1, 1),
+                onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                gcp_project_id=self.telescope.organisation.gcp_project_id,
+                gcp_bucket_name=self.bucket_name,
+                onix_dataset_id="onix",
+                onix_table_id="onix",
+            )
 
-            releases = wf.make_release()
-            release = releases[0]
+            release = wf.make_release()
 
             # Spin up tasks
             oaebu_task1_op = wf.task_funcs[5]
@@ -992,7 +929,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(oaebu_task2_op.func.__name__, "create_oaebu_intermediate_table.test_dataset.test_table2")
 
             # Run tasks
-            oaebu_task1_op.func(releases)
+            oaebu_task1_op.func(release)
             _, call_args = mock_create_bq_ds.call_args
             self.assertEqual(call_args["project_id"], "project_id")
             self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
@@ -1008,7 +945,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             expected_hash = "1dabe0b435be583fdbae6ad4421f579b"
             self.assertEqual(sql_hash, expected_hash)
 
-            oaebu_task2_op.func(releases)
+            oaebu_task2_op.func(release)
             _, call_args = mock_create_bq_ds.call_args
             self.assertEqual(call_args["project_id"], "project_id")
             self.assertEqual(call_args["dataset_id"], "oaebu_intermediate")
@@ -1036,16 +973,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             )
             mock_bq_table_query.return_value = True
             wf.create_oaebu_data_qa_onix_isbn(
-                [
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ]
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                )
             )
 
             _, call_args = mock_bq_ds.call_args
@@ -1066,16 +1002,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertRaises(
                 AirflowException,
                 wf.create_oaebu_data_qa_onix_isbn,
-                [
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
             )
 
     @patch("observatory.dags.workflows.onix_workflow.create_bigquery_table_from_query")
@@ -1089,16 +1024,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             )
             mock_bq_table_query.return_value = True
             wf.create_oaebu_data_qa_onix_aggregate(
-                [
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ]
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                )
             )
 
             _, call_args = mock_bq_ds.call_args
@@ -1119,16 +1053,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertRaises(
                 AirflowException,
                 wf.create_oaebu_data_qa_onix_aggregate,
-                [
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
             )
 
     @patch("observatory.dags.workflows.onix_workflow.select_table_shard_dates")
@@ -1140,6 +1073,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         data_partners = [
             OaebuPartners(
                 name=OaebuPartnerName.jstor_country,
+                dag_id_prefix="jstor",
                 gcp_project_id="project",
                 gcp_dataset_id="jstor",
                 gcp_table_id="country",
@@ -1156,16 +1090,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             )
             mock_bq_table_query.return_value = True
             wf.create_oaebu_data_qa_jstor_isbn(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="jstor",
                 orig_table="country",
@@ -1175,16 +1108,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
             wf.create_oaebu_data_qa_jstor_isbn(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="jstor",
                 orig_table="country",
@@ -1214,6 +1146,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         data_partners = [
             OaebuPartners(
                 name=OaebuPartnerName.google_books_sales,
+                dag_id_prefix="google_books",
                 gcp_project_id="project",
                 gcp_dataset_id="google_books",
                 gcp_table_id="sales",
@@ -1230,16 +1163,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             )
             mock_bq_table_query.return_value = True
             wf.create_oaebu_data_qa_google_books_sales_isbn(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="google_books",
                 orig_table="sales",
@@ -1249,16 +1181,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
             wf.create_oaebu_data_qa_google_books_sales_isbn(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="google_books",
                 orig_table="sales",
@@ -1288,6 +1219,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         data_partners = [
             OaebuPartners(
                 name=OaebuPartnerName.google_books_traffic,
+                dag_id_prefix="google_books",
                 gcp_project_id="project",
                 gcp_dataset_id="google_books",
                 gcp_table_id="traffic",
@@ -1304,16 +1236,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             )
             mock_bq_table_query.return_value = True
             wf.create_oaebu_data_qa_google_books_traffic_isbn(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="google_books",
                 orig_table="traffic",
@@ -1323,16 +1254,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
             wf.create_oaebu_data_qa_google_books_traffic_isbn(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="google_books",
                 orig_table="sales",
@@ -1360,6 +1290,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         data_partners = [
             OaebuPartners(
                 name=OaebuPartnerName.oapen_irus_uk,
+                dag_id_prefix="oapen_irus_uk",
                 gcp_project_id="project",
                 gcp_dataset_id="irus_uk",
                 gcp_table_id="oapen_irus_uk",
@@ -1376,16 +1307,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             )
             mock_bq_table_query.return_value = True
             wf.create_oaebu_data_qa_oapen_irus_uk_isbn(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="irus_uk",
                 orig_table="oapen_irus_uk",
@@ -1395,16 +1325,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
             wf.create_oaebu_data_qa_oapen_irus_uk_isbn(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="irus_uk",
                 orig_table="oapen_irus_uk",
@@ -1432,6 +1361,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         data_partners = [
             OaebuPartners(
                 name=OaebuPartnerName.oapen_irus_uk,
+                dag_id_prefix="google_analytics",
                 gcp_project_id="project",
                 gcp_dataset_id="google",
                 gcp_table_id="google_analytics",
@@ -1448,16 +1378,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             )
             mock_bq_table_query.return_value = True
             wf.create_oaebu_data_qa_google_analytics_isbn(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="google",
                 orig_table="google_analytics",
@@ -1467,16 +1396,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertEqual(mock_sel_table_suffixes.call_count, 1)
 
             wf.create_oaebu_data_qa_google_analytics_isbn(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="google",
                 orig_table="google_analytics",
@@ -1506,6 +1434,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
         data_partners = [
             OaebuPartners(
                 name=OaebuPartnerName.jstor_country,
+                dag_id_prefix="jstor",
                 gcp_project_id="project",
                 gcp_dataset_id="jstor",
                 gcp_table_id="country",
@@ -1522,16 +1451,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             )
             mock_bq_table_query.return_value = True
             wf.create_oaebu_data_qa_intermediate_unmatched_workid(
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="jstor",
                 orig_table="country",
@@ -1555,16 +1483,15 @@ class TestOnixWorkflow(ObservatoryTestCase):
             self.assertRaises(
                 AirflowException,
                 wf.create_oaebu_data_qa_intermediate_unmatched_workid,
-                releases=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_test",
-                        release_date=pendulum.Pendulum(2021, 1, 1),
-                        gcp_project_id=self.telescope.organisation.gcp_project_id,
-                        gcp_bucket_name=self.bucket_name,
-                        onix_dataset_id="onix",
-                        onix_table_id="onix",
-                    )
-                ],
+                OnixWorkflowRelease(
+                    dag_id="onix_workflow_test",
+                    release_date=pendulum.Pendulum(2021, 1, 1),
+                    onix_release_date=pendulum.Pendulum(2021, 1, 1),
+                    gcp_project_id=self.telescope.organisation.gcp_project_id,
+                    gcp_bucket_name=self.bucket_name,
+                    onix_dataset_id="onix",
+                    onix_table_id="onix",
+                ),
                 project_id="project",
                 orig_dataset_id="jstor",
                 orig_table="country",
@@ -1587,10 +1514,43 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         self.onix_table_id = "onix"
         self.test_onix_folder = random_id()  # "onix_workflow_test_onix_table"
 
-    def delete_bucket_blobs(self):
-        """ Delete test blob files"""
+    def test_dag_load(self):
+        """ Test that the DAG loads for each organisation """
 
-        delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix="onix_workflow")
+        dag_file = os.path.join(module_file_path("observatory.dags.dags"), "onix_workflow.py")
+        org_names = ["ANU Press", "UCL Press", "University of Michigan Press"]
+
+        env = ObservatoryEnvironment(
+            self.gcp_project_id, self.data_location, api_host=self.host, api_port=self.api_port
+        )
+        with env.create():
+            # Add Observatory API connection
+            conn = Connection(conn_id=AirflowConns.OBSERVATORY_API, uri=f"http://:password@{self.host}:{self.api_port}")
+            env.add_connection(conn)
+
+            # Setup ONIX telescopes
+            dt = pendulum.utcnow()
+            telescope_type = orm.TelescopeType(
+                name="ONIX Telescope", type_id=TelescopeTypes.onix, created=dt, modified=dt
+            )
+            env.api_session.add(telescope_type)
+            for org_name in org_names:
+                organisation = orm.Organisation(name=org_name, created=dt, modified=dt)
+                env.api_session.add(organisation)
+                telescope = orm.Telescope(
+                    name=f"{org_name} ONIX Telescope",
+                    telescope_type=telescope_type,
+                    organisation=organisation,
+                    modified=dt,
+                    created=dt,
+                )
+                env.api_session.add(telescope)
+            env.api_session.commit()
+
+            # Check that all DAGs load
+            for org_name in org_names:
+                dag_id = make_dag_id("onix_workflow", org_name)
+                self.assert_dag_load(dag_id, dag_file)
 
     def setup_fake_onix_data_table(self, dataset_id: str, release_date: Pendulum):
         """Create a new onix data table with its own dataset id and table id, and populate it with some fake data."""
@@ -1944,14 +1904,10 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 transform_path = os.path.join(telescope.dag_id, release_suffix, "onix_workid_isbn.jsonl.gz")
                 self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
 
-                transform_path = os.path.join(
-                    telescope.dag_id, release_suffix, "onix_workfamilyid_isbn.jsonl.gz"
-                )
+                transform_path = os.path.join(telescope.dag_id, release_suffix, "onix_workfamilyid_isbn.jsonl.gz")
                 self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
 
-                transform_path = os.path.join(
-                    telescope.dag_id, release_suffix, "onix_workid_isbn_errors.jsonl.gz"
-                )
+                transform_path = os.path.join(telescope.dag_id, release_suffix, "onix_workid_isbn_errors.jsonl.gz")
                 self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
 
                 table_id = f"{self.gcp_project_id}.{onix_workflow_dataset_id}.onix_workid_isbn{release_suffix}"

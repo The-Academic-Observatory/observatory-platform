@@ -329,13 +329,17 @@ class OnixWorkflow(Telescope):
         release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
 
         # Get ONIX release date
-        onix_release_date = select_table_shard_dates(
+        onix_release_dates = select_table_shard_dates(
             project_id=self.gcp_project_id,
             dataset_id=self.onix_dataset_id,
             table_id=self.onix_table_id,
             end_date=release_date,
-        )[0]
+        )
 
+        if not len(onix_release_dates):
+            raise AirflowException("OnixWorkflow.make_release: no ONIX releases found")
+
+        onix_release_date = onix_release_dates[0]
         return OnixWorkflowRelease(
             dag_id=self.dag_id,
             release_date=release_date,
