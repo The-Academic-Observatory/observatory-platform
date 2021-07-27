@@ -19,12 +19,13 @@ import json
 import logging
 import os
 import time
+from datetime import datetime
 from typing import List, Optional, Tuple, Dict
 from urllib.parse import quote
 
 import pendulum
 import requests
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.base_hook import BaseHook
 from google.auth import environment_vars
 from google.auth.transport.requests import AuthorizedSession
@@ -38,14 +39,13 @@ from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, 
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.file_utils import _hash_file
-from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.gc_utils import (
     copy_blob_from_cloud_storage,
     create_cloud_storage_bucket,
     download_blob_from_cloud_storage,
     upload_file_to_cloud_storage,
 )
-from observatory.platform.utils.telescope_utils import make_dag_id, make_org_id, add_partition_date
+from observatory.platform.utils.telescope_utils import make_dag_id, make_org_id, add_partition_date, list_to_jsonl_gz
 from observatory.platform.utils.template_utils import (
     SubFolder,
     blob_name,
@@ -57,7 +57,7 @@ from observatory.platform.utils.template_utils import (
 
 class OapenIrusUkRelease(SnapshotRelease):
     def __init__(self, dag_id: str, release_date: pendulum.Pendulum, organisation: Organisation):
-        """ Create a OapenIrusUkReleaes instance.
+        """Create a OapenIrusUkRelease instance.
 
         :param dag_id: the DAG id.
         :param release_date: the date of the release.
@@ -71,7 +71,7 @@ class OapenIrusUkRelease(SnapshotRelease):
 
     @property
     def blob_name(self) -> str:
-        """ Blob name for the access stats data, includes telescope dir
+        """Blob name for the access stats data, includes telescope dir
 
         :return: Blob name
         """
@@ -81,21 +81,21 @@ class OapenIrusUkRelease(SnapshotRelease):
 
     @property
     def download_bucket(self):
-        """ The download bucket name.
+        """The download bucket name.
         :return: the download bucket name.
         """
         return self.organisation.gcp_download_bucket
 
     @property
     def transform_bucket(self):
-        """ The transform bucket name.
+        """The transform bucket name.
         :return: the transform bucket name.
         """
         return self.organisation.gcp_transform_bucket
 
     @property
     def download_path(self) -> str:
-        """ Creates path to store the downloaded oapen irus uk data
+        """Creates path to store the downloaded oapen irus uk data
 
         :return: Full path to the download file
         """
@@ -103,14 +103,14 @@ class OapenIrusUkRelease(SnapshotRelease):
 
     @property
     def transform_path(self) -> str:
-        """ Creates path to store the transformed oapen irus uk data
+        """Creates path to store the transformed oapen irus uk data
 
         :return: Full path to the transform file
         """
         return os.path.join(self.transform_folder, f"{OapenIrusUkTelescope.DAG_ID_PREFIX}.jsonl.gz")
 
     def create_cloud_function(self, max_instances: int):
-        """ Create/update the google cloud function that is inside the oapen project id if the source code has changed.
+        """Create/update the google cloud function that is inside the oapen project id if the source code has changed.
 
         :param max_instances: The limit on the maximum number of function instances that may coexist at a given time.
         :return: None.
@@ -152,7 +152,7 @@ class OapenIrusUkRelease(SnapshotRelease):
             logging.info(f"Using existing cloud function, source code has not changed.")
 
     def call_cloud_function(self, publisher_id: str):
-        """ Call the google cloud function that is inside the oapen project id
+        """Call the google cloud function that is inside the oapen project id
 
         :param publisher_id: The publisher ID used with the OAPEN API.
         :return: None.
@@ -165,16 +165,22 @@ class OapenIrusUkRelease(SnapshotRelease):
         function_url = f"https://{function_region}-{oapen_project_id}.cloudfunctions.net/{function_name}"
         geoip_license_key = BaseHook.get_connection(AirflowConns.GEOIP_LICENSE_KEY).password
 
-        if self.release_date >= pendulum.Pendulum(2020, 4, 1):
-            publisher_uuid = get_publisher_uuid(publisher_id)
+        # get the publisher_uuid or publisher_id, both are set to empty strings when publisher id is 'oapen'
+        if self.release_date >= datetime(2020, 4, 1):
+            if publisher_id == "oapen":
+                publisher_uuid = ""
+            else:
+                publisher_uuid = get_publisher_uuid(publisher_id)
             airflow_conn = AirflowConns.OAPEN_IRUS_UK_API
         else:
             publisher_uuid = "NA"
             airflow_conn = AirflowConns.OAPEN_IRUS_UK_LOGIN
+            if publisher_id == "oapen":
+                publisher_id = ""
         username = BaseHook.get_connection(airflow_conn).login
         password = BaseHook.get_connection(airflow_conn).password
 
-        success = call_cloud_function(
+        call_cloud_function(
             function_url,
             self.release_date.strftime("%Y-%m"),
             username,
@@ -185,11 +191,9 @@ class OapenIrusUkRelease(SnapshotRelease):
             source_bucket,
             self.blob_name,
         )
-        if not success:
-            raise AirflowException("Cloud function unsuccessful")
 
     def transfer(self):
-        """ Transfer blob from bucket inside oapen project to bucket in airflow project.
+        """Transfer blob from bucket inside oapen project to bucket in airflow project.
 
         :return: None.
         """
@@ -198,7 +202,7 @@ class OapenIrusUkRelease(SnapshotRelease):
             raise AirflowException("Transfer blob unsuccessful")
 
     def download_transform(self):
-        """ Download blob with access stats to a local file.
+        """Download blob with access stats to a local file.
 
         :return: None.
         """
@@ -226,10 +230,10 @@ class OapenIrusUkTelescope(SnapshotTelescope):
     FUNCTION_REGION = "europe-west1"  # Region of the google cloud function
     FUNCTION_SOURCE_URL = (
         "https://github.com/The-Academic-Observatory/oapen-irus-uk-cloud-function/releases/"
-        "download/v1.1.2/oapen-irus-uk-cloud-function.zip"
+        "download/v1.1.4/oapen-irus-uk-cloud-function.zip"
     )  # URL to the zipped source code of the
     # cloud function
-    FUNCTION_MD5_HASH = "615da32a99eadfa9616150dee0af3690"  # MD5 hash of the zipped source code
+    FUNCTION_MD5_HASH = "46b07fbc9e70756b3cc80cb9ab38934c"  # MD5 hash of the zipped source code
     FUNCTION_BLOB_NAME = "cloud_function_source_code.zip"  # blob name of zipped source code
     OAPEN_API_URL = "https://library.oapen.org/rest/search?query=publisher.name:{publisher_name}&expand=metadata"
 
@@ -250,7 +254,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         max_cloud_function_instances: int = 0,
     ):
 
-        """ The OAPEN irus uk telescope.
+        """The OAPEN irus uk telescope.
         :param organisation: the Organisation the DAG will process.
         :param publisher_id: the publisher ID, obtained from the 'extra' info from the API regarding the telescope.
         :param dag_id: the id of the DAG.
@@ -321,7 +325,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         self.add_task(self.cleanup)
 
     def make_release(self, **kwargs) -> List[OapenIrusUkRelease]:
-        """ Create a list of OapenIrusUkRelease instances for a given month.
+        """Create a list of OapenIrusUkRelease instances for a given month.
 
         :return: list of OapenIrusUkRelease instances
         """
@@ -333,7 +337,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         return releases
 
     def check_dependencies(self, **kwargs) -> bool:
-        """ Check dependencies of DAG. Add to parent method to additionally check for a view id
+        """Check dependencies of DAG. Add to parent method to additionally check for a view id
         :return: True if dependencies are valid.
         """
         super().check_dependencies()
@@ -344,7 +348,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         return True
 
     def create_cloud_function(self, releases: List[OapenIrusUkRelease], **kwargs):
-        """ Task to create the cloud function for each release.
+        """Task to create the cloud function for each release.
 
         :param releases: list of OapenIrusUkRelease instances
         :return: None.
@@ -353,7 +357,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
             release.create_cloud_function(self.max_cloud_function_instances)
 
     def call_cloud_function(self, releases: List[OapenIrusUkRelease], **kwargs):
-        """ Task to call the cloud function for each release.
+        """Task to call the cloud function for each release.
 
         :param releases: list of OapenIrusUkRelease instances
         :return: None.
@@ -362,7 +366,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
             release.call_cloud_function(self.publisher_id)
 
     def transfer(self, releases: List[OapenIrusUkRelease], **kwargs):
-        """ Task to transfer the file for each release.
+        """Task to transfer the file for each release.
 
         :param releases: the list of OapenIrusUkRelease instances.
         :return: None.
@@ -371,7 +375,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
             release.transfer()
 
     def download_transform(self, releases: List[OapenIrusUkRelease], **kwargs):
-        """ Task to download the access stats to a local file for each release.
+        """Task to download the access stats to a local file for each release.
 
         :param releases: the list of OapenIrusUkRelease instances.
         :return: None.
@@ -380,7 +384,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
             release.download_transform()
 
     def bq_load_partition(self, releases: List[OapenIrusUkRelease], **kwargs):
-        """ Task to load each transformed release to BigQuery.
+        """Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
         :param releases: a list of releases.
         :return: None.
@@ -412,7 +416,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
 
 
 def get_publisher_uuid(publisher_name: str) -> str:
-    """ Get the publisher UUID from the OAPEN API using the publisher name.
+    """Get the publisher UUID from the OAPEN API using the publisher name.
 
     :param publisher_name: The name of the publisher
     :return: The publisher UUID
@@ -434,7 +438,7 @@ def get_publisher_uuid(publisher_name: str) -> str:
 def upload_source_code_to_bucket(
     source_url: str, project_id: str, bucket_name: str, blob_name: str
 ) -> Tuple[bool, bool]:
-    """ Upload source code of cloud function to storage bucket
+    """Upload source code of cloud function to storage bucket
 
     :param source_url: The url to the zip file with source code
     :param project_id: The project id with the bucket
@@ -463,7 +467,7 @@ def upload_source_code_to_bucket(
 
 
 def cloud_function_exists(service: Resource, location: str, full_name: str) -> bool:
-    """ Check if cloud function with a given name already exists
+    """Check if cloud function with a given name already exists
 
     :param service: Cloud function service
     :param location: Location of the cloud function
@@ -487,7 +491,7 @@ def create_cloud_function(
     max_active_runs: int,
     update: bool,
 ) -> Tuple[bool, dict]:
-    """ Create cloud function.
+    """Create cloud function.
 
     :param service: Cloud function service
     :param location: Location of the cloud function
@@ -549,8 +553,12 @@ def call_cloud_function(
     publisher_uuid: str,
     bucket_name: str,
     blob_name: str,
-) -> bool:
-    """ Call cloud function
+):
+    """Iteratively call cloud function, until it has finished processing all publishers.
+    When a publisher name/uuid  is given, there is only 1 publisher, if it is empty the cloud function will process
+    all available publishers. In that case, when the data is downloaded from the new platform it can be done in 1
+    iteration, however for the old platform two files have to be downloaded separately for each publisher,
+    this might take longer than the timeout time of the cloud function, so the process is split up in multiple calls.
 
     :param function_url: Url of the cloud function
     :param release_date: The release date in YYYY-MM
@@ -561,7 +569,7 @@ def call_cloud_function(
     :param publisher_uuid: UUID of the publisher (used for new version, 'NA' for old version)
     :param bucket_name: Name of the bucket to store oapen access stats data
     :param blob_name: Blob name to store oapen access stats data
-    :return: Whether response code is 200
+    :return: None
     """
     creds = IDTokenCredentials.from_service_account_file(
         os.environ.get(environment_vars.CREDENTIALS), target_audience=function_url
@@ -577,8 +585,25 @@ def call_cloud_function(
         "bucket_name": bucket_name,
         "blob_name": blob_name,
     }
-    response = authed_session.post(
-        function_url, data=json.dumps(data), headers={"Content-Type": "application/json"}, timeout=550
-    )
-    logging.info(f"Call cloud function response status code: {response.status_code}, reason: {response.reason}")
-    return response.status_code == 200
+    finished = False
+    while not finished:
+        response = authed_session.post(
+            function_url, data=json.dumps(data), headers={"Content-Type": "application/json"}, timeout=550
+        )
+        logging.info(f"Call cloud function response status code: {response.status_code}, reason: {response.reason}")
+        if response.status_code != 200:
+            raise AirflowException("Cloud function unsuccessful")
+
+        response_json = response.json()
+        if response_json["unprocessed_publishers"]:
+            data["unprocessed_publishers"] = response_json["unprocessed_publishers"]
+            remaining_publishers = len(response_json["unprocessed_publishers"])
+        else:
+            finished = True
+            remaining_publishers = 0
+
+        entries = response_json["entries"]
+        if entries == 0:
+            raise AirflowSkipException("No access stats entries for publisher(s) in month.")
+
+        logging.info(f"Processed {entries} entries in total. {remaining_publishers} publishers " f"left to process")
