@@ -384,6 +384,7 @@ class OnixWorkflow(Telescope):
 
         # Aggregate work families
         agg = BookWorkFamilyAggregator(works)
+        works_families = agg.aggregate()
         lookup_table = agg.get_works_family_lookup_table()
         list_to_jsonl_gz(release.worksfamilylookup_filename, lookup_table)
 
@@ -610,7 +611,8 @@ class OnixWorkflow(Telescope):
             project_id=release.project_id,
             onix_dataset_id=release.onix_dataset_id,
             dataset_id=release.oaebu_intermediate_dataset,
-            release=release_date,
+            onix_release_date=release.onix_release_date,
+            release_date=release_date,
             google_analytics=include_google_analytics,
             google_books=include_google_books,
             jstor=include_jstor,

@@ -22,11 +22,10 @@ from unittest.mock import MagicMock, Mock, patch
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
+from pendulum import Pendulum
 
 import observatory.api.server.orm as orm
 from observatory.api.client.identifiers import TelescopeTypes
@@ -35,12 +34,11 @@ from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPar
 from observatory.dags.workflows.onix_workflow import OnixWorkflow, OnixWorkflowRelease
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import (
-    delete_bigquery_dataset,
     delete_bucket_dir,
     run_bigquery_query,
     upload_files_to_cloud_storage,
 )
-from observatory.platform.utils.telescope_utils import make_observatory_api
+from observatory.platform.utils.telescope_utils import make_dag_id
 from observatory.platform.utils.template_utils import (
     bq_load_partition,
     bq_load_shard_v2,
@@ -52,6 +50,7 @@ from observatory.platform.utils.test_utils import (
     module_file_path,
     random_id,
     test_fixtures_path,
+    make_dummy_dag,
 )
 
 
@@ -1576,14 +1575,6 @@ class TestOnixWorkflow(ObservatoryTestCase):
 class TestOnixWorkflowFunctional(ObservatoryTestCase):
     """ Functionally test the workflow.  No Google Analytics."""
 
-    class DummySensor(BaseSensorOperator):
-        @apply_defaults
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-
-        def poke(self, context):
-            return True
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -1595,64 +1586,13 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
         self.onix_table_id = "onix"
         self.test_onix_folder = random_id()  # "onix_workflow_test_onix_table"
-        self.onix_release_date = pendulum.Pendulum(2021, 1, 1)
-
-        # 2020-01-01
-        self.onix_dataset_id = ""
-        self.fake_partner_dataset = ""
-
-    def setup_observatory_env(self, env):
-        # Add Observatory API connection
-        conn = Connection(conn_id=AirflowConns.OBSERVATORY_API, uri=f"http://:password@{self.host}:{self.api_port}")
-        env.add_connection(conn)
-
-        # Add an ONIX telescope
-        dt = pendulum.utcnow()
-        telescope_type = orm.TelescopeType(name="ONIX Telescope", type_id=TelescopeTypes.onix, created=dt, modified=dt)
-        env.api_session.add(telescope_type)
-        organisation = orm.Organisation(
-            name="Curtin Press",
-            created=dt,
-            modified=dt,
-            gcp_transform_bucket=env.transform_bucket,
-            gcp_project_id=self.gcp_project_id,
-        )
-        env.api_session.add(organisation)
-        telescope = orm.Telescope(
-            name="Curtin Press ONIX Telescope",
-            telescope_type=telescope_type,
-            organisation=organisation,
-            modified=dt,
-            created=dt,
-        )
-        env.api_session.add(telescope)
-
-        # Add an ONIX workflow
-        telescope_type = orm.TelescopeType(
-            name="ONIX Telescope Workflow", type_id=TelescopeTypes.onix_workflow, created=dt, modified=dt
-        )
-        env.api_session.add(telescope_type)
-        organisation = orm.Organisation(name="Curtin Press", created=dt, modified=dt)
-        env.api_session.add(organisation)
-        telescope = orm.Telescope(
-            name="Curtin Press ONIX Workflow",
-            telescope_type=telescope_type,
-            organisation=organisation,
-            modified=dt,
-            created=dt,
-        )
-        env.api_session.add(telescope)
-        env.api_session.commit()
-
-        # Add a dataset for onix telescope
-        self.onix_dataset_id = env.add_dataset()
 
     def delete_bucket_blobs(self):
         """ Delete test blob files"""
 
         delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix="onix_workflow")
 
-    def setup_fake_onix_data_table(self):
+    def setup_fake_onix_data_table(self, dataset_id: str, release_date: Pendulum):
         """Create a new onix data table with its own dataset id and table id, and populate it with some fake data."""
 
         # Upload fixture to bucket
@@ -1666,648 +1606,27 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             project_id=self.gcp_project_id,
             transform_bucket=self.gcp_bucket_name,
             transform_blob=blobs[0],
-            dataset_id=self.onix_dataset_id,
+            dataset_id=dataset_id,
             dataset_location=self.data_location,
             table_id=table_id,
-            release_date=self.onix_release_date,
+            release_date=release_date,
             source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
             dataset_description="Test Onix data for the workflow",
             **{},
         )
 
-    def setup_fake_partner_data(self, env):
+    def setup_fake_partner_data(self, env, release_date: Pendulum):
         self.fake_partner_dataset = env.add_dataset()
 
         # Upload fixture to bucket
+        path = test_fixtures_path("telescopes", "onix_workflow")
         files = [
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_country.json"),
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_institution.json"),
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_sales.json"),
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_traffic.json"),
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "oapen_irus_uk.json"),
-        ]
-        blobs = [os.path.join(self.test_onix_folder, os.path.basename(file)) for file in files]
-        upload_files_to_cloud_storage(bucket_name=self.gcp_bucket_name, blob_names=blobs, file_paths=files)
-
-        # Load into bigquery
-        table_ids = []
-        for file_name, blob in zip(files, blobs):
-            table_id, _ = table_ids_from_path(file_name)
-            bq_load_partition(
-                project_id=self.gcp_project_id,
-                transform_bucket=self.gcp_bucket_name,
-                transform_blob=blob,
-                dataset_id=self.fake_partner_dataset,
-                dataset_location=self.data_location,
-                table_id=table_id,
-                release_date=self.onix_release_date,
-                source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-                partition_type=bigquery.table.TimePartitioningType.MONTH,
-                dataset_description="Test Onix data for the workflow",
-                partition_field="release_date",
-                **{},
-            )
-            table_ids.append(table_id)
-
-        # Make partners
-        partners = []
-        for (name, isbn_field_name), table_id in zip(
-            [
-                (OaebuPartnerName.jstor_country, "ISBN"),
-                (OaebuPartnerName.jstor_institution, "ISBN"),
-                (OaebuPartnerName.google_books_sales, "Primary_ISBN"),
-                (OaebuPartnerName.google_books_traffic, "Primary_ISBN"),
-                (OaebuPartnerName.oapen_irus_uk, "ISBN"),
-            ],
-            table_ids,
-        ):
-            partners.append(
-                OaebuPartners(
-                    name=name,
-                    gcp_project_id=self.gcp_project_id,
-                    gcp_dataset_id=self.fake_partner_dataset,
-                    gcp_table_id=table_id,
-                    isbn_field_name=isbn_field_name,
-                    sharded=False,
-                )
-            )
-
-        return partners
-
-    def test_sensors(self):
-        # Setup Observatory environment
-        env = ObservatoryEnvironment(self.gcp_project_id, self.data_location)
-        with env.create():
-            # Set up environment
-            self.gcp_bucket_name = env.transform_bucket
-            self.setup_observatory_env(env)
-            data_partners = self.setup_fake_partner_data(env)
-
-            # Create fake data table. There's no guarantee the data was deleted so clean it again just in case.
-            self.setup_fake_onix_data_table()
-
-            # Pull info from Observatory API
-            api = make_observatory_api()
-            telescope_type = api.get_telescope_type(type_id=TelescopeTypes.onix)
-            telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
-
-            # Get the parameters
-            self.assertEqual(len(telescopes), 1)
-            org_name = telescopes[0].organisation.name
-            gcp_bucket_name = telescopes[0].organisation.gcp_transform_bucket
-            gcp_project_id = telescopes[0].organisation.gcp_project_id
-
-            # Setup telescope
-            telescope = OnixWorkflow(
-                org_name=org_name,
-                gcp_project_id=gcp_project_id,
-                gcp_bucket_name=gcp_bucket_name,
-                onix_dataset_id=self.onix_dataset_id,
-                onix_table_id=self.onix_table_id,
-                data_partners=data_partners,
-            )
-
-            telescope.make_release = MagicMock(
-                return_value=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_curtin_press",
-                        release_date=self.onix_release_date,
-                        gcp_project_id=self.gcp_project_id,
-                        gcp_bucket_name=self.gcp_bucket_name,
-                        onix_dataset_id=self.onix_dataset_id,
-                        onix_table_id=self.onix_table_id,
-                        oaebu_data_qa_dataset=env.add_dataset(),
-                    )
-                ]
-            )
-            workflow_dag = telescope.make_dag()
-
-            expected_state = "up_for_reschedule"
-            with env.create_dag_run(workflow_dag, self.timestamp):
-                ti = env.run_task("onix_curtin_press_sensor", workflow_dag, self.timestamp)
-                self.assertEqual(expected_state, ti.state)
-
-    def test_telescope(self):
-        """ Functional test of the ONIX workflow"""
-
-        # Setup Observatory environment
-        env = ObservatoryEnvironment(self.gcp_project_id, self.data_location)
-
-        # Create the Observatory environment and run tests
-        with env.create():
-            self.gcp_bucket_name = env.transform_bucket
-
-            # Set up environment
-            self.setup_observatory_env(env)
-            data_partners = self.setup_fake_partner_data(env)
-
-            # Create fake data table. There's no guarantee the data was deleted so clean it again just in case.
-            self.setup_fake_onix_data_table()
-
-            # Pull info from Observatory API
-            api = make_observatory_api()
-            telescope_type = api.get_telescope_type(type_id=TelescopeTypes.onix)
-            telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
-
-            # Get the parameters
-            self.assertEqual(len(telescopes), 1)
-            org_name = telescopes[0].organisation.name
-            gcp_bucket_name = telescopes[0].organisation.gcp_transform_bucket
-            gcp_project_id = telescopes[0].organisation.gcp_project_id
-
-            # Setup telescope
-            telescope = OnixWorkflow(
-                org_name=org_name,
-                gcp_project_id=gcp_project_id,
-                gcp_bucket_name=gcp_bucket_name,
-                onix_dataset_id=self.onix_dataset_id,
-                onix_table_id=self.onix_table_id,
-                data_partners=data_partners,
-            )
-
-            oaebu_data_qa_dataset = env.add_dataset()
-            onix_workflow_dataset = env.add_dataset()
-            oaebu_intermediate_dataset = env.add_dataset()
-            oaebu_output_dataset = env.add_dataset()
-            oaebu_elastic_dataset = env.add_dataset()
-
-            telescope.make_release = MagicMock(
-                return_value=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_curtin_press",
-                        release_date=self.onix_release_date,
-                        gcp_project_id=self.gcp_project_id,
-                        gcp_bucket_name=self.gcp_bucket_name,
-                        onix_dataset_id=self.onix_dataset_id,
-                        onix_table_id=self.onix_table_id,
-                        oaebu_data_qa_dataset=oaebu_data_qa_dataset,
-                        workflow_dataset=onix_workflow_dataset,
-                        oaebu_intermediate_dataset=oaebu_intermediate_dataset,
-                        oaebu_dataset=oaebu_output_dataset,
-                        oaebu_elastic_dataset=oaebu_elastic_dataset,
-                    )
-                ]
-            )
-
-            # Override sensor for testing
-            telescope_sensor = TestOnixWorkflowFunctional.DummySensor(task_id="dummy_sensor", start_date=self.timestamp)
-            telescope.sensors = [telescope_sensor]
-            workflow_dag = telescope.make_dag()
-
-            # Trigger sensor
-            env.run_task(telescope_sensor.task_id, workflow_dag, self.timestamp)
-
-            # Continue workflow
-            env.run_task(telescope.continue_workflow.__name__, workflow_dag, self.timestamp)
-
-            # Aggregate works
-            env.run_task(telescope.aggregate_works.__name__, workflow_dag, self.timestamp)
-
-            # Upload aggregation tables
-            env.run_task(telescope.upload_aggregation_tables.__name__, workflow_dag, self.timestamp)
-
-            # Load work id table into bigquery
-            env.run_task(telescope.bq_load_workid_lookup.__name__, workflow_dag, self.timestamp)
-
-            # Load work id errors table into bigquery
-            env.run_task(telescope.bq_load_workid_lookup_errors.__name__, workflow_dag, self.timestamp)
-
-            # Load work family id table into bigquery
-            env.run_task(telescope.bq_load_workfamilyid_lookup.__name__, workflow_dag, self.timestamp)
-
-            # Create oaebu intermediate tables
-            for data_partner in data_partners:
-                oaebu_dataset = data_partner.gcp_dataset_id
-                oaebu_table = data_partner.gcp_table_id
-
-                env.run_task(
-                    f"{telescope.create_oaebu_intermediate_table.__name__}.{oaebu_dataset}.{oaebu_table}",
-                    workflow_dag,
-                    self.timestamp,
-                )
-
-            # Create oaebu output tables
-            env.run_task(
-                telescope.create_oaebu_book_product_table.__name__, workflow_dag, self.timestamp,
-            )
-
-            # ONIX isbn check
-            env.run_task(
-                telescope.create_oaebu_data_qa_onix_isbn.__name__, workflow_dag, self.timestamp,
-            )
-
-            # ONIX aggregate metrics
-            env.run_task(
-                telescope.create_oaebu_data_qa_onix_aggregate.__name__, workflow_dag, self.timestamp,
-            )
-
-            # JSTOR country isbn check
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_jstor_isbn.__name__}.{data_partners[0].gcp_dataset_id}.{data_partners[0].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # JSTOR country intermediate unmatched isbns
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[0].gcp_dataset_id}.{data_partners[0].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # JSTOR institution isbn check
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_jstor_isbn.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # JSTOR institution intermediate unmatched isbns
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # Google Books Sales isbn check
-            env.run_task(
-                telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__, workflow_dag, self.timestamp,
-            )
-
-            # Google Books Sales intermediate unmatched isbns
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[2].gcp_dataset_id}.{data_partners[2].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # Google Books Traffic isbn check
-            env.run_task(
-                telescope.create_oaebu_data_qa_google_books_traffic_isbn.__name__, workflow_dag, self.timestamp,
-            )
-
-            # Google Books Traffic intermediate unmatched isbns
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[3].gcp_dataset_id}.{data_partners[3].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # OAPEN IRUS UK isbn check
-            env.run_task(
-                telescope.create_oaebu_data_qa_oapen_irus_uk_isbn.__name__, workflow_dag, self.timestamp,
-            )
-
-            # OAPEN IRUS UK intermediate unmatched isbns
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[4].gcp_dataset_id}.{data_partners[4].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # Export oaebu elastic tables
-            export_tables = [
-                "book_product_list",
-                "book_product_metrics",
-                "book_product_metrics_country",
-                "book_product_metrics_institution",
-                "book_product_metrics_city",
-                "book_product_metrics_referrer",
-                "book_product_metrics_events",
-                "book_product_publisher_metrics",
-                "book_product_subject_metrics",
-                "book_product_year_metrics",
-                "book_product_subject_year_metrics",
-                "book_product_author_metrics",
-            ]
-
-            for table in export_tables:
-                env.run_task(
-                    f"{telescope.export_oaebu_table.__name__}.{table}", workflow_dag, self.timestamp,
-                )
-
-            # Export oaebu elastic qa table
-            env.run_task(
-                telescope.export_oaebu_qa_metrics.__name__, workflow_dag, self.timestamp,
-            )
-
-            # Test conditions
-            release_suffix = self.onix_release_date.strftime("%Y%m%d")
-
-            transform_path = os.path.join("onix_workflow_curtin_press", release_suffix, "onix_workid_isbn.jsonl.gz")
-            self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
-
-            transform_path = os.path.join(
-                "onix_workflow_curtin_press", release_suffix, "onix_workfamilyid_isbn.jsonl.gz"
-            )
-            self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
-
-            transform_path = os.path.join(
-                "onix_workflow_curtin_press", release_suffix, "onix_workid_isbn_errors.jsonl.gz"
-            )
-            self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
-
-            table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn{release_suffix}"
-            self.assert_table_integrity(table_id, 3)
-
-            table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workfamilyid_isbn{release_suffix}"
-            self.assert_table_integrity(table_id, 3)
-
-            table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn_errors{release_suffix}"
-            self.assert_table_integrity(table_id, 1)
-
-            table_id = f"{self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
-            self.assert_table_integrity(table_id, 2)
-
-            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
-            self.assert_table_integrity(table_id, 2)
-
-            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_product_publisher_metrics{release_suffix}"
-            self.assert_table_integrity(table_id, 1)
-
-            # Validate the joins worked
-            # JSTOR
-            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.{oaebu_intermediate_dataset}.{self.fake_partner_dataset}_jstor_country_matched{release_suffix}"
-            records = run_bigquery_query(sql)
-            oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
-            oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
-
-            self.assertTrue(
-                oaebu_works["111"] == oaebu_works["112"]
-                and oaebu_works["111"] != oaebu_works["211"]
-                and oaebu_works["113"] is None
-            )
-
-            self.assertTrue(
-                oaebu_wfam["111"] == oaebu_wfam["112"]
-                and oaebu_wfam["112"] == oaebu_wfam["211"]
-                and oaebu_wfam["113"] is None
-            )
-
-            # OAPEN IRUS UK
-            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.{oaebu_intermediate_dataset}.{self.fake_partner_dataset}_oapen_irus_uk_matched{release_suffix}"
-            records = run_bigquery_query(sql)
-            oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
-            oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
-
-            self.assertTrue(
-                oaebu_works["111"] == oaebu_works["112"]
-                and oaebu_works["111"] != oaebu_works["211"]
-                and oaebu_works["113"] is None
-            )
-
-            self.assertTrue(
-                oaebu_wfam["111"] == oaebu_wfam["112"]
-                and oaebu_wfam["112"] == oaebu_wfam["211"]
-                and oaebu_wfam["113"] is None
-            )
-
-            # Check invalid ISBN13s picked up in ONIX
-            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_data_qa_dataset}.onix_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN13"] for record in records])
-            self.assertEqual(len(isbns), 3)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("112" in isbns)
-            self.assertTrue("111" in isbns)
-
-            # Check ONIX aggregate metrics are correct
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.onix_aggregate_metrics{release_suffix}"
-            records = run_bigquery_query(sql)
-            self.assertEqual(len(records), 1)
-            self.assertEqual(records[0]["table_size"], 3)
-            self.assertEqual(records[0]["no_isbns"], 0)
-            self.assertEqual(records[0]["no_relatedworks"], 0)
-            self.assertEqual(records[0]["no_relatedproducts"], 2)
-            self.assertEqual(records[0]["no_doi"], 3)
-            self.assertEqual(records[0]["no_productform"], 1)
-            self.assertEqual(records[0]["no_contributors"], 3)
-            self.assertEqual(records[0]["no_titledetails"], 3)
-            self.assertEqual(records[0]["no_publisher_urls"], 3)
-
-            # Check JSTOR ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.jstor_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN"] for record in records])
-            self.assertEqual(len(isbns), 4)
-            self.assertTrue("111" in isbns)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("113" in isbns)
-            self.assertTrue("112" in isbns)
-
-            # Check JSTOR eISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.jstor_invalid_eisbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["eISBN"] for record in records])
-            self.assertEqual(len(isbns), 4)
-            self.assertTrue("111" in isbns)
-            self.assertTrue("113" in isbns)
-            self.assertTrue("112" in isbns)
-            self.assertTrue(None in isbns)
-
-            # Check JSTOR unmatched ISBN picked up
-            sql = f"SELECT ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.jstor_country_unmatched_ISBN{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("9781111111113" in isbns)
-            self.assertTrue("113" in isbns)
-
-            # Check OAPEN IRUS UK ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.oapen_irus_uk_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN"] for record in records])
-            self.assertEqual(len(isbns), 4)
-            self.assertTrue("111" in isbns)
-            self.assertTrue("113" in isbns)
-            self.assertTrue("112" in isbns)
-            self.assertTrue("211" in isbns)
-
-            # Check OAPEN IRUS UK unmatched ISBN picked up
-            sql = f"SELECT ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.oapen_irus_uk_unmatched_ISBN{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("9781111111113" in isbns)
-            self.assertTrue("113" in isbns)
-
-            # Check Google Books Sales ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_sales_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["Primary_ISBN"] for record in records])
-            self.assertEqual(len(isbns), 4)
-            self.assertTrue("111" in isbns)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("113" in isbns)
-            self.assertTrue("112" in isbns)
-
-            # Check Google Books Sales unmatched ISBN picked up
-            sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_sales_unmatched_Primary_ISBN{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["Primary_ISBN"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("9781111111113" in isbns)
-            self.assertTrue("113" in isbns)
-
-            # Check Google Books Traffic ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_traffic_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["Primary_ISBN"] for record in records])
-            self.assertEqual(len(isbns), 4)
-            self.assertTrue("111" in isbns)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("113" in isbns)
-            self.assertTrue("112" in isbns)
-
-            # Check Google Books Traffic unmatched ISBN picked up
-            sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_traffic_unmatched_Primary_ISBN{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["Primary_ISBN"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("9781111111113" in isbns)
-            self.assertTrue("113" in isbns)
-
-            # Check Book Product Table
-            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN13"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("112" in isbns)
-
-            # Check export tables
-            sql = f"SELECT product_id from {self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["product_id"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("112" in isbns)
-
-            # Cleanup
-            env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
-
-            # Environment cleanup
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_data_qa_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_intermediate_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="onix_workflow")
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_elastic_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_output_dataset)
-            delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix=self.test_onix_folder)
-
-
-class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
-    """ Functionally test the workflow.  With Google Analytics."""
-
-    class DummySensor(BaseSensorOperator):
-        @apply_defaults
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-
-        def poke(self, context):
-            return True
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.host = "localhost"
-        self.api_port = 5000
-        self.gcp_project_id = os.getenv("TEST_GCP_PROJECT_ID")
-        self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
-        self.timestamp = pendulum.now()
-
-        self.onix_table_id = "onix"
-        self.test_onix_folder = random_id()  # "onix_workflow_test_onix_table"
-        self.onix_release_date = pendulum.Pendulum(2021, 1, 1)
-
-        # 2020-01-01
-        self.onix_dataset_id = ""
-        self.fake_partner_dataset = ""
-
-    def setup_observatory_env(self, env):
-        # Add Observatory API connection
-        conn = Connection(conn_id=AirflowConns.OBSERVATORY_API, uri=f"http://:password@{self.host}:{self.api_port}")
-        env.add_connection(conn)
-
-        # Add an ONIX telescope
-        dt = pendulum.utcnow()
-        telescope_type = orm.TelescopeType(name="ONIX Telescope", type_id=TelescopeTypes.onix, created=dt, modified=dt)
-        env.api_session.add(telescope_type)
-        organisation = orm.Organisation(
-            name="ANU Press",
-            created=dt,
-            modified=dt,
-            gcp_transform_bucket=env.transform_bucket,
-            gcp_project_id=self.gcp_project_id,
-        )
-        env.api_session.add(organisation)
-        telescope = orm.Telescope(
-            name="ANU Press ONIX Telescope",
-            telescope_type=telescope_type,
-            organisation=organisation,
-            modified=dt,
-            created=dt,
-        )
-        env.api_session.add(telescope)
-
-        # Add an ONIX workflow
-        telescope_type = orm.TelescopeType(
-            name="ONIX Telescope Workflow", type_id=TelescopeTypes.onix_workflow, created=dt, modified=dt
-        )
-        env.api_session.add(telescope_type)
-        organisation = orm.Organisation(name="ANU Press", created=dt, modified=dt)
-        env.api_session.add(organisation)
-        telescope = orm.Telescope(
-            name="ANU Press ONIX Workflow",
-            telescope_type=telescope_type,
-            organisation=organisation,
-            modified=dt,
-            created=dt,
-        )
-        env.api_session.add(telescope)
-        env.api_session.commit()
-
-        # Add a dataset for onix telescope
-        self.onix_dataset_id = env.add_dataset()
-
-    def delete_bucket_blobs(self):
-        """ Delete test blob files"""
-
-        delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix="onix_workflow")
-
-    def setup_fake_onix_data_table(self):
-        """Create a new onix data table with its own dataset id and table id, and populate it with some fake data."""
-
-        # Upload fixture to bucket
-        files = [os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "onix.json")]
-        blobs = [os.path.join(self.test_onix_folder, os.path.basename(file)) for file in files]
-        upload_files_to_cloud_storage(bucket_name=self.gcp_bucket_name, blob_names=blobs, file_paths=files)
-
-        # Load into bigquery
-        table_id, _ = table_ids_from_path("onix.json")
-        bq_load_shard_v2(
-            project_id=self.gcp_project_id,
-            transform_bucket=self.gcp_bucket_name,
-            transform_blob=blobs[0],
-            dataset_id=self.onix_dataset_id,
-            dataset_location=self.data_location,
-            table_id=table_id,
-            release_date=self.onix_release_date,
-            source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
-            dataset_description="Test Onix data for the workflow",
-            **{},
-        )
-
-    def setup_fake_partner_data(self, env):
-        self.fake_partner_dataset = env.add_dataset()
-
-        # Upload fixture to bucket
-        files = [
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_country.json"),
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "jstor_institution.json"),
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_sales.json"),
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_books_traffic.json"),
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "oapen_irus_uk.json"),
-            os.path.join(test_fixtures_path("telescopes", "onix_workflow"), "google_analytics.json"),
+            os.path.join(path, "jstor_country.json"),
+            os.path.join(path, "jstor_institution.json"),
+            os.path.join(path, "google_books_sales.json"),
+            os.path.join(path, "google_books_traffic.json"),
+            os.path.join(path, "oapen_irus_uk.json"),
+            os.path.join(path, "google_analytics.json"),
         ]
         blobs = [os.path.join(self.test_onix_folder, os.path.basename(file)) for file in files]
         upload_files_to_cloud_storage(bucket_name=self.gcp_bucket_name, blob_names=blobs, file_paths=files)
@@ -2327,7 +1646,7 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
                 dataset_id=self.fake_partner_dataset,
                 dataset_location=self.data_location,
                 table_id=table_id,
-                release_date=self.onix_release_date,
+                release_date=release_date,
                 source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
                 partition_type=bigquery.table.TimePartitioningType.MONTH,
                 prefix=schema_prefix,
@@ -2339,20 +1658,21 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
 
         # Make partners
         partners = []
-        for (name, isbn_field_name), table_id in zip(
+        for (name, isbn_field_name, dag_id_prefix), table_id in zip(
             [
-                (OaebuPartnerName.jstor_country, "ISBN"),
-                (OaebuPartnerName.jstor_institution, "ISBN"),
-                (OaebuPartnerName.google_books_sales, "Primary_ISBN"),
-                (OaebuPartnerName.google_books_traffic, "Primary_ISBN"),
-                (OaebuPartnerName.oapen_irus_uk, "ISBN"),
-                (OaebuPartnerName.google_analytics, "publication_id"),
+                (OaebuPartnerName.jstor_country, "ISBN", "jstor"),
+                (OaebuPartnerName.jstor_institution, "ISBN", "jstor"),
+                (OaebuPartnerName.google_books_sales, "Primary_ISBN", "google_books"),
+                (OaebuPartnerName.google_books_traffic, "Primary_ISBN", "google_books"),
+                (OaebuPartnerName.oapen_irus_uk, "ISBN", "oapen_irus_uk"),
+                (OaebuPartnerName.google_analytics, "publication_id", "google_analytics"),
             ],
             table_ids,
         ):
             partners.append(
                 OaebuPartners(
                     name=name,
+                    dag_id_prefix=dag_id_prefix,
                     gcp_project_id=self.gcp_project_id,
                     gcp_dataset_id=self.fake_partner_dataset,
                     gcp_table_id=table_id,
@@ -2363,491 +1683,480 @@ class TestOnixWorkflowFunctionalWithGoogleAnalytics(ObservatoryTestCase):
 
         return partners
 
-    def test_sensors(self):
-        # Setup Observatory environment
-        env = ObservatoryEnvironment(self.gcp_project_id, self.data_location)
-        with env.create():
-            # Set up environment
-            self.gcp_bucket_name = env.transform_bucket
-            self.setup_observatory_env(env)
-            data_partners = self.setup_fake_partner_data(env)
-
-            # Create fake data table. There's no guarantee the data was deleted so clean it again just in case.
-            self.setup_fake_onix_data_table()
-
-            # Pull info from Observatory API
-            api = make_observatory_api()
-            telescope_type = api.get_telescope_type(type_id=TelescopeTypes.onix)
-            telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
-
-            # Get the parameters
-            self.assertEqual(len(telescopes), 1)
-            org_name = telescopes[0].organisation.name
-            gcp_bucket_name = telescopes[0].organisation.gcp_transform_bucket
-            gcp_project_id = telescopes[0].organisation.gcp_project_id
-
-            # Setup telescope
-            telescope = OnixWorkflow(
-                org_name=org_name,
-                gcp_project_id=gcp_project_id,
-                gcp_bucket_name=gcp_bucket_name,
-                onix_dataset_id=self.onix_dataset_id,
-                onix_table_id=self.onix_table_id,
-                data_partners=data_partners,
-            )
-
-            telescope.make_release = MagicMock(
-                return_value=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_anu_press",
-                        release_date=self.onix_release_date,
-                        gcp_project_id=self.gcp_project_id,
-                        gcp_bucket_name=self.gcp_bucket_name,
-                        onix_dataset_id=self.onix_dataset_id,
-                        onix_table_id=self.onix_table_id,
-                        oaebu_data_qa_dataset=env.add_dataset(),
-                    )
-                ]
-            )
-            workflow_dag = telescope.make_dag()
-
-            expected_state = "up_for_reschedule"
-            with env.create_dag_run(workflow_dag, self.timestamp):
-                ti = env.run_task("onix_anu_press_sensor", workflow_dag, self.timestamp)
-                self.assertEqual(expected_state, ti.state)
-
-    def test_telescope(self):
+    def run_telescope_tests(self, org_name: str, include_google_analytics: bool = False):
         """ Functional test of the ONIX workflow"""
 
         # Setup Observatory environment
-        env = ObservatoryEnvironment(self.gcp_project_id, self.data_location)
+        env = ObservatoryEnvironment(self.gcp_project_id, self.data_location, enable_api=False)
+
+        # Create datasets
+        partner_release_date = pendulum.Pendulum(2021, 1, 1)
+        onix_dataset_id = env.add_dataset(prefix="onix")
+        oaebu_data_qa_dataset_id = env.add_dataset(prefix="oaebu_data_qa")
+        onix_workflow_dataset_id = env.add_dataset(prefix="onix_workflow")
+        oaebu_intermediate_dataset_id = env.add_dataset(prefix="oaebu_intermediate")
+        oaebu_output_dataset_id = env.add_dataset(prefix="oaebu_output")
+        oaebu_elastic_dataset_id = env.add_dataset(prefix="oaebu_elastic")
 
         # Create the Observatory environment and run tests
-        with env.create():
+        with env.create(task_logging=True):
             self.gcp_bucket_name = env.transform_bucket
 
-            # Set up environment
-            self.setup_observatory_env(env)
-            data_partners = self.setup_fake_partner_data(env)
+            # Setup data partners, remove Google Analytics (the last partner) from these tests
+            data_partners = self.setup_fake_partner_data(env, partner_release_date)
+            if not include_google_analytics:
+                data_partners = data_partners[:-1]
 
             # Create fake data table. There's no guarantee the data was deleted so clean it again just in case.
-            self.setup_fake_onix_data_table()
+            self.setup_fake_onix_data_table(onix_dataset_id, partner_release_date)
 
             # Pull info from Observatory API
-            api = make_observatory_api()
-            telescope_type = api.get_telescope_type(type_id=TelescopeTypes.onix)
-            telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
+            gcp_bucket_name = (env.transform_bucket,)
+            gcp_project_id = (self.gcp_project_id,)
 
-            # Get the parameters
-            self.assertEqual(len(telescopes), 1)
-            org_name = telescopes[0].organisation.name
-            gcp_bucket_name = telescopes[0].organisation.gcp_transform_bucket
-            gcp_project_id = telescopes[0].organisation.gcp_project_id
+            # Expected sensor dag_ids
+            sensor_dag_ids = ["onix"] + list(set([partner.dag_id_prefix for partner in data_partners]))
+            sensor_dag_ids.sort()
 
             # Setup telescope
+            start_date = pendulum.datetime(year=2021, month=5, day=9)
             telescope = OnixWorkflow(
                 org_name=org_name,
                 gcp_project_id=gcp_project_id,
                 gcp_bucket_name=gcp_bucket_name,
-                onix_dataset_id=self.onix_dataset_id,
+                onix_dataset_id=onix_dataset_id,
                 onix_table_id=self.onix_table_id,
                 data_partners=data_partners,
+                start_date=start_date,
             )
 
-            oaebu_data_qa_dataset = env.add_dataset()
-            onix_workflow_dataset = env.add_dataset()
-            oaebu_intermediate_dataset = env.add_dataset()
-            oaebu_output_dataset = env.add_dataset()
-            oaebu_elastic_dataset = env.add_dataset()
-
-            telescope.make_release = MagicMock(
-                return_value=[
-                    OnixWorkflowRelease(
-                        dag_id="onix_workflow_anu_press",
-                        release_date=self.onix_release_date,
-                        gcp_project_id=self.gcp_project_id,
-                        gcp_bucket_name=self.gcp_bucket_name,
-                        onix_dataset_id=self.onix_dataset_id,
-                        onix_table_id=self.onix_table_id,
-                        oaebu_data_qa_dataset=oaebu_data_qa_dataset,
-                        workflow_dataset=onix_workflow_dataset,
-                        oaebu_intermediate_dataset=oaebu_intermediate_dataset,
-                        oaebu_dataset=oaebu_output_dataset,
-                        oaebu_elastic_dataset=oaebu_elastic_dataset,
-                    )
-                ]
-            )
-
-            # Override sensor for testing
-            telescope_sensor = TestOnixWorkflowFunctionalWithGoogleAnalytics.DummySensor(
-                task_id="dummy_sensor", start_date=self.timestamp
-            )
-            telescope.sensors = [telescope_sensor]
+            # Make DAG
             workflow_dag = telescope.make_dag()
 
-            # Trigger sensor
-            env.run_task(telescope_sensor.task_id, workflow_dag, self.timestamp)
+            # Test that sensors go into the 'up_for_reschedule' state as the DAGs that they wait for haven't run
+            expected_state = "up_for_reschedule"
+            with env.create_dag_run(workflow_dag, start_date):
+                for task_id in sensor_dag_ids:
+                    ti = env.run_task(
+                        f"{make_dag_id(task_id, org_name)}_sensor", workflow_dag, execution_date=start_date
+                    )
+                    self.assertEqual(expected_state, ti.state)
 
-            # Continue workflow
-            env.run_task(telescope.continue_workflow.__name__, workflow_dag, self.timestamp)
+            # Run Dummy Dags
+            expected_state = "success"
+            execution_date = pendulum.datetime(year=2021, month=5, day=16)
+            release_date = pendulum.datetime(year=2021, month=5, day=22)
+            for dag_id in sensor_dag_ids:
+                dag = make_dummy_dag(make_dag_id(dag_id, org_name), execution_date)
+                with env.create_dag_run(dag, execution_date):
+                    # Running all of a DAGs tasks sets the DAG to finished
+                    ti = env.run_task("dummy_task", dag, execution_date=execution_date)
+                    self.assertEqual(expected_state, ti.state)
 
-            # Aggregate works
-            env.run_task(telescope.aggregate_works.__name__, workflow_dag, self.timestamp)
+            # Run end to end tests for DOI DAG
+            with env.create_dag_run(workflow_dag, execution_date):
+                # Test that sensors go into 'success' state as the DAGs that they are waiting for have finished
+                for task_id in sensor_dag_ids:
+                    ti = env.run_task(
+                        f"{make_dag_id(task_id, org_name)}_sensor", workflow_dag, execution_date=execution_date
+                    )
+                    self.assertEqual(expected_state, ti.state)
 
-            # Upload aggregation tables
-            env.run_task(telescope.upload_aggregation_tables.__name__, workflow_dag, self.timestamp)
+                # Mock make_release
+                telescope.make_release = MagicMock(
+                    return_value=OnixWorkflowRelease(
+                        dag_id=make_dag_id(OnixWorkflow.DAG_ID_PREFIX, org_name),
+                        release_date=release_date,
+                        onix_release_date=partner_release_date,
+                        gcp_project_id=self.gcp_project_id,
+                        gcp_bucket_name=self.gcp_bucket_name,
+                        onix_dataset_id=onix_dataset_id,
+                        onix_table_id=self.onix_table_id,
+                        oaebu_data_qa_dataset=oaebu_data_qa_dataset_id,
+                        workflow_dataset=onix_workflow_dataset_id,
+                        oaebu_intermediate_dataset=oaebu_intermediate_dataset_id,
+                        oaebu_dataset=oaebu_output_dataset_id,
+                        oaebu_elastic_dataset=oaebu_elastic_dataset_id,
+                    )
+                )
 
-            # Load work id table into bigquery
-            env.run_task(telescope.bq_load_workid_lookup.__name__, workflow_dag, self.timestamp)
+                # Aggregate works
+                ti = env.run_task(telescope.aggregate_works.__name__, workflow_dag, execution_date)
+                self.assertEqual(expected_state, ti.state)
 
-            # Load work id errors table into bigquery
-            env.run_task(telescope.bq_load_workid_lookup_errors.__name__, workflow_dag, self.timestamp)
+                # Upload aggregation tables
+                ti = env.run_task(telescope.upload_aggregation_tables.__name__, workflow_dag, execution_date)
+                self.assertEqual(expected_state, ti.state)
 
-            # Load work family id table into bigquery
-            env.run_task(telescope.bq_load_workfamilyid_lookup.__name__, workflow_dag, self.timestamp)
+                # Load work id table into bigquery
+                ti = env.run_task(telescope.bq_load_workid_lookup.__name__, workflow_dag, execution_date)
+                self.assertEqual(expected_state, ti.state)
 
-            # Create oaebu intermediate tables
-            for data_partner in data_partners:
-                oaebu_dataset = data_partner.gcp_dataset_id
-                oaebu_table = data_partner.gcp_table_id
+                # Load work id errors table into bigquery
+                ti = env.run_task(telescope.bq_load_workid_lookup_errors.__name__, workflow_dag, execution_date)
+                self.assertEqual(expected_state, ti.state)
 
-                env.run_task(
-                    f"{telescope.create_oaebu_intermediate_table.__name__}.{oaebu_dataset}.{oaebu_table}",
+                # Load work family id table into bigquery
+                ti = env.run_task(telescope.bq_load_workfamilyid_lookup.__name__, workflow_dag, execution_date)
+                self.assertEqual(expected_state, ti.state)
+
+                # Create oaebu intermediate tables
+                for data_partner in data_partners:
+                    oaebu_dataset = data_partner.gcp_dataset_id
+                    oaebu_table = data_partner.gcp_table_id
+
+                    ti = env.run_task(
+                        f"{telescope.create_oaebu_intermediate_table.__name__}.{oaebu_dataset}.{oaebu_table}",
+                        workflow_dag,
+                        execution_date,
+                    )
+                    self.assertEqual(expected_state, ti.state)
+
+                # Create oaebu output tables
+                ti = env.run_task(telescope.create_oaebu_book_product_table.__name__, workflow_dag, execution_date,)
+                self.assertEqual(expected_state, ti.state)
+
+                # ONIX isbn check
+                ti = env.run_task(telescope.create_oaebu_data_qa_onix_isbn.__name__, workflow_dag, execution_date,)
+                self.assertEqual(expected_state, ti.state)
+
+                # ONIX aggregate metrics
+                ti = env.run_task(telescope.create_oaebu_data_qa_onix_aggregate.__name__, workflow_dag, execution_date,)
+                self.assertEqual(expected_state, ti.state)
+
+                # JSTOR country isbn check
+                ti = env.run_task(
+                    f"{telescope.create_oaebu_data_qa_jstor_isbn.__name__}.{data_partners[0].gcp_dataset_id}.{data_partners[0].gcp_table_id}",
                     workflow_dag,
-                    self.timestamp,
+                    execution_date,
+                )
+                self.assertEqual(expected_state, ti.state)
+
+                # JSTOR country intermediate unmatched isbns
+                ti = env.run_task(
+                    f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[0].gcp_dataset_id}.{data_partners[0].gcp_table_id}",
+                    workflow_dag,
+                    execution_date,
+                )
+                self.assertEqual(expected_state, ti.state)
+
+                # JSTOR institution isbn check
+                ti = env.run_task(
+                    f"{telescope.create_oaebu_data_qa_jstor_isbn.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
+                    workflow_dag,
+                    execution_date,
+                )
+                self.assertEqual(expected_state, ti.state)
+
+                # JSTOR institution intermediate unmatched isbns
+                ti = env.run_task(
+                    f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
+                    workflow_dag,
+                    execution_date,
+                )
+                self.assertEqual(expected_state, ti.state)
+
+                # Google Books Sales isbn check
+                ti = env.run_task(
+                    telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__, workflow_dag, execution_date,
+                )
+                self.assertEqual(expected_state, ti.state)
+
+                # Google Books Sales intermediate unmatched isbns
+                ti = env.run_task(
+                    f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[2].gcp_dataset_id}.{data_partners[2].gcp_table_id}",
+                    workflow_dag,
+                    execution_date,
+                )
+                self.assertEqual(expected_state, ti.state)
+
+                # Google Books Traffic isbn check
+                ti = env.run_task(
+                    telescope.create_oaebu_data_qa_google_books_traffic_isbn.__name__, workflow_dag, execution_date,
+                )
+                self.assertEqual(expected_state, ti.state)
+
+                # Google Books Traffic intermediate unmatched isbns
+                ti = env.run_task(
+                    f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[3].gcp_dataset_id}.{data_partners[3].gcp_table_id}",
+                    workflow_dag,
+                    execution_date,
+                )
+                self.assertEqual(expected_state, ti.state)
+
+                # OAPEN IRUS UK isbn check
+                ti = env.run_task(
+                    telescope.create_oaebu_data_qa_oapen_irus_uk_isbn.__name__, workflow_dag, execution_date,
+                )
+                self.assertEqual(expected_state, ti.state)
+
+                # OAPEN IRUS UK intermediate unmatched isbns
+                ti = env.run_task(
+                    f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[4].gcp_dataset_id}.{data_partners[4].gcp_table_id}",
+                    workflow_dag,
+                    execution_date,
+                )
+                self.assertEqual(expected_state, ti.state)
+
+                if include_google_analytics:
+                    # Google Analytics isbn check
+                    env.run_task(
+                        telescope.create_oaebu_data_qa_google_analytics_isbn.__name__, workflow_dag, execution_date,
+                    )
+
+                    # Google Books Analytics unmatched isbns
+                    print("---------------------------------------")
+                    print(f"{data_partners[5].gcp_dataset_id}.{data_partners[5].gcp_table_id}")
+                    print("---------------------------------------")
+                    env.run_task(
+                        f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[5].gcp_dataset_id}.{data_partners[5].gcp_table_id}",
+                        workflow_dag,
+                        execution_date,
+                    )
+
+                # Export oaebu elastic tables
+                export_tables = [
+                    "book_product_list",
+                    "book_product_metrics",
+                    "book_product_metrics_country",
+                    "book_product_metrics_institution",
+                    "book_product_metrics_city",
+                    "book_product_metrics_referrer",
+                    "book_product_metrics_events",
+                    "book_product_publisher_metrics",
+                    "book_product_subject_metrics",
+                    "book_product_year_metrics",
+                    "book_product_subject_year_metrics",
+                    "book_product_author_metrics",
+                ]
+
+                for table in export_tables:
+                    ti = env.run_task(f"{telescope.export_oaebu_table.__name__}.{table}", workflow_dag, execution_date,)
+                    self.assertEqual(expected_state, ti.state)
+
+                # Export oaebu elastic qa table
+                ti = env.run_task(telescope.export_oaebu_qa_metrics.__name__, workflow_dag, execution_date,)
+                self.assertEqual(expected_state, ti.state)
+
+                # Test conditions
+                release_suffix = release_date.strftime("%Y%m%d")
+
+                transform_path = os.path.join(telescope.dag_id, release_suffix, "onix_workid_isbn.jsonl.gz")
+                self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
+
+                transform_path = os.path.join(
+                    telescope.dag_id, release_suffix, "onix_workfamilyid_isbn.jsonl.gz"
+                )
+                self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
+
+                transform_path = os.path.join(
+                    telescope.dag_id, release_suffix, "onix_workid_isbn_errors.jsonl.gz"
+                )
+                self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
+
+                table_id = f"{self.gcp_project_id}.{onix_workflow_dataset_id}.onix_workid_isbn{release_suffix}"
+                self.assert_table_integrity(table_id, 3)
+
+                table_id = f"{self.gcp_project_id}.{onix_workflow_dataset_id}.onix_workfamilyid_isbn{release_suffix}"
+                self.assert_table_integrity(table_id, 3)
+
+                table_id = f"{self.gcp_project_id}.{onix_workflow_dataset_id}.onix_workid_isbn_errors{release_suffix}"
+                self.assert_table_integrity(table_id, 1)
+
+                table_id = f"{self.gcp_project_id}.{oaebu_output_dataset_id}.book_product{release_suffix}"
+                self.assert_table_integrity(table_id, 2)
+
+                table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset_id}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
+                self.assert_table_integrity(table_id, 2)
+
+                table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset_id}.{self.gcp_project_id.replace('-', '_')}_book_product_publisher_metrics{release_suffix}"
+                self.assert_table_integrity(table_id, 1)
+
+                # Validate the joins worked
+                # JSTOR
+                sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.{oaebu_intermediate_dataset_id}.{self.fake_partner_dataset}_jstor_country_matched{release_suffix}"
+                records = run_bigquery_query(sql)
+                oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
+                oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
+
+                self.assertTrue(
+                    oaebu_works["111"] == oaebu_works["112"]
+                    and oaebu_works["111"] != oaebu_works["211"]
+                    and oaebu_works["113"] is None
                 )
 
-            # Create oaebu output tables
-            env.run_task(
-                telescope.create_oaebu_book_product_table.__name__, workflow_dag, self.timestamp,
-            )
-
-            # ONIX isbn check
-            env.run_task(
-                telescope.create_oaebu_data_qa_onix_isbn.__name__, workflow_dag, self.timestamp,
-            )
-
-            # ONIX aggregate metrics
-            env.run_task(
-                telescope.create_oaebu_data_qa_onix_aggregate.__name__, workflow_dag, self.timestamp,
-            )
-
-            # JSTOR isbn check
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_jstor_isbn.__name__}.{data_partners[0].gcp_dataset_id}.{data_partners[0].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # JSTOR intermediate unmatched isbns
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[0].gcp_dataset_id}.{data_partners[0].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # JSTOR institution isbn check
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_jstor_isbn.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # JSTOR institution intermediate unmatched isbns
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[1].gcp_dataset_id}.{data_partners[1].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # Google Books Sales isbn check
-            env.run_task(
-                telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__, workflow_dag, self.timestamp,
-            )
-
-            # Google Books Sales intermediate unmatched isbns
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[2].gcp_dataset_id}.{data_partners[2].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # Google Books Traffic isbn check
-            env.run_task(
-                telescope.create_oaebu_data_qa_google_books_traffic_isbn.__name__, workflow_dag, self.timestamp,
-            )
-
-            # Google Books Traffic intermediate unmatched isbns
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[3].gcp_dataset_id}.{data_partners[3].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # OAPEN IRUS UK isbn check
-            env.run_task(
-                telescope.create_oaebu_data_qa_oapen_irus_uk_isbn.__name__, workflow_dag, self.timestamp,
-            )
-
-            # OAPEN IRUS UK intermediate unmatched isbns
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[4].gcp_dataset_id}.{data_partners[4].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # Google Analytics isbn check
-            env.run_task(
-                telescope.create_oaebu_data_qa_google_analytics_isbn.__name__, workflow_dag, self.timestamp,
-            )
-
-            # Google Books Analytics unmatched isbns
-            print("---------------------------------------")
-            print(f"{data_partners[5].gcp_dataset_id}.{data_partners[5].gcp_table_id}")
-            print("---------------------------------------")
-            env.run_task(
-                f"{telescope.create_oaebu_data_qa_intermediate_unmatched_workid.__name__}.{data_partners[5].gcp_dataset_id}.{data_partners[5].gcp_table_id}",
-                workflow_dag,
-                self.timestamp,
-            )
-
-            # Export oaebu elastic tables
-            export_tables = [
-                "book_product_list",
-                "book_product_metrics",
-                "book_product_metrics_country",
-                "book_product_metrics_institution",
-                "book_product_metrics_city",
-                "book_product_metrics_referrer",
-                "book_product_metrics_events",
-                "book_product_publisher_metrics",
-                "book_product_subject_metrics",
-                "book_product_year_metrics",
-                "book_product_subject_year_metrics",
-                "book_product_author_metrics",
-            ]
-
-            for table in export_tables:
-                env.run_task(
-                    f"{telescope.export_oaebu_table.__name__}.{table}", workflow_dag, self.timestamp,
+                self.assertTrue(
+                    oaebu_wfam["111"] == oaebu_wfam["112"]
+                    and oaebu_wfam["112"] == oaebu_wfam["211"]
+                    and oaebu_wfam["113"] is None
                 )
 
-            # Export oaebu elastic qa table
-            env.run_task(
-                telescope.export_oaebu_qa_metrics.__name__, workflow_dag, self.timestamp,
-            )
+                # OAPEN IRUS UK
+                sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.{oaebu_intermediate_dataset_id}.{self.fake_partner_dataset}_oapen_irus_uk_matched{release_suffix}"
+                records = run_bigquery_query(sql)
+                oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
+                oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
 
-            # Test conditions
-            release_suffix = self.onix_release_date.strftime("%Y%m%d")
+                self.assertTrue(
+                    oaebu_works["111"] == oaebu_works["112"]
+                    and oaebu_works["111"] != oaebu_works["211"]
+                    and oaebu_works["113"] is None
+                )
 
-            transform_path = os.path.join("onix_workflow_anu_press", release_suffix, "onix_workid_isbn.jsonl.gz")
-            self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
+                self.assertTrue(
+                    oaebu_wfam["111"] == oaebu_wfam["112"]
+                    and oaebu_wfam["112"] == oaebu_wfam["211"]
+                    and oaebu_wfam["113"] is None
+                )
 
-            transform_path = os.path.join("onix_workflow_anu_press", release_suffix, "onix_workfamilyid_isbn.jsonl.gz")
-            self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
+                # Check invalid ISBN13s picked up in ONIX
+                sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.onix_invalid_isbn{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["ISBN13"] for record in records])
+                self.assertEqual(len(isbns), 3)
+                self.assertTrue("211" in isbns)
+                self.assertTrue("112" in isbns)
+                self.assertTrue("111" in isbns)
 
-            transform_path = os.path.join("onix_workflow_anu_press", release_suffix, "onix_workid_isbn_errors.jsonl.gz")
-            self.assert_blob_integrity(self.gcp_bucket_name, transform_path, transform_path)
+                # Check ONIX aggregate metrics are correct
+                sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.onix_aggregate_metrics{release_suffix}"
+                records = run_bigquery_query(sql)
+                self.assertEqual(len(records), 1)
+                self.assertEqual(records[0]["table_size"], 3)
+                self.assertEqual(records[0]["no_isbns"], 0)
+                self.assertEqual(records[0]["no_relatedworks"], 0)
+                self.assertEqual(records[0]["no_relatedproducts"], 2)
+                self.assertEqual(records[0]["no_doi"], 3)
+                self.assertEqual(records[0]["no_productform"], 1)
+                self.assertEqual(records[0]["no_contributors"], 3)
+                self.assertEqual(records[0]["no_titledetails"], 3)
+                self.assertEqual(records[0]["no_publisher_urls"], 3)
 
-            table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn{release_suffix}"
+                # Check JSTOR ISBN are valid
+                sql = (
+                    f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.jstor_invalid_isbn{release_suffix}"
+                )
+                records = run_bigquery_query(sql)
+                isbns = set([record["ISBN"] for record in records])
+                self.assertEqual(len(isbns), 4)
+                self.assertTrue("111" in isbns)
+                self.assertTrue("211" in isbns)
+                self.assertTrue("113" in isbns)
+                self.assertTrue("112" in isbns)
 
-            self.assert_table_integrity(table_id, 3)
+                # Check JSTOR eISBN are valid
+                sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.jstor_invalid_eisbn{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["eISBN"] for record in records])
+                self.assertEqual(len(isbns), 4)
+                self.assertTrue("111" in isbns)
+                self.assertTrue("113" in isbns)
+                self.assertTrue("112" in isbns)
+                self.assertTrue(None in isbns)
 
-            table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workfamilyid_isbn{release_suffix}"
-            self.assert_table_integrity(table_id, 3)
+                # Check JSTOR unmatched ISBN picked up
+                sql = f"SELECT ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.jstor_country_unmatched_ISBN{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["ISBN"] for record in records])
+                self.assertEqual(len(isbns), 2)
+                self.assertTrue("9781111111113" in isbns)
+                self.assertTrue("113" in isbns)
 
-            table_id = f"{self.gcp_project_id}.{onix_workflow_dataset}.onix_workid_isbn_errors{release_suffix}"
-            self.assert_table_integrity(table_id, 1)
+                # Check OAPEN IRUS UK ISBN are valid
+                sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.oapen_irus_uk_invalid_isbn{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["ISBN"] for record in records])
+                self.assertEqual(len(isbns), 4)
+                self.assertTrue("111" in isbns)
+                self.assertTrue("113" in isbns)
+                self.assertTrue("112" in isbns)
+                self.assertTrue("211" in isbns)
 
-            table_id = f"{self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
-            self.assert_table_integrity(table_id, 2)
+                # Check OAPEN IRUS UK unmatched ISBN picked up
+                sql = f"SELECT ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.oapen_irus_uk_unmatched_ISBN{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["ISBN"] for record in records])
+                self.assertEqual(len(isbns), 2)
+                self.assertTrue("9781111111113" in isbns)
+                self.assertTrue("113" in isbns)
 
-            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
-            self.assert_table_integrity(table_id, 2)
+                # Check Google Books Sales ISBN are valid
+                sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.google_books_sales_invalid_isbn{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["Primary_ISBN"] for record in records])
+                self.assertEqual(len(isbns), 4)
+                self.assertTrue("111" in isbns)
+                self.assertTrue("211" in isbns)
+                self.assertTrue("113" in isbns)
+                self.assertTrue("112" in isbns)
 
-            table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_product_publisher_metrics{release_suffix}"
-            self.assert_table_integrity(table_id, 1)
+                # Check Google Books Sales unmatched ISBN picked up
+                sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.google_books_sales_unmatched_Primary_ISBN{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["Primary_ISBN"] for record in records])
+                self.assertEqual(len(isbns), 2)
+                self.assertTrue("9781111111113" in isbns)
+                self.assertTrue("113" in isbns)
 
-            # Validate the joins worked
-            # JSTOR
-            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.{oaebu_intermediate_dataset}.{self.fake_partner_dataset}_jstor_country_matched{release_suffix}"
-            records = run_bigquery_query(sql)
-            oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
-            oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
+                # Check Google Books Traffic ISBN are valid
+                sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.google_books_traffic_invalid_isbn{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["Primary_ISBN"] for record in records])
+                self.assertEqual(len(isbns), 4)
+                self.assertTrue("111" in isbns)
+                self.assertTrue("211" in isbns)
+                self.assertTrue("113" in isbns)
+                self.assertTrue("112" in isbns)
 
-            self.assertTrue(
-                oaebu_works["111"] == oaebu_works["112"]
-                and oaebu_works["111"] != oaebu_works["211"]
-                and oaebu_works["113"] is None
-            )
+                # Check Google Books Traffic unmatched ISBN picked up
+                sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.google_books_traffic_unmatched_Primary_ISBN{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["Primary_ISBN"] for record in records])
+                self.assertEqual(len(isbns), 2)
+                self.assertTrue("9781111111113" in isbns)
+                self.assertTrue("113" in isbns)
 
-            self.assertTrue(
-                oaebu_wfam["111"] == oaebu_wfam["112"]
-                and oaebu_wfam["112"] == oaebu_wfam["211"]
-                and oaebu_wfam["113"] is None
-            )
+                if include_google_analytics:
+                    # Check Google Analytics ISBN are valid
+                    sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.google_analytics_invalid_isbn{release_suffix}"
+                    records = run_bigquery_query(sql)
+                    isbns = set([record["publication_id"] for record in records])
+                    self.assertEqual(len(isbns), 1)
+                    self.assertTrue("(none)" in isbns)
 
-            # OAPEN IRUS UK
-            sql = f"SELECT ISBN, work_id, work_family_id from {self.gcp_project_id}.{oaebu_intermediate_dataset}.{self.fake_partner_dataset}_oapen_irus_uk_matched{release_suffix}"
-            records = run_bigquery_query(sql)
-            oaebu_works = {record["ISBN"]: record["work_id"] for record in records}
-            oaebu_wfam = {record["ISBN"]: record["work_family_id"] for record in records}
+                    # Check Google Analytics unmatched ISBN picked up
+                    sql = f"SELECT publication_id from {self.gcp_project_id}.{oaebu_data_qa_dataset_id}.google_analytics_unmatched_publication_id{release_suffix}"
+                    records = run_bigquery_query(sql)
+                    isbns = set([record["publication_id"] for record in records])
+                    self.assertEqual(len(isbns), 2)
+                    self.assertTrue("9781111111113" in isbns)
+                    self.assertTrue("(none)" in isbns)
 
-            self.assertTrue(
-                oaebu_works["111"] == oaebu_works["112"]
-                and oaebu_works["111"] != oaebu_works["211"]
-                and oaebu_works["113"] is None
-            )
+                # Check Book Product Table
+                sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_output_dataset_id}.book_product{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["ISBN13"] for record in records])
+                self.assertEqual(len(isbns), 2)
+                self.assertTrue("211" in isbns)
+                self.assertTrue("112" in isbns)
 
-            self.assertTrue(
-                oaebu_wfam["111"] == oaebu_wfam["112"]
-                and oaebu_wfam["112"] == oaebu_wfam["211"]
-                and oaebu_wfam["113"] is None
-            )
+                # Check export tables
+                sql = f"SELECT product_id from {self.gcp_project_id}.{oaebu_elastic_dataset_id}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
+                records = run_bigquery_query(sql)
+                isbns = set([record["product_id"] for record in records])
+                self.assertEqual(len(isbns), 2)
+                self.assertTrue("211" in isbns)
+                self.assertTrue("112" in isbns)
 
-            # Check invalid ISBN13s picked up in ONIX
-            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_data_qa_dataset}.onix_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN13"] for record in records])
-            self.assertEqual(len(isbns), 3)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("112" in isbns)
-            self.assertTrue("111" in isbns)
+                # Cleanup
+                env.run_task(telescope.cleanup.__name__, workflow_dag, execution_date)
 
-            # Check ONIX aggregate metrics are correct
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.onix_aggregate_metrics{release_suffix}"
-            records = run_bigquery_query(sql)
-            self.assertEqual(len(records), 1)
-            self.assertEqual(records[0]["table_size"], 3)
-            self.assertEqual(records[0]["no_isbns"], 0)
-            self.assertEqual(records[0]["no_relatedworks"], 0)
-            self.assertEqual(records[0]["no_relatedproducts"], 2)
-            self.assertEqual(records[0]["no_doi"], 3)
-            self.assertEqual(records[0]["no_productform"], 1)
-            self.assertEqual(records[0]["no_contributors"], 3)
-            self.assertEqual(records[0]["no_titledetails"], 3)
-            self.assertEqual(records[0]["no_publisher_urls"], 3)
+    def test_telescope(self):
+        """ Test that ONIX Workflow runs when Google Analytics is not included """
 
-            # Check JSTOR ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.jstor_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN"] for record in records])
-            self.assertEqual(len(isbns), 4)
-            self.assertTrue("111" in isbns)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("113" in isbns)
-            self.assertTrue("112" in isbns)
+        self.run_telescope_tests(org_name="Curtin Press", include_google_analytics=False)
 
-            # Check JSTOR eISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.jstor_invalid_eisbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["eISBN"] for record in records])
-            self.assertEqual(len(isbns), 4)
-            self.assertTrue("111" in isbns)
-            self.assertTrue("113" in isbns)
-            self.assertTrue("112" in isbns)
-            self.assertTrue(None in isbns)
+    def test_telescope_with_google_analytics(self):
+        """ Test that ONIX Workflow runs when Google Analytics is included """
 
-            # Check JSTOR unmatched ISBN picked up
-            sql = f"SELECT ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.jstor_country_unmatched_ISBN{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("9781111111113" in isbns)
-            self.assertTrue("113" in isbns)
-
-            # Check OAPEN IRUS UK ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.oapen_irus_uk_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN"] for record in records])
-            self.assertEqual(len(isbns), 4)
-            self.assertTrue("111" in isbns)
-            self.assertTrue("113" in isbns)
-            self.assertTrue("112" in isbns)
-            self.assertTrue("211" in isbns)
-
-            # Check OAPEN IRUS UK unmatched ISBN picked up
-            sql = f"SELECT ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.oapen_irus_uk_unmatched_ISBN{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("9781111111113" in isbns)
-            self.assertTrue("113" in isbns)
-
-            # Check Google Books Sales ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_sales_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["Primary_ISBN"] for record in records])
-            self.assertEqual(len(isbns), 4)
-            self.assertTrue("111" in isbns)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("113" in isbns)
-            self.assertTrue("112" in isbns)
-
-            # Check Google Books Sales unmatched ISBN picked up
-            sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_sales_unmatched_Primary_ISBN{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["Primary_ISBN"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("9781111111113" in isbns)
-            self.assertTrue("113" in isbns)
-
-            # Check Google Books Traffic ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_traffic_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["Primary_ISBN"] for record in records])
-            self.assertEqual(len(isbns), 4)
-            self.assertTrue("111" in isbns)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("113" in isbns)
-            self.assertTrue("112" in isbns)
-
-            # Check Google Books Traffic unmatched ISBN picked up
-            sql = f"SELECT Primary_ISBN from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_books_traffic_unmatched_Primary_ISBN{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["Primary_ISBN"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("9781111111113" in isbns)
-            self.assertTrue("113" in isbns)
-
-            # Check Google Analytics ISBN are valid
-            sql = f"SELECT * from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_analytics_invalid_isbn{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["publication_id"] for record in records])
-            self.assertEqual(len(isbns), 1)
-            self.assertTrue("(none)" in isbns)
-
-            # Check Google Analytics unmatched ISBN picked up
-            sql = f"SELECT publication_id from {self.gcp_project_id}.{oaebu_data_qa_dataset}.google_analytics_unmatched_publication_id{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["publication_id"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("9781111111113" in isbns)
-            self.assertTrue("(none)" in isbns)
-
-            # Check Book Product Table
-            sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_output_dataset}.book_product{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["ISBN13"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("112" in isbns)
-
-            # Check export tables
-            sql = f"SELECT product_id from {self.gcp_project_id}.{oaebu_elastic_dataset}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
-            records = run_bigquery_query(sql)
-            isbns = set([record["product_id"] for record in records])
-            self.assertEqual(len(isbns), 2)
-            self.assertTrue("211" in isbns)
-            self.assertTrue("112" in isbns)
-
-            # Cleanup
-            env.run_task(telescope.cleanup.__name__, workflow_dag, self.timestamp)
-
-            # Environment cleanup
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_data_qa_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_intermediate_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_elastic_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id=oaebu_output_dataset)
-            delete_bigquery_dataset(project_id=self.gcp_project_id, dataset_id="onix_workflow")
-            delete_bucket_dir(bucket_name=self.gcp_bucket_name, prefix=self.test_onix_folder)
+        self.run_telescope_tests(org_name="ANU Press", include_google_analytics=True)

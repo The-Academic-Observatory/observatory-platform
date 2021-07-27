@@ -17,13 +17,10 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
 from typing import Dict, List
 
 import pendulum
-from airflow import DAG
 from airflow.exceptions import AirflowException
-from airflow.operators.dummy_operator import DummyOperator
 
 from observatory.dags.model import (
     bq_load_observatory_dataset,
@@ -40,26 +37,8 @@ from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
+    make_dummy_dag,
 )
-
-
-def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
-    """ A Dummy DAG for testing purposes.
-
-    :param dag_id: the DAG id.
-    :param execution_date: the DAGs execution date.
-    :return: the DAG.
-    """
-
-    with DAG(
-        dag_id=dag_id,
-        schedule_interval="@weekly",
-        default_args={"owner": "airflow", "start_date": execution_date},
-        catchup=False,
-    ) as dag:
-        task1 = DummyOperator(task_id="dummy_task")
-
-    return dag
 
 
 class TestDoiWorkflow(ObservatoryTestCase):
