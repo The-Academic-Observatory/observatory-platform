@@ -79,6 +79,12 @@
   },
   {
     "mode": "NULLABLE",
+    "name": "subtype",
+    "type": "STRING",
+    "description": "Enumeration, one of the type ids from https://data.crossref.org/reports/help/schema_doc/4.4.2/schema_4_4_2.html#posted_content."
+  },
+  {
+    "mode": "NULLABLE",
     "name": "type",
     "type": "STRING",
     "description": "Enumeration, one of the type ids from https://api.crossref.org/v1/types."
