@@ -38,14 +38,14 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.data_utils import get_file
-from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.file_utils import _hash_file, list_to_jsonl_gz
 from observatory.platform.utils.gc_utils import (
     copy_blob_from_cloud_storage,
     create_cloud_storage_bucket,
     download_blob_from_cloud_storage,
     upload_file_to_cloud_storage,
 )
-from observatory.platform.utils.telescope_utils import make_dag_id, make_org_id, add_partition_date, list_to_jsonl_gz
+from observatory.platform.utils.telescope_utils import make_dag_id, make_org_id, add_partition_date
 from observatory.platform.utils.template_utils import (
     SubFolder,
     blob_name,

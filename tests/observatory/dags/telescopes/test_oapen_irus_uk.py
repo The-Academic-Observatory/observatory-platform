@@ -16,7 +16,7 @@
 
 import json
 import os
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from urllib.parse import quote
 
 import httpretty
@@ -26,6 +26,8 @@ from airflow.models.connection import Connection
 from click.testing import CliRunner
 from googleapiclient.discovery import build
 from googleapiclient.http import HttpMockSequence
+from requests import Response
+
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
@@ -183,7 +185,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         release = OapenIrusUkRelease(telescope.dag_id, execution_date.end_of('month'), organisation)
 
         # Create the Observatory environment and run tests
-        with env.create():
+        with env.create(task_logging=True):
             # Add airflow connections
             conn = Connection(conn_id=AirflowConns.GEOIP_LICENSE_KEY, uri="mysql://email_address:password@")
             env.add_connection(conn)
@@ -205,8 +207,10 @@ class TestOapenIrusUk(ObservatoryTestCase):
                       f"&expand=metadata"
                 httpretty.register_uri(httpretty.GET, url, body='[{"uuid":"df73bf94-b818-494c-a8dd-6775b0573bc2"}]')
                 # mock response of cloud function
-                mock_authorized_session.return_value.status_code = 200
-                mock_authorized_session.return_value.reason = "unit test"
+                mock_authorized_session.return_value = MagicMock(spec=Response, status_code=200,
+                                                                 json=lambda: {'entries': 100,
+                                                                               'unprocessed_publishers': None},
+                                                                 reason="unit test")
                 url = f"https://{OapenIrusUkTelescope.FUNCTION_REGION}-{OapenIrusUkTelescope.OAPEN_PROJECT_ID}." \
                       f"cloudfunctions.net/{OapenIrusUkTelescope.FUNCTION_NAME}"
                 httpretty.register_uri(httpretty.POST, url, body="")
