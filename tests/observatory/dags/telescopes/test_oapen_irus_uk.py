@@ -343,7 +343,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         :return: None.
         """
         connections = {AirflowConns.GEOIP_LICENSE_KEY: Connection(AirflowConns.GEOIP_LICENSE_KEY,
-                                                                  uri='mysql://user_id:key@'),
+                                                                  uri='http://user_id:key@'),
                        AirflowConns.OAPEN_IRUS_UK_API: Connection(AirflowConns.OAPEN_IRUS_UK_API,
                                                                   uri='mysql://requestor_id:api_key@'),
                        AirflowConns.OAPEN_IRUS_UK_LOGIN: Connection(AirflowConns.OAPEN_IRUS_UK_LOGIN,
