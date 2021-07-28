@@ -347,7 +347,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
                        AirflowConns.OAPEN_IRUS_UK_API: Connection(AirflowConns.OAPEN_IRUS_UK_API,
                                                                   uri='http://requestor_id:api_key@'),
                        AirflowConns.OAPEN_IRUS_UK_LOGIN: Connection(AirflowConns.OAPEN_IRUS_UK_LOGIN,
-                                                                    uri='mysql://email:password@')}
+                                                                    uri='http://email:password@')}
         mock_conn_get.side_effect = lambda x: connections[x]
         mock_get_publisher.return_value = 'publisher_uuid'
 
