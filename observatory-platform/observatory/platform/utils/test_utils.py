@@ -77,13 +77,14 @@ import httpretty
 import paramiko
 import pendulum
 import requests
+from airflow import DAG
 from airflow import settings
 from airflow.models import DagBag
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import db
 from airflow.utils.state import State
 from click.testing import CliRunner
@@ -258,7 +259,10 @@ class ObservatoryEnvironment:
         """
 
         self.assert_gcp_dependencies()
-        dataset_id = f"{prefix}_{random_id()}"
+        if prefix != "":
+            dataset_id = f"{prefix}_{random_id()}"
+        else:
+            dataset_id = random_id()
         self.datasets.append(dataset_id)
         return dataset_id
 
@@ -740,3 +744,22 @@ class SftpServer:
                 self.is_shutdown = True
                 if self.server_thread is not None:
                     self.server_thread.join()
+
+
+def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
+    """ A Dummy DAG for testing purposes.
+
+    :param dag_id: the DAG id.
+    :param execution_date: the DAGs execution date.
+    :return: the DAG.
+    """
+
+    with DAG(
+        dag_id=dag_id,
+        schedule_interval="@weekly",
+        default_args={"owner": "airflow", "start_date": execution_date},
+        catchup=False,
+    ) as dag:
+        task1 = DummyOperator(task_id="dummy_task")
+
+    return dag
