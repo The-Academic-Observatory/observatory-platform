@@ -36,6 +36,7 @@ class OaebuPartners:
     """Temporary class for storing information about data sources we are using to produce oaebu intermediate tables for.  Change or remove this later when Observatory API is more mature.
 
     :param name: Name of the data partner.
+    :param dag_id_prefix: The prefix of the DAG id that the data originates from.
     :param gcp_project_id: GCP Project ID.
     :param gcp_dataset_id: GCP Dataset ID.
     :param gcp_table_id: Table name without the date suffix.
@@ -44,6 +45,7 @@ class OaebuPartners:
     """
 
     name: str
+    dag_id_prefix: str
     gcp_project_id: str
     gcp_dataset_id: str
     gcp_table_id: str
