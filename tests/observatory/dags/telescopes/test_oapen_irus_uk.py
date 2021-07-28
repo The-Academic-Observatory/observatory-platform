@@ -345,7 +345,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         connections = {AirflowConns.GEOIP_LICENSE_KEY: Connection(AirflowConns.GEOIP_LICENSE_KEY,
                                                                   uri='http://user_id:key@'),
                        AirflowConns.OAPEN_IRUS_UK_API: Connection(AirflowConns.OAPEN_IRUS_UK_API,
-                                                                  uri='mysql://requestor_id:api_key@'),
+                                                                  uri='http://requestor_id:api_key@'),
                        AirflowConns.OAPEN_IRUS_UK_LOGIN: Connection(AirflowConns.OAPEN_IRUS_UK_LOGIN,
                                                                     uri='mysql://email:password@')}
         mock_conn_get.side_effect = lambda x: connections[x]
