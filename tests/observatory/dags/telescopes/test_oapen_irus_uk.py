@@ -188,7 +188,7 @@ class TestOapenIrusUk(ObservatoryTestCase):
         # Create the Observatory environment and run tests
         with env.create(task_logging=True):
             # Add airflow connections
-            conn = Connection(conn_id=AirflowConns.GEOIP_LICENSE_KEY, uri="mysql://email_address:password@")
+            conn = Connection(conn_id=AirflowConns.GEOIP_LICENSE_KEY, uri="http://email_address:password@")
             env.add_connection(conn)
             conn = Connection(conn_id=AirflowConns.OAPEN_IRUS_UK_API, uri="mysql://requestor_id:api_key@")
             env.add_connection(conn)
