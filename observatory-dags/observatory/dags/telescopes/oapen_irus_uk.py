@@ -603,7 +603,7 @@ def call_cloud_function(
             remaining_publishers = 0
 
         entries = response_json["entries"]
-        if entries == 0:
+        if entries == 0 and remaining_publishers == 0:
             raise AirflowSkipException("No access stats entries for publisher(s) in month.")
 
         logging.info(f"Processed {entries} entries in total. {remaining_publishers} publishers " f"left to process")
