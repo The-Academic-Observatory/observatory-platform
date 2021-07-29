@@ -29,15 +29,23 @@ from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed, RetryError
 
-from observatory.platform.telescopes.stream_telescope import (StreamRelease, StreamTelescope)
+from observatory.platform.telescopes.stream_telescope import StreamRelease, StreamTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.template_utils import upload_files_from_list
 from observatory.platform.utils.url_utils import get_ao_user_agent
 
 
 class CrossrefEventsRelease(StreamRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool,
-                 mailto: str, max_threads: int, max_processes: int):
+    def __init__(
+        self,
+        dag_id: str,
+        start_date: pendulum.Pendulum,
+        end_date: pendulum.Pendulum,
+        first_release: bool,
+        mailto: str,
+        max_threads: int,
+        max_processes: int,
+    ):
         """ Construct a CrossrefEventsRelease instance
 
         :param dag_id: the id of the DAG.
@@ -48,10 +56,16 @@ class CrossrefEventsRelease(StreamRelease):
         :param max_threads: Max threads used for parallel downloading
         :param max_processes: max processes for transforming files.
         """
-        download_files_regex = r'.*.jsonl$'
-        transform_files_regex = r'.*.jsonl$'
-        super().__init__(dag_id, start_date, end_date, first_release, download_files_regex=download_files_regex,
-                         transform_files_regex=transform_files_regex)
+        download_files_regex = r".*.jsonl$"
+        transform_files_regex = r".*.jsonl$"
+        super().__init__(
+            dag_id,
+            start_date,
+            end_date,
+            first_release,
+            download_files_regex=download_files_regex,
+            transform_files_regex=transform_files_regex,
+        )
         self.mailto = mailto
         self.max_threads = max_threads
         self.max_processes = max_processes
@@ -62,17 +76,23 @@ class CrossrefEventsRelease(StreamRelease):
         start_date = self.start_date.date()
         end_date = self.end_date.date()
         period = pendulum.period(start_date, end_date)
-        for dt in period.range('days'):
+        for dt in period.range("days"):
             date_str = dt.strftime("%Y-%m-%d")
             start_date = date_str
             end_date = date_str
 
-            events_url = f'https://api.eventdata.crossref.org/v1/events?mailto={self.mailto}' \
-                         f'&from-collected-date={start_date}&until-collected-date={end_date}&rows=1000'
-            edited_url = f'https://api.eventdata.crossref.org/v1/events/edited?mailto={self.mailto}' \
-                         f'&from-updated-date={start_date}&until-updated-date={end_date}&rows=1000'
-            deleted_url = f'https://api.eventdata.crossref.org/v1/events/deleted?mailto={self.mailto}' \
-                          f'&from-updated-date={start_date}&until-updated-date={end_date}&rows=1000'
+            events_url = (
+                f"https://api.eventdata.crossref.org/v1/events?mailto={self.mailto}"
+                f"&from-collected-date={start_date}&until-collected-date={end_date}&rows=1000"
+            )
+            edited_url = (
+                f"https://api.eventdata.crossref.org/v1/events/edited?mailto={self.mailto}"
+                f"&from-updated-date={start_date}&until-updated-date={end_date}&rows=1000"
+            )
+            deleted_url = (
+                f"https://api.eventdata.crossref.org/v1/events/deleted?mailto={self.mailto}"
+                f"&from-updated-date={start_date}&until-updated-date={end_date}&rows=1000"
+            )
 
             urls.append(events_url)
             if not self.first_release:
@@ -89,17 +109,17 @@ class CrossrefEventsRelease(StreamRelease):
         """
         event_type, date = parse_event_url(url)
         if cursor:
-            return os.path.join(self.download_folder, f'{event_type}_{date}_cursor.txt')
+            return os.path.join(self.download_folder, f"{event_type}_{date}_cursor.txt")
         else:
-            return os.path.join(self.download_folder, f'{event_type}_{date}.jsonl')
+            return os.path.join(self.download_folder, f"{event_type}_{date}.jsonl")
 
     def download(self):
         """ Download all events.
 
         :return: None.
         """
-        logging.info(f'Downloading events, no. workers: {self.max_threads}')
-        logging.info(f'Downloading using these URLs, but with different start and end dates: {self.urls[0]}')
+        logging.info(f"Downloading events, no. workers: {self.max_threads}")
+        logging.info(f"Downloading using these URLs, but with different start and end dates: {self.urls[0]}")
 
         with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
             futures = []
@@ -108,7 +128,7 @@ class CrossrefEventsRelease(StreamRelease):
             for future in as_completed(futures):
                 future.result()
         if len(self.download_files) == 0:
-            raise AirflowSkipException('No events found')
+            raise AirflowSkipException("No events found")
 
     def download_batch(self, i: int, url: str):
         """ Download one day of events. When the download finished successfully, the generated cursor file is deleted.
@@ -130,25 +150,27 @@ class CrossrefEventsRelease(StreamRelease):
             return
 
         logging.info(f"{i + 1}.{event_type} Downloading date: {date}")
-        headers = {'User-Agent': get_ao_user_agent()}
+        headers = {"User-Agent": get_ao_user_agent()}
         next_cursor, counts, total_events = download_events(url, headers, events_path, cursor_path)
         counter = counts
         while next_cursor:
-            tmp_url = url + f'&cursor={next_cursor}'
+            tmp_url = url + f"&cursor={next_cursor}"
             next_cursor, counts, _ = download_events(tmp_url, headers, events_path, cursor_path)
             counter += counts
 
         if os.path.isfile(cursor_path):
             os.remove(cursor_path)
-        logging.info(f'{i + 1}.{event_type} successful, date: {date}, total no. events: {total_events}, downloaded '
-                     f'events: {counter}')
+        logging.info(
+            f"{i + 1}.{event_type} successful, date: {date}, total no. events: {total_events}, downloaded "
+            f"events: {counter}"
+        )
 
     def transform(self):
         """ Transform all events.
 
         :return: None.
         """
-        logging.info(f'Transforming events, no. workers: {self.max_threads}')
+        logging.info(f"Transforming events, no. workers: {self.max_threads}")
 
         with ProcessPoolExecutor(max_workers=self.max_processes) as executor:
             futures = []
@@ -167,8 +189,8 @@ class CrossrefEventsRelease(StreamRelease):
         transform_path = os.path.join(self.transform_folder, file_name)
 
         logging.info(f"Transforming file: {file_name}")
-        with jsonlines.open(download_path, 'r') as reader:
-            with jsonlines.open(transform_path, 'w') as writer:
+        with jsonlines.open(download_path, "r") as reader:
+            with jsonlines.open(transform_path, "w") as writer:
                 for event in reader:
                     event = transform_events(event)
                     writer.write(event)
@@ -179,15 +201,23 @@ class CrossrefEventsRelease(StreamRelease):
 class CrossrefEventsTelescope(StreamTelescope):
     """ Crossref Events telescope """
 
-    DAG_ID = 'crossref_events'
+    DAG_ID = "crossref_events"
 
-    def __init__(self, dag_id: str = DAG_ID, start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 5, 14),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'crossref',
-                 dataset_description: str = 'The Crossref Events dataset: https://www.eventdata.crossref.org/guide/',
-                 merge_partition_field: str = 'id', bq_merge_days: int = 7, batch_load: bool = True,
-                 airflow_vars: List = None, mailto: str = 'aniek.roelofs@curtin.edu.au',
-                 max_threads: int = min(32, os.cpu_count() + 4),
-                 max_processes: int = os.cpu_count()):
+    def __init__(
+        self,
+        dag_id: str = DAG_ID,
+        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 5, 14),
+        schedule_interval: str = "@weekly",
+        dataset_id: str = "crossref",
+        dataset_description: str = "The Crossref Events dataset: https://www.eventdata.crossref.org/guide/",
+        merge_partition_field: str = "id",
+        bq_merge_days: int = 7,
+        batch_load: bool = True,
+        airflow_vars: List = None,
+        mailto: str = "aniek.roelofs@curtin.edu.au",
+        max_threads: int = min(32, os.cpu_count() + 4),
+        max_processes: int = os.cpu_count(),
+    ):
         """ Construct a CrossrefEventsTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -205,24 +235,33 @@ class CrossrefEventsTelescope(StreamTelescope):
         """
 
         if airflow_vars is None:
-            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET]
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field, bq_merge_days,
-                         dataset_description=dataset_description, batch_load=batch_load, airflow_vars=airflow_vars)
+            airflow_vars = [
+                AirflowVars.DATA_PATH,
+                AirflowVars.PROJECT_ID,
+                AirflowVars.DATA_LOCATION,
+                AirflowVars.DOWNLOAD_BUCKET,
+                AirflowVars.TRANSFORM_BUCKET,
+            ]
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            dataset_id,
+            merge_partition_field,
+            bq_merge_days,
+            dataset_description=dataset_description,
+            batch_load=batch_load,
+            airflow_vars=airflow_vars,
+        )
         self.mailto = mailto
         self.max_threads = max_threads
         self.max_processes = max_processes
 
-        self.add_setup_task_chain([self.check_dependencies,
-                                   self.get_release_info])
-        self.add_task_chain([self.download,
-                             self.upload_downloaded,
-                             self.transform,
-                             self.upload_transformed,
-                             self.bq_load_partition])
-        self.add_task_chain([self.bq_delete_old,
-                             self.bq_append_new,
-                             self.cleanup], trigger_rule='none_failed')
+        self.add_setup_task_chain([self.check_dependencies, self.get_release_info])
+        self.add_task_chain(
+            [self.download, self.upload_downloaded, self.transform, self.upload_transformed, self.bq_load_partition]
+        )
+        self.add_task_chain([self.bq_delete_old, self.bq_append_new, self.cleanup], trigger_rule="none_failed")
 
     def make_release(self, **kwargs) -> CrossrefEventsRelease:
         """ Make a Release instance
@@ -230,13 +269,14 @@ class CrossrefEventsTelescope(StreamTelescope):
         :param kwargs: The context passed from the PythonOperator.
         :return: CrossrefEventsRelease
         """
-        ti: TaskInstance = kwargs['ti']
-        start_date, end_date, first_release = ti.xcom_pull(key=CrossrefEventsTelescope.RELEASE_INFO,
-                                                           include_prior_dates=True)
+        ti: TaskInstance = kwargs["ti"]
+        start_date, end_date, first_release = ti.xcom_pull(
+            key=CrossrefEventsTelescope.RELEASE_INFO, include_prior_dates=True
+        )
 
-        release = CrossrefEventsRelease(self.dag_id, start_date, end_date, first_release, self.mailto,
-                                        self.max_threads,
-                                        self.max_processes)
+        release = CrossrefEventsRelease(
+            self.dag_id, start_date, end_date, first_release, self.mailto, self.max_threads, self.max_processes
+        )
         return release
 
     def download(self, release: CrossrefEventsRelease, **kwargs):
@@ -267,11 +307,9 @@ class CrossrefEventsTelescope(StreamTelescope):
         release.transform()
 
 
-@retry(stop=stop_after_attempt(3),
-       wait=wait_fixed(20) + wait_exponential(multiplier=10,
-                                              exp_base=3,
-                                              max=60 * 10),
-       )
+@retry(
+    stop=stop_after_attempt(3), wait=wait_fixed(20) + wait_exponential(multiplier=10, exp_base=3, max=60 * 10),
+)
 def get_response(url: str, headers: dict):
     """ Get response from the url with given headers and retry for certain status codes.
 
@@ -281,8 +319,10 @@ def get_response(url: str, headers: dict):
     """
     response = requests.get(url, headers=headers)
     if response.status_code in [500, 400, 429]:
-        logging.info(f'Downloading events from url: {url}, attempt: {get_response.retry.statistics["attempt_number"]}, '
-                     f'idle for: {get_response.retry.statistics["idle_for"]}')
+        logging.info(
+            f'Downloading events from url: {url}, attempt: {get_response.retry.statistics["attempt_number"]}, '
+            f'idle for: {get_response.retry.statistics["idle_for"]}'
+        )
         raise ConnectionError("Retrying url")
     return response
 
@@ -293,11 +333,11 @@ def parse_event_url(url: str) -> (str, str):
     :param url: The url
     :return: The event type and date
     """
-    event_type = url.split('?mailto')[0].split('/')[-1]
-    if event_type == 'events':
-        date = url.split('from-collected-date=')[1].split('&')[0]
+    event_type = url.split("?mailto")[0].split("/")[-1]
+    if event_type == "events":
+        date = url.split("from-collected-date=")[1].split("&")[0]
     else:
-        date = url.split('from-updated-date=')[1].split('&')[0]
+        date = url.split("from-updated-date=")[1].split("&")[0]
 
     return event_type, date
 
@@ -316,24 +356,24 @@ def download_events(url: str, headers: dict, events_path: str, cursor_path: str)
         response = get_response(url, headers)
     except RetryError:
         # Try again with rows set to 100
-        url = re.sub('rows=[0-9]*', 'rows=100', url)
+        url = re.sub("rows=[0-9]*", "rows=100", url)
         response = get_response(url, headers)
 
     if response.status_code == 200:
         response_json = response.json()
-        total_events = response_json['message']['total-results']
-        events = response_json['message']['events']
-        next_cursor = response_json['message']['next-cursor']
+        total_events = response_json["message"]["total-results"]
+        events = response_json["message"]["events"]
+        next_cursor = response_json["message"]["next-cursor"]
         counter = len(events)
 
         # append events and cursor
         if events:
-            with open(events_path, 'a') as f:
+            with open(events_path, "a") as f:
                 with jsonlines.Writer(f) as writer:
                     writer.write_all(events)
         if next_cursor:
-            with open(cursor_path, 'a') as f:
-                f.write(next_cursor + '\n')
+            with open(cursor_path, "a") as f:
+                f.write(next_cursor + "\n")
         return next_cursor, counter, total_events
     else:
         raise ConnectionError(f"Error requesting url: {url}, response: {response.text}")
@@ -353,11 +393,11 @@ def transform_events(event):
         for k, v in event.items():
             if isinstance(v, int) and k != "total":
                 v = str(v)
-            if k in ['timestamp', 'occurred_at', 'issued', 'dateModified', 'updated_date']:
+            if k in ["timestamp", "occurred_at", "issued", "dateModified", "updated_date"]:
                 try:
                     v = str(pendulum.parse(v))
                 except ValueError:
                     v = "0001-01-01T00:00:00Z"
-            k = k.replace('-', '_')
+            k = k.replace("-", "_")
             new[k] = transform_events(v)
         return new
