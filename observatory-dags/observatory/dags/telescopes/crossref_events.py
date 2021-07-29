@@ -398,6 +398,6 @@ def transform_events(event):
                     v = str(pendulum.parse(v))
                 except ValueError:
                     v = "0001-01-01T00:00:00Z"
-            k = k.replace("-", "_")
+            k = k.replace("-", "_").replace("@", "")
             new[k] = transform_events(v)
         return new
