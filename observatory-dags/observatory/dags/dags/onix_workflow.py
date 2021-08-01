@@ -118,6 +118,11 @@ def get_oaebu_partner_data(project_id, org_name):
             OaebuPartnerName.jstor_institution,
             OaebuPartnerName.oapen_irus_uk,
         ],
+        "Wits University Press": [
+            OaebuPartnerName.jstor_country,
+            OaebuPartnerName.jstor_institution,
+            OaebuPartnerName.oapen_irus_uk,
+        ],
     }
 
     publisher_data_partners = list()

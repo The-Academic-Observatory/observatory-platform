@@ -210,6 +210,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         schedule_interval: str = "@weekly",
         dataset_id: str = "crossref",
         dataset_description: str = "The Crossref Events dataset: https://www.eventdata.crossref.org/guide/",
+        queue: str = "remote_queue",
         merge_partition_field: str = "id",
         bq_merge_days: int = 7,
         batch_load: bool = True,
@@ -225,6 +226,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the dataset id.
         :param dataset_description: the dataset description.
+        :param queue: the queue that the tasks should run on.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
@@ -250,6 +252,7 @@ class CrossrefEventsTelescope(StreamTelescope):
             merge_partition_field,
             bq_merge_days,
             dataset_description=dataset_description,
+            queue=queue,
             batch_load=batch_load,
             airflow_vars=airflow_vars,
         )

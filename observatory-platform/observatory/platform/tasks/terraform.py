@@ -142,7 +142,7 @@ class TerraformTasks:
 
     # Watch list of dag ids of which their states will be checked
     # TODO: enable these to be configured from the config file
-    DAG_IDS_WATCH_LIST = ['crossref_metadata', 'mag', 'open_citations', 'unpaywall']
+    DAG_IDS_WATCH_LIST = ['crossref_events', 'crossref_metadata', 'mag', 'open_citations', 'orcid', 'unpaywall']
 
     # Name of variable in terraform configuration that will be updated
     TERRAFORM_CREATE_VM_KEY = 'airflow_worker_vm'

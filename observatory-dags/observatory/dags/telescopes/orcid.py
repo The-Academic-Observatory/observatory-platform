@@ -15,10 +15,13 @@
 
 # Author: Aniek Roelofs
 
+import gzip
 import logging
 import os
+import shutil
 import subprocess
 import tarfile
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from io import BytesIO
 from subprocess import Popen
@@ -28,34 +31,44 @@ import boto3
 import jsonlines
 import pendulum
 import xmltodict
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
-from observatory.platform.telescopes.stream_telescope import (StreamRelease, StreamTelescope)
+
+from observatory.platform.telescopes.stream_telescope import StreamRelease, StreamTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVariable as Variable, AirflowVars
-from observatory.platform.utils.gc_utils import (aws_to_google_cloud_storage_transfer, storage_bucket_exists)
+from observatory.platform.utils.gc_utils import aws_to_google_cloud_storage_transfer, storage_bucket_exists
 from observatory.platform.utils.proc_utils import wait_for_process
-import gzip
-import shutil
 
 
 class OrcidRelease(StreamRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool,
-                 max_processes: int):
+    def __init__(
+        self,
+        dag_id: str,
+        start_date: pendulum.Pendulum,
+        end_date: pendulum.Pendulum,
+        first_release: bool,
+        max_processes: int,
+    ):
         """ Construct an OrcidRelease instance
 
         :param dag_id: the id of the DAG.
         :param start_date: the start_date of the release.
         :param end_date: the end_date of the release.
         :param first_release: whether this is the first release that is processed for this DAG
-        :param max_processes: Max processes used for parallel downloading
+        :param max_processes: Max processes used for transforming files.
         """
-        download_files_regex = r'.*.xml$'
-        transform_files_regex = r'.*.jsonl.gz'
-        super().__init__(dag_id, start_date, end_date, first_release, download_files_regex=download_files_regex,
-                         transform_files_regex=transform_files_regex)
+        download_files_regex = r".*.xml$"
+        transform_files_regex = r".*.jsonl.gz"
+        super().__init__(
+            dag_id,
+            start_date,
+            end_date,
+            first_release,
+            download_files_regex=download_files_regex,
+            transform_files_regex=transform_files_regex,
+        )
         self.max_processes = max_processes
 
     @property
@@ -64,7 +77,7 @@ class OrcidRelease(StreamRelease):
 
         :return: the file path.
         """
-        return os.path.join(self.download_folder, 'modified_records.txt')
+        return os.path.join(self.download_folder, "modified_records.txt")
 
     def transfer(self, max_retries):
         """ Sync files from AWS bucket to Google Cloud bucket
@@ -84,22 +97,24 @@ class OrcidRelease(StreamRelease):
         for i in range(max_retries):
             if success:
                 break
-            success, objects_count = aws_to_google_cloud_storage_transfer(aws_access_key_id, aws_secret_access_key,
-                                                                          aws_bucket=OrcidTelescope.SUMMARIES_BUCKET,
-                                                                          include_prefixes=[],
-                                                                          gc_project_id=gc_project_id,
-                                                                          gc_bucket=gc_download_bucket,
-                                                                          description="Transfer ORCID data from "
-                                                                                      "airflow telescope",
-                                                                          last_modified_since=last_modified_since)
+            success, objects_count = aws_to_google_cloud_storage_transfer(
+                aws_access_key_id,
+                aws_secret_access_key,
+                aws_bucket=OrcidTelescope.SUMMARIES_BUCKET,
+                include_prefixes=[],
+                gc_project_id=gc_project_id,
+                gc_bucket=gc_download_bucket,
+                description="Transfer ORCID data from " "airflow telescope",
+                last_modified_since=last_modified_since,
+            )
             total_count += objects_count
 
         if not success:
-            raise AirflowException(f'Google Storage Transfer unsuccessful, status: {success}')
+            raise AirflowException(f"Google Storage Transfer unsuccessful, status: {success}")
 
-        logging.info(f'Total number of objects transferred: {total_count}')
+        logging.info(f"Total number of objects transferred: {total_count}")
         if total_count == 0:
-            raise AirflowSkipException('No objects to transfer')
+            raise AirflowSkipException("No objects to transfer")
 
     def download_transferred(self):
         """ Download the updated records from the Google Cloud bucket to a local directory using gsutil.
@@ -113,27 +128,45 @@ class OrcidRelease(StreamRelease):
         gc_download_bucket = Variable.get(AirflowVars.ORCID_BUCKET)
 
         # Authenticate gcloud with service account
-        args = ["gcloud", "auth", "activate-service-account", f"--key-file"
-                                                              f"={os.environ['GOOGLE_APPLICATION_CREDENTIALS']}"]
+        args = [
+            "gcloud",
+            "auth",
+            "activate-service-account",
+            f"--key-file" f"={os.environ['GOOGLE_APPLICATION_CREDENTIALS']}",
+        ]
         proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         run_subprocess_cmd(proc, args)
 
         logging.info(f"Downloading transferred files from Google Cloud bucket: {gc_download_bucket}")
-        log_path = os.path.join(self.download_folder, 'cp.log')
+        log_path = os.path.join(self.download_folder, "cp.log")
         if self.first_release:
             # Download all records from bucket
-            args = ["gsutil", "-m", "-q", "cp", "-L", log_path, "-r", f"gs://{gc_download_bucket}",
-                    self.download_folder]
+            args = [
+                "gsutil",
+                "-m",
+                "-q",
+                "cp",
+                "-L",
+                log_path,
+                "-r",
+                f"gs://{gc_download_bucket}",
+                self.download_folder,
+            ]
             proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
             # Download only modified records from bucket
-            write_modified_record_blobs(self.start_date, self.end_date,
-                                        aws_access_key_id,
-                                        aws_secret_access_key,
-                                        gc_download_bucket, self.modified_records_path)
+            write_modified_record_blobs(
+                self.start_date,
+                self.end_date,
+                aws_access_key_id,
+                aws_secret_access_key,
+                gc_download_bucket,
+                self.modified_records_path,
+            )
             args = ["gsutil", "-m", "-q", "cp", "-L", log_path, "-I", self.download_folder]
-            proc: Popen = subprocess.Popen(args, stdin=open(self.modified_records_path),
-                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc: Popen = subprocess.Popen(
+                args, stdin=open(self.modified_records_path), stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
         run_subprocess_cmd(proc, args)
 
     def transform(self):
@@ -142,26 +175,26 @@ class OrcidRelease(StreamRelease):
 
         :return: None.
         """
-        logging.info(f'Using {self.max_processes} workers for multithreading')
+        logging.info(f"Using {self.max_processes} workers for multithreading")
         count = 0
-        with ThreadPoolExecutor(max_workers=self.max_processes) as executor:
+        with ProcessPoolExecutor(max_workers=self.max_processes) as executor:
             futures = [executor.submit(self.transform_single_file, file) for file in self.download_files]
             for future in as_completed(futures):
                 future.result()
                 count += 1
                 if count % 1000 == 0:
-                    logging.info(f'Transformed {count} files')
+                    logging.info(f"Transformed {count} files")
 
         # Loop through directories with individual files, concatenate files in each directory into 1 gzipped file.
-        logging.info('Finished transforming individual files, concatenating & compressing files')
+        logging.info("Finished transforming individual files, concatenating & compressing files")
         for root, dirs, files in os.walk(self.transform_folder):
             if root == self.transform_folder:
                 continue
             file_dir = os.path.basename(root)
-            transform_path = os.path.join(self.transform_folder, file_dir + '.jsonl.gz')
+            transform_path = os.path.join(self.transform_folder, file_dir + ".jsonl.gz")
             with gzip.GzipFile(transform_path, mode="wb") as f_out:
                 for name in files:
-                    with open(os.path.join(root, name), 'rb') as f_in:
+                    with open(os.path.join(root, name), "rb") as f_in:
                         shutil.copyfileobj(f_in, f_out)
 
     def transform_single_file(self, download_path: str):
@@ -184,27 +217,27 @@ class OrcidRelease(StreamRelease):
             except FileExistsError:
                 pass
 
-        transform_path = os.path.join(file_dir, os.path.splitext(file_name)[0] + '.jsonl')
+        transform_path = os.path.join(file_dir, os.path.splitext(file_name)[0] + ".jsonl")
         # Skip if file already exists
         if os.path.exists(transform_path):
             return
 
         # Create dict of data from summary xml file
-        with open(download_path, 'r') as f:
+        with open(download_path, "r") as f:
             orcid_dict = xmltodict.parse(f.read())
 
         # Get record
-        orcid_record = orcid_dict.get('record:record')
+        orcid_record = orcid_dict.get("record:record")
 
         # Some records do not have a 'record', but only 'error', this will be stored in the BQ table.
         if not orcid_record:
-            orcid_record = orcid_dict.get('error:error')
+            orcid_record = orcid_dict.get("error:error")
         if not orcid_record:
-            raise AirflowException(f'Key error for file: {download_path}')
+            raise AirflowException(f"Key error for file: {download_path}")
 
         orcid_record = change_keys(orcid_record, convert)
 
-        with jsonlines.open(transform_path, 'w') as writer:
+        with jsonlines.open(transform_path, "w") as writer:
             writer.write(orcid_record)
         return
 
@@ -212,18 +245,29 @@ class OrcidRelease(StreamRelease):
 class OrcidTelescope(StreamTelescope):
     """ ORCID telescope """
 
-    DAG_ID = 'orcid'
+    DAG_ID = "orcid"
 
-    SUMMARIES_BUCKET = 'v2.0-summaries'
-    LAMBDA_BUCKET = 'orcid-lambda-file'
-    LAMBDA_OBJECT = 'last_modified.csv.tar'
+    SUMMARIES_BUCKET = "v2.0-summaries"
+    LAMBDA_BUCKET = "orcid-lambda-file"
+    LAMBDA_OBJECT = "last_modified.csv.tar"
     S3_HOST = "s3.eu-west-1.amazonaws.com"
 
-    def __init__(self, dag_id: str = DAG_ID, start_date: datetime = datetime(2018, 5, 14),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'orcid', dataset_description: str = '',
-                 table_descriptions: dict = None, merge_partition_field: str = 'orcid_identifier.uri',
-                 bq_merge_days: int = 7, batch_load: bool = True, airflow_vars: List = None, airflow_conns: List = None,
-                 max_processes: int = min(32, os.cpu_count() + 4)):
+    def __init__(
+        self,
+        dag_id: str = DAG_ID,
+        start_date: datetime = datetime(2018, 5, 14),
+        schedule_interval: str = "@weekly",
+        dataset_id: str = "orcid",
+        dataset_description: str = "",
+        table_descriptions: dict = None,
+        queue: str = "remote_queue",
+        merge_partition_field: str = "orcid_identifier.uri",
+        bq_merge_days: int = 7,
+        batch_load: bool = True,
+        airflow_vars: List = None,
+        airflow_conns: List = None,
+        max_processes: int = os.cpu_count(),
+    ):
         """ Construct an OrcidTelescope instance.
 
         :param dag_id: the id of the DAG.
@@ -231,40 +275,54 @@ class OrcidTelescope(StreamTelescope):
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the dataset id.
         :param dataset_description: the dataset description.
+        :param queue: the queue that the telescope should run on.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
-        :param max_processes: Max processes used for parallel downloading
+        :param max_processes: Max processes used for transforming.
         """
         if table_descriptions is None:
-            table_descriptions = {dag_id: 'The ORCID (Open Researcher and Contributor ID) is a nonproprietary '
-                                          'alphanumeric code to uniquely identify authors and contributors of '
-                                          'scholarly communication, see: https://orcid.org/.'}
+            table_descriptions = {
+                dag_id: "The ORCID (Open Researcher and Contributor ID) is a nonproprietary "
+                "alphanumeric code to uniquely identify authors and contributors of "
+                "scholarly communication, see: https://orcid.org/."
+            }
 
         if airflow_vars is None:
-            airflow_vars = [AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                            AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET, AirflowVars.ORCID_BUCKET]
+            airflow_vars = [
+                AirflowVars.DATA_PATH,
+                AirflowVars.PROJECT_ID,
+                AirflowVars.DATA_LOCATION,
+                AirflowVars.DOWNLOAD_BUCKET,
+                AirflowVars.TRANSFORM_BUCKET,
+                AirflowVars.ORCID_BUCKET,
+            ]
         if airflow_conns is None:
             airflow_conns = [AirflowConns.ORCID]
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field,
-                         bq_merge_days, dataset_description=dataset_description,
-                         table_descriptions=table_descriptions, airflow_vars=airflow_vars,
-                         airflow_conns=airflow_conns, batch_load=batch_load)
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            dataset_id,
+            merge_partition_field,
+            bq_merge_days,
+            dataset_description=dataset_description,
+            table_descriptions=table_descriptions,
+            queue=queue,
+            airflow_vars=airflow_vars,
+            airflow_conns=airflow_conns,
+            batch_load=batch_load,
+        )
         self.max_processes = max_processes
 
-        self.add_setup_task_chain([self.check_dependencies,
-                                   self.get_release_info])
-        self.add_task_chain([self.transfer,
-                             self.download_transferred,
-                             self.transform,
-                             self.upload_transformed,
-                             self.bq_load_partition])
-        self.add_task_chain([self.bq_delete_old,
-                             self.bq_append_new,
-                             self.cleanup], trigger_rule='none_failed')
+        self.add_setup_task_chain([self.check_dependencies, self.get_release_info])
+        self.add_task_chain(
+            [self.transfer, self.download_transferred, self.transform, self.upload_transformed, self.bq_load_partition]
+        )
+        self.add_task_chain([self.bq_delete_old, self.bq_append_new, self.cleanup], trigger_rule="none_failed")
 
     def make_release(self, **kwargs) -> OrcidRelease:
         """ Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
@@ -275,7 +333,7 @@ class OrcidTelescope(StreamTelescope):
         passed to this argument.
         :return: an OrcidRelease instance.
         """
-        ti: TaskInstance = kwargs['ti']
+        ti: TaskInstance = kwargs["ti"]
         start_date, end_date, first_release = ti.xcom_pull(key=OrcidTelescope.RELEASE_INFO, include_prior_dates=True)
 
         release = OrcidRelease(self.dag_id, start_date, end_date, first_release, self.max_processes)
@@ -291,7 +349,7 @@ class OrcidTelescope(StreamTelescope):
 
         orcid_bucket_name = Variable.get(AirflowVars.ORCID_BUCKET)
         if not storage_bucket_exists(orcid_bucket_name):
-            raise AirflowException(f'Bucket to store ORCID download data does not exist ({orcid_bucket_name})')
+            raise AirflowException(f"Bucket to store ORCID download data does not exist ({orcid_bucket_name})")
         return True
 
     def transfer(self, release: OrcidRelease, **kwargs):
@@ -338,7 +396,7 @@ def run_subprocess_cmd(proc: Popen, args: list):
     :param args: args list that was passed on to subprocess
     :return: None.
     """
-    logging.info(f'Executing bash command: {subprocess.list2cmdline(args)}')
+    logging.info(f"Executing bash command: {subprocess.list2cmdline(args)}")
     out, err = wait_for_process(proc)
     if out:
         logging.info(out)
@@ -346,18 +404,23 @@ def run_subprocess_cmd(proc: Popen, args: list):
         logging.info(err)
     if proc.returncode != 0:
         # Don't raise exception if the only error is because blobs could not be found in bucket
-        err_lines = err.split('\n')
+        err_lines = err.split("\n")
         for line in err_lines[:]:
-            if not line or 'CommandException: No URLs matched:' in line or 'could not be transferred.' in line:
+            if not line or "CommandException: No URLs matched:" in line or "could not be transferred." in line:
                 err_lines.remove(line)
         if err_lines:
             raise AirflowException("bash command failed")
-    logging.info('Finished cmd successfully')
+    logging.info("Finished cmd successfully")
 
 
-def write_modified_record_blobs(start_date: datetime, end_date: datetime, aws_access_key_id: str,
-                                aws_secret_access_key: str, gc_download_bucket: str, modified_records_path: str) -> \
-        int:
+def write_modified_record_blobs(
+    start_date: datetime,
+    end_date: datetime,
+    aws_access_key_id: str,
+    aws_secret_access_key: str,
+    gc_download_bucket: str,
+    modified_records_path: str,
+) -> int:
     """ Download the ORCID lambda file (last_modified.csv.tar) from AWS and use file to write the full Google Cloud
     blob names of modified records.
     The tar file is opened in memory and contains the ORCID record IDs, sorted by last modified date.
@@ -370,25 +433,25 @@ def write_modified_record_blobs(start_date: datetime, end_date: datetime, aws_ac
     :param modified_records_path: Path to file with the blob names of modified records
     :return: The number of modified records.
     """
-    logging.info(f'Writing modified records to {modified_records_path}')
+    logging.info(f"Writing modified records to {modified_records_path}")
 
     # orcid lambda file, containing info on last_modified dates of records
     aws_lambda_bucket = OrcidTelescope.LAMBDA_BUCKET
     aws_lambda_object = OrcidTelescope.LAMBDA_OBJECT
 
-    s3client = boto3.client('s3', aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
+    s3client = boto3.client("s3", aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
     lambda_obj = s3client.get_object(Bucket=aws_lambda_bucket, Key=aws_lambda_object)
-    lambda_content = lambda_obj['Body'].read()
+    lambda_content = lambda_obj["Body"].read()
 
     modified_records_count = 0
     # open tar file in memory
-    with tarfile.open(fileobj=BytesIO(lambda_content)) as tar, open(modified_records_path, 'w') as f:
+    with tarfile.open(fileobj=BytesIO(lambda_content)) as tar, open(modified_records_path, "w") as f:
         for tar_resource in tar:
             if tar_resource.isfile():
                 # extract last modified file in memory
-                inner_file_bytes = tar.extractfile(tar_resource).read().decode().split('\n')
+                inner_file_bytes = tar.extractfile(tar_resource).read().decode().split("\n")
                 for line in inner_file_bytes[1:]:
-                    elements = line.split(',')
+                    elements = line.split(",")
                     orcid_record = elements[0]
 
                     # parse through line by line, check if last_modified timestamp is between start/end date
@@ -415,11 +478,11 @@ def convert(k: str) -> str:
     :param k: Key
     :return: The converted key
     """
-    if len(k.split(':')) > 1:
-        k = k.split(':')[1]
-    if k.startswith('@') or k.startswith('#'):
+    if len(k.split(":")) > 1:
+        k = k.split(":")[1]
+    if k.startswith("@") or k.startswith("#"):
         k = k[1:]
-    k = k.replace('-', '_')
+    k = k.replace("-", "_")
     return k
 
 
@@ -435,7 +498,7 @@ def change_keys(obj, convert):
     if isinstance(obj, dict):
         new = obj.__class__()
         for k, v in list(obj.items()):
-            if k.startswith('@xmlns'):
+            if k.startswith("@xmlns"):
                 pass
             else:
                 new[convert(k)] = change_keys(v, convert)
