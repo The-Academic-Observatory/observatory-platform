@@ -11,12 +11,15 @@ Getting Started
 
     setup/index
 
-Tutorials
+Instructions
 =======================
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
 
-    tutorials/index
+    installation
+    observatory_dev
+    deploy_terraform
+    license
 
 REST API
 =========================
@@ -24,6 +27,34 @@ REST API
     :maxdepth: 2
 
     api/index
+
+Telescopes
+=======================
+.. toctree::
+    :maxdepth: 2
+
+    telescopes/index
+
+Datasets
+=======================
+.. toctree::
+    :maxdepth: 2
+
+    datasets/index
+
+Analytical Workflows
+=======================
+.. toctree::
+    :maxdepth: 2
+
+    workflows/index
+
+Tutorials
+=======================
+.. toctree::
+    :maxdepth: 2
+
+    tutorials/index
 
 License & Contributing Guidelines
 =================================
@@ -40,3 +71,10 @@ Documentation for the observatory.platform Python API.
 
 .. toctree::
     :maxdepth: 3
+
+Indices and tables
+=======================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

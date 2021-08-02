@@ -1,0 +1,502 @@
+# Background
+
+## Description of a telescope
+The observatory platform collects data from many different sources. Each individual data source in the observatory is
+ referred to as a telescope.  
+The telescope can be seen as a workflow or data pipeline and should try to capture the data in it's original state as
+ much as possible.  
+The general workflow can be described with these tasks:
+ * Extract the raw data from an external source
+ * Store the raw data in a bucket
+ * Transform the data, so it is ready to be loaded into the data warehouse
+ * Store the transformed data in a bucket
+ * Load the data into the data warehouse
+
+## Managing telescopes with Airflow
+The telescopes are all managed using Airflow. 
+This workflow management system helps to schedule and monitor the many different telescopes.
+Airflow works with DAG (Directed Acyclic Graph) objects that are defined in a Python script. 
+The definition of a DAG according to Airflow is as follows:
+ > A dag (directed acyclic graph) is a collection of tasks with directional dependencies. A dag also has a schedule, a start date and an end date (optional). For each schedule, (say daily or hourly), the DAG needs to run each individual tasks as their dependencies are met.
+
+Generally speaking, one DAG maps to one telescope.
+
+## The telescope template
+Initially the telescopes in the observatory platform were each developed individually, there would be a telescope and
+ release class that was unique for each telescope.  
+After developing a few telescopes it became clear that there are many similarities between the telescopes
+ and the classes that were developed. 
+For example, many tasks such as uploading data to a bucket or loading data into BigQuery were the same for different
+ telescopes and only variables like filenames and schemas would be different.  
+The same properties were also often implemented, for example a download folder, release date and the many Airflow
+ related properties such as the DAG id, schedule interval, start date etc.
+ 
+These similarities prompted the development of a telescope template, that can be used as a basis for a new telescope.  
+The template abstracts away the code to create the DAG object used in Airflow, making it possible to use the template
+ without previous Airflow knowledge, although having basic Airflow knowledge might help to understand the
+  possibilities and limitations of the template.
+It also implements properties that are often used and common tasks such as cleaning up local files at the end of the
+ telescope.  
+The base template is used for two other templates that implement more specific tasks for loading data into
+ BigQuery and have some properties set to specific values (such as whether previous DAG runs should be run using the
+  airflow 'catchup' setting).  
+The base template and the other two templates (snapshot and stream) are all explained in more detail below.
+Each of the templates also have their own corresponding release class, this class contains properties and methods
+ that are related to the specific release.  
+
+## The template classes
+### Telescope
+The telescope class is the most basic template that can be used. 
+It implements methods from the AbstractTelescope class and it is not recommended that the AbstractTelescope class is
+ used directly itself.  
+
+#### make_dag
+The `make_dag` method of the telescope class is used to create an Airflow DAG object. This object is picked up by the
+ Airflow scheduler and ensures that all tasks are scheduled.
+
+#### Adding tasks to DAG
+It is possible to add one of the three types of tasks to this DAG object:
+ * Sensor
+ * Set-up task
+ * Task
+
+All three types of tasks can be added individually per task using the `add_<type_of_task>` method or a list of tasks
+ can be added using the `add_<type_of_task>_chain` method.  
+To better understand the difference between these type of tasks, it is helpful to know how tasks are created in
+ Airflow.  
+Within a DAG, each task that is part of the DAG is created by instantiating an Operator class.   
+There are many different types of Airflow Operators available and in the case of the template the usage is limited to
+ the BaseSensorOperator, PythonOperator and the ShortCircuitOperator.  
+The BaseSensorOperator keeps executing at a time interval and succeeds when a criteria is met and fails if and when
+ they time out.   
+The PythonOperator simply calls an executable Python function.  
+The ShortCircuitOperator is derived from the PythonOperator and additionally evaluates a condition. When the
+ conditions is False it short-circuits the workflow.  
+
+The **sensor** instantiates the BaseSensorOperator (or a child class of this operator) and all sensor tasks are always
+ chained to the beginning of the DAG.
+This task is useful for example to probe whether another task has finished successfully using the ExternalTaskSensor.
+
+The **set-up task** instantiates the ShortCircuitOperator, this means that the executable Python function has to
+ return a boolean.
+The returned value is then evaluated to determine whether the workflow continues. 
+Additionally, the set-up task does not require a release instance as an argument passed to the Python function, in
+ contrast to a 'general' task. 
+The set-up tasks are chained after any sensors and before any remaining 'general' tasks. 
+They are useful to e.g. check whether all dependencies for a telescope are met or to list which releases
+ are available.
+
+The general **task** instantiates the PythonOperator, the executable Python function that is called requires a release
+ instance to be passed on as an argument.
+These tasks are always chained after any sensors and set-up tasks.
+
+By default all tasks within their type (sensor, setup task, task) are chained linearly in the order they are inserted.
+There is a context manager `parallel_tasks` which can be used to parallelise some tasks.  
+All tasks that are added within that context are added in parallel, as of now this can only be used with the setup
+ tasks type.
+
+#### Always implement 'make_release' method 
+Because the general task requires a release instance, the `make_release` method of the telescope class always has to be
+ implemented by the developer. 
+This method is called when the PythonOperator for the general task is made and has to return a release instance, 
+the class that is used to create this release instance is discussed in detail further below.
+
+#### check_dependencies
+The telescope class also has a method `check_dependencies` that can be added as a set-up task. 
+All telescopes require that at least some Airflow Variables and Connections are set, so these dependencies should be
+ checked at the start of each telescope.
+
+#### Example
+Below is an example of a simple telescope using the telescope class:
+```python
+from airflow.operators.sensors import ExternalTaskSensor
+from pendulum import Pendulum, datetime
+from observatory.platform.telescopes.telescope import Telescope, Release
+from observatory.platform.utils.airflow_utils import  AirflowConns, AirflowVars
+
+class MyTelescope(Telescope):
+    """
+    Simple telescope DAG
+    """
+    def __init__(self, dag_id: str = 'my_telescope', start_date: Pendulum = datetime(2017, 3, 20),
+                 schedule_interval: str = '@weekly', catchup: bool = False):
+        """ Construct a Telescope instance.
+
+        :param dag_id: the id of the DAG.
+        :param start_date: the start date of the DAG.
+        :param schedule_interval: the schedule interval of the DAG.
+        """
+        super().__init__(dag_id, start_date, schedule_interval, catchup=catchup, airflow_conns=[AirflowConns.ORCID],
+                         airflow_vars=[AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION])
+        
+        sensor = ExternalTaskSensor(external_dag_id='my_other_telescope', task_id='important_task', mode='reschedule')
+
+        # add tasks to DAG object
+        self.add_sensor(sensor)
+        self.add_setup_task_chain([self.check_dependencies,
+                                   self.list_releases], retries=3)
+        self.add_task(self.download)
+
+    def make_release(self, **kwargs) -> Release:
+        """ Create a single release instance.
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html for more info.
+        :return: A release instance.
+        """
+        release_id = f"telescope_{datetime.now()}"
+        release = Release(self.dag_id, release_id)
+        return release
+
+    def list_releases(self, **kwargs) -> bool:
+        """ List available releases. This is a custom task that is executed before a release is made. 
+        The return value is used for a shortcircuit operator"
+
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html for more info.
+        :return: Whether at least one release is available.
+        """
+        release_available = True
+        return release_available
+
+    def download(self, release: Release, **kwargs):
+        """ Task to download data. This is a custom task that can use a release instance.
+
+        :param release: A release instance.
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html for more info.
+        :return: None.
+        """
+        print('Downloading data')
+
+# Create the DAG object that is loaded in the DAG bag by Airflow 
+telescope = MyTelescope()
+globals()[telescope.dag_id] = telescope.make_dag()
+```
+
+And the equivalent without using the template:
+```python
+from pendulum import datetime
+from airflow import DAG
+from airflow.exceptions import AirflowException
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python_operator import ShortCircuitOperator
+from airflow.operators.sensors import ExternalTaskSensor
+from observatory.platform.utils.airflow_utils import  AirflowConns, AirflowVars, check_connections, check_variables
+
+def check_dependencies() -> bool:
+    """Checks the 'telescope' attributes, airflow variables & connections and possibly additional custom checks.
+    
+    :return: Whether variables and connections are available.
+    """
+    # check that vars and connections are available
+    airflow_vars = [AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION]
+    vars_valid = check_variables(*airflow_vars)
+
+    airflow_conns = [AirflowConns.ORCID]
+    conns_valid = check_connections(*airflow_conns)
+    
+    if not vars_valid or not conns_valid:
+        raise AirflowException("Required variables or connections are missing")
+    
+    return True
+
+def list_releases() -> bool:
+    """ List available releases.
+
+    :return: Whether at least one release is available.
+    """
+    release_available = True
+    return release_available
+    
+
+def download_data():
+    """ Task to download data.
+
+    :return: None.
+    """
+    print('Downloading data')
+
+with DAG('my_telescope', description='Simple telescope DAG', start_date=datetime(2017, 3, 20), 
+         schedule_interval='@weekly', catchup=False) as dag:
+    sensor_task = ExternalTaskSensor(external_dag_id='my_other_telescope', task_id='important_task', mode='reschedule')
+
+    check_dependencies_task = ShortCircuitOperator(task_id='check_dependencies', python_callable=check_dependencies, retries=3)
+
+    list_releases_task = ShortCircuitOperator(task_id='list_releases', python_callable=list_releases, retries=3)
+    
+    download_task = PythonOperator(task_id='download', python_callable=download_data)
+
+sensor_task >> check_dependencies_task >> list_releases_task >> download_task
+```
+
+### Release
+An instance of the release class is passed on as an argument to any general tasks that are added to the telescope. 
+Similarly in set-up to the telescope class, it implements methods from the AbstractRelease class and it is not
+ recommended that the AbstractRelease class is used directly by itself.  
+
+#### release_id
+The Release class always needs a release id. 
+This release id is usually based on the release date so it is unique for each release and relates to the date when
+ the data became available or was processed.
+
+#### Folder paths
+The release has the paths for 3 different folders as properties `download_folder`, `extract_folder` and
+ `transform_folder`, it is convenient to use these when downloading/extract/transforming data and writing the data
+  to a file in the matching folder. 
+The paths for these folders always include the release id. 
+The format is as follows:  
+`/path/to/telescopes/{download|extract|transform}/{dag_id}/{release_id}/`
+
+The path to telescopes is determined by a separate function.  
+Having these folder paths as properties of the release class makes it easy to have the same file structure for each
+ telescope.
+
+#### List files in folders
+The folder paths are also used for the 3 corresponding properties, `download_files`, `extract_files` and
+ `transform_files`.  
+These properties will each return a list of files in their corresponding folder that match a given regex pattern.
+This is useful when e.g. iterating through all download files to transform them, or passing on the list of transform
+ files to a function that uploads all files to a storage bucket.   
+The regex patterns for each of the 3 folders can be passed on separately when instantiating the release class.  
+
+#### Bucket names
+There are 2 storage buckets used to store the data processed with the telescope, a download bucket and a transform
+ bucket.
+The bucket names are retrieved from Airflow Variables and there are 2 corresponding properties in the release class, 
+`download_bucket` and `transform_bucket`.  
+These properties are convenient to use when uploading data to either one of these buckets.
+
+#### Clean up
+The release class has a `cleanup` method which can be called inside a task that will clean up by deleting all local
+ files.  
+This method is part of the release class, because it has to be done for each telescope and uses the folder paths
+ described above.   
+
+### SnapshotTelescope
+
+### SnapshotRelease
+
+### StreamTelescope
+
+### StreamRelease
+
+
+# Step by step tutorial
+## A typical development pipeline
+
+A typical telescope pipeline will:
+``` eval_rst
+#. Create a DAG file that calls code to construct the telescope in observatory-dags/observatory/dags/dags 
+#. Create a telescope file containing code for the telesecope itself in observatory-dags/observatory/dags/telescopes 
+#. Create one or multiple schema files for the telescope data loaded into BigQuery in observatory-dags/observatory/dags/database/schema
+#. Create a file with tests for the telescope in tests/observatory/dags/telescopes
+#. Create documentation for the telescope in docs/telescopes and update the index.rst file
+```
+
+## Creating a DAG file
+
+For Airflow to pickup new DAGs, we currently require you to create a new Python file in `observatory-dags/observatory/dags/dags` with content similar to:
+
+```
+# The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
+# https://airflow.apache.org/docs/stable/faq.html
+
+from observatory.dags.telescopes.my_telescope import MyTelescope
+
+telescope = MyTelescope()
+globals()[telescope.dag_id] = telescope.make_dag()
+```
+
+## Creating a telescope file
+
+Put your new telescope class in the directory `observatory-dags/observatory/telescopes`
+
+## Release class
+
+Datasets often have release information associated with each release, e.g., a date or release version.  Multiple releases can be ingested for each dataset on a regular schedule by the Acacdemic Observatory.  Release information for the dataset is stored in a release class object.  The release object is constructed and passed to each task in the telescope as a parameter. It is done this way because Airflow assumes each task is assumed to be sandboxed, so any inter-task communication requires RPC or local disk storage for communication.
+
+The release class contains:
+``` eval_rst
+#. The DAG ID.
+#. The release ID.
+#. Regex patterns used to find files in the download, extract, and transform folders.
+#. Lists of download, extract, and transform files.
+#. A method for cleaning up the download, extract, and transform files.
+```
+
+The interface is defined in `AbstractRelease`. There is also a `Release` class you can use which implements all of those functions if you want to just let the API generate all those folders and file lists based on the `dag_id` and `release_id`.  See the API documentation for the `Release` class for more information.  Your telescope file should contain a **release** class if it's required for your workflow.
+
+## Telescope class
+
+The interface specification is defined in `AbstractTelescope`.  There is a `Telescope` class you can use with an implementation of that interface. Your telescope file should contain a telescope class.  See the API documentation for more details. The telesecope class is responsible for adding tasks to the DAG, constructing a DAG for Airflow to use, and onstructing release objects to pass to each task during execution.
+
+## Example telescope file
+
+```
+import logging
+import pendulum
+
+from typing import List
+from observatory.platform.telescopes.telescope import AbstractRelease, Telescope
+
+
+class MyRelease(AbstractRelease):
+    def __init__(self, dag_id, release_date):
+        self.dag_id = dag_id
+        self.release_date = release_date
+
+    def download_bucket(self):  # Required
+        return "download_bucket_name"
+
+    def transform_bucket(self):  # Required
+        return "transform_bucket_name"
+
+    def download_folder(self):  # Required
+        return "download_folder_name"
+
+    def extract_folder(self):  # Required
+        return "extract_folder_name"
+
+    def transform_folder(self):  # Required
+        return "transform_folder_name"
+
+    def download_files(self):  # Required
+        return ["list", "of", "download", "files"]
+
+    def extract_files(self):  # Required
+        return ["list", "of", "extract", "files"]
+
+    def transform_files(self):  # Required
+        return ["list", "of", "transform", "files"]
+
+    def cleanup(self):  # Required
+        # Cleanup code
+        pass
+
+
+class MyTelescope(Telescope):
+    # dag_id, start_date, schedule_interval, catchup correspond to the DAG parameters in Airflow with the same name.
+    def __init__(self, *, dag_id: str, start_date: pendulum.Pendulum = pendulum.Pendulum(2021, 1, 1), schedule_interval:str = "@weekly", catchup: bool = False):
+        # Initialise base class
+        super().__init__(
+            dag_id=self.dag_id,
+            start_date=self.start_date,
+            schedule_interval=self.schedule_interval,
+            catchup=self.catchup,
+        )
+
+        # Any other initialisation
+
+        # Add sensor tasks
+        # self.add_sensor(some_airflow_sensor)
+
+        # Add setup tasks
+        # self.add_setup_task(self.some_setup_task)
+
+        # Add generic tasks
+        self.add_task(self.task1)
+        self.add_task(self.task2)
+        self.add_task(self.cleanup)
+
+    def make_release(self, **kwargs):  # Required
+        releases = list()
+        release = MyRelease(dag_id=self.dag_id, release_date=self.start_date)
+        releases.append(release)
+        return releases
+
+    def task1(self, releases: List[MyRelease], **kwargs):
+        logging.warn("Task 1 executing")
+
+    def task2(self, releases: List[MyRelease], **kwargs):
+        logging.warn("Task 2 executing")
+
+    def cleanup(self, releases: List[MyRelease], **kwargs):
+        logging.warn("Cleanup task executing")
+```
+
+This telescope adds `task1, task2, cleanup` tasks that just print some statements. The function signature is always the same for Telescope tasks.   If you need to pass additional arguments, you should do it through keyword arguments, and process `**kwargs` within the task function.
+
+If you start the observatory platform with these changes, you will see a new DAG in Airflow called **my_dag_id** with the DAG structure `task1 -> task2 -> cleanup`.  When you run the DAG, you should see the logging messages in the log of each task.
+
+## BigQuery schemas
+
+BigQuery database schema json files are put in `observatory-dags/dags/database/schema`.  They follow the scheme: `<table_name>_YYYY-MM-DD.json`.  If you wish to provide an additional custom version as well as the date, then the files should follow the scheme: `<table_name>_customversion_YYYY-MM-DD.json`.
+
+The BigQuery table loading utility functions in the Academic Observatory platform API will try to find the correct schema to use for loading table data, based on release date information.
+
+## Specialised telescopes
+
+Currently there are two types of specialised telescope patterns implemented by the Academic Observatory.  These are:
+```eval_rst
+#. the `StreamTelescope`, where the datasets have an initial full snapshot, followed by differential releases, and
+#. the `SnapshotTelescope`, where each release is a full snapshot of the data.
+```
+
+The stream and snapshot telescopes derive the `Telescope` class.
+
+These telescopes provide extra methods for loading data into BigQuery.  Currently only Google Cloud Storage and BigQuery are supported.
+
+If you wish to design your own telescope templates, you can choose to derive the `Telescope` class if it suits your needs, or implement the `AbstractTelescope` interface yourself.
+
+## Generating a telescope template
+
+You can use the observatory cli tool to generate a telescope template for a new `Telescope`, `StreamTelescope` or `SnapshotTelescope` telescope and release class. Use the command:
+```
+observatory generate telescope <type> <name>
+```
+where the type can be `Telescope`, `StreamTelescope`, `SnapshotTelescope` and name is the class name of your new telescope.  It will generate a new dag `.py` file in `observatory-dags/observatory/dags/dags` with the lower case class name.  Similarly a telescope template will be created in `observatory-dags/observatory/dags/telescopes` with the same lower case class name.
+
+For example:
+```
+observatory generate telescope SnapshotTelescope MyNewTelescope
+```
+creates the files `observatory-dags/observatory/dags/dags/mynewtelescope.py` and `observatory-dags/observatory/dags/telescopes/mynewtelescope.py`
+
+## Documentation
+
+The Academic Observatory builds documentation using [Sphinx](https://www.sphinx-doc.org).  Documentation is contained in the `docs` directory. Currently index pages are written in [RST format (Restructured Text)](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html), and content pages are written with [Markdown](https://www.sphinx-doc.org/en/master/usage/markdown.html) for simplicity.
+
+You can generate documentation by using the command:
+```
+cd docs
+make html
+```
+This will output html documentation in the `docs/_build/html` directory.
+
+### Including schemas in documentation
+
+The documentation build system automatically converts all the schema files from `observatory-dags/observatory/dags/database/schemas` into CSV files.  This is temporarily stored in the `docs/schemas` folder. The csv files have the same filename as the original schema files, except for the suffix, which is changed to csv.  The schemas folder is cleaned up as part of the build process so you will not be able to see the directory unless you disable the cleanup code in the `Makefile`.
+
+To include a schema in your documentation markdown file, we need to embed some RST that loads a table from a csv file. Since we use the recommonmark package, this can be done with an `eval_rst` codeblock that contains RST:
+
+    ``` eval_rst
+    .. csv-table::
+    :file: /path/to/schema.csv
+    :width: 100%
+    :header-rows: 1
+    ```
+
+To figure out the file path, it is recommended you construct a relative path to the `docs/schemas` directory from the directory of your markdown file. For example, if your documentation file resides in
+```
+docs/datasets/mydataset
+```
+then you should set
+```
+:file: ../../schemas/myschemafile.csv
+```
+The `..` follows the parent directory, and we need to do this twice to reach `docs` from `docs/datasets/mydataset`.
+
+## Style
+
+We try to conform to the Python PEP-8 standard, and the default format style of the `Black` formatter.  This is done with the [autopep8 package](https://pypi.org/project/autopep8), and the [black formatter](https://pypi.org/project/black/).
+
+We recommend you use those format tools as part of your coding workflow.
+
+### Type hinting
+
+You should provide type hints for all of the function arguments you use, and for return types.  Because Python is a weakly typed language, it can be confusing to those unacquainted with the codebase what type of objects are being manipulated in a particular function.  Type hints help reduce this ambiguity.
+
+### Docstring
+
+Please provide docstring comments for all your classes, methods, and functions.  This includes descriptions of arguments, and returned objects.  These comments will be automatically compiled into the Academic Observatory API reference documentation section.

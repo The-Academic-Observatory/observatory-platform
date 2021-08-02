@@ -234,7 +234,7 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
             start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
 
-        mt.add_sensors([tds, tds2])
+        mt.add_sensor_chain([tds, tds2])
         dag = mt.make_dag()
 
         self.assert_dag_structure({"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag)
@@ -246,7 +246,7 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
             schedule_interval="daily",
         )
         mt.add_task(self.dummy_func)
-        mt.add_sensors([])
+        mt.add_sensor_chain([])
         dag = mt.make_dag()
 
         self.assert_dag_structure(

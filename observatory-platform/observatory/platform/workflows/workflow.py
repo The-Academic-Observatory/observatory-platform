@@ -115,7 +115,7 @@ class AbstractWorkflow(ABC):
         pass
 
     @abstractmethod
-    def add_sensors(self, sensors: List[BaseSensorOperator]):
+    def add_sensor_chain(self, sensors: List[BaseSensorOperator]):
         """Add a list of sensors to monitor.  The workflow will wait until the monitored sensors all trigger before
         running the tasks.
 
@@ -273,8 +273,8 @@ class Workflow(AbstractWorkflow):
         """
         self.sensors.append(sensor)
 
-    def add_sensors(self, sensors: List[BaseSensorOperator]):
-        """Add a list of sensors to monitor.  The Workflow will wait until the monitored sensors all trigger before
+    def add_sensor_chain(self, sensors: List[BaseSensorOperator]):
+        """Add a list of sensors to monitor.  The workflow will wait until the monitored sensors all trigger before
         running the tasks.
 
         :param sensors: List of sensors to monitor.
