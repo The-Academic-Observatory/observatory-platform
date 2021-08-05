@@ -23,10 +23,8 @@ from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
 from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
-from observatory.platform.utils.config_utils import (
-    terraform_credentials_path as default_terraform_credentials_path,
-    observatory_home,
-)
+from observatory.platform.utils.config_utils import observatory_home
+from observatory.platform.utils.config_utils import terraform_credentials_path as default_terraform_credentials_path
 
 PLATFORM_NAME = "Observatory Platform"
 TERRAFORM_NAME = "Observatory Terraform"
@@ -73,11 +71,7 @@ def cli():
 )
 @click.option("--debug", is_flag=True, default=DEBUG, help="Print debugging information.")
 def platform(
-    command: str,
-    config_path: str,
-    host_uid: int,
-    host_gid: int,
-    debug,
+    command: str, config_path: str, host_uid: int, host_gid: int, debug,
 ):
     """Run the local Observatory Platform platform.\n
 
@@ -90,12 +84,7 @@ def platform(
     print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
     if os.path.isfile(config_path):
         # Make the platform command, which encapsulates functionality for running the observatory
-        platform_cmd = PlatformCommand(
-            config_path,
-            host_uid=host_uid,
-            host_gid=host_gid,
-            debug=debug,
-        )
+        platform_cmd = PlatformCommand(config_path, host_uid=host_uid, host_gid=host_gid, debug=debug,)
 
         # Check dependencies
         platform_check_dependencies(platform_cmd, min_line_chars=min_line_chars)
@@ -159,6 +148,7 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, min_line_chars: i
 
     print(indent("Host machine settings:", INDENT1))
     print(indent(f"- observatory home: {platform_cmd.config.observatory.observatory_home}", INDENT2))
+    print(indent(f"- dags-path: {platform_cmd.dags_path}", INDENT2))
     print(indent(f"- host-uid: {platform_cmd.host_uid}", INDENT2))
 
 
@@ -232,53 +222,19 @@ def generate():
 
 
 @generate.command()
-@click.argument(
-    "project_path",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-)
-@click.argument("package_name", type=str)
-@click.argument("workflow_type", type=click.Choice(["Workflow", "StreamTelescope", "SnapshotTelescope"]))
-@click.argument("workflow_name", type=str)
-def workflow(project_path: str, package_name: str, workflow_type: str, workflow_name: str):
-    """Generate a new workflow.
+@click.argument("telescope_type", nargs=1)
+@click.argument("telescope_name", nargs=1)
+@click.argument("author_name", nargs=1)
+def telescope(telescope_type: str, telescope_name: str, author_name: str):
+    """Generate boiler plate code for a new telescope.
 
-    \b
-    PROJECT_PATH is the Python project path.
-    PACKAGE_NAME is the Python package name.
-    WORKFLOW_TYPE is the type of workflow.
-    WORKFLOW_NAME is the the name of your new workflow.
-
-    \b
-    For example, the command: observatory generate workflow /path/to/my-workflows-project my_workflows_project Workflow MyWorkflow
-
-    \b Will generate the following files and folders:
-
-    \b
-    └── my-workflows-project
-        ├── docs
-        │   ├── index.rst
-        │   └── my_workflow.md
-        ├── my_workflows_project
-        │   ├── dags
-        │   │   ├── __init__.py
-        │   │   └── my_workflow.py
-        │   ├── __init__.py
-        │   └── workflows
-        │       ├── __init__.py
-        │       └── my_workflow.py
-        └── tests
-            └── my_workflows_project
-                ├── __init__.py
-                └── workflows
-                    ├── __init__.py
-                    └── test_my_workflow.py
+    - telescope_type: Type of telescope. Options are Telescope, StreamTelescope, SnapshotTelescope.\n
+    - telescope_name: Name of your new telescope.\n
+    - author_name: Your full name in quotes, added as author of the files.\n
     """
 
-    # TODO: project path and package name should be inferred somehow
     cmd = GenerateCommand()
-    cmd.generate_new_workflow(
-        project_path=project_path, package_name=package_name, workflow_type=workflow_type, workflow_name=workflow_name
-    )
+    cmd.generate_new_telescope(telescope_type, telescope_name, author_name)
 
 
 @generate.command()

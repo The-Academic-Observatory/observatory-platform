@@ -332,7 +332,8 @@ Next, all rows from the relevant table partitions are appended to the main table
 This is done with the `bq_append_new` method.
 After these 2 tasks, any new rows are added to the main table and any old rows are updated in place.
 
-As an example, let's assume there is a telescope with `bq_merge_days` set to 14 and a `schedule_interval` to `@weekly`.
+As an example, let's assume there is a stream telescope with `bq_merge_days` set to 14 and the `schedule_interval` 
+ set to `@weekly`.
 Below is an overview of the expected states for each of the BigQuery load tasks for different run dates.
 
 On 2021-01-01. First release:   
@@ -391,9 +392,25 @@ A typical telescope pipeline will:
 
 ## Creating a DAG file
 
-For Airflow to pickup new DAGs, we currently require you to create a new Python file in `observatory-dags/observatory/dags/dags` with content similar to:
+For Airflow to pickup new DAGs, it is required to create a DAG file with content similar to:
 
-```
+```python
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: <Your Name>
+
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
@@ -403,150 +420,138 @@ telescope = MyTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()
 ```
 
+The filename is usually similar to the DAG id and the same for the telescope file in the `observatory-dags/observatory/dags/telescopes` 
+directory.
+
 ## Creating a telescope file
+The telescope file contains the release class at the top, then the telescope class and finally any functions that are
+ used within these classes.
 
-Put your new telescope class in the directory `observatory-dags/observatory/telescopes`
+An example of the telescope file:
+```python
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-## Release class
+# Author: <Your Name>
 
-Datasets often have release information associated with each release, e.g., a date or release version.  Multiple releases can be ingested for each dataset on a regular schedule by the Acacdemic Observatory.  Release information for the dataset is stored in a release class object.  The release object is constructed and passed to each task in the telescope as a parameter. It is done this way because Airflow assumes each task is assumed to be sandboxed, so any inter-task communication requires RPC or local disk storage for communication.
+from pendulum import Pendulum, datetime
+from observatory.platform.telescopes.telescope import Telescope, Release
+from observatory.platform.utils.airflow_utils import  AirflowConns, AirflowVars
 
-The release class contains:
-``` eval_rst
-#. The DAG ID.
-#. The release ID.
-#. Regex patterns used to find files in the download, extract, and transform folders.
-#. Lists of download, extract, and transform files.
-#. A method for cleaning up the download, extract, and transform files.
-```
-
-The interface is defined in `AbstractRelease`. There is also a `Release` class you can use which implements all of those functions if you want to just let the API generate all those folders and file lists based on the `dag_id` and `release_id`.  See the API documentation for the `Release` class for more information.  Your telescope file should contain a **release** class if it's required for your workflow.
-
-## Telescope class
-
-The interface specification is defined in `AbstractTelescope`.  There is a `Telescope` class you can use with an implementation of that interface. Your telescope file should contain a telescope class.  See the API documentation for more details. The telesecope class is responsible for adding tasks to the DAG, constructing a DAG for Airflow to use, and onstructing release objects to pass to each task during execution.
-
-## Example telescope file
-
-```
-import logging
-import pendulum
-
-from typing import List
-from observatory.platform.telescopes.telescope import AbstractRelease, Telescope
-
-
-class MyRelease(AbstractRelease):
-    def __init__(self, dag_id, release_date):
-        self.dag_id = dag_id
-        self.release_date = release_date
-
-    def download_bucket(self):  # Required
-        return "download_bucket_name"
-
-    def transform_bucket(self):  # Required
-        return "transform_bucket_name"
-
-    def download_folder(self):  # Required
-        return "download_folder_name"
-
-    def extract_folder(self):  # Required
-        return "extract_folder_name"
-
-    def transform_folder(self):  # Required
-        return "transform_folder_name"
-
-    def download_files(self):  # Required
-        return ["list", "of", "download", "files"]
-
-    def extract_files(self):  # Required
-        return ["list", "of", "extract", "files"]
-
-    def transform_files(self):  # Required
-        return ["list", "of", "transform", "files"]
-
-    def cleanup(self):  # Required
-        # Cleanup code
-        pass
-
+class MyRelease(Release):
+    def __init__(self, dag_id: str, release_date: Pendulum):
+        """ Create a MyRelease instance.
+    
+        :param dag_id: the DAG id.
+        :param release_date: the date of the release.
+        """
+    
+        download_files_regex = ".*.json.tar.gz$"
+        extract_files_regex = f".*.json$"
+        transform_files_regex = f".*.jsonl$"
+        release_id = f'{dag_id}_{release_date.strftime("%Y_%m_%d")}'
+        super().__init__(dag_id, release_id, download_files_regex, extract_files_regex, transform_files_regex)
+        
+        self.url = MyTelescope.URL.format(year=release_date.year, month=release_date.month)
+    
+    def download(self):
+        success = download_from_url(self.url)
 
 class MyTelescope(Telescope):
-    # dag_id, start_date, schedule_interval, catchup correspond to the DAG parameters in Airflow with the same name.
-    def __init__(self, *, dag_id: str, start_date: pendulum.Pendulum = pendulum.Pendulum(2021, 1, 1), schedule_interval:str = "@weekly", catchup: bool = False):
-        # Initialise base class
-        super().__init__(
-            dag_id=self.dag_id,
-            start_date=self.start_date,
-            schedule_interval=self.schedule_interval,
-            catchup=self.catchup,
-        )
+    """
+    Simple telescope DAG
+    """
+    
+    URL = "https://api.snapshot/{year}/{month:02d}/all.json.tar.gz"
 
-        # Any other initialisation
+    def __init__(self, dag_id: str = 'my_telescope', start_date: Pendulum = datetime(2017, 3, 20),
+                 schedule_interval: str = '@weekly', catchup: bool = False):
+        """ Construct a MyTelescope instance.
 
-        # Add sensor tasks
-        # self.add_sensor(some_airflow_sensor)
-
-        # Add setup tasks
-        # self.add_setup_task(self.some_setup_task)
-
-        # Add generic tasks
-        self.add_task(self.task1)
-        self.add_task(self.task2)
+        :param dag_id: the id of the DAG.
+        :param start_date: the start date of the DAG.
+        :param schedule_interval: the schedule interval of the DAG.
+        """
+        super().__init__(dag_id, start_date, schedule_interval, catchup=catchup, airflow_conns=[AirflowConns.ORCID],
+                         airflow_vars=[AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION])
+        
+        self.add_setup_task(self.check_dependencies, retries=3)
+        self.add_task(self.download)
         self.add_task(self.cleanup)
 
-    def make_release(self, **kwargs):  # Required
-        releases = list()
-        release = MyRelease(dag_id=self.dag_id, release_date=self.start_date)
-        releases.append(release)
-        return releases
+    def make_release(self, **kwargs) -> MyRelease:
+        """ Create a release instance.
 
-    def task1(self, releases: List[MyRelease], **kwargs):
-        logging.warn("Task 1 executing")
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html for more info.
+        :return: A list with a single release instance.
+        """
+        release_date = kwargs["execution_date"]
+        return MyRelease(self.dag_id, release_date)
 
-    def task2(self, releases: List[MyRelease], **kwargs):
-        logging.warn("Task 2 executing")
 
-    def cleanup(self, releases: List[MyRelease], **kwargs):
-        logging.warn("Cleanup task executing")
+    def download(self, release: MyRelease, **kwargs):
+        """ Task to download data.
+
+        :param release: A release instance.
+        :param kwargs: the context passed from the PythonOperator. See
+        https://airflow.apache.org/docs/stable/macros-ref.html for more info.
+        :return: None.
+        """ 
+        release.download()
+    
+    def cleanup(self, release: MyRelease, **kwargs):
+        release.cleanup()    
+
+def download_from_url(url: str) -> bool:
+    return True
 ```
-
-This telescope adds `task1, task2, cleanup` tasks that just print some statements. The function signature is always the same for Telescope tasks.   If you need to pass additional arguments, you should do it through keyword arguments, and process `**kwargs` within the task function.
-
-If you start the observatory platform with these changes, you will see a new DAG in Airflow called **my_dag_id** with the DAG structure `task1 -> task2 -> cleanup`.  When you run the DAG, you should see the logging messages in the log of each task.
 
 ## BigQuery schemas
 
-BigQuery database schema json files are put in `observatory-dags/dags/database/schema`.  They follow the scheme: `<table_name>_YYYY-MM-DD.json`.  If you wish to provide an additional custom version as well as the date, then the files should follow the scheme: `<table_name>_customversion_YYYY-MM-DD.json`.
+BigQuery database schema json files are put in `observatory-dags/dags/database/schema`.  
+They follow the scheme: `<table_name>_YYYY-MM-DD.json`.  
+If you wish to provide an additional custom version as well as the date, then the files should follow the scheme: 
+ `<table_name>_<customversion>_YYYY-MM-DD.json`.
 
-The BigQuery table loading utility functions in the Academic Observatory platform API will try to find the correct schema to use for loading table data, based on release date information.
-
-## Specialised telescopes
-
-Currently there are two types of specialised telescope patterns implemented by the Academic Observatory.  These are:
-```eval_rst
-#. the `StreamTelescope`, where the datasets have an initial full snapshot, followed by differential releases, and
-#. the `SnapshotTelescope`, where each release is a full snapshot of the data.
-```
-
-The stream and snapshot telescopes derive the `Telescope` class.
-
-These telescopes provide extra methods for loading data into BigQuery.  Currently only Google Cloud Storage and BigQuery are supported.
-
-If you wish to design your own telescope templates, you can choose to derive the `Telescope` class if it suits your needs, or implement the `AbstractTelescope` interface yourself.
+The BigQuery table loading utility functions in the Observatory Platform will try to find the correct schema to use
+ for loading table data, based on release date information.
+These utility functions are used by the BigQuery load tasks of the sub templates (Snapshot, Stream, Organisation) and
+ to pick up the schema version when using these templates it is required to set the `schema_version` parameter.
 
 ## Generating a telescope template
 
-You can use the observatory cli tool to generate a telescope template for a new `Telescope`, `StreamTelescope` or `SnapshotTelescope` telescope and release class. Use the command:
-```
+You can use the observatory cli tool to generate a telescope template for a new `Telescope`, `StreamTelescope` or
+ `SnapshotTelescope` telescope and release class. Use the command:
+```shell script
 observatory generate telescope <type> <name>
 ```
-where the type can be `Telescope`, `StreamTelescope`, `SnapshotTelescope` and name is the class name of your new telescope.  It will generate a new dag `.py` file in `observatory-dags/observatory/dags/dags` with the lower case class name.  Similarly a telescope template will be created in `observatory-dags/observatory/dags/telescopes` with the same lower case class name.
+where the type can be `Telescope`, `StreamTelescope`, `SnapshotTelescope` and name is the class name of your new
+ telescope.  
+It will generate a new dag `.py` file in `observatory-dags/observatory/dags/dags` with the lower case class name. 
+Similarly a telescope template will be created in `observatory-dags/observatory/dags/telescopes` with the same lower case class name.
 
 For example:
-```
+```shell script
 observatory generate telescope SnapshotTelescope MyNewTelescope
 ```
-creates the files `observatory-dags/observatory/dags/dags/mynewtelescope.py` and `observatory-dags/observatory/dags/telescopes/mynewtelescope.py`
+
+Creates the following files:
+ * `observatory-dags/observatory/dags/dags/my_new_telescope.py`
+ * `observatory-dags/observatory/dags/telescopes/my_new_telescope.py`
+ * `tests/observatory/dags/telescopes/tests_my_new_telescope.py`
+ * `docs/telescopes/mynewtelescope.md`
 
 ## Documentation
 
