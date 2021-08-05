@@ -64,9 +64,9 @@ class ScopusRelease:
         self,
         inst_id: str,
         scopus_inst_id: List[str],
-        release_date: pendulum.datetime,
-        start_date: pendulum.datetime,
-        end_date: pendulum.datetime,
+        release_date: pendulum.DateTime,
+        start_date: pendulum.DateTime,
+        end_date: pendulum.DateTime,
         project_id: str,
         download_bucket_name: str,
         transform_bucket_name: str,
@@ -93,7 +93,7 @@ class ScopusRelease:
         self.end_date = end_date
         self.download_path = telescope_path(SubFolder.downloaded, ScopusTelescope.DAG_ID)
         self.transform_path = telescope_path(SubFolder.transformed, ScopusTelescope.DAG_ID)
-        self.telescope_path = f"telescopes/{ScopusTelescope.DAG_ID}/{release_date}"
+        self.telescope_path = f"telescopes/{ScopusTelescope.DAG_ID}/{release_date.date()}"
         self.project_id = project_id
         self.download_bucket_name = download_bucket_name
         self.transform_bucket_name = transform_bucket_name
@@ -582,7 +582,7 @@ class ScopusUtilWorker:
     DEFAULT_KEY_QUOTA = 20000  # API key query limit default per 7 days.
     QUEUE_WAIT_TIME = 20  # Wait time for Queue.get() call
 
-    def __init__(self, client_id: int, client: ScopusClient, quota_reset_date: pendulum.datetime, quota_remaining: int):
+    def __init__(self, client_id: int, client: ScopusClient, quota_reset_date: pendulum.DateTime, quota_remaining: int):
         """Constructor.
 
         :param client_id: Client id to use for debug messages so we don't leak the API key.
@@ -642,7 +642,7 @@ class ScopusUtility:
         :return: Saved file name.
         """
 
-        timestamp = pendulum.datetime.now("UTC").isoformat()
+        timestamp = pendulum.now("UTC").isoformat()
         save_file = os.path.join(download_path, f"{timestamp}_{period.start}_{period.end}.json")
         logging.info(f"{conn} worker {worker.client_id}: retrieving period {period.start} - {period.end}")
         query = ScopusUtility.build_query(inst_id, period)
@@ -657,7 +657,7 @@ class ScopusUtility:
         return save_file
 
     @staticmethod
-    def sleep_if_needed(reset_date: pendulum.datetime, conn: str):
+    def sleep_if_needed(reset_date: pendulum.DateTime, conn: str):
         """Sleep until reset_date.
 
         :param reset_date: Date(time) to sleep to.
@@ -689,8 +689,8 @@ class ScopusUtility:
 
     @staticmethod
     def update_reset_date(
-        conn: str, error_msg: str, worker: ScopusUtilWorker, curr_reset_date: pendulum.datetime
-    ) -> pendulum.datetime:
+        conn: str, error_msg: str, worker: ScopusUtilWorker, curr_reset_date: pendulum.DateTime
+    ) -> pendulum.DateTime:
         """Update the reset date to closest date that will make a worker available.
 
         :param conn: Airflow connection ID.
