@@ -254,7 +254,9 @@ class WosUtility:
         return WosUtility.download_wos_batch(login, password, schedule, conn, wos_inst_id, download_path)
 
     @staticmethod
-    def download_wos_snapshot(download_path: str, conn, wos_inst_id: List[str], end_date, mode: str) -> List[str]:
+    def download_wos_snapshot(
+        download_path: str, conn, wos_inst_id: List[str], end_date: pendulum.DateTime, mode: str
+    ) -> List[str]:
         """Download snapshot from Web of Science for the given institution.
 
         :param download_path: the directory where the downloaded wos snapshot should be saved.
@@ -267,7 +269,8 @@ class WosUtility:
         extra = json.loads(conn.extra)
         login = conn.login
         password = conn.password
-        start_date = pendulum.parse(extra["start_date"]).date()
+        start_date = pendulum.parse(extra["start_date"])
+        end_date = end_date
         schedule = build_schedule(start_date, end_date)
 
         if mode == "sequential" or len(schedule) <= WosUtilConst.SESSION_CALL_LIMIT:
@@ -477,8 +480,8 @@ class WosTelescope:
         release = WosRelease(
             inst_id=kwargs["institution"],
             wos_inst_id=wos_inst_id,
-            release_date=kwargs["execution_date"].date(),
-            dag_start=pendulum.parse(kwargs["dag_start"]).date(),
+            release_date=kwargs["execution_date"],
+            dag_start=pendulum.parse(kwargs["dag_start"]),
             project_id=project_id,
             download_bucket_name=download_bucket_name,
             transform_bucket_name=transform_bucket_name,

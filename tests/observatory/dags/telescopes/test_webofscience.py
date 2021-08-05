@@ -312,7 +312,7 @@ class TestWos(unittest.TestCase):
         """Test whether we can successfully download and save a snapshot."""
 
         with CliRunner().isolated_filesystem():
-            dag_start = pendulum.date(2019, 11, 1)
+            dag_start = pendulum.datetime(2019, 11, 1)
             wos_inst_id = ["Curtin University"]
             files = WosUtility.download_wos_snapshot(".", self.conn, wos_inst_id, dag_start, "sequential")
             self.assertEqual(5, len(files))

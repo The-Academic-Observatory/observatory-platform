@@ -336,7 +336,7 @@ def change_keys(obj, convert):
     return new
 
 
-def build_schedule(sched_start_date, sched_end_date):
+def build_schedule(sched_start_date: pendulum.DateTime, sched_end_date: pendulum.DateTime):
     """Useful for API based data sources.
 
     Create a fetch schedule to specify what date ranges to use for each API call. Will default to once a month
@@ -348,9 +348,10 @@ def build_schedule(sched_start_date, sched_end_date):
     """
 
     schedule = []
+    sched_start_date = sched_start_date.date()
+    sched_end_date = sched_end_date.date()
 
     for start_date in pendulum.Period(start=sched_start_date, end=sched_end_date).range("months"):
-        start_date = start_date.date()
         last_day = calendar.monthrange(start_date.year, start_date.month)[1]
         end_date = pendulum.date(start_date.year, start_date.month, last_day)
         schedule.append(pendulum.Period(start_date, end_date))
