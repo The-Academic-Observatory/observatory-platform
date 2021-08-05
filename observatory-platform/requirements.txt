@@ -8,9 +8,9 @@ natsort==7.1.1
 six==1.16.0
 Jinja2==2.11.3
 google-crc32c==1.1.2
-google-cloud-bigquery==2.23.2
-google-api-python-client==2.15.0
-google-cloud-storage==1.41.1
+google-cloud-bigquery==2.1.*
+google-api-python-client==2.0.*
+google-cloud-storage==1.35.*
 beautifulsoup4==4.7.1
 lxml==4.6.*
 numpy==1.20.3
