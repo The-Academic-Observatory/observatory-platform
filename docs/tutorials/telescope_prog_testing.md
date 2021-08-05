@@ -83,7 +83,8 @@ class MyTest(ObservatoryTestCase):
       timestamp = pendulum.now("UTC")
       env = ObservatoryEnvironment()
       with env.create():  # Creates a session
-        env.run_task(telescope.task1.__name__, dag, timestamp)
+        with env.create_dag_run(dag, timestamp):  # Create a dag run
+          env.run_task(telescope.task1.__name__, dag, timestamp)
 ```
 
 Note that the run dependencies imposed on each task by the DAG structure are preserved in the test environment.  If you want to run a specific task, you need to make sure all the previous tasks in the DAG are run first within the same `ObservatoryEnvironment` session.
@@ -107,7 +108,7 @@ env = ObservatoryEnvironment()
 conn = Connection(conn_id=AirflowConns.OBSERVATORY_API, uri=f"http://:password@host:port")
 env.add_connection(conn)
 
-dt = pendulum.utcnow()
+dt = pendulum.now("UTC")
 telescope_type = orm.TelescopeType(name="ONIX Telescope", type_id=TelescopeTypes.onix, created=dt, modified=dt)
 env.api_session.add(telescope_type)
 organisation = orm.Organisation(name="Curtin Press", created=dt, modified=dt)
