@@ -22,6 +22,8 @@ import pendulum
 from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
+
+from observatory.platform.workflows.workflow import Release, Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
@@ -33,7 +35,6 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
 )
-from observatory.platform.workflows.workflow import Release, Workflow
 
 
 class StreamRelease(Release):
@@ -48,6 +49,7 @@ class StreamRelease(Release):
         transform_files_regex: str = None,
     ):
         """Construct a StreamRelease instance
+
         :param dag_id: the id of the DAG.
         :param start_date: the start_date of the release.
         :param end_date: the end_date of the release.

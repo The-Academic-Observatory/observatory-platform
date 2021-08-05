@@ -83,7 +83,7 @@ class Test{{ telescope_class }}(ObservatoryTestCase):
         dataset_id = env.add_dataset()
 
         # Setup Telescope
-        telescope = {{ telescope_class }}()
+        telescope = {{ telescope_class }}(dataset_id=dataset_id)
         dag = telescope.make_dag()
 
         # Create the Observatory environment and run tests

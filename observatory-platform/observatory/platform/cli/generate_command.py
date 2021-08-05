@@ -98,6 +98,7 @@ class GenerateCommand:
             test_file = "test_stream.py.jinja2"
         elif telescope_type == TelescopeTypes.snapshot_telescope:
             telescope_file = "snapshottelescope.py.jinja2"
+            test_file = "test_snapshot.py.jinja2"
         else:
             raise Exception(f"Unsupported workflow type: {workflow_type}")
 
