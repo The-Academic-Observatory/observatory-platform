@@ -16,7 +16,6 @@
 
 """ General google cloud utility functions (independent of telescope usage) """
 
-import datetime
 import json
 import logging
 import multiprocessing
@@ -96,7 +95,7 @@ def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str) -> 
     return table_exists
 
 
-def bigquery_sharded_table_id(table_name, datetime: pendulum.datetime) -> str:
+def bigquery_sharded_table_id(table_name, datetime: pendulum.DateTime) -> str:
     """Create a sharded table identifier for a BigQuery table.
 
     :param table_name: the name of the table.
@@ -679,6 +678,7 @@ def upload_files_to_cloud_storage(
         # Wait for completed tasks
         results = []
         for future in as_completed(futures):
+            print(f"future type is {type(future)}")
             success, upload = future.result()
             results.append(success)
             msg = futures_msgs[future]
@@ -833,7 +833,7 @@ def azure_to_google_cloud_storage_transfer(
     gc_project_id: str,
     gc_bucket: str,
     description: str,
-    start_date: Pendulum = pendulum.utcnow(),
+    start_date: pendulum.DateTime = pendulum.now("UTC"),
 ) -> bool:
     """Transfer files from an Azure blob container to a Google Cloud Storage bucket.
 
@@ -885,9 +885,9 @@ def aws_to_google_cloud_storage_transfer(
     gc_project_id: str,
     gc_bucket: str,
     description: str,
-    last_modified_since: datetime = None,
-    last_modified_before: datetime = None,
-    start_date: Pendulum = pendulum.utcnow(),
+    last_modified_since: pendulum.DateTime = None,
+    last_modified_before: pendulum.DateTime = None,
+    start_date: pendulum.DateTime = pendulum.now("UTC"),
 ) -> Tuple[bool, int]:
     """Transfer files from an AWS bucket to a Google Cloud Storage bucket.
 

@@ -15,7 +15,7 @@
 # Author: Aniek Roelofs
 
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
 import pendulum
@@ -143,64 +143,65 @@ class TestUclDiscovery(ObservatoryTestCase):
 
         # Create the Observatory environment and run tests
         with env.create():
-            # Add OAEBU service account connection connection
-            conn = Connection(
-                conn_id=AirflowConns.OAEBU_SERVICE_ACCOUNT,
-                uri=f"google-cloud-platform://?type=service_account&private_key_id=private_key_id"
-                f"&private_key=private_key"
-                f"&client_email=client_email"
-                f"&client_id=client_id",
-            )
-            env.add_connection(conn)
+            with env.create_dag_run(dag, execution_date):
+                # Add OAEBU service account connection connection
+                conn = Connection(
+                    conn_id=AirflowConns.OAEBU_SERVICE_ACCOUNT,
+                    uri=f"google-cloud-platform://?type=service_account&private_key_id=private_key_id"
+                    f"&private_key=private_key"
+                    f"&client_email=client_email"
+                    f"&client_id=client_id",
+                )
+                env.add_connection(conn)
 
-            # Test that all dependencies are specified: no error should be thrown
-            env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                # Test that all dependencies are specified: no error should be thrown
+                env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
 
-            # Use release to check tasks
-            cron_schedule = dag.normalized_schedule_interval
-            cron_iter = croniter(cron_schedule, execution_date)
-            end_date = pendulum.instance(cron_iter.get_next(datetime)) - timedelta(days=1)
-            release = UclDiscoveryRelease(telescope.dag_id, execution_date, end_date, organisation)
+                # Use release to check tasks
+                cron_schedule = dag.normalized_schedule_interval
+                cron_iter = croniter(cron_schedule, execution_date)
+                end_date = pendulum.instance(cron_iter.get_next(pendulum.DateTime)) - timedelta(days=1)
+                release = UclDiscoveryRelease(telescope.dag_id, execution_date, end_date, organisation)
 
-            # Test download
-            with vcr.use_cassette(self.metadata_cassette):
-                env.run_task(telescope.download.__name__, dag, execution_date)
-            self.assertEqual(1, len(release.download_files))
-            for file in release.download_files:
-                self.assert_file_integrity(file, self.download_hash, "md5")
+                # Test download
+                with vcr.use_cassette(self.metadata_cassette):
+                    env.run_task(telescope.download.__name__, dag, execution_date)
+                self.assertEqual(1, len(release.download_files))
+                for file in release.download_files:
+                    self.assert_file_integrity(file, self.download_hash, "md5")
 
-            # Test upload downloaded
-            env.run_task(telescope.upload_downloaded.__name__, dag, execution_date)
-            for file in release.download_files:
-                self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
+                # Test upload downloaded
+                env.run_task(telescope.upload_downloaded.__name__, dag, execution_date)
+                for file in release.download_files:
+                    self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
 
-            # Test that file transformed
-            env.run_task(telescope.transform.__name__, dag, execution_date)
-            self.assertEqual(1, len(release.transform_files))
-            for file in release.transform_files:
-                self.assert_file_integrity(file, self.transform_hash, "gzip_crc")
+                # Test that file transformed
+                env.run_task(telescope.transform.__name__, dag, execution_date)
+                self.assertEqual(1, len(release.transform_files))
+                for file in release.transform_files:
+                    self.assert_file_integrity(file, self.transform_hash, "gzip_crc")
 
-            # Test that transformed file uploaded
-            env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
-            for file in release.transform_files:
-                self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
+                # Test that transformed file uploaded
+                env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
+                for file in release.transform_files:
+                    self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
-            # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
-            for file in release.transform_files:
-                table_id, _ = table_ids_from_path(file)
-                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
-                expected_rows = 519
-                self.assert_table_integrity(table_id, expected_rows)
+                # Test that data loaded into BigQuery
+                env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
+                for file in release.transform_files:
+                    table_id, _ = table_ids_from_path(file)
+                    table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
+                    expected_rows = 519
+                    self.assert_table_integrity(table_id, expected_rows)
 
-            # Test that all telescope data deleted
-            download_folder, extract_folder, transform_folder = (
-                release.download_folder,
-                release.extract_folder,
-                release.transform_folder,
-            )
-            env.run_task(telescope.cleanup.__name__, dag, execution_date)
-            self.assert_cleanup(download_folder, extract_folder, transform_folder)
+                # Test that all telescope data deleted
+                download_folder, extract_folder, transform_folder = (
+                    release.download_folder,
+                    release.extract_folder,
+                    release.transform_folder,
+                )
+                env.run_task(telescope.cleanup.__name__, dag, execution_date)
+                self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
     @patch("observatory.dags.telescopes.ucl_discovery.retry_session")
     @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
@@ -218,7 +219,9 @@ class TestUclDiscovery(ObservatoryTestCase):
             gcp_transform_bucket="transform_bucket",
         )
         telescope = UclDiscoveryTelescope(organisation=organisation, dataset_id="dataset_id")
-        release = UclDiscoveryRelease(telescope.dag_id, datetime(2020, 1, 1), datetime(2020, 1, 1), organisation)
+        release = UclDiscoveryRelease(
+            telescope.dag_id, pendulum.datetime(2020, 1, 1), pendulum.datetime(2020, 1, 1), organisation
+        )
 
         with CliRunner().isolated_filesystem():
             mock_variable_get.return_value = "data"

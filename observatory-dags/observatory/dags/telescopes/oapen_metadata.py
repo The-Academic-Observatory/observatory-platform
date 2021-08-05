@@ -36,7 +36,7 @@ from observatory.platform.utils.url_utils import get_ao_user_agent, retry_sessio
 
 
 class OapenMetadataRelease(StreamRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.datetime, end_date: pendulum.datetime, first_release: bool):
+    def __init__(self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime, first_release: bool):
         """Construct a OapenMetadataRelease instance
         :param dag_id: the id of the DAG.
         :param start_date: the start_date of the release.
@@ -137,7 +137,7 @@ class OapenMetadataTelescope(StreamTelescope):
     def __init__(
         self,
         dag_id: str = "oapen_metadata",
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 5, 14),
+        start_date: pendulum.DateTime = pendulum.datetime(2018, 5, 14),
         schedule_interval: str = "@weekly",
         dataset_id: str = "oapen",
         merge_partition_field: str = "id",

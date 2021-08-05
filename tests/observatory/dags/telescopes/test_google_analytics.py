@@ -142,114 +142,115 @@ class TestGoogleAnalytics(ObservatoryTestCase):
 
         # Create the Observatory environment and run tests
         with env.create():
-            # Add OAEBU service account connection connection
-            conn = Connection(
-                conn_id=AirflowConns.OAEBU_SERVICE_ACCOUNT,
-                uri=f"google-cloud-platform://?type=service_account&private_key_id=private_key_id"
-                f"&private_key=private_key"
-                f"&client_email=client_email"
-                f"&client_id=client_id",
-            )
-            env.add_connection(conn)
+            with env.create_dag_run(dag, execution_date):
+                # Add OAEBU service account connection connection
+                conn = Connection(
+                    conn_id=AirflowConns.OAEBU_SERVICE_ACCOUNT,
+                    uri=f"google-cloud-platform://?type=service_account&private_key_id=private_key_id"
+                    f"&private_key=private_key"
+                    f"&client_email=client_email"
+                    f"&client_id=client_id",
+                )
+                env.add_connection(conn)
 
-            # Test that all dependencies are specified: no error should be thrown
-            env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                # Test that all dependencies are specified: no error should be thrown
+                env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
 
-            # Use release to check tasks
-            cron_schedule = dag.normalized_schedule_interval
-            cron_iter = croniter(cron_schedule, execution_date)
-            end_date = pendulum.instance(cron_iter.get_next(datetime)) - timedelta(days=1)
-            release = GoogleAnalyticsRelease(telescope.dag_id, execution_date, end_date, organisation)
+                # Use release to check tasks
+                cron_schedule = dag.normalized_schedule_interval
+                cron_iter = croniter(cron_schedule, execution_date)
+                end_date = pendulum.instance(cron_iter.get_next(datetime)) - timedelta(days=1)
+                release = GoogleAnalyticsRelease(telescope.dag_id, execution_date, end_date, organisation)
 
-            # Test download_transform task
-            env.run_task(telescope.download_transform.__name__, dag, execution_date)
-            self.assertEqual(1, len(release.transform_files))
-            for file in release.transform_files:
-                self.assertTrue(os.path.isfile(file))
-                # Use frozenset to test results are as expected, many dict transformations re-order items in dict
-                actual_list = []
-                with gzip.open(file, "rb") as f:
-                    for line in f:
-                        actual_list.append(json.loads(line))
-                expected_list = [
-                    {
-                        "url": "/base/path/151420",
-                        "title": "Anything public program drive north.",
-                        "start_date": "2020-04-01",
-                        "end_date": "2020-04-30",
-                        "release_date": "2020-04-30",
-                        "average_time": 59.5,
-                        "unique_views": {
-                            "country": [{"name": "country 1", "value": 3}, {"name": "country 2", "value": 3}],
-                            "referrer": [{"name": "referrer 1", "value": 3}, {"name": "referrer 2", "value": 3}],
-                            "social_network": [
-                                {"name": "social_network 1", "value": 3},
-                                {"name": "social_network 2", "value": 3},
-                            ],
+                # Test download_transform task
+                env.run_task(telescope.download_transform.__name__, dag, execution_date)
+                self.assertEqual(1, len(release.transform_files))
+                for file in release.transform_files:
+                    self.assertTrue(os.path.isfile(file))
+                    # Use frozenset to test results are as expected, many dict transformations re-order items in dict
+                    actual_list = []
+                    with gzip.open(file, "rb") as f:
+                        for line in f:
+                            actual_list.append(json.loads(line))
+                    expected_list = [
+                        {
+                            "url": "/base/path/151420",
+                            "title": "Anything public program drive north.",
+                            "start_date": "2020-04-01",
+                            "end_date": "2020-04-30",
+                            "release_date": "2020-04-30",
+                            "average_time": 59.5,
+                            "unique_views": {
+                                "country": [{"name": "country 1", "value": 3}, {"name": "country 2", "value": 3}],
+                                "referrer": [{"name": "referrer 1", "value": 3}, {"name": "referrer 2", "value": 3}],
+                                "social_network": [
+                                    {"name": "social_network 1", "value": 3},
+                                    {"name": "social_network 2", "value": 3},
+                                ],
+                            },
+                            "sessions": {
+                                "country": [{"name": "country 1", "value": 1}, {"name": "country 2", "value": 1}],
+                                "source": [{"name": "source 1", "value": 1}, {"name": "source 2", "value": 1}],
+                            },
                         },
-                        "sessions": {
-                            "country": [{"name": "country 1", "value": 1}, {"name": "country 2", "value": 1}],
-                            "source": [{"name": "source 1", "value": 1}, {"name": "source 2", "value": 1}],
+                        {
+                            "url": "/base/path/833557",
+                            "title": "Standard current never no.",
+                            "start_date": "2020-04-01",
+                            "end_date": "2020-04-30",
+                            "release_date": "2020-04-30",
+                            "average_time": 44.2,
+                            "unique_views": {
+                                "country": [{"name": "country 2", "value": 2}, {"name": "country 1", "value": 1}],
+                                "referrer": [{"name": "referrer 1", "value": 1}, {"name": "referrer 2", "value": 2}],
+                                "social_network": [
+                                    {"name": "social_network 2", "value": 2},
+                                    {"name": "social_network 1", "value": 1},
+                                ],
+                            },
+                            "sessions": {"country": [], "source": []},
                         },
-                    },
-                    {
-                        "url": "/base/path/833557",
-                        "title": "Standard current never no.",
-                        "start_date": "2020-04-01",
-                        "end_date": "2020-04-30",
-                        "release_date": "2020-04-30",
-                        "average_time": 44.2,
-                        "unique_views": {
-                            "country": [{"name": "country 2", "value": 2}, {"name": "country 1", "value": 1}],
-                            "referrer": [{"name": "referrer 1", "value": 1}, {"name": "referrer 2", "value": 2}],
-                            "social_network": [
-                                {"name": "social_network 2", "value": 2},
-                                {"name": "social_network 1", "value": 1},
-                            ],
+                        {
+                            "url": "/base/path/833557?fbclid=123",
+                            "title": "Standard current never no.",
+                            "start_date": "2020-04-01",
+                            "end_date": "2020-04-30",
+                            "average_time": 38.8,
+                            "unique_views": {
+                                "country": [{"name": "country 2", "value": 2}],
+                                "referrer": [{"name": "referrer 2", "value": 2}],
+                                "social_network": [{"name": "social_network 2", "value": 2}],
+                            },
+                            "sessions": {"country": [], "source": []},
+                            "release_date": "2020-04-30",
                         },
-                        "sessions": {"country": [], "source": []},
-                    },
-                    {
-                        "url": "/base/path/833557?fbclid=123",
-                        "title": "Standard current never no.",
-                        "start_date": "2020-04-01",
-                        "end_date": "2020-04-30",
-                        "average_time": 38.8,
-                        "unique_views": {
-                            "country": [{"name": "country 2", "value": 2}],
-                            "referrer": [{"name": "referrer 2", "value": 2}],
-                            "social_network": [{"name": "social_network 2", "value": 2}],
-                        },
-                        "sessions": {"country": [], "source": []},
-                        "release_date": "2020-04-30",
-                    },
-                ]
-                self.assertEqual(3, len(actual_list))
-                self.assertEqual(frozenset(expected_list[0]), frozenset(actual_list[0]))
-                self.assertEqual(frozenset(expected_list[1]), frozenset(actual_list[1]))
-                self.assertEqual(frozenset(expected_list[2]), frozenset(actual_list[2]))
+                    ]
+                    self.assertEqual(3, len(actual_list))
+                    self.assertEqual(frozenset(expected_list[0]), frozenset(actual_list[0]))
+                    self.assertEqual(frozenset(expected_list[1]), frozenset(actual_list[1]))
+                    self.assertEqual(frozenset(expected_list[2]), frozenset(actual_list[2]))
 
-            # Test that transformed file uploaded
-            env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
-            for file in release.transform_files:
-                self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
+                # Test that transformed file uploaded
+                env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
+                for file in release.transform_files:
+                    self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
-            # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
-            for file in release.transform_files:
-                table_id, _ = table_ids_from_path(file)
-                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
-                expected_rows = 3
-                self.assert_table_integrity(table_id, expected_rows)
+                # Test that data loaded into BigQuery
+                env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
+                for file in release.transform_files:
+                    table_id, _ = table_ids_from_path(file)
+                    table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
+                    expected_rows = 3
+                    self.assert_table_integrity(table_id, expected_rows)
 
-            # Test that all telescope data deleted
-            download_folder, extract_folder, transform_folder = (
-                release.download_folder,
-                release.extract_folder,
-                release.transform_folder,
-            )
-            env.run_task(telescope.cleanup.__name__, dag, execution_date)
-            self.assert_cleanup(download_folder, extract_folder, transform_folder)
+                # Test that all telescope data deleted
+                download_folder, extract_folder, transform_folder = (
+                    release.download_folder,
+                    release.extract_folder,
+                    release.transform_folder,
+                )
+                env.run_task(telescope.cleanup.__name__, dag, execution_date)
+                self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
     @patch("observatory.dags.telescopes.google_analytics.build")
     @patch("observatory.dags.telescopes.google_analytics.ServiceAccountCredentials")
@@ -288,132 +289,133 @@ class TestGoogleAnalytics(ObservatoryTestCase):
 
         # Create the Observatory environment and run tests
         with env.create():
-            # Add OAEBU service account connection connection
-            conn = Connection(
-                conn_id=AirflowConns.OAEBU_SERVICE_ACCOUNT,
-                uri=f"google-cloud-platform://?type=service_account&private_key_id=private_key_id"
-                f"&private_key=private_key"
-                f"&client_email=client_email"
-                f"&client_id=client_id",
-            )
-            env.add_connection(conn)
+            with env.create_dag_run(dag, execution_date):
+                # Add OAEBU service account connection connection
+                conn = Connection(
+                    conn_id=AirflowConns.OAEBU_SERVICE_ACCOUNT,
+                    uri=f"google-cloud-platform://?type=service_account&private_key_id=private_key_id"
+                    f"&private_key=private_key"
+                    f"&client_email=client_email"
+                    f"&client_id=client_id",
+                )
+                env.add_connection(conn)
 
-            # Test that all dependencies are specified: no error should be thrown
-            env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                # Test that all dependencies are specified: no error should be thrown
+                env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
 
-            # Use release to check tasks
-            cron_schedule = dag.normalized_schedule_interval
-            cron_iter = croniter(cron_schedule, execution_date)
-            end_date = pendulum.instance(cron_iter.get_next(datetime)) - timedelta(days=1)
-            release = GoogleAnalyticsRelease(telescope.dag_id, execution_date, end_date, organisation)
+                # Use release to check tasks
+                cron_schedule = dag.normalized_schedule_interval
+                cron_iter = croniter(cron_schedule, execution_date)
+                end_date = pendulum.instance(cron_iter.get_next(datetime)) - timedelta(days=1)
+                release = GoogleAnalyticsRelease(telescope.dag_id, execution_date, end_date, organisation)
 
-            # Test download_transform task
-            env.run_task(telescope.download_transform.__name__, dag, execution_date)
-            self.assertEqual(1, len(release.transform_files))
-            for file in release.transform_files:
-                self.assertTrue(os.path.isfile(file))
-                # Use frozenset to test results are as expected, many dict transformations re-order items in dict
-                actual_list = []
-                with gzip.open(file, "rb") as f:
-                    for line in f:
-                        actual_list.append(json.loads(line))
-                expected_list = [
-                    {
-                        "url": "/base/path/151420",
-                        "title": "Anything public program drive north.",
-                        "start_date": "2020-04-01",
-                        "end_date": "2020-04-30",
-                        "average_time": 59.5,
-                        "unique_views": {
-                            "country": [{"name": "country 1", "value": 3}, {"name": "country 2", "value": 3}],
-                            "referrer": [{"name": "referrer 1", "value": 3}, {"name": "referrer 2", "value": 3}],
-                            "social_network": [
-                                {"name": "social_network 1", "value": 3},
-                                {"name": "social_network 2", "value": 3},
-                            ],
+                # Test download_transform task
+                env.run_task(telescope.download_transform.__name__, dag, execution_date)
+                self.assertEqual(1, len(release.transform_files))
+                for file in release.transform_files:
+                    self.assertTrue(os.path.isfile(file))
+                    # Use frozenset to test results are as expected, many dict transformations re-order items in dict
+                    actual_list = []
+                    with gzip.open(file, "rb") as f:
+                        for line in f:
+                            actual_list.append(json.loads(line))
+                    expected_list = [
+                        {
+                            "url": "/base/path/151420",
+                            "title": "Anything public program drive north.",
+                            "start_date": "2020-04-01",
+                            "end_date": "2020-04-30",
+                            "average_time": 59.5,
+                            "unique_views": {
+                                "country": [{"name": "country 1", "value": 3}, {"name": "country 2", "value": 3}],
+                                "referrer": [{"name": "referrer 1", "value": 3}, {"name": "referrer 2", "value": 3}],
+                                "social_network": [
+                                    {"name": "social_network 1", "value": 3},
+                                    {"name": "social_network 2", "value": 3},
+                                ],
+                            },
+                            "sessions": {
+                                "country": [{"name": "country 1", "value": 1}, {"name": "country 2", "value": 1}],
+                                "source": [{"name": "source 1", "value": 1}, {"name": "source 2", "value": 1}],
+                            },
+                            "publication_id": "1234567890123",
+                            "publication_type": "book",
+                            "publication_imprint": "imprint",
+                            "publication_group": "group",
+                            "publication_whole_or_part": "whole",
+                            "publication_format": "PDF",
+                            "release_date": "2020-04-30",
                         },
-                        "sessions": {
-                            "country": [{"name": "country 1", "value": 1}, {"name": "country 2", "value": 1}],
-                            "source": [{"name": "source 1", "value": 1}, {"name": "source 2", "value": 1}],
+                        {
+                            "url": "/base/path/833557",
+                            "title": "Standard current never no.",
+                            "start_date": "2020-04-01",
+                            "end_date": "2020-04-30",
+                            "average_time": 44.2,
+                            "unique_views": {
+                                "country": [{"name": "country 2", "value": 2}, {"name": "country 1", "value": 1}],
+                                "referrer": [{"name": "referrer 1", "value": 1}, {"name": "referrer 2", "value": 2}],
+                                "social_network": [
+                                    {"name": "social_network 2", "value": 2},
+                                    {"name": "social_network 1", "value": 1},
+                                ],
+                            },
+                            "sessions": {"country": [], "source": []},
+                            "publication_id": "1234567891234",
+                            "publication_type": "book",
+                            "publication_imprint": "imprint",
+                            "publication_group": "(none)",
+                            "publication_whole_or_part": "part",
+                            "publication_format": "HTML",
+                            "release_date": "2020-04-30",
                         },
-                        "publication_id": "1234567890123",
-                        "publication_type": "book",
-                        "publication_imprint": "imprint",
-                        "publication_group": "group",
-                        "publication_whole_or_part": "whole",
-                        "publication_format": "PDF",
-                        "release_date": "2020-04-30",
-                    },
-                    {
-                        "url": "/base/path/833557",
-                        "title": "Standard current never no.",
-                        "start_date": "2020-04-01",
-                        "end_date": "2020-04-30",
-                        "average_time": 44.2,
-                        "unique_views": {
-                            "country": [{"name": "country 2", "value": 2}, {"name": "country 1", "value": 1}],
-                            "referrer": [{"name": "referrer 1", "value": 1}, {"name": "referrer 2", "value": 2}],
-                            "social_network": [
-                                {"name": "social_network 2", "value": 2},
-                                {"name": "social_network 1", "value": 1},
-                            ],
+                        {
+                            "url": "/base/path/833557?fbclid=123",
+                            "title": "Standard current never no.",
+                            "start_date": "2020-04-01",
+                            "end_date": "2020-04-30",
+                            "average_time": 38.8,
+                            "unique_views": {
+                                "country": [{"name": "country 2", "value": 2}],
+                                "referrer": [{"name": "referrer 2", "value": 2}],
+                                "social_network": [{"name": "social_network 2", "value": 2}],
+                            },
+                            "sessions": {"country": [], "source": []},
+                            "publication_id": "1234567891234",
+                            "publication_type": "book",
+                            "publication_imprint": "imprint",
+                            "publication_group": "(none)",
+                            "publication_whole_or_part": "part",
+                            "publication_format": "HTML",
+                            "release_date": "2020-04-30",
                         },
-                        "sessions": {"country": [], "source": []},
-                        "publication_id": "1234567891234",
-                        "publication_type": "book",
-                        "publication_imprint": "imprint",
-                        "publication_group": "(none)",
-                        "publication_whole_or_part": "part",
-                        "publication_format": "HTML",
-                        "release_date": "2020-04-30",
-                    },
-                    {
-                        "url": "/base/path/833557?fbclid=123",
-                        "title": "Standard current never no.",
-                        "start_date": "2020-04-01",
-                        "end_date": "2020-04-30",
-                        "average_time": 38.8,
-                        "unique_views": {
-                            "country": [{"name": "country 2", "value": 2}],
-                            "referrer": [{"name": "referrer 2", "value": 2}],
-                            "social_network": [{"name": "social_network 2", "value": 2}],
-                        },
-                        "sessions": {"country": [], "source": []},
-                        "publication_id": "1234567891234",
-                        "publication_type": "book",
-                        "publication_imprint": "imprint",
-                        "publication_group": "(none)",
-                        "publication_whole_or_part": "part",
-                        "publication_format": "HTML",
-                        "release_date": "2020-04-30",
-                    },
-                ]
-                self.assertEqual(3, len(actual_list))
-                self.assertEqual(frozenset(expected_list[0]), frozenset(actual_list[0]))
-                self.assertEqual(frozenset(expected_list[1]), frozenset(actual_list[1]))
-                self.assertEqual(frozenset(expected_list[2]), frozenset(actual_list[2]))
+                    ]
+                    self.assertEqual(3, len(actual_list))
+                    self.assertEqual(frozenset(expected_list[0]), frozenset(actual_list[0]))
+                    self.assertEqual(frozenset(expected_list[1]), frozenset(actual_list[1]))
+                    self.assertEqual(frozenset(expected_list[2]), frozenset(actual_list[2]))
 
-            # Test that transformed file uploaded
-            env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
-            for file in release.transform_files:
-                self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
+                # Test that transformed file uploaded
+                env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
+                for file in release.transform_files:
+                    self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
-            # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
-            for file in release.transform_files:
-                table_id, _ = table_ids_from_path(file)
-                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
-                expected_rows = 3
-                self.assert_table_integrity(table_id, expected_rows)
+                # Test that data loaded into BigQuery
+                env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
+                for file in release.transform_files:
+                    table_id, _ = table_ids_from_path(file)
+                    table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
+                    expected_rows = 3
+                    self.assert_table_integrity(table_id, expected_rows)
 
-            # Test that all telescope data deleted
-            download_folder, extract_folder, transform_folder = (
-                release.download_folder,
-                release.extract_folder,
-                release.transform_folder,
-            )
-            env.run_task(telescope.cleanup.__name__, dag, execution_date)
-            self.assert_cleanup(download_folder, extract_folder, transform_folder)
+                # Test that all telescope data deleted
+                download_folder, extract_folder, transform_folder = (
+                    release.download_folder,
+                    release.extract_folder,
+                    release.transform_folder,
+                )
+                env.run_task(telescope.cleanup.__name__, dag, execution_date)
+                self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
 
 def create_http_mock_sequence(organisation_name: str) -> list:

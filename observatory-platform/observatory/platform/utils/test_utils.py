@@ -77,8 +77,7 @@ import httpretty
 import paramiko
 import pendulum
 import requests
-from airflow import DAG
-from airflow import settings
+from airflow import DAG, settings
 from airflow.models import DagBag
 from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
@@ -302,7 +301,7 @@ class ObservatoryEnvironment:
         self.session.add(conn)
         self.session.commit()
 
-    def run_task(self, task_id: str, dag: DAG = None, execution_date: pendulum.datetime = None) -> TaskInstance:
+    def run_task(self, task_id: str, dag: DAG = None, execution_date: pendulum.DateTime = None) -> TaskInstance:
         """Run an Airflow task.
 
         :param dag: the Airflow DAG instance.
@@ -322,11 +321,11 @@ class ObservatoryEnvironment:
         ti = TaskInstance(task, execution_date)
         ti.refresh_from_db()
         ti.init_run_context(raw=True)
-        ti.run()
+        ti.run(ignore_ti_state=True)
         return ti
 
     @contextlib.contextmanager
-    def create_dag_run(self, dag: DAG, execution_date: pendulum.datetime, freeze: bool = True):
+    def create_dag_run(self, dag: DAG, execution_date: pendulum.DateTime, freeze: bool = True):
         """Create a DagRun that can be used when running tasks.
         During cleanup the DAG run state is updated.
 
@@ -336,12 +335,12 @@ class ObservatoryEnvironment:
         :return: None.
         """
         # Get start date, which is one schedule interval after execution date
-        start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(datetime.datetime)
+        start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(pendulum.DateTime)
         frozen_time = freeze_time(start_date, tick=True)
 
         run_id = "manual__{0}".format(execution_date.isoformat())
 
-        # Make sure google auth uses real datetime and not freezegun fake time
+        # Make sure google auth uses real DateTime and not freezegun fake time
         with patch("google.auth._helpers.utcnow", wraps=datetime.datetime.utcnow) as mock_utc_now:
             try:
                 if freeze:
@@ -749,8 +748,8 @@ class SftpServer:
                     self.server_thread.join()
 
 
-def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
-    """ A Dummy DAG for testing purposes.
+def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
+    """A Dummy DAG for testing purposes.
 
     :param dag_id: the DAG id.
     :param execution_date: the DAGs execution date.

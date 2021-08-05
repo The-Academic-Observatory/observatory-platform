@@ -120,6 +120,10 @@ class TestCrossrefEvents(ObservatoryTestCase):
                     task_ids=telescope.get_release_info.__name__,
                     include_prior_dates=False,
                 )
+
+                start_date = pendulum.parse(start_date)
+                end_date = pendulum.parse(end_date)
+
                 self.assertEqual(start_date, dag.default_args["start_date"])
                 self.assertEqual(end_date, pendulum.today("UTC") - timedelta(days=1))
                 self.assertTrue(first_release)
@@ -196,6 +200,8 @@ class TestCrossrefEvents(ObservatoryTestCase):
                     task_ids=telescope.get_release_info.__name__,
                     include_prior_dates=False,
                 )
+                start_date = pendulum.parse(start_date)
+                end_date = pendulum.parse(end_date)
                 self.assertEqual(release.end_date + timedelta(days=1), start_date)
                 self.assertEqual(pendulum.today("UTC") - timedelta(days=1), end_date)
                 self.assertFalse(first_release)

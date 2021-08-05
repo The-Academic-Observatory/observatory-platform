@@ -209,7 +209,7 @@ class Telescope(AbstractTelescope):
     def __init__(
         self,
         dag_id: str,
-        start_date: pendulum.Pendulum,
+        start_date: pendulum.DateTime,
         schedule_interval: str,
         catchup: bool = False,
         queue: str = "default",

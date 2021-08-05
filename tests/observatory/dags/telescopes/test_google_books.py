@@ -159,110 +159,116 @@ class TestGoogleBooks(ObservatoryTestCase):
                     conn_id=AirflowConns.SFTP_SERVICE, uri=f"ssh://:password@{self.host}:{self.sftp_port}"
                 )
                 env.add_connection(conn)
+                with env.create_dag_run(dag, execution_date):
+                    # Test that all dependencies are specified: no error should be thrown
+                    env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
 
-                # Test that all dependencies are specified: no error should be thrown
-                env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
-
-                # Add file to SFTP server
-                local_sftp_folders = SftpFolders(telescope.dag_id, self.organisation_name, sftp_root)
-                os.makedirs(local_sftp_folders.upload, exist_ok=True)
-                for file_name, file_path in self.test_files.items():
-                    upload_file = os.path.join(local_sftp_folders.upload, file_name)
-                    shutil.copy(file_path, upload_file)
-
-                # Get release info from SFTP server and check that the correct release info is returned via Xcom
-                ti = env.run_task(telescope.list_release_info.__name__, dag, execution_date)
-                release_info = ti.xcom_pull(
-                    key=GoogleBooksTelescope.RELEASE_INFO,
-                    task_ids=telescope.list_release_info.__name__,
-                    include_prior_dates=False,
-                )
-
-                expected_release_files = []
-                for file_name, file_path in self.test_files.items():
-                    expected_release_date = pendulum.strptime(file_name[-11:].strip(".csv"), "%Y_%m").end_of("month")
-                    expected_release_files.append(os.path.join(telescope.sftp_folders.in_progress, file_name))
-                expected_release_info = defaultdict(list, {expected_release_date: expected_release_files})
-                self.assertEqual(expected_release_info, release_info)
-
-                # use release info for other tasks
-                releases = []
-                for release_date, sftp_files in release_info.items():
-                    releases.append(GoogleBooksRelease(telescope.dag_id, release_date, sftp_files, org))
-
-                # Test move file to in progress
-                env.run_task(telescope.move_files_to_in_progress.__name__, dag, execution_date)
-                for release in releases:
-                    for file in release.sftp_files:
-                        file_name = os.path.basename(file)
+                    # Add file to SFTP server
+                    local_sftp_folders = SftpFolders(telescope.dag_id, self.organisation_name, sftp_root)
+                    os.makedirs(local_sftp_folders.upload, exist_ok=True)
+                    for file_name, file_path in self.test_files.items():
                         upload_file = os.path.join(local_sftp_folders.upload, file_name)
-                        self.assertFalse(os.path.isfile(upload_file))
+                        shutil.copy(file_path, upload_file)
 
-                        in_progress_file = os.path.join(local_sftp_folders.in_progress, file_name)
-                        self.assertTrue(os.path.isfile(in_progress_file))
+                    # Get release info from SFTP server and check that the correct release info is returned via Xcom
+                    ti = env.run_task(telescope.list_release_info.__name__, dag, execution_date)
+                    release_info = ti.xcom_pull(
+                        key=GoogleBooksTelescope.RELEASE_INFO,
+                        task_ids=telescope.list_release_info.__name__,
+                        include_prior_dates=False,
+                    )
 
-                # Test download
-                env.run_task(telescope.download.__name__, dag, execution_date)
-                for release in releases:
-                    self.assertEqual(2, len(release.download_files))
-                    for file in release.download_files:
-                        if "traffic" in file:
-                            expected_file_hash = self.traffic_download_hash
-                        else:
-                            expected_file_hash = self.sales_download_hash
-                        self.assert_file_integrity(file, expected_file_hash, "md5")
+                    expected_release_files = []
+                    for file_name, file_path in self.test_files.items():
+                        expected_release_date = pendulum.from_format(file_name[-11:].strip(".csv"), "YYYY_MM").end_of(
+                            "month"
+                        )
+                        expected_release_files.append(os.path.join(telescope.sftp_folders.in_progress, file_name))
+                    expected_release_info = {expected_release_date.format("YYYYMMDD"): expected_release_files}
+                    self.assertEqual(expected_release_info, release_info)
 
-                # Test upload downloaded
-                env.run_task(telescope.upload_downloaded.__name__, dag, execution_date)
-                for release in releases:
-                    for file in release.download_files:
-                        self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
+                    # use release info for other tasks
+                    releases = []
+                    for release_date, sftp_files in release_info.items():
+                        releases.append(
+                            GoogleBooksRelease(telescope.dag_id, pendulum.parse(release_date), sftp_files, org)
+                        )
 
-                # Test that file transformed
-                env.run_task(telescope.transform.__name__, dag, execution_date)
-                for release in releases:
-                    self.assertEqual(2, len(release.transform_files))
-                    for file in release.transform_files:
-                        if "traffic" in file:
-                            expected_file_hash = self.traffic_transform_hash
-                        else:
-                            expected_file_hash = self.sales_transform_hash
-                        self.assert_file_integrity(file, expected_file_hash, "gzip_crc")
+                    # Test move file to in progress
+                    env.run_task(telescope.move_files_to_in_progress.__name__, dag, execution_date)
+                    for release in releases:
+                        for file in release.sftp_files:
+                            file_name = os.path.basename(file)
+                            upload_file = os.path.join(local_sftp_folders.upload, file_name)
+                            self.assertFalse(os.path.isfile(upload_file))
 
-                # Test that transformed file uploaded
-                env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
-                for release in releases:
-                    for file in release.transform_files:
-                        self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
+                            in_progress_file = os.path.join(local_sftp_folders.in_progress, file_name)
+                            self.assertTrue(os.path.isfile(in_progress_file))
 
-                # Test that data loaded into BigQuery
-                env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
-                for release in releases:
-                    for file in release.transform_files:
-                        table_id, _ = table_ids_from_path(file)
-                        table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
-                        expected_rows = 4
-                        self.assert_table_integrity(table_id, expected_rows)
+                    # Test download
+                    env.run_task(telescope.download.__name__, dag, execution_date)
+                    for release in releases:
+                        self.assertEqual(2, len(release.download_files))
+                        for file in release.download_files:
+                            if "traffic" in file:
+                                expected_file_hash = self.traffic_download_hash
+                            else:
+                                expected_file_hash = self.sales_download_hash
+                            self.assert_file_integrity(file, expected_file_hash, "md5")
 
-                # Test move files to finished
-                env.run_task(telescope.move_files_to_finished.__name__, dag, execution_date)
-                for release in releases:
-                    for file in release.sftp_files:
-                        file_name = os.path.basename(file)
-                        in_progress_file = os.path.join(local_sftp_folders.in_progress, file_name)
-                        self.assertFalse(os.path.isfile(in_progress_file))
+                    # Test upload downloaded
+                    env.run_task(telescope.upload_downloaded.__name__, dag, execution_date)
+                    for release in releases:
+                        for file in release.download_files:
+                            self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
 
-                        finished_file = os.path.join(local_sftp_folders.finished, file_name)
-                        self.assertTrue(os.path.isfile(finished_file))
+                    # Test that file transformed
+                    env.run_task(telescope.transform.__name__, dag, execution_date)
+                    for release in releases:
+                        self.assertEqual(2, len(release.transform_files))
+                        for file in release.transform_files:
+                            if "traffic" in file:
+                                expected_file_hash = self.traffic_transform_hash
+                            else:
+                                expected_file_hash = self.sales_transform_hash
+                            self.assert_file_integrity(file, expected_file_hash, "gzip_crc")
 
-                # Test cleanup
-                download_folder, extract_folder, transform_folder = (
-                    release.download_folder,
-                    release.extract_folder,
-                    release.transform_folder,
-                )
-                env.run_task(telescope.cleanup.__name__, dag, execution_date)
-                self.assert_cleanup(download_folder, extract_folder, transform_folder)
+                    # Test that transformed file uploaded
+                    env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
+                    for release in releases:
+                        for file in release.transform_files:
+                            self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
+
+                    # Test that data loaded into BigQuery
+                    env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
+                    for release in releases:
+                        for file in release.transform_files:
+                            table_id, _ = table_ids_from_path(file)
+                            table_id = (
+                                f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
+                            )
+                            expected_rows = 4
+                            self.assert_table_integrity(table_id, expected_rows)
+
+                    # Test move files to finished
+                    env.run_task(telescope.move_files_to_finished.__name__, dag, execution_date)
+                    for release in releases:
+                        for file in release.sftp_files:
+                            file_name = os.path.basename(file)
+                            in_progress_file = os.path.join(local_sftp_folders.in_progress, file_name)
+                            self.assertFalse(os.path.isfile(in_progress_file))
+
+                            finished_file = os.path.join(local_sftp_folders.finished, file_name)
+                            self.assertTrue(os.path.isfile(finished_file))
+
+                    # Test cleanup
+                    download_folder, extract_folder, transform_folder = (
+                        release.download_folder,
+                        release.extract_folder,
+                        release.transform_folder,
+                    )
+                    env.run_task(telescope.cleanup.__name__, dag, execution_date)
+                    self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
     @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
     def test_transform(self, mock_variable_get):

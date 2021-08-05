@@ -31,7 +31,7 @@ from tests.observatory.test_utils import test_fixtures_path
 
 
 class MockTaskInstance:
-    def __init__(self, start_date: pendulum.datetime, end_date: pendulum.datetime, first_release: bool):
+    def __init__(self, start_date: pendulum.DateTime, end_date: pendulum.DateTime, first_release: bool):
         """Construct a MockTaskInstance. This mocks the airflow TaskInstance and is passed as a keyword arg to the
         make_release function.
         :param start_date: Start date of dag run

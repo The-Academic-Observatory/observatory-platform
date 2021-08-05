@@ -213,6 +213,9 @@ class SftpFolders:
         in_progress folder (can be full path or just file name)
         :return: None.
         """
+
+        print(f"Files are: {upload_files}")
+
         if isinstance(upload_files, str):
             upload_files = [upload_files]
 
@@ -537,7 +540,7 @@ def make_telescope_sensor(telescope_name: str, dag_prefix: str) -> ExternalTaskS
     dag_id = make_dag_id(dag_prefix, telescope_name)
 
     return ExternalTaskSensor(
-        task_id=f"{dag_id}_sensor", external_dag_id=dag_id, mode="reschedule", start_date=pendulum.Pendulum(2021, 3, 28)
+        task_id=f"{dag_id}_sensor", external_dag_id=dag_id, mode="reschedule", start_date=pendulum.datetime(2021, 3, 28)
     )
 
 

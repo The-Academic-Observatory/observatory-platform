@@ -40,7 +40,7 @@ from observatory.platform.utils.url_utils import retry_session
 
 
 class GridRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, article_ids: List[str], release_date: pendulum.datetime):
+    def __init__(self, dag_id: str, article_ids: List[str], release_date: pendulum.DateTime):
         """Construct a GridRelease.
 
         :param article_ids: the titles of the Figshare articles.
@@ -154,7 +154,7 @@ class GridRelease(SnapshotRelease):
 
 
 def list_grid_records(
-    start_date: pendulum.datetime, end_date: pendulum.datetime, grid_dataset_url: str, timeout: float = 30.0
+    start_date: pendulum.DateTime, end_date: pendulum.DateTime, grid_dataset_url: str, timeout: float = 30.0
 ) -> List[dict]:
     """List all GRID records available on Figshare between two dates.
 
@@ -168,7 +168,7 @@ def list_grid_records(
     records: List[dict] = []
     release_articles = {}
     for item in response_json:
-        published_date: pendulum.datetime = pendulum.parse(item["published_date"])
+        published_date: pendulum.DateTime = pendulum.parse(item["published_date"])
 
         if start_date <= published_date < end_date:
             article_id = item["id"]
@@ -208,7 +208,7 @@ class GridTelescope(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2015, 9, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2015, 9, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = DATASET_ID,
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,

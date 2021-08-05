@@ -22,23 +22,21 @@ import random
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 import pandas as pd
 import pendulum
 from airflow.exceptions import AirflowException
 from click.testing import CliRunner
 from faker import Faker
-
 from observatory.platform.utils.file_utils import list_to_jsonl_gz, load_jsonl
 from observatory.platform.utils.gc_utils import (
+    SourceFormat,
     bigquery_sharded_table_id,
     load_bigquery_table,
-    SourceFormat,
     upload_files_to_cloud_storage,
 )
-from observatory.platform.utils.template_utils import schema_path, find_schema
+from observatory.platform.utils.template_utils import find_schema, schema_path
 from observatory.platform.utils.test_utils import test_fixtures_path
 
 LICENSES = ["cc-by", None]
@@ -104,7 +102,7 @@ FUNDING_BODY_SUBTYPES = {
 
 @dataclass
 class Institution:
-    """ An institution.
+    """An institution.
 
     :param id: unique identifier.
     :param name: the institution's name.
@@ -134,7 +132,7 @@ class Institution:
 
 
 def date_between_dates(start_ts: int, end_ts: int) -> pendulum.Pendulum:
-    """ Return a datetime between two timestamps.
+    """Return a datetime between two timestamps.
 
     :param start_ts: the start timestamp.
     :param end_ts: the end timestamp.
@@ -142,12 +140,12 @@ def date_between_dates(start_ts: int, end_ts: int) -> pendulum.Pendulum:
     """
 
     r_ts = random.randint(start_ts, end_ts - 1)
-    return pendulum.fromtimestamp(r_ts)
+    return pendulum.from_timestamp(r_ts)
 
 
 @dataclass
 class Paper:
-    """ A paper.
+    """A paper.
 
     :param id: unique identifier.
     :param doi: the DOI of the paper.
@@ -184,7 +182,7 @@ class Paper:
 
     @property
     def access_type(self) -> AccessType:
-        """ Return the access type for the paper.
+        """Return the access type for the paper.
 
         :return: AccessType.
         """
@@ -204,7 +202,7 @@ class Paper:
 
 @dataclass
 class AccessType:
-    """ The access type of a paper.
+    """The access type of a paper.
 
     :param oa: whether the paper is open access or not.
     :param green: when the paper is available in an institutional repository.
@@ -229,7 +227,7 @@ class AccessType:
 
 @dataclass
 class Author:
-    """ An author.
+    """An author.
 
     :param id: unique identifier.
     :param name: the name of the author.
@@ -243,7 +241,7 @@ class Author:
 
 @dataclass
 class Funder:
-    """ A research funder.
+    """A research funder.
 
     :param id: unique identifier.
     :param name: the name of the funder.
@@ -265,7 +263,7 @@ class Funder:
 
 @dataclass
 class Publisher:
-    """ A publisher.
+    """A publisher.
 
     :param id: unique identifier.
     :param name: the name of the publisher.
@@ -281,7 +279,7 @@ class Publisher:
 
 @dataclass
 class FieldOfStudy:
-    """ A field of study.
+    """A field of study.
 
     :param id: unique identifier.
     :param name: the field of study name.
@@ -295,7 +293,7 @@ class FieldOfStudy:
 
 @dataclass
 class Journal:
-    """ A journal
+    """A journal
 
     :param id: unique identifier.
     :param name: the journal name.
@@ -309,7 +307,7 @@ class Journal:
 
 @dataclass
 class Event:
-    """ An event.
+    """An event.
 
     :param source: the source of the event, see EVENT_TYPES.
     :param event_date: the date of the event.
@@ -330,7 +328,7 @@ EventsList = List[Event]
 
 @dataclass
 class ObservatoryDataset:
-    """ The generated observatory dataset.
+    """The generated observatory dataset.
 
     :param institutions: list of institutions.
     :param authors: list of authors.
@@ -349,7 +347,7 @@ class ObservatoryDataset:
 
 
 def make_doi(doi_prefix: int):
-    """ Makes a randomised DOI given a DOI prefix.
+    """Makes a randomised DOI given a DOI prefix.
 
     :param doi_prefix: the DOI prefix.
     :return: the DOI.
@@ -366,7 +364,7 @@ def make_observatory_dataset(
     n_papers: int = 50,
     n_fields_of_study_per_level: int = 5,
 ) -> ObservatoryDataset:
-    """ Generate an observatory dataset.
+    """Generate an observatory dataset.
 
     :param institutions: a list of institutions.
     :param n_funders: the number of funders to generate.
@@ -397,7 +395,7 @@ def make_observatory_dataset(
 
 
 def make_funders(*, n_funders: int, doi_prefix: int, faker: Faker) -> FunderList:
-    """ Make the funders ground truth dataset.
+    """Make the funders ground truth dataset.
 
     :param n_funders: number of funders to generate.
     :param doi_prefix: the DOI prefix for the funders.
@@ -434,7 +432,7 @@ def make_publishers(
     min_journals_per_publisher: int = 1,
     max_journals_per_publisher: int = 3,
 ) -> PublisherList:
-    """ Make publishers ground truth dataset.
+    """Make publishers ground truth dataset.
 
     :param n_publishers: number of publishers.
     :param doi_prefix: the publisher DOI prefix.
@@ -467,7 +465,7 @@ def make_fields_of_study(
     min_title_length: int = 1,
     max_title_length: int = 3,
 ) -> FieldOfStudyList:
-    """ Generate the fields of study for the ground truth dataset.
+    """Generate the fields of study for the ground truth dataset.
 
     :param n_fields_of_study_per_level: the number of fields of study per level.
     :param faker: the faker instance.
@@ -491,7 +489,7 @@ def make_fields_of_study(
 
 
 def make_authors(*, n_authors: int, institutions: InstitutionList, faker: Faker) -> AuthorList:
-    """ Generate the authors ground truth dataset.
+    """Generate the authors ground truth dataset.
 
     :param n_authors: the number of authors to generate.
     :param institutions: the institutions.
@@ -526,7 +524,7 @@ def make_papers(
     min_fields_of_study: int = 1,
     max_fields_of_study: int = 20,
 ) -> PaperList:
-    """ Generate the list of ground truth papers.
+    """Generate the list of ground truth papers.
 
     :param n_papers: the number of papers to generate.
     :param authors: the authors list.
@@ -555,7 +553,7 @@ def make_papers(
         title_ = faker.sentence(nb_words=n_words_)
 
         # Random date
-        published_date_ = pendulum.strptime(faker.date(), "%Y-%m-%d").date()
+        published_date_ = pendulum.from_format(faker.date(), "YYYY-MM-DD").date()
         published_date_ = pendulum.date(year=published_date_.year, month=published_date_.month, day=published_date_.day)
 
         # Output type
@@ -648,7 +646,7 @@ def make_papers(
 
 
 def make_open_citations(dataset: ObservatoryDataset) -> List[Dict]:
-    """ Generate an Open Citations table from an ObservatoryDataset instance.
+    """Generate an Open Citations table from an ObservatoryDataset instance.
 
     :param dataset: the Observatory Dataset.
     :return: table rows.
@@ -698,7 +696,7 @@ def make_open_citations(dataset: ObservatoryDataset) -> List[Dict]:
 
 
 def make_crossref_events(dataset: ObservatoryDataset) -> List[Dict]:
-    """ Generate the Crossref Events table from an ObservatoryDataset instance.
+    """Generate the Crossref Events table from an ObservatoryDataset instance.
 
     :param dataset: the Observatory Dataset.
     :return: table rows.
@@ -725,7 +723,7 @@ def make_crossref_events(dataset: ObservatoryDataset) -> List[Dict]:
 
 
 def make_unpaywall(dataset: ObservatoryDataset) -> List[Dict]:
-    """ Generate the Unpaywall table from an ObservatoryDataset instance.
+    """Generate the Unpaywall table from an ObservatoryDataset instance.
 
     :param dataset: the Observatory Dataset.
     :return: table rows.
@@ -782,7 +780,7 @@ def make_unpaywall(dataset: ObservatoryDataset) -> List[Dict]:
 
 @dataclass
 class MagDataset:
-    """ A container to hold the Microsoft Academic Graph tables.
+    """A container to hold the Microsoft Academic Graph tables.
 
     :param: Affiliations table rows.
     :param: Papers table rows.
@@ -799,7 +797,7 @@ class MagDataset:
 
 
 def make_mag(dataset: ObservatoryDataset) -> MagDataset:
-    """ Generate the Microsoft Academic Graph tables from an ObservatoryDataset instance.
+    """Generate the Microsoft Academic Graph tables from an ObservatoryDataset instance.
 
     :param dataset: the Observatory Dataset.
     :return: the Microsoft Academic Graph dataset.
@@ -834,7 +832,7 @@ def make_mag(dataset: ObservatoryDataset) -> MagDataset:
 
 
 def make_crossref_fundref(dataset: ObservatoryDataset) -> List[Dict]:
-    """ Generate the Crossref Fundref table from an ObservatoryDataset instance.
+    """Generate the Crossref Fundref table from an ObservatoryDataset instance.
 
     :param dataset: the Observatory Dataset.
     :return: table rows.
@@ -858,7 +856,7 @@ def make_crossref_fundref(dataset: ObservatoryDataset) -> List[Dict]:
 
 
 def make_crossref_metadata(dataset: ObservatoryDataset) -> List[Dict]:
-    """ Generate the Crossref Metadata table from an ObservatoryDataset instance.
+    """Generate the Crossref Metadata table from an ObservatoryDataset instance.
 
     :param dataset: the Observatory Dataset.
     :return: table rows.
@@ -891,7 +889,7 @@ def make_crossref_metadata(dataset: ObservatoryDataset) -> List[Dict]:
 
 @dataclass
 class Table:
-    """ A table to be loaded into Elasticsearch.
+    """A table to be loaded into Elasticsearch.
 
     :param table_name: the table name.
     :param is_sharded: whether the table is sharded or not.
@@ -917,7 +915,7 @@ def bq_load_observatory_dataset(
     release_date: pendulum.Pendulum,
     data_location: str,
 ):
-    """ Load the fake Observatory Dataset in BigQuery.
+    """Load the fake Observatory Dataset in BigQuery.
 
     :param observatory_dataset: the Observatory Dataset.
     :param bucket_name: the Google Cloud Storage bucket name.
@@ -1031,9 +1029,13 @@ def bq_load_observatory_dataset(
 
 
 def bq_load_tables(
-    *, tables: List[Table], bucket_name: str, release_date: pendulum.Pendulum, data_location: str,
+    *,
+    tables: List[Table],
+    bucket_name: str,
+    release_date: pendulum.Pendulum,
+    data_location: str,
 ):
-    """ Load the fake Observatory Dataset in BigQuery.
+    """Load the fake Observatory Dataset in BigQuery.
 
     :param tables: the list of tables and records to load.
     :param bucket_name: the Google Cloud Storage bucket name.
@@ -1078,14 +1080,19 @@ def bq_load_tables(
             uri = f"gs://{bucket_name}/{blob_name}"
             logging.info(f"URI: {uri}")
             success = load_bigquery_table(
-                uri, table.dataset_id, data_location, table_id, schema_file_path, SourceFormat.NEWLINE_DELIMITED_JSON,
+                uri,
+                table.dataset_id,
+                data_location,
+                table_id,
+                schema_file_path,
+                SourceFormat.NEWLINE_DELIMITED_JSON,
             )
             if not success:
                 raise AirflowException("bq_load task: data failed to load data into BigQuery")
 
 
 def aggregate_events(events: List[Event]) -> Tuple[List[Dict], List[Dict], List[Dict]]:
-    """ Aggregate events by source into total events for all time, monthly and yearly counts.
+    """Aggregate events by source into total events for all time, monthly and yearly counts.
 
     :param events: list of events.
     :return: list of events for each source aggregated by all time, months and years.
@@ -1127,7 +1134,7 @@ def aggregate_events(events: List[Event]) -> Tuple[List[Dict], List[Dict], List[
 
 
 def sort_events(events: List[Dict], months: List[Dict], years: List[Dict]):
-    """ Sort events in-place.
+    """Sort events in-place.
 
     :param events: events all time.
     :param months: events by month.
@@ -1141,7 +1148,7 @@ def sort_events(events: List[Dict], months: List[Dict], years: List[Dict]):
 
 
 def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
-    """ Generate the DOI table from an ObservatoryDataset instance.
+    """Generate the DOI table from an ObservatoryDataset instance.
 
     :param dataset: the Observatory Dataset.
     :return: table rows.
@@ -1202,7 +1209,7 @@ def make_doi_table(dataset: ObservatoryDataset) -> List[Dict]:
 
 
 def make_doi_events(doi: str, event_list: EventsList) -> Dict:
-    """ Make the events for a DOI table row.
+    """Make the events for a DOI table row.
 
     :param doi: the DOI.
     :param event_list: a list of events for the paper.
@@ -1225,7 +1232,7 @@ def make_doi_events(doi: str, event_list: EventsList) -> Dict:
 
 
 def make_doi_grids(author_list: AuthorList) -> List[str]:
-    """ Make the grid ids for a DOI table row.
+    """Make the grid ids for a DOI table row.
 
     :param author_list: the list of authors for the paper.
     :return: the grid ids for the paper.
@@ -1235,7 +1242,7 @@ def make_doi_grids(author_list: AuthorList) -> List[str]:
 
 
 def make_doi_funders(funder_list: FunderList) -> List[Dict]:
-    """ Make a DOI table row funders affiliation list.
+    """Make a DOI table row funders affiliation list.
 
     :param funder_list: the funders list.
     :return: the funders affiliation list.
@@ -1267,7 +1274,7 @@ def make_doi_funders(funder_list: FunderList) -> List[Dict]:
 
 
 def make_doi_journals(journal: Journal) -> List[Dict]:
-    """ Make the journal affiliation list for a DOI table row.
+    """Make the journal affiliation list for a DOI table row.
 
     :param journal: the paper's journal.
     :return: the journal affiliation list.
@@ -1291,7 +1298,7 @@ def make_doi_journals(journal: Journal) -> List[Dict]:
 
 
 def to_affiliations_list(dict_: Dict):
-    """ Convert affiliation dict into a list.
+    """Convert affiliation dict into a list.
 
     :param dict_: affiliation dict.
     :return: affiliation list.
@@ -1312,7 +1319,7 @@ def to_affiliations_list(dict_: Dict):
 
 
 def make_doi_publishers(publisher: Publisher) -> List[Dict]:
-    """ Make the publisher affiliations for a DOI table row.
+    """Make the publisher affiliations for a DOI table row.
 
     :param publisher: the paper's publisher.
     :return: the publisher affiliations list.
@@ -1336,7 +1343,7 @@ def make_doi_publishers(publisher: Publisher) -> List[Dict]:
 
 
 def make_doi_institutions(author_list: AuthorList) -> List[Dict]:
-    """ Make the institution affiliations for a DOI table row.
+    """Make the institution affiliations for a DOI table row.
 
     :param author_list: the paper's author list.
     :return: the institution affiliation list.
@@ -1366,7 +1373,7 @@ def make_doi_institutions(author_list: AuthorList) -> List[Dict]:
 
 
 def make_doi_countries(author_list: AuthorList):
-    """ Make the countries affiliations for a DOI table row.
+    """Make the countries affiliations for a DOI table row.
 
     :param author_list: the paper's author list.
     :return: the countries affiliation list.
@@ -1401,7 +1408,7 @@ def make_doi_countries(author_list: AuthorList):
 
 
 def make_doi_regions(author_list: AuthorList):
-    """ Make the regions affiliations for a DOI table row.
+    """Make the regions affiliations for a DOI table row.
 
     :param author_list: the paper's author list.
     :return: the regions affiliation list.
@@ -1435,7 +1442,7 @@ def make_doi_regions(author_list: AuthorList):
 
 
 def make_doi_subregions(author_list: AuthorList):
-    """ Make the subregions affiliations for a DOI table row.
+    """Make the subregions affiliations for a DOI table row.
 
     :param author_list: the paper's author list.
     :return: the subregions affiliation list.
@@ -1470,7 +1477,7 @@ def make_doi_subregions(author_list: AuthorList):
 
 
 def calc_percent(value: float, total: float) -> float:
-    """ Calculate a percentage and round to 2dp.
+    """Calculate a percentage and round to 2dp.
 
     :param value: the value.
     :param total: the total.
@@ -1481,7 +1488,7 @@ def calc_percent(value: float, total: float) -> float:
 
 
 def make_country_table(dataset: ObservatoryDataset) -> List[Dict]:
-    """ Generate the Observatory Country table from an ObservatoryDataset instance.
+    """Generate the Observatory Country table from an ObservatoryDataset instance.
 
     :param dataset: the Observatory Dataset.
     :return: table rows.

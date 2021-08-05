@@ -44,7 +44,7 @@ from observatory.platform.utils.template_utils import (
 
 class GoogleAnalyticsRelease(SnapshotRelease):
     def __init__(
-        self, dag_id: str, start_date: pendulum.datetime, end_date: pendulum.datetime, organisation: Organisation
+        self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime, organisation: Organisation
     ):
         """Construct a GoogleAnalyticsRelease.
 
@@ -115,7 +115,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         view_id: str,
         pagepath_regex: str,
         dag_id: Optional[str] = None,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 1, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2018, 1, 1),
         schedule_interval: str = "@monthly",
         dataset_id: str = "google",
         catchup: bool = True,
@@ -268,8 +268,8 @@ def list_all_books(
     service: Resource,
     view_id: str,
     pagepath_regex: str,
-    start_date: pendulum.datetime,
-    end_date: pendulum.datetime,
+    start_date: pendulum.DateTime,
+    end_date: pendulum.DateTime,
     organisation_name: str,
 ) -> Tuple[List[dict], list]:
     """List all available books by getting all pagepaths of a view id in a given period.
@@ -335,7 +335,7 @@ def list_all_books(
 
 
 def create_book_result_dicts(
-    book_entries: List[dict], start_date: pendulum.datetime, end_date: pendulum.datetime, organisation_name: str
+    book_entries: List[dict], start_date: pendulum.DateTime, end_date: pendulum.DateTime, organisation_name: str
 ) -> Dict[dict]:
     """Create a dictionary to store results for a single book. Pagepath, title and avg time on page are already given.
     The other metrics will be added to the dictionary later.
@@ -380,8 +380,8 @@ def create_book_result_dicts(
 def get_dimension_data(
     service: Resource,
     view_id: str,
-    start_date: pendulum.datetime,
-    end_date: pendulum.datetime,
+    start_date: pendulum.DateTime,
+    end_date: pendulum.DateTime,
     metrics: list,
     dimension: dict,
     pagepaths: list,
@@ -463,8 +463,8 @@ def get_reports(
     organisation_name: str,
     view_id: str,
     pagepath_regex: str,
-    start_date: pendulum.datetime,
-    end_date: pendulum.datetime,
+    start_date: pendulum.DateTime,
+    end_date: pendulum.DateTime,
 ) -> list:
     """Get reports data from the Google Analytics Reporting API.
 

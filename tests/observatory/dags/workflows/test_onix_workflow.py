@@ -49,7 +49,6 @@ from observatory.platform.utils.test_utils import (
     random_id,
     test_fixtures_path,
 )
-from pendulum import Pendulum
 
 
 class TestOnixWorkflowRelease(unittest.TestCase):
@@ -349,8 +348,8 @@ class TestOnixWorkflow(ObservatoryTestCase):
             release = wf.make_release(**kwargs)
             self.assertIsInstance(release, OnixWorkflowRelease)
             self.assertEqual(release.dag_id, "onix_workflow_test")
-            self.assertEqual(release.release_date, pendulum.datetime(2021, 1, 31))
-            self.assertEqual(release.onix_release_date, pendulum.datetime(2021, 1, 1))
+            self.assertEqual(release.release_date, pendulum.date(2021, 1, 31))
+            self.assertEqual(release.onix_release_date, pendulum.date(2021, 1, 1))
             self.assertEqual(release.project_id, "project_id")
             self.assertEqual(release.onix_dataset_id, "onix")
             self.assertEqual(release.onix_table_id, "onix")
@@ -1541,7 +1540,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             env.add_connection(conn)
 
             # Setup ONIX telescopes
-            dt = pendulum.utcnow()
+            dt = pendulum.now('UTC')
             telescope_type = orm.TelescopeType(
                 name="ONIX Telescope", type_id=TelescopeTypes.onix, created=dt, modified=dt
             )
@@ -1564,7 +1563,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 dag_id = make_dag_id("onix_workflow", org_name)
                 self.assert_dag_load(dag_id, dag_file)
 
-    def setup_fake_onix_data_table(self, dataset_id: str, release_date: Pendulum):
+    def setup_fake_onix_data_table(self, dataset_id: str, release_date: pendulum.DateTime):
         """Create a new onix data table with its own dataset id and table id, and populate it with some fake data."""
 
         # Upload fixture to bucket
@@ -1587,7 +1586,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             **{},
         )
 
-    def setup_fake_partner_data(self, env, release_date: Pendulum):
+    def setup_fake_partner_data(self, env, release_date: pendulum.DateTime):
         self.fake_partner_dataset = env.add_dataset()
 
         # Upload fixture to bucket

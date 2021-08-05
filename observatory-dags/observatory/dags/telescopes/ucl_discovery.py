@@ -43,7 +43,7 @@ from observatory.platform.utils.url_utils import retry_session
 
 class UclDiscoveryRelease(SnapshotRelease):
     def __init__(
-        self, dag_id: str, start_date: pendulum.datetime, end_date: pendulum.datetime, organisation: Organisation
+        self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime, organisation: Organisation
     ):
         """Construct a UclDiscoveryRelease instance.
         :param dag_id: the id of the DAG.
@@ -233,7 +233,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         self,
         organisation: Organisation,
         dag_id: Optional[str] = None,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2008, 1, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2008, 1, 1),
         schedule_interval: str = "@monthly",
         dataset_id: str = "ucl",
         airflow_vars: list = None,

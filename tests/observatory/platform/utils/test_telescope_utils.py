@@ -324,14 +324,14 @@ class TestScheduleOptimiser(unittest.TestCase):
         schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 4)  # Naive is 5
         self.assertEqual(min_calls, 12)  # Naive is 12
-        self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
-        self.assertEqual(schedule[0].end, pendulum.datetime(1000, 1, 1))
-        self.assertEqual(schedule[1].start, pendulum.datetime(1000, 2, 1))
-        self.assertEqual(schedule[1].end, pendulum.datetime(1000, 2, 1))
-        self.assertEqual(schedule[2].start, pendulum.datetime(1000, 3, 1))
-        self.assertEqual(schedule[2].end, pendulum.datetime(1000, 4, 1))
-        self.assertEqual(schedule[3].start, pendulum.datetime(1000, 5, 1))
-        self.assertEqual(schedule[3].end, pendulum.datetime(1000, 5, 1))
+        self.assertEqual(schedule[0].start, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[0].end, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[1].start, pendulum.date(1000, 2, 1))
+        self.assertEqual(schedule[1].end, pendulum.date(1000, 2, 1))
+        self.assertEqual(schedule[2].start, pendulum.date(1000, 3, 1))
+        self.assertEqual(schedule[2].end, pendulum.date(1000, 4, 1))
+        self.assertEqual(schedule[3].start, pendulum.date(1000, 5, 1))
+        self.assertEqual(schedule[3].end, pendulum.date(1000, 5, 1))
 
     def test_optimise_historic_counts_case3(self):
         historic_counts = [
@@ -345,8 +345,8 @@ class TestScheduleOptimiser(unittest.TestCase):
         schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 1)  # Naive is 5
         self.assertEqual(min_calls, 3)  # Naive is 5
-        self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
-        self.assertEqual(schedule[0].end, pendulum.datetime(1000, 5, 1))
+        self.assertEqual(schedule[0].start, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[0].end, pendulum.date(1000, 5, 1))
 
     def test_optimise_historic_counts_case4(self):
         historic_counts = [
@@ -360,7 +360,7 @@ class TestScheduleOptimiser(unittest.TestCase):
         schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 2)  # Naive is 5
         self.assertEqual(min_calls, 7)  # Naive is 13
-        self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
-        self.assertEqual(schedule[0].end, pendulum.datetime(1000, 1, 1))
-        self.assertEqual(schedule[1].start, pendulum.datetime(1000, 2, 1))
-        self.assertEqual(schedule[1].end, pendulum.datetime(1000, 5, 1))
+        self.assertEqual(schedule[0].start, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[0].end, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[1].start, pendulum.date(1000, 2, 1))
+        self.assertEqual(schedule[1].end, pendulum.date(1000, 5, 1))

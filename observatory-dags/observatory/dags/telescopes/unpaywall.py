@@ -61,7 +61,7 @@ def pull_releases(ti: TaskInstance) -> List:
     )
 
 
-def list_releases(start_date: pendulum.datetime, end_date: pendulum.datetime) -> List["UnpaywallRelease"]:
+def list_releases(start_date: pendulum.DateTime, end_date: pendulum.DateTime) -> List["UnpaywallRelease"]:
     """Parses xml string retrieved from GET request to create list of urls for
     different releases.
 
@@ -163,7 +163,7 @@ def transform_release(release: "UnpaywallRelease") -> str:
 
 
 class UnpaywallRelease:
-    def __init__(self, file_name: str, last_modified: pendulum.datetime, release_date: pendulum.datetime):
+    def __init__(self, file_name: str, last_modified: pendulum.DateTime, release_date: pendulum.DateTime):
         self.file_name = file_name
         self.last_modified = last_modified
         self.release_date = release_date
@@ -176,7 +176,7 @@ class UnpaywallRelease:
         return f"{UnpaywallTelescope.TELESCOPE_URL}{self.file_name}"
 
     @staticmethod
-    def parse_release_date(file_name: str) -> pendulum.datetime:
+    def parse_release_date(file_name: str) -> pendulum.DateTime:
         """Parses a release date from a file name.
 
         :return: date.

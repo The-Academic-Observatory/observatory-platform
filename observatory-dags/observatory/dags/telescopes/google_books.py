@@ -18,7 +18,6 @@ import csv
 import os
 import re
 from collections import OrderedDict, defaultdict
-from datetime import datetime
 from typing import List, Optional
 
 import pendulum
@@ -48,7 +47,7 @@ from observatory.platform.utils.template_utils import (
 
 
 class GoogleBooksRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.datetime, sftp_files: List[str], organisation: Organisation):
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime, sftp_files: List[str], organisation: Organisation):
         """Construct a GoogleBooksRelease.
 
         :param dag_id: the DAG id.
@@ -126,7 +125,7 @@ class GoogleBooksRelease(SnapshotRelease):
                 for row in csv_reader:
                     transformed_row = OrderedDict((convert(k.replace("%", "Perc")), v) for k, v in row.items())
                     if "sales" in file:
-                        transaction_date = datetime.strptime(transformed_row["Transaction_Date"], "%m/%d/%y")
+                        transaction_date = pendulum.from_format(transformed_row["Transaction_Date"], "MM/DD/YY")
 
                         # sanity check that transaction date is in month of release date
                         if self.release_date.start_of("month") <= transaction_date <= self.release_date.end_of("month"):
@@ -167,7 +166,7 @@ class GoogleBooksTelescope(SnapshotTelescope):
         self,
         organisation: Organisation,
         dag_id: Optional[str] = None,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 1, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2018, 1, 1),
         schedule_interval: str = "@monthly",
         dataset_id: str = "google",
         catchup: bool = False,
@@ -242,7 +241,9 @@ class GoogleBooksTelescope(SnapshotTelescope):
         )
         releases = []
         for release_date, sftp_files in reports_info.items():
-            releases.append(GoogleBooksRelease(self.dag_id, release_date, sftp_files, self.organisation))
+            releases.append(
+                GoogleBooksRelease(self.dag_id, pendulum.parse(release_date), sftp_files, self.organisation)
+            )
         return releases
 
     def list_release_info(self, **kwargs):
@@ -262,7 +263,8 @@ class GoogleBooksTelescope(SnapshotTelescope):
             for file_name in files:
                 if re.match(self.sftp_regex, file_name):
                     date_str = file_name[-11:].strip(".csv")
-                    release_date = pendulum.strptime(date_str, "%Y_%m").end_of("month")
+                    release_date = pendulum.from_format(date_str, "YYYY_MM").end_of("month")
+                    release_date = release_date.format("YYYYMMDD")
                     sftp_file = os.path.join(self.sftp_folders.in_progress, file_name)
                     release_info[release_date].append(sftp_file)
 

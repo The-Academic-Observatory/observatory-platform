@@ -35,7 +35,7 @@ from observatory.platform.utils.url_utils import get_ao_user_agent, retry_sessio
 
 
 class DoabRelease(StreamRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.datetime, end_date: pendulum.datetime, first_release: bool):
+    def __init__(self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime, first_release: bool):
 
         download_files_regex = "doab.csv"
         transform_files_regex = "doab.jsonl.gz"
@@ -161,7 +161,7 @@ class DoabTelescope(StreamTelescope):
     def __init__(
         self,
         dag_id: str = "doab",
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 5, 14),
+        start_date: pendulum.DateTime = pendulum.datetime(2018, 5, 14),
         schedule_interval: str = "@monthly",
         dataset_id: str = "doab",
         merge_partition_field: str = "id",
@@ -197,7 +197,7 @@ class DoabTelescope(StreamTelescope):
         ti: TaskInstance = kwargs["ti"]
         start_date, end_date, first_release = ti.xcom_pull(key=DoabTelescope.RELEASE_INFO, include_prior_dates=True)
 
-        release = DoabRelease(self.dag_id, start_date, end_date, first_release)
+        release = DoabRelease(self.dag_id, pendulum.parse(start_date), pendulum.parse(end_date), first_release)
         return release
 
     def download(self, release: DoabRelease, **kwargs):

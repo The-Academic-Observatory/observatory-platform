@@ -60,10 +60,10 @@ class File:
 
 
 class OpenCitationsRelease:
-    release_date: pendulum.datetime
+    release_date: pendulum.DateTime
     files: List[File]
 
-    def __init__(self, release_date: pendulum.datetime, files: List[File]):
+    def __init__(self, release_date: pendulum.DateTime, files: List[File]):
         self.release_date = release_date
         self.files = files
 
@@ -89,7 +89,7 @@ class OpenCitationsRelease:
 
 
 def list_open_citations_releases(
-    start_date: pendulum.datetime = None, end_date: pendulum.datetime = None, timeout: float = 30.0
+    start_date: pendulum.DateTime = None, end_date: pendulum.DateTime = None, timeout: float = 30.0
 ) -> List[OpenCitationsRelease]:
     """List the Open Citations releases for a given time period.
 

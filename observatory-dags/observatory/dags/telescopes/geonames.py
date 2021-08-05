@@ -38,7 +38,7 @@ from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.template_utils import upload_files_from_list
 
 
-def fetch_release_date() -> pendulum.datetime:
+def fetch_release_date() -> pendulum.DateTime:
     """Fetch the Geonames release date.
 
     :return: the release date.
@@ -46,11 +46,11 @@ def fetch_release_date() -> pendulum.datetime:
 
     response = requests.head(GeonamesRelease.DOWNLOAD_URL)
     date_str = response.headers["Last-Modified"]
-    date: pendulum.datetime = pendulum.parse(date_str, tz="GMT")
+    date: pendulum.DateTime = pendulum.from_format(date_str, "ddd, DD MMM YYYY HH:mm:ss z")
     return date
 
 
-def first_sunday_of_month(datetime: pendulum.datetime) -> pendulum.datetime:
+def first_sunday_of_month(datetime: pendulum.DateTime) -> pendulum.DateTime:
     """Get the first Sunday of the month based on a given datetime.
 
     :param datetime: the datetime.
@@ -63,7 +63,7 @@ def first_sunday_of_month(datetime: pendulum.datetime) -> pendulum.datetime:
 class GeonamesRelease(SnapshotRelease):
     DOWNLOAD_URL = "https://download.geonames.org/export/dump/allCountries.zip"
 
-    def __init__(self, dag_id: str, release_date: pendulum.datetime):
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime):
         """Create a GeonamesRelease instance.
 
         :param dag_id: the DAG id.
@@ -147,7 +147,7 @@ class GeonamesTelescope(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: datetime = pendulum.datetime(2020, 9, 1),
+        start_date: DateTime = pendulum.datetime(2020, 9, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = "geonames",
         source_format: str = SourceFormat.CSV,
@@ -223,7 +223,7 @@ class GeonamesTelescope(SnapshotTelescope):
             key=GeonamesTelescope.RELEASE_INFO, task_ids=self.fetch_release_date.__name__, include_prior_dates=False
         )
 
-        return [GeonamesRelease(self.dag_id, release_date)]
+        return [GeonamesRelease(self.dag_id, pendulum.parse(release_date))]
 
     def fetch_release_date(self, **kwargs):
         """Get the Geonames release for a given month and publishes the release_date as an XCom.
@@ -247,7 +247,7 @@ class GeonamesTelescope(SnapshotTelescope):
 
             # Push messages
             ti: TaskInstance = kwargs["ti"]
-            ti.xcom_push(GeonamesTelescope.RELEASE_INFO, release_date, execution_date)
+            ti.xcom_push(GeonamesTelescope.RELEASE_INFO, release_date.format("YYYYMMDD"), execution_date)
 
         return continue_dag
 

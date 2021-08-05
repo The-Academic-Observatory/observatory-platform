@@ -23,7 +23,7 @@ from typing import List, Optional
 
 import pendulum
 from airflow.exceptions import AirflowException
-from airflow.operators.sensors import ExternalTaskSensor
+from airflow.sensors.external_task import ExternalTaskSensor
 from google.cloud.bigquery import SourceFormat
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.dags.telescopes.onix import OnixTelescope
@@ -59,8 +59,8 @@ class OnixWorkflowRelease(AbstractRelease):
         self,
         *,
         dag_id: str,
-        release_date: pendulum.datetime,
-        onix_release_date: pendulum.datetime,
+        release_date: pendulum.DateTime,
+        onix_release_date: pendulum.DateTime,
         gcp_project_id: str,
         gcp_bucket_name: str,
         onix_dataset_id: str = "onix",
@@ -341,7 +341,7 @@ class OnixWorkflow(Telescope):
         if not len(onix_release_dates):
             raise AirflowException("OnixWorkflow.make_release: no ONIX releases found")
 
-        onix_release_date = onix_release_dates[0]
+        onix_release_date = onix_release_dates[0].date()
         return OnixWorkflowRelease(
             dag_id=self.dag_id,
             release_date=release_date,

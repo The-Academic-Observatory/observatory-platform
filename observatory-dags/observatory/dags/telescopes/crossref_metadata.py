@@ -47,7 +47,7 @@ from observatory.platform.utils.url_utils import retry_session
 
 
 class CrossrefMetadataRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.datetime):
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime):
         """Create a CrossrefMetadataRelease instance.
 
         :param dag_id: the DAG id.
@@ -166,7 +166,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2020, 6, 7),
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 6, 7),
         schedule_interval: str = SCHEDULE_INTERVAL,
         dataset_id: str = "crossref",
         queue: str = "remote_queue",

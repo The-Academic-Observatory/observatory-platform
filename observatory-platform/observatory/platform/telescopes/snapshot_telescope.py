@@ -32,7 +32,7 @@ class SnapshotRelease(Release):
     def __init__(
         self,
         dag_id: str,
-        release_date: pendulum.datetime,
+        release_date: pendulum.DateTime,
         download_files_regex: str = None,
         extract_files_regex: str = None,
         transform_files_regex: str = None,
@@ -54,7 +54,7 @@ class SnapshotTelescope(Telescope):
     def __init__(
         self,
         dag_id: str,
-        start_date: pendulum.datetime,
+        start_date: pendulum.DateTime,
         schedule_interval: str,
         dataset_id: str,
         catchup: bool = True,

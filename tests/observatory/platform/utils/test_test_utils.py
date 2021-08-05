@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import datetime
 import os
 import unittest
 from typing import List, Union
@@ -68,7 +67,7 @@ class TelescopeTest(Telescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: datetime = pendulum.datetime(2020, 9, 1, tz="UTC"),
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 9, 1, tz="UTC"),
         schedule_interval: str = "@weekly",
     ):
         airflow_vars = [
@@ -159,85 +158,65 @@ class TestObservatoryEnvironment(unittest.TestCase):
         with self.assertRaises(AssertionError):
             ObservatoryEnvironment()._delete_dataset(random_id())
 
-    # Pass
-    def test_dummy(self):
-        dag = DAG(
-            dag_id="test_requeue_over_task_concurrency",
-            start_date=pendulum.datetime(year=2020, month=11, day=1),
-            max_active_runs=1,
-        )
-        execution_date = pendulum.datetime(year=2020, month=11, day=1)
-        task = DummyOperator(task_id="test_requeue_over_task_concurrency_op", dag=dag, task_concurrency=0)
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
-        with env.create():
-            ti = env.run_task("test_requeue_over_task_concurrency_op", dag, execution_date)
+    def test_create(self):
+        """Tests create, add_variable, add_connection and run_task"""
 
-    def test_dummy2(self):
-        execution_date = pendulum.datetime(year=2020, month=11, day=1, tz="UTC")
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+
+        # Setup Telescope
+        execution_date = pendulum.datetime(year=2020, month=11, day=1)
         telescope = TelescopeTest()
         dag = telescope.make_dag()
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+
         with env.create():
-            # Test add_variable
-            env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+            with env.create_dag_run(dag, execution_date):
 
-            # Test add_connection
-            conn = Connection(conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2")
-            env.add_connection(conn)
-            ti = env.run_task("check_dependencies", dag, execution_date)
+                # Test add_variable
+                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
 
-    # Fail
-    # def test_create(self):
-    #     """Tests create, add_variable, add_connection and run_task"""
+                # Test add_connection
+                conn = Connection(
+                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
+                )
+                env.add_connection(conn)
 
-    #     env = ObservatoryEnvironment(self.project_id, self.data_location)
+                # Test run task
+                ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                self.assertFalse(ti.log.propagate)
 
-    #     # Setup Telescope
-    #     execution_date = pendulum.datetime(year=2020, month=11, day=1)
-    #     telescope = TelescopeTest()
-    #     dag = telescope.make_dag()
+        # Test environment with logging enabled
+        with env.create(task_logging=True):
+            with env.create_dag_run(dag, execution_date):
 
-    #     with env.create():
-    #         # Test add_variable
-    #         env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+                # Test add_variable
+                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
 
-    #         # Test add_connection
-    #         conn = Connection(conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2")
-    #         env.add_connection(conn)
+                # Test add_connection
+                conn = Connection(
+                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
+                )
+                env.add_connection(conn)
 
-    #         # Test run task
-    #         ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
-    #         self.assertFalse(ti.logger.propagate)
-
-    #     # Test environment with logging enabled
-    #     with env.create(task_logging=True):
-    #         # Test add_variable
-    #         env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
-
-    #         # Test add_connection
-    #         conn = Connection(conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2")
-    #         env.add_connection(conn)
-
-    #         # Test run task
-    #         ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
-    #         self.assertTrue(ti.logger.propagate)
+                # Test run task
+                ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                self.assertTrue(ti.log.propagate)
 
     def test_create_dagrun(self):
         """Tests create_dag_run"""
         env = ObservatoryEnvironment(self.project_id, self.data_location)
 
         # Setup Telescope
-        first_execution_date = pendulum.datetime(year=2020, month=11, day=1)
-        second_execution_date = pendulum.datetime(year=2020, month=12, day=1)
+        first_execution_date = pendulum.datetime(year=2020, month=11, day=1, tz="UTC")
+        second_execution_date = pendulum.datetime(year=2020, month=12, day=1, tz="UTC")
         telescope = TelescopeTest()
         dag = telescope.make_dag()
 
         # Get start dates outside of
         first_start_date = croniter.croniter(dag.normalized_schedule_interval, first_execution_date).get_next(
-            datetime.datetime
+            pendulum.DateTime
         )
         second_start_date = croniter.croniter(dag.normalized_schedule_interval, second_execution_date).get_next(
-            datetime.datetime
+            pendulum.DateTime
         )
 
         # Use DAG run with freezing time
@@ -283,7 +262,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
             with env.create_dag_run(dag, first_execution_date, freeze=False):
                 # Test DAG Run is set and has today as start date
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(pendulum.now().date(), env.dag_run.start_date.date())
+                self.assertEqual(pendulum.now("UTC").date(), env.dag_run.start_date.date())
 
                 ti1 = env.run_task(telescope.check_dependencies.__name__)
                 self.assertEqual("success", ti1.state)
@@ -293,7 +272,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
             with env.create_dag_run(dag, second_execution_date, freeze=False):
                 # Test DAG Run is set and has today as start date
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(pendulum.now().date(), env.dag_run.start_date.date())
+                self.assertEqual(pendulum.now("UTC").date(), env.dag_run.start_date.date())
 
                 ti2 = env.run_task(telescope.check_dependencies.__name__)
                 self.assertEqual("success", ti2.state)

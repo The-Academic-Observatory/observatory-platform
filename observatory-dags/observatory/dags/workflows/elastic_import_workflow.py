@@ -156,7 +156,7 @@ def extract_table_id(table_id: str) -> Tuple[str, Optional[str]]:
     return make_table_prefix(table_id), results.group(0)
 
 
-def list_table_ids(project_id: str, dataset_id: str, release_date: pendulum.datetime) -> List[str]:
+def list_table_ids(project_id: str, dataset_id: str, release_date: pendulum.DateTime) -> List[str]:
     """List all of the table_ids within a BigQuery dataset.
 
     :param project_id: the Google Cloud project id.
@@ -302,7 +302,7 @@ class ElasticImportRelease(SnapshotRelease):
         self,
         *,
         dag_id: str,
-        release_date: pendulum.datetime,
+        release_date: pendulum.DateTime,
         dataset_id: str,
         file_type: str,
         table_ids: List,
@@ -551,7 +551,7 @@ class ElasticImportWorkflow(Telescope):
         kibana_spaces: List[str] = None,
         kibana_time_fields: List[TimeField] = None,
         dag_id: Optional[str] = "elastic_import",
-        start_date: Optional[pendulum.datetime] = pendulum.datetime(2020, 11, 1),
+        start_date: Optional[pendulum.DateTime] = pendulum.datetime(2020, 11, 1),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
         airflow_vars: List = None,
@@ -639,7 +639,7 @@ class ElasticImportWorkflow(Telescope):
 
         # Push table ids and release date
         ti: TaskInstance = kwargs["ti"]
-        ti.xcom_push(Telescope.RELEASE_INFO, {"release_date": release_date, "table_ids": table_ids})
+        ti.xcom_push(Telescope.RELEASE_INFO, {"release_date": release_date.format("YYYYMMDD"), "table_ids": table_ids})
 
         return True
 
@@ -658,7 +658,7 @@ class ElasticImportWorkflow(Telescope):
             key=Telescope.RELEASE_INFO, task_ids=self.list_release_info.__name__, include_prior_dates=False
         )
 
-        release_date = record["release_date"]
+        release_date = pendulum.parse(record["release_date"])
         table_ids = record["table_ids"]
 
         # Get Airflow connections

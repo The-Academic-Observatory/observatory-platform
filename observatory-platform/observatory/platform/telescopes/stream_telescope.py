@@ -14,7 +14,6 @@
 
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 
-import datetime
 import logging
 from datetime import timedelta
 from typing import Dict
@@ -41,8 +40,8 @@ class StreamRelease(Release):
     def __init__(
         self,
         dag_id: str,
-        start_date: pendulum.datetime,
-        end_date: pendulum.datetime,
+        start_date: pendulum.DateTime,
+        end_date: pendulum.DateTime,
         first_release: bool,
         download_files_regex: str = None,
         extract_files_regex: str = None,
@@ -68,7 +67,7 @@ class StreamTelescope(Telescope):
     def __init__(
         self,
         dag_id: str,
-        start_date: datetime,
+        start_date: pendulum.DateTime,
         schedule_interval: str,
         dataset_id: str,
         merge_partition_field: str,
@@ -153,10 +152,14 @@ class StreamTelescope(Telescope):
             start_date = pendulum.instance(kwargs["dag"].default_args["start_date"]).start_of("day")
         else:
             # set start date to end date of previous DAG run, add 1 day, because end date was processed in prev run.
-            start_date = release_info[1] + timedelta(days=1)
+            start_date = pendulum.parse(release_info[1]) + timedelta(days=1)
         # set start date to current day, subtract 1 day, because data from same day might not be available yet.
         end_date = pendulum.today("UTC") - timedelta(days=1)
         logging.info(f"Start date: {start_date}, end date: {end_date}, first release: {first_release}")
+
+        # Turn dates into strings.  Prefer JSON'able data over pickling in Airflow 2.
+        start_date = start_date.format("YYYYMMDD")
+        end_date = end_date.format("YYYYMMDD")
 
         ti.xcom_push(self.RELEASE_INFO, (start_date, end_date, first_release))
         return True

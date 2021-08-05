@@ -270,6 +270,9 @@ class CrossrefEventsTelescope(StreamTelescope):
             key=CrossrefEventsTelescope.RELEASE_INFO, include_prior_dates=True
         )
 
+        start_date = pendulum.parse(start_date)
+        end_date = pendulum.parse(end_date)
+
         release = CrossrefEventsRelease(
             self.dag_id, start_date, end_date, first_release, self.mailto, self.max_processes
         )

@@ -50,7 +50,7 @@ class Table:
     dataset_id: str
     table_id: str = None
     sharded: bool = False
-    release_date: pendulum.datetime = None
+    release_date: pendulum.DateTime = None
 
 
 @dataclass
@@ -372,7 +372,7 @@ class DoiWorkflow(Telescope):
         elastic_dataset_id: str = ELASTIC_DATASET_ID,
         transforms: Tuple = None,
         dag_id: Optional[str] = "doi",
-        start_date: Optional[pendulum.datetime] = pendulum.datetime(2020, 8, 30),
+        start_date: Optional[pendulum.DateTime] = pendulum.datetime(2020, 8, 30),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
         airflow_vars: List = None,
@@ -608,7 +608,7 @@ class ObservatoryRelease:
         *,
         project_id: str,
         data_location: str,
-        release_date: pendulum.datetime,
+        release_date: pendulum.DateTime,
         intermediate_dataset_id: str,
         dashboards_dataset_id: str,
         observatory_dataset_id: str,

@@ -61,7 +61,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
 
 class JstorRelease(SnapshotRelease):
     def __init__(
-        self, dag_id: str, release_date: pendulum.datetime, reports_info: List[dict], organisation: Organisation
+        self, dag_id: str, release_date: pendulum.DateTime, reports_info: List[dict], organisation: Organisation
     ):
         """Construct a JstorRelease.
 
@@ -171,7 +171,7 @@ class JstorTelescope(SnapshotTelescope):
         organisation: Organisation,
         publisher_id: str,
         dag_id: Optional[str] = None,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 1, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2018, 1, 1),
         schedule_interval: str = "@monthly",
         dataset_id: str = "jstor",
         source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
@@ -248,7 +248,7 @@ class JstorTelescope(SnapshotTelescope):
         releases = []
         for release_date in available_releases:
             reports_info = available_releases[release_date]
-            releases.append(JstorRelease(self.dag_id, release_date, reports_info, self.organisation))
+            releases.append(JstorRelease(self.dag_id, pendulum.parse(release_date), reports_info, self.organisation))
         return releases
 
     def check_dependencies(self, **kwargs) -> bool:
@@ -313,6 +313,8 @@ class JstorTelescope(SnapshotTelescope):
             # Create temporarily release and move report to correct path
             release = JstorRelease(self.dag_id, release_date, [report], self.organisation)
             shutil.move(tmp_download_path, release.download_path(report["type"]))
+
+            release_date = release_date.format("YYYYMMDD")
 
             # Add reports to list with available releases
             try:
@@ -449,7 +451,7 @@ def download_report(url: str, download_path: str):
         f.write(content)
 
 
-def get_release_date(report_path: str) -> pendulum:
+def get_release_date(report_path: str) -> pendulum.DateTime:
     """Get the release date from the "Usage Month" column in the first row of the report.
     Also checks if the reports contains data from the same month only.
 
@@ -472,7 +474,7 @@ def get_release_date(report_path: str) -> pendulum:
         )
 
     # get the release date from the last usage month
-    release_date = pendulum.strptime(last_usage_month, "%Y-%m").end_of("month")
+    release_date = pendulum.from_format(last_usage_month, "YYYY-MM").end_of("month")
 
     return release_date
 
@@ -587,14 +589,13 @@ def list_reports(service: Resource, publisher_id: str, processed_label_id: str) 
         if extension == "tsv":
             # add report info
             logging.info(
-                f"Adding report. Report type: {report_type}, url: {download_url}, "
-                f"original email: {original_email}."
+                f"Adding report. Report type: {report_type}, url: {download_url}, " f"original email: {original_email}."
             )
             available_reports.append({"type": report_type, "url": download_url, "id": message_id})
         else:
             logging.warning(
                 f'Excluding file "{filename}.{extension}", as it does not have ".tsv" extension. '
-                f'Original email: {original_email}'
+                f"Original email: {original_email}"
             )
 
     return available_reports

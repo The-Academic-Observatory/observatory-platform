@@ -21,7 +21,6 @@ import json
 import logging
 import os
 import random
-from datetime import datetime
 from typing import Dict, List
 
 import pendulum
@@ -378,7 +377,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         author_records: List[Dict],
         dataset_id: str,
         bucket_name: str,
-        release_date: pendulum.datetime,
+        release_date: pendulum.DateTime,
     ):
         """Setup the fake dataset in BigQuery.
 
@@ -497,7 +496,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertEqual(expected_state, ti.state)
                 table_id = bigquery_sharded_table_id(self.table_name, release_date)
                 expected_msg = {
-                    "release_date": release_date.date(),
+                    "release_date": release_date.format("YYYYMMDD"),
                     "table_ids": [table_id],
                 }
                 actual_msg = ti.xcom_pull(

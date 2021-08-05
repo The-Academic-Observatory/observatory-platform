@@ -186,77 +186,78 @@ class TestOapenIrusUk(ObservatoryTestCase):
 
         # Create the Observatory environment and run tests
         with env.create(task_logging=True):
-            # Add airflow connections
-            conn = Connection(conn_id=AirflowConns.GEOIP_LICENSE_KEY, uri="http://email_address:password@")
-            env.add_connection(conn)
-            conn = Connection(conn_id=AirflowConns.OAPEN_IRUS_UK_API, uri="mysql://requestor_id:api_key@")
-            env.add_connection(conn)
-            conn = Connection(conn_id=AirflowConns.OAPEN_IRUS_UK_LOGIN, uri="mysql://user_id:license_key@")
-            env.add_connection(conn)
+            with env.create_dag_run(dag, execution_date):
+                # Add airflow connections
+                conn = Connection(conn_id=AirflowConns.GEOIP_LICENSE_KEY, uri="http://email_address:password@")
+                env.add_connection(conn)
+                conn = Connection(conn_id=AirflowConns.OAPEN_IRUS_UK_API, uri="mysql://requestor_id:api_key@")
+                env.add_connection(conn)
+                conn = Connection(conn_id=AirflowConns.OAPEN_IRUS_UK_LOGIN, uri="mysql://user_id:license_key@")
+                env.add_connection(conn)
 
-            # Test that all dependencies are specified: no error should be thrown
-            env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                # Test that all dependencies are specified: no error should be thrown
+                env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
 
-            # Test create cloud function task: no error should be thrown
-            env.run_task(telescope.create_cloud_function.__name__, dag, execution_date)
+                # Test create cloud function task: no error should be thrown
+                env.run_task(telescope.create_cloud_function.__name__, dag, execution_date)
 
-            # Test call cloud function task: no error should be thrown
-            with httpretty.enabled():
-                # mock response of getting publisher uuid
-                url = (
-                    f"https://library.oapen.org/rest/search?query=publisher.name:{release.organisation_id}"
-                    f"&expand=metadata"
+                # Test call cloud function task: no error should be thrown
+                with httpretty.enabled():
+                    # mock response of getting publisher uuid
+                    url = (
+                        f"https://library.oapen.org/rest/search?query=publisher.name:{release.organisation_id}"
+                        f"&expand=metadata"
+                    )
+                    httpretty.register_uri(httpretty.GET, url, body='[{"uuid":"df73bf94-b818-494c-a8dd-6775b0573bc2"}]')
+                    # mock response of cloud function
+                    mock_authorized_session.return_value = MagicMock(
+                        spec=Response,
+                        status_code=200,
+                        json=lambda: {"entries": 100, "unprocessed_publishers": None},
+                        reason="unit test",
+                    )
+                    url = (
+                        f"https://{OapenIrusUkTelescope.FUNCTION_REGION}-{OapenIrusUkTelescope.OAPEN_PROJECT_ID}."
+                        f"cloudfunctions.net/{OapenIrusUkTelescope.FUNCTION_NAME}"
+                    )
+                    httpretty.register_uri(httpretty.POST, url, body="")
+                    env.run_task(telescope.call_cloud_function.__name__, dag, execution_date)
+
+                # Test transfer task
+                upload_file_to_cloud_storage(OapenIrusUkTelescope.OAPEN_BUCKET, release.blob_name, self.download_path)
+                env.run_task(telescope.transfer.__name__, dag, execution_date)
+                self.assert_blob_integrity(env.download_bucket, release.blob_name, self.download_path)
+
+                # Test download_transform task
+                env.run_task(telescope.download_transform.__name__, dag, execution_date)
+                self.assertEqual(1, len(release.transform_files))
+                for file in release.transform_files:
+                    self.assert_file_integrity(file, self.transform_hash, "gzip_crc")
+
+                # Test that transformed file uploaded
+                env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
+                for file in release.transform_files:
+                    self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
+
+                # Test that data loaded into BigQuery
+                env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
+                for file in release.transform_files:
+                    table_id, _ = table_ids_from_path(file)
+                    table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
+                    expected_rows = 2
+                    self.assert_table_integrity(table_id, expected_rows)
+
+                # Test that all telescope data deleted
+                download_folder, extract_folder, transform_folder = (
+                    release.download_folder,
+                    release.extract_folder,
+                    release.transform_folder,
                 )
-                httpretty.register_uri(httpretty.GET, url, body='[{"uuid":"df73bf94-b818-494c-a8dd-6775b0573bc2"}]')
-                # mock response of cloud function
-                mock_authorized_session.return_value = MagicMock(
-                    spec=Response,
-                    status_code=200,
-                    json=lambda: {"entries": 100, "unprocessed_publishers": None},
-                    reason="unit test",
-                )
-                url = (
-                    f"https://{OapenIrusUkTelescope.FUNCTION_REGION}-{OapenIrusUkTelescope.OAPEN_PROJECT_ID}."
-                    f"cloudfunctions.net/{OapenIrusUkTelescope.FUNCTION_NAME}"
-                )
-                httpretty.register_uri(httpretty.POST, url, body="")
-                env.run_task(telescope.call_cloud_function.__name__, dag, execution_date)
+                env.run_task(telescope.cleanup.__name__, dag, execution_date)
+                self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
-            # Test transfer task
-            upload_file_to_cloud_storage(OapenIrusUkTelescope.OAPEN_BUCKET, release.blob_name, self.download_path)
-            env.run_task(telescope.transfer.__name__, dag, execution_date)
-            self.assert_blob_integrity(env.download_bucket, release.blob_name, self.download_path)
-
-            # Test download_transform task
-            env.run_task(telescope.download_transform.__name__, dag, execution_date)
-            self.assertEqual(1, len(release.transform_files))
-            for file in release.transform_files:
-                self.assert_file_integrity(file, self.transform_hash, "gzip_crc")
-
-            # Test that transformed file uploaded
-            env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
-            for file in release.transform_files:
-                self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
-
-            # Test that data loaded into BigQuery
-            env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
-            for file in release.transform_files:
-                table_id, _ = table_ids_from_path(file)
-                table_id = f'{self.project_id}.{dataset_id}.{table_id}${release.release_date.strftime("%Y%m")}'
-                expected_rows = 2
-                self.assert_table_integrity(table_id, expected_rows)
-
-            # Test that all telescope data deleted
-            download_folder, extract_folder, transform_folder = (
-                release.download_folder,
-                release.extract_folder,
-                release.transform_folder,
-            )
-            env.run_task(telescope.cleanup.__name__, dag, execution_date)
-            self.assert_cleanup(download_folder, extract_folder, transform_folder)
-
-            # Delete oapen bucket
-            env._delete_bucket(OapenIrusUkTelescope.OAPEN_BUCKET)
+                # Delete oapen bucket
+                env._delete_bucket(OapenIrusUkTelescope.OAPEN_BUCKET)
 
     @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
     @patch("observatory.dags.telescopes.oapen_irus_uk.upload_source_code_to_bucket")

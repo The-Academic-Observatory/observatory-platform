@@ -19,13 +19,12 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 import pendulum
 import requests
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.base import BaseHook
 from google.auth import environment_vars
 from google.auth.transport.requests import AuthorizedSession
@@ -62,7 +61,7 @@ from observatory.platform.utils.template_utils import (
 
 
 class OapenIrusUkRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.datetime, organisation: Organisation):
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime, organisation: Organisation):
         """Create a OapenIrusUkReleaes instance.
 
         :param dag_id: the DAG id.
@@ -172,7 +171,7 @@ class OapenIrusUkRelease(SnapshotRelease):
         geoip_license_key = BaseHook.get_connection(AirflowConns.GEOIP_LICENSE_KEY).password
 
         # get the publisher_uuid or publisher_id, both are set to empty strings when publisher id is 'oapen'
-        if self.release_date >= datetime(2020, 4, 1):
+        if self.release_date >= pendulum.datetime(2020, 4, 1):
             if publisher_id == "oapen":
                 publisher_uuid = ""
             else:
@@ -248,7 +247,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         organisation: Organisation,
         publisher_id: str,
         dag_id: Optional[str] = None,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 1, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2018, 1, 1),
         schedule_interval: str = "0 0 14 * *",
         dataset_id: str = "oapen",
         dataset_description: str = "OAPEN dataset",

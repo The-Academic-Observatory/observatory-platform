@@ -177,7 +177,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2014, 3, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2014, 3, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = DATASET_ID,
         table_descriptions: Dict = None,
@@ -254,7 +254,8 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
         )
         releases = []
         for release in release_info:
-            releases.append(CrossrefFundrefRelease(self.dag_id, release["date"], release["url"]))
+            release_date = pendulum.parse(release["date"])
+            releases.append(CrossrefFundrefRelease(self.dag_id, release_date, release["url"]))
         return releases
 
     def get_release_info(self, **kwargs) -> bool:
@@ -273,8 +274,8 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
         project_id = Variable.get(AirflowVars.PROJECT_ID)
 
         # List releases between a start date and an end date
-        prev_execution_date = kwargs["prev_execution_date"]
-        execution_date = kwargs["execution_date"]
+        prev_execution_date = pendulum.instance(kwargs["prev_execution_date"])
+        execution_date = pendulum.instance(kwargs["execution_date"])
         releases_list = list_releases(prev_execution_date, execution_date)
         logging.info(f"Releases between prev ({prev_execution_date}) and current ({execution_date}) execution date:")
         logging.info(releases_list)
@@ -291,6 +292,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
                 )
             else:
                 logging.info(f"Table does not exist yet, processing {release['url']} in this workflow")
+                release["date"] = release["date"].format("YYYYMMDD")
                 releases_list_out.append(release)
 
         # If releases_list_out contains items then the DAG will continue (return True) otherwise it will
@@ -338,7 +340,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
             release.transform()
 
 
-def list_releases(start_date: pendulum.datetime, end_date: pendulum.datetime) -> List[dict]:
+def list_releases(start_date: pendulum.DateTime, end_date: pendulum.DateTime) -> List[dict]:
     """List all available CrossrefFundref releases between the start and end date
 
     :param start_date: The start date of the period to look for releases
@@ -395,13 +397,13 @@ def list_releases(start_date: pendulum.datetime, end_date: pendulum.datetime) ->
                             release_date = pendulum.datetime(year=2014, month=3, day=1)
                         elif version < 1.0:
                             date_string = release["description"].split("\n")[0]
-                            release_date = pendulum.parse("01" + date_string)
+                            release_date = pendulum.from_format("01 " + date_string, "DD MMMM YYYY")
                         else:
                             release_date = pendulum.parse(release["released_at"])
 
                         # Only include release if it is within start and end dates
                         if start_date <= release_date < end_date:
-                            release_info.append({"url": source["url"], "date": release_date})
+                            release_info.append({"url": source["url"], "date": release_date.format("YYYYMMDD")})
 
             # Check if we should exit or get the next page
             if num_pages <= current_page:

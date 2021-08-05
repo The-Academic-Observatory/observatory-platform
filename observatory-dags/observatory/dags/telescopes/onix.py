@@ -14,6 +14,7 @@
 
 # Author: James Diprose
 
+import datetime
 import logging
 import os
 import re
@@ -59,7 +60,7 @@ class OnixRelease(SnapshotRelease):
         self,
         *,
         dag_id: str,
-        release_date: pendulum.datetime,
+        release_date: pendulum.DateTime,
         file_name: str,
         organisation_name: str,
         download_bucket: str,
@@ -198,8 +199,7 @@ def list_release_info(
                     msg = f"Could not find date with pattern `{date_regex}` in file name {file_name}"
                     logging.error(msg)
                     raise AirflowException(msg)
-                release_date = pendulum.strptime(date_str, date_format)
-                results.append({"release_date": release_date, "file_name": file_name})
+                results.append({"release_date": date_str, "file_name": file_name})
     return results
 
 
@@ -217,7 +217,7 @@ class OnixTelescope(SnapshotTelescope):
         date_regex: str,
         date_format: str,
         dag_id: Optional[str] = None,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2021, 3, 28),
+        start_date: pendulum.DateTime = pendulum.datetime(2021, 3, 28),
         schedule_interval: str = "@weekly",
         dataset_id: str = "onix",
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
@@ -313,7 +313,8 @@ class OnixTelescope(SnapshotTelescope):
         continue_dag = len(release_info)
         if continue_dag:
             ti: TaskInstance = kwargs["ti"]
-            ti.xcom_push(OnixTelescope.RELEASE_INFO, release_info, kwargs["execution_date"])
+            execution_date = kwargs["execution_date"]
+            ti.xcom_push(OnixTelescope.RELEASE_INFO, release_info, execution_date)
 
         return continue_dag
 
@@ -333,7 +334,7 @@ class OnixTelescope(SnapshotTelescope):
         )
         releases = []
         for record in records:
-            release_date = record["release_date"]
+            release_date = pendulum.parse(record["release_date"])
             file_name = record["file_name"]
             releases.append(
                 OnixRelease(
@@ -375,6 +376,7 @@ class OnixTelescope(SnapshotTelescope):
         """
 
         for release in releases:
+            print(f"release download files: {release.download_files}, download bucket: {release.download_bucket}")
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def transform(self, releases: List[OnixRelease], **kwargs):
