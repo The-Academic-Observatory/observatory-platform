@@ -1,9 +1,9 @@
 mag-archiver==2021.7.1.dev4
-xmltodict==0.12.0
-backoff==1.10.0
-ratelimit==2.2.1
+xmltodict==0.12.*
+backoff==1.10.*
+ratelimit==2.2.*
 wos==0.2.*
 vcrpy==4.0.*
 Faker==8.1.*
-pandas==1.3.0
+pandas==1.3.*
 boto3==1.15.*
