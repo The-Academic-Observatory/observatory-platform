@@ -12,37 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs, James Diprose, Tuan Chien
+# Author: Aniek Roelofs
 
 from typing import Dict, List
 
 import pendulum
+from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 
-from observatory.platform.workflows.workflow import Release, Workflow
+from observatory.api.client.model.organisation import Organisation
+from observatory.platform.telescopes.telescope import Release, Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.workflow_utils import (
-    blob_name,
-    bq_load_shard,
-    table_ids_from_path,
-    upload_files_from_list,
-)
-from observatory.platform.workflows.workflow import Release, Workflow
+from observatory.platform.utils.template_utils import (blob_name, bq_load_partition, table_ids_from_path,
+                                                       upload_files_from_list)
 
 
-class SnapshotRelease(Release):
-    def __init__(
-        self,
-        dag_id: str,
-        release_date: pendulum.DateTime,
-        download_files_regex: str = None,
-        extract_files_regex: str = None,
-        transform_files_regex: str = None,
-    ):
-        """Construct a SnapshotRelease instance.
+class OrganisationRelease(Release):
+    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, organisation: Organisation,
+                 download_files_regex: str = None, extract_files_regex: str = None, transform_files_regex: str = None):
+        """ Construct an OrganisationRelease instance.
 
         :param dag_id: the id of the DAG.
         :param release_date: the release date (used to construct release_id).
+        :param organisation: the Organisation created with the Observatory API.
         :param download_files_regex: regex pattern that is used to find files in download folder
         :param extract_files_regex: regex pattern that is used to find files in extract folder
         :param transform_files_regex: regex pattern that is used to find files in transform folder
@@ -50,36 +42,39 @@ class SnapshotRelease(Release):
         self.release_date = release_date
         release_id = f'{dag_id}_{self.release_date.strftime("%Y_%m_%d")}'
         super().__init__(dag_id, release_id, download_files_regex, extract_files_regex, transform_files_regex)
+        self.organisation = organisation
+
+    @property
+    def download_bucket(self):
+        """ The download bucket name.
+
+        :return: the download bucket name.
+        """
+        return self.organisation.gcp_download_bucket
+
+    @property
+    def transform_bucket(self):
+        """ The transform bucket name.
+
+        :return: the transform bucket name.
+        """
+        return self.organisation.gcp_transform_bucket
 
 
-class SnapshotTelescope(Workflow):
-    def __init__(
-        self,
-        dag_id: str,
-        start_date: pendulum.DateTime,
-        schedule_interval: str,
-        dataset_id: str,
-        schema_folder: str,
-        catchup: bool = True,
-        queue: str = "default",
-        max_retries: int = 3,
-        max_active_runs: int = 1,
-        source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
-        schema_prefix: str = "",
-        schema_version: str = None,
-        load_bigquery_table_kwargs: Dict = None,
-        dataset_description: str = "",
-        table_descriptions: Dict[str, str] = None,
-        airflow_vars: list = None,
-        airflow_conns: list = None,
-    ):
-        """Construct a SnapshotTelescope instance.
+class OrganisationTelescope(Telescope):
+    def __init__(self, organisation: Organisation, dag_id: str, start_date: pendulum.Pendulum, schedule_interval: str,
+                 dataset_id: str, catchup: bool, queue: str = 'default', max_retries: int = 3,
+                 max_active_runs: int = 1, source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
+                 schema_prefix: str = '', schema_version: str = None, load_bigquery_table_kwargs: Dict = None,
+                 dataset_description: str = '', table_descriptions: Dict[str, str] = None,
+                 airflow_vars: list = None, airflow_conns: list = None):
+        """ Construct a OrganisationTelescope instance.
 
+        :param organisation: the Organisation created with the Observatory API.
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the dataset id.
-        :param schema_folder: the path to the SQL schema folder.
         :param catchup: whether to catchup the DAG or not.
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
@@ -98,19 +93,12 @@ class SnapshotTelescope(Workflow):
         if not airflow_vars:
             airflow_vars = []
         airflow_vars = list(set([AirflowVars.TRANSFORM_BUCKET] + airflow_vars))
-        super().__init__(
-            dag_id,
-            start_date,
-            schedule_interval,
-            catchup,
-            queue,
-            max_retries,
-            max_active_runs,
-            airflow_vars,
-            airflow_conns,
-        )
+        super().__init__(dag_id, start_date, schedule_interval, catchup, queue, max_retries, max_active_runs,
+                         airflow_vars, airflow_conns)
+        self.organisation = organisation
+        self.project_id = organisation.gcp_project_id
         self.dataset_id = dataset_id
-        self.schema_folder = schema_folder
+        self.dataset_location = "us"  # TODO: add to API
         self.source_format = source_format
         self.schema_prefix = schema_prefix
         self.schema_version = schema_version
@@ -118,17 +106,8 @@ class SnapshotTelescope(Workflow):
         self.dataset_description = dataset_description
         self.table_descriptions = table_descriptions if table_descriptions else dict()
 
-    def download(self, releases: List[SnapshotRelease], **kwargs):
-        """Task to download the releases.
-
-        :param releases: a list of SnapshotRelease.
-        :return: None.
-        """
-        for release in releases:
-            release.download()
-
-    def upload_downloaded(self, releases: List[SnapshotRelease], **kwargs):
-        """Task to upload each downloaded release to a Google Cloud bucket.
+    def upload_downloaded(self, releases: List[OrganisationRelease], **kwargs):
+        """ Task to upload each downloaded release to a Google Cloud bucket.
 
         :param releases: a list of releases.
         :param kwargs: the context passed from the PythonOperator.
@@ -137,26 +116,8 @@ class SnapshotTelescope(Workflow):
         for release in releases:
             upload_files_from_list(release.download_files, release.download_bucket)
 
-    def extract(self, releases: List[SnapshotRelease], **kwargs):
-        """Task to extract the releases.
-
-        :param releases: a list of SnapshotRelease.
-        :return: None.
-        """
-        for release in releases:
-            release.extract()
-
-    def transform(self, releases: List[SnapshotRelease], **kwargs):
-        """Task to transform the releases.
-
-        :param releases: A list of SnapshotRelease objects.
-        :return: None.
-        """
-        for release in releases:
-            release.transform()
-
-    def upload_transformed(self, releases: List[SnapshotRelease], **kwargs):
-        """Task to upload each transformed release to a Google Cloud bucket.
+    def upload_transformed(self, releases: List[OrganisationRelease], **kwargs):
+        """ Task to upload each transformed release to a Google Cloud bucket.
 
         :param releases: a list of releases.
         :param kwargs: the context passed from the PythonOperator.
@@ -165,8 +126,8 @@ class SnapshotTelescope(Workflow):
         for release in releases:
             upload_files_from_list(release.transform_files, release.transform_bucket)
 
-    def bq_load(self, releases: List[SnapshotRelease], **kwargs):
-        """Task to load each transformed release to BigQuery.
+    def bq_load_partition(self, releases: List[OrganisationRelease], **kwargs):
+        """ Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
 
         :param releases: a list of releases.
@@ -178,13 +139,16 @@ class SnapshotTelescope(Workflow):
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
                 table_description = self.table_descriptions.get(table_id, "")
-                bq_load_shard(
-                    self.schema_folder,
-                    release.release_date,
+                bq_load_partition(
+                    self.project_id,
+                    release.transform_bucket,
                     transform_blob,
                     self.dataset_id,
+                    self.dataset_location,
                     table_id,
+                    release.release_date,
                     self.source_format,
+                    bigquery.table.TimePartitioningType.MONTH,
                     prefix=self.schema_prefix,
                     schema_version=self.schema_version,
                     dataset_description=self.dataset_description,
@@ -192,11 +156,11 @@ class SnapshotTelescope(Workflow):
                     **self.load_bigquery_table_kwargs,
                 )
 
-    def cleanup(self, releases: List[SnapshotRelease], **kwargs):
-        """Delete files of downloaded, extracted and transformed release.
+    def cleanup(self, releases: List[OrganisationRelease], **kwargs):
+        """ Delete files of downloaded, extracted and transformed release.
 
         :param releases: a list of releases.
-        :param kwargs: the context passed from the PythonOperator.
+        :param kwargs:
         :return: None.
         """
         for release in releases:
