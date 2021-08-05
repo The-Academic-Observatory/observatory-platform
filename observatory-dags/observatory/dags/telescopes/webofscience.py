@@ -55,7 +55,6 @@ from observatory.platform.utils.telescope_utils import (
 from observatory.platform.utils.template_utils import SubFolder, telescope_path
 from ratelimit import limits, sleep_and_retry
 from suds import WebFault
-
 from wos import WosClient
 
 
@@ -155,7 +154,7 @@ class WosUtility:
         :param download_path: Path to download files to.
         """
 
-        timestamp = pendulum.datetime.now().isoformat()
+        timestamp = pendulum.now().isoformat()
         inst_str = conn[WosTelescope.ID_STRING_OFFSET :]
         save_file_prefix = os.path.join(
             download_path, period.start.isoformat(), inst_str, f"{period.start}-{period.end}_{timestamp}"
@@ -336,8 +335,8 @@ class WosRelease:
         self,
         inst_id: str,
         wos_inst_id: List[str],
-        release_date: pendulum.datetime,
-        dag_start: pendulum.datetime,
+        release_date: pendulum.DateTime,
+        dag_start: pendulum.DateTime,
         project_id: str,
         download_bucket_name: str,
         transform_bucket_name: str,

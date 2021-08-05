@@ -351,7 +351,7 @@ def build_schedule(sched_start_date, sched_end_date):
 
     for start_date in pendulum.Period(start=sched_start_date, end=sched_end_date).range("months"):
         last_day = calendar.monthrange(start_date.year, start_date.month)[1]
-        end_date = pendulum.datetime(start_date.year, start_date.month, last_day)
+        end_date = pendulum.date(start_date.year, start_date.month, last_day)
         schedule.append(pendulum.Period(start_date, end_date))
 
     return schedule
