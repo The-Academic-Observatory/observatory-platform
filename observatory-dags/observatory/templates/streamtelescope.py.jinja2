@@ -20,7 +20,7 @@ from observatory.platform.utils.airflow_utils import AirflowVars
 
 # You could also use the StreamRelease directly if it is fit for purpose.
 class {{ telescope_name }}Release(StreamRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
+    def __init__(self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime, first_release: bool):
         """ Construct a {{ telescope_name }}Release instance
 
         :param dag_id: the id of the DAG.
@@ -35,7 +35,7 @@ class {{ telescope_name }}Release(StreamRelease):
 class {{ telescope_name }}(StreamTelescope):
     DAG_ID = "{{ telescope_name }}"
 
-    def __init__(self, dag_id: str = DAG_ID, start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 5, 14),
+    def __init__(self, dag_id: str = DAG_ID, start_date: pendulum.DateTime = pendulum.datetime(2018, 5, 14),
                  schedule_interval: str = '@weekly', dataset_id: str = 'your_dataset_id',
                  dataset_description: str = 'The your_dataset_name dataset: https://dataseturl',
                  merge_partition_field: str = 'id', updated_date_field: str = 'timestamp',
@@ -90,7 +90,7 @@ class {{ telescope_name }}(StreamTelescope):
         start_date, end_date, first_release = ti.xcom_pull(key={{ telescope_name }}.RELEASE_INFO,
                                                            include_prior_dates=True)
 
-        release = {{ telescope_name }}Release(self.dag_id, start_date, end_date, first_release)
+        release = {{ telescope_name }}Release(self.dag_id, pendulum.parse(start_date), pendulum.parse(end_date), first_release)
         return release
 
     def task1(self, release: {{ telescope_name }}Release, **kwargs):
