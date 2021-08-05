@@ -111,11 +111,11 @@ class GenerateCommand:
 
     def generate_new_telescope(self, telescope_type: str, telescope_class: str, author_name: str):
         """
-        Make a new telescope template.
+        Write files for a new telescope which is using one of the templates
 
         :param telescope_type: Type of telescope to generate.
         :param telescope_class: Class name of the new telescope.
-        :param author_name: Author name of the files.
+        :param author_name: Author name of the telescope files.
         """
 
         telescope_path, dag_path, test_path, doc_path, schema_path = self.get_telescope_template_path_(telescope_type)

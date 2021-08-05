@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose, Tuan Chien
+# Author: James Diprose, Tuan Chien, Aniek Roelofs
 
-import logging
 import os
 import unittest
-
 from click.testing import CliRunner
+from datetime import datetime
+from unittest.mock import patch, call
 
 from observatory.platform.cli.cli import generate
 from observatory.platform.cli.generate_command import GenerateCommand
+from observatory.platform.utils.config_utils import module_file_path
 
 
 class TestGenerateCommand(unittest.TestCase):
@@ -53,37 +54,38 @@ class TestGenerateCommand(unittest.TestCase):
             cmd.generate_terraform_config(config_path)
             self.assertTrue(os.path.exists(config_path))
 
-    def test_generate_workflow(self):
-        """Test generate workflow"""
+    @patch("observatory.platform.cli.generate_command.open")
+    def test_generate_telescope_telescope(self, mock_open):
+        """ Test generate telescope command. Cannot do filesystem isolation since we are writing explicit paths.
 
-        # Test valid workflow types
-        package_name = "my_workflows_package"
-        workflow_module = "my_test_workflow"
-        workflow_types = ["Workflow", "SnapshotTelescope", "StreamTelescope"]
-        for workflow_type in workflow_types:
-            runner = CliRunner()
-            with runner.isolated_filesystem() as t:
-                result = runner.invoke(generate, ["workflow", t, package_name, workflow_type, "MyTestWorkflow"])
-                self.assertEqual(result.exit_code, 0)
-                expected_files = [
-                    os.path.join(t, package_name, "__init__.py"),
-                    os.path.join(t, package_name, "dags", f"{workflow_module}.py"),
-                    os.path.join(t, package_name, "dags", "__init__.py"),
-                    os.path.join(t, package_name, "workflows", f"{workflow_module}.py"),
-                    os.path.join(t, package_name, "workflows", "__init__.py"),
-                    os.path.join(t, "docs", "index.rst"),
-                    os.path.join(t, "docs", f"{workflow_module}.md"),
-                    os.path.join(t, "tests", package_name, "workflows", "__init__.py"),
-                    os.path.join(t, "tests", package_name, "workflows", f"test_{workflow_module}.py"),
-                    os.path.join(t, "tests", package_name, "__init__.py"),
-                ]
-                for file_path in expected_files:
-                    logging.info(file_path)
-                    self.assertTrue(os.path.isfile(file_path))
+        :param mock_open: mock the 'open' function
+        :return: None.
+        """
+        # Create expected file paths
+        observatory_dir = module_file_path('observatory.platform', nav_back_steps=-4)
+        dag_dst_dir = module_file_path('observatory.dags.dags')
+        dag_dst_file = os.path.join(dag_dst_dir, "my_test_telescope.py")
 
-        # Test invalid workflow types
-        runner = CliRunner()
-        with runner.isolated_filesystem() as t:
-            result = CliRunner().invoke(generate, ["workflow", t, "my_workflows_package", "Unknown", "MyTestTelescope"])
-            self.assertEqual(result.exit_code, 2)
-            self.assertTrue("invalid choice: Unknown" in result.output)
+        telescope_dst_dir = module_file_path('observatory.dags.telescopes')
+        telescope_dst_file = os.path.join(telescope_dst_dir, "my_test_telescope.py")
+
+        test_dst_dir = os.path.join(observatory_dir, 'tests', 'observatory', 'dags', 'telescopes')
+        test_dst_file = os.path.join(test_dst_dir, "test_my_test_telescope.py")
+
+        doc_dst_dir = os.path.join(observatory_dir, 'docs', 'telescopes')
+        doc_dst_file = os.path.join(doc_dst_dir, "my_test_telescope.md")
+
+        schema_dst_dir = module_file_path('observatory.dags.database.schema')
+        schema_dst_file = os.path.join(schema_dst_dir, f"my_test_telescope_{datetime.now().strftime('%Y-%m-%d')}.json")
+
+        doc_index_file = os.path.join(doc_dst_dir, "index.rst")
+
+        for telescope_type in ['Telescope', 'StreamTelescope', 'SnapshotTelescope']:
+            mock_open.reset_mock()
+            result = CliRunner().invoke(generate, ["telescope", telescope_type, "MyTestTelescope",
+                                                   "Firstname Lastname"])
+            self.assertEqual(result.exit_code, 0)
+            expected_call_list = [call(file, 'w') for file in [dag_dst_file, telescope_dst_file, test_dst_file,
+                                                               doc_dst_file, schema_dst_file]]
+            expected_call_list.append(call(doc_index_file, 'a'))
+            self.assertListEqual(expected_call_list, mock_open.call_args_list)
