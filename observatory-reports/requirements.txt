@@ -2,7 +2,7 @@ matplotlib==3.1.*
 pandas==1.2.*
 seaborn==0.11.*
 geopandas==0.8.*
-numpy==1.19.*
+numpy==1.20.3
 ipython==7.16.*
 pydata-google-auth==1.1.*
 num2words==0.5.*
