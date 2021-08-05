@@ -16,13 +16,13 @@
 
 import os
 import unittest
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
 
-import pendulum
 import boto3
+import pendulum
 from azure.storage.blob import BlobClient, BlobServiceClient
 from click.testing import CliRunner
 from google.cloud import bigquery, storage
@@ -585,21 +585,20 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
         try:
             # Create client for working with AWS storage bucket
-            s3 = boto3.resource('s3', aws_access_key_id=self.aws_key_id, aws_secret_access_key=self.aws_secret_key)
+            s3 = boto3.resource("s3", aws_access_key_id=self.aws_key_id, aws_secret_access_key=self.aws_secret_key)
             aws_blob = s3.Object(self.aws_bucket_name, blob_name)
             aws_blob.put(Body=self.data)
 
             # Test transfer where no data is found, because modified date is not between dates
             success, objects_count = aws_to_google_cloud_storage_transfer(
-                                        self.aws_key_id,
-                                        self.aws_secret_key,
-                                        self.aws_bucket_name,
-                                        include_prefixes=[blob_name],
-                                        gc_project_id=self.gc_project_id,
-                                        gc_bucket=self.gc_bucket_name,
-                                        description=f"Test AWS to Google Cloud Storage Transfer "
-                                        f"{pendulum.datetime.utcnow().to_datetime_string()}",
-                                        last_modified_before=pendulum.Pendulum(2021, 1, 1)
+                self.aws_key_id,
+                self.aws_secret_key,
+                self.aws_bucket_name,
+                include_prefixes=[blob_name],
+                gc_project_id=self.gc_project_id,
+                gc_bucket=self.gc_bucket_name,
+                description=f"Test AWS to Google Cloud Storage Transfer " f"{pendulum.now('UTC').to_datetime_string()}",
+                last_modified_before=pendulum.datetime(2021, 1, 1),
             )
             # Check that transfer was successful, but no objects were transferred
             self.assertTrue(success)
@@ -607,16 +606,15 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
             # Transfer data
             success, objects_count = aws_to_google_cloud_storage_transfer(
-                                        self.aws_key_id,
-                                        self.aws_secret_key,
-                                        self.aws_bucket_name,
-                                        include_prefixes=[blob_name],
-                                        gc_project_id=self.gc_project_id,
-                                        gc_bucket=self.gc_bucket_name,
-                                        description=f"Test AWS to Google Cloud Storage Transfer "
-                                        f"{pendulum.datetime.utcnow().to_datetime_string()}",
-                                        last_modified_since=pendulum.Pendulum(2021, 1, 1),
-                                        last_modified_before=pendulum.utcnow() + timedelta(days=1)
+                self.aws_key_id,
+                self.aws_secret_key,
+                self.aws_bucket_name,
+                include_prefixes=[blob_name],
+                gc_project_id=self.gc_project_id,
+                gc_bucket=self.gc_bucket_name,
+                description=f"Test AWS to Google Cloud Storage Transfer " f"{pendulum.now('UTC').to_datetime_string()}",
+                last_modified_since=pendulum.datetime(2021, 1, 1),
+                last_modified_before=pendulum.now("UTC") + timedelta(days=1),
             )
             # Check that transfer was successful and 1 object was transferred
             self.assertTrue(success)
@@ -720,16 +718,19 @@ class TestGoogleCloudUtils(unittest.TestCase):
             )
 
             suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_1)
+            p_suffixes = [pendulum.instance(datetime.combine(suffix, datetime.min.time())) for suffix in suffixes]
             self.assertTrue(len(suffixes), 1)
-            self.assertEqual(release_1, suffixes[0])
+            self.assertEqual(release_1, p_suffixes[0])
 
             suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_2)
+            p_suffixes = [pendulum.instance(datetime.combine(suffix, datetime.min.time())) for suffix in suffixes]
             self.assertTrue(len(suffixes), 1)
-            self.assertEqual(release_2, suffixes[0])
+            self.assertEqual(release_2, p_suffixes[0])
 
             suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_3)
+            p_suffixes = [pendulum.instance(datetime.combine(suffix, datetime.min.time())) for suffix in suffixes]
             self.assertTrue(len(suffixes), 1)
-            self.assertEqual(release_3, suffixes[0])
+            self.assertEqual(release_3, p_suffixes[0])
 
         finally:
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
