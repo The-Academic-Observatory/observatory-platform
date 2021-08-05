@@ -49,7 +49,7 @@ from observatory.platform.utils.test_utils import (
 )
 
 
-def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
+def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
     """A Dummy DAG for testing purposes.
 
     :param dag_id: the DAG id.
