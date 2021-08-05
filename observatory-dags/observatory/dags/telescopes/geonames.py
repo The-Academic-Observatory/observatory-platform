@@ -147,7 +147,7 @@ class GeonamesTelescope(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: DateTime = pendulum.datetime(2020, 9, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 9, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = "geonames",
         source_format: str = SourceFormat.CSV,

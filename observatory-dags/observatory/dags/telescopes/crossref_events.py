@@ -205,7 +205,7 @@ class CrossrefEventsTelescope(StreamTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: datetime = pendulum.datetime(2018, 5, 14),
+        start_date: pendulum.DateTime = pendulum.datetime(2018, 5, 14),
         schedule_interval: str = "@weekly",
         dataset_id: str = "crossref",
         dataset_description: str = "The Crossref Events dataset: https://www.eventdata.crossref.org/guide/",
