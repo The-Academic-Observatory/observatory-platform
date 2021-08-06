@@ -89,6 +89,11 @@ class TestGenerateCommand(unittest.TestCase):
             expected_call_list = [call(file, 'w') for file in [dag_dst_file, telescope_dst_file, test_dst_file,
                                                                doc_dst_file, schema_dst_file]]
             expected_call_list.append(call(doc_index_file, 'a'))
+            if telescope_type == 'OrganisationTelescope':
+                identifiers_dst_file = os.path.join(module_file_path('observatory.api.client.identifiers'),
+                                                    'identifiers.py')
+                expected_call_list.append(call(identifiers_dst_file, 'a'))
+
             self.assertListEqual(expected_call_list, mock_open.call_args_list)
 
         result = CliRunner().invoke(generate, ["telescope", "invalid_type", "MyTestTelescope", "Firstname Lastname"])
