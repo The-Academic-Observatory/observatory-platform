@@ -17,6 +17,7 @@
 
 import gzip
 import logging
+import math
 import os
 import shutil
 import subprocess
@@ -40,6 +41,53 @@ from observatory.platform.telescopes.stream_telescope import StreamRelease, Stre
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVariable as Variable, AirflowVars
 from observatory.platform.utils.gc_utils import aws_to_google_cloud_storage_transfer, storage_bucket_exists
 from observatory.platform.utils.proc_utils import wait_for_process
+
+
+def transform_single_file(download_path: str, transform_folder: str):
+    """ Transform a single ORCID file/record.
+    The xml file is turned into a dictionary, a record should have either a valid 'record' section or an 'error'
+    section. The keys of the dictionary are slightly changed so they are valid BigQuery fields.
+    The dictionary is appended to a jsonl file
+
+    :param download_path: The path to the file with the ORCID record.
+    :return: None.
+    """
+
+    file_name = os.path.basename(download_path)
+    file_dir = os.path.join(transform_folder, file_name[-7:-4])  # last three digits are used for subdir
+
+    # Create subdirectory if it does not exist yet, even with if statement it will still raise FileExistsError
+    # sometimes
+    if not os.path.exists(file_dir):
+        try:
+            os.mkdir(file_dir)
+        except FileExistsError:
+            pass
+
+    transform_path = os.path.join(file_dir, os.path.splitext(file_name)[0] + ".jsonl")
+    # Skip if file already exists
+    if os.path.exists(transform_path):
+        return
+
+    # Create dict of data from summary xml file
+    with open(download_path, "r") as f:
+        orcid_dict = xmltodict.parse(f.read())
+
+    # Get record
+    orcid_record = orcid_dict.get("record:record")
+
+    # Some records do not have a 'record', but only 'error', this will be stored in the BQ table.
+    if not orcid_record:
+        orcid_record = orcid_dict.get("error:error")
+    if not orcid_record:
+        raise AirflowException(f"Key error for file: {download_path}")
+
+    orcid_record = change_keys(orcid_record, convert)
+    with jsonlines.open(transform_path, "w") as writer:
+        writer.write(orcid_record)
+
+    del orcid_dict
+    del orcid_record
 
 
 class OrcidRelease(StreamRelease):
@@ -177,13 +225,28 @@ class OrcidRelease(StreamRelease):
         """
         logging.info(f"Using {self.max_processes} workers for multithreading")
         count = 0
-        with ProcessPoolExecutor(max_workers=self.max_processes) as executor:
-            futures = [executor.submit(self.transform_single_file, file) for file in self.download_files]
-            for future in as_completed(futures):
-                future.result()
-                count += 1
-                if count % 1000 == 0:
-                    logging.info(f"Transformed {count} files")
+        batch_size = 500
+        log_count = 5000
+        files_to_process = self.download_files
+        num_batches = math.ceil(len(files_to_process) / batch_size)
+
+        # Process the files in batches because there are so many and we don't get feedback when
+        for b in range(num_batches):
+            logging.info(f'Transforming batch: {b}')
+            index = b * batch_size
+            batch_files = files_to_process[index:index+batch_size]
+
+            with ProcessPoolExecutor(max_workers=self.max_processes) as executor:
+                futures = list()
+                for file_path in batch_files:
+                    future = executor.submit(transform_single_file, file_path, self.transform_folder)
+                    futures.append(future)
+
+                for future in as_completed(futures):
+                    future.result()
+                    count += 1
+                    if count % log_count == 0:
+                        logging.info(f"Transformed {count} files")
 
         # Loop through directories with individual files, concatenate files in each directory into 1 gzipped file.
         logging.info("Finished transforming individual files, concatenating & compressing files")
@@ -196,50 +259,6 @@ class OrcidRelease(StreamRelease):
                 for name in files:
                     with open(os.path.join(root, name), "rb") as f_in:
                         shutil.copyfileobj(f_in, f_out)
-
-    def transform_single_file(self, download_path: str):
-        """ Transform a single ORCID file/record.
-        The xml file is turned into a dictionary, a record should have either a valid 'record' section or an 'error'
-        section. The keys of the dictionary are slightly changed so they are valid BigQuery fields.
-        The dictionary is appended to a jsonl file
-
-        :param download_path: The path to the file with the ORCID record.
-        :return: None.
-        """
-        file_name = os.path.basename(download_path)
-        file_dir = os.path.join(self.transform_folder, file_name[-7:-4])  # last three digits are used for subdir
-
-        # Create subdirectory if it does not exist yet, even with if statement it will still raise FileExistsError
-        # sometimes
-        if not os.path.exists(file_dir):
-            try:
-                os.mkdir(file_dir)
-            except FileExistsError:
-                pass
-
-        transform_path = os.path.join(file_dir, os.path.splitext(file_name)[0] + ".jsonl")
-        # Skip if file already exists
-        if os.path.exists(transform_path):
-            return
-
-        # Create dict of data from summary xml file
-        with open(download_path, "r") as f:
-            orcid_dict = xmltodict.parse(f.read())
-
-        # Get record
-        orcid_record = orcid_dict.get("record:record")
-
-        # Some records do not have a 'record', but only 'error', this will be stored in the BQ table.
-        if not orcid_record:
-            orcid_record = orcid_dict.get("error:error")
-        if not orcid_record:
-            raise AirflowException(f"Key error for file: {download_path}")
-
-        orcid_record = change_keys(orcid_record, convert)
-
-        with jsonlines.open(transform_path, "w") as writer:
-            writer.write(orcid_record)
-        return
 
 
 class OrcidTelescope(StreamTelescope):
