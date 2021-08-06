@@ -110,10 +110,18 @@ def load_elastic_mappings_oaebu(path: str, table_prefix: str) -> Dict:
         mappings_path = os.path.join(path, "oaebu-unmatched-metrics-mappings.json.jinja2")
         return json.loads(render_template(mappings_path))
     else:
-        parts = table_prefix.split("_")[3:]
-        mappings_file_name = "oaebu" + "-" + "-".join(parts[2:]) + "-mappings.json.jinja2"
+        # Aggregation level
+        aggregation_level_search = re.search(r"(?<=book_)(.*?)(?=_)", table_prefix)
+        if aggregation_level_search:
+            aggregation_level = aggregation_level_search.group(1)
+        else:
+            raise AirflowException(f"Aggregation Level not found in table_prefix: {table_prefix}")
+
+        # Make mappings path
+        suffix = re.search(f"_book_{aggregation_level}_(.*)", table_prefix).group(1)
+        mappings_file_name = f"oaebu-{suffix}-mappings.json.jinja2".replace("_", "-")
         mappings_path = os.path.join(path, mappings_file_name)
-        aggregation_level = parts[1]
+
         return json.loads(render_template(mappings_path, aggregation_level=aggregation_level))
 
 
