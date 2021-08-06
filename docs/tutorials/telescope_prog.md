@@ -391,7 +391,6 @@ A typical telescope pipeline will:
 ```
 
 ## Creating a DAG file
-
 For Airflow to pickup new DAGs, it is required to create a DAG file with content similar to:
 
 ```python
@@ -519,56 +518,163 @@ def download_from_url(url: str) -> bool:
 ```
 
 ## BigQuery schemas
-
 BigQuery database schema json files are put in `observatory-dags/dags/database/schema`.  
 They follow the scheme: `<table_name>_YYYY-MM-DD.json`.  
-If you wish to provide an additional custom version as well as the date, then the files should follow the scheme: 
+To provide an additional custom version as well as the date, the files should follow the scheme: 
  `<table_name>_<customversion>_YYYY-MM-DD.json`.
 
 The BigQuery table loading utility functions in the Observatory Platform will try to find the correct schema to use
  for loading table data, based on release date information.
 These utility functions are used by the BigQuery load tasks of the sub templates (Snapshot, Stream, Organisation) and
- to pick up the schema version when using these templates it is required to set the `schema_version` parameter.
+ it is required to set the `schema_version` parameter to pick up the schema version when using these templates.
 
-## Generating a telescope template
-
-You can use the observatory cli tool to generate a telescope template for a new `Telescope`, `StreamTelescope` or
- `SnapshotTelescope` telescope and release class. Use the command:
+## Generating a new telescope with a template
+The observatory cli tool can be used to generate a new telescope using one of the existing templates. 
+To do this, use the command:
 ```shell script
-observatory generate telescope <type> <name>
+observatory generate telescope <type> <class_name> "<Firstname> <Lastname>"
 ```
-where the type can be `Telescope`, `StreamTelescope`, `SnapshotTelescope` and name is the class name of your new
- telescope.  
-It will generate a new dag `.py` file in `observatory-dags/observatory/dags/dags` with the lower case class name. 
-Similarly a telescope template will be created in `observatory-dags/observatory/dags/telescopes` with the same lower case class name.
+
+Where the type can be `Telescope`, `StreamTelescope`, `SnapshotTelescope` or `OrganisationTelescope`.
+The class_name is the class name of the new telescope and the Firstname and Lastname are used for the author name
+ that is included in the generated files.  
+This command will generate all files that are required to add a new telescope.
 
 For example:
 ```shell script
 observatory generate telescope SnapshotTelescope MyNewTelescope
 ```
 
-Creates the following files:
+Creates the following new files:
  * `observatory-dags/observatory/dags/dags/my_new_telescope.py`
  * `observatory-dags/observatory/dags/telescopes/my_new_telescope.py`
  * `tests/observatory/dags/telescopes/tests_my_new_telescope.py`
- * `docs/telescopes/mynewtelescope.md`
+ * `docs/telescopes/my_new_telescope.md`
+ * `observatory-dags/observatory/dags/database/schema/my_new_telescope_2021-08-01.json`
 
+Updates the index file for the telescope documentation:
+ * `docs/telescopes/index.rst`
+ 
+And updates the TelescopeTypes in the identifiers file in case the new telescope is an OrganisationTelescope type:
+ * `observatory-api/observatory/api/client/identifiers.py` 
+ 
 ## Documentation
+The Observatory Platform builds documentation using [Sphinx](https://www.sphinx-doc.org).  
+Documentation is contained in the `docs` directory. 
+Currently index pages are written in [RST format (Restructured Text)](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html), 
+ and content pages are written with [Markdown](https://www.sphinx-doc.org/en/master/usage/markdown.html) for simplicity.
 
-The Academic Observatory builds documentation using [Sphinx](https://www.sphinx-doc.org).  Documentation is contained in the `docs` directory. Currently index pages are written in [RST format (Restructured Text)](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html), and content pages are written with [Markdown](https://www.sphinx-doc.org/en/master/usage/markdown.html) for simplicity.
-
-You can generate documentation by using the command:
+It is possible to build the documentation by using the command:
 ```
 cd docs
 make html
 ```
-This will output html documentation in the `docs/_build/html` directory.
+This will output html documentation in the `docs/_build/html` directory and the file `docs_/build/index.html` can be
+ opened in a browser to preview what the documentation will look like.
+
+### Using airflow variables and connections
+#### Variables
+Airflow variables and connections are both used with the existing telescopes.
+Airflow variables should never contain any sensitive information and are used for example for the project_id, bucket
+ names or data location.  
+
+#### Connections
+Airflow connections can contain sensitive information and are often used to store credentials like API keys or
+ usernames and passwords.
+In the local development environment, the Airflow connections are simply stored in the metastore database. 
+There, the passwords inside the connection configurations are encrypted using Fernet.  
+
+#### Using a new variable or connection
+To use a new Airflow variable or connection, it has to be added to the relevant class in the airflow_utils file.
+This file can be found at:  
+`observatory-platform/observatory/platform/utils/airflow_utils.py`
+
+In there are the AirflowVars and AirflowConns classes.
+The python variable name is used inside the telescope and the value is used inside the config.yaml or config-terraform.yaml
+ file.
+ 
+For example, to add the airflow variable 'new_variable' and connection 'new_connection', the relevant classes are
+ updated like this:
+```python
+# Inside observatory-platform/observatory/platform/utils/airflow_utils.py
+class AirflowVars:
+    """ Common Airflow Variable names used with the Observatory Platform """
+    
+    # add to existing variables
+    NEW_VARIABLE = "new_variable"
+
+class AirflowConns:
+    """ Common Airflow Connection names used with the Observatory Platform """
+    
+    # add to existing connections
+    NEW_CONNECTION = "new_connection"
+```
+
+The variable or connection can then be used inside the telescope like this:
+```python
+from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
+
+airflow_conn = AirflowConns.NEW_CONNECTION
+airflow_var = AirflowVars.NEW_VARIABLE
+```
+
+The relevant section of both the config.yaml and config-terraform.yaml files will look like this:
+```yaml
+# User defined Apache Airflow variables:
+airflow_variables:
+  new_variable: my-variable-value
+
+# User defined Apache Airflow Connections:
+airflow_connections:
+  new_connection: http://my-username:my-password@
+```
+
+#### Secrets backend issue, use custom AirflowVariable class
+In the cloud environment deployed with terraform, Airflow uses Google Cloud Secret Manager as a secrets backend and
+ both the Airflow variable and connections are stored in there as secrets.
+ 
+Note that there is currently an issue when Airflow tries to get a variable in the cloud environment (meaning Google
+ Cloud Secrets Manager is set as a secrets backend), when the variable is not stored in the cloud.
+Some Airflow variables (test_data_path, data_path, download_bucket, transform_bucket) are not set in the
+ 'airflow_variables' section of the config-terraform.yaml file.
+This means that these variables are not stored as Google Cloud Secrets and they only exist as environment variables
+ instead.
+The search order for variables/connections for Airflow is not configurable and with a secrets backend enabled it is:   
+secrets backend > environment variables > metastore
+
+Unfortunately, the current Airflow method to get variables from the secrets backend will return an error when a
+ secret can not be found, meaning that it will never attempt to search the environment variables next.
+As a workaround, there is a custom `AirflowVariable` class inside 
+`observatory-platform/observatory/platform/utils/airflow_utils.py` that should be used to get variables instead of the
+ standard Airflow `Variable` class inside `airflow.models.variable.py`.
+
+For example, to get a variable:
+```python
+from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars
+
+variable = AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET) 
+```
+
+The value for the Airflow connection should always be a connection URI, see the [Airflow documentation](https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#generating-a-connection-uri)
+ for more detailed information on how to construct this URI.
+
+If a newly developed telescope uses an Airflow connection or variable, this should be explained in the documentation on
+ the telescope.
+An example of the variable/connection is required as well as an explanation on how the value for this 
+ variable/connection can be obtained.
+
 
 ### Including schemas in documentation
+The documentation build system automatically converts all the schema files from `observatory-dags/observatory/dags/database/schemas` 
+ into CSV files.  
+This is temporarily stored in the `docs/schemas` folder. 
+The csv files have the same filename as the original schema files, except for the suffix, which is changed to csv.  
+The schemas folder is cleaned up as part of the build process so this directory is not visible, but can be made
+ visable by disabling the cleanup code in the `Makefile`.
 
-The documentation build system automatically converts all the schema files from `observatory-dags/observatory/dags/database/schemas` into CSV files.  This is temporarily stored in the `docs/schemas` folder. The csv files have the same filename as the original schema files, except for the suffix, which is changed to csv.  The schemas folder is cleaned up as part of the build process so you will not be able to see the directory unless you disable the cleanup code in the `Makefile`.
-
-To include a schema in your documentation markdown file, we need to embed some RST that loads a table from a csv file. Since we use the recommonmark package, this can be done with an `eval_rst` codeblock that contains RST:
+To include a schema in the documentation markdown file, it is necessary to embed some RST that loads a table from a
+ csv file. 
+Since the recommonmark package is used, this can be done with an `eval_rst` codeblock that contains RST:
 
     ``` eval_rst
     .. csv-table::
@@ -577,26 +683,33 @@ To include a schema in your documentation markdown file, we need to embed some R
     :header-rows: 1
     ```
 
-To figure out the file path, it is recommended you construct a relative path to the `docs/schemas` directory from the directory of your markdown file. For example, if your documentation file resides in
+To determine the correct file path, it is recommended to construct a relative path to the `docs/schemas` directory
+ from the directory of the markdown file. 
+For example, if the markdown file resides in
 ```
-docs/datasets/mydataset
+docs/telescopes/my_telescope.md
 ```
-then you should set
+
+then the correct file path is
 ```
-:file: ../../schemas/myschemafile.csv
+:file: ../schemas/myschemafile.csv
 ```
-The `..` follows the parent directory, and we need to do this twice to reach `docs` from `docs/datasets/mydataset`.
+The `..` follows the parent directory, and this is needed once to reach `docs` from `docs/telescopes/my_telescope.md`.
 
 ## Style
+All code shoudl try to conform to the Python PEP-8 standard, and the default format style of the `Black` formatter.
+This is done with the [autopep8 package](https://pypi.org/project/autopep8), and the 
+ [black formatter](https://pypi.org/project/black/).
 
-We try to conform to the Python PEP-8 standard, and the default format style of the `Black` formatter.  This is done with the [autopep8 package](https://pypi.org/project/autopep8), and the [black formatter](https://pypi.org/project/black/).
-
-We recommend you use those format tools as part of your coding workflow.
+It is recommended to use those format tools as part of the coding workflow.
 
 ### Type hinting
-
-You should provide type hints for all of the function arguments you use, and for return types.  Because Python is a weakly typed language, it can be confusing to those unacquainted with the codebase what type of objects are being manipulated in a particular function.  Type hints help reduce this ambiguity.
+Type hints should be provided for all of the function arguments that are used, and for return types. 
+Because Python is a weakly typed language, it can be confusing to those unacquainted with the codebase what type of 
+ objects are being manipulated in a particular function.
+Type hints help reduce this ambiguity.
 
 ### Docstring
-
-Please provide docstring comments for all your classes, methods, and functions.  This includes descriptions of arguments, and returned objects.  These comments will be automatically compiled into the Academic Observatory API reference documentation section.
+Docstring comments should also be provided for all classes, methods, and functions. 
+This includes descriptions of arguments, and returned objects.  
+These comments will be automatically compiled into the Observatory Platform API reference documentation section.
