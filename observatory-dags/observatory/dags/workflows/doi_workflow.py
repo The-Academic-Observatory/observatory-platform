@@ -253,7 +253,7 @@ class DoiWorkflow(Telescope):
     DASHBOARDS_DATASET_DESCRIPTION = "The latest data for display in the COKI dashboards."
     FINAL_DATASET_ID = "observatory"
     FINAL_DATASET_DESCRIPTION = "The Academic Observatory dataset."
-    ELASTIC_DATASET_ID = "observatory_elastic"
+    ELASTIC_DATASET_ID = "data_export"
     ELASTIC_DATASET_ID_DATASET_DESCRIPTION = "The Academic Observatory dataset for Elasticsearch."
 
     AGGREGATE_DOI_FILENAME = make_sql_jinja2_filename("aggregate_doi")
