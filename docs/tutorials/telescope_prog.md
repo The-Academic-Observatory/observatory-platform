@@ -6,11 +6,11 @@ The observatory platform collects data from many different sources. Each individ
 The telescope can be seen as a workflow or data pipeline and should try to capture the data in it's original state as
  much as possible.  
 The general workflow can be described with these tasks:
- * Extract the raw data from an external source
- * Store the raw data in a bucket
- * Transform the data, so it is ready to be loaded into the data warehouse
- * Store the transformed data in a bucket
- * Load the data into the data warehouse
+ - Extract the raw data from an external source
+ - Store the raw data in a bucket
+ - Transform the data, so it is ready to be loaded into the data warehouse
+ - Store the transformed data in a bucket
+ - Load the data into the data warehouse
 
 ## Managing telescopes with Airflow
 The telescopes are all managed using Airflow. 
@@ -375,8 +375,10 @@ The first_release property is a boolean and described whether this release is th
  date are used to create the release id.
 
 ### OrganisationTelescope
+TODO
 
 ### OrganisationRelease
+TODO
 
 # Step by step tutorial
 ## A typical development pipeline
@@ -391,8 +393,15 @@ A typical telescope pipeline will:
 ```
 
 ## Creating a DAG file
-For Airflow to pickup new DAGs, it is required to create a DAG file with content similar to:
+For Airflow to pickup new DAGs, it is required to create a DAG file that contains the DAG object as well as the keywords
+ 'airflow' and 'DAG'.
+Any code in this file is executed every time the file is loaded into the Airflow dagbag, which is once per minute by
+ default.
+This means that the code in this file should be as minimal as possible, preferably limited to just creating the DAG
+ object.
+The filename is usually similar to the DAG id and should be inside the `observatory-dags/observatory/dags/dags` directory.
 
+An example of the DAG file:
 ```python
 # Copyright 2020 Curtin University
 #
@@ -419,12 +428,11 @@ telescope = MyTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()
 ```
 
-The filename is usually similar to the DAG id and the same for the telescope file in the `observatory-dags/observatory/dags/telescopes` 
-directory.
-
 ## Creating a telescope file
-The telescope file contains the release class at the top, then the telescope class and finally any functions that are
- used within these classes.
+The telescope file contains the release class at the top, then the telescope class and at the bottom any functions that
+ are used within these classes.  
+This filename is also usually similar to the DAG id and should be inside the `observatory-dags/observatory/dags/telescopes` 
+ directory.
 
 An example of the telescope file:
 ```python
@@ -517,7 +525,7 @@ def download_from_url(url: str) -> bool:
     return True
 ```
 
-## BigQuery schemas
+## Creating a BigQuery schema file
 BigQuery database schema json files are put in `observatory-dags/dags/database/schema`.  
 They follow the scheme: `<table_name>_YYYY-MM-DD.json`.  
 To provide an additional custom version as well as the date, the files should follow the scheme: 
@@ -527,38 +535,229 @@ The BigQuery table loading utility functions in the Observatory Platform will tr
  for loading table data, based on release date information.
 These utility functions are used by the BigQuery load tasks of the sub templates (Snapshot, Stream, Organisation) and
  it is required to set the `schema_version` parameter to pick up the schema version when using these templates.
+ 
+## Creating a test file
+The Observatory Platform uses the `unittest` Python framework as a base, and provides additional methods to run tasks
+ and test DAG structure.  
+It also uses the Python `coverage` package to analyse test coverage.
 
-## Generating a new telescope with a template
-The observatory cli tool can be used to generate a new telescope using one of the existing templates. 
-To do this, use the command:
-```shell script
-observatory generate telescope <type> <class_name> "<Firstname> <Lastname>"
+To ensure that the telescope works as expected and pick up any changes in the code base that would break the telescope
+ it is required to add unit tests that cover the code in the developed telescope.
+
+The test files for telescopes are stored in `tests/observatory/dags/telescopes`.
+The `ObservatoryTestCase` class in the `test_utils.py` file contains common test methods and should be used as a
+ parent class for the unit tests.
+Additionally, the `ObservatoryEnvironment` class in the `test_utils.py` can be used to simulate the Airflow
+ environment and the different telescope tasks can be run and tested inside this environment.
+
+### Testing DAG structure
+The telescope's DAG structure can be tested through the `assert_dag_structure` method of `ObservatoryTestCase`.  
+The DAG object is compared against a dictionary, where the key is the source node, and value is a list of sink nodes.  
+This expresses the relationship that the source node task is a dependency of all of the sink node tasks.
+
+Example:
+```python
+from pendulum import Pendulum, datetime
+from observatory.platform.utils.test_utils import ObservatoryTestCase
+from observatory.platform.telescopes.telescope import Telescope, Release
+
+class MyTelescope(Telescope):
+    def __init__(self,
+                 dag_id: str = 'my_telescope',
+                 start_date: Pendulum = datetime(2017, 3, 20),
+                 schedule_interval: str = '@weekly'):
+        super().__init__(dag_id, start_date, schedule_interval)
+
+        self.add_task(self.task1)
+        self.add_task(self.task2)
+
+    def make_release(self, **kwargs) -> Release:
+        release_date = kwargs["execution_date"]
+        return Release(self.dag_id, release_date)
+
+    def task1(self, release, **kwargs):
+        pass
+
+    def task2(self, release, **kwargs):
+        pass
+
+class MyTestClass(ObservatoryTestCase):
+    """ Tests for the telescope """
+    def __init__(self, *args, **kwargs):
+        """ Constructor which sets up variables used by tests.
+        :param args: arguments.
+        :param kwargs: keyword arguments.
+        """
+        super(MyTestClass, self).__init__(*args, **kwargs)
+
+    def test_dag_structure(self):
+        """ Test that the DAG has the correct structure. 
+        :return: None
+        """
+        expected = {
+          "task1": ["task2"],
+          "task2": []
+        }
+        telescope = MyTelescope()
+        dag = telescope.make_dag()
+        self.assert_dag_structure(expected, dag)
 ```
 
-Where the type can be `Telescope`, `StreamTelescope`, `SnapshotTelescope` or `OrganisationTelescope`.
-The class_name is the class name of the new telescope and the Firstname and Lastname are used for the author name
- that is included in the generated files.  
-This command will generate all files that are required to add a new telescope.
+### Testing DAG loading
+To test if a DAG loads from a DagBag, the `assert_dag_load` method can be used within an `ObservatoryEnvironment`. 
 
-For example:
-```shell script
-observatory generate telescope SnapshotTelescope MyNewTelescope
+Example:
+```python
+import os
+from pendulum import Pendulum, datetime
+from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.test_utils import ObservatoryTestCase, ObservatoryEnvironment
+from observatory.platform.telescopes.telescope import Telescope, Release
+
+class MyTelescope(Telescope):
+    def __init__(self,
+                 dag_id: str = 'my_telescope',
+                 start_date: Pendulum = datetime(2017, 3, 20),
+                 schedule_interval: str = '@weekly'):
+        super().__init__(dag_id, start_date, schedule_interval)
+
+        self.add_task(self.task1)
+        self.add_task(self.task2)
+
+    def make_release(self, **kwargs) -> Release:
+        release_date = kwargs["execution_date"]
+        return Release(self.dag_id, release_date)
+
+    def task1(self, release, **kwargs):
+        pass
+
+    def task2(self, release, **kwargs):
+        pass
+
+class MyTestClass(ObservatoryTestCase):
+    """ Tests for the telescope """
+    def __init__(self, *args, **kwargs):
+        """ Constructor which sets up variables used by tests.
+        :param args: arguments.
+        :param kwargs: keyword arguments.
+        """
+        super(MyTestClass, self).__init__(*args, **kwargs)
+    
+    def test_dag_load(self):
+        """ Test that the DAG can be loaded from a DAG bag.
+        :return: None
+        """
+        with ObservatoryEnvironment().create():
+            dag_file = os.path.join(module_file_path('observatory.dags.dags'), 'my_telescope.py')
+            self.assert_dag_load('my_telescope', dag_file)
+```
+The `module_file_path` method from `observatory.platform.utils.test_utils` finds the file path to the observatory
+ module on the local filesystem.
+
+### Testing telescope tasks
+To run and test a telescope task, the `run_task` method can be used within an `ObservatoryEnvironment`. 
+
+Example:
+```python
+import os
+from pendulum import Pendulum, datetime
+from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.test_utils import ObservatoryTestCase, ObservatoryEnvironment
+from observatory.platform.telescopes.telescope import Telescope, Release
+
+class MyTelescope(Telescope):
+    def __init__(self,
+                 dag_id: str = 'my_telescope',
+                 start_date: Pendulum = datetime(2017, 3, 20),
+                 schedule_interval: str = '@weekly'):
+        super().__init__(dag_id, start_date, schedule_interval)
+
+        self.add_task(self.task1)
+        self.add_task(self.task2)
+
+    def make_release(self, **kwargs) -> Release:
+        release_date = kwargs["execution_date"]
+        return Release(self.dag_id, release_date)
+
+    def task1(self, release, **kwargs):
+        pass
+
+    def task2(self, release, **kwargs):
+        pass
+
+class MyTestClass(ObservatoryTestCase):
+    """ Tests for the telescope """
+    def __init__(self, *args, **kwargs):
+        """ Constructor which sets up variables used by tests.
+        :param args: arguments.
+        :param kwargs: keyword arguments.
+        """
+        super(MyTestClass, self).__init__(*args, **kwargs)
+        self.execution_date = datetime(2020, 1, 1)
+    
+    def test_telescope(self):
+        """ Test the telescope end to end.
+        :return: None.
+        """
+        # Setup Observatory environment
+        env = ObservatoryEnvironment()
+
+        # Setup Telescope
+        telescope = MyTelescope()
+        dag = telescope.make_dag()
+
+        # Create the Observatory environment and run tests
+        with env.create():
+            with env.create_dag_run(dag, self.execution_date):
+                # Run task1
+                env.run_task(telescope.task1.__name__)
 ```
 
-Creates the following new files:
- * `observatory-dags/observatory/dags/dags/my_new_telescope.py`
- * `observatory-dags/observatory/dags/telescopes/my_new_telescope.py`
- * `tests/observatory/dags/telescopes/tests_my_new_telescope.py`
- * `docs/telescopes/my_new_telescope.md`
- * `observatory-dags/observatory/dags/database/schema/my_new_telescope_2021-08-01.json`
+Note that the run dependencies imposed on each task by the DAG structure are preserved in the test environment.  
+To run a specific task, all the previous tasks in the DAG have to run successfully before that task within the same
+ `create_dag_run` environment.
 
-Updates the index file for the telescope documentation:
- * `docs/telescopes/index.rst`
- 
-And updates the TelescopeTypes in the identifiers file in case the new telescope is an OrganisationTelescope type:
- * `observatory-api/observatory/api/client/identifiers.py` 
- 
-## Documentation
+### Temporary GCP datasets
+Unit testing frameworks often run tests in parallel, so there is no guarantee of execution order.  
+When running code that modifies datasets or tables in the Google Cloud, then it is recommended to create temporary
+ datasets for each task to stop testing bugs caused by race conditions.  
+The `ObservatoryEnvironment` has a method called `add_dataset` that creates a new temporary Google Cloud Dataset ID
+ for the duration of the environment.
+
+#TODO check
+Note that if your test crashes (e.g., if it threw an uncaught exception), then the dataset will not be cleaned up
+ afterwards, and will need to be manually removed, or removed as part of a routine dataset ID clearing.
+
+#TODO
+### Observatory Platform API
+Some telescopes make use of the Observatory Platform API in order to fetch necessary metadata.
+The ObservatoryEnvironment supports creating an API endpoint that you can populate with test data. 
+Example:
+```
+from airflow.models.connection import Connection
+import observatory.api.server.orm as orm
+
+env = ObservatoryEnvironment()
+conn = Connection(conn_id=AirflowConns.OBSERVATORY_API, uri=f"http://:password@host:port")
+env.add_connection(conn)
+
+dt = pendulum.utcnow()
+telescope_type = orm.TelescopeType(name="ONIX Telescope", type_id=TelescopeTypes.onix, created=dt, modified=dt)
+env.api_session.add(telescope_type)
+organisation = orm.Organisation(name="Curtin Press", created=dt, modified=dt)
+env.api_session.add(organisation)
+telescope = orm.Telescope(
+            name="Curtin Press ONIX Telescope",
+            telescope_type=telescope_type,
+            organisation=organisation,
+            modified=dt,
+            created=dt,
+        )
+env.api_session.add(telescope)
+env.api_session.commit()
+```
+
+## Creating a documentation file
 The Observatory Platform builds documentation using [Sphinx](https://www.sphinx-doc.org).  
 Documentation is contained in the `docs` directory. 
 Currently index pages are written in [RST format (Restructured Text)](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html), 
@@ -571,20 +770,92 @@ make html
 ```
 This will output html documentation in the `docs/_build/html` directory and the file `docs_/build/index.html` can be
  opened in a browser to preview what the documentation will look like.
+ 
+A documentation file with info on the telescope should be added in the `docs/telescopes` directory.  
+This documentation should at least include:
+ * A short summary on the data source
+ * A summary table, see example below 
+ * Any details on set-up steps that are required to run this telescope
+ * Info on any Airflow connections and variables that are used (see further below) 
+ * The latest schema.
+ 
+ Example of a summary table using `eval_rst` to format the RST table:
+ 
+     ```eval_rst
+    +------------------------------+---------+
+    | Summary                      |         |
+    +==============================+=========+
+    | Average runtime              | 10 min  |
+    +------------------------------+---------+
+    | Average download size        | 500 MB  |
+    +------------------------------+---------+
+    | Harvest Type                 | API     |
+    +------------------------------+---------+
+    | Harvest Frequency            | Monthly |
+    +------------------------------+---------+
+    | Runs on remote worker        | True    |
+    +------------------------------+---------+
+    | Catchup missed runs          | True    |
+    +------------------------------+---------+
+    | Table Write Disposition      | Truncate|
+    +------------------------------+---------+
+    | Update Frequency             | Monthly |
+    +------------------------------+---------+
+    | Credentials Required         | No      |
+    +------------------------------+---------+
+    | Uses Telescope Template      | Snapshot|
+    +------------------------------+---------+
+    | Each shard includes all data | Yes     |
+    +------------------------------+---------+
+    ```
 
-### Using airflow variables and connections
-#### Variables
+### Including schemas in documentation
+The documentation build system automatically converts all the schema files from `observatory-dags/observatory/dags/database/schemas` 
+ into CSV files.  
+This is temporarily stored in the `docs/schemas` folder. 
+The csv files have the same filename as the original schema files, except for the suffix, which is changed to csv.  
+The schemas folder is cleaned up as part of the build process so this directory is not visible, but can be made
+ visable by disabling the cleanup code in the `Makefile`.
+
+To include a schema in the documentation markdown file, it is necessary to embed some RST that loads a table from a
+ csv file. 
+Since the recommonmark package is used, this can be done with an `eval_rst` codeblock that contains RST:
+
+    ``` eval_rst
+    .. csv-table::
+    :file: /path/to/schema.csv
+    :width: 100%
+    :header-rows: 1
+    ```
+
+To determine the correct file path, it is recommended to construct a relative path to the `docs/schemas` directory
+ from the directory of the markdown file. 
+For example, if the markdown file resides in
+```
+docs/telescopes/my_telescope.md
+```
+
+then the correct file path is
+```
+:file: ../schemas/myschemafile.csv
+```
+The `..` follows the parent directory, and this is needed once to reach `docs` from `docs/telescopes/my_telescope.md`.
+
+## Using airflow variables and connections
+### Variables
 Airflow variables and connections are both used with the existing telescopes.
 Airflow variables should never contain any sensitive information and are used for example for the project_id, bucket
  names or data location.  
 
-#### Connections
+### Connections
 Airflow connections can contain sensitive information and are often used to store credentials like API keys or
  usernames and passwords.
 In the local development environment, the Airflow connections are simply stored in the metastore database. 
 There, the passwords inside the connection configurations are encrypted using Fernet.  
-
-#### Using a new variable or connection
+The value for the Airflow connection should always be a connection URI, see the [Airflow documentation](https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#generating-a-connection-uri)
+ for more detailed information on how to construct this URI.
+ 
+### Using a new variable or connection
 To use a new Airflow variable or connection, it has to be added to the relevant class in the airflow_utils file.
 This file can be found at:  
 `observatory-platform/observatory/platform/utils/airflow_utils.py`
@@ -629,7 +900,7 @@ airflow_connections:
   new_connection: http://my-username:my-password@
 ```
 
-#### Secrets backend issue, use custom AirflowVariable class
+### Secrets backend issue, use custom AirflowVariable class
 In the cloud environment deployed with terraform, Airflow uses Google Cloud Secret Manager as a secrets backend and
  both the Airflow variable and connections are stored in there as secrets.
  
@@ -655,46 +926,61 @@ from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVar
 variable = AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET) 
 ```
 
-The value for the Airflow connection should always be a connection URI, see the [Airflow documentation](https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#generating-a-connection-uri)
- for more detailed information on how to construct this URI.
-
+### Add variable/connection info to documentation
 If a newly developed telescope uses an Airflow connection or variable, this should be explained in the documentation on
  the telescope.
 An example of the variable/connection is required as well as an explanation on how the value for this 
  variable/connection can be obtained.
 
+See for example this info section on the Airflow connection required with the google_books telescope:
 
-### Including schemas in documentation
-The documentation build system automatically converts all the schema files from `observatory-dags/observatory/dags/database/schemas` 
- into CSV files.  
-This is temporarily stored in the `docs/schemas` folder. 
-The csv files have the same filename as the original schema files, except for the suffix, which is changed to csv.  
-The schemas folder is cleaned up as part of the build process so this directory is not visible, but can be made
- visable by disabling the cleanup code in the `Makefile`.
+---
+## Airflow connections
+Note that all values need to be urlencoded.  
+In the config.yaml file, the following airflow connection is required:  
 
-To include a schema in the documentation markdown file, it is necessary to embed some RST that loads a table from a
- csv file. 
-Since the recommonmark package is used, this can be done with an `eval_rst` codeblock that contains RST:
-
-    ``` eval_rst
-    .. csv-table::
-    :file: /path/to/schema.csv
-    :width: 100%
-    :header-rows: 1
-    ```
-
-To determine the correct file path, it is recommended to construct a relative path to the `docs/schemas` directory
- from the directory of the markdown file. 
-For example, if the markdown file resides in
+### sftp_service
+```yaml
+sftp_service: ssh://<username>:<password>@<host>?host_key=<host_key>
 ```
-docs/telescopes/my_telescope.md
+The sftp_service airflow connection is used to connect to the sftp_service and download the reports.  
+The username and password are created by the sftp service and the host is e.g. `oaebu.exavault.com`.  
+The host key is optional, you can get it by running ssh-keyscan, e.g.:  
+```
+ssh-keyscan oaebu.exavault.com
 ```
 
-then the correct file path is
+---
+
+## Generating a new telescope with a template
+The observatory cli tool can be used to generate a new telescope using one of the existing templates. 
+To do this, use the command:
+```shell script
+observatory generate telescope <type> <class_name> "<Firstname> <Lastname>"
 ```
-:file: ../schemas/myschemafile.csv
+
+Where the type can be `Telescope`, `StreamTelescope`, `SnapshotTelescope` or `OrganisationTelescope`.
+The class_name is the class name of the new telescope and the Firstname and Lastname are used for the author name
+ that is included in the generated files.  
+This command will generate all files that are required to add a new telescope and are mentioned above.
+
+For example:
+```shell script
+observatory generate telescope SnapshotTelescope MyNewTelescope
 ```
-The `..` follows the parent directory, and this is needed once to reach `docs` from `docs/telescopes/my_telescope.md`.
+
+Creates the following new files:
+ * `observatory-dags/observatory/dags/dags/my_new_telescope.py`
+ * `observatory-dags/observatory/dags/telescopes/my_new_telescope.py`
+ * `tests/observatory/dags/telescopes/tests_my_new_telescope.py`
+ * `docs/telescopes/my_new_telescope.md`
+ * `observatory-dags/observatory/dags/database/schema/my_new_telescope_2021-08-01.json`
+
+Updates the index file for the telescope documentation:
+ * `docs/telescopes/index.rst`
+ 
+And updates the TelescopeTypes in the identifiers file in case the new telescope is an OrganisationTelescope type:
+ * `observatory-api/observatory/api/client/identifiers.py` 
 
 ## Style
 All code shoudl try to conform to the Python PEP-8 standard, and the default format style of the `Black` formatter.
