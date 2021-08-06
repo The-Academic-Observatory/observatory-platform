@@ -21,8 +21,9 @@ from datetime import datetime
 from unittest.mock import patch, call
 
 from observatory.platform.cli.cli import generate
-from observatory.platform.cli.generate_command import GenerateCommand
+from observatory.platform.cli.generate_command import GenerateCommand, write_telescope_file
 from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.file_utils import _hash_file
 
 
 class TestGenerateCommand(unittest.TestCase):
@@ -55,7 +56,7 @@ class TestGenerateCommand(unittest.TestCase):
             self.assertTrue(os.path.exists(config_path))
 
     @patch("observatory.platform.cli.generate_command.open")
-    def test_generate_telescope_telescope(self, mock_open):
+    def test_generate_telescope(self, mock_open):
         """ Test generate telescope command. Cannot do filesystem isolation since we are writing explicit paths.
 
         :param mock_open: mock the 'open' function
@@ -84,8 +85,35 @@ class TestGenerateCommand(unittest.TestCase):
             mock_open.reset_mock()
             result = CliRunner().invoke(generate, ["telescope", telescope_type, "MyTestTelescope",
                                                    "Firstname Lastname"])
-            self.assertEqual(result.exit_code, 0)
+            self.assertEqual(0, result.exit_code)
             expected_call_list = [call(file, 'w') for file in [dag_dst_file, telescope_dst_file, test_dst_file,
                                                                doc_dst_file, schema_dst_file]]
             expected_call_list.append(call(doc_index_file, 'a'))
             self.assertListEqual(expected_call_list, mock_open.call_args_list)
+
+        result = CliRunner().invoke(generate, ["telescope", "invalid_type", "MyTestTelescope", "Firstname Lastname"])
+        self.assertEqual(1, result.exit_code)
+
+    @patch('click.confirm')
+    def test_write_telescope_file(self, mock_click_confirm):
+        """ Test writing a telescope file, only overwrite when file exists if confirmed by user
+
+        :param mock_click_confirm: Mock the click.confirm user confirmation
+        :return: None.
+        """
+        with CliRunner().isolated_filesystem():
+            # Create file to test function when file already exists
+            file_path = 'test.txt'
+            with open(file_path, 'w') as f:
+                f.write('test')
+            self.assertEqual('098f6bcd4621d373cade4e832627b4f6', _hash_file(file_path, 'md5'))
+
+            mock_click_confirm.return_value = False
+            write_telescope_file(file_path, template="some text", file_type="test")
+            # Assert that file content stays the same ('test')
+            self.assertEqual('098f6bcd4621d373cade4e832627b4f6', _hash_file(file_path, 'md5'))
+
+            mock_click_confirm.return_value = True
+            write_telescope_file(file_path, template="some text", file_type="test")
+            # Assert that file content is now 'some text' instead of 'test'
+            self.assertEqual('552e21cd4cd9918678e3c1a0df491bc3', _hash_file(file_path, 'md5'))

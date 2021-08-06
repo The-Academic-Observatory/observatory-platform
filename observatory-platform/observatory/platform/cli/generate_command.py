@@ -165,17 +165,16 @@ class GenerateCommand:
 
 
 def write_telescope_file(file_path: str, template: str, file_type: str):
-    """
+    """ Write the rendered template for a telescope file to a local file.
 
-    :param file_path:
-    :param template:
-    :param file_type:
-    :return:
+    :param file_path: The path to the local file.
+    :param template: The rendered template.
+    :param file_type: The file type, used for printing information.
+    :return: None.
     """
     if os.path.exists(file_path):
         if not click.confirm(f"\nA {file_type} file already exists at: '{file_path}'\n"
                              f"Would you like to overwrite the file?"):
-            print("\n")
             return
     with open(file_path, "w") as f:
         f.write(template)
