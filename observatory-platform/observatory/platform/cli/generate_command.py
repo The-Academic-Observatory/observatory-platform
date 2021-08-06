@@ -20,6 +20,8 @@ from datetime import datetime
 from typing import Tuple
 
 import click
+import observatory.platform.telescopes.templates
+from airflow.configuration import generate_fernet_key
 import observatory.dags.dags
 import observatory.dags.telescopes
 import observatory.templates
@@ -27,16 +29,6 @@ from cryptography.fernet import Fernet
 from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.config_utils import module_file_path
-
-
-class WorkflowTypes:
-    """
-    Workflow types that we can generate from a template.
-    """
-
-    workflow = "Workflow"
-    stream_telescope = "StreamTelescope"
-    snapshot_telescope = "SnapshotTelescope"
 
 
 class GenerateCommand:
@@ -86,23 +78,35 @@ class GenerateCommand:
 
         templates_dir = observatory.platform.telescopes.templates.__path__._path[0]
 
-        dag_file = "dag.py.jinja2"
-        test_file = "test.py.jinja2"
+        telescope_types = {"Telescope": {"dag": "dag.py.jinja2",
+                                         "telescope": "telescope.py.jinja2",
+                                         "test": "test.py.jinja2",
+                                         },
+                           "SnapshotTelescope": {"dag": "dag.py.jinja2",
+                                                 "telescope": "telescope_snapshot.py.jinja2",
+                                                 "test": "test_snapshot.py.jinja2",
+                                                 },
+                           "StreamTelescope": {"dag": "dag.py.jinja2",
+                                               "telescope": "telescope_stream.py.jinja2",
+                                               "test": "test_stream.py.jinja2",
+                                               },
+                           "OrganisationTelescope": {"dag": "dag_organisation.py.jinja2",
+                                                     "telescope": "telescope_organisation.py.jinja2",
+                                                     "test": "test_organisation.py.jinja2",
+                                                     },
+                           }
+
+        telescope_files = telescope_types.get(telescope_type)
+        if telescope_files is None:
+            raise Exception(f"Unsupported telescope type: {telescope_type}")
+
+        dag_file = telescope_files['dag']
+        telescope_file = telescope_files['telescope']
+        test_file = telescope_files['test']
         doc_file = "doc.md.jinja2"
         schema_file = "schema.json.jinja2"
 
-        if telescope_type == TelescopeTypes.telescope:
-            telescope_file = "telescope.py.jinja2"
-        elif telescope_type == TelescopeTypes.stream_telescope:
-            telescope_file = "streamtelescope.py.jinja2"
-            test_file = "test_stream.py.jinja2"
-        elif telescope_type == TelescopeTypes.snapshot_telescope:
-            telescope_file = "snapshottelescope.py.jinja2"
-            test_file = "test_snapshot.py.jinja2"
-        else:
-            raise Exception(f"Unsupported workflow type: {workflow_type}")
-
-        workflow_path = os.path.join(templates_dir, workflow_file)
+        telescope_path = os.path.join(templates_dir, telescope_file)
         dag_path = os.path.join(templates_dir, dag_file)
         test_path = os.path.join(templates_dir, test_file)
         doc_path = os.path.join(templates_dir, doc_file)
@@ -123,13 +127,20 @@ class GenerateCommand:
         telescope_module = re.sub(r"([A-Z])", r"_\1", telescope_class).lower().strip('_')
 
         # Render templates
-        dag = render_template(dag_path, telescope_module=telescope_module, telescope_class=telescope_class,
+        dag = render_template(dag_path,
+                              telescope_module=telescope_module,
+                              telescope_class=telescope_class,
                               author_name=author_name)
-        telescope = render_template(telescope_path, telescope_module=telescope_module, telescope_class=telescope_class,
+        telescope = render_template(telescope_path,
+                                    telescope_module=telescope_module,
+                                    telescope_class=telescope_class,
                                     author_name=author_name)
-        test = render_template(test_path, telescope_module=telescope_module, telescope_class=telescope_class,
+        test = render_template(test_path,
+                               telescope_module=telescope_module,
+                               telescope_class=telescope_class,
                                author_name=author_name)
-        doc = render_template(doc_path, telescope_name=telescope_class)
+        doc = render_template(doc_path,
+                              telescope_name=telescope_class)
         schema = render_template(schema_path)
 
         # Get paths to files
@@ -162,6 +173,14 @@ class GenerateCommand:
         with open(doc_index_file, "a") as f:
             f.write(f"\t{telescope_module}\n")
         print(f"- Updated the documentation index file: {doc_index_file}")
+
+        # Update TelescopeTypes in identifiers.py when using organisation template
+        if telescope_type == "OrganisationTelescope":
+            identifiers_dst_file = os.path.join(module_file_path('observatory.api.client.identifiers'),
+                                                'identifiers.py')
+            with open(identifiers_dst_file, "a") as f:
+                f.write(f'    {telescope_module} = "{telescope_module}"\n')
+            print(f"- Updated the identifiers file: {identifiers_dst_file}")
 
 
 def write_telescope_file(file_path: str, template: str, file_type: str):

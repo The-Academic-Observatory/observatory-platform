@@ -50,6 +50,8 @@ class {{ telescope_class }}Release(StreamRelease):
 
 
 class {{ telescope_class }}(StreamTelescope):
+    """ {{ telescope_class}} Telescope."""
+
     DAG_ID = "{{ telescope_module }}"
 
     def __init__(self, dag_id: str = DAG_ID,

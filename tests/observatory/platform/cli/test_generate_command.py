@@ -81,7 +81,7 @@ class TestGenerateCommand(unittest.TestCase):
 
         doc_index_file = os.path.join(doc_dst_dir, "index.rst")
 
-        for telescope_type in ['Telescope', 'StreamTelescope', 'SnapshotTelescope']:
+        for telescope_type in ['Telescope', 'StreamTelescope', 'SnapshotTelescope', 'OrganisationTelescope']:
             mock_open.reset_mock()
             result = CliRunner().invoke(generate, ["telescope", telescope_type, "MyTestTelescope",
                                                    "Firstname Lastname"])

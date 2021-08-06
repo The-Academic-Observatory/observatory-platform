@@ -47,6 +47,8 @@ class {{ telescope_class }}Release(SnapshotRelease):
 
 
 class {{ telescope_class }}(SnapshotTelescope):
+    """ {{ telescope_class}} Telescope."""
+
     DAG_ID = "{{ telescope_module }}"
 
     def __init__(
@@ -113,6 +115,8 @@ class {{ telescope_class }}(SnapshotTelescope):
 
         # Add ETL tasks
         self.add_task(self.task1)
+        # self.add_task(self.upload_downloaded)  # From SnapshotTelescope
+        # self.add_task(self.upload_transformed)  # From SnapshotTelescope
         # self.add_task(self.bq_load)  # From SnapshotTelescope
         self.add_task(self.cleanup)  # From SnapshotTelescope
 
