@@ -48,6 +48,7 @@ cd /opt/observatory-platform
 # Install the Observatory Platform Python package
 pip3 install -e . --user
 
+unset PBR_VERSION
 
 #########################
 # Install dags projects
@@ -56,12 +57,14 @@ pip3 install -e . --user
 {% for project in config.dags_projects %}
 {% if project.type == 'local' -%}
 cd /opt/{{ project.package_name }}
-pip3 install --use-deprecated=legacy-resolver -e . --user
+pip3 install -r requirements.txt
+
+export PBR_VERSION=0.0.1
+pip3 install --no-deps -e . --user
+unset PBR_VERSION
 {% endif %}
 {% endfor %}
 
-# Unset PBR version after finishing installing packages
-unset PBR_VERSION
 
 # Enter airflow home folder. Must be in the AIRFLOW_HOME folder (i.e. /opt/airflow) before running the next command
 # otherwise the system will start but the workers and scheduler will not find the DAGs and other files because
