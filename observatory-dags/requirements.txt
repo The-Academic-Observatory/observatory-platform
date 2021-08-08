@@ -1,4 +1,4 @@
-mag-archiver==2021.7.1.dev4
+mag-archiver==2021.8.1.dev1
 xmltodict==0.12.*
 backoff==1.10.*
 ratelimit==2.2.*
