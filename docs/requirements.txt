@@ -5,3 +5,4 @@ recommonmark==0.7.*
 pbr==5.5.*
 sphinxcontrib.openapi==0.7.*
 pandas
+docutils==0.16.*
