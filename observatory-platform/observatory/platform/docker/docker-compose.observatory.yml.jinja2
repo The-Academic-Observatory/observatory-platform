@@ -165,7 +165,7 @@ services:
       retries: 50
 
   flower:
-    image: apache/airflow:2.1.2-python3.8
+    build: *build 
     environment: *environment
     restart: always
     networks:
