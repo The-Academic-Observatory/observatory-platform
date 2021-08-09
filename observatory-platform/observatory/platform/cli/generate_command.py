@@ -140,7 +140,9 @@ class GenerateCommand:
                                telescope_class=telescope_class,
                                author_name=author_name)
         doc = render_template(doc_path,
-                              telescope_name=telescope_class)
+                              telescope_module=telescope_module,
+                              telescope_class=telescope_class,
+                              )
         schema = render_template(schema_path)
 
         # Get paths to files
@@ -171,7 +173,7 @@ class GenerateCommand:
         # Update documentation index
         doc_index_file = os.path.join(doc_dst_dir, "index.rst")
         with open(doc_index_file, "a") as f:
-            f.write(f"\t{telescope_module}\n")
+            f.write(f"    {telescope_module}\n")
         print(f"- Updated the documentation index file: {doc_index_file}")
 
         # Update TelescopeTypes in identifiers.py when using organisation template

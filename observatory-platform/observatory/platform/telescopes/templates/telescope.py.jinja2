@@ -37,6 +37,7 @@ from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
 class {{ telescope_class }}Release(Release):
     def __init__(self, dag_id: str, release_date: pendulum.Pendulum):
         """Construct a Release instance
+
         :param dag_id: the id of the DAG.
         :param release_date: the release date (used to construct release_id).
         """
@@ -47,14 +48,14 @@ class {{ telescope_class }}Release(Release):
 
 
 class {{ telescope_class }}(Telescope):
+    """ {{ telescope_class }} Telescope."""
     DAG_ID = "{{ telescope_module }}"
 
     def __init__(self,
                  dag_id: str = DAG_ID,
                  start_date: pendulum.Pendulum = pendulum.Pendulum(2020, 1, 1),
                  schedule_interval: str = '@weekly',
-                 dataset_id: str = 'your_dataset_id',
-                 catchup: bool = True, 
+                 catchup: bool = True,
                  queue: str = 'default', 
                  max_retries: int = 3, 
                  max_active_runs: int = 1,
@@ -65,7 +66,6 @@ class {{ telescope_class }}(Telescope):
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
-        :param dataset_id: the dataset id.
         :param catchup: whether to catchup the DAG or not.
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
@@ -112,7 +112,8 @@ class {{ telescope_class }}(Telescope):
         :param kwargs: the context passed from the PythonOperator.
         :return: A release instance
         """
-        release = {{ telescope_class }}Release(dag_id=self.dag_id, release_date=self.start_date)
+        release_date = kwargs["execution_date"]
+        release = {{ telescope_class }}Release(dag_id=self.dag_id, release_date=release_date)
         return release
 
     def task1(self, release: {{ telescope_class }}Release, **kwargs):

@@ -1,3 +1,56 @@
-# {{ telescope_name }}
+# {{ telescope_class }}
 
 Add Telescope Description here
+
+ ```eval_rst
++------------------------------+--------------------------------------+
+| Summary                      |                                      |
++==============================+======================================+
+| Average runtime              |  ?  min                              |
++------------------------------+--------------------------------------+
+| Average download size        |  ?  MB                               |
++------------------------------+--------------------------------------+
+| Harvest Type                 | API/URL/Other                        |
++------------------------------+--------------------------------------+
+| Harvest Frequency            | Daily/Weekly/Monthly/Other           |
++------------------------------+--------------------------------------+
+| Runs on remote worker        |True/False                            |
++------------------------------+--------------------------------------+
+| Catchup missed runs          |True/False                            |
++------------------------------+--------------------------------------+
+| Table Write Disposition      | Truncate/Append                      |
++------------------------------+--------------------------------------+
+| Update Frequency             | Daily/Weekly/Monthly/Other           |
++------------------------------+--------------------------------------+
+| Credentials Required         | Yes/No                               |
++------------------------------+--------------------------------------+
+| Uses Telescope Template      |Telescope/Snapshot/Stream/Organisation|
++------------------------------+--------------------------------------+
+| Each shard includes all data | Yes/No                               |
++------------------------------+--------------------------------------+
+```
+
+## Airflow connections
+Note that all values need to be urlencoded.
+In the config.yaml file, the following airflow connections are required:
+
+### my_connection
+```yaml
+my_connection: http://my-username:my-password@
+```
+
+## Airflow variables
+In the config.yaml file, the following airflow variables are required:
+
+### airflow_variable
+```yaml
+my_variable_name: my-variable-value
+```
+
+## Latest schema
+``` eval_rst
+.. csv-table::
+   :file: ../schemas/{{ telescope_module }}_latest.csv
+   :width: 100%
+   :header-rows: 1
+```
