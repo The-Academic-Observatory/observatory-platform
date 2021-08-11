@@ -68,6 +68,7 @@ jobs:
           observatory generate telescope Telescope MyTelescope "Unit Test"
           observatory generate telescope SnapshotTelescope MySnapshotTelescope "Unit Test"
           observatory generate telescope StreamTelescope MyStreamTelescope "Unit Test"
+          observatory generate telescope OrganisationTelescope MyOrganisationTelescope "Unit Test"
           echo "${TEST_GCP_SERVICE_KEY}" | base64 --decode > /tmp/google_application_credentials.json
           coverage run -m unittest discover
           coverage xml
