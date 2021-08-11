@@ -77,8 +77,7 @@ import httpretty
 import paramiko
 import pendulum
 import requests
-from airflow import DAG
-from airflow import settings
+from airflow import DAG, settings
 from airflow.models import DagBag
 from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
@@ -94,14 +93,17 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
-
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.file_utils import _hash_file, crc32c_base64_hash, gzip_file_crc
+from observatory.platform.utils.file_utils import (
+    _hash_file,
+    crc32c_base64_hash,
+    gzip_file_crc,
+)
 from observatory.platform.utils.template_utils import reset_variables
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 
 def random_id():
@@ -299,7 +301,7 @@ class ObservatoryEnvironment:
         self.session.add(conn)
         self.session.commit()
 
-    def run_task(self, task_id: str, dag: DAG = None, execution_date: pendulum.Pendulum = None) -> TaskInstance:
+    def run_task(self, task_id: str, dag: DAG = None, execution_date: pendulum.DateTime = None) -> TaskInstance:
         """Run an Airflow task.
 
         :param dag: the Airflow DAG instance.
@@ -319,11 +321,11 @@ class ObservatoryEnvironment:
         ti = TaskInstance(task, execution_date)
         ti.refresh_from_db()
         ti.init_run_context(raw=True)
-        ti.run()
+        ti.run(ignore_ti_state=True)
         return ti
 
     @contextlib.contextmanager
-    def create_dag_run(self, dag: DAG, execution_date: pendulum.Pendulum, freeze: bool = True):
+    def create_dag_run(self, dag: DAG, execution_date: pendulum.DateTime, freeze: bool = True):
         """Create a DagRun that can be used when running tasks.
         During cleanup the DAG run state is updated.
 
@@ -333,12 +335,12 @@ class ObservatoryEnvironment:
         :return: None.
         """
         # Get start date, which is one schedule interval after execution date
-        start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(datetime.datetime)
+        start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(pendulum.DateTime)
         frozen_time = freeze_time(start_date, tick=True)
 
         run_id = "manual__{0}".format(execution_date.isoformat())
 
-        # Make sure google auth uses real datetime and not freezegun fake time
+        # Make sure google auth uses real DateTime and not freezegun fake time
         with patch("google.auth._helpers.utcnow", wraps=datetime.datetime.utcnow) as mock_utc_now:
             try:
                 if freeze:
@@ -461,7 +463,7 @@ class ObservatoryEnvironment:
 
 
 class ObservatoryTestCase(unittest.TestCase):
-    """ Common test functions for testing Observatory Platform DAGs """
+    """Common test functions for testing Observatory Platform DAGs"""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -608,7 +610,7 @@ class ObservatoryTestCase(unittest.TestCase):
     def setup_mock_file_download(
         self, uri: str, file_path: str, headers: Dict = None, method: str = httpretty.GET
     ) -> None:
-        """ Use httpretty to mock a file download.
+        """Use httpretty to mock a file download.
 
         This function must be called from within an httpretty.enabled() block, for instance:
 
@@ -631,7 +633,7 @@ class ObservatoryTestCase(unittest.TestCase):
 
 
 class SftpServer:
-    """ A Mock SFTP server for testing purposes """
+    """A Mock SFTP server for testing purposes"""
 
     def __init__(
         self,
@@ -746,8 +748,8 @@ class SftpServer:
                     self.server_thread.join()
 
 
-def make_dummy_dag(dag_id: str, execution_date: datetime) -> DAG:
-    """ A Dummy DAG for testing purposes.
+def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
+    """A Dummy DAG for testing purposes.
 
     :param dag_id: the DAG id.
     :param execution_date: the DAGs execution date.

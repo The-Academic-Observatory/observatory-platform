@@ -22,83 +22,79 @@ Saved to the BigQuery table: <project_id>.open_citations.open_citationsYYYYMMDD
 
 import pendulum
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.python_operator import ShortCircuitOperator
-
+from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from observatory.dags.telescopes.open_citations import OpenCitationsTelescope
 
-default_args = {
-    "owner": "airflow",
-    "start_date": pendulum.Pendulum(2018, 7, 1)
-}
+default_args = {"owner": "airflow", "start_date": pendulum.datetime(2018, 7, 1)}
 
 with DAG(dag_id=OpenCitationsTelescope.DAG_ID, schedule_interval="@weekly", default_args=default_args) as dag:
     # Check that dependencies exist before starting
     check_task = PythonOperator(
         task_id=OpenCitationsTelescope.TASK_ID_CHECK_DEPENDENCIES,
         python_callable=OpenCitationsTelescope.check_dependencies,
-        provide_context=True,
-        queue=OpenCitationsTelescope.QUEUE
+        queue=OpenCitationsTelescope.QUEUE,
     )
 
     # List releases and skip all subsequent tasks if there is no release to process
     list_releases_task = ShortCircuitOperator(
         task_id=OpenCitationsTelescope.TASK_ID_LIST_RELEASES,
         python_callable=OpenCitationsTelescope.list_releases,
-        provide_context=True,
-        queue=OpenCitationsTelescope.QUEUE
+        queue=OpenCitationsTelescope.QUEUE,
     )
 
     # Download the Open Citations releases for a given interval
     download_task = PythonOperator(
         task_id=OpenCitationsTelescope.TASK_ID_DOWNLOAD,
         python_callable=OpenCitationsTelescope.download,
-        provide_context=True,
         queue=OpenCitationsTelescope.QUEUE,
-        retries=OpenCitationsTelescope.RETRIES
+        retries=OpenCitationsTelescope.RETRIES,
     )
 
     # Upload the Open Citations releases for a given interval
     upload_downloaded = PythonOperator(
         task_id=OpenCitationsTelescope.TASK_ID_UPLOAD_DOWNLOADED,
         python_callable=OpenCitationsTelescope.upload_downloaded,
-        provide_context=True,
         queue=OpenCitationsTelescope.QUEUE,
-        retries=OpenCitationsTelescope.RETRIES
+        retries=OpenCitationsTelescope.RETRIES,
     )
 
     # Extract the Open Citations releases for a given interval
     extract_task = PythonOperator(
         task_id=OpenCitationsTelescope.TASK_ID_EXTRACT,
         python_callable=OpenCitationsTelescope.extract,
-        provide_context=True,
-        queue=OpenCitationsTelescope.QUEUE
+        queue=OpenCitationsTelescope.QUEUE,
     )
 
     # Upload the transformed Open Citations releases for a given interval to Google Cloud Storage
     upload_extracted_task = PythonOperator(
         task_id=OpenCitationsTelescope.TASK_ID_UPLOAD_EXTRACTED,
         python_callable=OpenCitationsTelescope.upload_extracted,
-        provide_context=True,
         queue=OpenCitationsTelescope.QUEUE,
-        retries=OpenCitationsTelescope.RETRIES
+        retries=OpenCitationsTelescope.RETRIES,
     )
 
     # Load the transformed Open Citations releases for a given interval to BigQuery
     bq_load_task = PythonOperator(
         task_id=OpenCitationsTelescope.TASK_ID_BQ_LOAD,
         python_callable=OpenCitationsTelescope.load_to_bq,
-        provide_context=True,
-        queue=OpenCitationsTelescope.QUEUE
+        queue=OpenCitationsTelescope.QUEUE,
     )
 
     # Delete all files
     cleanup_task = PythonOperator(
         task_id=OpenCitationsTelescope.TASK_ID_CLEANUP,
         python_callable=OpenCitationsTelescope.cleanup,
-        provide_context=True,
-        queue=OpenCitationsTelescope.QUEUE
+        queue=OpenCitationsTelescope.QUEUE,
     )
 
     # Task dependencies
-    check_task >> list_releases_task >> download_task >> upload_downloaded >> extract_task >> upload_extracted_task >> bq_load_task >> cleanup_task
+    (
+        check_task
+        >> list_releases_task
+        >> download_task
+        >> upload_downloaded
+        >> extract_task
+        >> upload_extracted_task
+        >> bq_load_task
+        >> cleanup_task
+    )

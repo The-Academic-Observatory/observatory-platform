@@ -29,13 +29,16 @@ import datetime
 import unittest
 from unittest.mock import patch
 
+import observatory.api.server.orm as orm
 import pendulum
 import pytz
-
-import observatory.api.server.orm as orm
-from observatory.api.client import Configuration, ApiClient
+from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
-from observatory.api.client.exceptions import NotFoundException, ApiException, ApiValueError
+from observatory.api.client.exceptions import (
+    ApiException,
+    ApiValueError,
+    NotFoundException,
+)
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType
@@ -43,42 +46,46 @@ from observatory.api.testing import ObservatoryApiEnvironment
 from tests.observatory.api.server.test_elastic import SCROLL_ID, Elasticsearch
 
 RES_EXAMPLE = {
-    '_scroll_id': SCROLL_ID,
-    'hits': {
-        'total': {
-            'value': 452
-        },
-        'hits': [{
-            '_index': 'journals-institution-20201205',
-            '_type': '_doc',
-            '_id': 'bQ88QXYBGinIh2YA4IaO',
-            '_score': None,
-            '_source': {
-                'id': 'example_id',
-                'name': 'Example Name',
-                'published_year': datetime.datetime(year=2018, month=12, day=31, tzinfo=pytz.UTC)
+    "_scroll_id": SCROLL_ID,
+    "hits": {
+        "total": {"value": 452},
+        "hits": [
+            {
+                "_index": "journals-institution-20201205",
+                "_type": "_doc",
+                "_id": "bQ88QXYBGinIh2YA4IaO",
+                "_score": None,
+                "_source": {
+                    "id": "example_id",
+                    "name": "Example Name",
+                    "published_year": datetime.datetime(year=2018, month=12, day=31, tzinfo=pytz.UTC),
+                },
+                "sort": [77250],
             },
-            'sort': [77250]
-        }, {
-            '_index': 'journals-institution-20201205',
-            '_type': '_doc',
-            '_id': 'bQ88QXYBGinIh2YA4Ia1',
-            '_score': None,
-            '_source': {
-                'id': 'example_id2',
-                'name': 'Example Name2',
-                'published_year': datetime.datetime(year=2018, month=12, day=31, tzinfo=pytz.UTC)
+            {
+                "_index": "journals-institution-20201205",
+                "_type": "_doc",
+                "_id": "bQ88QXYBGinIh2YA4Ia1",
+                "_score": None,
+                "_source": {
+                    "id": "example_id2",
+                    "name": "Example Name2",
+                    "published_year": datetime.datetime(year=2018, month=12, day=31, tzinfo=pytz.UTC),
+                },
+                "sort": [77251],
             },
-            'sort': [77251]
-        }]
-    }
+        ],
+    },
 }
 
 
 def make_telescope_types(env: ObservatoryApiEnvironment, dt):
     # Add TelescopeType objects
-    telescope_types = [('onix', 'ONIX Telescope'), ('jstor', 'JSTOR Telescope'),
-                       ('google_analytics', 'Google Analytics Telescope')]
+    telescope_types = [
+        ("onix", "ONIX Telescope"),
+        ("jstor", "JSTOR Telescope"),
+        ("google_analytics", "Google Analytics Telescope"),
+    ]
 
     for type_id, name in telescope_types:
         env.session.add(orm.TelescopeType(type_id=type_id, name=name, created=dt, modified=dt))
@@ -91,7 +98,7 @@ class TestObservatoryApi(unittest.TestCase):
     """ObservatoryApi unit test stubs"""
 
     def setUp(self):
-        self.timezone = 'Pacific/Auckland'
+        self.timezone = "Pacific/Auckland"
         self.host = "localhost"
         self.port = 5001
         configuration = Configuration(host=f"http://{self.host}:{self.port}")
@@ -112,8 +119,8 @@ class TestObservatoryApi(unittest.TestCase):
             # Post telescope
             expected_id = 1
 
-            dt = pendulum.datetime.now(self.timezone)
-            self.env.session.add(orm.Organisation(name='Curtin University', created=dt, modified=dt))
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(orm.Organisation(name="Curtin University", created=dt, modified=dt))
             self.env.session.commit()
 
             result = self.api.delete_organisation(expected_id)
@@ -133,15 +140,17 @@ class TestObservatoryApi(unittest.TestCase):
             # Post telescope
             expected_id = 1
 
-            telescope_type_name = 'ONIX Telescope'
-            org_name = 'Curtin University'
-            dt = pendulum.datetime.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(type_id='onix', name=telescope_type_name, created=dt, modified=dt))
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
-            self.env.session.add(orm.Telescope(organisation={'id': expected_id},
-                                               telescope_type={'id': expected_id},
-                                               created=dt, modified=dt))
+            self.env.session.add(
+                orm.Telescope(
+                    organisation={"id": expected_id}, telescope_type={"id": expected_id}, created=dt, modified=dt
+                )
+            )
             self.env.session.commit()
 
             result = self.api.delete_telescope(expected_id)
@@ -161,8 +170,8 @@ class TestObservatoryApi(unittest.TestCase):
             # Post telescope
             expected_id = 1
 
-            dt = pendulum.datetime.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(type_id='onix', name='ONIX Telescope', created=dt, modified=dt))
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(orm.TelescopeType(type_id="onix", name="ONIX Telescope", created=dt, modified=dt))
             self.env.session.commit()
 
             result = self.api.delete_telescope_type(expected_id)
@@ -186,18 +195,22 @@ class TestObservatoryApi(unittest.TestCase):
                 self.api.get_telescope_type(id=expected_id)
 
             # Add TelescopeType
-            name = 'Curtin University'
-            gcp_project_id = 'my-project-id'
-            gcp_download_bucket = 'my-download-bucket'
-            gcp_transform_bucket = 'my-transform-bucket'
-            dt = pendulum.datetime.now(self.timezone)
-            dt_utc = dt.in_tz(tz='UTC')
-            self.env.session.add(orm.Organisation(name=name,
-                                                  gcp_project_id=gcp_project_id,
-                                                  gcp_download_bucket=gcp_download_bucket,
-                                                  gcp_transform_bucket=gcp_transform_bucket,
-                                                  created=dt,
-                                                  modified=dt))
+            name = "Curtin University"
+            gcp_project_id = "my-project-id"
+            gcp_download_bucket = "my-download-bucket"
+            gcp_transform_bucket = "my-transform-bucket"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(
+                orm.Organisation(
+                    name=name,
+                    gcp_project_id=gcp_project_id,
+                    gcp_download_bucket=gcp_download_bucket,
+                    gcp_transform_bucket=gcp_transform_bucket,
+                    created=dt,
+                    modified=dt,
+                )
+            )
             self.env.session.commit()
 
             # Assert that TelescopeType with given id exists
@@ -219,9 +232,9 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             # Add Organisation objects
-            names = ['Curtin University', 'Massachusetts Institute of Technology', 'Harvard University']
-            dt = pendulum.datetime.now(self.timezone)
-            dt_utc = dt.in_tz(tz='UTC')
+            names = ["Curtin University", "Massachusetts Institute of Technology", "Harvard University"]
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
             for name in names:
                 self.env.session.add(orm.Organisation(name=name, created=dt, modified=dt))
             self.env.session.commit()
@@ -253,19 +266,23 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
 
             # Add Telescope
-            telescope_type_name = 'ONIX Telescope'
-            org_name = 'Curtin University'
-            dt = pendulum.datetime.now(self.timezone)
-            dt_utc = dt.in_tz(tz='UTC')
-            self.env.session.add(orm.TelescopeType(type_id='onix', name=telescope_type_name, created=dt, modified=dt))
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
-            self.env.session.add(orm.Telescope(name='Curtin ONIX Telescope',
-                                               extra={'view_id': 123456},
-                                               organisation={'id': expected_id},
-                                               telescope_type={'id': expected_id},
-                                               created=dt,
-                                               modified=dt))
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
             self.env.session.commit()
 
             # Assert that Telescope with given id exists
@@ -287,7 +304,7 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            type_id = 'onix'
+            type_id = "onix"
 
             # Assert that TelescopeType with given id does not exist
             with self.assertRaises(NotFoundException) as e:
@@ -315,9 +332,9 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(expected_body, e.exception.body)
 
             # Add TelescopeType
-            name = 'ONIX Telescope'
-            dt = pendulum.datetime.now(self.timezone)
-            dt_utc = dt.in_tz(tz='UTC')
+            name = "ONIX Telescope"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
             self.env.session.add(orm.TelescopeType(type_id=type_id, name=name, created=dt, modified=dt))
             self.env.session.commit()
 
@@ -345,8 +362,8 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             # Add TelescopeType objects
-            dt = pendulum.datetime.now(self.timezone)
-            dt_utc = dt.in_tz(tz='UTC')
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
             telescope_types = make_telescope_types(self.env, dt)
 
             # Assert that TelescopeType objects returned
@@ -369,23 +386,26 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             # Add TelescopeType objects
-            dt = pendulum.datetime.now(self.timezone)
+            dt = pendulum.now(self.timezone)
             make_telescope_types(self.env, dt)
 
             # Add Organisations
-            names = ['Curtin University', 'Massachusetts Institute of Technology']
+            names = ["Curtin University", "Massachusetts Institute of Technology"]
             for name in names:
                 self.env.session.add(orm.Organisation(name=name, created=dt, modified=dt))
             self.env.session.commit()
 
             # Add Telescopes
-            dt = pendulum.datetime.now(self.timezone)
+            dt = pendulum.now(self.timezone)
             self.env.session.add(
-                orm.Telescope(organisation={'id': 1}, telescope_type={'id': 1}, created=dt, modified=dt))
+                orm.Telescope(organisation={"id": 1}, telescope_type={"id": 1}, created=dt, modified=dt)
+            )
             self.env.session.add(
-                orm.Telescope(organisation={'id': 1}, telescope_type={'id': 2}, created=dt, modified=dt))
+                orm.Telescope(organisation={"id": 1}, telescope_type={"id": 2}, created=dt, modified=dt)
+            )
             self.env.session.add(
-                orm.Telescope(organisation={'id': 2}, telescope_type={'id': 1}, created=dt, modified=dt))
+                orm.Telescope(organisation={"id": 2}, telescope_type={"id": 1}, created=dt, modified=dt)
+            )
             self.env.session.commit()
 
             # Assert that all Telescope objects returned
@@ -417,7 +437,7 @@ class TestObservatoryApi(unittest.TestCase):
         with self.env.create():
             # Post telescope
             expected_id = 1
-            obj = Organisation(name='Curtin University')
+            obj = Organisation(name="Curtin University")
             result = self.api.post_organisation(obj)
             self.assertIsInstance(result, Organisation)
             self.assertEqual(expected_id, result.id)
@@ -430,17 +450,19 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             # Add TelescopeType and Organisation
-            dt = pendulum.datetime.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(type_id='onix', name='ONIX Telescope', created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name='Curtin University', created=dt, modified=dt))
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(orm.TelescopeType(type_id="onix", name="ONIX Telescope", created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name="Curtin University", created=dt, modified=dt))
             self.env.session.commit()
 
             # Post telescope
             expected_id = 1
-            obj = Telescope(name='Curtin University ONIX Telescope',
-                            extra={'view_id': 123456},
-                            organisation=Organisation(id=expected_id),
-                            telescope_type=TelescopeType(id=expected_id))
+            obj = Telescope(
+                name="Curtin University ONIX Telescope",
+                extra={"view_id": 123456},
+                organisation=Organisation(id=expected_id),
+                telescope_type=TelescopeType(id=expected_id),
+            )
             result = self.api.post_telescope(obj)
             self.assertIsInstance(result, Telescope)
             self.assertEqual(expected_id, result.id)
@@ -453,7 +475,7 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            obj = TelescopeType(type_id='onix', name='ONIX Telescope')
+            obj = TelescopeType(type_id="onix", name="ONIX Telescope")
             result = self.api.post_telescope_type(obj)
 
             self.assertIsInstance(result, TelescopeType)
@@ -468,7 +490,7 @@ class TestObservatoryApi(unittest.TestCase):
         with self.env.create():
             # Put create
             expected_id = 1
-            name = 'Curtin University'
+            name = "Curtin University"
             obj = Organisation(name=name)
             result = self.api.put_organisation(obj)
             self.assertIsInstance(result, Organisation)
@@ -476,7 +498,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(name, result.name)
 
             # Put update
-            new_name = 'Massachusetts Institute of Technology'
+            new_name = "Massachusetts Institute of Technology"
             obj = Organisation(id=expected_id, name=new_name)
             result = self.api.put_organisation(obj)
             self.assertIsInstance(result, Organisation)
@@ -498,41 +520,47 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            dt = pendulum.datetime.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(type_id='onix', name='ONIX Telescope', created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name='Curtin University', created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name='Massachusetts Institute of Technology',
-                                                  created=dt, modified=dt))
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(orm.TelescopeType(type_id="onix", name="ONIX Telescope", created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name="Curtin University", created=dt, modified=dt))
+            self.env.session.add(
+                orm.Organisation(name="Massachusetts Institute of Technology", created=dt, modified=dt)
+            )
             self.env.session.commit()
 
             # Put create
-            obj = Telescope(organisation=Organisation(id=expected_id),
-                            telescope_type=TelescopeType(id=expected_id))
+            obj = Telescope(organisation=Organisation(id=expected_id), telescope_type=TelescopeType(id=expected_id))
             result = self.api.put_telescope(obj)
             self.assertIsInstance(result, Telescope)
             self.assertEqual(expected_id, result.id)
 
             # Put update
-            name = 'Curtin ONIX Telescope'
-            extra = {'view_id': 123456}
-            obj = Telescope(id=expected_id,
-                            name=name,
-                            extra=extra,
-                            organisation=Organisation(id=2),
-                            telescope_type=TelescopeType(id=expected_id))
+            name = "Curtin ONIX Telescope"
+            extra = {"view_id": 123456}
+            obj = Telescope(
+                id=expected_id,
+                name=name,
+                extra=extra,
+                organisation=Organisation(id=2),
+                telescope_type=TelescopeType(id=expected_id),
+            )
             result = self.api.put_telescope(obj)
             self.assertIsInstance(result, Telescope)
             self.assertEqual(expected_id, result.id)
             self.assertEqual(name, result.name)
             self.assertDictEqual(extra, result.extra)
-            self.assertEqual('Massachusetts Institute of Technology', result.organisation.name)
+            self.assertEqual("Massachusetts Institute of Technology", result.organisation.name)
 
             # Put not found
             expected_id = 2
             with self.assertRaises(NotFoundException) as e:
-                self.api.put_telescope(Telescope(id=expected_id,
-                                                 organisation=Organisation(id=expected_id),
-                                                 telescope_type=TelescopeType(id=expected_id)))
+                self.api.put_telescope(
+                    Telescope(
+                        id=expected_id,
+                        organisation=Organisation(id=expected_id),
+                        telescope_type=TelescopeType(id=expected_id),
+                    )
+                )
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
 
@@ -545,16 +573,16 @@ class TestObservatoryApi(unittest.TestCase):
         with self.env.create():
             # Put create
             expected_id = 1
-            name = 'ONIX Telescope'
-            obj = TelescopeType(type_id='onix', name=name)
+            name = "ONIX Telescope"
+            obj = TelescopeType(type_id="onix", name=name)
             result = self.api.put_telescope_type(obj)
             self.assertIsInstance(result, TelescopeType)
             self.assertEqual(expected_id, result.id)
             self.assertEqual(name, result.name)
 
             # Put update
-            new_name = 'Google Analytics Telescope'
-            obj = TelescopeType(type_id='google_analytics', id=expected_id, name=new_name)
+            new_name = "Google Analytics Telescope"
+            obj = TelescopeType(type_id="google_analytics", id=expected_id, name=new_name)
             result = self.api.put_telescope_type(obj)
             self.assertIsInstance(result, TelescopeType)
             self.assertEqual(expected_id, result.id)
@@ -567,9 +595,9 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: TelescopeType with id {expected_id}"\n', e.exception.body)
 
-    @patch('observatory.api.server.elastic.Elasticsearch.scroll')
-    @patch('observatory.api.server.elastic.Elasticsearch.search')
-    @patch('observatory.api.server.api.create_es_connection')
+    @patch("observatory.api.server.elastic.Elasticsearch.scroll")
+    @patch("observatory.api.server.elastic.Elasticsearch.search")
+    @patch("observatory.api.server.api.create_es_connection")
     def test_queryv1(self, mock_create_connection, mock_es_search, mock_es_scroll):
         """Test case for queryv1
 
@@ -581,7 +609,7 @@ class TestObservatoryApi(unittest.TestCase):
             mock_create_connection.return_value = None
 
             with self.assertRaises(ApiException) as e:
-                self.api.queryv1(subset='citations', agg='country', limit=1000)
+                self.api.queryv1(subset="citations", agg="country", limit=1000)
             self.assertEqual(400, e.exception.status)
             self.assertEqual('"Elasticsearch environment variable for host or api key is empty"\n', e.exception.body)
 
@@ -591,103 +619,97 @@ class TestObservatoryApi(unittest.TestCase):
             mock_es_scroll.return_value = res
 
             expected_results = {
-                'version': 'v1',
-                'index': 'N/A',
-                'scroll_id': SCROLL_ID,
-                'returned_hits': len(res['hits']['hits']),
-                'total_hits': res['hits']['total']['value'],
-                'schema': {
-                    'schema': 'to_be_created'
-                },
-                'results': res['hits']['hits']
+                "version": "v1",
+                "index": "N/A",
+                "scroll_id": SCROLL_ID,
+                "returned_hits": len(res["hits"]["hits"]),
+                "total_hits": res["hits"]["total"]["value"],
+                "schema": {"schema": "to_be_created"},
+                "results": res["hits"]["hits"],
             }
 
-            response = self.api.queryv1(subset='citations', agg='funder', limit=1000, scroll_id=SCROLL_ID)
-            self.assertEqual(expected_results['version'], response.version)
-            self.assertEqual(expected_results['index'], response.index)
-            self.assertEqual(expected_results['scroll_id'], response.scroll_id)
-            self.assertEqual(expected_results['returned_hits'], response.returned_hits)
-            self.assertEqual(expected_results['schema'], response.schema)
-            self.assertEqual(expected_results['results'], response.results)
+            response = self.api.queryv1(subset="citations", agg="funder", limit=1000, scroll_id=SCROLL_ID)
+            self.assertEqual(expected_results["version"], response.version)
+            self.assertEqual(expected_results["index"], response.index)
+            self.assertEqual(expected_results["scroll_id"], response.scroll_id)
+            self.assertEqual(expected_results["returned_hits"], response.returned_hits)
+            self.assertEqual(expected_results["schema"], response.schema)
+            self.assertEqual(expected_results["results"], response.results)
 
             # With search body, test with empty (invalid) subset and agg
             mock_es_search.return_value = copy.deepcopy(RES_EXAMPLE)
 
             with self.assertRaises(ApiValueError) as e:
-                self.api.queryv1(subset='', agg='', limit=1000, scroll_id=SCROLL_ID)
+                self.api.queryv1(subset="", agg="", limit=1000, scroll_id=SCROLL_ID)
 
             # With search body, test with valid alias and without index date
-            with patch('elasticsearch.client.CatClient.aliases') as mock_es_cat:
+            with patch("elasticsearch.client.CatClient.aliases") as mock_es_cat:
                 res = copy.deepcopy(RES_EXAMPLE)
                 mock_es_search.return_value = res
-                index_name = 'citations-country-20201212'
-                mock_es_cat.return_value = [{
-                    'index': index_name
-                }]
+                index_name = "citations-country-20201212"
+                mock_es_cat.return_value = [{"index": index_name}]
                 expected_results = {
-                    'version': 'v1',
-                    'index': index_name,
-                    'scroll_id': SCROLL_ID,
-                    'returned_hits': len(res['hits']['hits']),
-                    'total_hits': res['hits']['total']['value'],
-                    'schema': {
-                        'schema': 'to_be_created'
-                    },
-                    'results': res['hits']['hits']
+                    "version": "v1",
+                    "index": index_name,
+                    "scroll_id": SCROLL_ID,
+                    "returned_hits": len(res["hits"]["hits"]),
+                    "total_hits": res["hits"]["total"]["value"],
+                    "schema": {"schema": "to_be_created"},
+                    "results": res["hits"]["hits"],
                 }
 
-                response = self.api.queryv1(subset='citations', agg='country', limit=1000)
-                self.assertEqual(expected_results['version'], response.version)
-                self.assertEqual(expected_results['index'], response.index)
-                self.assertEqual(expected_results['scroll_id'], response.scroll_id)
-                self.assertEqual(expected_results['returned_hits'], response.returned_hits)
-                self.assertEqual(expected_results['schema'], response.schema)
-                self.assertEqual(expected_results['results'], response.results)
+                response = self.api.queryv1(subset="citations", agg="country", limit=1000)
+                self.assertEqual(expected_results["version"], response.version)
+                self.assertEqual(expected_results["index"], response.index)
+                self.assertEqual(expected_results["scroll_id"], response.scroll_id)
+                self.assertEqual(expected_results["returned_hits"], response.returned_hits)
+                self.assertEqual(expected_results["schema"], response.schema)
+                self.assertEqual(expected_results["results"], response.results)
 
             # With search body, test with valid index date
-            with patch('elasticsearch.client.IndicesClient.exists') as mock_es_indices:
+            with patch("elasticsearch.client.IndicesClient.exists") as mock_es_indices:
                 res = copy.deepcopy(RES_EXAMPLE)
                 mock_es_indices.return_value = True
                 mock_es_search.return_value = res
                 index_date = pendulum.date(year=2020, month=1, day=1)
 
                 expected_results = {
-                    'version': 'v1',
-                    'index': f"citations-country-{index_date.strftime('%Y%m%d')}",
-                    'scroll_id': SCROLL_ID,
-                    'returned_hits': len(res['hits']['hits']),
-                    'total_hits': res['hits']['total']['value'],
-                    'schema': {
-                        'schema': 'to_be_created'
-                    },
-                    'results': res['hits']['hits']
+                    "version": "v1",
+                    "index": f"citations-country-{index_date.strftime('%Y%m%d')}",
+                    "scroll_id": SCROLL_ID,
+                    "returned_hits": len(res["hits"]["hits"]),
+                    "total_hits": res["hits"]["total"]["value"],
+                    "schema": {"schema": "to_be_created"},
+                    "results": res["hits"]["hits"],
                 }
 
-                response = self.api.queryv1(subset='citations', agg='country', index_date=index_date, limit=1000)
-                self.assertEqual(expected_results['version'], response.version)
-                self.assertEqual(expected_results['index'], response.index)
-                self.assertEqual(expected_results['scroll_id'], response.scroll_id)
-                self.assertEqual(expected_results['returned_hits'], response.returned_hits)
-                self.assertEqual(expected_results['schema'], response.schema)
-                self.assertEqual(expected_results['results'], response.results)
+                response = self.api.queryv1(subset="citations", agg="country", index_date=index_date, limit=1000)
+                self.assertEqual(expected_results["version"], response.version)
+                self.assertEqual(expected_results["index"], response.index)
+                self.assertEqual(expected_results["scroll_id"], response.scroll_id)
+                self.assertEqual(expected_results["returned_hits"], response.returned_hits)
+                self.assertEqual(expected_results["schema"], response.schema)
+                self.assertEqual(expected_results["results"], response.results)
 
                 # With search body, test with invalid index date
-                with patch('observatory.api.server.api.list_available_index_dates') as mock_index_dates:
+                with patch("observatory.api.server.api.list_available_index_dates") as mock_index_dates:
                     res = copy.deepcopy(RES_EXAMPLE)
                     mock_es_search.return_value = res
 
                     mock_es_indices.return_value = False
-                    available_date = '20201212'
+                    available_date = "20201212"
                     mock_index_dates.return_value = [available_date]
 
                     with self.assertRaises(ApiException) as e:
-                        self.api.queryv1(subset='citations', agg='country', index_date=index_date, limit=1000)
+                        self.api.queryv1(subset="citations", agg="country", index_date=index_date, limit=1000)
 
                     self.assertEqual(400, e.exception.status)
-                    self.assertEqual('"Index does not exist: citations-country-20200101\\n Available dates for this '
-                                     'agg & subset:\\n20201212"\n',
-                                     e.exception.body)
+                    self.assertEqual(
+                        '"Index does not exist: citations-country-20200101\\n Available dates for this '
+                        'agg & subset:\\n20201212"\n',
+                        e.exception.body,
+                    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -21,7 +21,7 @@ import click
 import observatory.dags.dags
 import observatory.dags.telescopes
 import observatory.templates
-from airflow.configuration import generate_fernet_key
+from cryptography.fernet import Fernet
 from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig
 from observatory.platform.utils.jinja2_utils import render_template
 
@@ -43,7 +43,7 @@ class GenerateCommand:
         :return: the Fernet key.
         """
 
-        return generate_fernet_key()
+        return Fernet.generate_key()
 
     def generate_local_config(self, config_path: str):
         """Command line user interface for generating an Observatory Config config.yaml.

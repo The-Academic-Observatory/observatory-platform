@@ -19,25 +19,30 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import ClassVar, Dict, Tuple, Union, Any
+from typing import Any, ClassVar, Dict, Tuple, Union
 
 import connexion
 import pendulum
 from connexion import NoContent
 from flask import jsonify
-from sqlalchemy import and_
-
-from observatory.api.server.elastic import (create_schema, process_response, list_available_index_dates,
-                                            create_search_body, create_es_connection, parse_args)
+from observatory.api.server.elastic import (
+    create_es_connection,
+    create_schema,
+    create_search_body,
+    list_available_index_dates,
+    parse_args,
+    process_response,
+)
 from observatory.api.server.openapi_renderer import OpenApiRenderer
-from observatory.api.server.orm import Telescope, TelescopeType, Organisation
+from observatory.api.server.orm import Organisation, Telescope, TelescopeType
+from sqlalchemy import and_
 
 Response = Tuple[Any, int]
 session_ = None  # Global session
 
 
 def get_item(cls: ClassVar, item_id: int):
-    """ Get an item.
+    """Get an item.
 
     :param cls: the SQLAlchemy Table metadata class.
     :param item_id: the id of the item.
@@ -46,62 +51,62 @@ def get_item(cls: ClassVar, item_id: int):
 
     item = session_.query(cls).filter(cls.id == item_id).one_or_none()
     if item is not None:
-        logging.info(f'Found: {cls.__name__} with id {item_id}')
+        logging.info(f"Found: {cls.__name__} with id {item_id}")
         return jsonify(item)
 
-    body = f'Not found: {cls.__name__} with id {item_id}'
+    body = f"Not found: {cls.__name__} with id {item_id}"
     logging.info(body)
     return body, 404
 
 
 def post_item(cls: ClassVar, body: Dict) -> Response:
-    """ Create an item.
+    """Create an item.
 
     :param cls: the SQLAlchemy Table metadata class.
     :param body: the item in the form of a dictionary.
     :return: a Response object.
     """
 
-    logging.info(f'Creating item: {cls.__name__}')
+    logging.info(f"Creating item: {cls.__name__}")
 
     # Automatically set created and modified datetime
-    now = pendulum.utcnow()
-    body['created'] = now
-    body['modified'] = now
+    now = pendulum.now("UTC")
+    body["created"] = now
+    body["modified"] = now
 
     create_item = cls(**body)
     session_.add(create_item)
     session_.flush()
     session_.commit()
 
-    logging.info(f'Created: {cls.__name__} with id {create_item.id}')
+    logging.info(f"Created: {cls.__name__} with id {create_item.id}")
     return jsonify(create_item), 201
 
 
 def put_item(cls: ClassVar, body: Dict) -> Response:
-    """ Create or update an item. If the item has an id it will be updated, else it will be created.
+    """Create or update an item. If the item has an id it will be updated, else it will be created.
 
     :param cls: the SQLAlchemy Table metadata class.
     :param body: the item in the form of a dictionary.
     :return: a Response object.
     """
 
-    item_id = body.get('id')
+    item_id = body.get("id")
     if item_id is not None:
         item = session_.query(cls).filter(cls.id == item_id).one_or_none()
 
         if item is not None:
-            logging.info(f'Updating {cls.__name__} {item_id}')
+            logging.info(f"Updating {cls.__name__} {item_id}")
             # Remove id and automatically set modified time
-            body.pop('id')
-            body['modified'] = pendulum.utcnow()
+            body.pop("id")
+            body["modified"] = pendulum.now("UTC")
             item.update(**body)
             session_.commit()
 
-            logging.info(f'Updated: {cls.__name__} with id {item_id}')
+            logging.info(f"Updated: {cls.__name__} with id {item_id}")
             return jsonify(item), 200
         else:
-            body = f'Not found: {cls.__name__} with id {item_id}'
+            body = f"Not found: {cls.__name__} with id {item_id}"
             logging.info(body)
             return body, 404
     else:
@@ -109,7 +114,7 @@ def put_item(cls: ClassVar, body: Dict) -> Response:
 
 
 def delete_item(cls: ClassVar, item_id: int) -> Response:
-    """ Delete an item.
+    """Delete an item.
 
     :param cls: the SQLAlchemy Table metadata class.
     :param id: the id of the item.
@@ -118,20 +123,20 @@ def delete_item(cls: ClassVar, item_id: int) -> Response:
 
     org = session_.query(cls).filter(cls.id == item_id).one_or_none()
     if org is not None:
-        logging.info(f'Deleting {cls.__name__} {item_id}')
+        logging.info(f"Deleting {cls.__name__} {item_id}")
         session_.query(cls).filter(cls.id == item_id).delete()
         session_.commit()
 
-        logging.info(f'Deleted: {cls.__name__} with id {item_id}')
+        logging.info(f"Deleted: {cls.__name__} with id {item_id}")
         return NoContent, 200
     else:
-        body = f'Not found: {cls.__name__} with id {item_id}'
+        body = f"Not found: {cls.__name__} with id {item_id}"
         logging.info(body)
         return body, 404
 
 
 def get_items(cls: ClassVar, limit: int) -> Response:
-    """ Get a list of items.
+    """Get a list of items.
 
     :param cls: the SQLAlchemy Table metadata class.
     :param limit: the maximum number of items to return.
@@ -140,12 +145,12 @@ def get_items(cls: ClassVar, limit: int) -> Response:
 
     items = session_.query(cls).limit(limit).all()
 
-    logging.info(f'Found items: {cls.__name__} {items}')
+    logging.info(f"Found items: {cls.__name__} {items}")
     return jsonify(items)
 
 
 def get_telescope_type(id: int = None, type_id: str = None) -> Response:
-    """ Get a TelescopeType.
+    """Get a TelescopeType.
 
     :param id: the TelescopeType id.
     :param type_id: the TelescopeType type_id.
@@ -153,7 +158,7 @@ def get_telescope_type(id: int = None, type_id: str = None) -> Response:
     """
 
     if (id is not None and type_id is not None) or (id is None and type_id is None):
-        body = 'At least one and only one of id or type_id must be specified'
+        body = "At least one and only one of id or type_id must be specified"
         logging.error(body)
         return body, 400
     elif id is not None:
@@ -161,16 +166,16 @@ def get_telescope_type(id: int = None, type_id: str = None) -> Response:
     elif type_id is not None:
         item = session_.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
         if item is not None:
-            logging.info(f'Found: TelescopeType with type_id {type_id}')
+            logging.info(f"Found: TelescopeType with type_id {type_id}")
             return jsonify(item)
 
-        body = f'Not found: TelescopeType with type_id {type_id}'
+        body = f"Not found: TelescopeType with type_id {type_id}"
         logging.info(body)
         return body, 404
 
 
 def post_telescope_type(body: Dict) -> Response:
-    """ Create a TelescopeType.
+    """Create a TelescopeType.
 
     :param body: the TelescopeType in the form of a dictionary.
     :return: a Response object.
@@ -180,7 +185,7 @@ def post_telescope_type(body: Dict) -> Response:
 
 
 def put_telescope_type(body: Dict) -> Response:
-    """ Create or update a TelescopeType.
+    """Create or update a TelescopeType.
 
     :param body: the TelescopeType in the form of a dictionary.
     :return: a Response object.
@@ -190,7 +195,7 @@ def put_telescope_type(body: Dict) -> Response:
 
 
 def delete_telescope_type(id: int) -> Response:
-    """ Delete a TelescopeType.
+    """Delete a TelescopeType.
 
     :param id: the TelescopeType id.
     :return: a Response object.
@@ -200,7 +205,7 @@ def delete_telescope_type(id: int) -> Response:
 
 
 def get_telescope_types(limit: int) -> Response:
-    """ Get a list of TelescopeType objects.
+    """Get a list of TelescopeType objects.
 
     :param limit: the maximum number of TelescopeType objects to return.
     :return: a Response object.
@@ -210,7 +215,7 @@ def get_telescope_types(limit: int) -> Response:
 
 
 def get_telescope(id: int) -> Response:
-    """ Get a Telescope.
+    """Get a Telescope.
 
     :param id: the Telescope id.
     :return: a Response object.
@@ -220,7 +225,7 @@ def get_telescope(id: int) -> Response:
 
 
 def post_telescope(body: Dict) -> Response:
-    """ Create a Telescope.
+    """Create a Telescope.
 
     :param body: the Connection in the form of a dictionary.
     :return: a Response object.
@@ -230,7 +235,7 @@ def post_telescope(body: Dict) -> Response:
 
 
 def put_telescope(body: Dict) -> Response:
-    """ Create or update a Telescope.
+    """Create or update a Telescope.
 
     :param body: the Telescope in the form of a dictionary.
     :return: a Response object.
@@ -240,7 +245,7 @@ def put_telescope(body: Dict) -> Response:
 
 
 def delete_telescope(id: int) -> Response:
-    """ Delete a Telescope.
+    """Delete a Telescope.
 
     :param id: the Telescope id.
     :return: a Response object.
@@ -250,7 +255,7 @@ def delete_telescope(id: int) -> Response:
 
 
 def get_telescopes(limit: int, telescope_type_id=None, organisation_id: int = None) -> Response:
-    """ Get a list of Telescope objects.
+    """Get a list of Telescope objects.
 
     :param organisation_id: the Organisation id to filter by.
     :param telescope_type_id: the TelescopeType id to filter by.
@@ -274,7 +279,7 @@ def get_telescopes(limit: int, telescope_type_id=None, organisation_id: int = No
 
 
 def get_organisation(id: int) -> Response:
-    """ Get an Organisation.
+    """Get an Organisation.
 
     :param id: the organisation id.
     :return: a Response object.
@@ -284,7 +289,7 @@ def get_organisation(id: int) -> Response:
 
 
 def post_organisation(body: Dict) -> Response:
-    """ Create an Organisation.
+    """Create an Organisation.
 
     :param body:
     :return: a Response object.
@@ -294,7 +299,7 @@ def post_organisation(body: Dict) -> Response:
 
 
 def put_organisation(body: Dict) -> Response:
-    """ Create or update an Organisation.
+    """Create or update an Organisation.
 
     :param body: the Organisation in the form of a dictionary.
     :return: a Response object.
@@ -304,7 +309,7 @@ def put_organisation(body: Dict) -> Response:
 
 
 def delete_organisation(id: int) -> Response:
-    """ Delete an Organisation.
+    """Delete an Organisation.
 
     :param id: the Organisation id.
     :return: a Response object.
@@ -314,7 +319,7 @@ def delete_organisation(id: int) -> Response:
 
 
 def get_organisations(limit: int) -> Response:
-    """ Get a list of organisations.
+    """Get a list of organisations.
 
     :param limit: the maximum number of items to return.
     :return: a Response object.
@@ -324,7 +329,7 @@ def get_organisations(limit: int) -> Response:
 
 
 def queryv1() -> Union[Tuple[str, int], dict]:
-    """ Search the Observatory Platform.
+    """Search the Observatory Platform.
 
     :return: results dictionary or error response
     """
@@ -333,19 +338,19 @@ def queryv1() -> Union[Tuple[str, int], dict]:
 
     alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
 
-    es_api_key = os.environ.get('ES_API_KEY')
-    es_address = os.environ.get('ES_HOST')
+    es_api_key = os.environ.get("ES_API_KEY")
+    es_address = os.environ.get("ES_HOST")
     es = create_es_connection(es_address, es_api_key)
     if es is None:
         return "Elasticsearch environment variable for host or api key is empty", 400
 
     # use scroll id
     if scroll_id:
-        res = es.scroll(scroll_id=scroll_id, scroll='1m')
-        index = 'N/A'
+        res = es.scroll(scroll_id=scroll_id, scroll="1m")
+        index = "N/A"
     # use search body
     else:
-        if alias == '':
+        if alias == "":
             return "Invalid combination of aggregation (publisher) and subset (collaborations)", 400
 
         search_body = create_search_body(from_date, to_date, filter_fields, size)
@@ -356,26 +361,29 @@ def queryv1() -> Union[Tuple[str, int], dict]:
             index_exists = es.indices.exists(index)
             if not index_exists:
                 available_dates = list_available_index_dates(es, alias)
-                return f"Index does not exist: {index}\n Available dates for this agg & subset:\n" \
-                       f"{chr(10).join(available_dates)}", 400
+                return (
+                    f"Index does not exist: {index}\n Available dates for this agg & subset:\n"
+                    f"{chr(10).join(available_dates)}",
+                    400,
+                )
         else:
-            index = es.cat.aliases(alias, format='json')[0]['index']
+            index = es.cat.aliases(alias, format="json")[0]["index"]
 
-        res = es.search(index=index, body=search_body, scroll='1m')
+        res = es.search(index=index, body=search_body, scroll="1m")
     scroll_id, results_data = process_response(res)
 
-    number_total_results = res['hits']['total']['value']
+    number_total_results = res["hits"]["total"]["value"]
 
     end = time.time()
     print(end - start)
     results = {
-        'version': 'v1',
-        'index': index,
-        'scroll_id': scroll_id,
-        'returned_hits': len(results_data),
-        'total_hits': number_total_results,
-        'schema': create_schema(),
-        'results': results_data
+        "version": "v1",
+        "index": index,
+        "scroll_id": scroll_id,
+        "returned_hits": len(results_data),
+        "total_hits": number_total_results,
+        "schema": create_schema(),
+        "results": results_data,
     }
     return results
 
@@ -390,19 +398,19 @@ def queryv1() -> Union[Tuple[str, int], dict]:
 
 
 def create_app() -> connexion.App:
-    """ Create a Connexion App.
+    """Create a Connexion App.
 
     :return: the Connexion App.
     """
 
-    logging.info('Creating app')
+    logging.info("Creating app")
 
     # Create the application instance and don't sort JSON output alphabetically
     conn_app = connexion.App(__name__)
-    conn_app.app.config['JSON_SORT_KEYS'] = False
+    conn_app.app.config["JSON_SORT_KEYS"] = False
 
     # Add the OpenAPI specification
-    specification_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'openapi.yaml.jinja2')
+    specification_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "openapi.yaml.jinja2")
     builder = OpenApiRenderer(specification_path, cloud_endpoints=False)
     specification = builder.to_dict()
     conn_app.add_api(specification)

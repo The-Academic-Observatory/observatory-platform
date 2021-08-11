@@ -16,18 +16,18 @@
 
 import pendulum
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.python_operator import ShortCircuitOperator
-
+from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from observatory.platform.tasks.terraform import TerraformTasks
 
-default_args = {
-    "owner": "airflow",
-    "start_date": pendulum.Pendulum(2020, 7, 1)
-}
+default_args = {"owner": "airflow", "start_date": pendulum.datetime(2020, 7, 1)}
 
-with DAG(dag_id=TerraformTasks.DAG_ID_CREATE_VM, schedule_interval="@weekly", default_args=default_args,
-         catchup=False, max_active_runs=1) as dag:
+with DAG(
+    dag_id=TerraformTasks.DAG_ID_CREATE_VM,
+    schedule_interval="@weekly",
+    default_args=default_args,
+    catchup=False,
+    max_active_runs=1,
+) as dag:
     # Check that dependencies exist before starting
     check = PythonOperator(
         task_id=TerraformTasks.TASK_ID_CHECK_DEPENDENCIES,
@@ -38,28 +38,21 @@ with DAG(dag_id=TerraformTasks.DAG_ID_CREATE_VM, schedule_interval="@weekly", de
     vm_status = ShortCircuitOperator(
         task_id=TerraformTasks.TASK_ID_VM_STATUS,
         python_callable=TerraformTasks.get_variable_create,
-        provide_context=True
     )
 
     # Update terraform variable vm_create to True
     var_create = PythonOperator(
         task_id=TerraformTasks.TASK_ID_VAR_UPDATE,
         python_callable=TerraformTasks.update_terraform_variable,
-        provide_context=True
     )
 
     # Run terraform configuration
-    run_terraform = PythonOperator(
-        task_id=TerraformTasks.TASK_ID_RUN,
-        python_callable=TerraformTasks.terraform_run,
-        provide_context=True
-    )
+    run_terraform = PythonOperator(task_id=TerraformTasks.TASK_ID_RUN, python_callable=TerraformTasks.terraform_run)
 
     # Check status of terraform run
     check_run_status = PythonOperator(
         task_id=TerraformTasks.TASK_ID_RUN_STATUS,
         python_callable=TerraformTasks.check_terraform_run_status,
-        provide_context=True
     )
 
     check >> vm_status >> var_create >> run_terraform >> check_run_status

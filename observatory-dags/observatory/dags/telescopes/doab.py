@@ -23,8 +23,10 @@ from typing import Tuple
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-
-from observatory.platform.telescopes.stream_telescope import StreamRelease, StreamTelescope
+from observatory.platform.telescopes.stream_telescope import (
+    StreamRelease,
+    StreamTelescope,
+)
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.telescope_utils import convert
@@ -33,7 +35,7 @@ from observatory.platform.utils.url_utils import get_ao_user_agent, retry_sessio
 
 
 class DoabRelease(StreamRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
+    def __init__(self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime, first_release: bool):
 
         download_files_regex = "doab.csv"
         transform_files_regex = "doab.jsonl.gz"
@@ -55,7 +57,7 @@ class DoabRelease(StreamRelease):
         return os.path.join(self.transform_folder, "doab.jsonl.gz")
 
     def download(self) -> bool:
-        """ Download DOAB CSV.
+        """Download DOAB CSV.
         :return: True if download is successful
         """
         logging.info(f"Downloading csv from url: {DoabTelescope.CSV_URL}")
@@ -70,7 +72,7 @@ class DoabRelease(StreamRelease):
             raise AirflowException(f"Download csv unsuccessful, {response.text}")
 
     def transform(self):
-        """ Transform the doab csv file by storing in a jsonl format and restructuring lists/dicts.
+        """Transform the doab csv file by storing in a jsonl format and restructuring lists/dicts.
         Values of field names with '.' are formatted into nested dictionaries.
         Values of field names in list_fields are split on - , ; and ||.
         Values of the field 'dc.subject.classification' are parsed to create a custom field 'classification_code'.
@@ -159,7 +161,7 @@ class DoabTelescope(StreamTelescope):
     def __init__(
         self,
         dag_id: str = "doab",
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2018, 5, 14),
+        start_date: pendulum.DateTime = pendulum.datetime(2018, 5, 14),
         schedule_interval: str = "@monthly",
         dataset_id: str = "doab",
         merge_partition_field: str = "id",
@@ -174,8 +176,15 @@ class DoabTelescope(StreamTelescope):
                 AirflowVars.DOWNLOAD_BUCKET,
                 AirflowVars.TRANSFORM_BUCKET,
             ]
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field, bq_merge_days,
-                         airflow_vars=airflow_vars)
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            dataset_id,
+            merge_partition_field,
+            bq_merge_days,
+            airflow_vars=airflow_vars,
+        )
 
         self.add_setup_task_chain([self.check_dependencies, self.get_release_info])
         self.add_task_chain(
@@ -188,11 +197,11 @@ class DoabTelescope(StreamTelescope):
         ti: TaskInstance = kwargs["ti"]
         start_date, end_date, first_release = ti.xcom_pull(key=DoabTelescope.RELEASE_INFO, include_prior_dates=True)
 
-        release = DoabRelease(self.dag_id, start_date, end_date, first_release)
+        release = DoabRelease(self.dag_id, pendulum.parse(start_date), pendulum.parse(end_date), first_release)
         return release
 
     def download(self, release: DoabRelease, **kwargs):
-        """ Task to download the Doab release.
+        """Task to download the Doab release.
         :param release: a DoabRelease instance.
         :return: None.
         """
@@ -200,7 +209,7 @@ class DoabTelescope(StreamTelescope):
         release.download()
 
     def upload_downloaded(self, release: DoabRelease, **kwargs):
-        """ Task to upload the Doab release.
+        """Task to upload the Doab release.
         :param release: a DoabRelease instance.
         :return: None.
         """
@@ -208,7 +217,7 @@ class DoabTelescope(StreamTelescope):
         upload_files_from_list(release.download_files, release.download_bucket)
 
     def transform(self, release: DoabRelease, **kwargs):
-        """ Task to transform the Doab release.
+        """Task to transform the Doab release.
         :param release: an DoabRelease instance.
         :return: None.
         """
@@ -217,7 +226,7 @@ class DoabTelescope(StreamTelescope):
 
 
 def get_nested_fieldnames(csv_entries: dict) -> set:
-    """ Fieldnames with '.' should be converted to nested dictionaries. This function will return a set of
+    """Fieldnames with '.' should be converted to nested dictionaries. This function will return a set of
     fieldnames for nested dictionaries from the highest to second lowest levels.
     E.g these fieldnames: dc.date.available, dc.date.issued, dc.description
     Will give this set: dc, dc.date, dc.description
@@ -237,7 +246,7 @@ def get_nested_fieldnames(csv_entries: dict) -> set:
 
 
 def transform_value_to_list(k: str, v: str) -> Tuple[list, list]:
-    """ Takes a key and value from the dictionary of csv entries. The value is always in a string format. Based on the
+    """Takes a key and value from the dictionary of csv entries. The value is always in a string format. Based on the
     key name (k) the delimiter in the the value (v) is replaced with '||'. All values are then split on '||' so they
     are transformed into a list. The values of 'dc.subject.classification' are parsed and stored in a variable,
     so they can later be added to a custom key of the csv entries dictionary.
@@ -265,7 +274,7 @@ def transform_value_to_list(k: str, v: str) -> Tuple[list, list]:
 
 
 def transform_key_to_nested_dict(k: str, v, nested_fields: set, list_fields: set, classification_code: list, new: dict):
-    """ Takes a dictionary key and value. The key is split on '.', a nested dictionary is created and the value will be
+    """Takes a dictionary key and value. The key is split on '.', a nested dictionary is created and the value will be
     added to the most nested level. The dictionary is updated in place so it is not returned.
     For example first k = 'dc.date.issued', the dictionary = {'dc': {'date': {'issued': v1}}
     Second k = 'dc.date.accessed', the dictionary = {'dc': {'date': {'issued': v1, 'accessed': v2}}
@@ -302,7 +311,7 @@ def transform_key_to_nested_dict(k: str, v, nested_fields: set, list_fields: set
 
 
 def transform_dict(obj, convert, nested_fields, list_fields):
-    """ Recursively goes through the dictionary obj, replaces keys with the convert function.
+    """Recursively goes through the dictionary obj, replaces keys with the convert function.
     :param obj: object, can be of any type
     :param convert: convert function
     :param nested_fields: fields

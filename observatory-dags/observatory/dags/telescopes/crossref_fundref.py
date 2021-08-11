@@ -33,19 +33,24 @@ import requests
 from airflow.api.common.experimental.pool import create_pool
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-from pendulum import Pendulum
-
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars
-from observatory.platform.utils.gc_utils import bigquery_sharded_table_id, bigquery_table_exists
+from observatory.platform.telescopes.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
+from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.gc_utils import (
+    bigquery_sharded_table_id,
+    bigquery_table_exists,
+)
 from observatory.platform.utils.proc_utils import wait_for_process
 from observatory.platform.utils.template_utils import upload_files_from_list
 from observatory.platform.utils.url_utils import retry_session
 
 
 class CrossrefFundrefRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, url: str):
-        """ Construct a CrossrefFundrefRelease
+    def __init__(self, dag_id: str, release_date: pendulum.datetime, url: str):
+        """Construct a CrossrefFundrefRelease
 
         :param dag_id: The DAG id.
         :param release_date: The release date.
@@ -60,7 +65,7 @@ class CrossrefFundrefRelease(SnapshotRelease):
 
     @property
     def download_path(self) -> str:
-        """ Get the path to the downloaded file.
+        """Get the path to the downloaded file.
 
         :return: the file path.
         """
@@ -68,7 +73,7 @@ class CrossrefFundrefRelease(SnapshotRelease):
 
     @property
     def extract_path(self) -> str:
-        """ Get the path to the extracted file.
+        """Get the path to the extracted file.
 
         :return: the file path.
         """
@@ -77,7 +82,7 @@ class CrossrefFundrefRelease(SnapshotRelease):
 
     @property
     def transform_path(self) -> str:
-        """ Get the path to the transformed file.
+        """Get the path to the transformed file.
 
         :return: the file path.
         """
@@ -85,8 +90,7 @@ class CrossrefFundrefRelease(SnapshotRelease):
         return os.path.join(self.transform_folder, "crossref_fundref.jsonl.gz")
 
     def download(self):
-        """ Downloads release tar.gz file from url.
-        """
+        """Downloads release tar.gz file from url."""
 
         logging.info(f"Downloading file: {self.download_path}, url: {self.url}")
 
@@ -118,9 +122,7 @@ class CrossrefFundrefRelease(SnapshotRelease):
                 shutil.copyfileobj(response.raw, file)
 
     def extract(self):
-        """ Extract release from gzipped tar file.
-
-        """
+        """Extract release from gzipped tar file."""
         logging.info(f"Extracting file: {self.download_path}")
         # Tar file contains both README.md and registry.rdf, use tar -ztf to get path of 'registry.rdf'
         # Use this path to extract only registry.rdf to a new file.
@@ -140,7 +142,7 @@ class CrossrefFundrefRelease(SnapshotRelease):
         logging.info(f"File extracted to: {self.extract_path}")
 
     def transform(self):
-        """ Transforms release by storing file content in gzipped json format. Relationships between funders are added.
+        """Transforms release by storing file content in gzipped json format. Relationships between funders are added.
 
         :return: None
         """
@@ -166,7 +168,7 @@ class CrossrefFundrefRelease(SnapshotRelease):
 
 
 class CrossrefFundrefTelescope(SnapshotTelescope):
-    """ Crossref Fundref Telescope."""
+    """Crossref Fundref Telescope."""
 
     DAG_ID = "crossref_fundref"
     DATASET_ID = "crossref"
@@ -175,7 +177,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2014, 3, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2014, 3, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = DATASET_ID,
         table_descriptions: Dict = None,
@@ -183,7 +185,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
         airflow_vars: List = None,
     ):
 
-        """ Construct a CrossrefFundrefTelescope instance.
+        """Construct a CrossrefFundrefTelescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -235,7 +237,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
         self.add_task(self.cleanup)
 
     def make_release(self, **kwargs) -> List[CrossrefFundrefRelease]:
-        """ Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
+        """Make release instances. The release is passed as an argument to the function (TelescopeFunction) that is
         called in 'task_callable'.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -252,11 +254,12 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
         )
         releases = []
         for release in release_info:
-            releases.append(CrossrefFundrefRelease(self.dag_id, release["date"], release["url"]))
+            release_date = pendulum.parse(release["date"])
+            releases.append(CrossrefFundrefRelease(self.dag_id, release_date, release["url"]))
         return releases
 
     def get_release_info(self, **kwargs) -> bool:
-        """ Based on a list of all releases, checks which ones were released between the prev and this execution date
+        """Based on a list of all releases, checks which ones were released between the prev and this execution date
         of the DAG. If the release falls within the time period mentioned above, checks if a bigquery table doesn't
         exist yet for the release. A list of releases that passed both checks is passed to the next tasks. If the
         list is empty the workflow will stop.
@@ -271,8 +274,8 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
         project_id = Variable.get(AirflowVars.PROJECT_ID)
 
         # List releases between a start date and an end date
-        prev_execution_date = kwargs["prev_execution_date"]
-        execution_date = kwargs["execution_date"]
+        prev_execution_date = pendulum.instance(kwargs["prev_execution_date"])
+        execution_date = pendulum.instance(kwargs["execution_date"])
         releases_list = list_releases(prev_execution_date, execution_date)
         logging.info(f"Releases between prev ({prev_execution_date}) and current ({execution_date}) execution date:")
         logging.info(releases_list)
@@ -289,6 +292,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
                 )
             else:
                 logging.info(f"Table does not exist yet, processing {release['url']} in this workflow")
+                release["date"] = release["date"].format("YYYYMMDD")
                 releases_list_out.append(release)
 
         # If releases_list_out contains items then the DAG will continue (return True) otherwise it will
@@ -300,7 +304,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
         return continue_dag
 
     def download(self, releases: List[CrossrefFundrefRelease], **kwargs):
-        """ Task to download the releases.
+        """Task to download the releases.
 
         :param releases: a list with Crossref Fundref releases.
         :return: None.
@@ -309,7 +313,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
             release.download()
 
     def upload_downloaded(self, releases: List[CrossrefFundrefRelease], **kwargs):
-        """ Task to upload the downloaded releases.
+        """Task to upload the downloaded releases.
 
         :param releases: a list with Crossref Fundref releases.
         :return: None.
@@ -318,7 +322,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def extract(self, releases: List[CrossrefFundrefRelease], **kwargs):
-        """ Task to extract the releases.
+        """Task to extract the releases.
 
         :param releases: a list with Crossref Fundref releases.
         :return: None.
@@ -327,7 +331,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
             release.extract()
 
     def transform(self, releases: List[CrossrefFundrefRelease], **kwargs):
-        """ Task to transform the releases.
+        """Task to transform the releases.
 
         :param releases: a list with Crossref Fundref releases.
         :return: None.
@@ -336,8 +340,8 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
             release.transform()
 
 
-def list_releases(start_date: Pendulum, end_date: Pendulum) -> List[dict]:
-    """ List all available CrossrefFundref releases between the start and end date
+def list_releases(start_date: pendulum.DateTime, end_date: pendulum.DateTime) -> List[dict]:
+    """List all available CrossrefFundref releases between the start and end date
 
     :param start_date: The start date of the period to look for releases
     :param end_date: The end date of the period to look for releases
@@ -393,13 +397,13 @@ def list_releases(start_date: Pendulum, end_date: Pendulum) -> List[dict]:
                             release_date = pendulum.datetime(year=2014, month=3, day=1)
                         elif version < 1.0:
                             date_string = release["description"].split("\n")[0]
-                            release_date = pendulum.parse("01" + date_string)
+                            release_date = pendulum.from_format("01 " + date_string, "DD MMMM YYYY")
                         else:
                             release_date = pendulum.parse(release["released_at"])
 
                         # Only include release if it is within start and end dates
                         if start_date <= release_date < end_date:
-                            release_info.append({"url": source["url"], "date": release_date})
+                            release_info.append({"url": source["url"], "date": release_date.format("YYYYMMDD")})
 
             # Check if we should exit or get the next page
             if num_pages <= current_page:
@@ -412,7 +416,7 @@ def list_releases(start_date: Pendulum, end_date: Pendulum) -> List[dict]:
 
 
 def strip_whitespace(file_path: str):
-    """ Strip leading white space from the first line of the file.
+    """Strip leading white space from the first line of the file.
     This is present in fundref release 2019-06-01. If not removed it will give a XML ParseError.
 
     :param file_path: Path to file from which to trim leading white space.
@@ -432,7 +436,7 @@ def strip_whitespace(file_path: str):
 
 
 def new_funder_template():
-    """ Helper Function for creating a new Funder.
+    """Helper Function for creating a new Funder.
 
     :return: a blank funder object.
     """
@@ -469,7 +473,7 @@ def new_funder_template():
 
 
 def parse_fundref_registry_rdf(registry_file_path: str) -> Tuple[List, Dict]:
-    """ Helper function to parse a fundref registry rdf file and to return a python list containing each funder.
+    """Helper function to parse a fundref registry rdf file and to return a python list containing each funder.
 
     :param registry_file_path: the filename of the registry.rdf file to be parsed.
     :return: funders list containing all the funders parsed from the input rdf and dictionary of funders with their
@@ -564,7 +568,7 @@ def parse_fundref_registry_rdf(registry_file_path: str) -> Tuple[List, Dict]:
 
 
 def add_funders_relationships(funders: List, funders_by_key: Dict) -> List:
-    """ Adds any children/parent relationships to funder instances in the funders list.
+    """Adds any children/parent relationships to funder instances in the funders list.
 
     :param funders: List of funders
     :param funders_by_key: Dictionary of funders with their id as key.
@@ -586,7 +590,7 @@ def add_funders_relationships(funders: List, funders_by_key: Dict) -> List:
 def recursive_funders(
     funders_by_key: Dict, funder: Dict, depth: int, direction: str, sub_funders: List
 ) -> Tuple[List, int]:
-    """ Recursively goes through a funder/sub_funder dict. The funder properties can be looked up with the
+    """Recursively goes through a funder/sub_funder dict. The funder properties can be looked up with the
     funders_by_key dictionary that stores the properties per funder id. Any children/parents for the funder are
     already given in the xml element with the 'narrower' and 'broader' tags. For each funder in the list,
     it will recursively add any children/parents for those funders in 'narrower'/'broader' and their funder properties.

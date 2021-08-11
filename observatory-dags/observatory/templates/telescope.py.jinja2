@@ -14,7 +14,7 @@
 # Author: Tuan Chien #}
 
 import logging
-import datetime
+import pendulum
 
 from typing import List
 from observatory.platform.telescopes.telescope import Release, Telescope
@@ -35,7 +35,7 @@ class {{ telescope_name }}Release(Release):
 class {{ telescope_name }}(Telescope):
     DAG_ID = "{{ telescope_name }}"
 
-    def __init__(self, *, dag_id: str = DAG_ID, start_date: datetime.datetime = datetime.datetime(2021,7,1), schedule_interval="@weekly", catchup=False):
+    def __init__(self, *, dag_id: str = DAG_ID, start_date: pendulum.DateTime = pendulum.datetime(2021,7,1), schedule_interval="@weekly", catchup=False):
         """Construct a Telescope instance.
 
         :param dag_id: the id of the DAG.

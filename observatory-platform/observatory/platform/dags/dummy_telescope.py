@@ -16,24 +16,13 @@
 
 import pendulum
 from airflow import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 
-default_args = {
-    "owner": "airflow",
-    "start_date": pendulum.Pendulum(2020, 8, 10)
-}
+default_args = {"owner": "airflow", "start_date": pendulum.datetime(2020, 8, 10)}
 
 with DAG(dag_id="dummy_telescope", schedule_interval="@daily", default_args=default_args, catchup=True) as dag:
-    task1 = BashOperator(
-        task_id="task1",
-        bash_command="echo 'hello'",
-        queue='remote_queue'
-    )
+    task1 = BashOperator(task_id="task1", bash_command="echo 'hello'", queue="remote_queue")
 
-    task2 = BashOperator(
-        task_id="task2",
-        bash_command="echo 'world'",
-        queue='remote_queue'
-    )
+    task2 = BashOperator(task_id="task2", bash_command="echo 'world'", queue="remote_queue")
 
     task1 >> task2

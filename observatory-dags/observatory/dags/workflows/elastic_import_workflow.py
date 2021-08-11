@@ -21,10 +21,9 @@ import json
 import logging
 import os
 import re
-from concurrent.futures import ProcessPoolExecutor
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
-from typing import List, Optional, Callable, Tuple, Dict
+from typing import Callable, Dict, List, Optional, Tuple
 
 import elasticsearch.exceptions
 import google.cloud.bigquery as bigquery
@@ -32,26 +31,30 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import TaskInstance
-from airflow.operators.sensors import ExternalTaskSensor
+from airflow.sensors.external_task import ExternalTaskSensor
 from natsort import natsorted
-from pendulum import Pendulum, Date
-
 from observatory.platform.elastic.elastic import (
     Elastic,
+    make_elastic_mappings_path,
     make_sharded_index,
 )
-from observatory.platform.elastic.elastic import make_elastic_mappings_path
 from observatory.platform.elastic.kibana import Kibana, ObjectType, TimeField
 from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease
 from observatory.platform.telescopes.telescope import Telescope
-from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
-from observatory.platform.utils.file_utils import yield_jsonl, yield_csv, load_file, write_to_file
+from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
+from observatory.platform.utils.file_utils import (
+    load_file,
+    write_to_file,
+    yield_csv,
+    yield_jsonl,
+)
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
-    select_table_shard_dates,
     download_blobs_from_cloud_storage,
+    select_table_shard_dates,
 )
 from observatory.platform.utils.jinja2_utils import render_template
+from pendulum import Date
 
 ES_INDEX_STATE_TOPIC_NAME = "es_index_state"
 CSV_TYPES = ["csv", "csv.gz"]
@@ -59,7 +62,7 @@ JSONL_TYPES = ["jsonl", "jsonl.gz"]
 
 
 def load_elastic_mappings_simple(path: str, table_prefix: str) -> Dict:
-    """ Load the Elastic mappings for a given table prefix.
+    """Load the Elastic mappings for a given table prefix.
 
     :param path: the path to the Elastic mappings.
     :param table_prefix: the table prefix.
@@ -70,7 +73,7 @@ def load_elastic_mappings_simple(path: str, table_prefix: str) -> Dict:
 
 
 def load_elastic_mappings_ao(path: str, table_prefix: str, simple_prefixes: List = None):
-    """ For the Observatory project, load the Elastic mappings for a given table_prefix.
+    """For the Observatory project, load the Elastic mappings for a given table_prefix.
 
     :param path: the path to the mappings files.
     :param table_prefix: the table_id prefix (without shard date).
@@ -97,7 +100,7 @@ def load_elastic_mappings_ao(path: str, table_prefix: str, simple_prefixes: List
 
 
 def load_elastic_mappings_oaebu(path: str, table_prefix: str) -> Dict:
-    """ For the OAEBU project, load the Elastic mappings for a given table_prefix.
+    """For the OAEBU project, load the Elastic mappings for a given table_prefix.
 
     :param path: the path to the mappings files.
     :param table_prefix: the table_id prefix (without shard date).
@@ -118,7 +121,7 @@ def load_elastic_mappings_oaebu(path: str, table_prefix: str) -> Dict:
 
 
 def make_index_prefix(table_id: str):
-    """ Convert a table_id into an Elastic / Kibana index.
+    """Convert a table_id into an Elastic / Kibana index.
 
     :param table_id: the table_id.
     :return: the Elastic / Kibana index.
@@ -128,7 +131,7 @@ def make_index_prefix(table_id: str):
 
 
 def make_table_prefix(table_id: str):
-    """ Remove the date from a table_id.
+    """Remove the date from a table_id.
 
     :param table_id: the table id including a shard date.
     :return: the table id.
@@ -139,7 +142,7 @@ def make_table_prefix(table_id: str):
 
 
 def extract_table_id(table_id: str) -> Tuple[str, Optional[str]]:
-    """ Extract the table_id and and the date from an index.
+    """Extract the table_id and and the date from an index.
 
     :param table_id: the table id.
     :return: table_id and date.
@@ -153,8 +156,8 @@ def extract_table_id(table_id: str) -> Tuple[str, Optional[str]]:
     return make_table_prefix(table_id), results.group(0)
 
 
-def list_table_ids(project_id: str, dataset_id: str, release_date: pendulum.Pendulum) -> List[str]:
-    """ List all of the table_ids within a BigQuery dataset.
+def list_table_ids(project_id: str, dataset_id: str, release_date: pendulum.DateTime) -> List[str]:
+    """List all of the table_ids within a BigQuery dataset.
 
     :param project_id: the Google Cloud project id.
     :param dataset_id: the BigQuery dataset id.
@@ -185,7 +188,7 @@ def list_table_ids(project_id: str, dataset_id: str, release_date: pendulum.Pend
 def export_bigquery_table(
     project_id: str, dataset_id: str, table_id: str, location: str, file_type: str, destination_uri: str
 ) -> bool:
-    """ Export a BigQuery table.
+    """Export a BigQuery table.
 
     :param project_id: the Google Cloud project ID.
     :param dataset_id: the BigQuery dataset ID of the Observatory Platform dataset.
@@ -234,7 +237,7 @@ def load_elastic_index(
     chunk_size: int,
     num_threads: int,
 ) -> bool:
-    """ Load an observatory index into Elasticsearch.
+    """Load an observatory index into Elasticsearch.
 
     :param data_path: the path to the data.
     :param table_id: the id of the table that will be loaded into Elasticsearch.
@@ -299,7 +302,7 @@ class ElasticImportRelease(SnapshotRelease):
         self,
         *,
         dag_id: str,
-        release_date: Pendulum,
+        release_date: pendulum.DateTime,
         dataset_id: str,
         file_type: str,
         table_ids: List,
@@ -340,7 +343,7 @@ class ElasticImportRelease(SnapshotRelease):
         self.elastic_import_task_state_path = os.path.join(self.extract_folder, "elastic_import_task_state.json")
 
     def export_bigquery_tables(self) -> bool:
-        """ Export the BigQuery tables to Google Cloud Storage.
+        """Export the BigQuery tables to Google Cloud Storage.
 
         :return: whether the tables were exported successfully.
         """
@@ -382,7 +385,7 @@ class ElasticImportRelease(SnapshotRelease):
         return all(results)
 
     def download_exported_data(self) -> bool:
-        """ Download the exported data from Cloud Storage.
+        """Download the exported data from Cloud Storage.
 
         :return: whether the data was downloaded successfully or not.
         """
@@ -390,7 +393,7 @@ class ElasticImportRelease(SnapshotRelease):
         return download_blobs_from_cloud_storage(self.bucket_name, self.bucket_prefix, self.download_folder)
 
     def read_import_state(self) -> List[str]:
-        """ Loads which tables have been indexed.
+        """Loads which tables have been indexed.
 
         :return: the list of table ids.
         """
@@ -400,7 +403,7 @@ class ElasticImportRelease(SnapshotRelease):
         return []
 
     def write_import_state(self, indexed_table_ids: List[str]):
-        """ Saves which tables have been indexed.
+        """Saves which tables have been indexed.
 
         :param indexed_table_ids: the table ids.
         :return: None.
@@ -409,7 +412,7 @@ class ElasticImportRelease(SnapshotRelease):
         write_to_file(json.dumps(indexed_table_ids), self.elastic_import_task_state_path)
 
     def import_to_elastic(self) -> bool:
-        """ Import data into Elasticsearch.
+        """Import data into Elasticsearch.
 
         :return: whether the data imported successfully or not.
         """
@@ -461,7 +464,7 @@ class ElasticImportRelease(SnapshotRelease):
         return all(results)
 
     def update_elastic_aliases(self) -> bool:
-        """ Update the elasticsearch aliases.
+        """Update the elasticsearch aliases.
 
         :return: whether the aliases updated correctly or not,
         """
@@ -510,7 +513,7 @@ class ElasticImportRelease(SnapshotRelease):
         return time_field_name
 
     def create_kibana_index_patterns(self) -> bool:
-        """ Create the Kibana index patterns.
+        """Create the Kibana index patterns.
 
         :return: whether the index patterns were created successfully or not.
         """
@@ -548,13 +551,13 @@ class ElasticImportWorkflow(Telescope):
         kibana_spaces: List[str] = None,
         kibana_time_fields: List[TimeField] = None,
         dag_id: Optional[str] = "elastic_import",
-        start_date: Optional[Pendulum] = Pendulum(2020, 11, 1),
+        start_date: Optional[pendulum.DateTime] = pendulum.datetime(2020, 11, 1),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
         airflow_vars: List = None,
         airflow_conns: List = None,
     ):
-        """ Create the DoiWorkflow.
+        """Create the DoiWorkflow.
 
         :param project_id: the project id to import data from.
         :param dataset_id: the dataset id to import data from.
@@ -622,7 +625,7 @@ class ElasticImportWorkflow(Telescope):
         self.add_task(self.cleanup)
 
     def list_release_info(self, **kwargs):
-        """ List the table ids that should be exported.
+        """List the table ids that should be exported.
 
         :param kwargs: the context passed from the BranchPythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -636,7 +639,7 @@ class ElasticImportWorkflow(Telescope):
 
         # Push table ids and release date
         ti: TaskInstance = kwargs["ti"]
-        ti.xcom_push(Telescope.RELEASE_INFO, {"release_date": release_date, "table_ids": table_ids})
+        ti.xcom_push(Telescope.RELEASE_INFO, {"release_date": release_date.format("YYYYMMDD"), "table_ids": table_ids})
 
         return True
 
@@ -655,7 +658,7 @@ class ElasticImportWorkflow(Telescope):
             key=Telescope.RELEASE_INFO, task_ids=self.list_release_info.__name__, include_prior_dates=False
         )
 
-        release_date = record["release_date"]
+        release_date = pendulum.parse(record["release_date"])
         table_ids = record["table_ids"]
 
         # Get Airflow connections
@@ -683,7 +686,7 @@ class ElasticImportWorkflow(Telescope):
         )
 
     def export_bigquery_tables(self, release: ElasticImportRelease, **kwargs):
-        """ Export tables from BigQuery.
+        """Export tables from BigQuery.
 
         :param release: the ElasticRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -697,7 +700,7 @@ class ElasticImportWorkflow(Telescope):
             raise AirflowException("export_bigquery_tables task: failed to export tables")
 
     def download_exported_data(self, release: ElasticImportRelease, **kwargs):
-        """ Download the exported data.
+        """Download the exported data.
 
         :param release: the ElasticRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -713,7 +716,7 @@ class ElasticImportWorkflow(Telescope):
             )
 
     def import_to_elastic(self, release: ElasticImportRelease, **kwargs):
-        """ Import the data into Elasticsearch.
+        """Import the data into Elasticsearch.
 
         :param release: the ElasticRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -727,7 +730,7 @@ class ElasticImportWorkflow(Telescope):
             raise AirflowException("import_to_elastic task: failed to load Elasticsearch indexes")
 
     def update_elastic_aliases(self, release: ElasticImportRelease, **kwargs):
-        """ Update Elasticsearch aliases.
+        """Update Elasticsearch aliases.
 
         :param release: the ElasticRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -741,7 +744,7 @@ class ElasticImportWorkflow(Telescope):
             raise AirflowException("update_elastic_aliases failed")
 
     def create_kibana_index_patterns(self, release: ElasticImportRelease, **kwargs):
-        """ Create Kibana index patterns.
+        """Create Kibana index patterns.
 
         :param release: the ElasticRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -755,7 +758,7 @@ class ElasticImportWorkflow(Telescope):
             raise AirflowException("create_kibana_index_patterns failed")
 
     def cleanup(self, release: ElasticImportRelease, **kwargs):
-        """ Cleanup local files.
+        """Cleanup local files.
 
         :param release: the ElasticRelease.
         :param kwargs: the context passed from the Airflow Operator.

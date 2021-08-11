@@ -9,7 +9,7 @@ Examples of snapshot telescopes found in the Academic Observatory include UCL Di
 The `SnapshotRelease` class is a light wrapper for the `Release` class.  It constructs a `release_id` from the release date, and sets the `dag_id`,  `release_id`, download, extract, and transform file regex patterns. The constructor signature is:
 ```
 def __init__(self, dag_id: str,
-            release_date: pendulum.Pendulum,
+            release_date: pendulum.DateTime,
             download_files_regex: str = None,
             extract_files_regex: str = None,
             transform_files_regex: str = None)

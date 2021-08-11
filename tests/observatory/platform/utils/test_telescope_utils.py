@@ -27,16 +27,19 @@ import pendulum
 import pysftp
 from airflow.models.connection import Connection
 from click.testing import CliRunner
-
-from observatory.platform.utils.file_utils import load_jsonl, list_to_jsonl_gz, gzip_file_crc
+from observatory.platform.utils.file_utils import (
+    gzip_file_crc,
+    list_to_jsonl_gz,
+    load_jsonl,
+)
 from observatory.platform.utils.telescope_utils import (
-    make_telescope_sensor,
     PeriodCount,
     ScheduleOptimiser,
-    make_sftp_connection,
+    get_prev_execution_date,
     make_dag_id,
     make_observatory_api,
-    get_prev_execution_date,
+    make_sftp_connection,
+    make_telescope_sensor,
     normalized_schedule_interval,
 )
 
@@ -46,7 +49,7 @@ class TestTelescopeUtils(unittest.TestCase):
         super(TestTelescopeUtils, self).__init__(*args, **kwargs)
 
     def test_normalized_schedule_interval(self):
-        """ Test normalized_schedule_interval """
+        """Test normalized_schedule_interval"""
         schedule_intervals = [
             (None, None),
             ("@daily", "0 0 * * *"),
@@ -65,8 +68,8 @@ class TestTelescopeUtils(unittest.TestCase):
             self.assertEqual(expected_n_schedule_interval, actual_n_schedule_interval)
 
     def test_get_prev_execution_date(self):
-        """ Test get_prev_execution_date """
-        execution_date = pendulum.Pendulum(2020, 2, 20)
+        """Test get_prev_execution_date"""
+        execution_date = pendulum.datetime(2020, 2, 20)
         # test for both cron preset and cron expression
         for schedule_interval in ["@monthly", "0 0 1 * *"]:
             prev_execution_date = get_prev_execution_date(schedule_interval, execution_date)
@@ -76,7 +79,7 @@ class TestTelescopeUtils(unittest.TestCase):
     @patch.object(pysftp, "Connection")
     @patch("airflow.hooks.base_hook.BaseHook.get_connection")
     def test_make_sftp_connection(self, mock_airflow_conn, mock_pysftp_connection):
-        """ Test that sftp connection is initialized correctly """
+        """Test that sftp connection is initialized correctly"""
 
         # set up variables
         username = "username"
@@ -103,7 +106,7 @@ class TestTelescopeUtils(unittest.TestCase):
         self.assertIsNone(call_args[1]["port"])
 
     def test_make_dag_id(self):
-        """ Test make_dag_id """
+        """Test make_dag_id"""
 
         expected_dag_id = "onix_curtin_press"
         dag_id = make_dag_id("onix", "Curtin Press")
@@ -111,7 +114,7 @@ class TestTelescopeUtils(unittest.TestCase):
 
     @patch("airflow.hooks.base_hook.BaseHook.get_connection")
     def test_make_observatory_api(self, mock_get_connection):
-        """ Test make_observatory_api """
+        """Test make_observatory_api"""
 
         conn_type = "http"
         host = "api.observatory.academy"
@@ -161,7 +164,7 @@ class TestTelescopeUtils(unittest.TestCase):
             make_observatory_api()
 
     def test_list_to_jsonl_gz(self):
-        """ Test writing list of dicts to jsonl.gz file """
+        """Test writing list of dicts to jsonl.gz file"""
         list_of_dicts = [{"k1a": "v1a", "k2a": "v2a"}, {"k1b": "v1b", "k2b": "v2b"}]
         file_path = "list.jsonl.gz"
         expected_file_hash = "e608cfeb"
@@ -172,7 +175,7 @@ class TestTelescopeUtils(unittest.TestCase):
             self.assertEqual(expected_file_hash, actual_file_hash)
 
     def test_load_jsonl(self):
-        """ Test loading json lines files """
+        """Test loading json lines files"""
 
         with CliRunner().isolated_filesystem() as t:
             expected_records = [
@@ -191,7 +194,7 @@ class TestTelescopeUtils(unittest.TestCase):
 
 
 class TestMakeTelescopeSensor(unittest.TestCase):
-    """ Test the external task sensor creation. """
+    """Test the external task sensor creation."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -213,7 +216,7 @@ class TestMakeTelescopeSensor(unittest.TestCase):
 
 
 class TestScheduleOptimiser(unittest.TestCase):
-    """ Test schedule optimiser that minimises API calls. """
+    """Test schedule optimiser that minimises API calls."""
 
     def __init__(self, *args, **kwargs):
         super(TestScheduleOptimiser, self).__init__(*args, **kwargs)
@@ -229,7 +232,7 @@ class TestScheduleOptimiser(unittest.TestCase):
         ]
 
     def test_get_num_calls(self):
-        """ Test the num_call calculation. """
+        """Test the num_call calculation."""
 
         num_results = 10
         max_per_call = 2
@@ -241,7 +244,7 @@ class TestScheduleOptimiser(unittest.TestCase):
         self.assertEqual(calls, 4)
 
     def test_extract_schedule(self):
-        """ Test schedule extraction from solution. """
+        """Test schedule extraction from solution."""
 
         moves = [0, 1, 2, 3]
         schedule = ScheduleOptimiser.extract_schedule(self.historic_counts_trivial, moves)
@@ -321,14 +324,14 @@ class TestScheduleOptimiser(unittest.TestCase):
         schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 4)  # Naive is 5
         self.assertEqual(min_calls, 12)  # Naive is 12
-        self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
-        self.assertEqual(schedule[0].end, pendulum.datetime(1000, 1, 1))
-        self.assertEqual(schedule[1].start, pendulum.datetime(1000, 2, 1))
-        self.assertEqual(schedule[1].end, pendulum.datetime(1000, 2, 1))
-        self.assertEqual(schedule[2].start, pendulum.datetime(1000, 3, 1))
-        self.assertEqual(schedule[2].end, pendulum.datetime(1000, 4, 1))
-        self.assertEqual(schedule[3].start, pendulum.datetime(1000, 5, 1))
-        self.assertEqual(schedule[3].end, pendulum.datetime(1000, 5, 1))
+        self.assertEqual(schedule[0].start, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[0].end, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[1].start, pendulum.date(1000, 2, 1))
+        self.assertEqual(schedule[1].end, pendulum.date(1000, 2, 1))
+        self.assertEqual(schedule[2].start, pendulum.date(1000, 3, 1))
+        self.assertEqual(schedule[2].end, pendulum.date(1000, 4, 1))
+        self.assertEqual(schedule[3].start, pendulum.date(1000, 5, 1))
+        self.assertEqual(schedule[3].end, pendulum.date(1000, 5, 1))
 
     def test_optimise_historic_counts_case3(self):
         historic_counts = [
@@ -342,8 +345,8 @@ class TestScheduleOptimiser(unittest.TestCase):
         schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 1)  # Naive is 5
         self.assertEqual(min_calls, 3)  # Naive is 5
-        self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
-        self.assertEqual(schedule[0].end, pendulum.datetime(1000, 5, 1))
+        self.assertEqual(schedule[0].start, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[0].end, pendulum.date(1000, 5, 1))
 
     def test_optimise_historic_counts_case4(self):
         historic_counts = [
@@ -357,7 +360,7 @@ class TestScheduleOptimiser(unittest.TestCase):
         schedule, min_calls = ScheduleOptimiser.optimise(self.max_per_call, self.max_per_query, historic_counts)
         self.assertEqual(len(schedule), 2)  # Naive is 5
         self.assertEqual(min_calls, 7)  # Naive is 13
-        self.assertEqual(schedule[0].start, pendulum.datetime(1000, 1, 1))
-        self.assertEqual(schedule[0].end, pendulum.datetime(1000, 1, 1))
-        self.assertEqual(schedule[1].start, pendulum.datetime(1000, 2, 1))
-        self.assertEqual(schedule[1].end, pendulum.datetime(1000, 5, 1))
+        self.assertEqual(schedule[0].start, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[0].end, pendulum.date(1000, 1, 1))
+        self.assertEqual(schedule[1].start, pendulum.date(1000, 2, 1))
+        self.assertEqual(schedule[1].end, pendulum.date(1000, 5, 1))

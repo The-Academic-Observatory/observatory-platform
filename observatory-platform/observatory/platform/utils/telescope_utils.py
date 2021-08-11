@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from math import ceil
 from pathlib import Path
-from typing import Any, List, Tuple, Type, Union, Optional
+from typing import Any, List, Optional, Tuple, Type, Union
 
 import dateutil
 import jsonlines
@@ -36,13 +36,12 @@ import paramiko
 import pendulum
 import pysftp
 import six
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models.taskinstance import TaskInstance
-from airflow.sensors.external_task_sensor import ExternalTaskSensor
+from airflow.sensors.external_task import ExternalTaskSensor
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
-
 from observatory.api.client.api.observatory_api import ObservatoryApi
 from observatory.api.client.api_client import ApiClient
 from observatory.api.client.configuration import Configuration
@@ -99,8 +98,8 @@ def normalized_schedule_interval(schedule_interval: Optional[str]) -> Optional[S
     return _schedule_interval
 
 
-def get_prev_execution_date(schedule_interval_target: str, execution_date: pendulum.Pendulum) -> datetime:
-    """ Get the previous execution date of a target DAG based on the given execution date and schedule interval of
+def get_prev_execution_date(schedule_interval_target: str, execution_date: pendulum.datetime) -> datetime:
+    """Get the previous execution date of a target DAG based on the given execution date and schedule interval of
     the target DAG.
     This can be used as a callable for the execution_delta_fn of the ExternalTaskSensor.
     For example:
@@ -214,6 +213,9 @@ class SftpFolders:
         in_progress folder (can be full path or just file name)
         :return: None.
         """
+
+        print(f"Files are: {upload_files}")
+
         if isinstance(upload_files, str):
             upload_files = [upload_files]
 
@@ -334,7 +336,7 @@ def change_keys(obj, convert):
     return new
 
 
-def build_schedule(sched_start_date, sched_end_date):
+def build_schedule(sched_start_date: pendulum.DateTime, sched_end_date: pendulum.DateTime):
     """Useful for API based data sources.
 
     Create a fetch schedule to specify what date ranges to use for each API call. Will default to once a month
@@ -346,6 +348,8 @@ def build_schedule(sched_start_date, sched_end_date):
     """
 
     schedule = []
+    sched_start_date = sched_start_date.date()
+    sched_end_date = sched_end_date.date()
 
     for start_date in pendulum.Period(start=sched_start_date, end=sched_end_date).range("months"):
         last_day = calendar.monthrange(start_date.year, start_date.month)[1]
@@ -538,13 +542,13 @@ def make_telescope_sensor(telescope_name: str, dag_prefix: str) -> ExternalTaskS
     dag_id = make_dag_id(dag_prefix, telescope_name)
 
     return ExternalTaskSensor(
-        task_id=f"{dag_id}_sensor", external_dag_id=dag_id, mode="reschedule", start_date=pendulum.Pendulum(2021, 3, 28)
+        task_id=f"{dag_id}_sensor", external_dag_id=dag_id, mode="reschedule", start_date=pendulum.datetime(2021, 3, 28)
     )
 
 
 @dataclass
 class PeriodCount:
-    """ Descriptive wrapper for a (period, count) object. """
+    """Descriptive wrapper for a (period, count) object."""
 
     period: pendulum.Period  # The schedule period in question
     count: int  # Number of results for this period.
@@ -666,7 +670,7 @@ def add_partition_date(
     partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
     partition_field: str = "release_date",
 ):
-    """ Add a partition date key/value pair to each dictionary in the list of dicts.
+    """Add a partition date key/value pair to each dictionary in the list of dicts.
     Used to load data into a BigQuery partition.
 
     :param list_of_dicts: List of dictionaries with original data
