@@ -18,18 +18,18 @@ from observatory.platform.utils.config_utils import module_file_path
 
 
 def schema_path() -> str:
-    """ Return the path to the database schema templates.
+    """Return the path to the database schema templates.
 
     :return: the path.
     """
 
-    return module_file_path('observatory.dags.database.schema')
+    return module_file_path("observatory.dags.database.schema")
 
 
 def workflow_sql_templates_path() -> str:
-    """ Return the path to the workflow SQL templates.
+    """Return the path to the workflow SQL templates.
 
     :return: the path.
     """
 
-    return module_file_path('observatory.dags.database.sql')
+    return module_file_path("observatory.dags.database.sql")

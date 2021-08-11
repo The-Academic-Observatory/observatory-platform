@@ -20,7 +20,7 @@ from observatory.api.client.model_utils import (  # noqa: F401
     datetime,
     file_type,
     none_type,
-    validate_and_convert_types
+    validate_and_convert_types,
 )
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.query_response import QueryResponse
@@ -40,11 +40,7 @@ class ObservatoryApi(object):
             api_client = ApiClient()
         self.api_client = api_client
 
-        def __delete_organisation(
-            self,
-            id,
-            **kwargs
-        ):
+        def __delete_organisation(self, id, **kwargs):
             """delete an Organisation  # noqa: E501
 
             Delete an Organisation by passing it's id.   # noqa: E501
@@ -83,85 +79,59 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['id'] = \
-                id
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["id"] = id
             return self.call_with_http_info(**kwargs)
 
         self.delete_organisation = _Endpoint(
             settings={
-                'response_type': None,
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/organisation',
-                'operation_id': 'delete_organisation',
-                'http_method': 'DELETE',
-                'servers': None,
+                "response_type": None,
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/organisation",
+                "operation_id": "delete_organisation",
+                "http_method": "DELETE",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'id',
+                "all": [
+                    "id",
                 ],
-                'required': [
-                    'id',
+                "required": [
+                    "id",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "id": (int,),
                 },
-                'allowed_values': {
+                "attribute_map": {
+                    "id": "id",
                 },
-                'openapi_types': {
-                    'id':
-                        (int,),
+                "location_map": {
+                    "id": "query",
                 },
-                'attribute_map': {
-                    'id': 'id',
-                },
-                'location_map': {
-                    'id': 'query',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
             headers_map={
-                'accept': [],
-                'content_type': [],
+                "accept": [],
+                "content_type": [],
             },
             api_client=api_client,
-            callable=__delete_organisation
+            callable=__delete_organisation,
         )
 
-        def __delete_telescope(
-            self,
-            id,
-            **kwargs
-        ):
+        def __delete_telescope(self, id, **kwargs):
             """delete a Telescope  # noqa: E501
 
             Delete a Telescope by passing it's id.   # noqa: E501
@@ -200,85 +170,59 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['id'] = \
-                id
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["id"] = id
             return self.call_with_http_info(**kwargs)
 
         self.delete_telescope = _Endpoint(
             settings={
-                'response_type': None,
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescope',
-                'operation_id': 'delete_telescope',
-                'http_method': 'DELETE',
-                'servers': None,
+                "response_type": None,
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/telescope",
+                "operation_id": "delete_telescope",
+                "http_method": "DELETE",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'id',
+                "all": [
+                    "id",
                 ],
-                'required': [
-                    'id',
+                "required": [
+                    "id",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "id": (int,),
                 },
-                'allowed_values': {
+                "attribute_map": {
+                    "id": "id",
                 },
-                'openapi_types': {
-                    'id':
-                        (int,),
+                "location_map": {
+                    "id": "query",
                 },
-                'attribute_map': {
-                    'id': 'id',
-                },
-                'location_map': {
-                    'id': 'query',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
             headers_map={
-                'accept': [],
-                'content_type': [],
+                "accept": [],
+                "content_type": [],
             },
             api_client=api_client,
-            callable=__delete_telescope
+            callable=__delete_telescope,
         )
 
-        def __delete_telescope_type(
-            self,
-            id,
-            **kwargs
-        ):
+        def __delete_telescope_type(self, id, **kwargs):
             """delete a TelescopeType  # noqa: E501
 
             Delete a TelescopeType by passing it's id.   # noqa: E501
@@ -317,85 +261,59 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['id'] = \
-                id
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["id"] = id
             return self.call_with_http_info(**kwargs)
 
         self.delete_telescope_type = _Endpoint(
             settings={
-                'response_type': None,
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescope_type',
-                'operation_id': 'delete_telescope_type',
-                'http_method': 'DELETE',
-                'servers': None,
+                "response_type": None,
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/telescope_type",
+                "operation_id": "delete_telescope_type",
+                "http_method": "DELETE",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'id',
+                "all": [
+                    "id",
                 ],
-                'required': [
-                    'id',
+                "required": [
+                    "id",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "id": (int,),
                 },
-                'allowed_values': {
+                "attribute_map": {
+                    "id": "id",
                 },
-                'openapi_types': {
-                    'id':
-                        (int,),
+                "location_map": {
+                    "id": "query",
                 },
-                'attribute_map': {
-                    'id': 'id',
-                },
-                'location_map': {
-                    'id': 'query',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
             headers_map={
-                'accept': [],
-                'content_type': [],
+                "accept": [],
+                "content_type": [],
             },
             api_client=api_client,
-            callable=__delete_telescope_type
+            callable=__delete_telescope_type,
         )
 
-        def __get_organisation(
-            self,
-            id,
-            **kwargs
-        ):
+        def __get_organisation(self, id, **kwargs):
             """get an Organisation  # noqa: E501
 
             Get the details of an Organisation by passing it's id.   # noqa: E501
@@ -434,87 +352,59 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['id'] = \
-                id
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["id"] = id
             return self.call_with_http_info(**kwargs)
 
         self.get_organisation = _Endpoint(
             settings={
-                'response_type': (Organisation,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/organisation',
-                'operation_id': 'get_organisation',
-                'http_method': 'GET',
-                'servers': None,
+                "response_type": (Organisation,),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/organisation",
+                "operation_id": "get_organisation",
+                "http_method": "GET",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'id',
+                "all": [
+                    "id",
                 ],
-                'required': [
-                    'id',
+                "required": [
+                    "id",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "id": (int,),
                 },
-                'allowed_values': {
+                "attribute_map": {
+                    "id": "id",
                 },
-                'openapi_types': {
-                    'id':
-                        (int,),
+                "location_map": {
+                    "id": "query",
                 },
-                'attribute_map': {
-                    'id': 'id',
-                },
-                'location_map': {
-                    'id': 'query',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
             headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [],
+                "accept": ["application/json"],
+                "content_type": [],
             },
             api_client=api_client,
-            callable=__get_organisation
+            callable=__get_organisation,
         )
 
-        def __get_organisations(
-            self,
-            limit,
-            **kwargs
-        ):
+        def __get_organisations(self, limit, **kwargs):
             """Get a list of Organisations  # noqa: E501
 
             Gets a list of organisations   # noqa: E501
@@ -553,87 +443,59 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['limit'] = \
-                limit
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["limit"] = limit
             return self.call_with_http_info(**kwargs)
 
         self.get_organisations = _Endpoint(
             settings={
-                'response_type': ([Organisation],),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/organisations',
-                'operation_id': 'get_organisations',
-                'http_method': 'GET',
-                'servers': None,
+                "response_type": ([Organisation],),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/organisations",
+                "operation_id": "get_organisations",
+                "http_method": "GET",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'limit',
+                "all": [
+                    "limit",
                 ],
-                'required': [
-                    'limit',
+                "required": [
+                    "limit",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "limit": (int,),
                 },
-                'allowed_values': {
+                "attribute_map": {
+                    "limit": "limit",
                 },
-                'openapi_types': {
-                    'limit':
-                        (int,),
+                "location_map": {
+                    "limit": "query",
                 },
-                'attribute_map': {
-                    'limit': 'limit',
-                },
-                'location_map': {
-                    'limit': 'query',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
             headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [],
+                "accept": ["application/json"],
+                "content_type": [],
             },
             api_client=api_client,
-            callable=__get_organisations
+            callable=__get_organisations,
         )
 
-        def __get_telescope(
-            self,
-            id,
-            **kwargs
-        ):
+        def __get_telescope(self, id, **kwargs):
             """get a Telescope  # noqa: E501
 
             Get the details of a Telescope by passing it's id.   # noqa: E501
@@ -672,86 +534,59 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['id'] = \
-                id
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["id"] = id
             return self.call_with_http_info(**kwargs)
 
         self.get_telescope = _Endpoint(
             settings={
-                'response_type': (Telescope,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescope',
-                'operation_id': 'get_telescope',
-                'http_method': 'GET',
-                'servers': None,
+                "response_type": (Telescope,),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/telescope",
+                "operation_id": "get_telescope",
+                "http_method": "GET",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'id',
+                "all": [
+                    "id",
                 ],
-                'required': [
-                    'id',
+                "required": [
+                    "id",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "id": (int,),
                 },
-                'allowed_values': {
+                "attribute_map": {
+                    "id": "id",
                 },
-                'openapi_types': {
-                    'id':
-                        (int,),
+                "location_map": {
+                    "id": "query",
                 },
-                'attribute_map': {
-                    'id': 'id',
-                },
-                'location_map': {
-                    'id': 'query',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
             headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [],
+                "accept": ["application/json"],
+                "content_type": [],
             },
             api_client=api_client,
-            callable=__get_telescope
+            callable=__get_telescope,
         )
 
-        def __get_telescope_type(
-            self,
-            **kwargs
-        ):
+        def __get_telescope_type(self, **kwargs):
             """get a TelescopeType  # noqa: E501
 
             Get the details of a TelescopeType by passing it's id or type_id.   # noqa: E501
@@ -790,88 +625,60 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
             return self.call_with_http_info(**kwargs)
 
         self.get_telescope_type = _Endpoint(
             settings={
-                'response_type': (TelescopeType,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescope_type',
-                'operation_id': 'get_telescope_type',
-                'http_method': 'GET',
-                'servers': None,
+                "response_type": (TelescopeType,),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/telescope_type",
+                "operation_id": "get_telescope_type",
+                "http_method": "GET",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'id',
-                    'type_id',
+                "all": [
+                    "id",
+                    "type_id",
                 ],
-                'required': [],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "required": [],
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "id": (int,),
+                    "type_id": (str,),
                 },
-                'allowed_values': {
+                "attribute_map": {
+                    "id": "id",
+                    "type_id": "type_id",
                 },
-                'openapi_types': {
-                    'id':
-                        (int,),
-                    'type_id':
-                        (str,),
+                "location_map": {
+                    "id": "query",
+                    "type_id": "query",
                 },
-                'attribute_map': {
-                    'id': 'id',
-                    'type_id': 'type_id',
-                },
-                'location_map': {
-                    'id': 'query',
-                    'type_id': 'query',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
             headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [],
+                "accept": ["application/json"],
+                "content_type": [],
             },
             api_client=api_client,
-            callable=__get_telescope_type
+            callable=__get_telescope_type,
         )
 
-        def __get_telescope_types(
-            self,
-            limit,
-            **kwargs
-        ):
+        def __get_telescope_types(self, limit, **kwargs):
             """Get a list of TelescopeType objects  # noqa: E501
 
             Get a list of TelescopeType objects   # noqa: E501
@@ -910,87 +717,59 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['limit'] = \
-                limit
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["limit"] = limit
             return self.call_with_http_info(**kwargs)
 
         self.get_telescope_types = _Endpoint(
             settings={
-                'response_type': ([TelescopeType],),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescope_types',
-                'operation_id': 'get_telescope_types',
-                'http_method': 'GET',
-                'servers': None,
+                "response_type": ([TelescopeType],),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/telescope_types",
+                "operation_id": "get_telescope_types",
+                "http_method": "GET",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'limit',
+                "all": [
+                    "limit",
                 ],
-                'required': [
-                    'limit',
+                "required": [
+                    "limit",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "limit": (int,),
                 },
-                'allowed_values': {
+                "attribute_map": {
+                    "limit": "limit",
                 },
-                'openapi_types': {
-                    'limit':
-                        (int,),
+                "location_map": {
+                    "limit": "query",
                 },
-                'attribute_map': {
-                    'limit': 'limit',
-                },
-                'location_map': {
-                    'limit': 'query',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
             headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [],
+                "accept": ["application/json"],
+                "content_type": [],
             },
             api_client=api_client,
-            callable=__get_telescope_types
+            callable=__get_telescope_types,
         )
 
-        def __get_telescopes(
-            self,
-            limit,
-            **kwargs
-        ):
+        def __get_telescopes(self, limit, **kwargs):
             """Get a list of Telescope objects  # noqa: E501
 
             Get a list of Telescope objects and optionally filter via a Telescope id and or an Organisation id.   # noqa: E501
@@ -1031,97 +810,67 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['limit'] = \
-                limit
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["limit"] = limit
             return self.call_with_http_info(**kwargs)
 
         self.get_telescopes = _Endpoint(
             settings={
-                'response_type': ([Telescope],),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescopes',
-                'operation_id': 'get_telescopes',
-                'http_method': 'GET',
-                'servers': None,
+                "response_type": ([Telescope],),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/telescopes",
+                "operation_id": "get_telescopes",
+                "http_method": "GET",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'limit',
-                    'telescope_type_id',
-                    'organisation_id',
+                "all": [
+                    "limit",
+                    "telescope_type_id",
+                    "organisation_id",
                 ],
-                'required': [
-                    'limit',
+                "required": [
+                    "limit",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "limit": (int,),
+                    "telescope_type_id": (int,),
+                    "organisation_id": (int,),
                 },
-                'allowed_values': {
+                "attribute_map": {
+                    "limit": "limit",
+                    "telescope_type_id": "telescope_type_id",
+                    "organisation_id": "organisation_id",
                 },
-                'openapi_types': {
-                    'limit':
-                        (int,),
-                    'telescope_type_id':
-                        (int,),
-                    'organisation_id':
-                        (int,),
+                "location_map": {
+                    "limit": "query",
+                    "telescope_type_id": "query",
+                    "organisation_id": "query",
                 },
-                'attribute_map': {
-                    'limit': 'limit',
-                    'telescope_type_id': 'telescope_type_id',
-                    'organisation_id': 'organisation_id',
-                },
-                'location_map': {
-                    'limit': 'query',
-                    'telescope_type_id': 'query',
-                    'organisation_id': 'query',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
             headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [],
+                "accept": ["application/json"],
+                "content_type": [],
             },
             api_client=api_client,
-            callable=__get_telescopes
+            callable=__get_telescopes,
         )
 
-        def __post_organisation(
-            self,
-            body,
-            **kwargs
-        ):
+        def __post_organisation(self, body, **kwargs):
             """create an Organisation  # noqa: E501
 
             Create an Organisation by passing an Organisation object, without an id.   # noqa: E501
@@ -1160,88 +909,54 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['body'] = \
-                body
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["body"] = body
             return self.call_with_http_info(**kwargs)
 
         self.post_organisation = _Endpoint(
             settings={
-                'response_type': (Organisation,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/organisation',
-                'operation_id': 'post_organisation',
-                'http_method': 'POST',
-                'servers': None,
+                "response_type": (Organisation,),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/organisation",
+                "operation_id": "post_organisation",
+                "http_method": "POST",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'body',
+                "all": [
+                    "body",
                 ],
-                'required': [
-                    'body',
+                "required": [
+                    "body",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "body": (Organisation,),
                 },
-                'allowed_values': {
+                "attribute_map": {},
+                "location_map": {
+                    "body": "body",
                 },
-                'openapi_types': {
-                    'body':
-                        (Organisation,),
-                },
-                'attribute_map': {
-                },
-                'location_map': {
-                    'body': 'body',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
-            headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [
-                    'application/json'
-                ]
-            },
+            headers_map={"accept": ["application/json"], "content_type": ["application/json"]},
             api_client=api_client,
-            callable=__post_organisation
+            callable=__post_organisation,
         )
 
-        def __post_telescope(
-            self,
-            body,
-            **kwargs
-        ):
+        def __post_telescope(self, body, **kwargs):
             """create a Telescope  # noqa: E501
 
             Create a Telescope by passing a Telescope object, without an id.   # noqa: E501
@@ -1280,88 +995,54 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['body'] = \
-                body
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["body"] = body
             return self.call_with_http_info(**kwargs)
 
         self.post_telescope = _Endpoint(
             settings={
-                'response_type': (Telescope,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescope',
-                'operation_id': 'post_telescope',
-                'http_method': 'POST',
-                'servers': None,
+                "response_type": (Telescope,),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/telescope",
+                "operation_id": "post_telescope",
+                "http_method": "POST",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'body',
+                "all": [
+                    "body",
                 ],
-                'required': [
-                    'body',
+                "required": [
+                    "body",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "body": (Telescope,),
                 },
-                'allowed_values': {
+                "attribute_map": {},
+                "location_map": {
+                    "body": "body",
                 },
-                'openapi_types': {
-                    'body':
-                        (Telescope,),
-                },
-                'attribute_map': {
-                },
-                'location_map': {
-                    'body': 'body',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
-            headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [
-                    'application/json'
-                ]
-            },
+            headers_map={"accept": ["application/json"], "content_type": ["application/json"]},
             api_client=api_client,
-            callable=__post_telescope
+            callable=__post_telescope,
         )
 
-        def __post_telescope_type(
-            self,
-            body,
-            **kwargs
-        ):
+        def __post_telescope_type(self, body, **kwargs):
             """create a TelescopeType  # noqa: E501
 
             Create a TelescopeType by passing a TelescopeType object, without an id.   # noqa: E501
@@ -1400,88 +1081,54 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['body'] = \
-                body
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["body"] = body
             return self.call_with_http_info(**kwargs)
 
         self.post_telescope_type = _Endpoint(
             settings={
-                'response_type': (TelescopeType,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescope_type',
-                'operation_id': 'post_telescope_type',
-                'http_method': 'POST',
-                'servers': None,
+                "response_type": (TelescopeType,),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/telescope_type",
+                "operation_id": "post_telescope_type",
+                "http_method": "POST",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'body',
+                "all": [
+                    "body",
                 ],
-                'required': [
-                    'body',
+                "required": [
+                    "body",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "body": (TelescopeType,),
                 },
-                'allowed_values': {
+                "attribute_map": {},
+                "location_map": {
+                    "body": "body",
                 },
-                'openapi_types': {
-                    'body':
-                        (TelescopeType,),
-                },
-                'attribute_map': {
-                },
-                'location_map': {
-                    'body': 'body',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
-            headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [
-                    'application/json'
-                ]
-            },
+            headers_map={"accept": ["application/json"], "content_type": ["application/json"]},
             api_client=api_client,
-            callable=__post_telescope_type
+            callable=__post_telescope_type,
         )
 
-        def __put_organisation(
-            self,
-            body,
-            **kwargs
-        ):
+        def __put_organisation(self, body, **kwargs):
             """create or update an Organisation  # noqa: E501
 
             Create an Organisation by passing an Organisation object, without an id. Update an existing Organisation by passing an Organisation object with an id.   # noqa: E501
@@ -1520,88 +1167,54 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['body'] = \
-                body
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["body"] = body
             return self.call_with_http_info(**kwargs)
 
         self.put_organisation = _Endpoint(
             settings={
-                'response_type': (Organisation,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/organisation',
-                'operation_id': 'put_organisation',
-                'http_method': 'PUT',
-                'servers': None,
+                "response_type": (Organisation,),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/organisation",
+                "operation_id": "put_organisation",
+                "http_method": "PUT",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'body',
+                "all": [
+                    "body",
                 ],
-                'required': [
-                    'body',
+                "required": [
+                    "body",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "body": (Organisation,),
                 },
-                'allowed_values': {
+                "attribute_map": {},
+                "location_map": {
+                    "body": "body",
                 },
-                'openapi_types': {
-                    'body':
-                        (Organisation,),
-                },
-                'attribute_map': {
-                },
-                'location_map': {
-                    'body': 'body',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
-            headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [
-                    'application/json'
-                ]
-            },
+            headers_map={"accept": ["application/json"], "content_type": ["application/json"]},
             api_client=api_client,
-            callable=__put_organisation
+            callable=__put_organisation,
         )
 
-        def __put_telescope(
-            self,
-            body,
-            **kwargs
-        ):
+        def __put_telescope(self, body, **kwargs):
             """create or update a Telescope  # noqa: E501
 
             Create a Telescope by passing a Telescope object, without an id. Update an existing Telescope by passing a Telescope object with an id.   # noqa: E501
@@ -1640,88 +1253,54 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['body'] = \
-                body
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["body"] = body
             return self.call_with_http_info(**kwargs)
 
         self.put_telescope = _Endpoint(
             settings={
-                'response_type': (Telescope,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescope',
-                'operation_id': 'put_telescope',
-                'http_method': 'PUT',
-                'servers': None,
+                "response_type": (Telescope,),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/telescope",
+                "operation_id": "put_telescope",
+                "http_method": "PUT",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'body',
+                "all": [
+                    "body",
                 ],
-                'required': [
-                    'body',
+                "required": [
+                    "body",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "body": (Telescope,),
                 },
-                'allowed_values': {
+                "attribute_map": {},
+                "location_map": {
+                    "body": "body",
                 },
-                'openapi_types': {
-                    'body':
-                        (Telescope,),
-                },
-                'attribute_map': {
-                },
-                'location_map': {
-                    'body': 'body',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
-            headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [
-                    'application/json'
-                ]
-            },
+            headers_map={"accept": ["application/json"], "content_type": ["application/json"]},
             api_client=api_client,
-            callable=__put_telescope
+            callable=__put_telescope,
         )
 
-        def __put_telescope_type(
-            self,
-            body,
-            **kwargs
-        ):
+        def __put_telescope_type(self, body, **kwargs):
             """create or update a TelescopeType  # noqa: E501
 
             Create a TelescopeType by passing a TelescopeType object, without an id. Update an existing TelescopeType by passing a TelescopeType object with an id.   # noqa: E501
@@ -1760,89 +1339,54 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['body'] = \
-                body
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["body"] = body
             return self.call_with_http_info(**kwargs)
 
         self.put_telescope_type = _Endpoint(
             settings={
-                'response_type': (TelescopeType,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescope_type',
-                'operation_id': 'put_telescope_type',
-                'http_method': 'PUT',
-                'servers': None,
+                "response_type": (TelescopeType,),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/telescope_type",
+                "operation_id": "put_telescope_type",
+                "http_method": "PUT",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'body',
+                "all": [
+                    "body",
                 ],
-                'required': [
-                    'body',
+                "required": [
+                    "body",
                 ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
+                "nullable": [],
+                "enum": [],
+                "validation": [],
             },
             root_map={
-                'validations': {
+                "validations": {},
+                "allowed_values": {},
+                "openapi_types": {
+                    "body": (TelescopeType,),
                 },
-                'allowed_values': {
+                "attribute_map": {},
+                "location_map": {
+                    "body": "body",
                 },
-                'openapi_types': {
-                    'body':
-                        (TelescopeType,),
-                },
-                'attribute_map': {
-                },
-                'location_map': {
-                    'body': 'body',
-                },
-                'collection_format_map': {
-                }
+                "collection_format_map": {},
             },
-            headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [
-                    'application/json'
-                ]
-            },
+            headers_map={"accept": ["application/json"], "content_type": ["application/json"]},
             api_client=api_client,
-            callable=__put_telescope_type
+            callable=__put_telescope_type,
         )
 
-        def __queryv1(
-            self,
-            agg,
-            subset,
-            **kwargs
-        ):
+        def __queryv1(self, agg, subset, **kwargs):
             """Search the Observatory API  # noqa: E501
 
             Search the Observatory API  # noqa: E501
@@ -1917,127 +1461,105 @@ class ObservatoryApi(object):
                     If the method is called asynchronously, returns the request
                     thread.
             """
-            kwargs['async_req'] = kwargs.get(
-                'async_req', False
-            )
-            kwargs['_return_http_data_only'] = kwargs.get(
-                '_return_http_data_only', True
-            )
-            kwargs['_preload_content'] = kwargs.get(
-                '_preload_content', True
-            )
-            kwargs['_request_timeout'] = kwargs.get(
-                '_request_timeout', None
-            )
-            kwargs['_check_input_type'] = kwargs.get(
-                '_check_input_type', True
-            )
-            kwargs['_check_return_type'] = kwargs.get(
-                '_check_return_type', True
-            )
-            kwargs['_host_index'] = kwargs.get('_host_index')
-            kwargs['agg'] = \
-                agg
-            kwargs['subset'] = \
-                subset
+            kwargs["async_req"] = kwargs.get("async_req", False)
+            kwargs["_return_http_data_only"] = kwargs.get("_return_http_data_only", True)
+            kwargs["_preload_content"] = kwargs.get("_preload_content", True)
+            kwargs["_request_timeout"] = kwargs.get("_request_timeout", None)
+            kwargs["_check_input_type"] = kwargs.get("_check_input_type", True)
+            kwargs["_check_return_type"] = kwargs.get("_check_return_type", True)
+            kwargs["_host_index"] = kwargs.get("_host_index")
+            kwargs["agg"] = agg
+            kwargs["subset"] = subset
             return self.call_with_http_info(**kwargs)
 
         self.queryv1 = _Endpoint(
             settings={
-                'response_type': (QueryResponse,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/query',
-                'operation_id': 'queryv1',
-                'http_method': 'GET',
-                'servers': None,
+                "response_type": (QueryResponse,),
+                "auth": ["api_key"],
+                "endpoint_path": "/v1/query",
+                "operation_id": "queryv1",
+                "http_method": "GET",
+                "servers": None,
             },
             params_map={
-                'all': [
-                    'agg',
-                    'subset',
-                    'index_date',
-                    '_from',
-                    'to',
-                    'limit',
-                    'scroll_id',
-                    'pit_id',
-                    'search_after_no',
-                    'search_after_text',
-                    'id',
-                    'name',
-                    'published_year',
-                    'coordinates',
-                    'country',
-                    'country_code',
-                    'region',
-                    'subregion',
-                    'access_type',
-                    'label',
-                    'status',
-                    'collaborator_coordinates',
-                    'collaborator_country',
-                    'collaborator_country_code',
-                    'collaborator_id',
-                    'collaborator_name',
-                    'collaborator_region',
-                    'collaborator_subregion',
-                    'field',
-                    'source',
-                    'funder_country_code',
-                    'funder_name',
-                    'funder_sub_type',
-                    'funder_type',
-                    'journal',
-                    'output_type',
-                    'publisher',
+                "all": [
+                    "agg",
+                    "subset",
+                    "index_date",
+                    "_from",
+                    "to",
+                    "limit",
+                    "scroll_id",
+                    "pit_id",
+                    "search_after_no",
+                    "search_after_text",
+                    "id",
+                    "name",
+                    "published_year",
+                    "coordinates",
+                    "country",
+                    "country_code",
+                    "region",
+                    "subregion",
+                    "access_type",
+                    "label",
+                    "status",
+                    "collaborator_coordinates",
+                    "collaborator_country",
+                    "collaborator_country_code",
+                    "collaborator_id",
+                    "collaborator_name",
+                    "collaborator_region",
+                    "collaborator_subregion",
+                    "field",
+                    "source",
+                    "funder_country_code",
+                    "funder_name",
+                    "funder_sub_type",
+                    "funder_type",
+                    "journal",
+                    "output_type",
+                    "publisher",
                 ],
-                'required': [
-                    'agg',
-                    'subset',
+                "required": [
+                    "agg",
+                    "subset",
                 ],
-                'nullable': [
+                "nullable": [],
+                "enum": [
+                    "agg",
+                    "subset",
                 ],
-                'enum': [
-                    'agg',
-                    'subset',
+                "validation": [
+                    "_from",
+                    "to",
+                    "limit",
                 ],
-                'validation': [
-                    '_from',
-                    'to',
-                    'limit',
-                ]
             },
             root_map={
-                'validations': {
-                    ('_from',): {
-
-                        'inclusive_maximum': 4,
-                        'inclusive_minimum': 4,
+                "validations": {
+                    ("_from",): {
+                        "inclusive_maximum": 4,
+                        "inclusive_minimum": 4,
                     },
-                    ('to',): {
-
-                        'inclusive_maximum': 4,
-                        'inclusive_minimum': 4,
+                    ("to",): {
+                        "inclusive_maximum": 4,
+                        "inclusive_minimum": 4,
                     },
-                    ('limit',): {
-
-                        'inclusive_maximum': 10000,
+                    ("limit",): {
+                        "inclusive_maximum": 10000,
                     },
                 },
-                'allowed_values': {
-                    ('agg',): {
-
+                "allowed_values": {
+                    ("agg",): {
                         "AUTHOR": "author",
                         "COUNTRY": "country",
                         "FUNDER": "funder",
                         "GROUP": "group",
                         "INSTITUTION": "institution",
-                        "PUBLISHER": "publisher"
+                        "PUBLISHER": "publisher",
                     },
-                    ('subset',): {
-
+                    ("subset",): {
                         "CITATIONS": "citations",
                         "COLLABORATIONS": "collaborations",
                         "DISCIPLINES": "disciplines",
@@ -2046,199 +1568,160 @@ class ObservatoryApi(object):
                         "JOURNALS": "journals",
                         "OA-METRICS": "oa-metrics",
                         "OUTPUT-TYPES": "output-types",
-                        "PUBLISHERS": "publishers"
+                        "PUBLISHERS": "publishers",
                     },
                 },
-                'openapi_types': {
-                    'agg':
-                        (str,),
-                    'subset':
-                        (str,),
-                    'index_date':
-                        (date,),
-                    '_from':
-                        (int,),
-                    'to':
-                        (int,),
-                    'limit':
-                        (int,),
-                    'scroll_id':
-                        (str,),
-                    'pit_id':
-                        (str,),
-                    'search_after_no':
-                        (int,),
-                    'search_after_text':
-                        (str,),
-                    'id':
-                        ([str],),
-                    'name':
-                        ([str],),
-                    'published_year':
-                        ([str],),
-                    'coordinates':
-                        ([str],),
-                    'country':
-                        ([str],),
-                    'country_code':
-                        ([str],),
-                    'region':
-                        ([str],),
-                    'subregion':
-                        ([str],),
-                    'access_type':
-                        ([str],),
-                    'label':
-                        ([str],),
-                    'status':
-                        ([str],),
-                    'collaborator_coordinates':
-                        ([str],),
-                    'collaborator_country':
-                        ([str],),
-                    'collaborator_country_code':
-                        ([str],),
-                    'collaborator_id':
-                        ([str],),
-                    'collaborator_name':
-                        ([str],),
-                    'collaborator_region':
-                        ([str],),
-                    'collaborator_subregion':
-                        ([str],),
-                    'field':
-                        ([str],),
-                    'source':
-                        ([str],),
-                    'funder_country_code':
-                        ([str],),
-                    'funder_name':
-                        ([str],),
-                    'funder_sub_type':
-                        ([str],),
-                    'funder_type':
-                        ([str],),
-                    'journal':
-                        ([str],),
-                    'output_type':
-                        ([str],),
-                    'publisher':
-                        ([str],),
+                "openapi_types": {
+                    "agg": (str,),
+                    "subset": (str,),
+                    "index_date": (date,),
+                    "_from": (int,),
+                    "to": (int,),
+                    "limit": (int,),
+                    "scroll_id": (str,),
+                    "pit_id": (str,),
+                    "search_after_no": (int,),
+                    "search_after_text": (str,),
+                    "id": ([str],),
+                    "name": ([str],),
+                    "published_year": ([str],),
+                    "coordinates": ([str],),
+                    "country": ([str],),
+                    "country_code": ([str],),
+                    "region": ([str],),
+                    "subregion": ([str],),
+                    "access_type": ([str],),
+                    "label": ([str],),
+                    "status": ([str],),
+                    "collaborator_coordinates": ([str],),
+                    "collaborator_country": ([str],),
+                    "collaborator_country_code": ([str],),
+                    "collaborator_id": ([str],),
+                    "collaborator_name": ([str],),
+                    "collaborator_region": ([str],),
+                    "collaborator_subregion": ([str],),
+                    "field": ([str],),
+                    "source": ([str],),
+                    "funder_country_code": ([str],),
+                    "funder_name": ([str],),
+                    "funder_sub_type": ([str],),
+                    "funder_type": ([str],),
+                    "journal": ([str],),
+                    "output_type": ([str],),
+                    "publisher": ([str],),
                 },
-                'attribute_map': {
-                    'agg': 'agg',
-                    'subset': 'subset',
-                    'index_date': 'index_date',
-                    '_from': 'from',
-                    'to': 'to',
-                    'limit': 'limit',
-                    'scroll_id': 'scroll_id',
-                    'pit_id': 'pit_id',
-                    'search_after_no': 'search_after_no',
-                    'search_after_text': 'search_after_text',
-                    'id': 'id',
-                    'name': 'name',
-                    'published_year': 'published_year',
-                    'coordinates': 'coordinates',
-                    'country': 'country',
-                    'country_code': 'country_code',
-                    'region': 'region',
-                    'subregion': 'subregion',
-                    'access_type': 'access_type',
-                    'label': 'label',
-                    'status': 'status',
-                    'collaborator_coordinates': 'collaborator_coordinates',
-                    'collaborator_country': 'collaborator_country',
-                    'collaborator_country_code': 'collaborator_country_code',
-                    'collaborator_id': 'collaborator_id',
-                    'collaborator_name': 'collaborator_name',
-                    'collaborator_region': 'collaborator_region',
-                    'collaborator_subregion': 'collaborator_subregion',
-                    'field': 'field',
-                    'source': 'source',
-                    'funder_country_code': 'funder_country_code',
-                    'funder_name': 'funder_name',
-                    'funder_sub_type': 'funder_sub_type',
-                    'funder_type': 'funder_type',
-                    'journal': 'journal',
-                    'output_type': 'output_type',
-                    'publisher': 'publisher',
+                "attribute_map": {
+                    "agg": "agg",
+                    "subset": "subset",
+                    "index_date": "index_date",
+                    "_from": "from",
+                    "to": "to",
+                    "limit": "limit",
+                    "scroll_id": "scroll_id",
+                    "pit_id": "pit_id",
+                    "search_after_no": "search_after_no",
+                    "search_after_text": "search_after_text",
+                    "id": "id",
+                    "name": "name",
+                    "published_year": "published_year",
+                    "coordinates": "coordinates",
+                    "country": "country",
+                    "country_code": "country_code",
+                    "region": "region",
+                    "subregion": "subregion",
+                    "access_type": "access_type",
+                    "label": "label",
+                    "status": "status",
+                    "collaborator_coordinates": "collaborator_coordinates",
+                    "collaborator_country": "collaborator_country",
+                    "collaborator_country_code": "collaborator_country_code",
+                    "collaborator_id": "collaborator_id",
+                    "collaborator_name": "collaborator_name",
+                    "collaborator_region": "collaborator_region",
+                    "collaborator_subregion": "collaborator_subregion",
+                    "field": "field",
+                    "source": "source",
+                    "funder_country_code": "funder_country_code",
+                    "funder_name": "funder_name",
+                    "funder_sub_type": "funder_sub_type",
+                    "funder_type": "funder_type",
+                    "journal": "journal",
+                    "output_type": "output_type",
+                    "publisher": "publisher",
                 },
-                'location_map': {
-                    'agg': 'query',
-                    'subset': 'query',
-                    'index_date': 'query',
-                    '_from': 'query',
-                    'to': 'query',
-                    'limit': 'query',
-                    'scroll_id': 'query',
-                    'pit_id': 'query',
-                    'search_after_no': 'query',
-                    'search_after_text': 'query',
-                    'id': 'query',
-                    'name': 'query',
-                    'published_year': 'query',
-                    'coordinates': 'query',
-                    'country': 'query',
-                    'country_code': 'query',
-                    'region': 'query',
-                    'subregion': 'query',
-                    'access_type': 'query',
-                    'label': 'query',
-                    'status': 'query',
-                    'collaborator_coordinates': 'query',
-                    'collaborator_country': 'query',
-                    'collaborator_country_code': 'query',
-                    'collaborator_id': 'query',
-                    'collaborator_name': 'query',
-                    'collaborator_region': 'query',
-                    'collaborator_subregion': 'query',
-                    'field': 'query',
-                    'source': 'query',
-                    'funder_country_code': 'query',
-                    'funder_name': 'query',
-                    'funder_sub_type': 'query',
-                    'funder_type': 'query',
-                    'journal': 'query',
-                    'output_type': 'query',
-                    'publisher': 'query',
+                "location_map": {
+                    "agg": "query",
+                    "subset": "query",
+                    "index_date": "query",
+                    "_from": "query",
+                    "to": "query",
+                    "limit": "query",
+                    "scroll_id": "query",
+                    "pit_id": "query",
+                    "search_after_no": "query",
+                    "search_after_text": "query",
+                    "id": "query",
+                    "name": "query",
+                    "published_year": "query",
+                    "coordinates": "query",
+                    "country": "query",
+                    "country_code": "query",
+                    "region": "query",
+                    "subregion": "query",
+                    "access_type": "query",
+                    "label": "query",
+                    "status": "query",
+                    "collaborator_coordinates": "query",
+                    "collaborator_country": "query",
+                    "collaborator_country_code": "query",
+                    "collaborator_id": "query",
+                    "collaborator_name": "query",
+                    "collaborator_region": "query",
+                    "collaborator_subregion": "query",
+                    "field": "query",
+                    "source": "query",
+                    "funder_country_code": "query",
+                    "funder_name": "query",
+                    "funder_sub_type": "query",
+                    "funder_type": "query",
+                    "journal": "query",
+                    "output_type": "query",
+                    "publisher": "query",
                 },
-                'collection_format_map': {
-                    'id': 'multi',
-                    'name': 'multi',
-                    'published_year': 'multi',
-                    'coordinates': 'multi',
-                    'country': 'multi',
-                    'country_code': 'multi',
-                    'region': 'multi',
-                    'subregion': 'multi',
-                    'access_type': 'multi',
-                    'label': 'multi',
-                    'status': 'multi',
-                    'collaborator_coordinates': 'multi',
-                    'collaborator_country': 'multi',
-                    'collaborator_country_code': 'multi',
-                    'collaborator_id': 'multi',
-                    'collaborator_name': 'multi',
-                    'collaborator_region': 'multi',
-                    'collaborator_subregion': 'multi',
-                    'field': 'multi',
-                    'source': 'multi',
-                    'funder_country_code': 'multi',
-                    'funder_name': 'multi',
-                    'funder_sub_type': 'multi',
-                    'funder_type': 'multi',
-                    'journal': 'multi',
-                    'output_type': 'multi',
-                    'publisher': 'multi',
-                }
+                "collection_format_map": {
+                    "id": "multi",
+                    "name": "multi",
+                    "published_year": "multi",
+                    "coordinates": "multi",
+                    "country": "multi",
+                    "country_code": "multi",
+                    "region": "multi",
+                    "subregion": "multi",
+                    "access_type": "multi",
+                    "label": "multi",
+                    "status": "multi",
+                    "collaborator_coordinates": "multi",
+                    "collaborator_country": "multi",
+                    "collaborator_country_code": "multi",
+                    "collaborator_id": "multi",
+                    "collaborator_name": "multi",
+                    "collaborator_region": "multi",
+                    "collaborator_subregion": "multi",
+                    "field": "multi",
+                    "source": "multi",
+                    "funder_country_code": "multi",
+                    "funder_name": "multi",
+                    "funder_sub_type": "multi",
+                    "funder_type": "multi",
+                    "journal": "multi",
+                    "output_type": "multi",
+                    "publisher": "multi",
+                },
             },
             headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [],
+                "accept": ["application/json"],
+                "content_type": [],
             },
             api_client=api_client,
-            callable=__queryv1
+            callable=__queryv1,
         )

@@ -29,7 +29,7 @@ app = create_app()
 
 @app.app.teardown_appcontext
 def remove_session(exception=None):
-    """ Remove the SQLAlchemy session.
+    """Remove the SQLAlchemy session.
 
     :param exception:
     :return: None.

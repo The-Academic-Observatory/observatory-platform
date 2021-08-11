@@ -20,10 +20,9 @@ from observatory.platform.utils.json_util import to_json_lines
 
 
 class TestJsonUtil(unittest.TestCase):
-
     def test_to_json_lines(self):
         hello = dict()
-        hello['hello'] = 'world'
+        hello["hello"] = "world"
         hello_list = [hello] * 3
 
         # Multiple items
@@ -37,6 +36,6 @@ class TestJsonUtil(unittest.TestCase):
         self.assertEqual(expected, actual)
 
         # No items
-        expected = ''
+        expected = ""
         actual = to_json_lines([])
         self.assertEqual(expected, actual)

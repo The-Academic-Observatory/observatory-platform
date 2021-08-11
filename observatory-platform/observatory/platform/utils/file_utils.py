@@ -42,7 +42,7 @@ from observatory.platform.utils.proc_utils import wait_for_process
 
 
 def list_files(path: str, regex: str = None) -> List[str]:
-    """ Recursively list files on a path. Optionally only return files that match a regular expression.
+    """Recursively list files on a path. Optionally only return files that match a regular expression.
     :param path: the path to recursively list files on.
     :param regex: a regular expression, if a file matches, then it is included.
     :return: a list of full paths to the files.
@@ -112,7 +112,7 @@ def validate_file(fpath, file_hash, algorithm="auto", chunk_size=65535):
 
 
 def gzip_file_crc(file_path: str) -> str:
-    """ Get the crc of a gzip file.
+    """Get the crc of a gzip file.
 
     :param file_path: the path to the file.
     :return: the crc.
@@ -124,7 +124,7 @@ def gzip_file_crc(file_path: str) -> str:
 
 
 def hex_to_base64_str(hex_str: bytes) -> str:
-    """ Covert a hexadecimal string into a base64 encoded string. Removes trailing newline character.
+    """Covert a hexadecimal string into a base64 encoded string. Removes trailing newline character.
 
     :param hex_str: the hexadecimal encoded string.
     :return: the base64 encoded string.
@@ -136,7 +136,7 @@ def hex_to_base64_str(hex_str: bytes) -> str:
 
 
 def crc32c_base64_hash(file_path: str, chunk_size: int = 8 * 1024) -> str:
-    """ Create a base64 crc32c checksum of a file.
+    """Create a base64 crc32c checksum of a file.
 
     :param file_path: the path to the file.
     :param chunk_size: the size of each chunk to check.
@@ -154,7 +154,7 @@ def crc32c_base64_hash(file_path: str, chunk_size: int = 8 * 1024) -> str:
 
 
 def load_csv(file_path: str):
-    """ Return a CSV file as a list of dictionaries. It will check if the file is gzipped and unzip it if so.
+    """Return a CSV file as a list of dictionaries. It will check if the file is gzipped and unzip it if so.
 
     :param file_path: the path to the CSV file.
     :return: a list.
@@ -164,7 +164,7 @@ def load_csv(file_path: str):
 
 
 def is_gzip(file_path: str) -> bool:
-    """ Return whether a file is a gzip file or not
+    """Return whether a file is a gzip file or not
 
     :param file_path: the path to the file.
     :return: whether the file is a gzip file or not.
@@ -182,7 +182,7 @@ def is_gzip(file_path: str) -> bool:
 
 
 def yield_csv(file_path: str):
-    """ Yield each row of a CSV file as a dictionary. It will check if the file is gzipped and unzip it if so.
+    """Yield each row of a CSV file as a dictionary. It will check if the file is gzipped and unzip it if so.
 
     :param file_path: the path to the CSV file.
     :return: a generator.
@@ -201,7 +201,7 @@ def yield_csv(file_path: str):
 
 
 def load_jsonl(file_path: str):
-    """ Return all rows of a JSON lines file as a list of dictionaries. If the file
+    """Return all rows of a JSON lines file as a list of dictionaries. If the file
     is gz compressed then it will be extracted.
 
     :param file_path: the path to the JSON lines file.
@@ -212,7 +212,7 @@ def load_jsonl(file_path: str):
 
 
 def yield_jsonl(file_path: str):
-    """ Return or yield row of a JSON lines file as a dictionary. If the file
+    """Return or yield row of a JSON lines file as a dictionary. If the file
     is gz compressed then it will be extracted.
 
     :param file_path: the path to the JSON lines file.

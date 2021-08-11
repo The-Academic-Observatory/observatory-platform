@@ -24,7 +24,7 @@ from observatory.api.server.elastic import QUERY_FILTER_PARAMETERS
 
 
 def render_template(template_path: str, **kwargs) -> str:
-    """ Render a Jinja2 template.
+    """Render a Jinja2 template.
 
     :param template_path: the path to the template.
     :param kwargs: the keyword variables to populate the template with.
@@ -32,7 +32,7 @@ def render_template(template_path: str, **kwargs) -> str:
     """
 
     # Read file contents
-    with open(template_path, 'r') as file:
+    with open(template_path, "r") as file:
         contents = file.read()
 
     # Fill template with text
@@ -45,9 +45,8 @@ def render_template(template_path: str, **kwargs) -> str:
 
 
 class OpenApiRenderer:
-
     def __init__(self, openapi_template_path: str, cloud_endpoints: bool = False, api_client: bool = False):
-        """ Construct an object that renders an OpenAPI 2 Jinja2 file.
+        """Construct an object that renders an OpenAPI 2 Jinja2 file.
 
         :param openapi_template_path: the path to the OpenAPI 2 Jinja2 template.
         :param cloud_endpoints: whether to render the file for the backend (default) or Cloud Endpoints.
@@ -59,22 +58,25 @@ class OpenApiRenderer:
         self.api_client = api_client
 
     def render(self) -> str:
-        """ Render the OpenAPI file.
+        """Render the OpenAPI file.
 
         :return: the rendered output.
         """
 
-        return render_template(self.openapi_template_path,
-                               cloud_endpoints=self.cloud_endpoints,
-                               api_client=self.api_client,
-                               query_filter_parameters=QUERY_FILTER_PARAMETERS)
+        return render_template(
+            self.openapi_template_path,
+            cloud_endpoints=self.cloud_endpoints,
+            api_client=self.api_client,
+            query_filter_parameters=QUERY_FILTER_PARAMETERS,
+        )
 
     def to_dict(self) -> Dict:
-        """ Render and output the OpenAPI file as a dictionary.
+        """Render and output the OpenAPI file as a dictionary.
 
         :return: the dictionary.
         """
 
-        assert not self.cloud_endpoints and not self.api_client, "Only supported where self.cloud_endpoints is False " \
-                                                                 "and self.api_client is False"
+        assert not self.cloud_endpoints and not self.api_client, (
+            "Only supported where self.cloud_endpoints is False " "and self.api_client is False"
+        )
         return yaml.safe_load(self.render())

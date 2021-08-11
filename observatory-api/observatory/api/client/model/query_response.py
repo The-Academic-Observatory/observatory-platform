@@ -52,11 +52,9 @@ class QueryResponse(ModelNormal):
           as additional properties values.
     """
 
-    allowed_values = {
-    }
+    allowed_values = {}
 
-    validations = {
-    }
+    validations = {}
 
     additional_properties_type = None
 
@@ -73,40 +71,41 @@ class QueryResponse(ModelNormal):
                 and the value is attribute type.
         """
         return {
-            'version': (str,),  # noqa: E501, F821
-            'index': (str,),  # noqa: E501, F821
-            'scroll_id': (str,),  # noqa: E501, F821
-            'returned_hits': (int,),  # noqa: E501, F821
-            'total_hits': (int,),  # noqa: E501, F821
-            'schema': ({str: (bool, date, datetime, dict, float, int, list, str, none_type)},),  # noqa: E501, F821
-            'results': ([{str: (bool, date, datetime, dict, float, int, list, str, none_type)}],),  # noqa: E501, F821
+            "version": (str,),  # noqa: E501, F821
+            "index": (str,),  # noqa: E501, F821
+            "scroll_id": (str,),  # noqa: E501, F821
+            "returned_hits": (int,),  # noqa: E501, F821
+            "total_hits": (int,),  # noqa: E501, F821
+            "schema": ({str: (bool, date, datetime, dict, float, int, list, str, none_type)},),  # noqa: E501, F821
+            "results": ([{str: (bool, date, datetime, dict, float, int, list, str, none_type)}],),  # noqa: E501, F821
         }
 
     @cached_property
     def discriminator():
         return None
 
-
     attribute_map = {
-        'version': 'version',  # noqa: E501
-        'index': 'index',  # noqa: E501
-        'scroll_id': 'scroll_id',  # noqa: E501
-        'returned_hits': 'returned_hits',  # noqa: E501
-        'total_hits': 'total_hits',  # noqa: E501
-        'schema': 'schema',  # noqa: E501
-        'results': 'results',  # noqa: E501
+        "version": "version",  # noqa: E501
+        "index": "index",  # noqa: E501
+        "scroll_id": "scroll_id",  # noqa: E501
+        "returned_hits": "returned_hits",  # noqa: E501
+        "total_hits": "total_hits",  # noqa: E501
+        "schema": "schema",  # noqa: E501
+        "results": "results",  # noqa: E501
     }
 
     _composed_schemas = {}
 
-    required_properties = set([
-        '_data_store',
-        '_check_type',
-        '_spec_property_naming',
-        '_path_to_item',
-        '_configuration',
-        '_visited_composed_classes',
-    ])
+    required_properties = set(
+        [
+            "_data_store",
+            "_check_type",
+            "_spec_property_naming",
+            "_path_to_item",
+            "_configuration",
+            "_visited_composed_classes",
+        ]
+    )
 
     @convert_js_args_to_python_args
     def __init__(self, *args, **kwargs):  # noqa: E501
@@ -152,15 +151,16 @@ class QueryResponse(ModelNormal):
             results ([{str: (bool, date, datetime, dict, float, int, list, str, none_type)}]): A list of the actual results (one dictionary per hit). [optional]  # noqa: E501
         """
 
-        _check_type = kwargs.pop('_check_type', True)
-        _spec_property_naming = kwargs.pop('_spec_property_naming', False)
-        _path_to_item = kwargs.pop('_path_to_item', ())
-        _configuration = kwargs.pop('_configuration', None)
-        _visited_composed_classes = kwargs.pop('_visited_composed_classes', ())
+        _check_type = kwargs.pop("_check_type", True)
+        _spec_property_naming = kwargs.pop("_spec_property_naming", False)
+        _path_to_item = kwargs.pop("_path_to_item", ())
+        _configuration = kwargs.pop("_configuration", None)
+        _visited_composed_classes = kwargs.pop("_visited_composed_classes", ())
 
         if args:
             raise ApiTypeError(
-                "Invalid positional arguments=%s passed to %s. Remove those invalid positional arguments." % (
+                "Invalid positional arguments=%s passed to %s. Remove those invalid positional arguments."
+                % (
                     args,
                     self.__class__.__name__,
                 ),
@@ -176,10 +176,12 @@ class QueryResponse(ModelNormal):
         self._visited_composed_classes = _visited_composed_classes + (self.__class__,)
 
         for var_name, var_value in kwargs.items():
-            if var_name not in self.attribute_map and \
-                        self._configuration is not None and \
-                        self._configuration.discard_unknown_keys and \
-                        self.additional_properties_type is None:
+            if (
+                var_name not in self.attribute_map
+                and self._configuration is not None
+                and self._configuration.discard_unknown_keys
+                and self.additional_properties_type is None
+            ):
                 # discard variable.
                 continue
             setattr(self, var_name, var_value)

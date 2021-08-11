@@ -20,12 +20,11 @@ from bs4 import BeautifulSoup
 
 
 def strip(string: str) -> str:
-    return string.strip(' \n\t\r')
+    return string.strip(" \n\t\r")
 
 
 class HtmlParser:
-
-    def __init__(self, page, parser='lxml'):
+    def __init__(self, page, parser="lxml"):
         self.page = page
         self.parser = parser
         self.soup = BeautifulSoup(page, self.parser)
@@ -34,7 +33,7 @@ class HtmlParser:
         return self.soup.decode()
 
     def get_title(self) -> str:
-        title_element = self.soup.find('title')
+        title_element = self.soup.find("title")
         try:
             title = strip(title_element.text)
         except AttributeError:
@@ -43,9 +42,9 @@ class HtmlParser:
 
     def get_links(self) -> List[Tuple[str, str]]:
         links = []
-        a_elements = self.soup.find_all('a')
+        a_elements = self.soup.find_all("a")
         for a in a_elements:
-            url = a.get('href')
+            url = a.get("href")
             text = strip(a.get_text())
 
             # Only add a link if it has a URL. Still add if no text.
@@ -64,5 +63,5 @@ class HtmlParser:
                 element.decompose()
 
         # Get text
-        text = soup.get_text(strip=True, separator='\n')
+        text = soup.get_text(strip=True, separator="\n")
         return text

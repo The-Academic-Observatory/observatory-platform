@@ -32,15 +32,14 @@ class MockUrlOpen(Mock):
 
 
 class TestPlatformCommand(unittest.TestCase):
-
     def setUp(self) -> None:
         self.airflow_ui_port = random.randint(1, 65535)
-        self.platform_command = PlatformCommand('config.yaml', airflow_ui_port=self.airflow_ui_port)
+        self.platform_command = PlatformCommand("config.yaml", airflow_ui_port=self.airflow_ui_port)
 
     def test_ui_url(self):
-        self.assertEqual(f'http://localhost:{self.airflow_ui_port}', self.platform_command.ui_url)
+        self.assertEqual(f"http://localhost:{self.airflow_ui_port}", self.platform_command.ui_url)
 
-    @patch('urllib.request.urlopen')
+    @patch("urllib.request.urlopen")
     def test_wait_for_airflow_ui_success(self, mock_url_open):
         # Mock the status code return value: 200 should succeed
         mock_url_open.return_value = MockUrlOpen(200)
@@ -53,7 +52,7 @@ class TestPlatformCommand(unittest.TestCase):
         self.assertTrue(state)
         self.assertAlmostEquals(0, duration, delta=0.5)
 
-    @patch('urllib.request.urlopen')
+    @patch("urllib.request.urlopen")
     def test_wait_for_airflow_ui_failed(self, mock_url_open):
         # Mock the status code return value: 500 should fail
         mock_url_open.return_value = MockUrlOpen(500)

@@ -26,9 +26,8 @@ from observatory.platform.utils.config_utils import module_file_path
 
 
 class TestOpenApiSchema(unittest.TestCase):
-
     def setUp(self) -> None:
-        self.template_file = os.path.join(module_file_path('observatory.api.server'), 'openapi.yaml.jinja2')
+        self.template_file = os.path.join(module_file_path("observatory.api.server"), "openapi.yaml.jinja2")
 
     def test_validate_backend(self):
         """ Test that the backend OpenAPI spec is valid """
@@ -55,8 +54,8 @@ class TestOpenApiSchema(unittest.TestCase):
 
     def validate_spec(self, render: str):
         with CliRunner().isolated_filesystem():
-            file_name = 'openapi.yaml'
-            with open(file_name, mode='w') as f:
+            file_name = "openapi.yaml"
+            with open(file_name, mode="w") as f:
                 f.write(render)
 
             spec_dict, spec_url = read_from_filename(file_name)

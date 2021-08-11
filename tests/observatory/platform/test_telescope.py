@@ -192,15 +192,21 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
 
     def test_add_sensor(self):
         mt = MockTelescope(
-            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily",
+            dag_id="1",
+            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            schedule_interval="daily",
         )
         mt.add_task(self.dummy_func)
         tds = ExternalTaskSensor(
-            external_dag_id="1", task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            external_dag_id="1",
+            task_id="test",
+            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
 
         tds2 = ExternalTaskSensor(
-            external_dag_id="1", task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            external_dag_id="1",
+            task_id="test2",
+            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
 
         mt.add_sensor(tds)
@@ -211,15 +217,21 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
 
     def test_add_sensors(self):
         mt = MockTelescope(
-            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily",
+            dag_id="1",
+            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            schedule_interval="daily",
         )
         mt.add_task(self.dummy_func)
         tds = ExternalTaskSensor(
-            external_dag_id="1", task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            external_dag_id="1",
+            task_id="test",
+            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
 
         tds2 = ExternalTaskSensor(
-            external_dag_id="1", task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            external_dag_id="1",
+            task_id="test2",
+            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
         )
 
         mt.add_sensors([tds, tds2])
@@ -229,12 +241,17 @@ class TestAddSensorsTelescope(ObservatoryTestCase):
 
     def test_add_sensors_empty(self):
         mt = MockTelescope(
-            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily",
+            dag_id="1",
+            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            schedule_interval="daily",
         )
         mt.add_task(self.dummy_func)
         mt.add_sensors([])
         dag = mt.make_dag()
 
         self.assert_dag_structure(
-            {"dummy_func": [],}, dag,
+            {
+                "dummy_func": [],
+            },
+            dag,
         )
