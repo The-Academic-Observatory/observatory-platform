@@ -123,10 +123,8 @@ class AbstractWorkflow(ABC):
     def add_task(self, func: Callable):
         """Add a task, which is used to process releases. A task has the following properties:
 
-        - Has one of the following signatures 'def func(self, release: Release, **kwargs)' or 'def func(self,
-        releases: List[Release], **kwargs)'
-        - kwargs is the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+        - Has one of the following signatures 'def func(self, release: Release, **kwargs)' or 'def func(self, releases: List[Release], **kwargs)'
+        - kwargs is the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to this argument.
         - Run by a PythonOperator.
 
         :param func: the function that will be called by the PythonOperator task.

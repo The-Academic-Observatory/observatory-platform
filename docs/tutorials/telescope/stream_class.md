@@ -5,11 +5,11 @@ See :meth:`platform.telescopes.stream_telescope.StreamTelescope` for the API ref
 ```
 
 The StreamTelescope is another subclass of the Telescope class.
-This subclass can be used for 'stream' type telescopes.
+This subclass can be used for 'stream' type telescopes.  
 A 'stream' telescope is defined by the fact that there is one main table with data and this table is
- constantly kept up to date with a stream of data.
+ constantly kept up to date with a stream of data.  
 The telescope has a start and end date (rather than just a release date) and these are based on when the previous DAG
- run was started (start) and on the current run date (end).
+ run was started (start) and on the current run date (end).  
 The `get_release_info` method can be used to push these start and end dates as XCOMs.
 These XCOMs can then be pulled in the `make_release` method that always has to be implemented and used to create
  the release instance.
@@ -17,26 +17,26 @@ These XCOMs can then be pulled in the `make_release` method that always has to b
 Because there is one main table that is kept up to date, the first time the telescope runs is slightly different to any
  later runs.  
 For the first release, all available data is downloaded and loaded into the BigQuery 'main' table from a file in the
- storage bucket using the `bq_append_new` method.
+ storage bucket using the `bq_append_new` method.  
 In this first run, the data is not loaded into a separate partition.
 
 For any later releases, any new data since the last run as well as any updated/deleted data is loaded into a separate
- partition in the BigQuery 'partitions' table.
+ partition in the BigQuery 'partitions' table.  
 Then, there are 2 tasks to replace the old data (from the partitions) with the new, updated data in the main table.
 These updates might not be done every DAG run, but instead the update frequency is determined by the stream
- telescope property `bq_merge_days`. 
+ telescope property `bq_merge_days`.  
 The telescope keeps track of the number of days since the last merge, by checking when the relevant task had the last
  'success' state. 
  
 When it is time to update the main table, a SQL merge query will find any rows in the main table that match the rows
- in the relevant table partitions and delete those matching rows from the main table.
-This is done with the `bq_delete_old` method.
+ in the relevant table partitions and delete those matching rows from the main table.  
+This is done with the `bq_delete_old` method.  
 Next, all rows from the relevant table partitions are appended to the main table.
-This is done with the `bq_append_new` method.
+This is done with the `bq_append_new` method.  
 After these 2 tasks, any new rows are added to the main table and any old rows are updated in place.
 
 As an example, let's assume there is a stream telescope with `bq_merge_days` set to 14 and the `schedule_interval` 
- set to `@weekly`.
+ set to `@weekly`.  
 Below is an overview of the expected states for each of the BigQuery load tasks for different run dates.
 
 On 2021-01-01. First release:   
@@ -63,8 +63,9 @@ Examples of stream telescopes found in the Observatory Platform include:
  * OAPEN Metadata
  * ORCID
 
-
+### Implemented methods
 The following methods are implemented and can all be added as general tasks:
+
 ### get_release_info
 Gets release info and pushes info as an XCOM.
 The release info includes the start date, end date and a boolean to describe whether this is the first release.
@@ -114,8 +115,8 @@ The local download, extract and transform directories of the release are deleted
 See :meth:`platform.telescopes.stream_telescope.StreamRelease` for the API reference.
 ```
 
-The StreamRelease is used with the StreamTelescope.
-The stream release has the start date, end date and first_release properties.
+The StreamRelease is used with the StreamTelescope.  
+The stream release has the start date, end date and first_release properties.  
 The first_release property is a boolean and described whether this release is the first release, the start and end
  date are used to create the release id.
  
@@ -124,7 +125,7 @@ Below is an example of a simple telescope using the StreamTelescope template.
 
 Telescope file:  
 ```python
-# Copyright 2020 Curtin University
+# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -265,7 +266,7 @@ class MyStream(StreamTelescope):
 
 DAG file:
 ```python
-# Copyright 2020 Curtin University
+# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

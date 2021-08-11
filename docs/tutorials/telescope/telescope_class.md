@@ -23,7 +23,7 @@ All three types of tasks can be added individually per task using the `add_<type
 To better understand the difference between these type of tasks, it is helpful to know how tasks are created in
  Airflow.  
 Within a DAG, each task that is part of the DAG is created by instantiating an Operator class.   
-There are many different types of Airflow Operators available and in the case of the template the usage is limited to
+There are many different types of Airflow Operators available, but in the case of the template the usage is limited to
  the BaseSensorOperator, PythonOperator and the ShortCircuitOperator.  
  
 * The BaseSensorOperator keeps executing at a time interval and succeeds when a criteria is met and fails if and when
@@ -33,7 +33,7 @@ There are many different types of Airflow Operators available and in the case of
  conditions is False it short-circuits the workflow.  
 
 The **sensor** instantiates the BaseSensorOperator (or a child class of this operator) and all sensor tasks are always
- chained to the beginning of the DAG.
+ chained to the beginning of the DAG.  
 This task is useful for example to probe whether another task has finished successfully using the ExternalTaskSensor.
 
 The **set-up task** instantiates the ShortCircuitOperator, this means that the executable Python function that is
@@ -49,19 +49,25 @@ The general **task** instantiates the PythonOperator and the executable Python f
  this operator requires a release instance to be passed on as an argument.
 These tasks are always chained after any sensors and set-up tasks.
 
-By default all tasks within their type (sensor, setup task, task) are chained linearly in the order they are inserted.
-There is a context manager `parallel_tasks` which can be used to parallelise some tasks.  
-All tasks that are added within that context are added in parallel, as of now this can only be used with the setup
- tasks type.
+Order of the different task types within a telescope:  
+<p align="center">
+<img title="Order of telescope tasks" alt="Order of telescope tasks" src="../../graphics/telescope_flow.png">
+</p>
 
-### Always implement 'make_release' method 
+By default all tasks within the same type (sensor, setup task, task) are chained linearly in the order they are
+ inserted.  
+There is a context manager `parallel_tasks` which can be used to parallelise tasks.  
+All tasks that are added within that context are added in parallel, however as of now this can only be used with the
+ setup tasks type.
+
+### The 'make_release' method 
 The general task requires a release instance and because of this the `make_release` method of the telescope class
- always has to be implemented by the developer. 
+ always has to be implemented by the developer.  
 This method is called when the PythonOperator for the general task is made and has to return a release instance, the
  release class on which this instance is based is discussed in detail further below.  
 
 ### Checking dependencies
-The telescope class also has a method `check_dependencies` implemented that can be added as a set-up task. 
+The telescope class also has a method `check_dependencies` implemented that can be added as a set-up task.  
 All telescopes require that at least some Airflow Variables and Connections are set, so these dependencies should be
  checked at the start of each telescope and this can be done with this task.
 
@@ -70,47 +76,53 @@ All telescopes require that at least some Airflow Variables and Connections are 
 See :meth:`platform.telescopes.telescope.Release` for the API reference.
 ```
 
-An instance of the release class is passed on as an argument to any general tasks that are added to the telescope. 
+An instance of the release class is passed on as an argument to any general tasks that are added to the telescope.   
 Similarly in set-up to the telescope class, it implements methods from the AbstractRelease class and it is not
  recommended that the AbstractRelease class is used directly by itself.  
 
 ### The release id
-The Release class always needs a release id. 
-This release id is usually based on the release date so it is unique for each release and relates to the date when
+The Release class always needs a release id.  
+This release id is usually based on the release date, so it is unique for each release and relates to the date when
  the data became available or was processed.
 
 ### Folder paths
-The release has the paths for 3 different folders as properties `download_folder`, `extract_folder` and
- `transform_folder`, it is convenient to use these when downloading/extract/transforming data and writing the data
-  to a file in the matching folder. 
-The paths for these folders always include the release id. 
-The format is as follows:  
+The release has properties for the paths of 3 different folders:
+ * `download_folder`
+ * `extract_folder`
+ * `transform_folder`
+ 
+ It is convenient to use these when downloading/extract/transforming data and writing the data to a file in the
+  matching folder.  
+The paths for these folders always include the release id and the format is as follows:    
 `/path/to/telescopes/{download|extract|transform}/{dag_id}/{release_id}/`
 
-The path to telescopes is determined by a separate function.  
+The `path/to/telescopes` is determined by a separate function.  
 Having these folder paths as properties of the release class makes it easy to have the same file structure for each
  telescope.
 
 ### List files in folders
-The folder paths are also used for the 3 corresponding properties, `download_files`, `extract_files` and
- `transform_files`.  
-These properties will each return a list of files in their corresponding folder that match a given regex pattern.
+The folder paths are also used for the 3 corresponding properties:
+ * `download_files`
+ * `extract_files`
+ * `transform_files`  
+ 
+These properties will each return a list of files in their corresponding folder that match a given regex pattern.  
 This is useful when e.g. iterating through all download files to transform them, or passing on the list of transform
  files to a function that uploads all files to a storage bucket.   
-The regex patterns for each of the 3 folders can be passed on separately when instantiating the release class.  
+The regex patterns for each of the 3 folders is passed on separately when instantiating the release class.  
 
 ### Bucket names
 There are 2 storage buckets used to store the data processed with the telescope, a download bucket and a transform
- bucket.
+ bucket.  
 The bucket names are retrieved from Airflow Variables and there are 2 corresponding properties in the release class, 
 `download_bucket` and `transform_bucket`.  
 These properties are convenient to use when uploading data to either one of these buckets.
 
 ### Clean up
-The release class has a `cleanup` method which can be called inside a task that will clean up by deleting all local
- files.  
-This method is part of the release class, because it has to be done for each telescope and uses the folder paths
- described above.   
+The release class has a `cleanup` method which can be called inside a task that will 'clean up' by deleting the 3
+ folders mentioned above.  
+This method is part of the release class, because a clean up task is part of each telescope and it uses those
+ folder paths described above that are properties of the release class. 
  
 
 ## Example
@@ -118,7 +130,7 @@ Below is an example of a simple telescope using the Telescope template.
 
 Telescope file:  
 ```python
-# Copyright 2020 Curtin University
+# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -244,7 +256,7 @@ class MyTelescope(Telescope):
 
 DAG file:
 ```python
-# Copyright 2020 Curtin University
+# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -269,10 +281,12 @@ telescope = MyTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()
 ```
 
-And the equivalent telescope without using the template.
+In case you are familiar with creating DAGs in Airflow, below is the equivalent telescope without using the template.  
+This might help to understand how the template works behind the scenes.  
+  
 Telescope and DAG in one file:  
 ```python
-# Copyright 2020 Curtin University
+# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -296,7 +310,12 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.operators.sensors import ExternalTaskSensor
 
-from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars, check_connections, check_variables
+from observatory.platform.utils.airflow_utils import (
+    AirflowConns, 
+    AirflowVars, 
+    check_connections, 
+    check_variables
+)
 from observatory.platform.utils.template_utils import (
     SubFolder,
     on_failure_callback,

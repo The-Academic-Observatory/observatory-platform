@@ -5,13 +5,13 @@ See :meth:`platform.telescopes.snapshot_telescope.SnapshotTelescope` for the API
 ```
 
 The SnapshotTelescope is a subclass of the Telescope class.
-This subclass can be used for 'snapshot' type telescopes.
+This subclass can be used for 'snapshot' type telescopes.  
 A 'snapshot' telescope is defined by the fact that each release contains a complete snapshot of all data and is loaded
- into a BigQuery table shard.
+ into a BigQuery table shard.  
 The DAGs created with the snapshot telescope have catchup set to True by default, meaning that the DAG will catch up
  with any scheduled DAG runs in the past when the DAG is turned on, but setting catchup to False won't break the
-  telescope.
-Within each scheduled period, there might be multiple releases available.
+  telescope.  
+Within each scheduled period, there might be multiple releases available.  
 
 Examples of snapshot telescopes found in the Observatory Platform include:
  * Crossref Fundref
@@ -20,19 +20,21 @@ Examples of snapshot telescopes found in the Observatory Platform include:
  * GRID
  * ONIX
 
+### Implemented methods
 The following methods are implemented and can all be added as general tasks:
-### upload_downloaded
+
+#### upload_downloaded
 For each release, uploads all files listed with the `download_files` property to the download storage bucket.
 
-### upload_transformed
+#### upload_transformed
 For each release, uploads all files listed with the `transform_files` property to the transform storage bucket.
 
-### bq_load
+#### bq_load
 For each release, loads each blob that is in the release directory of the transform bucket into a separate BigQuery
  table shard.
 The table shard has the release date as a suffix in the table name, e.g. `dataset_id.table_id20200101`
 
-### cleanup
+#### cleanup
 For each release, the local download, extract and transform directories are deleted including all files in those
  directories.
 
@@ -41,7 +43,7 @@ For each release, the local download, extract and transform directories are dele
 See :meth:`platform.telescopes.snapshot_telescope.SnapshotRelease` for the API reference.
 ```
 
-The SnapshotRelease is used with the SnapshotTelescope.
+The SnapshotRelease is used with the SnapshotTelescope.  
 The snapshot release always has a release date, and this date is used to create the release id.
 
 ## Example
@@ -49,7 +51,7 @@ Below is an example of a simple telescope using the SnapshotTelescope template.
 
 Telescope file:  
 ```python
-# Copyright 2020 Curtin University
+# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -178,7 +180,7 @@ class MySnapshot(SnapshotTelescope):
 
 DAG file:
 ```python
-# Copyright 2020 Curtin University
+# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

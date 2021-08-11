@@ -5,11 +5,11 @@ See :meth:`platform.telescopes.organisation_telescope.OrganisationTelescope` for
 ```
 
 The OrganisationTelescope is a subclass of the Telescope class.
-This subclass can be used for 'organisation' type telescopes.
+This subclass can be used for 'organisation' type telescopes.  
 An 'organisation' telescope is defined by the fact that it uses an Organisation which is provided by the Observatory
  API.
 The Google Cloud project id is derived from the organisation, generally each organisation has it's own Google Cloud
- project and the data processed in this telescope is loaded into a BigQuery dataset inside that project.
+ project and the data processed in this telescope is loaded into a BigQuery dataset inside that project.  
 In contrast, for the other telescope templates, the project id is derived from an Airflow variable inside the BigQuery
  loading tasks and data is loaded into the same Google Cloud project.
 
@@ -20,7 +20,9 @@ Examples of snapshot telescopes found in the Observatory Platform include:
  * OAPEN IRUS-UK
  * UCL Discovery
 
+### Implemented methods
 The following methods are implemented and can all be added as general tasks:
+
 ### upload_downloaded
 For each release, uploads all files listed with the `download_files` property to the download storage bucket.
 
@@ -29,13 +31,13 @@ For each release, uploads all files listed with the `transform_files` property t
 
 ### bq_load_partition
 For each release, loads each blob that is in the release directory of the transform bucket into a separate BigQuery
- table partition.
+ table partition.  
 The partition is based on the "release_date" field.
 This means that to be able to use this task the data needs to have a "release_date" field with a corresponding value
- that is of a BigQuery DATE type.
-The partition type is set to 'monthly' by default, but could be changed.
+ that is of a BigQuery DATE type.  
+The partition type is set to 'monthly' by default, but could be changed.  
 The table partition has the release date as a suffix in the table name and the format is dependent on the partition
- type, for the monthly partition type it would be e.g. `dataset_id.table_id$20200101`
+ type, for the monthly partition type it would be e.g. `dataset_id.table_id$20200101`.
 
 ### cleanup
 For each release, the local download, extract and transform directories are deleted including all files in those
@@ -51,7 +53,7 @@ The organisation release always has a release date, and this date is used to cre
 Additionally, the release requires an Organisation instance.  
 This organisation is used to determine the `download_bucket` and `transform_bucket` names.  
 Each organisation generally has it's own Google Cloud project and a download and transform bucket inside this project
- to store data in.
+ to store data in.  
 This means the release overwrites the methods for the `download_bucket` and `transform_bucket` of the base Release
  class.
 
@@ -60,7 +62,7 @@ Below is an example of a simple telescope using the OrganisationTelescope templa
 
 Telescope file:  
 ```python
-# Copyright 2020 Curtin University
+# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -218,7 +220,7 @@ class MyOrganisation(OrganisationTelescope):
 
 DAG file:
 ```python
-# Copyright 2020 Curtin University
+# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

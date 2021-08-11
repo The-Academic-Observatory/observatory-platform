@@ -143,7 +143,8 @@ class StreamTelescope(Workflow):
         self.batch_load = batch_load
 
     def get_release_info(self, **kwargs) -> bool:
-        """Create a release instance and update the xcom value with the last start date.
+        """Push the release info (start date, end date, first release) using Xcoms.
+
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
@@ -207,6 +208,7 @@ class StreamTelescope(Workflow):
 
     def upload_transformed(self, release: StreamRelease, **kwargs):
         """Upload the transformed files for the given release.
+
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -215,6 +217,7 @@ class StreamTelescope(Workflow):
 
     def bq_load_partition(self, release: StreamRelease, **kwargs):
         """For each file listed in transform_files, create a time based partition in BigQuery
+
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -251,6 +254,7 @@ class StreamTelescope(Workflow):
 
     def bq_delete_old(self, release: StreamRelease, **kwargs):
         """Delete old rows from the 'main' table, based on rows that are in a partition of the 'partitions' table.
+
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -298,6 +302,7 @@ class StreamTelescope(Workflow):
 
     def bq_append_new(self, release: StreamRelease, **kwargs):
         """Append rows to the 'main' table, based on rows that are in a partition of the 'partitions' table.
+
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -369,6 +374,7 @@ class StreamTelescope(Workflow):
 
     def cleanup(self, release: StreamRelease, **kwargs):
         """Delete downloaded, extracted and transformed files of the release.
+
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
