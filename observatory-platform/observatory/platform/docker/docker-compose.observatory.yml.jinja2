@@ -96,6 +96,9 @@ x-environment: &environment
   {%- endif %}
   {%- endfor %}
 
+  # Observatory platform version from pbr
+  OBSERVATORY_VERSION: "{{ observatory_version }}"
+
 x-volumes: &volumes
   - "{{ host_logs_path }}:/opt/airflow/logs"
   - "{{ host_dags_path }}:/opt/airflow/dags"
@@ -148,7 +151,7 @@ x-build: &build
 
 services:
   redis:
-    image: redis:latest
+    image: "{{ redis_docker_image }}"
     restart: always
     ports:
       - ${HOST_REDIS_PORT}:6379
@@ -161,7 +164,7 @@ services:
       retries: 50
 
   flower:
-    image: apache/airflow:2.1.2-python3.8
+    image: "{{ airflow_docker_image }}"
     environment: *environment
     restart: always
     networks:
@@ -253,7 +256,7 @@ services:
 
   {% if config.backend.type.value == 'local' -%}
   elasticsearch:
-    image: "docker.elastic.co/elasticsearch/elasticsearch:7.13.3"
+    image: "{{ elasticsearch_docker_image }}"
     restart: always
     volumes:
       - "{{ host_data_path }}/elastic:/usr/share/elasticsearch/data"
@@ -266,7 +269,7 @@ services:
       - discovery.type=single-node
 
   kibana:
-    image: "docker.elastic.co/kibana/kibana:7.13.3"
+    image: "{{ kibana_docker_image }}"
     restart: always
     ports:
       - ${HOST_KIBANA_PORT}:5601
@@ -274,7 +277,7 @@ services:
       - {{ docker_network_name }}
 
   postgres:
-    image: postgres:12.2
+    image: "{{ postgres_docker_image }}"
     environment:
       - POSTGRES_DB={{ airflow_db_name }}
       - POSTGRES_USER={{ postgres_user }}

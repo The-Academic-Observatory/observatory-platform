@@ -23,8 +23,8 @@ from subprocess import Popen
 from typing import Tuple
 
 from observatory.api.server.openapi_renderer import OpenApiRenderer
-from observatory.platform.cli.click_utils import indent, INDENT1
-from observatory.platform.observatory_config import TerraformConfig, BackendType
+from observatory.platform.cli.click_utils import INDENT1, indent
+from observatory.platform.observatory_config import BackendType, TerraformConfig
 from observatory.platform.platform_builder import PlatformBuilder
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
@@ -37,7 +37,7 @@ def copy_dir(source_path: str, destination_path: str, ignore):
 
 class TerraformBuilder:
     def __init__(self, config_path: str, debug: bool = False):
-        """ Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
+        """Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
         :param config_path: the path to the config.yaml configuration file.
         :param debug: whether to print debug statements.
@@ -48,6 +48,7 @@ class TerraformBuilder:
         self.terraform_path = module_file_path("observatory.platform.terraform")
         self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
         self.api_path = module_file_path("observatory.api.server")
+        self.backend_type = BackendType.terraform
         self.debug = debug
 
         # Load config
@@ -71,7 +72,7 @@ class TerraformBuilder:
 
     @property
     def is_environment_valid(self) -> bool:
-        """ Return whether the environment for building the Packer image is valid.
+        """Return whether the environment for building the Packer image is valid.
 
         :return: whether the environment for building the Packer image is valid.
         """
@@ -80,7 +81,7 @@ class TerraformBuilder:
 
     @property
     def packer_exe_path(self) -> str:
-        """ The path to the Packer executable.
+        """The path to the Packer executable.
 
         :return: the path or None.
         """
@@ -89,7 +90,7 @@ class TerraformBuilder:
 
     @property
     def gcloud_exe_path(self) -> str:
-        """ The path to the Google Cloud SDK executable.
+        """The path to the Google Cloud SDK executable.
 
         :return: the path or None.
         """
@@ -149,7 +150,7 @@ class TerraformBuilder:
             f.write(render)
 
     def build_terraform(self):
-        """ Build the Observatory Platform Terraform files.
+        """Build the Observatory Platform Terraform files.
 
         :return: None.
         """
@@ -158,7 +159,7 @@ class TerraformBuilder:
         self.platform_builder.make_files()
 
     def build_image(self) -> Tuple[str, str, int]:
-        """ Build the Observatory Platform Google Compute image with Packer.
+        """Build the Observatory Platform Google Compute image with Packer.
 
         :return: output and error stream results and proc return code.
         """

@@ -15,8 +15,16 @@
 # Author: James Diprose
 
 import unittest
+from unittest.mock import patch
 
-from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2, INDENT3, INDENT4
+from observatory.platform.cli.click_utils import (
+    INDENT1,
+    INDENT2,
+    INDENT3,
+    INDENT4,
+    comment,
+    indent,
+)
 
 
 class TestClick(unittest.TestCase):
@@ -45,3 +53,12 @@ class TestClick(unittest.TestCase):
 
         with self.assertRaises(AssertionError):
             indent(original_str, -1)
+
+    def test_comment(self):
+        input_str = ""
+        output = comment(input_str)
+        self.assertEqual(output, "# ")
+
+        input_str = "Hello world"
+        output = comment(input_str)
+        self.assertEqual(output, "# Hello world")

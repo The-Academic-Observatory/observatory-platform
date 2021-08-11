@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
+# Load environmental variables with package versions
+source ../../.../.env
+
 # Documentation recommends to sleep for 30 seconds first:
 sleep 30
 
 # Install Docker
 sudo apt-get update
 sudo apt-get -y install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
-sudo apt-get update
-sudo apt-get -y install docker-ce docker-ce-cli containerd.io
+sudo apt-get -y install docker.io
 sudo service docker restart
 
 # Make the airflow user and add it to the docker group
@@ -18,15 +18,20 @@ sudo usermod -aG docker airflow
 sudo newgrp docker
 
 # Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-Linux-x86_64" -o /usr/local/bin/docker-compose
+url="https://github.com/docker/compose/releases/download/${docker_compose_version}/docker-compose-${os}-${arch}"
+sudo rm -f /usr/local/bin/docker-compose
+sudo curl -L $url -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
 
-# Install berglas v0.5.3
-sudo curl -L "https://storage.googleapis.com/berglas/0.5.0/linux_amd64/berglas" -o /usr/local/bin/berglas
+# Install berglas
+url="https://storage.googleapis.com/berglas/${berglas_version}/${os}_${berglas_arch}/berglas"
+sudo rm -f /usr/local/bin/berglas
+sudo curl -L $url -o /usr/local/bin/berglas
 sudo chmod +x /usr/local/bin/berglas
 
 # Install Google Compute Monitoring agent
-curl -sSO https://dl.google.com/cloudagents/add-monitoring-agent-repo.sh
+url="https://dl.google.com/cloudagents/add-monitoring-agent-repo.sh"
+curl -sSO $url
 sudo bash add-monitoring-agent-repo.sh
 sudo apt-get update
 sudo apt-get install -y 'stackdriver-agent=6.*'

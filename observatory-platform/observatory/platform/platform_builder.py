@@ -17,20 +17,24 @@
 
 import os
 import shutil
+import subprocess
 from typing import Union
 
-import docker
 import requests
-
 from observatory.platform.docker.compose import ComposeRunner
 from observatory.platform.observatory_config import (
-    ObservatoryConfig,
     BackendType,
-    TerraformConfig,
     DagsProject,
     Observatory,
+    ObservatoryConfig,
+    TerraformConfig,
 )
-from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.config_utils import (
+    get_bash_script_var,
+    module_file_path,
+    observatory_home,
+)
+from pbr.version import VersionInfo
 
 HOST_UID = os.getuid()
 HOST_GID = os.getgid()
@@ -75,65 +79,80 @@ class PlatformBuilder(ComposeRunner):
         config_exists = os.path.exists(config_path)
         if not config_exists:
             raise FileExistsError(f"Observatory config file does not exist: {config_path}")
-        else:
-            self.config_is_valid = False
-            self.config: Union[ObservatoryConfig, TerraformConfig] = self.config_class.load(config_path)
-            self.config_is_valid = self.config.is_valid
 
-            # Set default values when config is invalid
-            observatory_home = Observatory.observatory_home
-            docker_network_is_external = Observatory.docker_network_is_external
-            docker_network_name = Observatory.docker_network_name
-            if self.config_is_valid:
-                observatory_home = self.config.observatory.observatory_home
-                docker_network_is_external = self.config.observatory.docker_network_is_external
-                docker_network_name = self.config.observatory.docker_network_name
+        self.config_is_valid = False
+        self.config: Union[ObservatoryConfig, TerraformConfig] = self.config_class.load(config_path)
+        self.config_is_valid = self.config.is_valid
 
-            if docker_build_path is None:
-                docker_build_path = os.path.join(observatory_home, "build", "docker")
+        # Set default values when config is invalid
+        observatory_home = Observatory.observatory_home
+        docker_network_is_external = Observatory.docker_network_is_external
+        docker_network_name = Observatory.docker_network_name
+        if self.config_is_valid:
+            observatory_home = self.config.observatory.observatory_home
+            docker_network_is_external = self.config.observatory.docker_network_is_external
+            docker_network_name = self.config.observatory.docker_network_name
 
-            super().__init__(
-                compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),
-                build_path=docker_build_path,
-                compose_template_kwargs={
-                    "config": self.config,
-                    "docker_network_is_external": docker_network_is_external,
-                    "docker_network_name": docker_network_name,
-                    "dags_projects_to_str": DagsProject.dags_projects_to_str,
-                },
-                debug=debug,
-            )
+        if docker_build_path is None:
+            docker_build_path = os.path.join(observatory_home, "build", "docker")
 
-            # Add files
-            self.add_template(
-                path=os.path.join(self.docker_module_path, "Dockerfile.observatory.jinja2"), config=self.config
-            )
-            self.add_template(
-                path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"), config=self.config
-            )
-            self.add_file(
-                path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
-            )
-            self.add_file(
-                path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
-            )
-            self.add_file(
-                path=os.path.join(self.platform_package_path, "requirements.txt"),
-                output_file_name="requirements.observatory-platform.txt",
-            )
-            self.add_file(
-                path=os.path.join(self.api_package_path, "requirements.txt"),
-                output_file_name="requirements.observatory-api.txt",
-            )
+        # pbr doesn't have a robust way to discover distributions. There will be discovery failures when using
+        # CliRunner.isolate_filesystem() in unit tets so we need a static version fallback.
+        try:
+            observatory_version = VersionInfo("observatory").release_string()
+        except:
+            observatory_version = "0.0.1"
 
-            # Add all project requirements files for local projects
-            if self.config is not None:
-                for project in self.config.dags_projects:
-                    if project.type == "local":
-                        self.add_file(
-                            path=os.path.join(project.path, "requirements.txt"),
-                            output_file_name=f"requirements.{project.package_name}.txt",
-                        )
+        super().__init__(
+            compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),
+            build_path=docker_build_path,
+            compose_template_kwargs={
+                "config": self.config,
+                "docker_network_is_external": docker_network_is_external,
+                "docker_network_name": docker_network_name,
+                "dags_projects_to_str": DagsProject.dags_projects_to_str,
+                "observatory_version": observatory_version,
+                "redis_docker_image": get_bash_script_var("redis_docker_image"),
+                "airflow_docker_image": get_bash_script_var("airflow_docker_image"),
+                "elasticsearch_docker_image": get_bash_script_var("elasticsearch_docker_image"),
+                "kibana_docker_image": get_bash_script_var("kibana_docker_image"),
+                "postgres_docker_image": get_bash_script_var("postgres_docker_image"),
+            },
+            debug=debug,
+        )
+
+        # Add files
+        self.add_template(
+            path=os.path.join(self.docker_module_path, "Dockerfile.observatory.jinja2"),
+            config=self.config,
+            airflow_docker_image=get_bash_script_var("airflow_docker_image"),
+        )
+        self.add_template(
+            path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"), config=self.config
+        )
+        self.add_file(
+            path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
+        )
+        self.add_file(
+            path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
+        )
+        self.add_file(
+            path=os.path.join(self.platform_package_path, "requirements.txt"),
+            output_file_name="requirements.observatory-platform.txt",
+        )
+        self.add_file(
+            path=os.path.join(self.api_package_path, "requirements.txt"),
+            output_file_name="requirements.observatory-api.txt",
+        )
+
+        # Add all project requirements files for local projects
+        if self.config is not None:
+            for project in self.config.dags_projects:
+                if project.type == "local":
+                    self.add_file(
+                        path=os.path.join(project.path, "requirements.txt"),
+                        output_file_name=f"requirements.{project.package_name}.txt",
+                    )
 
     @property
     def is_environment_valid(self) -> bool:
@@ -186,11 +205,16 @@ class PlatformBuilder(ComposeRunner):
         :return: whether Docker is running or not.
         """
 
-        client = docker.from_env()
+        is_running = False
+
         try:
-            is_running = client.ping()
-        except requests.exceptions.ConnectionError:
-            is_running = False
+            proc_info = subprocess.run(["docker", "info"], stdout=subprocess.DEVNULL)
+
+            if proc_info.returncode == 0:
+                is_running = True
+        except:
+            pass
+
         return is_running
 
     def make_environment(self):

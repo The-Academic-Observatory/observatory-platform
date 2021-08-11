@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose, Aniek Roelofs
+# Author: James Diprose, Aniek Roelofs, Tuan Chien
 
 INDENT1 = 2
 INDENT2 = 3
@@ -30,3 +30,12 @@ def indent(string: str, num_spaces: int) -> str:
 
     assert num_spaces > 0, "indent: num_spaces must be > 0"
     return string.rjust(len(string) + num_spaces)
+
+
+def comment(string: str) -> str:
+    """Add a Python comment character in front of a string.
+    :param string: String to comment out.
+    :return: Commented string.
+    """
+
+    return f"# {string}"

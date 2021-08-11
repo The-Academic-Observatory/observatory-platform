@@ -23,6 +23,8 @@ import importlib
 import logging
 import os
 import pathlib
+import subprocess
+from subprocess import Popen
 from typing import Union
 
 import pendulum
@@ -165,3 +167,16 @@ def find_schema(
     # No schemas were found
     logging.error("No schema found.")
     return None
+
+def get_bash_script_var(variable_name: str) -> str:
+    """ Get the value of the bash script variable.
+    :param variable_name: Name of the variable to fetch the value of.
+    :return: Variable value.
+    """
+
+    observatory_platform_root = os.path.join(module_file_path("observatory.platform"), "..", "..")
+    bash_script = ".env"
+    script_path = os.path.join(observatory_platform_root, bash_script)
+    cmd = f"echo $(source {script_path}; echo ${variable_name})"
+    p = Popen(cmd, stdout=subprocess.PIPE, shell=True, executable='/bin/bash')
+    return p.stdout.readlines()[0].strip().decode('utf8')

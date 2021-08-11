@@ -14,8 +14,8 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [ 3.7 ]
-        os: [ ubuntu-18.04 ]
+        python-version: [ 3.8 ]
+        os: [ ubuntu-20.04 ]
 
     steps:
       - name: Checkout ${{ matrix.python-version }}

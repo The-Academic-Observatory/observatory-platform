@@ -17,14 +17,19 @@
 import os
 
 import click
-
 from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
+from observatory.platform.observatory_config import (
+    generate_fernet_key,
+    generate_secret_key,
+)
 from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
 from observatory.platform.utils.config_utils import observatory_home
-from observatory.platform.utils.config_utils import terraform_credentials_path as default_terraform_credentials_path
+from observatory.platform.utils.config_utils import (
+    terraform_credentials_path as default_terraform_credentials_path,
+)
 
 PLATFORM_NAME = "Observatory Platform"
 TERRAFORM_NAME = "Observatory Terraform"
@@ -71,7 +76,11 @@ def cli():
 )
 @click.option("--debug", is_flag=True, default=DEBUG, help="Print debugging information.")
 def platform(
-    command: str, config_path: str, host_uid: int, host_gid: int, debug,
+    command: str,
+    config_path: str,
+    host_uid: int,
+    host_gid: int,
+    debug,
 ):
     """Run the local Observatory Platform platform.\n
 
@@ -84,7 +93,12 @@ def platform(
     print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
     if os.path.isfile(config_path):
         # Make the platform command, which encapsulates functionality for running the observatory
-        platform_cmd = PlatformCommand(config_path, host_uid=host_uid, host_gid=host_gid, debug=debug,)
+        platform_cmd = PlatformCommand(
+            config_path,
+            host_uid=host_uid,
+            host_gid=host_gid,
+            debug=debug,
+        )
 
         # Check dependencies
         platform_check_dependencies(platform_cmd, min_line_chars=min_line_chars)
@@ -236,17 +250,20 @@ def telescope(telescope_type: str, telescope_name: str):
 
 
 @generate.command()
-@click.argument("command", type=click.Choice(["fernet-key"]))
+@click.argument("command", type=click.Choice(["fernet-key", "secret-key"]))
 def secrets(command: str):
     """Generate secrets for the Observatory Platform.\n
 
     COMMAND: the type of secret to generate:\n
       - fernet-key: generate a random Fernet Key.\n
+      - secret-key: generate a random secret key.\n
     """
 
     if command == "fernet-key":
-        cmd = GenerateCommand()
-        print(cmd.generate_fernet_key())
+        print(generate_fernet_key())
+
+    elif command == "secret-key":
+        print(generate_secret_key())
 
 
 @generate.command()
@@ -258,16 +275,21 @@ def secrets(command: str):
     help="The path to the config file to generate.",
     show_default=True,
 )
-def config(command: str, config_path: str):
+@click.option("--interactive", flag_value=True)
+def config(command: str, config_path: str, interactive: bool):
     """Generate config files for the Observatory Platform.\n
 
     COMMAND: the type of config file to generate:\n
       - local: generate a config file for running the Observatory Platform locally.\n
       - terraform: generate a config file for running the Observatory Platform with Terraform.\n
+
+    :param interactive: whether to interactively ask for configuration options.
     """
 
     # Make the generate command, which encapsulates functionality for generating data
     cmd = GenerateCommand()
+
+    install_odags = True if os.environ["install_odags"] == "y" else False
 
     cmd_func = None
     config_name = ""
@@ -275,17 +297,21 @@ def config(command: str, config_path: str):
         if config_path is None:
             config_path = LOCAL_CONFIG_PATH
         cmd_func = cmd.generate_local_config
+        if interactive:
+            cmd_func = cmd.generate_local_config_interactive
         config_name = "Observatory Config"
     elif command == "terraform":
         if config_path is None:
             config_path = TERRAFORM_CONFIG_PATH
         cmd_func = cmd.generate_terraform_config
+        if interactive:
+            cmd_func = cmd.generate_terraform_config_interactive
         config_name = "Terraform Config"
 
     if not os.path.exists(config_path) or click.confirm(
         f'The file "{config_path}" exists, do you want to overwrite it?'
     ):
-        cmd_func(config_path)
+        cmd_func(config_path=config_path, install_odags=install_odags)
     else:
         click.echo(f"Not generating {config_name}")
 
