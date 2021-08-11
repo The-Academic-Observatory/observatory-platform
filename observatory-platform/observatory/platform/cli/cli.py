@@ -216,6 +216,7 @@ def generate():
     COMMAND: the commands to run include:\n
       - secrets: generate secrets.\n
       - config: generate configuration files for the Observatory Platform.\n
+      - telescope: generate all files for a new telescope using one of the templates.
     """
 
     pass
@@ -228,7 +229,8 @@ def generate():
 def telescope(telescope_type: str, telescope_name: str, author_name: str):
     """Generate boiler plate code for a new telescope.
 
-    - telescope_type: Type of telescope. Options are Telescope, StreamTelescope, SnapshotTelescope.\n
+    - telescope_type: Type of telescope. Options are Telescope, StreamTelescope, SnapshotTelescope,
+    OrganisationTelescope.\n
     - telescope_name: Name of your new telescope.\n
     - author_name: Your full name in quotes, added as author of the files.\n
     """
