@@ -274,7 +274,7 @@ services:
       - {{ docker_network_name }}
 
   postgres:
-    image: postgres:13
+    image: postgres:12.2
     environment:
       - POSTGRES_DB={{ airflow_db_name }}
       - POSTGRES_USER={{ postgres_user }}
