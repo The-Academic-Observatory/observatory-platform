@@ -26,8 +26,8 @@ from typing import Any, ClassVar, Dict, List, Tuple, Union
 
 import cerberus.validator
 import yaml
-from airflow.configuration import generate_fernet_key
 from cerberus import Validator
+from cryptography.fernet import Fernet
 
 from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars
@@ -692,7 +692,7 @@ class ObservatoryConfig:
 
         # Render template
         template_path = os.path.join(module_file_path('observatory.platform'), template_file_name)
-        fernet_key = generate_fernet_key()
+        fernet_key = Fernet.generate_key()
         secret_key = generate_secret_key()
 
         try:

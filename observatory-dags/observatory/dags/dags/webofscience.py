@@ -19,19 +19,19 @@ import logging
 
 import pendulum
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.subdag_operator import SubDagOperator
-
-from observatory.dags.telescopes.wos import WosTelescope
+from airflow.operators.python import PythonOperator
+from airflow.operators.subdag import SubDagOperator
+from observatory.dags.telescopes.webofscience import WosTelescope
 from observatory.platform.utils.airflow_utils import list_connections
 
-default_args = {'owner': 'airflow',
-                'start_date': pendulum.Pendulum(2018, 1, 1),
-                }
+default_args = {
+    "owner": "airflow",
+    "start_date": pendulum.datetime(2018, 1, 1),
+}
 
 
 def subdag_factory(parent_dag_id, connection, args):
-    """ Factory for making the ETL subdags.
+    """Factory for making the ETL subdags.
 
     :param parent_dag_id: parent dag's id.
     :param connection: Airflow Connection object.
@@ -39,14 +39,14 @@ def subdag_factory(parent_dag_id, connection, args):
     :return: DAG object.
     """
 
-    institution = str(connection)[WosTelescope.ID_STRING_OFFSET:]
-    logging.info(f'Spawning ETL subdag for: {institution}')
+    institution = str(connection)[WosTelescope.ID_STRING_OFFSET :]
+    logging.info(f"Spawning ETL subdag for: {institution}")
 
     subdag = DAG(
-        dag_id=f'{parent_dag_id}.{institution}',
+        dag_id=f"{parent_dag_id}.{institution}",
         default_args=args,
         catchup=False,
-        schedule_interval=WosTelescope.SCHEDULE_INTERVAL
+        schedule_interval=WosTelescope.SCHEDULE_INTERVAL,
     )
 
     with subdag:
@@ -54,84 +54,83 @@ def subdag_factory(parent_dag_id, connection, args):
         check_dependencies = PythonOperator(
             task_id=WosTelescope.TASK_ID_CHECK_DEPENDENCIES,
             python_callable=WosTelescope.check_dependencies,
-            op_kwargs={'dag_start': '{{dag_run.start_date}}', 'conn': connection, 'institution': institution},
-            provide_context=True,
-            queue=WosTelescope.QUEUE
+            op_kwargs={"dag_start": "{{dag_run.start_date}}", "conn": connection, "institution": institution},
+            queue=WosTelescope.QUEUE,
         )
 
         download = PythonOperator(
             task_id=WosTelescope.TASK_ID_DOWNLOAD,
             python_callable=WosTelescope.download,
-            op_kwargs={'conn': connection},
-            provide_context=True,
+            op_kwargs={"conn": connection},
             queue=WosTelescope.QUEUE,
-            retries=WosTelescope.RETRIES
+            retries=WosTelescope.RETRIES,
         )
 
         # Upload gzipped response (XML)
         upload_downloaded = PythonOperator(
             task_id=WosTelescope.TASK_ID_UPLOAD_DOWNLOADED,
             python_callable=WosTelescope.upload_downloaded,
-            provide_context=True,
             queue=WosTelescope.QUEUE,
-            retries=WosTelescope.RETRIES
+            retries=WosTelescope.RETRIES,
         )
 
         # Transform XML data to json
         transform_xml_to_json = PythonOperator(
             task_id=WosTelescope.TASK_ID_TRANSFORM_XML,
             python_callable=WosTelescope.transform_xml,
-            provide_context=True,
             queue=WosTelescope.QUEUE,
-            retries=WosTelescope.RETRIES
+            retries=WosTelescope.RETRIES,
         )
 
         # Transform into database schema format
         transform_db_format = PythonOperator(
             task_id=WosTelescope.TASK_ID_TRANSFORM_DB_FORMAT,
             python_callable=WosTelescope.transform_db_format,
-            provide_context=True,
-            queue=WosTelescope.QUEUE
+            queue=WosTelescope.QUEUE,
         )
 
         # # Upload the transformed jsonline entries to Google Cloud Storage
         upload_transformed = PythonOperator(
             task_id=WosTelescope.TASK_ID_UPLOAD_TRANSFORMED,
             python_callable=WosTelescope.upload_transformed,
-            provide_context=True,
             queue=WosTelescope.QUEUE,
-            retries=WosTelescope.RETRIES
+            retries=WosTelescope.RETRIES,
         )
 
         # Load the transformed WoS snapshot to BigQuery
         # Depends on past so that BigQuery load jobs are not all created at once
         bq_load = PythonOperator(
-            task_id=WosTelescope.TASK_ID_BQ_LOAD,
-            python_callable=WosTelescope.bq_load,
-            provide_context=True,
-            queue=WosTelescope.QUEUE
+            task_id=WosTelescope.TASK_ID_BQ_LOAD, python_callable=WosTelescope.bq_load, queue=WosTelescope.QUEUE
         )
 
         cleanup = PythonOperator(
-            task_id=WosTelescope.TASK_ID_CLEANUP,
-            python_callable=WosTelescope.cleanup,
-            provide_context=True,
-            queue=WosTelescope.QUEUE
+            task_id=WosTelescope.TASK_ID_CLEANUP, python_callable=WosTelescope.cleanup, queue=WosTelescope.QUEUE
         )
 
-        check_dependencies >> download >> upload_downloaded >> transform_xml_to_json >> transform_db_format \
-        >> upload_transformed >> bq_load >> cleanup
+        (
+            check_dependencies
+            >> download
+            >> upload_downloaded
+            >> transform_xml_to_json
+            >> transform_db_format
+            >> upload_transformed
+            >> bq_load
+            >> cleanup
+        )
 
     return subdag
 
 
-with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INTERVAL, catchup=False,
-         default_args=default_args) as dag:
+with DAG(
+    dag_id=WosTelescope.DAG_ID,
+    schedule_interval=WosTelescope.SCHEDULE_INTERVAL,
+    catchup=False,
+    default_args=default_args,
+) as dag:
     # Only process if the Web of Science API server is up.
     check_api_server = PythonOperator(
         task_id=WosTelescope.TASK_CHECK_API_SERVER,
         python_callable=WosTelescope.check_api_server,
-        provide_context=False,
         queue=WosTelescope.QUEUE,
         retries=WosTelescope.RETRIES,
     )
@@ -141,10 +140,10 @@ with DAG(dag_id=WosTelescope.DAG_ID, schedule_interval=WosTelescope.SCHEDULE_INT
     conns = list_connections(WosTelescope.DAG_ID)
     for conn in conns:
         subdag = SubDagOperator(
-            task_id=str(conn)[WosTelescope.ID_STRING_OFFSET:],
+            task_id=str(conn)[WosTelescope.ID_STRING_OFFSET :],
             subdag=subdag_factory(WosTelescope.DAG_ID, conn, default_args),
             default_args=default_args,
-            dag=dag
+            dag=dag,
         )
 
         # Task dependencies

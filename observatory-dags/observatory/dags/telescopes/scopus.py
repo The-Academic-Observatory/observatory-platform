@@ -33,10 +33,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat, WriteDisposition
-from ratelimit import limits, sleep_and_retry
-
 from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
+from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.file_utils import write_to_file, zip_files
 from observatory.platform.utils.gc_utils import (
@@ -55,25 +54,26 @@ from observatory.platform.utils.telescope_utils import (
 )
 from observatory.platform.utils.template_utils import SubFolder, telescope_path
 from observatory.platform.utils.url_utils import get_ao_user_agent
+from ratelimit import limits, sleep_and_retry
 
 
 class ScopusRelease:
-    """ Used to store info on a given SCOPUS release. """
+    """Used to store info on a given SCOPUS release."""
 
     def __init__(
         self,
         inst_id: str,
         scopus_inst_id: List[str],
-        release_date: pendulum.date,
-        start_date: pendulum.date,
-        end_date: pendulum.date,
+        release_date: pendulum.DateTime,
+        start_date: pendulum.DateTime,
+        end_date: pendulum.DateTime,
         project_id: str,
         download_bucket_name: str,
         transform_bucket_name: str,
         data_location: str,
         schema_ver: str,
     ):
-        """ Constructor.
+        """Constructor.
 
         :param inst_id: institution id from the airflow connection (minus the scopus_)
         :param scopus_inst_id: List of institution ids to use in the SCOPUS query.
@@ -93,7 +93,7 @@ class ScopusRelease:
         self.end_date = end_date
         self.download_path = telescope_path(SubFolder.downloaded, ScopusTelescope.DAG_ID)
         self.transform_path = telescope_path(SubFolder.transformed, ScopusTelescope.DAG_ID)
-        self.telescope_path = f"telescopes/{ScopusTelescope.DAG_ID}/{release_date}"
+        self.telescope_path = f"telescopes/{ScopusTelescope.DAG_ID}/{release_date.date()}"
         self.project_id = project_id
         self.download_bucket_name = download_bucket_name
         self.transform_bucket_name = transform_bucket_name
@@ -102,7 +102,7 @@ class ScopusRelease:
 
 
 class ScopusTelescope:
-    """ A container for holding the constants and static functions for the SCOPUS telescope."""
+    """A container for holding the constants and static functions for the SCOPUS telescope."""
 
     DAG_ID = "scopus"
     ID_STRING_OFFSET = len(DAG_ID) + 1
@@ -143,7 +143,7 @@ class ScopusTelescope:
 
     @staticmethod
     def check_dependencies(**kwargs):
-        """ Check that all variables exist that are required to run the DAG.
+        """Check that all variables exist that are required to run the DAG.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -236,7 +236,7 @@ class ScopusTelescope:
 
     @staticmethod
     def check_api_server():
-        """ Check that the API server is still contactable.
+        """Check that the API server is still contactable.
 
         :return: None.
         """
@@ -253,7 +253,7 @@ class ScopusTelescope:
 
     @staticmethod
     def download(**kwargs):
-        """ Task to download the SCOPUS snapshots.
+        """Task to download the SCOPUS snapshots.
 
         Pushes the following xcom:
             download_path (str): the path to a pickled file containing the list of xml responses in a month query.
@@ -277,7 +277,7 @@ class ScopusTelescope:
 
     @staticmethod
     def upload_downloaded(**kwargs):
-        """ Task to upload the downloaded SCOPUS snapshots.
+        """Task to upload the downloaded SCOPUS snapshots.
 
         Pushes the following xcom:
             upload_zip_path (str): the path to pickle zip file of downloaded response.
@@ -316,7 +316,7 @@ class ScopusTelescope:
 
     @staticmethod
     def transform_db_format(**kwargs):
-        """ Task to transform the json into db field format (and in jsonlines form).
+        """Task to transform the json into db field format (and in jsonlines form).
 
         Pushes the following xcom:
             version (str): the version of the SCOPUS release.
@@ -365,7 +365,7 @@ class ScopusTelescope:
 
     @staticmethod
     def upload_transformed(**kwargs):
-        """ Task to upload the transformed SCOPUS data into jsonlines files.
+        """Task to upload the transformed SCOPUS data into jsonlines files.
 
         Pushes the following xcom:
             release_date (str): the release date of the SCOPUS release.
@@ -400,7 +400,7 @@ class ScopusTelescope:
 
     @staticmethod
     def bq_load(**kwargs):
-        """ Task to load the transformed SCOPUS snapshot into BigQuery.
+        """Task to load the transformed SCOPUS snapshot into BigQuery.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -454,7 +454,7 @@ class ScopusTelescope:
 
     @staticmethod
     def cleanup(**kwargs):
-        """ Delete files of downloaded, extracted and transformed releases.
+        """Delete files of downloaded, extracted and transformed releases.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -471,7 +471,7 @@ class ScopusTelescope:
 
     @staticmethod
     def pull_release(ti: TaskInstance):
-        """ Get the ScopusRelease object from XCOM message. """
+        """Get the ScopusRelease object from XCOM message."""
         return ti.xcom_pull(
             key=ScopusTelescope.XCOM_RELEASES,
             task_ids=ScopusTelescope.TASK_ID_CHECK_DEPENDENCIES,
@@ -480,21 +480,21 @@ class ScopusTelescope:
 
 
 class ScopusClientThrottleLimits:
-    """ API throttling constants for ScopusClient. """
+    """API throttling constants for ScopusClient."""
 
     CALL_LIMIT = 1  # SCOPUS allows 2 api calls / second.
     CALL_PERIOD = 1  # seconds
 
 
 class ScopusClient:
-    """ Handles URL fetching of SCOPUS search. """
+    """Handles URL fetching of SCOPUS search."""
 
     RESULTS_PER_PAGE = 25
     MAX_RESULTS = 5000  # Upper limit on number of results returned
     QUOTA_EXCEED_ERROR_PREFIX = "QuotaExceeded. Resets at: "
 
     def __init__(self, api_key: str, view: str = "standard"):
-        """ Constructor.
+        """Constructor.
 
         :param api_key: API key.
         :param view: The 'view' access level. Can be 'standard' or 'complete'.
@@ -506,7 +506,7 @@ class ScopusClient:
 
     @staticmethod
     def get_reset_date_from_error(msg: str) -> int:
-        """ Get the reset date timestamp in seconds from the exception message.
+        """Get the reset date timestamp in seconds from the exception message.
 
         :param msg: exception message.
         :return: Reset date timestamp in seconds.
@@ -517,7 +517,7 @@ class ScopusClient:
 
     @staticmethod
     def get_next_page_url(links: str) -> Union[None, str]:
-        """ Get the URL for the next result page.
+        """Get the URL for the next result page.
 
         :param links: The list of links returned from the last query.
         :return None if next page not found, otherwise string to next page's url.
@@ -531,7 +531,7 @@ class ScopusClient:
     @sleep_and_retry
     @limits(calls=ScopusClientThrottleLimits.CALL_LIMIT, period=ScopusClientThrottleLimits.CALL_PERIOD)
     def retrieve(self, query: str) -> Tuple[List[Dict[str, Any]], int, int]:
-        """ Execute the query.
+        """Execute the query.
 
         :param query: Query string.
         :return: (results of query, quota remaining, quota reset date timestamp in seconds)
@@ -577,13 +577,13 @@ class ScopusClient:
 
 
 class ScopusUtilWorker:
-    """ Worker class """
+    """Worker class"""
 
     DEFAULT_KEY_QUOTA = 20000  # API key query limit default per 7 days.
     QUEUE_WAIT_TIME = 20  # Wait time for Queue.get() call
 
-    def __init__(self, client_id: int, client: ScopusClient, quota_reset_date: pendulum.datetime, quota_remaining: int):
-        """ Constructor.
+    def __init__(self, client_id: int, client: ScopusClient, quota_reset_date: pendulum.DateTime, quota_remaining: int):
+        """Constructor.
 
         :param client_id: Client id to use for debug messages so we don't leak the API key.
         :param client: ElsClient object for an API key.
@@ -597,11 +597,11 @@ class ScopusUtilWorker:
 
 
 class ScopusUtility:
-    """ Handles the SCOPUS interactions. """
+    """Handles the SCOPUS interactions."""
 
     @staticmethod
     def build_query(scopus_inst_id: List[str], period: Type[pendulum.Period]) -> str:
-        """ Build a SCOPUS API query.
+        """Build a SCOPUS API query.
 
         :param scopus_inst_id: List of Institutional ID to query, e.g, ["60031226"] (Curtin University)
         :param period: A schedule period.
@@ -630,7 +630,7 @@ class ScopusUtility:
     def download_scopus_period(
         worker: ScopusUtilWorker, conn: str, period: Type[pendulum.Period], inst_id: List[str], download_path: str
     ) -> str:
-        """ Download records for a stated date range.
+        """Download records for a stated date range.
         The elsapy package currently has a cap of 5000 results per query. So in the unlikely event any institution has
         more than 5000 entries per month, this will present a problem.
 
@@ -640,9 +640,9 @@ class ScopusUtility:
         :param inst_id: List of institutions to query concurrently.
         :param download_path: Path to save downloaded files to.
         :return: Saved file name.
-         """
+        """
 
-        timestamp = pendulum.datetime.now("UTC").isoformat()
+        timestamp = pendulum.now("UTC").isoformat()
         save_file = os.path.join(download_path, f"{timestamp}_{period.start}_{period.end}.json")
         logging.info(f"{conn} worker {worker.client_id}: retrieving period {period.start} - {period.end}")
         query = ScopusUtility.build_query(inst_id, period)
@@ -657,8 +657,8 @@ class ScopusUtility:
         return save_file
 
     @staticmethod
-    def sleep_if_needed(reset_date: pendulum.datetime, conn: str):
-        """ Sleep until reset_date.
+    def sleep_if_needed(reset_date: pendulum.DateTime, conn: str):
+        """Sleep until reset_date.
 
         :param reset_date: Date(time) to sleep to.
         :param conn: Connection id from Airflow.
@@ -672,7 +672,7 @@ class ScopusUtility:
 
     @staticmethod
     def qe_worker_maintenance(qe_workers: List[ScopusUtilWorker], workerq: Queue, conn: str) -> List[ScopusUtilWorker]:
-        """ Add workers back that have quotas and maintain list of timed out workers.
+        """Add workers back that have quotas and maintain list of timed out workers.
 
         :param qe_workers: List of timed out workers.
         :param workerq: Worker queue to add ready workers back to.
@@ -689,9 +689,9 @@ class ScopusUtility:
 
     @staticmethod
     def update_reset_date(
-        conn: str, error_msg: str, worker: ScopusUtilWorker, curr_reset_date: pendulum.datetime
-    ) -> pendulum.datetime:
-        """ Update the reset date to closest date that will make a worker available.
+        conn: str, error_msg: str, worker: ScopusUtilWorker, curr_reset_date: pendulum.DateTime
+    ) -> pendulum.DateTime:
+        """Update the reset date to closest date that will make a worker available.
 
         :param conn: Airflow connection ID.
         :param error_msg: Error message from quota exceeded exception.
@@ -715,7 +715,7 @@ class ScopusUtility:
     def download_sequential(
         workers: List[ScopusUtilWorker], taskq: Queue, conn: str, inst_id: List[str], download_path: str
     ) -> List[str]:
-        """ Download SCOPUS snapshot sequentially. Tasks will be distributed in a round robin to the available keys.
+        """Download SCOPUS snapshot sequentially. Tasks will be distributed in a round robin to the available keys.
         Block each task until it's done or failed.
 
         :param workers: list of available workers.
@@ -777,7 +777,7 @@ class ScopusUtility:
     def download_worker(
         worker: ScopusUtilWorker, exit_event: Event, taskq: Queue, conn: str, inst_id: List[str], download_path: str
     ) -> List[str]:
-        """ Download worker method used by parallel downloader. Pulls tasks from queue when ready. No
+        """Download worker method used by parallel downloader. Pulls tasks from queue when ready. No
             load balance guarantee.
 
         :param worker: worker to use.
@@ -822,7 +822,7 @@ class ScopusUtility:
     def download_parallel(
         workers: List[ScopusUtilWorker], taskq: Queue, conn: str, inst_id: List[str], download_path: str
     ) -> List[str]:
-        """ Download SCOPUS snapshot with parallel sessions. Tasks will be distributed in parallel to the available
+        """Download SCOPUS snapshot with parallel sessions. Tasks will be distributed in parallel to the available
         keys. Each key will independently fetch a task from the queue when it's free so there's no guarantee of load
         balance.
 
@@ -858,7 +858,7 @@ class ScopusUtility:
 
     @staticmethod
     def download_snapshot(api_keys: List[str], release: ScopusRelease, mode: str) -> List[str]:
-        """ Download snapshot from SCOPUS for the given institution.
+        """Download snapshot from SCOPUS for the given institution.
 
         :param api_keys: List of API keys to use for downloading.
         :param release: Release information.
@@ -898,7 +898,7 @@ class ScopusUtility:
 
     @staticmethod
     def make_query(worker: ScopusUtilWorker, query: str) -> Tuple[str, int]:
-        """ Throttling wrapper for the API call. This is a global limit for this API when called from a program on the
+        """Throttling wrapper for the API call. This is a global limit for this API when called from a program on the
         same machine. Limits specified in ScopusUtilConst class.
 
         Throttle limits may or may not be enforced. Probably depends on how executors spin up tasks.
@@ -915,11 +915,11 @@ class ScopusUtility:
 
 
 class ScopusJsonParser:
-    """ Helper methods to process the json from SCOPUS into desired structure. """
+    """Helper methods to process the json from SCOPUS into desired structure."""
 
     @staticmethod
     def get_affiliations(data: Dict[str, Any]) -> Union[None, List[Dict[str, Any]]]:
-        """ Get the affiliation field.
+        """Get the affiliation field.
 
         :param data: json response from SCOPUS.
         :return list of affiliation details.
@@ -947,7 +947,7 @@ class ScopusJsonParser:
 
     @staticmethod
     def get_authors(data: Dict[str, Any]) -> Union[None, List[Dict[str, Any]]]:
-        """ Get the author field. Won't know if this parser is going to throw error unless we get access to api key
+        """Get the author field. Won't know if this parser is going to throw error unless we get access to api key
             with complete view access.
 
         :param data: json response from SCOPUS.
@@ -978,7 +978,7 @@ class ScopusJsonParser:
 
     @staticmethod
     def get_identifier_list(data: dict, id_type: str) -> Union[None, List[str]]:
-        """ Get the list of document identifiers or null of it does not exist.  This string/list behaviour was observed
+        """Get the list of document identifiers or null of it does not exist.  This string/list behaviour was observed
         for ISBNs so using it for other identifiers just in case.
 
         :param data: json response from SCOPUS.
@@ -1004,7 +1004,7 @@ class ScopusJsonParser:
 
     @staticmethod
     def parse_json(data: dict, harvest_datetime: str, release_date: str, institutes: List[str]) -> dict:
-        """ Turn json data into db schema format.
+        """Turn json data into db schema format.
 
         :param data: json response from SCOPUS.
         :param harvest_datetime: isoformat string of time the fetch took place.

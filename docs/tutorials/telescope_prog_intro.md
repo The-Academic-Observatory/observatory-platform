@@ -113,7 +113,7 @@ class MyRelease(AbstractRelease):
 
 class MyTelescope(Telescope):
     # dag_id, start_date, schedule_interval, catchup correspond to the DAG parameters in Airflow with the same name.
-    def __init__(self, *, dag_id: str, start_date: pendulum.Pendulum = pendulum.Pendulum(2021, 1, 1), schedule_interval:str = "@weekly", catchup: bool = False):
+    def __init__(self, *, dag_id: str, start_date: pendulum.DateTime = pendulum.datetime(2021, 1, 1), schedule_interval:str = "@weekly", catchup: bool = False):
         # Initialise base class
         super().__init__(
             dag_id=self.dag_id,

@@ -28,35 +28,41 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from pendulum import Pendulum
-
 from observatory.dags.config import schema_path
-from observatory.platform.utils.airflow_utils import AirflowVariable as Variable, AirflowVars, check_variables
+from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
+from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.data_utils import get_file
-from observatory.platform.utils.gc_utils import (bigquery_sharded_table_id,
-                                                 bigquery_table_exists,
-                                                 create_bigquery_dataset,
-                                                 load_bigquery_table,
-                                                 upload_file_to_cloud_storage)
+from observatory.platform.utils.gc_utils import (
+    bigquery_sharded_table_id,
+    bigquery_table_exists,
+    create_bigquery_dataset,
+    load_bigquery_table,
+    upload_file_to_cloud_storage,
+)
 from observatory.platform.utils.proc_utils import wait_for_process
-from observatory.platform.utils.template_utils import SubFolder, telescope_path, test_data_path
+from observatory.platform.utils.template_utils import (
+    SubFolder,
+    telescope_path,
+    test_data_path,
+)
 from observatory.platform.utils.url_utils import retry_session
 
 
 def pull_releases(ti: TaskInstance) -> List:
-    """ Pull a list of Unpaywall release instances with xcom.
+    """Pull a list of Unpaywall release instances with xcom.
 
     :param ti: the Apache Airflow task instance.
     :return: the list of Unpaywall release instances.
     """
 
-    return ti.xcom_pull(key=UnpaywallTelescope.RELEASES_TOPIC_NAME, task_ids=UnpaywallTelescope.TASK_ID_LIST,
-                        include_prior_dates=False)
+    return ti.xcom_pull(
+        key=UnpaywallTelescope.RELEASES_TOPIC_NAME, task_ids=UnpaywallTelescope.TASK_ID_LIST, include_prior_dates=False
+    )
 
 
-def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['UnpaywallRelease']:
-    """ Parses xml string retrieved from GET request to create list of urls for
+def list_releases(start_date: pendulum.DateTime, end_date: pendulum.DateTime) -> List["UnpaywallRelease"]:
+    """Parses xml string retrieved from GET request to create list of urls for
     different releases.
 
     :param start_date:
@@ -70,11 +76,11 @@ def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['UnpaywallRe
 
     if response is not None and response.status_code == 200:
         # Parse releases
-        items = xmltodict.parse(response.text)['ListBucketResult']['Contents']
+        items = xmltodict.parse(response.text)["ListBucketResult"]["Contents"]
         for item in items:
             # Get filename and parse dates
-            file_name = item['Key']
-            last_modified = pendulum.parse(item['LastModified'])
+            file_name = item["Key"]
+            last_modified = pendulum.parse(item["LastModified"])
             release_date = UnpaywallRelease.parse_release_date(file_name)
 
             # Only include release if last modified date is within start and end date.
@@ -89,8 +95,8 @@ def list_releases(start_date: Pendulum, end_date: Pendulum) -> List['UnpaywallRe
     return releases_list
 
 
-def download_release(release: 'UnpaywallRelease') -> str:
-    """ Downloads release from url.
+def download_release(release: "UnpaywallRelease") -> str:
+    """Downloads release from url.
 
     :param release: Instance of UnpaywallRelease class
     """
@@ -102,7 +108,7 @@ def download_release(release: 'UnpaywallRelease') -> str:
     file_path, updated = get_file(fname=filename, origin=release.url, cache_dir=download_dir)
 
     if file_path:
-        logging.info(f'Success downloading release: {filename}')
+        logging.info(f"Success downloading release: {filename}")
     else:
         logging.error(f"Error downloading release: {filename}")
         exit(os.EX_DATAERR)
@@ -110,15 +116,15 @@ def download_release(release: 'UnpaywallRelease') -> str:
     return file_path
 
 
-def extract_release(release: 'UnpaywallRelease') -> str:
-    """ Decompresses release.
+def extract_release(release: "UnpaywallRelease") -> str:
+    """Decompresses release.
 
     :param release: Instance of UnpaywallRelease class
     """
     logging.info(f"Extracting file: {release.filepath_download}")
 
     cmd = f"gunzip -c {release.filepath_download} > {release.filepath_extract}"
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable="/bin/bash")
     stdout, stderr = wait_for_process(p)
 
     if stdout:
@@ -132,15 +138,17 @@ def extract_release(release: 'UnpaywallRelease') -> str:
     return release.filepath_extract
 
 
-def transform_release(release: 'UnpaywallRelease') -> str:
-    """ Transforms release by replacing a specific '-' with '_'.
+def transform_release(release: "UnpaywallRelease") -> str:
+    """Transforms release by replacing a specific '-' with '_'.
 
     :param release: Instance of UnpaywallRelease class
     """
-    cmd = f"sed 's/authenticated-orcid/authenticated_orcid/g' {release.filepath_extract} > " \
-          f"{release.filepath_transform}"
+    cmd = (
+        f"sed 's/authenticated-orcid/authenticated_orcid/g' {release.filepath_extract} > "
+        f"{release.filepath_transform}"
+    )
 
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable='/bin/bash')
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable="/bin/bash")
     stdout, stderr = wait_for_process(p)
 
     if stdout:
@@ -149,14 +157,13 @@ def transform_release(release: 'UnpaywallRelease') -> str:
     if stderr:
         raise AirflowException(f"bash command failed for {release.url}: {stderr}")
 
-    logging.info(f'Success transforming release: {release.url}')
+    logging.info(f"Success transforming release: {release.url}")
 
     return release.filepath_transform
 
 
 class UnpaywallRelease:
-
-    def __init__(self, file_name: str, last_modified: Pendulum, release_date: Pendulum):
+    def __init__(self, file_name: str, last_modified: pendulum.DateTime, release_date: pendulum.DateTime):
         self.file_name = file_name
         self.last_modified = last_modified
         self.release_date = release_date
@@ -166,21 +173,21 @@ class UnpaywallRelease:
 
     @property
     def url(self):
-        return f'{UnpaywallTelescope.TELESCOPE_URL}{self.file_name}'
+        return f"{UnpaywallTelescope.TELESCOPE_URL}{self.file_name}"
 
     @staticmethod
-    def parse_release_date(file_name: str) -> Pendulum:
-        """ Parses a release date from a file name.
+    def parse_release_date(file_name: str) -> pendulum.DateTime:
+        """Parses a release date from a file name.
 
         :return: date.
         """
 
-        date = re.search(r'\d{4}-\d{2}-\d{2}', file_name).group()
+        date = re.search(r"\d{4}-\d{2}-\d{2}", file_name).group()
 
         return pendulum.parse(date)
 
     def get_filepath_download(self) -> str:
-        """ Gives path to downloaded release.
+        """Gives path to downloaded release.
 
         :return: absolute file path
         """
@@ -193,7 +200,7 @@ class UnpaywallRelease:
         return path
 
     def get_filepath_extract(self) -> str:
-        """ Gives path to extracted and decompressed release.
+        """Gives path to extracted and decompressed release.
 
         :return: absolute file path
         """
@@ -206,7 +213,7 @@ class UnpaywallRelease:
         return path
 
     def get_filepath_transform(self) -> str:
-        """ Gives path to transformed release.
+        """Gives path to transformed release.
 
         :return: absolute file path
         """
@@ -220,14 +227,14 @@ class UnpaywallRelease:
 
 
 class UnpaywallTelescope:
-    """ A container for holding the constants and static functions for the Unpaywall telescope. """
+    """A container for holding the constants and static functions for the Unpaywall telescope."""
 
-    DAG_ID = 'unpaywall'
-    DATASET_ID = 'our_research'
-    QUEUE = 'remote_queue'
-    DESCRIPTION = 'The Unpaywall database: https://unpaywall.org/'
+    DAG_ID = "unpaywall"
+    DATASET_ID = "our_research"
+    QUEUE = "remote_queue"
+    DESCRIPTION = "The Unpaywall database: https://unpaywall.org/"
     RELEASES_TOPIC_NAME = "releases"
-    TELESCOPE_URL = 'https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/'
+    TELESCOPE_URL = "https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/"
     RETRIES = 3
 
     TASK_ID_CHECK_DEPENDENCIES = "check_dependencies"
@@ -243,7 +250,7 @@ class UnpaywallTelescope:
 
     @staticmethod
     def check_dependencies(**kwargs):
-        """ Check that all variables exist that are required to run the DAG.
+        """Check that all variables exist that are required to run the DAG.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -251,14 +258,19 @@ class UnpaywallTelescope:
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVars.DATA_PATH, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION,
-                                     AirflowVars.DOWNLOAD_BUCKET, AirflowVars.TRANSFORM_BUCKET)
+        vars_valid = check_variables(
+            AirflowVars.DATA_PATH,
+            AirflowVars.PROJECT_ID,
+            AirflowVars.DATA_LOCATION,
+            AirflowVars.DOWNLOAD_BUCKET,
+            AirflowVars.TRANSFORM_BUCKET,
+        )
         if not vars_valid:
-            raise AirflowException('Required variables are missing')
+            raise AirflowException("Required variables are missing")
 
     @staticmethod
     def list_releases(**kwargs):
-        """ Based on a list of all releases, checks which ones were released between this and the next execution date
+        """Based on a list of all releases, checks which ones were released between this and the next execution date
         of the DAG. If the release falls within the time period mentioned above, checks if a bigquery table doesn't
         exist yet for the release. A list of releases that passed both checks is passed to the next tasks. If the list
         is empty the workflow will stop.
@@ -273,10 +285,10 @@ class UnpaywallTelescope:
         project_id = Variable.get(AirflowVars.PROJECT_ID)
 
         # List releases between a start and end date
-        execution_date = kwargs['execution_date']
-        next_execution_date = kwargs['next_execution_date']
+        execution_date = kwargs["execution_date"]
+        next_execution_date = kwargs["next_execution_date"]
         releases_list = list_releases(execution_date, next_execution_date)
-        logging.info(f'Releases between {execution_date} and {next_execution_date}:\n{releases_list}\n')
+        logging.info(f"Releases between {execution_date} and {next_execution_date}:\n{releases_list}\n")
 
         # Check if the BigQuery table exists for each release to see if the workflow needs to process
         releases_list_out = []
@@ -284,8 +296,10 @@ class UnpaywallTelescope:
             table_id = bigquery_sharded_table_id(UnpaywallTelescope.DAG_ID, release.release_date)
 
             if bigquery_table_exists(project_id, UnpaywallTelescope.DATASET_ID, table_id):
-                logging.info(f'Skipping as table exists for {release.url}: '
-                             f'{project_id}.{UnpaywallTelescope.DATASET_ID}.{table_id}')
+                logging.info(
+                    f"Skipping as table exists for {release.url}: "
+                    f"{project_id}.{UnpaywallTelescope.DATASET_ID}.{table_id}"
+                )
             else:
                 logging.info(f"Table doesn't exist yet, processing {release.url} in this workflow")
                 releases_list_out.append(release)
@@ -294,13 +308,13 @@ class UnpaywallTelescope:
         # stop (return False)
         continue_dag = len(releases_list_out)
         if continue_dag:
-            ti: TaskInstance = kwargs['ti']
+            ti: TaskInstance = kwargs["ti"]
             ti.xcom_push(UnpaywallTelescope.RELEASES_TOPIC_NAME, releases_list_out)
         return continue_dag
 
     @staticmethod
     def download(**kwargs):
-        """ Download release to file.
+        """Download release to file.
         If develop environment, copy debug file from this repository to the right location. Else download from url.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -310,7 +324,7 @@ class UnpaywallTelescope:
         """
 
         # Pull messages
-        ti: TaskInstance = kwargs['ti']
+        ti: TaskInstance = kwargs["ti"]
         releases_list = pull_releases(ti)
 
         # Get variables
@@ -318,15 +332,15 @@ class UnpaywallTelescope:
 
         # Download each release
         for release in releases_list:
-            if environment == 'test':
-                debug_file_path = os.path.join(test_data_path(), 'telescopes', 'unpaywall.jsonl.gz')
+            if environment == "test":
+                debug_file_path = os.path.join(test_data_path(), "telescopes", "unpaywall.jsonl.gz")
                 shutil.copy(debug_file_path, release.filepath_download)
             else:
                 download_release(release)
 
     @staticmethod
     def upload_downloaded(**kwargs):
-        """ Upload downloaded release to a google cloud storage bucket.
+        """Upload downloaded release to a google cloud storage bucket.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -335,7 +349,7 @@ class UnpaywallTelescope:
         """
 
         # Pull messages
-        ti: TaskInstance = kwargs['ti']
+        ti: TaskInstance = kwargs["ti"]
         releases_list = pull_releases(ti)
 
         # Get variables
@@ -343,12 +357,12 @@ class UnpaywallTelescope:
 
         # Upload each release
         for release in releases_list:
-            blob_name = f'telescopes/unpaywall/{os.path.basename(release.filepath_download)}'
+            blob_name = f"telescopes/unpaywall/{os.path.basename(release.filepath_download)}"
             upload_file_to_cloud_storage(bucket_name, blob_name, file_path=release.filepath_download)
 
     @staticmethod
     def extract(**kwargs):
-        """ Unzip release to new file.
+        """Unzip release to new file.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -357,7 +371,7 @@ class UnpaywallTelescope:
         """
 
         # Pull messages
-        ti: TaskInstance = kwargs['ti']
+        ti: TaskInstance = kwargs["ti"]
         releases_list = pull_releases(ti)
 
         # Extract each release
@@ -366,7 +380,7 @@ class UnpaywallTelescope:
 
     @staticmethod
     def transform(**kwargs):
-        """ Transform release with sed command and save to new file.
+        """Transform release with sed command and save to new file.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -375,7 +389,7 @@ class UnpaywallTelescope:
         """
 
         # Pull messages
-        ti: TaskInstance = kwargs['ti']
+        ti: TaskInstance = kwargs["ti"]
         releases_list = pull_releases(ti)
 
         # Transform each release
@@ -384,7 +398,7 @@ class UnpaywallTelescope:
 
     @staticmethod
     def upload_transformed(**kwargs):
-        """ Upload transformed release to a google cloud storage bucket.
+        """Upload transformed release to a google cloud storage bucket.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -393,7 +407,7 @@ class UnpaywallTelescope:
         """
 
         # Pull messages
-        ti: TaskInstance = kwargs['ti']
+        ti: TaskInstance = kwargs["ti"]
         releases_list = pull_releases(ti)
 
         # Get variables
@@ -401,12 +415,12 @@ class UnpaywallTelescope:
 
         # Upload each release
         for release in releases_list:
-            blob_name = f'telescopes/unpaywall/{os.path.basename(release.filepath_transform)}'
+            blob_name = f"telescopes/unpaywall/{os.path.basename(release.filepath_transform)}"
             upload_file_to_cloud_storage(bucket_name, blob_name, file_path=release.filepath_transform)
 
     @staticmethod
     def load_to_bq(**kwargs):
-        """ Upload transformed release to a bigquery table.
+        """Upload transformed release to a bigquery table.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -415,7 +429,7 @@ class UnpaywallTelescope:
         """
 
         # Pull releases
-        ti: TaskInstance = kwargs['ti']
+        ti: TaskInstance = kwargs["ti"]
         releases_list: List[UnpaywallRelease] = pull_releases(ti)
 
         # Get variables
@@ -424,12 +438,13 @@ class UnpaywallTelescope:
         data_location = Variable.get(AirflowVars.DATA_LOCATION)
 
         # Create dataset
-        create_bigquery_dataset(project_id, UnpaywallTelescope.DATASET_ID, data_location,
-                                UnpaywallTelescope.DESCRIPTION)
+        create_bigquery_dataset(
+            project_id, UnpaywallTelescope.DATASET_ID, data_location, UnpaywallTelescope.DESCRIPTION
+        )
 
         for release in releases_list:
             # Get blob name
-            blob_name = f'telescopes/unpaywall/{os.path.basename(release.filepath_transform)}'
+            blob_name = f"telescopes/unpaywall/{os.path.basename(release.filepath_transform)}"
 
             # Get release_date
             table_id = bigquery_sharded_table_id(UnpaywallTelescope.DAG_ID, release.release_date)
@@ -438,21 +453,29 @@ class UnpaywallTelescope:
             analysis_schema_path = schema_path()
             schema_file_path = find_schema(analysis_schema_path, UnpaywallTelescope.DAG_ID, release.release_date)
             if schema_file_path is None:
-                logging.error(f'No schema found with search parameters: analysis_schema_path={analysis_schema_path}, '
-                              f'table_name={UnpaywallTelescope.DAG_ID}, release_date={release.release_date}')
+                logging.error(
+                    f"No schema found with search parameters: analysis_schema_path={analysis_schema_path}, "
+                    f"table_name={UnpaywallTelescope.DAG_ID}, release_date={release.release_date}"
+                )
                 exit(os.EX_CONFIG)
 
             # Load BigQuery table
             uri = f"gs://{bucket_name}/{blob_name}"
             logging.info(f"URI: {uri}")
-            success = load_bigquery_table(uri, UnpaywallTelescope.DATASET_ID, data_location, table_id, schema_file_path,
-                                          SourceFormat.NEWLINE_DELIMITED_JSON)
+            success = load_bigquery_table(
+                uri,
+                UnpaywallTelescope.DATASET_ID,
+                data_location,
+                table_id,
+                schema_file_path,
+                SourceFormat.NEWLINE_DELIMITED_JSON,
+            )
             if not success:
                 raise AirflowException("bq_load task: data failed to load data into BigQuery")
 
     @staticmethod
     def cleanup(**kwargs):
-        """ Delete files of downloaded, extracted and transformed release.
+        """Delete files of downloaded, extracted and transformed release.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html
@@ -461,7 +484,7 @@ class UnpaywallTelescope:
         """
 
         # Pull releases
-        ti: TaskInstance = kwargs['ti']
+        ti: TaskInstance = kwargs["ti"]
         releases_list = pull_releases(ti)
 
         for release in releases_list:

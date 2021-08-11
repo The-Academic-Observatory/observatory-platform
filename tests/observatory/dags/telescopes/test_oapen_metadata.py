@@ -22,15 +22,17 @@ from unittest.mock import patch
 import pendulum
 import vcr
 from click.testing import CliRunner
-from observatory.dags.telescopes.oapen_metadata import (OapenMetadataRelease, OapenMetadataTelescope)
+from observatory.dags.telescopes.oapen_metadata import (
+    OapenMetadataRelease,
+    OapenMetadataTelescope,
+)
 from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
-
 from tests.observatory.test_utils import test_fixtures_path
 
 
 class MockTaskInstance:
-    def __init__(self, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
-        """ Construct a MockTaskInstance. This mocks the airflow TaskInstance and is passed as a keyword arg to the
+    def __init__(self, start_date: pendulum.DateTime, end_date: pendulum.DateTime, first_release: bool):
+        """Construct a MockTaskInstance. This mocks the airflow TaskInstance and is passed as a keyword arg to the
         make_release function.
         :param start_date: Start date of dag run
         :param end_date: End date of dag run
@@ -41,7 +43,7 @@ class MockTaskInstance:
         self.first_release = first_release
 
     def xcom_pull(self, key: str, include_prior_dates: bool):
-        """ Mock xcom_pull method of airflow TaskInstance.
+        """Mock xcom_pull method of airflow TaskInstance.
         :param key: -
         :param include_prior_dates: -
         :return: Records list
@@ -51,21 +53,25 @@ class MockTaskInstance:
 
 def side_effect(arg):
     values = {
-        'project_id': 'project',
-        'download_bucket_name': 'download-bucket',
-        'transform_bucket_name': 'transform-bucket',
-        'data_path': 'data',
-        'data_location': 'US'
+        "project_id": "project",
+        "download_bucket_name": "download-bucket",
+        "transform_bucket_name": "transform-bucket",
+        "data_path": "data",
+        "data_location": "US",
     }
     return values[arg]
 
 
-@patch('observatory.platform.utils.template_utils.AirflowVariable.get')
+@patch("observatory.platform.utils.template_utils.AirflowVariable.get")
 class TestOapenMetadata(unittest.TestCase):
-    """ Tests for the functions used by the OapenMetadata telescope """
+    """Tests for the functions used by the OapenMetadata telescope"""
 
-    def __init__(self, *args, **kwargs, ):
-        """ Constructor which sets up variables used by tests.
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ):
+        """Constructor which sets up variables used by tests.
 
         :param args: arguments.
         :param kwargs: keyword arguments.
@@ -73,31 +79,32 @@ class TestOapenMetadata(unittest.TestCase):
 
         super(TestOapenMetadata, self).__init__(*args, **kwargs)
         # Paths
-        self.vcr_cassettes_path = os.path.join(test_fixtures_path(), 'vcr_cassettes')
-        self.download_path = os.path.join(self.vcr_cassettes_path, 'oapen_metadata_2021-02-19.yaml')
+        self.vcr_cassettes_path = os.path.join(test_fixtures_path(), "vcr_cassettes")
+        self.download_path = os.path.join(self.vcr_cassettes_path, "oapen_metadata_2021-02-19.yaml")
 
         # Telescope instance
         self.oapen_metadata = OapenMetadataTelescope()
 
         # Dag run info
-        self.start_date = pendulum.parse('2021-02-12')
-        self.end_date = pendulum.parse('2021-02-19')
-        self.download_hash = '4c261bbfaceafde1854e102d31fcbc0e'
-        self.transform_crc = '415144d7'
+        self.start_date = pendulum.parse("2021-02-12")
+        self.end_date = pendulum.parse("2021-02-19")
+        self.download_hash = "4c261bbfaceafde1854e102d31fcbc0e"
+        self.transform_crc = "415144d7"
 
         # Create release instance that is used to test download/transform
-        with patch('observatory.platform.utils.template_utils.AirflowVariable.get') as mock_variable_get:
+        with patch("observatory.platform.utils.template_utils.AirflowVariable.get") as mock_variable_get:
             mock_variable_get.side_effect = side_effect
 
-            self.release = OapenMetadataRelease(self.oapen_metadata.dag_id, self.start_date, self.end_date,
-                                                first_release=True)
+            self.release = OapenMetadataRelease(
+                self.oapen_metadata.dag_id, self.start_date, self.end_date, first_release=True
+            )
 
         # Turn logging to warning because vcr prints too much at info level
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
 
     def test_make_release(self, mock_variable_get):
-        """ Check that make_release returns a list of GridRelease instances.
+        """Check that make_release returns a list of GridRelease instances.
 
         :param mock_variable_get: Mock result of airflow's Variable.get() function
         :return: None.
@@ -112,7 +119,7 @@ class TestOapenMetadata(unittest.TestCase):
         self.assertFalse(later_release.first_release)
 
     def test_download_release(self, mock_variable_get):
-        """ Download release and check it has the expected md5 sum.
+        """Download release and check it has the expected md5 sum.
 
         :param mock_variable_get: Mock result of airflow's Variable.get() function
         :return:
@@ -130,10 +137,10 @@ class TestOapenMetadata(unittest.TestCase):
                 self.assertEqual(1, len(self.release.download_files))
                 file_path = self.release.download_files[0]
                 self.assertTrue(os.path.exists(file_path))
-                self.assertEqual(self.download_hash, _hash_file(file_path, algorithm='md5'))
+                self.assertEqual(self.download_hash, _hash_file(file_path, algorithm="md5"))
 
     def test_transform_release(self, mock_variable_get):
-        """ Test that the release is transformed as expected.
+        """Test that the release is transformed as expected.
 
         :param mock_variable_get: Mock result of airflow's Variable.get() function
         :return: None.

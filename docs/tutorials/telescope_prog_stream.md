@@ -10,8 +10,8 @@ The `StreamRelease` class is a light wrapper for the `Release` class.  It constr
 
 ```
 def __init__(self, dag_id: str,
-            start_date: pendulum.Pendulum,
-            end_date: pendulum.Pendulum,
+            start_date: pendulum.DateTime,
+            end_date: pendulum.DateTime,
             first_release: bool,
             download_files_regex: str = None,
             extract_files_regex: str = None,

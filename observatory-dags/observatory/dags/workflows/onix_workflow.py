@@ -23,9 +23,8 @@ from typing import List, Optional
 
 import pendulum
 from airflow.exceptions import AirflowException
-from airflow.operators.sensors import ExternalTaskSensor
+from airflow.sensors.external_task import ExternalTaskSensor
 from google.cloud.bigquery import SourceFormat
-
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.dags.telescopes.onix import OnixTelescope
 from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
@@ -60,8 +59,8 @@ class OnixWorkflowRelease(AbstractRelease):
         self,
         *,
         dag_id: str,
-        release_date: pendulum.Pendulum,
-        onix_release_date: pendulum.Pendulum,
+        release_date: pendulum.DateTime,
+        onix_release_date: pendulum.DateTime,
         gcp_project_id: str,
         gcp_bucket_name: str,
         onix_dataset_id: str = "onix",
@@ -193,7 +192,7 @@ class OnixWorkflowRelease(AbstractRelease):
         shutil.rmtree(self.transform_folder)
 
 
-def make_table_id(*, project_id: str, dataset_id: str, table_id: str, end_date: pendulum.Pendulum, sharded: bool):
+def make_table_id(*, project_id: str, dataset_id: str, table_id: str, end_date: pendulum.datetime, sharded: bool):
     """
     Make a BQ table ID.
     :param project_id: GCP Project ID.
@@ -206,7 +205,10 @@ def make_table_id(*, project_id: str, dataset_id: str, table_id: str, end_date: 
     new_table_id = table_id
     if sharded:
         table_date = select_table_shard_dates(
-            project_id=project_id, dataset_id=dataset_id, table_id=table_id, end_date=end_date,
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            end_date=end_date,
         )[0]
         new_table_id = f"{table_id}{table_date.strftime('%Y%m%d')}"
 
@@ -240,7 +242,7 @@ class OnixWorkflow(Telescope):
         onix_dataset_id: str = "onix",
         onix_table_id: str = "onix",
         dag_id: Optional[str] = None,
-        start_date: Optional[pendulum.Pendulum] = pendulum.Pendulum(2021, 3, 28),
+        start_date: Optional[pendulum.datetime] = pendulum.datetime(2021, 3, 28),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
         data_partners: List[OaebuPartners] = None,
@@ -339,7 +341,7 @@ class OnixWorkflow(Telescope):
         if not len(onix_release_dates):
             raise AirflowException("OnixWorkflow.make_release: no ONIX releases found")
 
-        onix_release_date = onix_release_dates[0]
+        onix_release_date = onix_release_dates[0].date()
         return OnixWorkflowRelease(
             dag_id=self.dag_id,
             release_date=release_date,
@@ -673,7 +675,12 @@ class OnixWorkflow(Telescope):
         self.add_task(fn)
 
     def export_oaebu_table(
-        self, release: OnixWorkflowRelease, *, output_table: str, query_template: str, **kwargs,
+        self,
+        release: OnixWorkflowRelease,
+        *,
+        output_table: str,
+        query_template: str,
+        **kwargs,
     ):
         """Create an intermediate oaebu table.  They are of the form datasource_matched<date>
         :param release: Onix workflow release information.
@@ -689,7 +696,10 @@ class OnixWorkflow(Telescope):
         template_path = os.path.join(workflow_sql_templates_path(), query_template)
 
         sql = render_template(
-            template_path, project_id=release.project_id, dataset_id=release.oaebu_dataset, release=release_date,
+            template_path,
+            project_id=release.project_id,
+            dataset_id=release.oaebu_dataset,
+            release=release_date,
         )
 
         status = create_bigquery_table_from_query(
@@ -958,7 +968,9 @@ class OnixWorkflow(Telescope):
         )
 
         create_bigquery_dataset(
-            project_id=release.project_id, dataset_id=release.oaebu_data_qa_dataset, location=release.dataset_location,
+            project_id=release.project_id,
+            dataset_id=release.oaebu_data_qa_dataset,
+            location=release.dataset_location,
         )
 
         # Fix
@@ -1030,13 +1042,19 @@ class OnixWorkflow(Telescope):
         template_path = os.path.join(workflow_sql_templates_path(), isbn_validate_template_file)
 
         sql = render_template(
-            template_path, project_id=project_id, dataset_id=orig_dataset_id, table_id=orig_table_id, isbn=isbn,
+            template_path,
+            project_id=project_id,
+            dataset_id=orig_dataset_id,
+            table_id=orig_table_id,
+            isbn=isbn,
         )
 
         sql = isbn_utils_sql + sql
 
         create_bigquery_dataset(
-            project_id=project_id, dataset_id=output_dataset_id, location=dataset_location,
+            project_id=project_id,
+            dataset_id=output_dataset_id,
+            location=dataset_location,
         )
 
         status = create_bigquery_table_from_query(
@@ -1442,7 +1460,9 @@ class OnixWorkflow(Telescope):
         )
 
         create_bigquery_dataset(
-            project_id=release.project_id, dataset_id=release.oaebu_data_qa_dataset, location=release.dataset_location,
+            project_id=release.project_id,
+            dataset_id=release.oaebu_data_qa_dataset,
+            location=release.dataset_location,
         )
 
         status = create_bigquery_table_from_query(

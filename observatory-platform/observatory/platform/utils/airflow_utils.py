@@ -23,10 +23,10 @@ import logging
 from typing import Any, List, Optional, Union
 
 import airflow.secrets
-from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection, TaskInstance, Variable
+from airflow.providers.slack.operators.slack_webhook import SlackWebhookHook
 from airflow.utils.db import create_session
 from google.api_core.exceptions import PermissionDenied
 
@@ -74,7 +74,7 @@ def get_variable(key: str) -> Optional[str]:
     :param key: Variable Key
     :return: Variable Value
     """
-    for secrets_backend in airflow.secrets.ensure_secrets_loaded():
+    for secrets_backend in airflow.configuration.ensure_secrets_loaded():
         # Added try/except statement.
         try:
             var_val = secrets_backend.get_variable(key=key)
