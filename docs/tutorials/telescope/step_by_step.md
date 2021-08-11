@@ -7,7 +7,7 @@ A typical telescope pipeline will:
 4. Create a file with tests for the telescope in `tests/observatory/dags/telescopes`
 5. Create a documentation file about the telescope in `docs/telescopes` and update the `index.rst` file
 
-## Creating a DAG file
+## 1. Creating a DAG file
 For Airflow to pickup new DAGs, it is required to create a DAG file that contains the DAG object as well as the keywords
  'airflow' and 'DAG'.  
 Any code in this file is executed every time the file is loaded into the Airflow dagbag, which is once per minute by
@@ -43,7 +43,7 @@ telescope = MyTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()
 ```
 
-## Creating a telescope file
+## 2. Creating a telescope file
 The telescope file contains the release class at the top, then the telescope class and at the bottom any functions that
  are used within these classes.  
 This filename is also usually similar to the DAG id and should be inside the `observatory-dags/observatory/dags/telescopes` 
@@ -140,7 +140,165 @@ def download_from_url(url: str) -> bool:
     return True
 ```
 
-## Creating a BigQuery schema file
+### Using airflow Xcoms
+Xcoms are an Airflow concept and are used with the telescopes to pass on information between tasks.
+The description of Xcoms by Airflow can be read 
+ [here](https://airflow.apache.org/docs/apache-airflow/stable/concepts/xcoms.html#xcoms) and is as follows:
+ 
+>XComs (short for “cross-communications”) are a mechanism that let Tasks talk to each other, as by default Tasks are
+ entirely isolated and may be running on entirely different machines.
+An XCom is identified by a key (essentially its name), as well as the task_id and dag_id it came from. 
+They can have any (serializable) value, but they are only designed for small amounts of data; do not use them to pass
+ around large values, like dataframes.
+XComs are explicitly “pushed” and “pulled” to/from their storage using the xcom_push and xcom_pull methods on Task
+ Instances. 
+Many operators will auto-push their results into an XCom key called return_value if the do_xcom_push argument is set
+ to True (as it is by default), and @task functions do this as well.
+
+For the telescopes they are commonly used to pass on release information.  
+One task at the beginning of the telescope will retrieve release information such as the release date or possible a
+ relevant release url.  
+The release information is then pushed during this task using Xcoms and it is pulled in the subsequent tasks, so a
+ release instance can be made with the given information.    
+An example of this can be seen in the implemented method `get_release_info` of the StreamTelescope class.  
+
+The `get_release_info` method:
+```python
+def get_release_info(self, **kwargs) -> bool:
+    """ Push the release info (start date, end date, first release) using Xcoms.
+
+    :param kwargs: The context passed from the PythonOperator.
+    :return: None.
+    """
+    ti: TaskInstance = kwargs['ti']
+
+    first_release = False
+    release_info = ti.xcom_pull(key=self.RELEASE_INFO, include_prior_dates=True)
+    if not release_info:
+        first_release = True
+        # set start date to the start of the DAG
+        start_date = pendulum.instance(kwargs['dag'].default_args['start_date']).start_of('day')
+    else:
+        # set start date to end date of previous DAG run, add 1 day, because end date was processed in prev run.
+        start_date = release_info[1] + timedelta(days=1)
+    # set start date to current day, subtract 1 day, because data from same day might not be available yet.
+    end_date = pendulum.today('UTC') - timedelta(days=1)
+    logging.info(f'Start date: {start_date}, end date: {end_date}, first release: {first_release}')
+
+    ti.xcom_push(self.RELEASE_INFO, (start_date, end_date, first_release))
+    return True
+```
+
+The start date, end date and first_release boolean are pushed using Xcoms with the `RELEASE_INFO` property as a key.
+The info is then used within the `make_release` method.  
+
+See for example the `make_release` method of the OrcidTelescope, which uses the StreamTelescope as a template.  
+```python
+def make_release(self, **kwargs) -> OrcidRelease:
+    """ Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
+    called in 'task_callable'.
+
+    :param kwargs: the context passed from the PythonOperator. See
+    https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are
+    passed to this argument.
+    :return: an OrcidRelease instance.
+    """
+    ti: TaskInstance = kwargs['ti']
+    start_date, end_date, first_release = ti.xcom_pull(key=OrcidTelescope.RELEASE_INFO, include_prior_dates=True)
+
+    release = OrcidRelease(self.dag_id, start_date, end_date, first_release, self.max_processes)
+    return release
+```
+
+### Using Airflow variables and connections
+#### Variables
+Airflow variables and connections are both used with the existing telescopes.  
+Airflow variables should never contain any sensitive information and are used for example for the project_id, bucket
+ names or data location.  
+
+#### Connections
+Airflow connections can contain sensitive information and are often used to store credentials like API keys or
+ usernames and passwords.  
+In the local development environment, the Airflow connections are simply stored in the metastore database.  
+There, the passwords inside the connection configurations are encrypted using Fernet.  
+The value for the Airflow connection should always be a connection URI, see the [Airflow documentation](https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#generating-a-connection-uri)
+ for more detailed information on how to construct this URI.
+ 
+#### Using a new variable or connection
+To use a new Airflow variable or connection, it has to be added to the relevant class in the airflow_utils file.  
+This file can be found at:  
+`observatory-platform/observatory/platform/utils/airflow_utils.py`
+
+In there are the AirflowVars and AirflowConns classes.  
+The python variable name is used inside the telescope and the value is used inside the `config.yaml` or `config-terraform.yaml`
+ file.
+ 
+For example, to add the airflow variable 'new_variable' and connection 'new_connection', the relevant classes are
+ updated like this:  
+```python
+# Inside observatory-platform/observatory/platform/utils/airflow_utils.py
+class AirflowVars:
+    """ Common Airflow Variable names used with the Observatory Platform """
+    
+    # add to existing variables
+    NEW_VARIABLE = "new_variable"
+
+class AirflowConns:
+    """ Common Airflow Connection names used with the Observatory Platform """
+    
+    # add to existing connections
+    NEW_CONNECTION = "new_connection"
+```
+
+The variable or connection can then be used inside the telescope like this:
+```python
+# Inside observatory-dags/observatory/dags/telescopes/my_telescope.py
+from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
+
+airflow_conn = AirflowConns.NEW_CONNECTION
+airflow_var = AirflowVars.NEW_VARIABLE
+```
+
+The relevant section of both the `config.yaml` and `config-terraform.yaml` files will look like this:
+```yaml
+# User defined Apache Airflow variables:
+airflow_variables:
+  new_variable: my-variable-value
+
+# User defined Apache Airflow Connections:
+airflow_connections:
+  new_connection: http://my-username:my-password@
+```
+
+#### Secrets backend issue, use custom AirflowVariable class
+In the cloud environment deployed with terraform, Airflow uses Google Cloud Secret Manager as a secrets backend and
+ both the Airflow variable and connections are stored in there as secrets.
+ 
+Note that there is currently an issue when Airflow tries to get a variable in the cloud environment (meaning Google
+ Cloud Secrets Manager is set as a secrets backend), when the variable is not stored in the cloud.  
+Some Airflow variables (test_data_path, data_path, download_bucket, transform_bucket) are not set in the
+ 'airflow_variables' section of the config-terraform.yaml file.  
+This means that these variables are not stored as Google Cloud Secrets and they only exist as environment variables
+ instead.  
+The search order for variables/connections for Airflow is not configurable and with a secrets backend enabled it is:   
+```
+secrets backend > environment variables > metastore
+```
+
+Unfortunately, the current Airflow method to get variables from the secrets backend will return an error when a
+ secret can not be found, meaning that it will never attempt to search the environment variables next.  
+As a workaround, there is a custom `AirflowVariable` class inside 
+`observatory-platform/observatory/platform/utils/airflow_utils.py` that should be used to get variables instead of the
+ standard Airflow `Variable` class inside `airflow.models.variable.py`.
+
+For example, to get a variable:  
+```python
+from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars
+
+variable = AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET) 
+```
+
+## 3. Creating a BigQuery schema file
 BigQuery database schema json files are put in `observatory-dags/dags/database/schema`.  
 They follow the scheme: `<table_name>_YYYY-MM-DD.json`.  
 To provide an additional custom version as well as the date, the files should follow the scheme:  
@@ -151,7 +309,7 @@ The BigQuery table loading utility functions in the Observatory Platform will tr
 These utility functions are used by the BigQuery load tasks of the sub templates (Snapshot, Stream, Organisation) and
  it is required to set the `schema_version` parameter to pick up the schema version when using these templates.
  
-## Creating a test file
+## 4. Creating a test file
 The Observatory Platform uses the `unittest` Python framework as a base and provides additional methods to run tasks
  and test DAG structure.
 It also uses the Python `coverage` package to analyse test coverage.
@@ -416,7 +574,7 @@ env.api_session.add(telescope)
 env.api_session.commit()
 ```
 
-## Creating a documentation file
+## 5. Creating a documentation file
 The Observatory Platform builds documentation using [Sphinx](https://www.sphinx-doc.org).  
 Documentation is contained in the `docs` directory.  
 Currently index pages are written in [RST format (Restructured Text)](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html), 
@@ -468,6 +626,31 @@ This documentation should at least include:
     +------------------------------+---------+
     ```
 
+### Including Airflow variable/connection info in documentation
+If a newly developed telescope uses an Airflow connection or variable, this should be explained in the documentation on
+ the telescope.  
+An example of the variable/connection is required as well as an explanation on how the value for this 
+ variable/connection can be obtained.
+
+See for example this info section on the Airflow connection required with the google_books telescope:
+
+---
+## Airflow connections
+Note that all values need to be urlencoded.  
+In the config.yaml file, the following airflow connection is required:  
+
+### sftp_service
+```yaml
+sftp_service: ssh://<username>:<password>@<host>?host_key=<host_key>
+```
+The sftp_service airflow connection is used to connect to the sftp_service and download the reports.  
+The username and password are created by the sftp service and the host is e.g. `oaebu.exavault.com`.  
+The host key is optional, you can get it by running ssh-keyscan, e.g.:  
+```
+ssh-keyscan oaebu.exavault.com
+```
+---
+
 ### Including schemas in documentation
 The documentation build system automatically converts all the schema files from `observatory-dags/observatory/dags/database/schemas` 
  into CSV files.  
@@ -503,185 +686,3 @@ then the correct file path that should be used in the RST code block is
 :file: ../schemas/my_telescope_latest.csv
 ```
 The `..` follows the parent directory, this is needed once to reach `docs` from `docs/telescopes/my_telescope.md`.
-
-## Using airflow Xcoms
-Xcoms are an Airflow concept and are used with the telescopes to pass on information between tasks.
-The description of Xcoms by Airflow can be read 
- [here](https://airflow.apache.org/docs/apache-airflow/stable/concepts/xcoms.html#xcoms) and is as follows:
- 
->XComs (short for “cross-communications”) are a mechanism that let Tasks talk to each other, as by default Tasks are
- entirely isolated and may be running on entirely different machines.
-An XCom is identified by a key (essentially its name), as well as the task_id and dag_id it came from. 
-They can have any (serializable) value, but they are only designed for small amounts of data; do not use them to pass
- around large values, like dataframes.
-XComs are explicitly “pushed” and “pulled” to/from their storage using the xcom_push and xcom_pull methods on Task
- Instances. 
-Many operators will auto-push their results into an XCom key called return_value if the do_xcom_push argument is set
- to True (as it is by default), and @task functions do this as well.
-
-For the telescopes they are commonly used to pass on release information.  
-One task at the beginning of the telescope will retrieve release information such as the release date or possible a
- relevant release url.  
-The release information is then pushed during this task using Xcoms and it is pulled in the subsequent tasks, so a
- release instance can be made with the given information.    
-An example of this can be seen in the implemented method `get_release_info` of the StreamTelescope class.  
-
-The `get_release_info` method:
-```python
-def get_release_info(self, **kwargs) -> bool:
-    """ Push the release info (start date, end date, first release) using Xcoms.
-
-    :param kwargs: The context passed from the PythonOperator.
-    :return: None.
-    """
-    ti: TaskInstance = kwargs['ti']
-
-    first_release = False
-    release_info = ti.xcom_pull(key=self.RELEASE_INFO, include_prior_dates=True)
-    if not release_info:
-        first_release = True
-        # set start date to the start of the DAG
-        start_date = pendulum.instance(kwargs['dag'].default_args['start_date']).start_of('day')
-    else:
-        # set start date to end date of previous DAG run, add 1 day, because end date was processed in prev run.
-        start_date = release_info[1] + timedelta(days=1)
-    # set start date to current day, subtract 1 day, because data from same day might not be available yet.
-    end_date = pendulum.today('UTC') - timedelta(days=1)
-    logging.info(f'Start date: {start_date}, end date: {end_date}, first release: {first_release}')
-
-    ti.xcom_push(self.RELEASE_INFO, (start_date, end_date, first_release))
-    return True
-```
-
-The start date, end date and first_release boolean are pushed using Xcoms with the `RELEASE_INFO` property as a key.
-The info is then used within the `make_release` method.  
-
-See for example the `make_release` method of the OrcidTelescope, which uses the StreamTelescope as a template.  
-```python
-def make_release(self, **kwargs) -> OrcidRelease:
-    """ Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
-    called in 'task_callable'.
-
-    :param kwargs: the context passed from the PythonOperator. See
-    https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are
-    passed to this argument.
-    :return: an OrcidRelease instance.
-    """
-    ti: TaskInstance = kwargs['ti']
-    start_date, end_date, first_release = ti.xcom_pull(key=OrcidTelescope.RELEASE_INFO, include_prior_dates=True)
-
-    release = OrcidRelease(self.dag_id, start_date, end_date, first_release, self.max_processes)
-    return release
-```
-
-## Using airflow variables and connections
-### Variables
-Airflow variables and connections are both used with the existing telescopes.  
-Airflow variables should never contain any sensitive information and are used for example for the project_id, bucket
- names or data location.  
-
-### Connections
-Airflow connections can contain sensitive information and are often used to store credentials like API keys or
- usernames and passwords.  
-In the local development environment, the Airflow connections are simply stored in the metastore database.  
-There, the passwords inside the connection configurations are encrypted using Fernet.  
-The value for the Airflow connection should always be a connection URI, see the [Airflow documentation](https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#generating-a-connection-uri)
- for more detailed information on how to construct this URI.
- 
-### Using a new variable or connection
-To use a new Airflow variable or connection, it has to be added to the relevant class in the airflow_utils file.  
-This file can be found at:  
-`observatory-platform/observatory/platform/utils/airflow_utils.py`
-
-In there are the AirflowVars and AirflowConns classes.  
-The python variable name is used inside the telescope and the value is used inside the config.yaml or config-terraform.yaml
- file.
- 
-For example, to add the airflow variable 'new_variable' and connection 'new_connection', the relevant classes are
- updated like this:  
-```python
-# Inside observatory-platform/observatory/platform/utils/airflow_utils.py
-class AirflowVars:
-    """ Common Airflow Variable names used with the Observatory Platform """
-    
-    # add to existing variables
-    NEW_VARIABLE = "new_variable"
-
-class AirflowConns:
-    """ Common Airflow Connection names used with the Observatory Platform """
-    
-    # add to existing connections
-    NEW_CONNECTION = "new_connection"
-```
-
-The variable or connection can then be used inside the telescope like this:
-```python
-from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
-
-airflow_conn = AirflowConns.NEW_CONNECTION
-airflow_var = AirflowVars.NEW_VARIABLE
-```
-
-The relevant section of both the config.yaml and config-terraform.yaml files will look like this:
-```yaml
-# User defined Apache Airflow variables:
-airflow_variables:
-  new_variable: my-variable-value
-
-# User defined Apache Airflow Connections:
-airflow_connections:
-  new_connection: http://my-username:my-password@
-```
-
-### Secrets backend issue, use custom AirflowVariable class
-In the cloud environment deployed with terraform, Airflow uses Google Cloud Secret Manager as a secrets backend and
- both the Airflow variable and connections are stored in there as secrets.
- 
-Note that there is currently an issue when Airflow tries to get a variable in the cloud environment (meaning Google
- Cloud Secrets Manager is set as a secrets backend), when the variable is not stored in the cloud.  
-Some Airflow variables (test_data_path, data_path, download_bucket, transform_bucket) are not set in the
- 'airflow_variables' section of the config-terraform.yaml file.  
-This means that these variables are not stored as Google Cloud Secrets and they only exist as environment variables
- instead.  
-The search order for variables/connections for Airflow is not configurable and with a secrets backend enabled it is:   
-```
-secrets backend > environment variables > metastore
-```
-
-Unfortunately, the current Airflow method to get variables from the secrets backend will return an error when a
- secret can not be found, meaning that it will never attempt to search the environment variables next.  
-As a workaround, there is a custom `AirflowVariable` class inside 
-`observatory-platform/observatory/platform/utils/airflow_utils.py` that should be used to get variables instead of the
- standard Airflow `Variable` class inside `airflow.models.variable.py`.
-
-For example, to get a variable:  
-```python
-from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars
-
-variable = AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET) 
-```
-
-### Add variable/connection info to documentation
-If a newly developed telescope uses an Airflow connection or variable, this should be explained in the documentation on
- the telescope.  
-An example of the variable/connection is required as well as an explanation on how the value for this 
- variable/connection can be obtained.
-
-See for example this info section on the Airflow connection required with the google_books telescope:
-
----
-## Airflow connections
-Note that all values need to be urlencoded.  
-In the config.yaml file, the following airflow connection is required:  
-
-### sftp_service
-```yaml
-sftp_service: ssh://<username>:<password>@<host>?host_key=<host_key>
-```
-The sftp_service airflow connection is used to connect to the sftp_service and download the reports.  
-The username and password are created by the sftp service and the host is e.g. `oaebu.exavault.com`.  
-The host key is optional, you can get it by running ssh-keyscan, e.g.:  
-```
-ssh-keyscan oaebu.exavault.com
-```
----
