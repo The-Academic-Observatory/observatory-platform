@@ -42,10 +42,10 @@ class TestAbstractChart(unittest.TestCase):
     test_class = None
     init_args = {}
     plot_args = {}
-    test_data = 'test_oa_data.csv'
+    test_data = "test_oa_data.csv"
 
     def setUp(self):
-        test_data_file = os.path.join(test_fixtures_path(), 'reports', self.test_data)
+        test_data_file = os.path.join(test_fixtures_path(), "reports", self.test_data)
         self.df = pd.read_csv(test_data_file)
         self.available_ids = list(self.df.id.unique())
 
@@ -76,63 +76,49 @@ class TestAbstractChartWithAnimation(TestAbstractChart):
 
 
 class TestScatterPlot(TestAbstractChartWithAnimation):
-
     def setUp(self):
         super().setUp()
         self.test_class = ScatterPlot
         self.init_args = {
-            'x': 'percent_green',
-            'y': 'percent_gold',
-            'filter_name': 'published_year',
-            'filter_value': 2017
+            "x": "percent_green",
+            "y": "percent_gold",
+            "filter_name": "published_year",
+            "filter_value": 2017,
         }
         self.plot_args = {}
 
 
 class TestTimePlot(TestAbstractChart):
-
     def setUp(self):
         super().setUp()
         self.test_class = TimePlot
-        self.init_args = {
-            'year_range': (2016, 2020),
-            'unis': self.available_ids[0:4],
-            'plot_column': 'percent_oa'
-        }
+        self.init_args = {"year_range": (2016, 2020), "unis": self.available_ids[0:4], "plot_column": "percent_oa"}
         self.plot_args = {}
 
 
 class TestTimePlotLayout(TestAbstractChart):
-
     def setUp(self):
         super().setUp()
         self.test_class = TimePlotLayout
         self.init_args = {
-            'plots': [
-                {'year_range': (2016, 2020),
-                 'unis': self.available_ids[0:4],
-                 'y_column': 'percent_oa'},
-                {'year_range': (2016, 2020),
-                 'unis': self.available_ids[0:3],
-                 'y_column': 'percent_gold'},
-                {'year_range': (2016, 2020),
-                 'unis': self.available_ids[0:4],
-                 'y_column': 'percent_green'}
+            "plots": [
+                {"year_range": (2016, 2020), "unis": self.available_ids[0:4], "y_column": "percent_oa"},
+                {"year_range": (2016, 2020), "unis": self.available_ids[0:3], "y_column": "percent_gold"},
+                {"year_range": (2016, 2020), "unis": self.available_ids[0:4], "y_column": "percent_green"},
             ]
         }
         self.plot_args = {}
 
 
 class TestTimePath(TestAbstractChartWithAnimation):
-
     def setUp(self):
         super().setUp()
         self.test_class = TimePath
         self.init_args = {
-            'year_range': (2016, 2020),
-            'unis': self.available_ids[0:4],
-            'x': 'percent_gold',
-            'y': 'percent_green'
+            "year_range": (2016, 2020),
+            "unis": self.available_ids[0:4],
+            "x": "percent_gold",
+            "y": "percent_green",
         }
         self.plot_args = {}
 
@@ -145,11 +131,7 @@ class TestRankChart(TestAbstractChart):
     def setUp(self):
         super().setUp()
         self.test_class = RankChart
-        self.init_args = {
-            'rankcol': 'percent_gold',
-            'filter_name': 'published_year',
-            'filter_value': 2017
-        }
+        self.init_args = {"rankcol": "percent_gold", "filter_name": "published_year", "filter_value": 2017}
         self.plot_args = {}
 
 
@@ -158,10 +140,10 @@ class TestConfidenceInternalRankChart(TestAbstractChart):
         super().setUp()
         self.test_class = ConfidenceIntervalRank
         self.init_args = {
-            'rankcol': 'percent_oa',
-            'errorcol': 'percent_oa_err',
-            'filter_name': 'published_year',
-            'filter_value': 2017
+            "rankcol": "percent_oa",
+            "errorcol": "percent_oa_err",
+            "filter_name": "published_year",
+            "filter_value": 2017,
         }
         self.plot_args = {}
 
@@ -170,23 +152,16 @@ class TestBoxScatter(TestAbstractChart):
     def setUp(self):
         super().setUp()
         self.test_class = BoxScatter
-        self.init_args = {
-            'year': 2017,
-            'group_column': 'country',
-            'plot_column': 'percent_oa'
-        }
+        self.init_args = {"year": 2017, "group_column": "country", "plot_column": "percent_oa"}
         self.plot_args = {}
 
 
 class TestOutputTypesPieChart(TestAbstractChart):
     def setUp(self):
-        self.test_data = 'test_outputs_data.csv'
+        self.test_data = "test_outputs_data.csv"
         super().setUp()
         self.test_class = OutputTypesPieChart
-        self.init_args = {
-            'identifier': self.available_ids[0],
-            'focus_year': 2018
-        }
+        self.init_args = {"identifier": self.available_ids[0], "focus_year": 2018}
         self.plot_args = {}
 
 
@@ -195,20 +170,18 @@ class TestGenericTimeChart(TestAbstractChart):
         super().setUp()
         self.test_class = GenericTimeChart
         self.init_args = {
-            'columns': ['percent_oa', 'percent_green', 'percent_gold'],
-            'identifier': self.available_ids[0]
+            "columns": ["percent_oa", "percent_green", "percent_gold"],
+            "identifier": self.available_ids[0],
         }
         self.plot_args = {}
 
 
 class TestOutputTypesTimeChart(TestAbstractChart):
     def setUp(self):
-        self.test_data = 'test_outputs_data.csv'
+        self.test_data = "test_outputs_data.csv"
         super().setUp()
         self.test_class = OutputTypesTimeChart
-        self.init_args = {
-            'identifier': self.available_ids[0]
-        }
+        self.init_args = {"identifier": self.available_ids[0]}
         self.plot_args = {}
 
 
@@ -216,32 +189,25 @@ class TestOApcTimeChart(TestAbstractChart):
     def setUp(self):
         super().setUp()
         self.test_class = OApcTimeChart
-        self.init_args = {
-            'identifier': self.available_ids[0]
-        }
+        self.init_args = {"identifier": self.available_ids[0]}
         self.plot_args = {}
 
 
 class TestCitationCountTimeChart(TestAbstractChart):
     def setUp(self):
-        self.test_data = 'test_citations_data.csv'
+        self.test_data = "test_citations_data.csv"
         super().setUp()
         self.test_class = CitationCountTimeChart
-        self.init_args = {
-            'identifier': self.available_ids[0]
-        }
+        self.init_args = {"identifier": self.available_ids[0]}
         self.plot_args = {}
 
 
 class TestOAAdvantageBarChart(TestAbstractChart):
     def setUp(self):
-        self.test_data = 'test_citations_data.csv'
+        self.test_data = "test_citations_data.csv"
         super().setUp()
         self.test_class = OAAdvantageBarChart
-        self.init_args = {
-            'focus_year': 2017,
-            'identifier': self.available_ids[0]
-        }
+        self.init_args = {"focus_year": 2017, "identifier": self.available_ids[0]}
         self.plot_args = {}
 
 
@@ -250,21 +216,18 @@ class TestBarComparisonChart(TestAbstractChart):
         super().setUp()
         self.test_class = BarComparisonChart
         self.init_args = {
-            'comparison': self.available_ids[0:5],
-            'focus_year': 2017,
+            "comparison": self.available_ids[0:5],
+            "focus_year": 2017,
         }
         self.plot_args = {}
 
 
 class TestFunderGraph(TestAbstractChart):
     def setUp(self):
-        self.test_data = 'test_funding_data.csv'
+        self.test_data = "test_funding_data.csv"
         super().setUp()
         self.test_class = FunderGraph
-        self.init_args = {
-            'focus_year': 2018,
-            'identifier': self.available_ids[0]
-        }
+        self.init_args = {"focus_year": 2018, "identifier": self.available_ids[0]}
 
         self.plot_args = {}
 
@@ -274,9 +237,9 @@ class TestDistributionComparisonChart(TestAbstractChart):
         super().setUp()
         self.test_class = DistributionComparisonChart
         self.init_args = {
-            'focus_year': 2018,
-            'identifier': self.available_ids[0],
-            'plot_column': 'percent_oa',
-            'comparison': self.available_ids[0:4]
+            "focus_year": 2018,
+            "identifier": self.available_ids[0],
+            "plot_column": "percent_oa",
+            "comparison": self.available_ids[0:4],
         }
         self.plot_args = {}

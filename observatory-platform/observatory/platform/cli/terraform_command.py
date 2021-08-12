@@ -25,9 +25,8 @@ from observatory.platform.terraform_builder import TerraformBuilder
 
 
 class TerraformCommand:
-
     def __init__(self, config_path: str, terraform_credentials_path: str, debug: bool = False):
-        """ Create a TerraformCommand, which can be used to create and update terraform workspaces.
+        """Create a TerraformCommand, which can be used to create and update terraform workspaces.
 
         :param config_path: the path to the Terraform Config file.
         :param terraform_credentials_path: the path to the Terraform credentials file.
@@ -50,16 +49,23 @@ class TerraformCommand:
 
     @property
     def is_environment_valid(self):
-        """ Whether is the parameters passed to the TerraformCommand are valid.
+        """Whether is the parameters passed to the TerraformCommand are valid.
 
         :return: whether the parameters passed to the TerraformCommand are valid.
         """
 
-        return all([self.config_exists, self.terraform_credentials_exists, self.config_is_valid,
-                    self.config is not None, self.terraform_builder.is_environment_valid])
+        return all(
+            [
+                self.config_exists,
+                self.terraform_credentials_exists,
+                self.config_is_valid,
+                self.config is not None,
+                self.terraform_builder.is_environment_valid,
+            ]
+        )
 
     def print_variable(self, var: TerraformVariable):
-        """ Print the output for the CLI for a single TerraformVariable instance.
+        """Print the output for the CLI for a single TerraformVariable instance.
 
         :param var: the TerraformVariable instance.
         :return: None.
@@ -71,7 +77,7 @@ class TerraformCommand:
             print(indent(f"* \x1B[3m{var.key}\x1B[23m: {var.value}", INDENT2))
 
     def print_variable_update(self, old_var: TerraformVariable, new_var: TerraformVariable):
-        """ Print the output for the CLI for a terraform variable that is being updated.
+        """Print the output for the CLI for a terraform variable that is being updated.
 
         :param old_var: the old TerraformVariable instance.
         :param new_var: the new TerraformVariable instance.
@@ -84,7 +90,7 @@ class TerraformCommand:
             print(indent(f"* \x1B[3m{old_var.key}\x1B[23m: {old_var.value} -> {new_var.value}", INDENT2))
 
     def build_terraform(self):
-        """ Build the Terraform files for the Observatory Platform.
+        """Build the Terraform files for the Observatory Platform.
 
         :return: None.
         """
@@ -92,7 +98,7 @@ class TerraformCommand:
         self.terraform_builder.build_terraform()
 
     def build_image(self):
-        """ Build a Google Compute image for the Terraform deployment with Packer.
+        """Build a Google Compute image for the Terraform deployment with Packer.
 
         :return: None.
         """
@@ -100,7 +106,7 @@ class TerraformCommand:
         self.terraform_builder.build_image()
 
     def build_google_container_image(self):
-        """ Build a Docker image stored in the Google Container registry using gcloud builds.
+        """Build a Docker image stored in the Google Container registry using gcloud builds.
 
         :return: None.
         """
@@ -109,7 +115,7 @@ class TerraformCommand:
 
     @property
     def verbosity(self):
-        """ Convert debug switch into Terraform API verbosity.
+        """Convert debug switch into Terraform API verbosity.
         :return:
         """
 
@@ -124,16 +130,19 @@ class TerraformCommand:
         workspace = self.config.terraform_workspace_id
 
         # Display settings for workspace
-        print('\nTerraform Cloud Workspace: ')
-        print(indent(f'Organization: {organization}', INDENT1))
-        print(indent(f"- Name: {workspace} (prefix: '{TerraformConfig.WORKSPACE_PREFIX}' + suffix: '{environment}')",
-                     INDENT1))
-        print(indent(f'- Settings: ', INDENT1))
-        print(indent(f'- Auto apply: True', INDENT2))
-        print(indent(f'- Terraform Variables:', INDENT1))
+        print("\nTerraform Cloud Workspace: ")
+        print(indent(f"Organization: {organization}", INDENT1))
+        print(
+            indent(
+                f"- Name: {workspace} (prefix: '{TerraformConfig.WORKSPACE_PREFIX}' + suffix: '{environment}')", INDENT1
+            )
+        )
+        print(indent(f"- Settings: ", INDENT1))
+        print(indent(f"- Auto apply: True", INDENT2))
+        print(indent(f"- Terraform Variables:", INDENT1))
 
     def create_workspace(self):
-        """ Create a Terraform workspace.
+        """Create a Terraform workspace.
 
         :return: None.
         """
@@ -168,10 +177,10 @@ class TerraformCommand:
             for var in terraform_variables:
                 terraform_api.add_workspace_variable(var, workspace_id)
 
-            print('Successfully created workspace')
+            print("Successfully created workspace")
 
     def update_workspace(self):
-        """ Update a Terraform workspace.
+        """Update a Terraform workspace.
 
         :return: None.
         """
@@ -194,19 +203,19 @@ class TerraformCommand:
         add, edit, unchanged, delete = terraform_api.plan_variable_changes(terraform_variables, workspace_id)
 
         if add:
-            print(indent('NEW', INDENT1))
+            print(indent("NEW", INDENT1))
             for var in add:
                 self.print_variable(var)
         if edit:
-            print(indent('UPDATE', INDENT1))
+            print(indent("UPDATE", INDENT1))
             for old_var, new_var in edit:
                 self.print_variable_update(old_var, new_var)
         if delete:
-            print(indent('DELETE', INDENT1))
+            print(indent("DELETE", INDENT1))
             for var in delete:
                 self.print_variable(var)
         if unchanged:
-            print(indent('UNCHANGED', INDENT1))
+            print(indent("UNCHANGED", INDENT1))
             for var in unchanged:
                 self.print_variable(var)
 
@@ -217,4 +226,4 @@ class TerraformCommand:
             # Update variables in workspace
             terraform_api.update_workspace_variables(add, edit, delete, workspace_id)
 
-            print('Successfully updated workspace')
+            print("Successfully updated workspace")

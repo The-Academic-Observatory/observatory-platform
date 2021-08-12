@@ -24,9 +24,8 @@ from werkzeug.serving import make_server
 
 
 class ObservatoryApiEnvironment:
-
     def __init__(self, host: str = "localhost", port: int = 5000, seed_db: bool = False):
-        """ Create an ObservatoryApiEnvironment instance.
+        """Create an ObservatoryApiEnvironment instance.
 
         :param host: the host name.
         :param port: the port.
@@ -36,14 +35,14 @@ class ObservatoryApiEnvironment:
         self.host = host
         self.port = port
         self.seed_db = seed_db
-        self.db_uri = 'sqlite://'
+        self.db_uri = "sqlite://"
         self.session = None
         self.server = None
         self.server_thread = None
 
     @contextlib.contextmanager
     def create(self):
-        """ Make and destroy an Observatory API isolated environment, which involves:
+        """Make and destroy an Observatory API isolated environment, which involves:
 
         * Creating an in memory SQLite database for the API backend to connect to
         * Start the Connexion / Flask app
@@ -53,10 +52,9 @@ class ObservatoryApiEnvironment:
 
         try:
             # Connect to in memory SQLite database with SQLAlchemy
-            self.session = create_session(uri=self.db_uri,
-                                          connect_args={'check_same_thread': False},
-                                          poolclass=StaticPool,
-                                          seed_db=self.seed_db)
+            self.session = create_session(
+                uri=self.db_uri, connect_args={"check_same_thread": False}, poolclass=StaticPool, seed_db=self.seed_db
+            )
             set_session(self.session)
 
             # Create the Connexion App and start the server

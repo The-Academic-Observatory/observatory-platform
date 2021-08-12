@@ -98,9 +98,19 @@ class MockStreamTelescope(StreamTelescope):
         dataset_description: str = "dataset_description",
     ):
         table_descriptions = {"file": "table description"}
-        super().__init__(dag_id, start_date, schedule_interval, dataset_id, merge_partition_field, bq_merge_days,
-                         source_format=source_format, schema_prefix=schema_prefix, schema_version=schema_version,
-                         dataset_description=dataset_description, table_descriptions=table_descriptions)
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            dataset_id,
+            merge_partition_field,
+            bq_merge_days,
+            source_format=source_format,
+            schema_prefix=schema_prefix,
+            schema_version=schema_version,
+            dataset_description=dataset_description,
+            table_descriptions=table_descriptions,
+        )
 
     def make_release(self, **kwargs):
         return StreamRelease(
@@ -621,7 +631,7 @@ class TestTemplateUtils(unittest.TestCase):
                     telescope.dataset_id,
                     main_table_id,
                     partition_table_id,
-                    telescope.merge_partition_field
+                    telescope.merge_partition_field,
                 )
 
                 expected_query = (

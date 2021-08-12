@@ -20,25 +20,24 @@ from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2, INDEN
 
 
 class TestClick(unittest.TestCase):
-
     def test_indent(self):
-        original_str = 'hello world'
+        original_str = "hello world"
 
         # 2 spaces
         output = indent(original_str, INDENT1)
-        self.assertEqual(f'  {original_str}', output)
+        self.assertEqual(f"  {original_str}", output)
 
         # 3 spaces
         output = indent(original_str, INDENT2)
-        self.assertEqual(f'   {original_str}', output)
+        self.assertEqual(f"   {original_str}", output)
 
         # 4 spaces
         output = indent(original_str, INDENT3)
-        self.assertEqual(f'    {original_str}', output)
+        self.assertEqual(f"    {original_str}", output)
 
         # 5 spaces
         output = indent(original_str, INDENT4)
-        self.assertEqual(f'     {original_str}', output)
+        self.assertEqual(f"     {original_str}", output)
 
         # Check that values below 0 raise assertion error
         with self.assertRaises(AssertionError):

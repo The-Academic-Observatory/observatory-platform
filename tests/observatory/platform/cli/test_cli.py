@@ -29,16 +29,28 @@ from observatory.platform.cli.cli import cli
 from observatory.platform.observatory_config import TerraformConfig
 from observatory.platform.observatory_config import ValidationError
 from observatory.platform.docker.compose import ProcessOutput
-from observatory.platform.platform_builder import (BUILD_PATH, DAGS_MODULE, DATA_PATH, LOGS_PATH,
-                                                   POSTGRES_PATH, HOST_UID, HOST_GID, REDIS_PORT, FLOWER_UI_PORT,
-                                                   AIRFLOW_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
-                                                   DOCKER_NETWORK_NAME, DOCKER_COMPOSE_PROJECT_NAME, DEBUG)
+from observatory.platform.platform_builder import (
+    BUILD_PATH,
+    DAGS_MODULE,
+    DATA_PATH,
+    LOGS_PATH,
+    POSTGRES_PATH,
+    HOST_UID,
+    HOST_GID,
+    REDIS_PORT,
+    FLOWER_UI_PORT,
+    AIRFLOW_UI_PORT,
+    ELASTIC_PORT,
+    KIBANA_PORT,
+    DOCKER_NETWORK_NAME,
+    DOCKER_COMPOSE_PROJECT_NAME,
+    DEBUG,
+)
 from observatory.platform.terraform_api import TerraformApi
 from tests.observatory.test_utils import random_id
 
 
 class TestObservatoryGenerate(unittest.TestCase):
-
     @patch("click.confirm")
     @patch("os.path.exists")
     def test_generate(self, mock_path_exists, mock_click_confirm):
@@ -46,7 +58,7 @@ class TestObservatoryGenerate(unittest.TestCase):
 
         # Test generate fernet key
         runner = CliRunner()
-        result = runner.invoke(cli, ['generate', 'secrets', 'fernet-key'])
+        result = runner.invoke(cli, ["generate", "secrets", "fernet-key"])
         self.assertEqual(result.exit_code, os.EX_OK)
 
         # Test that files are generated
@@ -55,18 +67,18 @@ class TestObservatoryGenerate(unittest.TestCase):
             mock_path_exists.return_value = False
 
             # Test generate local config
-            config_path = os.path.abspath('config.yaml')
-            result = runner.invoke(cli, ['generate', 'config', 'local', '--config-path', config_path])
+            config_path = os.path.abspath("config.yaml")
+            result = runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertTrue(os.path.isfile(config_path))
-            self.assertIn('Observatory Config saved to:', result.output)
+            self.assertIn("Observatory Config saved to:", result.output)
 
             # Test generate terraform config
-            config_path = os.path.abspath('config-terraform.yaml')
-            result = runner.invoke(cli, ['generate', 'config', 'terraform', '--config-path', config_path])
+            config_path = os.path.abspath("config-terraform.yaml")
+            result = runner.invoke(cli, ["generate", "config", "terraform", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertTrue(os.path.isfile(config_path))
-            self.assertIn('Terraform Config saved to:', result.output)
+            self.assertIn("Terraform Config saved to:", result.output)
 
         # Test that files are not generated when confirm is set to n
         runner = CliRunner()
@@ -75,22 +87,21 @@ class TestObservatoryGenerate(unittest.TestCase):
             mock_path_exists.return_value = True
 
             # Test generate local config
-            config_path = os.path.abspath('config.yaml')
-            result = runner.invoke(cli, ['generate', 'config', 'local', '--config-path', config_path])
+            config_path = os.path.abspath("config.yaml")
+            result = runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertFalse(os.path.isfile(config_path))
-            self.assertIn('Not generating Observatory Config', result.output)
+            self.assertIn("Not generating Observatory Config", result.output)
 
             # Test generate terraform config
-            config_path = os.path.abspath('config-terraform.yaml')
-            result = runner.invoke(cli, ['generate', 'config', 'terraform', '--config-path', config_path])
+            config_path = os.path.abspath("config-terraform.yaml")
+            result = runner.invoke(cli, ["generate", "config", "terraform", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertFalse(os.path.isfile(config_path))
-            self.assertIn('Not generating Terraform Config', result.output)
+            self.assertIn("Not generating Terraform Config", result.output)
 
 
 class MockConfig(Mock):
-
     def __init__(self, is_valid: bool, errors: List = None, **kwargs: Any):
         super().__init__(**kwargs)
         self._is_valid = is_valid
@@ -106,11 +117,21 @@ class MockConfig(Mock):
 
 
 class MockPlatformCommand(Mock):
-
-    def __init__(self, is_environment_valid: bool, docker_exe_path: str, is_docker_running: bool,
-                 docker_compose_path: str, config_exists: bool, config: Any, build_return_code: int,
-                 start_return_code: int, stop_return_code: int, wait_for_airflow_ui: bool, config_path: str,
-                 **kwargs: Any):
+    def __init__(
+        self,
+        is_environment_valid: bool,
+        docker_exe_path: str,
+        is_docker_running: bool,
+        docker_compose_path: str,
+        config_exists: bool,
+        config: Any,
+        build_return_code: int,
+        start_return_code: int,
+        stop_return_code: int,
+        wait_for_airflow_ui: bool,
+        config_path: str,
+        **kwargs: Any,
+    ):
         super().__init__(**kwargs)
         self.is_environment_valid = is_environment_valid
         self.docker_exe_path = docker_exe_path
@@ -145,54 +166,62 @@ class MockPlatformCommand(Mock):
 
     @property
     def ui_url(self):
-        return 'http://localhost:8080'
+        return "http://localhost:8080"
 
     def build(self):
-        return ProcessOutput('output', 'error', self._build_return_code)
+        return ProcessOutput("output", "error", self._build_return_code)
 
     def start(self):
-        return ProcessOutput('output', 'error', self._start_return_code)
+        return ProcessOutput("output", "error", self._start_return_code)
 
     def stop(self):
-        return ProcessOutput('output', 'error', self._stop_return_code)
+        return ProcessOutput("output", "error", self._stop_return_code)
 
     def wait_for_airflow_ui(self, timeout: int = 60):
         return self._wait_for_airflow_ui
 
 
 class TestObservatoryPlatform(unittest.TestCase):
-
-    @patch('observatory.platform.cli.cli.PlatformCommand')
+    @patch("observatory.platform.cli.cli.PlatformCommand")
     def test_platform_start_stop_success(self, mock_cmd):
         """ Test that the start and stop command are successful """
 
         runner = CliRunner()
         with runner.isolated_filesystem():
             is_environment_valid = True
-            docker_exe_path = '/path/to/docker'
+            docker_exe_path = "/path/to/docker"
             is_docker_running = True
-            docker_compose_path = '/path/to/docker-compose'
+            docker_compose_path = "/path/to/docker-compose"
             config_exists = True
             config = MockConfig(is_valid=True)
             build_return_code = 0
             start_return_code = 0
             stop_return_code = 0
             wait_for_airflow_ui = True
-            config_path = os.path.abspath('config.yaml')
+            config_path = os.path.abspath("config.yaml")
             mock_cmd.return_value = MockPlatformCommand(
-                is_environment_valid, docker_exe_path, is_docker_running,
-                docker_compose_path, config_exists, config, build_return_code,
-                start_return_code, stop_return_code, wait_for_airflow_ui, config_path)
+                is_environment_valid,
+                docker_exe_path,
+                is_docker_running,
+                docker_compose_path,
+                config_exists,
+                config,
+                build_return_code,
+                start_return_code,
+                stop_return_code,
+                wait_for_airflow_ui,
+                config_path,
+            )
 
             # Test that start command works
-            result = runner.invoke(cli, ['platform', 'start'])
+            result = runner.invoke(cli, ["platform", "start"])
             self.assertEqual(result.exit_code, os.EX_OK)
 
             # Test that stop command works
-            result = runner.invoke(cli, ['platform', 'stop'])
+            result = runner.invoke(cli, ["platform", "stop"])
             self.assertEqual(result.exit_code, os.EX_OK)
 
-    @patch('observatory.platform.cli.cli.PlatformCommand')
+    @patch("observatory.platform.cli.cli.PlatformCommand")
     def test_platform_start_stop_fail(self, mock_cmd):
         """ Test that the start and stop command error messages and return codes """
 
@@ -201,7 +230,7 @@ class TestObservatoryPlatform(unittest.TestCase):
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Environment invalid, no Docker, Docker not running, no Docker Compose, no config file
-            default_config_path = os.path.abspath('config.yaml')
+            default_config_path = os.path.abspath("config.yaml")
             is_environment_valid = False
             docker_exe_path = None
             is_docker_running = False
@@ -213,22 +242,31 @@ class TestObservatoryPlatform(unittest.TestCase):
             stop_return_code = 0
             wait_for_airflow_ui = True
             mock_cmd.return_value = MockPlatformCommand(
-                is_environment_valid, docker_exe_path, is_docker_running,
-                docker_compose_path, config_exists, config, build_return_code,
-                start_return_code, stop_return_code, wait_for_airflow_ui, default_config_path)
+                is_environment_valid,
+                docker_exe_path,
+                is_docker_running,
+                docker_compose_path,
+                config_exists,
+                config,
+                build_return_code,
+                start_return_code,
+                stop_return_code,
+                wait_for_airflow_ui,
+                default_config_path,
+            )
 
             # Test that start command fails
-            result = runner.invoke(cli, ['platform', 'start', '--config-path', default_config_path])
+            result = runner.invoke(cli, ["platform", "start", "--config-path", default_config_path])
             self.assertEqual(result.exit_code, os.EX_CONFIG)
 
             # Docker not installed
-            self.assertIn('https://docs.docker.com/get-docker/', result.output)
+            self.assertIn("https://docs.docker.com/get-docker/", result.output)
 
             # Docker Compose not installed
-            self.assertIn('https://docs.docker.com/compose/install/', result.output)
+            self.assertIn("https://docs.docker.com/compose/install/", result.output)
 
             # config.yaml
-            self.assertIn('- file not found, generating a default file', result.output)
+            self.assertIn("- file not found, generating a default file", result.output)
             self.assertTrue(os.path.isfile(default_config_path))
 
             # Check return code
@@ -239,44 +277,52 @@ class TestObservatoryPlatform(unittest.TestCase):
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Environment invalid, Docker installed but not running
-            default_config_path = os.path.abspath('config.yaml')
+            default_config_path = os.path.abspath("config.yaml")
             is_environment_valid = False
-            docker_exe_path = '/path/to/docker'
+            docker_exe_path = "/path/to/docker"
             is_docker_running = False
-            docker_compose_path = '/path/to/docker-compose'
+            docker_compose_path = "/path/to/docker-compose"
             config_exists = True
-            validation_error = ValidationError('google_cloud.credentials', 'required field')
-            config = MockConfig(is_valid=False,
-                                errors=[validation_error])
+            validation_error = ValidationError("google_cloud.credentials", "required field")
+            config = MockConfig(is_valid=False, errors=[validation_error])
             build_return_code = 0
             start_return_code = 0
             stop_return_code = 0
             wait_for_airflow_ui = True
             mock_cmd.return_value = MockPlatformCommand(
-                is_environment_valid, docker_exe_path, is_docker_running,
-                docker_compose_path, config_exists, config, build_return_code,
-                start_return_code, stop_return_code, wait_for_airflow_ui, default_config_path)
+                is_environment_valid,
+                docker_exe_path,
+                is_docker_running,
+                docker_compose_path,
+                config_exists,
+                config,
+                build_return_code,
+                start_return_code,
+                stop_return_code,
+                wait_for_airflow_ui,
+                default_config_path,
+            )
 
             # Test that start command fails
-            result = runner.invoke(cli, ['platform', 'start', '--config-path', default_config_path])
+            result = runner.invoke(cli, ["platform", "start", "--config-path", default_config_path])
             self.assertEqual(result.exit_code, os.EX_CONFIG)
 
             # Check that google credentials file does not exist is printed
-            self.assertIn(f'google_cloud.credentials: required field', result.output)
+            self.assertIn(f"google_cloud.credentials: required field", result.output)
 
             # Check that Docker is not running message printed
-            self.assertIn('not running, please start', result.output)
+            self.assertIn("not running, please start", result.output)
 
             # Check return code
             self.assertEqual(result.exit_code, os.EX_CONFIG)
 
 
 class TestObservatoryTerraform(unittest.TestCase):
-    organisation = os.getenv('TEST_TERRAFORM_ORGANISATION')
-    token = os.getenv('TEST_TERRAFORM_TOKEN')
+    organisation = os.getenv("TEST_TERRAFORM_ORGANISATION")
+    token = os.getenv("TEST_TERRAFORM_TOKEN")
     terraform_api = TerraformApi(token)
     version = TerraformApi.TERRAFORM_WORKSPACE_VERSION
-    description = 'test'
+    description = "test"
 
     @patch("click.confirm")
     @patch("observatory.platform.observatory_config.TerraformConfig.load")
@@ -284,82 +330,67 @@ class TestObservatoryTerraform(unittest.TestCase):
         """ Test creating and updating a terraform cloud workspace"""
 
         # Create token json
-        token_json = {
-            "credentials": {
-                "app.terraform.io": {
-                    "token": self.token
-                }
-            }
-        }
+        token_json = {"credentials": {"app.terraform.io": {"token": self.token}}}
         runner = CliRunner()
         with runner.isolated_filesystem():
             # File paths
             working_dir = pathlib.Path().absolute()
-            terraform_credentials_path = os.path.join(working_dir, 'token.json')
-            config_file_path = os.path.join(working_dir, 'config-terraform.yaml')
-            credentials_file_path = os.path.join(working_dir, 'google_application_credentials.json')
-            TerraformConfig.WORKSPACE_PREFIX = random_id() + '-'
+            terraform_credentials_path = os.path.join(working_dir, "token.json")
+            config_file_path = os.path.join(working_dir, "config-terraform.yaml")
+            credentials_file_path = os.path.join(working_dir, "google_application_credentials.json")
+            TerraformConfig.WORKSPACE_PREFIX = random_id() + "-"
 
             # Create token file
-            with open(terraform_credentials_path, 'w') as f:
+            with open(terraform_credentials_path, "w") as f:
                 json.dump(token_json, f)
 
             # Make a fake google application credentials as it is required schema validation
-            with open(credentials_file_path, 'w') as f:
-                f.write('')
+            with open(credentials_file_path, "w") as f:
+                f.write("")
 
             # Make a fake config-terraform.yaml file
-            with open(config_file_path, 'w') as f:
-                f.write('')
+            with open(config_file_path, "w") as f:
+                f.write("")
 
             # Create config instance
-            config = TerraformConfig.from_dict({
-                'backend': {
-                    'type': 'terraform',
-                    'environment': 'develop'
-                },
-                'airflow': {
-                    'fernet_key': 'random-fernet-key',
-                    'secret_key': 'random-secret-key',
-                    'ui_user_password': 'password',
-                    'ui_user_email': 'password'
-                },
-                'terraform': {
-                    'organization': self.organisation
-                },
-                'google_cloud': {
-                    'project_id': 'my-project',
-                    'credentials': credentials_file_path,
-                    'region': 'us-west1',
-                    'zone': 'us-west1-c',
-                    'data_location': 'us'
-                },
-                'cloud_sql_database': {
-                    'tier': 'db-custom-2-7680',
-                    'backup_start_time': '23:00',
-                    'postgres_password': 'my-password'
-                },
-                'airflow_main_vm': {
-                    'machine_type': 'n2-standard-2',
-                    'disk_size': 1,
-                    'disk_type': 'pd-ssd',
-                    'create': True
-                },
-                'airflow_worker_vm': {
-                    'machine_type': 'n2-standard-2',
-                    'disk_size': 1,
-                    'disk_type': 'pd-standard',
-                    'create': False
-                },
-                'elasticsearch': {
-                    'host': 'https://address.region.gcp.cloud.es.io:port',
-                    'api_key': 'API_KEY'
-                },
-                'api': {
-                    'domain_name': 'api.custom.domain',
-                    'subdomain': 'project_id'
+            config = TerraformConfig.from_dict(
+                {
+                    "backend": {"type": "terraform", "environment": "develop"},
+                    "airflow": {
+                        "fernet_key": "random-fernet-key",
+                        "secret_key": "random-secret-key",
+                        "ui_user_password": "password",
+                        "ui_user_email": "password",
+                    },
+                    "terraform": {"organization": self.organisation},
+                    "google_cloud": {
+                        "project_id": "my-project",
+                        "credentials": credentials_file_path,
+                        "region": "us-west1",
+                        "zone": "us-west1-c",
+                        "data_location": "us",
+                    },
+                    "cloud_sql_database": {
+                        "tier": "db-custom-2-7680",
+                        "backup_start_time": "23:00",
+                        "postgres_password": "my-password",
+                    },
+                    "airflow_main_vm": {
+                        "machine_type": "n2-standard-2",
+                        "disk_size": 1,
+                        "disk_type": "pd-ssd",
+                        "create": True,
+                    },
+                    "airflow_worker_vm": {
+                        "machine_type": "n2-standard-2",
+                        "disk_size": 1,
+                        "disk_type": "pd-standard",
+                        "create": False,
+                    },
+                    "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
+                    "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
                 }
-            })
+            )
             self.assertTrue(config.is_valid)
             mock_load_config.return_value = config
 
@@ -371,27 +402,59 @@ class TestObservatoryTerraform(unittest.TestCase):
             terraform_api.delete_workspace(self.organisation, workspace)
 
             # Create workspace, confirm yes
-            mock_click_confirm.return_value = 'y'
-            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
-                                         '--terraform-credentials-path', terraform_credentials_path])
+            mock_click_confirm.return_value = "y"
+            result = runner.invoke(
+                cli,
+                [
+                    "terraform",
+                    "create-workspace",
+                    config_file_path,
+                    "--terraform-credentials-path",
+                    terraform_credentials_path,
+                ],
+            )
             self.assertIn("Successfully created workspace", result.output)
 
             # Create workspace, confirm no
             mock_click_confirm.return_value = False
-            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
-                                         '--terraform-credentials-path', terraform_credentials_path])
+            result = runner.invoke(
+                cli,
+                [
+                    "terraform",
+                    "create-workspace",
+                    config_file_path,
+                    "--terraform-credentials-path",
+                    terraform_credentials_path,
+                ],
+            )
             self.assertNotIn("Creating workspace...", result.output)
 
             # Update workspace, same config file but sensitive values will be replaced
-            mock_click_confirm.return_value = 'y'
-            result = runner.invoke(cli, ['terraform', 'update-workspace', config_file_path,
-                                         '--terraform-credentials-path', terraform_credentials_path])
+            mock_click_confirm.return_value = "y"
+            result = runner.invoke(
+                cli,
+                [
+                    "terraform",
+                    "update-workspace",
+                    config_file_path,
+                    "--terraform-credentials-path",
+                    terraform_credentials_path,
+                ],
+            )
             self.assertIn("Successfully updated workspace", result.output)
 
             # Update workspace, confirm no
             mock_click_confirm.return_value = False
-            result = runner.invoke(cli, ['terraform', 'update-workspace', config_file_path,
-                                         '--terraform-credentials-path', terraform_credentials_path])
+            result = runner.invoke(
+                cli,
+                [
+                    "terraform",
+                    "update-workspace",
+                    config_file_path,
+                    "--terraform-credentials-path",
+                    terraform_credentials_path,
+                ],
+            )
             self.assertNotIn("Updating workspace...", result.output)
 
             # Delete workspace
@@ -403,85 +466,95 @@ class TestObservatoryTerraform(unittest.TestCase):
         runner = CliRunner()
         with runner.isolated_filesystem():
             working_dir = pathlib.Path().absolute()
-            credentials_file_path = os.path.join(working_dir, 'google_application_credentials.json')
-            TerraformConfig.WORKSPACE_PREFIX = random_id() + '-'
+            credentials_file_path = os.path.join(working_dir, "google_application_credentials.json")
+            TerraformConfig.WORKSPACE_PREFIX = random_id() + "-"
 
             # No config file should exist because we are in a new isolated filesystem
-            config_file_path = os.path.join(working_dir, 'config-terraform.yaml')
-            terraform_credentials_path = os.path.join(working_dir, 'terraform-creds.yaml')
+            config_file_path = os.path.join(working_dir, "config-terraform.yaml")
+            terraform_credentials_path = os.path.join(working_dir, "terraform-creds.yaml")
 
             # Check that correct exit code and output are returned
-            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
-                                         '--terraform-credentials-path', terraform_credentials_path])
+            result = runner.invoke(
+                cli,
+                [
+                    "terraform",
+                    "create-workspace",
+                    config_file_path,
+                    "--terraform-credentials-path",
+                    terraform_credentials_path,
+                ],
+            )
 
             # No config file
-            self.assertIn(f"Error: Invalid value for 'CONFIG_PATH': File '{config_file_path}' does not exist.",
-                          result.output)
+            self.assertIn(
+                f"Error: Invalid value for 'CONFIG_PATH': File '{config_file_path}' does not exist.", result.output
+            )
 
             # Check return code, exit from click invalid option
             self.assertEqual(result.exit_code, 2)
 
             # Make a fake config-terraform.yaml file
-            with open(config_file_path, 'w') as f:
-                f.write('')
+            with open(config_file_path, "w") as f:
+                f.write("")
 
             # Create config instance
-            config = TerraformConfig.from_dict({
-                'backend': {
-                    'type': 'terraform',
-                    'environment': 'develop'
-                },
-                'airflow': {
-                    'fernet_key': 'random-fernet-key',
-                    'ui_user_password': 'password',
-                    'ui_user_email': 'password'
-                },
-                'terraform': {
-                    'organization': self.organisation
-                },
-                'google_cloud': {
-                    'project_id': 'my-project',
-                    'credentials': credentials_file_path,
-                    'region': 'us-west1',
-                    'zone': 'us-west1-c',
-                    'data_location': 'us'
-                },
-                'cloud_sql_database': {
-                    'tier': 'db-custom-2-7680',
-                    'backup_start_time': '23:00',
-                    'postgres_password': 'my-password'
-                },
-                'airflow_main_vm': {
-                    'machine_type': 'n2-standard-2',
-                    'disk_size': 1,
-                    'disk_type': 'pd-ssd',
-                    'create': True
-                },
-                'airflow_worker_vm': {
-                    'machine_type': 'n2-standard-2',
-                    'disk_size': 1,
-                    'disk_type': 'pd-standard',
-                    'create': False
-                },
-                'elasticsearch': {
-                    'host': 'https://address.region.gcp.cloud.es.io:port',
-                    'api_key': 'API_KEY'
-                },
-                'api': {
-                    'domain_name': 'api.custom.domain',
-                    'subdomain': 'project_id'
+            config = TerraformConfig.from_dict(
+                {
+                    "backend": {"type": "terraform", "environment": "develop"},
+                    "airflow": {
+                        "fernet_key": "random-fernet-key",
+                        "ui_user_password": "password",
+                        "ui_user_email": "password",
+                    },
+                    "terraform": {"organization": self.organisation},
+                    "google_cloud": {
+                        "project_id": "my-project",
+                        "credentials": credentials_file_path,
+                        "region": "us-west1",
+                        "zone": "us-west1-c",
+                        "data_location": "us",
+                    },
+                    "cloud_sql_database": {
+                        "tier": "db-custom-2-7680",
+                        "backup_start_time": "23:00",
+                        "postgres_password": "my-password",
+                    },
+                    "airflow_main_vm": {
+                        "machine_type": "n2-standard-2",
+                        "disk_size": 1,
+                        "disk_type": "pd-ssd",
+                        "create": True,
+                    },
+                    "airflow_worker_vm": {
+                        "machine_type": "n2-standard-2",
+                        "disk_size": 1,
+                        "disk_type": "pd-standard",
+                        "create": False,
+                    },
+                    "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
+                    "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
                 }
-            })
+            )
             mock_load_config.return_value = config
 
             # Run again with existing config, specifying terraform files that don't exist. Check that correct exit
             # code and output are returned
-            result = runner.invoke(cli, ['terraform', 'create-workspace', config_file_path,
-                                         '--terraform-credentials-path', terraform_credentials_path])
+            result = runner.invoke(
+                cli,
+                [
+                    "terraform",
+                    "create-workspace",
+                    config_file_path,
+                    "--terraform-credentials-path",
+                    terraform_credentials_path,
+                ],
+            )
 
             # No terraform credentials file
-            self.assertIn("Terraform credentials file:\n   - file not found, create one by running 'terraform login'",
-                          result.output)
+            self.assertIn(
+                "Terraform credentials file:\n   - file not found, create one by running 'terraform login'",
+                result.output,
+            )
 
             # Check return code
             self.assertEqual(result.exit_code, os.EX_CONFIG)

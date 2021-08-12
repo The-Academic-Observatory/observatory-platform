@@ -1540,7 +1540,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             env.add_connection(conn)
 
             # Setup ONIX telescopes
-            dt = pendulum.now('UTC')
+            dt = pendulum.now("UTC")
             telescope_type = orm.TelescopeType(
                 name="ONIX Telescope", type_id=TelescopeTypes.onix, created=dt, modified=dt
             )

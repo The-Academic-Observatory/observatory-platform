@@ -23,20 +23,16 @@ class TestTelescopeType(unittest.TestCase):
 
         # Create valid object
         dt = datetime.datetime.utcnow()
-        TelescopeType(id=1,
-                      type_id='onix',
-                      name='ONIX Telescope',
-                      created=dt,
-                      modified=dt)
+        TelescopeType(id=1, type_id="onix", name="ONIX Telescope", created=dt, modified=dt)
 
         # Invalid argument
         with self.assertRaises(ApiTypeError):
-            TelescopeType('hello')
+            TelescopeType("hello")
 
         # Invalid keyword argument
         with self.assertRaises(ApiAttributeError):
-            TelescopeType(hello='world')
+            TelescopeType(hello="world")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

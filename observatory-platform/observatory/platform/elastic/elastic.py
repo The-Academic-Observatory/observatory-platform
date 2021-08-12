@@ -29,7 +29,7 @@ from observatory.platform.utils.config_utils import module_file_path
 
 
 def make_elastic_mappings_path() -> str:
-    """ Get the Elasticsearch mappings path.
+    """Get the Elasticsearch mappings path.
 
     :return: the elastic search schema path.
     """
@@ -38,7 +38,7 @@ def make_elastic_mappings_path() -> str:
 
 
 def make_sharded_index(index_prefix: str, release_date: Date) -> str:
-    """ Make a sharded Elasticsearch index given an index prefix and a date.
+    """Make a sharded Elasticsearch index given an index prefix and a date.
 
     :param index_prefix: the index prefix.
     :param release_date: the date.
@@ -49,7 +49,7 @@ def make_sharded_index(index_prefix: str, release_date: Date) -> str:
 
 
 def make_elastic_uri(schema: str, user: str, secret: str, hostname: str, port: int) -> str:
-    """ Make an Elasticsearch URI.
+    """Make an Elasticsearch URI.
 
     :param schema: the schema, e.g. http or https.
     :param user: Elasticsearch username.
@@ -70,7 +70,7 @@ class Elastic:
         chunk_size: int = 10000,
         timeout: int = 30000,
     ):
-        """ Create an Elastic API client.
+        """Create an Elastic API client.
 
         :param host: the host including the hostname and port.
         :param thread_count: the number of threads to use when loading data into Elastic.
@@ -94,7 +94,7 @@ class Elastic:
         return records
 
     def delete_index(self, index_id: str) -> None:
-        """ Delete an Elastic index.
+        """Delete an Elastic index.
 
         :param index_id: the index ID.
         :return: None.
@@ -106,7 +106,7 @@ class Elastic:
             logging.warning(f"Index not found: {e}")
 
     def get_alias_indexes(self, alias_id: str) -> List:
-        """ Return the list of indexes associated with an alias.
+        """Return the list of indexes associated with an alias.
 
         :param alias_id: the alias identifier.
         :return: the list of indexes.
@@ -123,7 +123,7 @@ class Elastic:
         return index_ids
 
     def index_documents(self, index_id: str, mappings: Dict, documents: Iterator[Dict]) -> bool:
-        """ Index documents supplied as an iterator.
+        """Index documents supplied as an iterator.
 
         :param index_id: the index ID.
         :param mappings: the mappings supplied as a Dict.
@@ -170,7 +170,7 @@ class Elastic:
         return all(results)
 
     def _yield_bulk_documents(self, index_id: str, documents: Iterator[Dict]):
-        """ Yields documents for indexing.
+        """Yields documents for indexing.
 
         :param index_id: the index ID.
         :param documents: the document iterator.

@@ -22,7 +22,7 @@ import tests.fixtures
 
 
 def random_id():
-    """ Generate a random id for bucket name.
+    """Generate a random id for bucket name.
 
     :return: a random string id.
     """
@@ -30,7 +30,7 @@ def random_id():
 
 
 def test_fixtures_path(*subdirs) -> str:
-    """ Get the path to the Observatory Platform test data directory.
+    """Get the path to the Observatory Platform test data directory.
 
     :return: he Observatory Platform test data directory.
     """

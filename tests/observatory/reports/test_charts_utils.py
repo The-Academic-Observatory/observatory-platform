@@ -24,7 +24,7 @@ from observatory.reports.tables import (
     InstitutionOpenAccessTable,
     InstitutionFundersTable,
     InstitutionOutputsTable,
-    InstitutionCitationsTable
+    InstitutionCitationsTable,
 )
 
 
@@ -32,8 +32,8 @@ def update_chart_test_data():
     """ Use the current tables definition to get up to date test data if necessary"""
 
     scopes = [
-        'https://www.googleapis.com/auth/cloud-platform',
-        'https://www.googleapis.com/auth/drive',
+        "https://www.googleapis.com/auth/cloud-platform",
+        "https://www.googleapis.com/auth/drive",
     ]
 
     credentials = pydata_google_auth.get_user_credentials(
@@ -44,19 +44,19 @@ def update_chart_test_data():
   id in (SELECT id from `open-knowledge-publications.institutional_oa_evaluation_2020.named_grids_in_scope`)
 """
     # Set the arguments up for table production
-    args = [credentials, 'coki-scratch-space', scope, 2018, (2016, 2020)]
+    args = [credentials, "coki-scratch-space", scope, 2018, (2016, 2020)]
     openaccess = InstitutionOpenAccessTable(*args)
-    calculate_confidence_interval(openaccess.df, ['percent_oa'])
+    calculate_confidence_interval(openaccess.df, ["percent_oa"])
     funders = InstitutionFundersTable(*args)
     output_types = InstitutionOutputsTable(*args)
     citations = InstitutionCitationsTable(*args)
 
     fixtures_path = Path(test_fixtures_path())
-    openaccess.df.to_csv(fixtures_path / 'reports' / 'test_oa_data.csv')
-    funders.df.to_csv(fixtures_path / 'reports' / 'test_funding_data.csv')
-    output_types.df.to_csv(fixtures_path / 'reports' / 'test_outputs_data.csv')
-    citations.df.to_csv(fixtures_path / 'reports' / 'test_citations_data.csv')
+    openaccess.df.to_csv(fixtures_path / "reports" / "test_oa_data.csv")
+    funders.df.to_csv(fixtures_path / "reports" / "test_funding_data.csv")
+    output_types.df.to_csv(fixtures_path / "reports" / "test_outputs_data.csv")
+    citations.df.to_csv(fixtures_path / "reports" / "test_citations_data.csv")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     update_chart_test_data()
