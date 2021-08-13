@@ -495,8 +495,8 @@ locals {
   google_cloud_secrets = {
     airflow_ui_user_email=var.observatory.airflow_ui_user_email,
     airflow_ui_user_password=var.observatory.airflow_ui_user_password,
-    fernet_key=var.observatory.airflow_fernet_key,
-    secret_key=var.observatory.airflow_secret_key,
+    airflow_fernet_key=var.observatory.airflow_fernet_key,
+    airflow_secret_key=var.observatory.airflow_secret_key,
     postgres_password=var.observatory.postgres_password,
 
     # Important: this must be the generated service account, not the developer's service account used to deploy the system
