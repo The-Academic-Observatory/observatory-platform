@@ -38,6 +38,7 @@ class PlatformBuilder(ComposeRunner):
         config_path: str,
         host_uid: int = HOST_UID,
         host_gid: int = HOST_GID,
+        docker_build_path: str = None,
         debug: bool = DEBUG,
         backend_type: BackendType = BackendType.local,
     ):
@@ -46,6 +47,7 @@ class PlatformBuilder(ComposeRunner):
         :param config_path: The path to the config.yaml configuration file.
         :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.
         :param host_gid: The group id of the host system. Used to set the group id in the Docker containers.
+        :param docker_build_path: the Docker build path.
         :param debug: Print debugging information.
         :param backend_type: whether we are running the local or terraform environment.
         """
@@ -70,7 +72,9 @@ class PlatformBuilder(ComposeRunner):
         if self.config_exists:
             self.config: Union[ObservatoryConfig, TerraformConfig] = self.config_class.load(config_path)
             self.config_is_valid = self.config.is_valid
-        docker_build_path = os.path.join(self.config.observatory.observatory_home, "build", "docker")
+
+        if docker_build_path is None:
+            docker_build_path = os.path.join(self.config.observatory.observatory_home, "build", "docker")
 
         super().__init__(
             compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),

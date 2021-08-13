@@ -169,8 +169,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      {% if config.backend.type.value == 'local' -%}
       postgres:
         condition: service_healthy
+      {%- endif %}
     ports:
       - ${HOST_FLOWER_UI_PORT}:5555
     command: celery flower
@@ -190,8 +192,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      {% if config.backend.type.value == 'local' -%}
       postgres:
         condition: service_healthy
+      {%- endif %}
     {% if config.google_cloud.credentials is not none -%}
     secrets:
       - google_application_credentials.json

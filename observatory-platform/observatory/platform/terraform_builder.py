@@ -48,7 +48,6 @@ class TerraformBuilder:
         self.terraform_path = module_file_path("observatory.platform.terraform")
         self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
         self.api_path = module_file_path("observatory.api.server")
-        self.platform_builder = PlatformBuilder(config_path=config_path, backend_type=BackendType.terraform)
         self.debug = debug
 
         # Load config
@@ -61,6 +60,11 @@ class TerraformBuilder:
 
         # Set paths
         build_path = os.path.join(self.config.observatory.observatory_home, "build", "terraform")
+        self.platform_builder = PlatformBuilder(
+            config_path=config_path,
+            docker_build_path=os.path.join(build_path, "docker"),
+            backend_type=BackendType.terraform,
+        )
         self.packages_build_path = os.path.join(build_path, "packages")
         self.terraform_build_path = os.path.join(build_path, "terraform")
 
