@@ -22,41 +22,58 @@ from unittest.mock import patch
 import httpretty
 import requests
 
-from observatory.platform.utils.url_utils import (get_url_domain_suffix, unique_id, is_url_absolute, strip_query_params,
-                                                  retry_session, get_ao_user_agent, wait_for_url)
+from observatory.platform.utils.url_utils import (
+    get_url_domain_suffix,
+    unique_id,
+    is_url_absolute,
+    strip_query_params,
+    retry_session,
+    get_ao_user_agent,
+    wait_for_url,
+)
 from tests.observatory.platform.cli.test_platform_command import MockUrlOpen
 
 
 class TestUrlUtils(unittest.TestCase):
-    relative_urls = ['#skip-to-content', '#', '/local/assets/css/tipso.css', 'acknowledgements/rogers.html',
-                     'acknowledgements/staff.html#lwallace', '?residentType=INT',
-                     'hello/?p=2036']
+    relative_urls = [
+        "#skip-to-content",
+        "#",
+        "/local/assets/css/tipso.css",
+        "acknowledgements/rogers.html",
+        "acknowledgements/staff.html#lwallace",
+        "?residentType=INT",
+        "hello/?p=2036",
+    ]
 
-    absolute_urls = ['https://www.curtin.edu.au/', '//global.curtin.edu.au/template/css/layoutv3.css',
-                     'https://www.curtin.edu.au/?p=1000', 'https://www.curtin.edu.au/test#',
-                     'https://www.curtin.edu.au/test#lwallace',
-                     '//global.curtin.edu.au/template/css/layoutv3.css/?a=1']
+    absolute_urls = [
+        "https://www.curtin.edu.au/",
+        "//global.curtin.edu.au/template/css/layoutv3.css",
+        "https://www.curtin.edu.au/?p=1000",
+        "https://www.curtin.edu.au/test#",
+        "https://www.curtin.edu.au/test#lwallace",
+        "//global.curtin.edu.au/template/css/layoutv3.css/?a=1",
+    ]
 
     class MockMetadata:
         @classmethod
         def get(self, attribute):
-            if attribute == 'Version':
-                return '1'
-            if attribute == 'Home-page':
-                return 'http://test.test'
-            if attribute == 'Author-email':
-                return 'test@test'
+            if attribute == "Version":
+                return "1"
+            if attribute == "Home-page":
+                return "http://test.test"
+            if attribute == "Author-email":
+                return "test@test"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def test_get_url_domain_suffix(self):
-        expected = 'curtin.edu.au'
+        expected = "curtin.edu.au"
 
-        level_one = get_url_domain_suffix('https://www.curtin.edu.au/')
+        level_one = get_url_domain_suffix("https://www.curtin.edu.au/")
         self.assertEqual(level_one, expected)
 
-        level_two = get_url_domain_suffix('https://alumniandgive.curtin.edu.au/')
+        level_two = get_url_domain_suffix("https://alumniandgive.curtin.edu.au/")
         self.assertEqual(level_two, expected)
 
         level_two_with_path = get_url_domain_suffix("https://alumniandgive.curtin.edu.au/giving-to-curtin/")
@@ -66,9 +83,12 @@ class TestUrlUtils(unittest.TestCase):
         self.assertEqual(level_two_no_https, expected)
 
     def test_unique_id(self):
-        expected_ids = ['5d41402abc4b2a76b9719d911017c592', '7d793037a0760186574b0282f2f435e7',
-                        '5eb63bbbe01eeed093cb22bb8f5acdc3']
-        ids = [unique_id('hello'), unique_id('world'), unique_id('hello world')]
+        expected_ids = [
+            "5d41402abc4b2a76b9719d911017c592",
+            "7d793037a0760186574b0282f2f435e7",
+            "5eb63bbbe01eeed093cb22bb8f5acdc3",
+        ]
+        ids = [unique_id("hello"), unique_id("world"), unique_id("hello world")]
         self.assertListEqual(ids, expected_ids)
 
     def test_is_url_absolute(self):
@@ -79,12 +99,14 @@ class TestUrlUtils(unittest.TestCase):
 
     def test_strip_query_params(self):
         # Test absolute URLs
-        results_expected = ['https://www.curtin.edu.au/',
-                            '//global.curtin.edu.au/template/css/layoutv3.css',
-                            'https://www.curtin.edu.au/',
-                            'https://www.curtin.edu.au/test',
-                            'https://www.curtin.edu.au/test',
-                            '//global.curtin.edu.au/template/css/layoutv3.css/']
+        results_expected = [
+            "https://www.curtin.edu.au/",
+            "//global.curtin.edu.au/template/css/layoutv3.css",
+            "https://www.curtin.edu.au/",
+            "https://www.curtin.edu.au/test",
+            "https://www.curtin.edu.au/test",
+            "//global.curtin.edu.au/template/css/layoutv3.css/",
+        ]
         results_actual = [strip_query_params(url) for url in TestUrlUtils.absolute_urls]
         self.assertListEqual(results_actual, results_expected)
 
@@ -129,37 +151,37 @@ class TestUrlUtils(unittest.TestCase):
         httpretty.disable()
         httpretty.reset()
 
-    @patch('observatory.platform.utils.url_utils.urllib.request.urlopen')
+    @patch("observatory.platform.utils.url_utils.urllib.request.urlopen")
     def test_wait_for_url_success(self, mock_url_open):
         # Mock the status code return value: 200 should succeed
         mock_url_open.return_value = MockUrlOpen(200)
 
         start = datetime.now()
-        state = wait_for_url('http://localhost:8080')
+        state = wait_for_url("http://localhost:8080")
         end = datetime.now()
         duration = (end - start).total_seconds()
 
         self.assertTrue(state)
         self.assertAlmostEqual(0, duration, delta=0.5)
 
-    @patch('observatory.platform.utils.url_utils.urllib.request.urlopen')
+    @patch("observatory.platform.utils.url_utils.urllib.request.urlopen")
     def test_wait_for_url_failed(self, mock_url_open):
         # Mock the status code return value: 500 should fail
         mock_url_open.return_value = MockUrlOpen(500)
 
         expected_timeout = 10
         start = datetime.now()
-        state = wait_for_url('http://localhost:8080', timeout=expected_timeout)
+        state = wait_for_url("http://localhost:8080", timeout=expected_timeout)
         end = datetime.now()
         duration = (end - start).total_seconds()
 
         self.assertFalse(state)
         self.assertAlmostEqual(expected_timeout, duration, delta=1)
 
-    @patch('observatory.platform.utils.url_utils.metadata', return_value=MockMetadata)
+    @patch("observatory.platform.utils.url_utils.metadata", return_value=MockMetadata)
     def test_ao_user_agent(self, mock_cfg):
         """ Test user agent generation """
 
-        gt = f'Observatory Platform v1 (+http://test.test; mailto: test@test)'
+        gt = f"Observatory Platform v1 (+http://test.test; mailto: test@test)"
         ua = get_ao_user_agent()
         self.assertEqual(ua, gt)

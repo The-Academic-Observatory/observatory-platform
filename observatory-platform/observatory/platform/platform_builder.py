@@ -64,7 +64,7 @@ class PlatformBuilder(ComposeRunner):
         debug: bool = DEBUG,
         backend_type: BackendType = BackendType.local,
     ):
-        """ Create a PlatformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
+        """Create a PlatformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
         :param config_path: The path to the config.yaml configuration file.
         :param dags_path: The path on the host machine to mount as the Apache Airflow DAGs folder.
@@ -159,7 +159,7 @@ class PlatformBuilder(ComposeRunner):
 
     @property
     def is_environment_valid(self) -> bool:
-        """ Return whether the environment for building the Observatory Platform is valid.
+        """Return whether the environment for building the Observatory Platform is valid.
 
         :return: whether the environment for building the Observatory Platform is valid.
         """
@@ -177,7 +177,7 @@ class PlatformBuilder(ComposeRunner):
 
     @property
     def docker_module_path(self) -> str:
-        """ The path to the Observatory Platform docker module.
+        """The path to the Observatory Platform docker module.
 
         :return: the path.
         """
@@ -186,7 +186,7 @@ class PlatformBuilder(ComposeRunner):
 
     @property
     def docker_exe_path(self) -> str:
-        """ The path to the Docker executable.
+        """The path to the Docker executable.
 
         :return: the path or None.
         """
@@ -195,7 +195,7 @@ class PlatformBuilder(ComposeRunner):
 
     @property
     def docker_compose_path(self) -> str:
-        """ The path to the Docker Compose executable.
+        """The path to the Docker Compose executable.
 
         :return: the path or None.
         """
@@ -204,7 +204,7 @@ class PlatformBuilder(ComposeRunner):
 
     @property
     def is_docker_running(self) -> bool:
-        """ Checks whether Docker is running or not.
+        """Checks whether Docker is running or not.
 
         :return: whether Docker is running or not.
         """
@@ -217,7 +217,7 @@ class PlatformBuilder(ComposeRunner):
         return is_running
 
     def make_environment(self):
-        """ Make an environment containing the environment variables that are required to build and start the
+        """Make an environment containing the environment variables that are required to build and start the
         Observatory docker environment.
 
         :return: None.

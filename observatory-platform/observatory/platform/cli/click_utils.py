@@ -21,7 +21,7 @@ INDENT4 = 5
 
 
 def indent(string: str, num_spaces: int) -> str:
-    """ Left indent a string.
+    """Left indent a string.
 
     :param string: the string to indent.
     :param num_spaces: the number of spaces to indent the string with.

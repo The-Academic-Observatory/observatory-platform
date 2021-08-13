@@ -23,22 +23,24 @@ class TestQueryResponse(unittest.TestCase):
         """Test QueryResponse"""
 
         res = copy.deepcopy(RES_EXAMPLE)
-        QueryResponse(version='v1',
-                      index='citations-country-20200101',
-                      scroll_id=SCROLL_ID,
-                      returned_hits=1000,
-                      total_hits=10000,
-                      schema={'schema': 'to_be_created'},
-                      results=res['hits']['hits'])
+        QueryResponse(
+            version="v1",
+            index="citations-country-20200101",
+            scroll_id=SCROLL_ID,
+            returned_hits=1000,
+            total_hits=10000,
+            schema={"schema": "to_be_created"},
+            results=res["hits"]["hits"],
+        )
 
         # Invalid argument
         with self.assertRaises(ApiTypeError):
-            QueryResponse('hello')
+            QueryResponse("hello")
 
         # Invalid keyword argument
         with self.assertRaises(ApiAttributeError):
-            QueryResponse(hello='world')
+            QueryResponse(hello="world")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

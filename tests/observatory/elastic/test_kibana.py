@@ -23,7 +23,6 @@ from observatory.platform.utils.test_utils import random_id
 
 
 class TestParseKibanaUrl(unittest.TestCase):
-
     def test_parse_kibana_url(self):
         """ Parse Kibana URL """
 

@@ -69,7 +69,7 @@ class AirflowConns:
 
 
 def get_variable(key: str) -> Optional[str]:
-    """ Get Airflow Variable by iterating over all Secret Backends.
+    """Get Airflow Variable by iterating over all Secret Backends.
 
     :param key: Variable Key
     :return: Variable Value
@@ -79,7 +79,7 @@ def get_variable(key: str) -> Optional[str]:
         try:
             var_val = secrets_backend.get_variable(key=key)
         except PermissionDenied as err:
-            print(f'Secret does not exist or cannot be accessed: {err}')
+            print(f"Secret does not exist or cannot be accessed: {err}")
             var_val = None
         if var_val is not None:
             return var_val
@@ -98,7 +98,7 @@ class AirflowVariable(Variable):
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
             else:
-                raise KeyError('Variable {} does not exist'.format(key))
+                raise KeyError("Variable {} does not exist".format(key))
         else:
             if deserialize_json:
                 return json.loads(var_val)
@@ -107,7 +107,7 @@ class AirflowVariable(Variable):
 
 
 def change_task_log_level(new_levels: Union[List, int]) -> list:
-    """ Change the logging levels of all handlers for an airflow task.
+    """Change the logging levels of all handlers for an airflow task.
 
     :param new_levels: New logging levels that all handlers will be set to
     :return: List of the old logging levels, can be used to restore logging levels.
@@ -125,19 +125,19 @@ def change_task_log_level(new_levels: Union[List, int]) -> list:
 
 
 def list_connections(source):
-    """ Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
+    """Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
 
     :param source: Data source (conforming to name convention) as a string, e.g., 'wos'.
     :return: A list of connection id strings with the prefix <source>_, e.g., ['wos_curtin', 'wos_auckland'].
     """
     with create_session() as session:
         query = session.query(Connection)
-        query = query.filter(Connection.conn_id.like(f'{source}_%'))
+        query = query.filter(Connection.conn_id.like(f"{source}_%"))
         return query.all()
 
 
 def check_variables(*variables):
-    """ Checks whether all given airflow variables exist.
+    """Checks whether all given airflow variables exist.
 
     :param variables: name of airflow variable
     :return: True if all variables are valid
@@ -153,7 +153,7 @@ def check_variables(*variables):
 
 
 def check_connections(*connections):
-    """ Checks whether all given airflow connections exist.
+    """Checks whether all given airflow connections exist.
 
     :param connections: name of airflow connection
     :return: True if all connections are valid
@@ -178,7 +178,7 @@ def create_slack_webhook(comments: str = "", project_id: str = "?", **kwargs) ->
     this  argument.
     :return: slack webhook
     """
-    ti: TaskInstance = kwargs['ti']
+    ti: TaskInstance = kwargs["ti"]
 
     message = """
     :red_circle: Task Alert. 
@@ -188,8 +188,15 @@ def create_slack_webhook(comments: str = "", project_id: str = "?", **kwargs) ->
     *Log Url*: {log_url} 
     *Project id*: {project_id}
     *Comments*: {comments}
-    """.format(task=ti.task_id, dag=ti.dag_id, ti=ti, exec_date=kwargs['execution_date'], log_url=ti.log_url,
-               comments=comments, project_id=project_id)
+    """.format(
+        task=ti.task_id,
+        dag=ti.dag_id,
+        ti=ti,
+        exec_date=kwargs["execution_date"],
+        log_url=ti.log_url,
+        comments=comments,
+        project_id=project_id,
+    )
     slack_conn = BaseHook.get_connection(AirflowConns.SLACK)
     slack_hook = SlackWebhookHook(http_conn_id=slack_conn.conn_id, webhook_token=slack_conn.password, message=message)
     return slack_hook
