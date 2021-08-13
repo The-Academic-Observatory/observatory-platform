@@ -3,20 +3,22 @@ variable "environment" {
   type = string
 }
 
-variable "airflow" {
+variable "observatory" {
   description = <<EOF
-The Apache Airflow settings for the Observatory Platform.
+The Observatory settings.
 
-fernet_key: the Fernet key.
-secret_key: the secret key used for the Flask Airflow Webserver.
-ui_user_password: the password for the Apache Airflow UI admin user.
-ui_user_email: the email address for the Apache Airflow UI admin user.
+airflow_fernet_key: the Fernet key.
+airflow_secret_key: the secret key used for the Flask Airflow Webserver.
+airflow_ui_user_password: the password for the Apache Airflow UI admin user.
+airflow_ui_user_email: the email address for the Apache Airflow UI admin user.
+postgres_password: the Postgres SQL password.
 EOF
   type = object({
-    fernet_key = string
-    secret_key = string
-    ui_user_email = string
-    ui_user_password = string
+    airflow_fernet_key = string
+    airflow_secret_key = string
+    airflow_ui_user_email = string
+    airflow_ui_user_password = string
+    postgres_password = string
   })
 }
 
@@ -45,12 +47,10 @@ The Google Cloud SQL database settings for the Observatory Platform.
 
 tier: the database machine tier.
 backup_start_time: the start time for backups in HH:MM format.
-postgres_password: the Postgres SQL password.
 EOF
   type = object({
     tier = string
     backup_start_time = string
-    postgres_password = string
   })
 }
 

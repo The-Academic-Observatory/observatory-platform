@@ -26,11 +26,9 @@ from observatory.api.server.openapi_renderer import OpenApiRenderer
 from observatory.platform.cli.click_utils import indent, INDENT1
 from observatory.platform.observatory_config import TerraformConfig, BackendType
 from observatory.platform.platform_builder import PlatformBuilder
-from observatory.platform.utils.config_utils import observatory_home, module_file_path
+from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
-
-BUILD_PATH = observatory_home("build", "terraform")
 
 
 def copy_dir(source_path: str, destination_path: str, ignore):
@@ -38,25 +36,19 @@ def copy_dir(source_path: str, destination_path: str, ignore):
 
 
 class TerraformBuilder:
-    def __init__(self, config_path: str, build_path: str = BUILD_PATH, debug: bool = False):
-        """Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
+    def __init__(self, config_path: str, debug: bool = False):
+        """ Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
         :param config_path: the path to the config.yaml configuration file.
-        :param build_path: the path to the build folder.
         :param debug: whether to print debug statements.
         """
 
-        self.backend_type = BackendType.terraform
-        self.config_path = config_path
-        self.build_path = build_path
         self.platform_package_path = module_file_path("observatory.platform", nav_back_steps=-3)
         self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
         self.terraform_path = module_file_path("observatory.platform.terraform")
         self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
         self.api_path = module_file_path("observatory.api.server")
-        self.packages_build_path = os.path.join(build_path, "packages")
-        self.terraform_build_path = os.path.join(build_path, "terraform")
-        self.platform_builder = PlatformBuilder(config_path, build_path=build_path, backend_type=self.backend_type)
+        self.platform_builder = PlatformBuilder(config_path=config_path, backend_type=BackendType.terraform)
         self.debug = debug
 
         # Load config
@@ -67,9 +59,14 @@ class TerraformBuilder:
             self.config: TerraformConfig = TerraformConfig.load(config_path)
             self.config_is_valid = self.config.is_valid
 
+        # Set paths
+        build_path = os.path.join(self.config.observatory.observatory_home, "build", "terraform")
+        self.packages_build_path = os.path.join(build_path, "packages")
+        self.terraform_build_path = os.path.join(build_path, "terraform")
+
     @property
     def is_environment_valid(self) -> bool:
-        """Return whether the environment for building the Packer image is valid.
+        """ Return whether the environment for building the Packer image is valid.
 
         :return: whether the environment for building the Packer image is valid.
         """
@@ -80,7 +77,7 @@ class TerraformBuilder:
 
     @property
     def packer_exe_path(self) -> str:
-        """The path to the Packer executable.
+        """ The path to the Packer executable.
 
         :return: the path or None.
         """
@@ -89,7 +86,7 @@ class TerraformBuilder:
 
     @property
     def gcloud_exe_path(self) -> str:
-        """The path to the Google Cloud SDK executable.
+        """ The path to the Google Cloud SDK executable.
 
         :return: the path or None.
         """
@@ -149,7 +146,7 @@ class TerraformBuilder:
             f.write(render)
 
     def build_terraform(self):
-        """Build the Observatory Platform Terraform files.
+        """ Build the Observatory Platform Terraform files.
 
         :return: None.
         """
@@ -158,7 +155,7 @@ class TerraformBuilder:
         self.platform_builder.make_files()
 
     def build_image(self) -> Tuple[str, str, int]:
-        """Build the Observatory Platform Google Compute image with Packer.
+        """ Build the Observatory Platform Google Compute image with Packer.
 
         :return: output and error stream results and proc return code.
         """

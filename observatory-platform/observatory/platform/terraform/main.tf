@@ -431,14 +431,14 @@ resource "google_sql_database" "airflow_db" {
 resource "google_sql_user" "users" {
   name = "airflow"
   instance = google_sql_database_instance.observatory_db_instance.name
-  password = var.cloud_sql_database.postgres_password
+  password = var.observatory.postgres_password
 }
 
 // New database user
 resource "google_sql_user" "observatory_user" {
   name = "observatory"
   instance = google_sql_database_instance.observatory_db_instance.name
-  password = var.cloud_sql_database.postgres_password
+  password = var.observatory.postgres_password
 }
 
 // Observatory Platform Database
@@ -493,11 +493,11 @@ module "google_cloud_observatory_connection" {
 
 locals {
   google_cloud_secrets = {
-    airflow_ui_user_email=var.airflow.ui_user_email,
-    airflow_ui_user_password=var.airflow.ui_user_password,
-    fernet_key=var.airflow.fernet_key,
-    secret_key=var.airflow.secret_key,
-    postgres_password=var.cloud_sql_database.postgres_password,
+    airflow_ui_user_email=var.observatory.airflow_ui_user_email,
+    airflow_ui_user_password=var.observatory.airflow_ui_user_password,
+    fernet_key=var.observatory.airflow_fernet_key,
+    secret_key=var.observatory.airflow_secret_key,
+    postgres_password=var.observatory.postgres_password,
 
     # Important: this must be the generated service account, not the developer's service account used to deploy the system
     google_application_credentials=base64decode(google_service_account_key.observatory_service_account_key.private_key)
@@ -634,7 +634,7 @@ module "observatory_api" {
   google_cloud = var.google_cloud
   elasticsearch = var.elasticsearch
   vpc_connector_name = local.vpc_connector_name
-  observatory_db_uri = "postgres://observatory:${urlencode(var.cloud_sql_database.postgres_password)}@${google_sql_database_instance.observatory_db_instance.private_ip_address}:5432/observatory"
+  observatory_db_uri = "postgres://observatory:${urlencode(var.observatory.postgres_password)}@${google_sql_database_instance.observatory_db_instance.private_ip_address}:5432/observatory"
   api = var.api
   # necessary for api-endpoint_service_account, api-backend_service_account and elasticsearch-logins
   depends_on = [google_project_service.services, google_sql_database.observatory_db, google_vpc_access_connector.observatory_vpc_connector]
