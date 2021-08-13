@@ -37,7 +37,7 @@ class ElasticEnvironment(ComposeRunner):
         wait: bool = True,
         wait_time_secs: int = 120,
     ):
-        """ Construct an Elasticsearch and Kibana environment.
+        """Construct an Elasticsearch and Kibana environment.
 
         :param build_path: the path to the build directory.
         :param elastic_port: the Elastic port.
@@ -60,7 +60,8 @@ class ElasticEnvironment(ComposeRunner):
 
         # Add files
         self.add_file(
-            path=os.path.join(self.elastic_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml",
+            path=os.path.join(self.elastic_module_path, "elasticsearch.yml"),
+            output_file_name="elasticsearch.yml",
         )
 
         # Stop the awful unnecessary Elasticsearch connection warnings being logged
@@ -68,7 +69,7 @@ class ElasticEnvironment(ComposeRunner):
         logging.getLogger().setLevel(logging.ERROR)
 
     def make_environment(self) -> Dict:
-        """ Make the environment when running the Docker Compose command.
+        """Make the environment when running the Docker Compose command.
 
         :return: the environment.
         """
@@ -76,7 +77,7 @@ class ElasticEnvironment(ComposeRunner):
         return os.environ.copy()
 
     def start(self) -> ProcessOutput:
-        """ Start the Elastic environment.
+        """Start the Elastic environment.
 
         :return: ProcessOutput.
         """
@@ -88,7 +89,7 @@ class ElasticEnvironment(ComposeRunner):
         return process_output
 
     def kibana_ping(self):
-        """ Check if Kibana has started or not.
+        """Check if Kibana has started or not.
 
         :return: whether Kibana has started or not.
         """
@@ -101,7 +102,7 @@ class ElasticEnvironment(ComposeRunner):
         return False
 
     def wait_until_started(self):
-        """ Wait until Elastic and Kibana have started.
+        """Wait until Elastic and Kibana have started.
 
         :return: whether started or not.
         """

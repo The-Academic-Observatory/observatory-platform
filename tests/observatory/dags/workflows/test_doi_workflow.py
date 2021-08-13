@@ -94,7 +94,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
         self.institutions = [inst_curtin, inst_anu, inst_akl]
 
     def test_set_task_state(self):
-        """ Test
+        """Test
 
         :return:
         """
@@ -138,7 +138,9 @@ class TestDoiWorkflow(ObservatoryTestCase):
                 "create_orcid": ["create_doi"],
                 "create_open_citations": ["create_doi"],
                 "create_unpaywall": ["create_doi"],
-                "create_doi": ["create_book",],
+                "create_doi": [
+                    "create_book",
+                ],
                 "create_book": [
                     "create_country",
                     "create_funder",
@@ -368,7 +370,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                         self.assert_table_integrity(expected_table_id)
 
     def query_table(self, observatory_dataset_id: str, table_id: str, order_by_field: str) -> List[Dict]:
-        """ Query a BigQuery table, sorting the results and returning results as a list of dicts.
+        """Query a BigQuery table, sorting the results and returning results as a list of dicts.
 
         :param observatory_dataset_id: the observatory dataset id.
         :param table_id: the table id.
@@ -384,7 +386,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
         ]
 
     def assert_aggregate(self, expected: List[Dict], actual: List[Dict]):
-        """ Assert an aggregate table.
+        """Assert an aggregate table.
 
         :param expected: the expected rows.
         :param actual: the actual rows.
@@ -420,7 +422,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
             )
 
     def assert_sub_fields(self, expected: Dict, actual: Dict, field: str, sub_fields: List[str]):
-        """ Checks that the sub fields in the aggregate match.
+        """Checks that the sub fields in the aggregate match.
 
         :param expected: the expected item.
         :param actual: the actual item.
@@ -433,7 +435,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
             self.assertEqual(expected[field][key], actual[field][key])
 
     def assert_doi(self, expected: List[Dict], actual: List[Dict]):
-        """ Assert the DOI table.
+        """Assert the DOI table.
 
         :param expected: the expected DOI table rows.
         :param actual: the actual DOI table rows.
@@ -456,7 +458,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
             self.assert_doi_affiliations(expected_record["affiliations"], actual_record["affiliations"])
 
     def assert_doi_events(self, expected: Dict, actual: Dict):
-        """ Assert the DOI table events field.
+        """Assert the DOI table events field.
 
         :param expected: the expected events field.
         :param actual: the actual events field.
@@ -478,7 +480,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
                     self.assertDictEqual(ee, ea)
 
     def assert_doi_affiliations(self, expected: Dict, actual: Dict):
-        """ Assert DOI affiliations.
+        """Assert DOI affiliations.
 
         :param expected: the expected DOI affiliation rows.
         :param actual: the actual DOI affiliation rows.
@@ -494,7 +496,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
             self.assert_doi_affiliation(expected, actual, field)
 
     def assert_doi_affiliation(self, expected: Dict, actual: Dict, key: str):
-        """ Assert a DOI affiliation row.
+        """Assert a DOI affiliation row.
 
         :param expected: the expected DOI affiliation row.
         :param actual: the actual DOI affiliation row.

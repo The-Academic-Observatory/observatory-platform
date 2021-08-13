@@ -32,7 +32,7 @@ import requests
 
 @dataclasses.dataclass
 class TimeField:
-    """ A Kibana time field.
+    """A Kibana time field.
 
     :param pattern: a regex pattern. If the regex pattern matches an index, the associated time field name will be applied.
     :param field_name: the name of the Kibana time field.
@@ -43,7 +43,7 @@ class TimeField:
 
 
 def parse_kibana_url(url):
-    """ Parse a Kibana URL into host + port and username and password.
+    """Parse a Kibana URL into host + port and username and password.
 
     :param url: the full url.
     :return: the host + port, username and password.
@@ -81,7 +81,7 @@ class Kibana:
     }
 
     def __init__(self, host: str = "http://kibana:5601/", username: str = None, password: str = None):
-        """ Create a Kibana API client.
+        """Create a Kibana API client.
 
         :param host: the host including the hostname and port.
         :param username: the Kibana username.
@@ -106,7 +106,7 @@ class Kibana:
         color: str = None,
         image_url: str = None,
     ) -> bool:
-        """ Create a Kibana space.
+        """Create a Kibana space.
 
         :param space_id: the space ID.
         :param name: the display name for the space.
@@ -146,7 +146,7 @@ class Kibana:
         return success
 
     def delete_space(self, space_id: str) -> bool:
-        """ Delete a Kibana space.
+        """Delete a Kibana space.
 
         :param space_id: the space ID.
         :return: whether the Kibana space was deleted successfully or not.
@@ -171,7 +171,7 @@ class Kibana:
         initial_namespaces: List[str] = None,
         exists_ok: bool = False,
     ) -> bool:
-        """ Create a Kibana saved object.
+        """Create a Kibana saved object.
 
         :param object_type: the type of object to create.
         :param object_id: the object ID.
@@ -202,7 +202,7 @@ class Kibana:
         return success
 
     def delete_object(self, object_type: ObjectType, object_id: str, space_id: str = None, force: bool = False) -> bool:
-        """ Delete a Kibana saved object.
+        """Delete a Kibana saved object.
 
         :param object_type: the object type.
         :param object_id: The object ID that you want to delete.
@@ -224,7 +224,7 @@ class Kibana:
         return success
 
     def _make_spaces_url(self, space_id: str = None) -> str:
-        """ Make a URL for using the Kibana spaces REST API.
+        """Make a URL for using the Kibana spaces REST API.
 
         :param space_id: the space ID.
         :return: the URL.
@@ -236,7 +236,7 @@ class Kibana:
         return urljoin(self.host, *parts)
 
     def _make_saved_object_url(self, object_type: ObjectType, object_id: str, space_id: str = None) -> str:
-        """ Make a URL for using the Kibana saved object API.
+        """Make a URL for using the Kibana saved object API.
 
         :param object_type: the Kibana saved object type.
         :param object_id: the object ID.
@@ -252,7 +252,7 @@ class Kibana:
         return urljoin(self.host, *parts)
 
     def _make_index_pattern_url(self, index_pattern_id: str, space_id: str = None):
-        """ Make an index pattern URL.
+        """Make an index pattern URL.
 
         :param index_pattern_id: the id of the index pattern.
         :param space_id: the Kibana space id.
@@ -266,7 +266,7 @@ class Kibana:
         return urljoin(self.host, *parts)
 
     def get_index_pattern(self, index_pattern_id: str, space_id: str = None):
-        """ Get an index pattern.
+        """Get an index pattern.
 
         :param index_pattern_id: the id of the index pattern.
         :param space_id: the Kibana space id.

@@ -143,7 +143,10 @@ for telescope in telescopes:
     data_partners = get_oaebu_partner_data(gcp_project_id, org_name)
 
     onix_workflow = OnixWorkflow(
-        org_name=org_name, gcp_project_id=gcp_project_id, gcp_bucket_name=gcp_bucket_name, data_partners=data_partners,
+        org_name=org_name,
+        gcp_project_id=gcp_project_id,
+        gcp_bucket_name=gcp_bucket_name,
+        data_partners=data_partners,
     )
 
     globals()[onix_workflow.dag_id] = onix_workflow.make_dag()

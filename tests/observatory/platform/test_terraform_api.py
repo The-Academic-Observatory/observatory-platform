@@ -26,66 +26,65 @@ from tests.observatory.test_utils import test_fixtures_path, random_id
 
 VALID_VARIABLE_DICTS = [
     {
-        'type': 'vars',
-        'attributes': {
-            'key': 'literal_variable',
-            'value': 'some_text',
-            'sensitive': False,
-            'category': 'terraform',
-            'hcl': False,
-            'description': 'a description'
-        }
+        "type": "vars",
+        "attributes": {
+            "key": "literal_variable",
+            "value": "some_text",
+            "sensitive": False,
+            "category": "terraform",
+            "hcl": False,
+            "description": "a description",
+        },
     },
     {
-        'type': 'vars',
-        'attributes': {
-            'key': 'literal_variable_sensitive',
-            'value': 'some_text',
-            'sensitive': True,
-            'category': 'terraform',
-            'hcl': False,
-            'description': 'a description'
-        }
+        "type": "vars",
+        "attributes": {
+            "key": "literal_variable_sensitive",
+            "value": "some_text",
+            "sensitive": True,
+            "category": "terraform",
+            "hcl": False,
+            "description": "a description",
+        },
     },
     {
-        'type': 'vars',
-        'attributes': {
-            'key': 'hcl_variable',
-            'value': '{"test1"="value1", "test2"="value2"}',
-            'category': 'terraform',
-            'description': 'a description',
-            'hcl': True,
-            'sensitive': False
-        }
+        "type": "vars",
+        "attributes": {
+            "key": "hcl_variable",
+            "value": '{"test1"="value1", "test2"="value2"}',
+            "category": "terraform",
+            "description": "a description",
+            "hcl": True,
+            "sensitive": False,
+        },
     },
     {
-        'type': 'vars',
-        'attributes': {
-            'key': 'hcl_variable_sensitive',
-            'value': '{"test1"="value1", "test2"="value2"}',
-            'category': 'terraform',
-            'description': 'a description',
-            'hcl': True,
-            'sensitive': True
-        }
-    }
+        "type": "vars",
+        "attributes": {
+            "key": "hcl_variable_sensitive",
+            "value": '{"test1"="value1", "test2"="value2"}',
+            "category": "terraform",
+            "description": "a description",
+            "hcl": True,
+            "sensitive": True,
+        },
+    },
 ]
 
 INVALID_VARIABLE_DICT = {
-    'type': 'vars',
-    'attributes': {
-        'key': 'invalid',
-        'value': 'some_text',
-        'category': 'invalid',
-        'description': 'a description',
-        'hcl': False,
-        'sensitive': False
-    }
+    "type": "vars",
+    "attributes": {
+        "key": "invalid",
+        "value": "some_text",
+        "category": "invalid",
+        "description": "a description",
+        "hcl": False,
+        "sensitive": False,
+    },
 }
 
 
 class TestTerraformVariable(unittest.TestCase):
-
     def test_from_dict_to_dict(self):
         # Check that from and to dict work
         for expected_dict in VALID_VARIABLE_DICTS:
@@ -100,20 +99,21 @@ class TestTerraformVariable(unittest.TestCase):
 
 
 class TestTerraformApi(unittest.TestCase):
-    organisation = os.getenv('TEST_TERRAFORM_ORGANISATION')
+    organisation = os.getenv("TEST_TERRAFORM_ORGANISATION")
     workspace = random_id()
-    token = os.getenv('TEST_TERRAFORM_TOKEN')
+    token = os.getenv("TEST_TERRAFORM_TOKEN")
     terraform_api = TerraformApi(token)
     version = TerraformApi.TERRAFORM_WORKSPACE_VERSION
-    description = 'test'
+    description = "test"
 
     def __init__(self, *args, **kwargs):
         super(TestTerraformApi, self).__init__(*args, **kwargs)
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.terraform_api.create_workspace(cls.organisation, cls.workspace, auto_apply=True,
-                                           description=cls.description, version=cls.version)
+        cls.terraform_api.create_workspace(
+            cls.organisation, cls.workspace, auto_apply=True, description=cls.description, version=cls.version
+        )
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -123,34 +123,28 @@ class TestTerraformApi(unittest.TestCase):
         """ Test if token from json file is correctly retrieved """
 
         token = "24asdfAAD.atlasv1.AD890asdnlqADn6daQdf"
-        token_json = {
-            "credentials": {
-                "app.terraform.io": {
-                    "token": token
-                }
-            }
-        }
+        token_json = {"credentials": {"app.terraform.io": {"token": token}}}
 
         with CliRunner().isolated_filesystem():
-            with open('token.json', 'w') as f:
+            with open("token.json", "w") as f:
                 json.dump(token_json, f)
-            self.assertEqual(token, TerraformApi.token_from_file('token.json'))
+            self.assertEqual(token, TerraformApi.token_from_file("token.json"))
 
     def test_create_delete_workspace(self):
-        """ Test response codes of successfully creating a workspace and when trying to create a workspace that
-        already exists. """
+        """Test response codes of successfully creating a workspace and when trying to create a workspace that
+        already exists."""
 
         # First time, successful
-        workspace_id = self.workspace + 'unittest'
-        response_code = self.terraform_api.create_workspace(self.organisation, workspace_id,
-                                                            auto_apply=True, description=self.description,
-                                                            version=self.version)
+        workspace_id = self.workspace + "unittest"
+        response_code = self.terraform_api.create_workspace(
+            self.organisation, workspace_id, auto_apply=True, description=self.description, version=self.version
+        )
         self.assertEqual(response_code, 201)
 
         # Second time, workspace already exists
-        response_code = self.terraform_api.create_workspace(self.organisation, workspace_id,
-                                                            auto_apply=True, description=self.description,
-                                                            version=self.version)
+        response_code = self.terraform_api.create_workspace(
+            self.organisation, workspace_id, auto_apply=True, description=self.description, version=self.version
+        )
         self.assertEqual(response_code, 422)
 
         # Delete workspace
@@ -168,7 +162,7 @@ class TestTerraformApi(unittest.TestCase):
         self.assertIsInstance(workspace_id, str)
 
         with self.assertRaises(SystemExit):
-            self.terraform_api.workspace_id(self.organisation, 'non-existing-workspace')
+            self.terraform_api.workspace_id(self.organisation, "non-existing-workspace")
 
     def test_add_delete_workspace_variable(self):
         """ Test whether workspace variable is successfully added and deleted """
@@ -208,8 +202,8 @@ class TestTerraformApi(unittest.TestCase):
             var.var_id = self.terraform_api.add_workspace_variable(var, workspace_id)
 
             # Change key and value
-            var.key = var.key + '_updated'
-            var.value = 'updated'
+            var.key = var.key + "_updated"
+            var.value = "updated"
 
             # Key can not be changed for sensitive variables
             if var.sensitive:
@@ -278,7 +272,7 @@ class TestTerraformApi(unittest.TestCase):
 
         # get status
         configuration_status = self.terraform_api.get_configuration_version_status(configuration_id)
-        self.assertIn(configuration_status, ['pending', 'uploaded', 'errored'])
+        self.assertIn(configuration_status, ["pending", "uploaded", "errored"])
 
     def test_upload_configuration_files(self):
         """ Test that configuration files are uploaded successfully """
@@ -288,12 +282,12 @@ class TestTerraformApi(unittest.TestCase):
         # create configuration version
         upload_url, _ = self.terraform_api.create_configuration_version(workspace_id)
 
-        configuration_path = os.path.join(test_fixtures_path(), 'utils', 'terraform_utils', 'main.tf')
-        configuration_tar = 'conf.tar.gz'
+        configuration_path = os.path.join(test_fixtures_path(), "utils", "terraform_utils", "main.tf")
+        configuration_tar = "conf.tar.gz"
 
         with CliRunner().isolated_filesystem():
             # create tar.gz file of main.tf
-            with tarfile.open(configuration_tar, 'w:gz') as tar:
+            with tarfile.open(configuration_tar, "w:gz") as tar:
                 tar.add(configuration_path, arcname=os.path.basename(configuration_path))
 
             # test that configuration was created successfully
@@ -307,19 +301,19 @@ class TestTerraformApi(unittest.TestCase):
         # create configuration version
         upload_url, configuration_id = self.terraform_api.create_configuration_version(workspace_id)
 
-        configuration_path = os.path.join(test_fixtures_path(), 'utils', 'terraform_utils', 'main.tf')
-        configuration_tar = 'conf.tar.gz'
+        configuration_path = os.path.join(test_fixtures_path(), "utils", "terraform_utils", "main.tf")
+        configuration_tar = "conf.tar.gz"
 
         with CliRunner().isolated_filesystem():
             # create tar.gz file of main.tf
-            with tarfile.open(configuration_tar, 'w:gz') as tar:
+            with tarfile.open(configuration_tar, "w:gz") as tar:
                 tar.add(configuration_path, arcname=os.path.basename(configuration_path))
             # upload configuration files
             self.terraform_api.upload_configuration_files(upload_url, configuration_tar)
 
         # wait until configuration files are processed and uploaded
         configuration_status = None
-        while configuration_status != 'uploaded':
+        while configuration_status != "uploaded":
             configuration_status = self.terraform_api.get_configuration_version_status(configuration_id)
 
         # create run without target
@@ -327,8 +321,9 @@ class TestTerraformApi(unittest.TestCase):
         self.assertIsInstance(run_id, str)
 
         # create run with target
-        run_id = self.terraform_api.create_run(workspace_id, target_addrs="random_id.random", message="Targeting "
-                                                                                                      "random_id")
+        run_id = self.terraform_api.create_run(
+            workspace_id, target_addrs="random_id.random", message="Targeting " "random_id"
+        )
         self.assertIsInstance(run_id, str)
 
     def test_get_run_details(self):
@@ -338,40 +333,58 @@ class TestTerraformApi(unittest.TestCase):
         # create configuration version
         upload_url, configuration_id = self.terraform_api.create_configuration_version(workspace_id)
 
-        configuration_path = os.path.join(test_fixtures_path(), 'utils', 'terraform_utils', 'main.tf')
-        configuration_tar = 'conf.tar.gz'
+        configuration_path = os.path.join(test_fixtures_path(), "utils", "terraform_utils", "main.tf")
+        configuration_tar = "conf.tar.gz"
 
         with CliRunner().isolated_filesystem():
             # create tar.gz file of main.tf
-            with tarfile.open(configuration_tar, 'w:gz') as tar:
+            with tarfile.open(configuration_tar, "w:gz") as tar:
                 tar.add(configuration_path, arcname=os.path.basename(configuration_path))
             # upload configuration files
             self.terraform_api.upload_configuration_files(upload_url, configuration_tar)
 
         # wait until configuration files are processed and uploaded
         configuration_status = None
-        while configuration_status != 'uploaded':
+        while configuration_status != "uploaded":
             configuration_status = self.terraform_api.get_configuration_version_status(configuration_id)
 
         # possible states
-        run_states = ['pending', 'plan_queued', 'planning', 'planned', 'cost_estimating', 'cost_estimated',
-                      'policy_checking', 'policy_override', 'policy_soft_failed', 'policy_checked', 'confirmed',
-                      'planned_and_finished', 'apply_queued', 'applying', 'applied', 'discarded', 'errored', 'canceled',
-                      'force_canceled']
+        run_states = [
+            "pending",
+            "plan_queued",
+            "planning",
+            "planned",
+            "cost_estimating",
+            "cost_estimated",
+            "policy_checking",
+            "policy_override",
+            "policy_soft_failed",
+            "policy_checked",
+            "confirmed",
+            "planned_and_finished",
+            "apply_queued",
+            "applying",
+            "applied",
+            "discarded",
+            "errored",
+            "canceled",
+            "force_canceled",
+        ]
 
         # create run with target
-        run_id = self.terraform_api.create_run(workspace_id, target_addrs="random_id.random", message="Targeting "
-                                                                                                      "random_id")
+        run_id = self.terraform_api.create_run(
+            workspace_id, target_addrs="random_id.random", message="Targeting " "random_id"
+        )
         run_details = self.terraform_api.get_run_details(run_id)
         self.assertIsInstance(run_details, dict)
-        run_status = run_details['data']['attributes']['status']
+        run_status = run_details["data"]["attributes"]["status"]
         self.assertIn(run_status, run_states)
 
         # create run without target
         run_id = self.terraform_api.create_run(workspace_id, target_addrs=None, message="No target")
         run_details = self.terraform_api.get_run_details(run_id)
         self.assertIsInstance(run_details, dict)
-        run_status = run_details['data']['attributes']['status']
+        run_status = run_details["data"]["attributes"]["status"]
         self.assertIn(run_status, run_states)
 
     def test_plan_variable_changes(self):
@@ -406,7 +419,7 @@ class TestTerraformApi(unittest.TestCase):
         # the old variable and the new variable. var_id should not be None
         edit_old_var = edit[0][0]
         edit_new_var = edit[0][1]
-        expected_key = 'literal_variable_sensitive'
+        expected_key = "literal_variable_sensitive"
         self.assertEqual(edit_old_var.key, expected_key)
         self.assertEqual(edit_new_var.key, expected_key)
         self.assertIsNotNone(edit_old_var.var_id)
@@ -416,14 +429,14 @@ class TestTerraformApi(unittest.TestCase):
         self.assertDictEqual(create_vars[1].to_dict(), unchanged[0].to_dict())
 
         # Delete:
-        expected_key = 'hcl_variable_sensitive'
+        expected_key = "hcl_variable_sensitive"
         delete_var = delete[0]
         self.assertEqual(delete_var.key, expected_key)
         self.assertIsNotNone(delete_var.var_id)
 
         # Change variables 1 and 2
-        update_vars[1].value = 'updated'
-        update_vars[2].value = 'updated'
+        update_vars[1].value = "updated"
+        update_vars[2].value = "updated"
         add, edit, unchanged, delete = self.terraform_api.plan_variable_changes(update_vars, workspace_id)
 
         # Check lengths of results
@@ -438,7 +451,7 @@ class TestTerraformApi(unittest.TestCase):
         # Edit: literal_variable_sensitive and hcl_variable changed
         edit1_old_var = edit[0][0]
         edit1_new_var = edit[0][1]
-        expected_key = 'literal_variable_sensitive'
+        expected_key = "literal_variable_sensitive"
         self.assertEqual(edit1_old_var.key, expected_key)
         self.assertEqual(edit1_new_var.key, expected_key)
         self.assertIsNotNone(edit1_old_var.var_id)
@@ -446,14 +459,14 @@ class TestTerraformApi(unittest.TestCase):
 
         edit2_old_var = edit[1][0]
         edit2_new_var = edit[1][1]
-        expected_key = 'hcl_variable'
+        expected_key = "hcl_variable"
         self.assertEqual(edit2_old_var.key, expected_key)
         self.assertEqual(edit2_new_var.key, expected_key)
         self.assertIsNotNone(edit2_old_var.var_id)
         self.assertIsNotNone(edit2_new_var.var_id)
 
         # Delete: key hcl_variable_sensitive
-        expected_key = 'hcl_variable_sensitive'
+        expected_key = "hcl_variable_sensitive"
         delete_var = delete[0]
         self.assertEqual(delete_var.key, expected_key)
         self.assertIsNotNone(delete_var.var_id)

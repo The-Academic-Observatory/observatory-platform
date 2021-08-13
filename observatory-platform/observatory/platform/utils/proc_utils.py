@@ -19,35 +19,35 @@ from typing import Tuple
 
 
 def wait_for_process(proc: Popen) -> Tuple[str, str]:
-    """ Wait for a process to finish, returning the std output and std error streams as strings.
+    """Wait for a process to finish, returning the std output and std error streams as strings.
 
     :param proc: the process object.
     :return: std output and std error streams as strings.
     """
     output, error = proc.communicate()
-    output = output.decode('utf-8')
-    error = error.decode('utf-8')
+    output = output.decode("utf-8")
+    error = error.decode("utf-8")
     return output, error
 
 
 def stream_process(proc: Popen, debug: bool) -> Tuple[str, str]:
-    """ Print output while a process is running, returning the std output and std error streams as strings.
+    """Print output while a process is running, returning the std output and std error streams as strings.
 
     :param proc: the process object.
     :param debug: whether debug info should be displayed.
     :return: std output and std error streams as strings.
     """
-    output_concat = ''
-    error_concat = ''
+    output_concat = ""
+    error_concat = ""
     while True:
         for line in proc.stdout:
-            output = line.decode('utf-8')
+            output = line.decode("utf-8")
             if debug:
-                print(output, end='')
+                print(output, end="")
             output_concat += output
         for line in proc.stderr:
-            error = line.decode('utf-8')
-            print(error, end='')
+            error = line.decode("utf-8")
+            print(error, end="")
             error_concat += error
         if proc.poll() is not None:
             break

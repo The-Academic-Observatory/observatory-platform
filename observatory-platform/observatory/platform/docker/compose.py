@@ -28,7 +28,7 @@ from observatory.platform.utils.proc_utils import stream_process
 
 @dataclasses.dataclass
 class ProcessOutput:
-    """ Output from a process
+    """Output from a process
 
     :param output: the process std out.
     :param error: the process std error.
@@ -45,7 +45,7 @@ class ComposeRunnerInterface(ABC):
 
     @abstractmethod
     def make_environment(self) -> Dict:
-        """ Make the environment variables.
+        """Make the environment variables.
 
         :return: environment dictionary.
         """
@@ -53,7 +53,7 @@ class ComposeRunnerInterface(ABC):
 
     @abstractmethod
     def add_template(self, *, path: str, **kwargs):
-        """ Add a Jinja template that will be rendered to the build directory before running Docker Compose commands.
+        """Add a Jinja template that will be rendered to the build directory before running Docker Compose commands.
 
         :param path: the path to the Jinja2 template.
         :param kwargs: the kwargs to use when rendering the template.
@@ -64,7 +64,7 @@ class ComposeRunnerInterface(ABC):
 
     @abstractmethod
     def add_file(self, *, path: str, output_file_name: str):
-        """ Add a file that will be copied to the build directory before running the Docker Compose commands.
+        """Add a file that will be copied to the build directory before running the Docker Compose commands.
 
         :param path: a path to the file.
         :param output_file_name: the output file name.
@@ -75,14 +75,14 @@ class ComposeRunnerInterface(ABC):
 
     @abstractmethod
     def make_files(self) -> None:
-        """ Render all Jinja templates and copy all files into the build directory.
+        """Render all Jinja templates and copy all files into the build directory.
 
         :return: None.
         """
 
     @abstractmethod
     def build(self) -> ProcessOutput:
-        """ Build Docker Compose.
+        """Build Docker Compose.
 
         :return: ProcessOutput.
         """
@@ -90,7 +90,7 @@ class ComposeRunnerInterface(ABC):
 
     @abstractmethod
     def start(self) -> ProcessOutput:
-        """ Start Docker Compose.
+        """Start Docker Compose.
 
         :return: ProcessOutput.
         """
@@ -98,7 +98,7 @@ class ComposeRunnerInterface(ABC):
 
     @abstractmethod
     def stop(self) -> ProcessOutput:
-        """ Stop Docker Compose.
+        """Stop Docker Compose.
 
         :return: ProcessOutput.
         """
@@ -106,7 +106,7 @@ class ComposeRunnerInterface(ABC):
 
 
 def rendered_file_name(template_file_path: str):
-    """ Make the rendered file name from the Jinja template name.
+    """Make the rendered file name from the Jinja template name.
 
     :param template_file_path: the file path to the Jinja2 template.
     :return: the output file name.
@@ -117,7 +117,7 @@ def rendered_file_name(template_file_path: str):
 
 @dataclasses.dataclass
 class File:
-    """ A file to copy.
+    """A file to copy.
 
     :param path: the path to the file.
     :param output_file_name: the output file.
@@ -129,7 +129,7 @@ class File:
 
 @dataclasses.dataclass
 class Template:
-    """ A Jinja2 Template to render.
+    """A Jinja2 Template to render.
 
     :param path: the path to the Jinja2 template.
     :param kwargs: the kwargs to use when rendering the template.
@@ -140,7 +140,7 @@ class Template:
 
     @property
     def output_file_name(self) -> str:
-        """ Make the output file name.
+        """Make the output file name.
 
         :return: the output file name.
         """
@@ -157,7 +157,7 @@ class ComposeRunner(ComposeRunnerInterface):
     def __init__(
         self, *, compose_template_path: str, build_path: str, compose_template_kwargs: Dict = None, debug: bool = False
     ):
-        """ Docker Compose runner constructor.
+        """Docker Compose runner constructor.
 
         :param compose_template_path: the path to the Docker Compose Jinja2 template file.
         :param build_path: the path where Docker will build.
@@ -174,7 +174,7 @@ class ComposeRunner(ComposeRunnerInterface):
 
     @property
     def compose_file_name(self):
-        """ Return the file name for the rendered Docker Compose template.
+        """Return the file name for the rendered Docker Compose template.
 
         :return: Docker Compose file name.
         """
@@ -182,7 +182,7 @@ class ComposeRunner(ComposeRunnerInterface):
         return rendered_file_name(self.compose_template_path)
 
     def add_template(self, *, path: str, **kwargs):
-        """ Add a Jinja template that will be rendered to the build directory before running Docker Compose commands.
+        """Add a Jinja template that will be rendered to the build directory before running Docker Compose commands.
 
         :param path: the path to the Jinja2 template.
         :param kwargs: the kwargs to use when rendering the template.
@@ -192,7 +192,7 @@ class ComposeRunner(ComposeRunnerInterface):
         self.templates.append(Template(path=path, kwargs=kwargs))
 
     def add_file(self, *, path: str, output_file_name: str):
-        """ Add a file that will be copied to the build directory before running the Docker Compose commands.
+        """Add a file that will be copied to the build directory before running the Docker Compose commands.
 
         :param path: a path to the file.
         :param output_file_name: the output file name.
@@ -202,7 +202,7 @@ class ComposeRunner(ComposeRunnerInterface):
         self.files.append(File(path=path, output_file_name=output_file_name))
 
     def make_files(self):
-        """ Render all Jinja templates and copy all files into the build directory.
+        """Render all Jinja templates and copy all files into the build directory.
 
         :return: None.
         """
@@ -223,7 +223,7 @@ class ComposeRunner(ComposeRunnerInterface):
             shutil.copy(file.path, output_path)
 
     def build(self) -> ProcessOutput:
-        """ Build the Docker containers.
+        """Build the Docker containers.
 
         :return: output and error stream results and proc return code.
         """
@@ -231,7 +231,7 @@ class ComposeRunner(ComposeRunnerInterface):
         return self.__run_docker_compose_cmd(self.COMPOSE_BUILD_ARGS)
 
     def start(self) -> ProcessOutput:
-        """ Start the Docker containers.
+        """Start the Docker containers.
 
         :return: output and error stream results and proc return code.
         """
@@ -239,7 +239,7 @@ class ComposeRunner(ComposeRunnerInterface):
         return self.__run_docker_compose_cmd(self.COMPOSE_START_ARGS)
 
     def stop(self) -> ProcessOutput:
-        """ Stop the Docker containers.
+        """Stop the Docker containers.
 
         :return: output and error stream results and proc return code.
         """
@@ -247,7 +247,7 @@ class ComposeRunner(ComposeRunnerInterface):
         return self.__run_docker_compose_cmd(self.COMPOSE_STOP_ARGS)
 
     def render_template(self, template: Template, output_file_path: str):
-        """ Render a file using a Jinja template and save.
+        """Render a file using a Jinja template and save.
 
         :param template: the template.
         :param output_file_path: the output path.
@@ -259,7 +259,7 @@ class ComposeRunner(ComposeRunnerInterface):
             f.write(render)
 
     def __run_docker_compose_cmd(self, args: List) -> ProcessOutput:
-        """ Run a set of Docker Compose arguments.
+        """Run a set of Docker Compose arguments.
 
         :param args: the list of arguments.
         :return: output and error stream results and proc return code.

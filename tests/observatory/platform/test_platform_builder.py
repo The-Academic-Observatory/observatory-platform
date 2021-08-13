@@ -27,11 +27,28 @@ from click.testing import CliRunner
 from redis import Redis
 
 import observatory.platform.docker as docker_module
-from observatory.platform.cli.cli import (REDIS_PORT, FLOWER_UI_PORT, ELASTIC_PORT, KIBANA_PORT,
-                                          AIRFLOW_UI_PORT, HOST_UID, HOST_GID)
-from observatory.platform.observatory_config import (ObservatoryConfig, Airflow, CloudStorageBucket, Terraform, Backend,
-                                                     Environment, BackendType, GoogleCloud, AirflowVariable,
-                                                     AirflowConnection, DagsProject)
+from observatory.platform.cli.cli import (
+    REDIS_PORT,
+    FLOWER_UI_PORT,
+    ELASTIC_PORT,
+    KIBANA_PORT,
+    AIRFLOW_UI_PORT,
+    HOST_UID,
+    HOST_GID,
+)
+from observatory.platform.observatory_config import (
+    ObservatoryConfig,
+    Airflow,
+    CloudStorageBucket,
+    Terraform,
+    Backend,
+    Environment,
+    BackendType,
+    GoogleCloud,
+    AirflowVariable,
+    AirflowConnection,
+    DagsProject,
+)
 from observatory.platform.platform_builder import PlatformBuilder, DOCKER_COMPOSE_PROJECT_NAME
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.url_utils import wait_for_url
@@ -49,18 +66,17 @@ class MockFromEnv(Mock):
 
 
 class TestPlatformBuilder(unittest.TestCase):
-
     def setUp(self) -> None:
         self.is_env_local = True
 
     def set_dirs(self):
         # Make directories
-        self.config_path = os.path.abspath('config.yaml')
-        self.build_path = os.path.abspath('build')
-        self.dags_path = os.path.abspath('dags')
-        self.data_path = os.path.abspath('data')
-        self.logs_path = os.path.abspath('logs')
-        self.postgres_path = os.path.abspath('postgres')
+        self.config_path = os.path.abspath("config.yaml")
+        self.build_path = os.path.abspath("build")
+        self.dags_path = os.path.abspath("dags")
+        self.data_path = os.path.abspath("data")
+        self.logs_path = os.path.abspath("logs")
+        self.postgres_path = os.path.abspath("postgres")
 
         os.makedirs(self.build_path, exist_ok=True)
         os.makedirs(self.dags_path, exist_ok=True)
@@ -69,8 +85,14 @@ class TestPlatformBuilder(unittest.TestCase):
         os.makedirs(self.postgres_path, exist_ok=True)
 
     def make_platform_command(self):
-        return PlatformBuilder(self.config_path, build_path=self.build_path, dags_path=self.dags_path,
-                               data_path=self.data_path, logs_path=self.logs_path, postgres_path=self.postgres_path)
+        return PlatformBuilder(
+            self.config_path,
+            build_path=self.build_path,
+            dags_path=self.dags_path,
+            data_path=self.data_path,
+            logs_path=self.logs_path,
+            postgres_path=self.postgres_path,
+        )
 
     def test_is_environment_valid(self):
         with CliRunner().isolated_filesystem():
@@ -103,7 +125,7 @@ class TestPlatformBuilder(unittest.TestCase):
             cmd = self.make_platform_command()
             result = cmd.docker_exe_path
             self.assertIsNotNone(result)
-            self.assertTrue(result.endswith('docker'))
+            self.assertTrue(result.endswith("docker"))
 
     def test_docker_compose_path(self):
         """ Test that the path to the Docker Compose executable is found """
@@ -113,9 +135,9 @@ class TestPlatformBuilder(unittest.TestCase):
             cmd = self.make_platform_command()
             result = cmd.docker_compose_path
             self.assertIsNotNone(result)
-            self.assertTrue(result.endswith('docker-compose'))
+            self.assertTrue(result.endswith("docker-compose"))
 
-    @patch('observatory.platform.platform_builder.docker.from_env')
+    @patch("observatory.platform.platform_builder.docker.from_env")
     def test_is_docker_running_true(self, mock_from_env):
         """ Test the property is_docker_running returns True when Docker is running  """
 
@@ -126,7 +148,7 @@ class TestPlatformBuilder(unittest.TestCase):
             cmd = self.make_platform_command()
             self.assertTrue(cmd.is_docker_running)
 
-    @patch('observatory.platform.platform_builder.docker.from_env')
+    @patch("observatory.platform.platform_builder.docker.from_env")
     def test_is_docker_running_false(self, mock_from_env):
         """ Test the property is_docker_running returns False when Docker is not running  """
 
@@ -151,11 +173,17 @@ class TestPlatformBuilder(unittest.TestCase):
             cmd.build()
 
             # Test that the expected files have been written
-            build_file_names = ['docker-compose.observatory.yml', 'Dockerfile.observatory', 'elasticsearch.yml',
-                                'entrypoint-airflow.sh', 'entrypoint-root.sh', 'requirements.observatory-platform.txt',
-                                'requirements.observatory-api.txt']
+            build_file_names = [
+                "docker-compose.observatory.yml",
+                "Dockerfile.observatory",
+                "elasticsearch.yml",
+                "entrypoint-airflow.sh",
+                "entrypoint-root.sh",
+                "requirements.observatory-platform.txt",
+                "requirements.observatory-api.txt",
+            ]
             for file_name in build_file_names:
-                path = os.path.join(self.build_path, 'docker', file_name)
+                path = os.path.join(self.build_path, "docker", file_name)
                 self.assertTrue(os.path.isfile(path))
                 self.assertTrue(os.stat(path).st_size > 0)
 
@@ -167,21 +195,21 @@ class TestPlatformBuilder(unittest.TestCase):
             self.set_dirs()
 
             expected_env = {
-                'COMPOSE_PROJECT_NAME': DOCKER_COMPOSE_PROJECT_NAME,
-                'HOST_USER_ID': str(HOST_UID),
-                'HOST_GROUP_ID': str(HOST_GID),
-                'HOST_LOGS_PATH': self.logs_path,
-                'HOST_DAGS_PATH': self.dags_path,
-                'HOST_DATA_PATH': self.data_path,
-                'HOST_POSTGRES_PATH': self.postgres_path,
-                'HOST_PLATFORM_PACKAGE_PATH': module_file_path('observatory.platform', nav_back_steps=-3),
-                'HOST_API_PACKAGE_PATH': module_file_path('observatory.api', nav_back_steps=-3),
-                'HOST_REDIS_PORT': str(REDIS_PORT),
-                'HOST_FLOWER_UI_PORT': str(FLOWER_UI_PORT),
-                'HOST_AIRFLOW_UI_PORT': str(AIRFLOW_UI_PORT),
-                'HOST_ELASTIC_PORT': str(ELASTIC_PORT),
-                'HOST_KIBANA_PORT': str(KIBANA_PORT),
-                'AIRFLOW_VAR_ENVIRONMENT': 'develop'
+                "COMPOSE_PROJECT_NAME": DOCKER_COMPOSE_PROJECT_NAME,
+                "HOST_USER_ID": str(HOST_UID),
+                "HOST_GROUP_ID": str(HOST_GID),
+                "HOST_LOGS_PATH": self.logs_path,
+                "HOST_DAGS_PATH": self.dags_path,
+                "HOST_DATA_PATH": self.data_path,
+                "HOST_POSTGRES_PATH": self.postgres_path,
+                "HOST_PLATFORM_PACKAGE_PATH": module_file_path("observatory.platform", nav_back_steps=-3),
+                "HOST_API_PACKAGE_PATH": module_file_path("observatory.api", nav_back_steps=-3),
+                "HOST_REDIS_PORT": str(REDIS_PORT),
+                "HOST_FLOWER_UI_PORT": str(FLOWER_UI_PORT),
+                "HOST_AIRFLOW_UI_PORT": str(AIRFLOW_UI_PORT),
+                "HOST_ELASTIC_PORT": str(ELASTIC_PORT),
+                "HOST_KIBANA_PORT": str(KIBANA_PORT),
+                "AIRFLOW_VAR_ENVIRONMENT": "develop",
             }
 
             # Save default config file
@@ -192,7 +220,7 @@ class TestPlatformBuilder(unittest.TestCase):
             env = cmd.make_environment()
 
             # Set FERNET_KEY
-            expected_env['FERNET_KEY'] = cmd.config.airflow.fernet_key
+            expected_env["FERNET_KEY"] = cmd.config.airflow.fernet_key
 
             # Check that expected keys and values exist
             for key, value in expected_env.items():
@@ -200,7 +228,7 @@ class TestPlatformBuilder(unittest.TestCase):
                 self.assertEqual(value, env[key])
 
             # Check that Google Application credentials not in default config
-            self.assertTrue('HOST_GOOGLE_APPLICATION_CREDENTIALS' not in env)
+            self.assertTrue("HOST_GOOGLE_APPLICATION_CREDENTIALS" not in env)
 
     def test_make_environment_all_settings(self):
         """ Test making of the observatory platform files with all settings """
@@ -210,20 +238,20 @@ class TestPlatformBuilder(unittest.TestCase):
             self.set_dirs()
 
             expected_env = {
-                'COMPOSE_PROJECT_NAME': DOCKER_COMPOSE_PROJECT_NAME,
-                'HOST_USER_ID': str(HOST_UID),
-                'HOST_GROUP_ID': str(HOST_GID),
-                'HOST_LOGS_PATH': self.logs_path,
-                'HOST_DAGS_PATH': self.dags_path,
-                'HOST_DATA_PATH': self.data_path,
-                'HOST_POSTGRES_PATH': self.postgres_path,
-                'HOST_PLATFORM_PACKAGE_PATH': module_file_path('observatory.platform', nav_back_steps=-3),
-                'HOST_API_PACKAGE_PATH': module_file_path('observatory.api', nav_back_steps=-3),
-                'HOST_REDIS_PORT': str(REDIS_PORT),
-                'HOST_FLOWER_UI_PORT': str(FLOWER_UI_PORT),
-                'HOST_AIRFLOW_UI_PORT': str(AIRFLOW_UI_PORT),
-                'HOST_ELASTIC_PORT': str(ELASTIC_PORT),
-                'HOST_KIBANA_PORT': str(KIBANA_PORT)
+                "COMPOSE_PROJECT_NAME": DOCKER_COMPOSE_PROJECT_NAME,
+                "HOST_USER_ID": str(HOST_UID),
+                "HOST_GROUP_ID": str(HOST_GID),
+                "HOST_LOGS_PATH": self.logs_path,
+                "HOST_DAGS_PATH": self.dags_path,
+                "HOST_DATA_PATH": self.data_path,
+                "HOST_POSTGRES_PATH": self.postgres_path,
+                "HOST_PLATFORM_PACKAGE_PATH": module_file_path("observatory.platform", nav_back_steps=-3),
+                "HOST_API_PACKAGE_PATH": module_file_path("observatory.api", nav_back_steps=-3),
+                "HOST_REDIS_PORT": str(REDIS_PORT),
+                "HOST_FLOWER_UI_PORT": str(FLOWER_UI_PORT),
+                "HOST_AIRFLOW_UI_PORT": str(AIRFLOW_UI_PORT),
+                "HOST_ELASTIC_PORT": str(ELASTIC_PORT),
+                "HOST_KIBANA_PORT": str(KIBANA_PORT),
             }
 
             # Save config file
@@ -233,31 +261,32 @@ class TestPlatformBuilder(unittest.TestCase):
             cmd = self.make_platform_command()
 
             # Manually override the platform command with a more fleshed out config file
-            bucket = CloudStorageBucket(id='download_bucket',
-                                        name='my-download-bucket-name')
-            var = AirflowVariable(name='my-var',
-                                  value='my-variable-value')
-            conn = AirflowConnection(name='my-conn',
-                                     value='http://my-username:my-password@')
-            dags_project = DagsProject(package_name='observatory-dags',
-                                       path='/path/to/observatory-platform/observatory-dags/observatory/dags',
-                                       dags_module='observatory.dags.dags')
-            backend = Backend(type=BackendType.local,
-                              environment=Environment.develop)
-            airflow = Airflow(fernet_key='DOJLLgvRnhy51gxLbxznn4w7MxD5kZ53bOZEoPr8wCg=',
-                              secret_key='f95d60dc61b3a2b703ece8904b93947af88c2f609df8855514af097ea254')
-            google_cloud = GoogleCloud(project_id='my-project-id',
-                                       credentials='/path/to/creds.json',
-                                       data_location='us',
-                                       buckets=[bucket])
-            terraform = Terraform(organization='my-terraform-org-name')
-            config = ObservatoryConfig(backend=backend,
-                                       airflow=airflow,
-                                       google_cloud=google_cloud,
-                                       terraform=terraform,
-                                       airflow_variables=[var],
-                                       airflow_connections=[conn],
-                                       dags_projects=[dags_project])
+            bucket = CloudStorageBucket(id="download_bucket", name="my-download-bucket-name")
+            var = AirflowVariable(name="my-var", value="my-variable-value")
+            conn = AirflowConnection(name="my-conn", value="http://my-username:my-password@")
+            dags_project = DagsProject(
+                package_name="observatory-dags",
+                path="/path/to/observatory-platform/observatory-dags/observatory/dags",
+                dags_module="observatory.dags.dags",
+            )
+            backend = Backend(type=BackendType.local, environment=Environment.develop)
+            airflow = Airflow(
+                fernet_key="DOJLLgvRnhy51gxLbxznn4w7MxD5kZ53bOZEoPr8wCg=",
+                secret_key="f95d60dc61b3a2b703ece8904b93947af88c2f609df8855514af097ea254",
+            )
+            google_cloud = GoogleCloud(
+                project_id="my-project-id", credentials="/path/to/creds.json", data_location="us", buckets=[bucket]
+            )
+            terraform = Terraform(organization="my-terraform-org-name")
+            config = ObservatoryConfig(
+                backend=backend,
+                airflow=airflow,
+                google_cloud=google_cloud,
+                terraform=terraform,
+                airflow_variables=[var],
+                airflow_connections=[conn],
+                dags_projects=[dags_project],
+            )
             cmd.config = config
             cmd.config_exists = True
 
@@ -266,18 +295,18 @@ class TestPlatformBuilder(unittest.TestCase):
 
             # Set FERNET_KEY, HOST_GOOGLE_APPLICATION_CREDENTIALS, AIRFLOW_VAR_DAGS_MODULE_NAMES
             # and airflow variables and connections
-            expected_env['FERNET_KEY'] = cmd.config.airflow.fernet_key
-            expected_env['SECRET_KEY'] = cmd.config.airflow.secret_key
-            expected_env['HOST_GOOGLE_APPLICATION_CREDENTIALS'] = cmd.config.google_cloud.credentials
-            expected_env['AIRFLOW_VAR_ENVIRONMENT'] = cmd.config.backend.environment.value
-            expected_env['AIRFLOW_VAR_PROJECT_ID'] = google_cloud.project_id
-            expected_env['AIRFLOW_VAR_DATA_LOCATION'] = google_cloud.data_location
-            expected_env['AIRFLOW_VAR_TERRAFORM_ORGANIZATION'] = terraform.organization
-            expected_env['AIRFLOW_VAR_DOWNLOAD_BUCKET'] = bucket.name
+            expected_env["FERNET_KEY"] = cmd.config.airflow.fernet_key
+            expected_env["SECRET_KEY"] = cmd.config.airflow.secret_key
+            expected_env["HOST_GOOGLE_APPLICATION_CREDENTIALS"] = cmd.config.google_cloud.credentials
+            expected_env["AIRFLOW_VAR_ENVIRONMENT"] = cmd.config.backend.environment.value
+            expected_env["AIRFLOW_VAR_PROJECT_ID"] = google_cloud.project_id
+            expected_env["AIRFLOW_VAR_DATA_LOCATION"] = google_cloud.data_location
+            expected_env["AIRFLOW_VAR_TERRAFORM_ORGANIZATION"] = terraform.organization
+            expected_env["AIRFLOW_VAR_DOWNLOAD_BUCKET"] = bucket.name
 
             # TODO: it seems a little inconsistent to name these vars like this
-            expected_env['AIRFLOW_VAR_MY-VAR'] = var.value
-            expected_env['AIRFLOW_CONN_MY-CONN'] = conn.value
+            expected_env["AIRFLOW_VAR_MY-VAR"] = var.value
+            expected_env["AIRFLOW_CONN_MY-CONN"] = conn.value
 
             # Check that expected keys and values exist
             for key, value in expected_env.items():
@@ -346,11 +375,11 @@ class TestPlatformBuilder(unittest.TestCase):
                 urls = []
                 states = []
                 for port in expected_ports:
-                    url = f'http://localhost:{port}'
+                    url = f"http://localhost:{port}"
                     urls.append(url)
-                    logging.info(f'Waiting for URL: {url}')
+                    logging.info(f"Waiting for URL: {url}")
                     state = wait_for_url(url, timeout=120)
-                    logging.info(f'URL {url} state: {state}')
+                    logging.info(f"URL {url} state: {state}")
                     states.append(state)
 
                 # Assert states

@@ -23,22 +23,24 @@ class TestOrganisation(unittest.TestCase):
 
         # Create valid object
         dt = datetime.datetime.utcnow()
-        Organisation(id=1,
-                     name='Curtin',
-                     gcp_project_id='my-gcp-project',
-                     gcp_download_bucket='my-download-bucket',
-                     gcp_transform_bucket='my-transform-bucket',
-                     created=dt,
-                     modified=dt)
+        Organisation(
+            id=1,
+            name="Curtin",
+            gcp_project_id="my-gcp-project",
+            gcp_download_bucket="my-download-bucket",
+            gcp_transform_bucket="my-transform-bucket",
+            created=dt,
+            modified=dt,
+        )
 
         # Invalid argument
         with self.assertRaises(ApiTypeError):
-            Organisation('hello')
+            Organisation("hello")
 
         # Invalid keyword argument
         with self.assertRaises(ApiAttributeError):
-            Organisation(hello='world')
+            Organisation(hello="world")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

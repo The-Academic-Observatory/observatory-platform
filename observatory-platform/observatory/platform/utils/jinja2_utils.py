@@ -19,7 +19,7 @@ from jinja2 import Template
 
 
 def render_template(template_path: str, **kwargs) -> str:
-    """ Render a Jinja2 template.
+    """Render a Jinja2 template.
 
     :param template_path: the path to the template.
     :param kwargs: the keyword variables to populate the template with.
@@ -27,7 +27,7 @@ def render_template(template_path: str, **kwargs) -> str:
     """
 
     # Read file contents
-    with open(template_path, 'r') as file:
+    with open(template_path, "r") as file:
         contents = file.read()
 
     # Fill template with text
@@ -40,18 +40,18 @@ def render_template(template_path: str, **kwargs) -> str:
 
 
 def make_jinja2_filename(file_name: str) -> str:
-    """ Add .jinja2 to a filename.
+    """Add .jinja2 to a filename.
 
     :param file_name: the filename without an extension.
     :return: the filename.
     """
-    return f'{file_name}.jinja2'
+    return f"{file_name}.jinja2"
 
 
 def make_sql_jinja2_filename(file_name: str) -> str:
-    """ Add .sql.jinja2 to a filename.
+    """Add .sql.jinja2 to a filename.
 
     :param file_name: the filename without an extension.
     :return: the filename.
     """
-    return f'{file_name}.sql.jinja2'
+    return f"{file_name}.sql.jinja2"

@@ -29,7 +29,7 @@ from urllib3.util.retry import Retry
 
 
 def get_url_domain_suffix(url: str) -> str:
-    """ Extract a URL composed of the domain name and the suffix of the URL. For example, library.curtin.edu would
+    """Extract a URL composed of the domain name and the suffix of the URL. For example, library.curtin.edu would
     become curtin.edu
 
     :param url: a URL.
@@ -41,7 +41,7 @@ def get_url_domain_suffix(url: str) -> str:
 
 
 def unique_id(string: str) -> str:
-    """ Generate a unique identifier from a string.
+    """Generate a unique identifier from a string.
 
     :param string: a string.
     :return: the unique identifier.
@@ -50,7 +50,7 @@ def unique_id(string: str) -> str:
 
 
 def is_url_absolute(url: Union[str, ParseResult]) -> bool:
-    """ Return whether a URL is absolute or relative.
+    """Return whether a URL is absolute or relative.
 
     :param url: the URL to test.
     :return: whether the URL is absolute or relative.
@@ -63,7 +63,7 @@ def is_url_absolute(url: Union[str, ParseResult]) -> bool:
 
 
 def strip_query_params(url: str) -> str:
-    """ Remove the query parameters from an absolute URL.
+    """Remove the query parameters from an absolute URL.
 
     :param url: a URL.
     :return: the URL with the query parameters removed.
@@ -75,7 +75,7 @@ def strip_query_params(url: str) -> str:
 def retry_session(
     num_retries: int = 3, backoff_factor: float = 0.5, status_forcelist: Tuple = (500, 502, 503, 50)
 ) -> requests.Session:
-    """ Create a session object that is able to retry a given number of times.
+    """Create a session object that is able to retry a given number of times.
 
     :param num_retries: the number of times to retry.
     :param backoff_factor: the factor to use for determining how long to wait before retrying. See
@@ -100,7 +100,7 @@ def retry_session(
 
 
 def wait_for_url(url: str, timeout: int = 60):
-    """ Wait for a URL to return a 200 status code.
+    """Wait for a URL to return a 200 status code.
 
     :param url: the url to wait for.
     :param timeout: the number of seconds to wait before timing out.
@@ -130,7 +130,7 @@ def wait_for_url(url: str, timeout: int = 60):
 
 
 def get_ao_user_agent():
-    """ Return a standardised user agent that can be used by custom web clients to indicate it came from the
+    """Return a standardised user agent that can be used by custom web clients to indicate it came from the
         Academic Observatory.
 
     :return: User agent string.

@@ -21,4 +21,3 @@ from observatory.dags.telescopes.crossref_fundref import CrossrefFundrefTelescop
 
 telescope = CrossrefFundrefTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()
-

@@ -37,19 +37,18 @@ class Popen(Mock):
 
 
 class TestTerraformBuilder(unittest.TestCase):
-
     def setUp(self) -> None:
         self.is_env_local = True
 
     def set_dirs(self):
         # Make directories
-        self.config_path = os.path.abspath('config.yaml')
-        self.build_path = os.path.join(os.path.abspath('build'), 'terraform')
-        self.terraform_build_path = os.path.join(self.build_path, 'terraform')
-        self.dags_path = os.path.abspath('dags')
-        self.data_path = os.path.abspath('data')
-        self.logs_path = os.path.abspath('logs')
-        self.postgres_path = os.path.abspath('postgres')
+        self.config_path = os.path.abspath("config.yaml")
+        self.build_path = os.path.join(os.path.abspath("build"), "terraform")
+        self.terraform_build_path = os.path.join(self.build_path, "terraform")
+        self.dags_path = os.path.abspath("dags")
+        self.data_path = os.path.abspath("data")
+        self.logs_path = os.path.abspath("logs")
+        self.postgres_path = os.path.abspath("postgres")
 
         os.makedirs(self.build_path, exist_ok=True)
         os.makedirs(self.terraform_build_path, exist_ok=True)
@@ -62,61 +61,41 @@ class TestTerraformBuilder(unittest.TestCase):
         return TerraformBuilder(self.config_path, build_path=self.build_path)
 
     def save_terraform_config(self, file_path: str):
-        credentials_path = os.path.abspath('creds.json')
-        open(credentials_path, 'a').close()
+        credentials_path = os.path.abspath("creds.json")
+        open(credentials_path, "a").close()
 
         dict_ = {
-            'backend': {
-                'type': 'terraform',
-                'environment': 'develop'
+            "backend": {"type": "terraform", "environment": "develop"},
+            "airflow": {
+                "fernet_key": "random-fernet-key",
+                "secret_key": "random-secret-key",
+                "ui_user_password": "password",
+                "ui_user_email": "password",
             },
-            'airflow': {
-                'fernet_key': 'random-fernet-key',
-                'secret_key': 'random-secret-key',
-                'ui_user_password': 'password',
-                'ui_user_email': 'password'
+            "terraform": {"organization": "hello world"},
+            "google_cloud": {
+                "project_id": "my-project",
+                "credentials": credentials_path,
+                "region": "us-west1",
+                "zone": "us-west1-c",
+                "data_location": "us",
             },
-            'terraform': {
-                'organization': 'hello world'
+            "cloud_sql_database": {
+                "tier": "db-custom-2-7680",
+                "backup_start_time": "23:00",
+                "postgres_password": "my-password",
             },
-            'google_cloud': {
-                'project_id': 'my-project',
-                'credentials': credentials_path,
-                'region': 'us-west1',
-                'zone': 'us-west1-c',
-                'data_location': 'us'
+            "airflow_main_vm": {"machine_type": "n2-standard-2", "disk_size": 1, "disk_type": "pd-ssd", "create": True},
+            "airflow_worker_vm": {
+                "machine_type": "n2-standard-2",
+                "disk_size": 1,
+                "disk_type": "pd-standard",
+                "create": False,
             },
-            'cloud_sql_database': {
-                'tier': 'db-custom-2-7680',
-                'backup_start_time': '23:00',
-                'postgres_password': 'my-password'
-            },
-            'airflow_main_vm': {
-                'machine_type': 'n2-standard-2',
-                'disk_size': 1,
-                'disk_type': 'pd-ssd',
-                'create': True
-            },
-            'airflow_worker_vm': {
-                'machine_type': 'n2-standard-2',
-                'disk_size': 1,
-                'disk_type': 'pd-standard',
-                'create': False
-            },
-            'airflow_variables': {
-                'my-variable-name': 'my-variable-value'
-            },
-            'airflow_connections': {
-                'my-connection': 'http://:my-token-key@'
-            },
-            'elasticsearch': {
-                'host': 'https://address.region.gcp.cloud.es.io:port',
-                'api_key': 'API_KEY'
-            },
-            'api': {
-                'domain_name': 'api.custom.domain',
-                'subdomain': 'project_id'
-            }
+            "airflow_variables": {"my-variable-name": "my-variable-value"},
+            "airflow_connections": {"my-connection": "http://:my-token-key@"},
+            "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
+            "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
         }
 
         save_yaml(file_path, dict_)
@@ -144,7 +123,7 @@ class TestTerraformBuilder(unittest.TestCase):
             cmd = self.make_terraform_builder()
             result = cmd.packer_exe_path
             self.assertIsNotNone(result)
-            self.assertTrue(result.endswith('packer'))
+            self.assertTrue(result.endswith("packer"))
 
     def test_build_terraform(self):
         """ Test building of the terraform files """
@@ -160,40 +139,54 @@ class TestTerraformBuilder(unittest.TestCase):
             cmd.build_terraform()
 
             # Test that the expected Terraform files have been written
-            secret_files = [os.path.join('secret', n) for n in ['main.tf', 'outputs.tf', 'variables.tf']]
-            vm_files = [os.path.join('vm', n) for n in ['main.tf', 'outputs.tf', 'variables.tf']]
-            root_files = ['build.sh', 'main.tf', 'observatory-image.json', 'outputs.tf', 'startup-main.tpl',
-                          'startup-worker.tpl', 'variables.tf', 'versions.tf']
+            secret_files = [os.path.join("secret", n) for n in ["main.tf", "outputs.tf", "variables.tf"]]
+            vm_files = [os.path.join("vm", n) for n in ["main.tf", "outputs.tf", "variables.tf"]]
+            root_files = [
+                "build.sh",
+                "main.tf",
+                "observatory-image.json",
+                "outputs.tf",
+                "startup-main.tpl",
+                "startup-worker.tpl",
+                "variables.tf",
+                "versions.tf",
+            ]
             all_files = secret_files + vm_files + root_files
 
             for file_name in all_files:
-                path = os.path.join(self.build_path, 'terraform', file_name)
+                path = os.path.join(self.build_path, "terraform", file_name)
                 self.assertTrue(os.path.isfile(path))
 
             # Test that expected packages exists
-            packages = ['observatory-api', 'observatory-platform']
+            packages = ["observatory-api", "observatory-platform"]
             for package in packages:
-                path = os.path.join(self.build_path, 'packages', package)
+                path = os.path.join(self.build_path, "packages", package)
                 self.assertTrue(os.path.exists(path))
 
             # Test that the expected Docker files have been written
-            build_file_names = ['docker-compose.observatory.yml', 'Dockerfile.observatory', 'elasticsearch.yml',
-                                'entrypoint-airflow.sh', 'entrypoint-root.sh', 'requirements.observatory-platform.txt',
-                                'requirements.observatory-api.txt']
+            build_file_names = [
+                "docker-compose.observatory.yml",
+                "Dockerfile.observatory",
+                "elasticsearch.yml",
+                "entrypoint-airflow.sh",
+                "entrypoint-root.sh",
+                "requirements.observatory-platform.txt",
+                "requirements.observatory-api.txt",
+            ]
             for file_name in build_file_names:
-                path = os.path.join(self.build_path, 'docker', file_name)
+                path = os.path.join(self.build_path, "docker", file_name)
                 self.assertTrue(os.path.isfile(path))
                 self.assertTrue(os.stat(path).st_size > 0)
 
-    @patch('subprocess.Popen')
-    @patch('observatory.platform.terraform_builder.stream_process')
+    @patch("subprocess.Popen")
+    @patch("observatory.platform.terraform_builder.stream_process")
     def test_build_image(self, mock_stream_process, mock_subprocess):
         """ Test building of the observatory platform """
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem():
             mock_subprocess.return_value = Popen()
-            mock_stream_process.return_value = ('', '')
+            mock_stream_process.return_value = ("", "")
 
             self.set_dirs()
 
@@ -210,15 +203,15 @@ class TestTerraformBuilder(unittest.TestCase):
             expected_return_code = 0
             self.assertEqual(expected_return_code, return_code)
 
-    @patch('subprocess.Popen')
-    @patch('observatory.platform.terraform_builder.stream_process')
+    @patch("subprocess.Popen")
+    @patch("observatory.platform.terraform_builder.stream_process")
     def test_gcloud_activate_service_account(self, mock_stream_process, mock_subprocess):
         """ Test activating the gcloud service account """
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem():
             mock_subprocess.return_value = Popen()
-            mock_stream_process.return_value = ('', '')
+            mock_stream_process.return_value = ("", "")
 
             self.set_dirs()
 
@@ -235,15 +228,15 @@ class TestTerraformBuilder(unittest.TestCase):
             expected_return_code = 0
             self.assertEqual(expected_return_code, return_code)
 
-    @patch('subprocess.Popen')
-    @patch('observatory.platform.terraform_builder.stream_process')
+    @patch("subprocess.Popen")
+    @patch("observatory.platform.terraform_builder.stream_process")
     def test_gcloud_builds_submit(self, mock_stream_process, mock_subprocess):
         """ Test gcloud builds submit command """
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem():
             mock_subprocess.return_value = Popen()
-            mock_stream_process.return_value = ('', '')
+            mock_stream_process.return_value = ("", "")
 
             self.set_dirs()
 
@@ -273,11 +266,12 @@ class TestTerraformBuilder(unittest.TestCase):
             # Make observatory files
             cmd = self.make_terraform_builder()
 
-            args = ['docker', 'build', '.']
-            print('Executing subprocess:')
+            args = ["docker", "build", "."]
+            print("Executing subprocess:")
 
-            proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                           cwd=cmd.api_package_path)
+            proc: Popen = subprocess.Popen(
+                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cmd.api_package_path
+            )
             output, error = stream_process(proc, True)
 
             # Assert that the image built

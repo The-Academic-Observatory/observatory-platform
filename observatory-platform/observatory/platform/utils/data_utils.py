@@ -68,6 +68,7 @@ except ImportError:
 from observatory.platform.utils.progbar_utils import Progbar
 
 if sys.version_info[0] == 2:
+
     def urlretrieve(url, filename, reporthook=None, data=None):
         """Replacement for `urlretrieve` for Python 2.
         Under Python 2, `urlretrieve` relies on `FancyURLopener` from legacy
@@ -85,7 +86,7 @@ if sys.version_info[0] == 2:
         """
 
         def chunk_read(response, chunk_size=8192, reporthook=None):
-            content_type = response.info().get('Content-Length')
+            content_type = response.info().get("Content-Length")
             total_size = -1
             if content_type is not None:
                 total_size = int(content_type.strip())
@@ -100,14 +101,16 @@ if sys.version_info[0] == 2:
                 else:
                     break
 
-        with closing(urlopen(url, data)) as response, open(filename, 'wb') as fd:
+        with closing(urlopen(url, data)) as response, open(filename, "wb") as fd:
             for chunk in chunk_read(response, reporthook=reporthook):
                 fd.write(chunk)
+
+
 else:
     from six.moves.urllib.request import urlretrieve
 
 
-def _extract_archive(file_path, path='.', archive_format='auto'):
+def _extract_archive(file_path, path=".", archive_format="auto"):
     """Extracts an archive if it matches tar, tar.gz, tar.bz, or zip formats.
     # Arguments
         file_path: path to the archive file
@@ -123,16 +126,16 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
     """
     if archive_format is None:
         return False
-    if archive_format == 'auto':
-        archive_format = ['tar', 'zip']
+    if archive_format == "auto":
+        archive_format = ["tar", "zip"]
     if isinstance(archive_format, six.string_types):
         archive_format = [archive_format]
 
     for archive_type in archive_format:
-        if archive_type == 'tar':
+        if archive_type == "tar":
             open_fn = tarfile.open
             is_match_fn = tarfile.is_tarfile
-        if archive_type == 'zip':
+        if archive_type == "zip":
             open_fn = zipfile.ZipFile
             is_match_fn = zipfile.is_zipfile
 
@@ -151,8 +154,18 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
     return False
 
 
-def get_file(fname, origin, untar=False, md5_hash=None, file_hash=None, cache_subdir='datasets', hash_algorithm='auto',
-             extract=False, archive_format='auto', cache_dir=None):
+def get_file(
+    fname,
+    origin,
+    untar=False,
+    md5_hash=None,
+    file_hash=None,
+    cache_subdir="datasets",
+    hash_algorithm="auto",
+    extract=False,
+    archive_format="auto",
+    cache_dir=None,
+):
     """Downloads a file from a URL if it not already in the cache.
 
     By default the file at the url `origin` is downloaded to the
@@ -193,23 +206,23 @@ def get_file(fname, origin, untar=False, md5_hash=None, file_hash=None, cache_su
         Path to the downloaded file
     """  # noqa
     if cache_dir is None:
-        if 'KERAS_HOME' in os.environ:
-            cache_dir = os.environ.get('KERAS_HOME')
+        if "KERAS_HOME" in os.environ:
+            cache_dir = os.environ.get("KERAS_HOME")
         else:
-            cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
+            cache_dir = os.path.join(os.path.expanduser("~"), ".keras")
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
-        hash_algorithm = 'md5'
+        hash_algorithm = "md5"
     datadir_base = os.path.expanduser(cache_dir)
     if not os.access(datadir_base, os.W_OK):
-        datadir_base = os.path.join('/tmp', '.keras')
+        datadir_base = os.path.join("/tmp", ".keras")
     datadir = os.path.join(datadir_base, cache_subdir)
     if not os.path.exists(datadir):
         os.makedirs(datadir)
 
     if untar:
         untar_fpath = os.path.join(datadir, fname)
-        fpath = untar_fpath + '.tar.gz'
+        fpath = untar_fpath + ".tar.gz"
     else:
         fpath = os.path.join(datadir, fname)
 
@@ -218,16 +231,18 @@ def get_file(fname, origin, untar=False, md5_hash=None, file_hash=None, cache_su
         # File found; verify integrity if a hash was provided.
         if file_hash is not None:
             if not validate_file(fpath, file_hash, algorithm=hash_algorithm):
-                print('A local file was found, but it seems to be incomplete'
-                      ' or outdated because the {} file hash does not match '
-                      'the original value of {} so we will re-download the '
-                      'data.'.format(hash_algorithm, file_hash))
+                print(
+                    "A local file was found, but it seems to be incomplete"
+                    " or outdated because the {} file hash does not match "
+                    "the original value of {} so we will re-download the "
+                    "data.".format(hash_algorithm, file_hash)
+                )
                 download = True
     else:
         download = True
 
     if download:
-        print('Downloading data from', origin)
+        print("Downloading data from", origin)
 
         class ProgressTracker(object):
             # Maintain the progbar Progress Bar for the lifetime of download.
@@ -242,7 +257,7 @@ def get_file(fname, origin, untar=False, md5_hash=None, file_hash=None, cache_su
             else:
                 ProgressTracker.progbar.update(count * block_size)
 
-        error_msg = 'URL fetch failure on {} : {} -- {}'
+        error_msg = "URL fetch failure on {} : {} -- {}"
         try:
             try:
                 urlretrieve(origin, fpath, dl_progress)
@@ -258,7 +273,7 @@ def get_file(fname, origin, untar=False, md5_hash=None, file_hash=None, cache_su
 
     if untar:
         if not os.path.exists(untar_fpath):
-            _extract_archive(fpath, datadir, archive_format='tar')
+            _extract_archive(fpath, datadir, archive_format="tar")
         return untar_fpath
 
     if extract:
