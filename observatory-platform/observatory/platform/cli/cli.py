@@ -80,32 +80,37 @@ def platform(
       - stop: stop the platform.\n
     """
 
-    # Make the platform command, which encapsulates functionality for running the observatory
-    platform_cmd = PlatformCommand(config_path, host_uid=host_uid, host_gid=host_gid, debug=debug,)
-    generate_cmd = GenerateCommand()
+    min_line_chars = 80
+    try:
+        print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
+        # Make the platform command, which encapsulates functionality for running the observatory
+        platform_cmd = PlatformCommand(config_path, host_uid=host_uid, host_gid=host_gid, debug=debug,)
 
-    # Check dependencies
-    platform_check_dependencies(platform_cmd, generate_cmd)
+        # Check dependencies
+        platform_check_dependencies(platform_cmd, min_line_chars=min_line_chars)
 
-    # Start the appropriate process
-    if command == "start":
-        platform_start(platform_cmd)
-    elif command == "stop":
-        platform_stop(platform_cmd)
+        # Start the appropriate process
+        if command == "start":
+            platform_start(platform_cmd)
+        elif command == "stop":
+            platform_stop(platform_cmd)
 
-    exit(os.EX_OK)
+        exit(os.EX_OK)
+    except FileExistsError:
+        print(indent("config.yaml:", INDENT1))
+        print(indent(f"- file not found, generating a default file on path: {config_path}", INDENT2))
+        generate_cmd = GenerateCommand()
+        generate_cmd.generate_local_config(config_path)
+        exit(os.EX_CONFIG)
 
 
-def platform_check_dependencies(platform_cmd: PlatformCommand, generate_cmd: GenerateCommand, min_line_chars: int = 80):
+def platform_check_dependencies(platform_cmd: PlatformCommand, min_line_chars: int = 80):
     """Check Platform dependencies.
 
     :param platform_cmd: the platform command instance.
-    :param generate_cmd: the generate command instance.
     :param min_line_chars: the minimum number of lines when printing to the command line interface.
     :return: None.
     """
-
-    print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
 
     if not platform_cmd.is_environment_valid:
         print(f"{PLATFORM_NAME}: dependencies missing".ljust(min_line_chars))
@@ -135,18 +140,13 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, generate_cmd: Gen
         print(indent("- not installed, please install https://docs.docker.com/compose/install/", INDENT2))
 
     print(indent("config.yaml:", INDENT1))
-    if platform_cmd.config_exists:
-        print(indent(f"- path: {platform_cmd.config_path}", INDENT2))
-
-        if platform_cmd.config.is_valid:
-            print(indent("- file valid", INDENT2))
-        else:
-            print(indent("- file invalid", INDENT2))
-            for error in platform_cmd.config.errors:
-                print(indent("- {}: {}".format(error.key, error.value), INDENT3))
+    print(indent(f"- path: {platform_cmd.config_path}", INDENT2))
+    if platform_cmd.config.is_valid:
+        print(indent("- file valid", INDENT2))
     else:
-        print(indent(f"- file not found, generating a default file on path: {platform_cmd.config_path}", INDENT2))
-        generate_cmd.generate_local_config(platform_cmd.config_path)
+        print(indent("- file invalid", INDENT2))
+        for error in platform_cmd.config.errors:
+            print(indent("- {}: {}".format(error.key, error.value), INDENT3))
 
     if not platform_cmd.is_environment_valid:
         exit(os.EX_CONFIG)

@@ -66,58 +66,59 @@ class PlatformBuilder(ComposeRunner):
             self.config_class = TerraformConfig
 
         # Load config
-        self.config_exists = os.path.exists(config_path)
-        self.config_is_valid = False
-        self.config = None
-        if self.config_exists:
+        config_exists = os.path.exists(config_path)
+        if not config_exists:
+            raise FileExistsError(f"Observatory config file does not exist: {config_path}")
+        else:
+            self.config_is_valid = False
             self.config: Union[ObservatoryConfig, TerraformConfig] = self.config_class.load(config_path)
             self.config_is_valid = self.config.is_valid
 
-        if docker_build_path is None:
-            docker_build_path = os.path.join(self.config.observatory.observatory_home, "build", "docker")
+            if docker_build_path is None:
+                docker_build_path = os.path.join(self.config.observatory.observatory_home, "build", "docker")
 
-        super().__init__(
-            compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),
-            build_path=docker_build_path,
-            compose_template_kwargs={
-                "config": self.config,
-                "docker_network_is_external": self.config.observatory.docker_network_is_external,
-                "docker_network_name": self.config.observatory.docker_network_name,
-                "dags_projects_to_str": DagsProject.dags_projects_to_str,
-            },
-            debug=debug,
-        )
+            super().__init__(
+                compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),
+                build_path=docker_build_path,
+                compose_template_kwargs={
+                    "config": self.config,
+                    "docker_network_is_external": self.config.observatory.docker_network_is_external,
+                    "docker_network_name": self.config.observatory.docker_network_name,
+                    "dags_projects_to_str": DagsProject.dags_projects_to_str,
+                },
+                debug=debug,
+            )
 
-        # Add files
-        self.add_template(
-            path=os.path.join(self.docker_module_path, "Dockerfile.observatory.jinja2"), config=self.config
-        )
-        self.add_template(
-            path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"), config=self.config
-        )
-        self.add_file(
-            path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
-        )
-        self.add_file(
-            path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
-        )
-        self.add_file(
-            path=os.path.join(self.platform_package_path, "requirements.txt"),
-            output_file_name="requirements.observatory-platform.txt",
-        )
-        self.add_file(
-            path=os.path.join(self.api_package_path, "requirements.txt"),
-            output_file_name="requirements.observatory-api.txt",
-        )
+            # Add files
+            self.add_template(
+                path=os.path.join(self.docker_module_path, "Dockerfile.observatory.jinja2"), config=self.config
+            )
+            self.add_template(
+                path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"), config=self.config
+            )
+            self.add_file(
+                path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
+            )
+            self.add_file(
+                path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
+            )
+            self.add_file(
+                path=os.path.join(self.platform_package_path, "requirements.txt"),
+                output_file_name="requirements.observatory-platform.txt",
+            )
+            self.add_file(
+                path=os.path.join(self.api_package_path, "requirements.txt"),
+                output_file_name="requirements.observatory-api.txt",
+            )
 
-        # Add all project requirements files for local projects
-        if self.config is not None:
-            for project in self.config.dags_projects:
-                if project.type == "local":
-                    self.add_file(
-                        path=os.path.join(project.path, "requirements.txt"),
-                        output_file_name=f"requirements.{project.package_name}.txt",
-                    )
+            # Add all project requirements files for local projects
+            if self.config is not None:
+                for project in self.config.dags_projects:
+                    if project.type == "local":
+                        self.add_file(
+                            path=os.path.join(project.path, "requirements.txt"),
+                            output_file_name=f"requirements.{project.package_name}.txt",
+                        )
 
     @property
     def is_environment_valid(self) -> bool:
@@ -131,7 +132,6 @@ class PlatformBuilder(ComposeRunner):
                 self.docker_exe_path is not None,
                 self.docker_compose_path is not None,
                 self.is_docker_running,
-                self.config_exists,
                 self.config_is_valid,
                 self.config is not None,
             ]

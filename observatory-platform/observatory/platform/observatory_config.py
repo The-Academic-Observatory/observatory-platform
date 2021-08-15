@@ -178,8 +178,8 @@ class Observatory:
 
         airflow_fernet_key = dict_.get("airflow_fernet_key")
         airflow_secret_key = dict_.get("airflow_secret_key")
-        airflow_ui_user_password = dict_.get("airflow_ui_user_password")
-        airflow_ui_user_email = dict_.get("airflow_ui_user_email")
+        airflow_ui_user_email = dict_.get("airflow_ui_user_email", Observatory.airflow_ui_user_email)
+        airflow_ui_user_password = dict_.get("airflow_ui_user_password", Observatory.airflow_ui_user_password)
         observatory_home = dict_.get("observatory_home", Observatory.observatory_home)
         postgres_password = dict_.get("postgres_password", Observatory.postgres_password)
         redis_port = dict_.get("redis_port", Observatory.redis_port)
@@ -756,8 +756,8 @@ class ObservatoryConfig:
 
         # Render template
         template_path = os.path.join(module_file_path("observatory.platform"), template_file_name)
-        fernet_key = Fernet.generate_key()
-        secret_key = generate_secret_key()
+        airflow_fernet_key = Fernet.generate_key()
+        airflow_secret_key = generate_secret_key()
 
         try:
             observatory_dags_path = module_file_path("observatory.dags", nav_back_steps=-3)
@@ -765,7 +765,10 @@ class ObservatoryConfig:
             observatory_dags_path = "/path/to/observatory-platform/observatory-dags"
 
         render = render_template(
-            template_path, fernet_key=fernet_key, secret_key=secret_key, observatory_dags_path=observatory_dags_path
+            template_path,
+            airflow_fernet_key=airflow_fernet_key,
+            airflow_secret_key=airflow_secret_key,
+            airflow_observatory_dags_path=observatory_dags_path,
         )
 
         # Save file

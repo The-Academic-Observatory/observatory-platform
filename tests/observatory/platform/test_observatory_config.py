@@ -44,8 +44,8 @@ class TestObservatoryConfigValidator(unittest.TestCase):
         }
 
     def test_validate_google_application_credentials(self):
-        """Check if an error occurs for pointing to a file that does not exist when the
-        'google_application_credentials' tag is present in the schema."""
+        """ Check if an error occurs for pointing to a file that does not exist when the
+        'google_application_credentials' tag is present in the schema. """
 
         with CliRunner().isolated_filesystem():
             # Make google application credentials
@@ -68,7 +68,7 @@ class TestObservatoryConfig(unittest.TestCase):
         # Test that a minimal configuration works
         dict_ = {
             "backend": {"type": "local", "environment": "develop"},
-            "airflow": {"fernet_key": "random-fernet-key", "secret_key": "random-secret-key"},
+            "observatory": {"airflow_fernet_key": "random-fernet-key", "airflow_secret_key": "random-secret-key"},
         }
 
         file_path = "config-valid-minimal.yaml"
@@ -96,7 +96,7 @@ class TestObservatoryConfig(unittest.TestCase):
                         "transform_bucket": "my-transform-bucket-1234",
                     },
                 },
-                "airflow": {"fernet_key": "random-fernet-key", "secret_key": "random-secret-key"},
+                "observatory": {"airflow_fernet_key": "random-fernet-key", "airflow_secret_key": "random-secret-key"},
                 "airflow_variables": {"my-variable-name": "my-variable-value"},
                 "airflow_connections": {"my-connection": "http://:my-token-key@"},
                 "dags_projects": [
@@ -142,7 +142,7 @@ class TestObservatoryConfig(unittest.TestCase):
                     "transform_bucket": "my-transform-bucket-1234",
                 },
             },
-            "airflow": {"fernet_key": 1, "secret_key": 1},
+            "observatory": {"airflow_fernet_key": 1, "airflow_secret_key": 1},
             "airflow_variables": {"my-variable-name": 1},
             "airflow_connections": {"my-connection": "token-key"},
             "dags_projects": [
@@ -171,11 +171,12 @@ class TestTerraformConfig(unittest.TestCase):
 
             dict_ = {
                 "backend": {"type": "terraform", "environment": "develop"},
-                "airflow": {
-                    "fernet_key": "random-fernet-key",
-                    "secret_key": "random-secret-key",
-                    "ui_user_password": "password",
-                    "ui_user_email": "password",
+                "observatory": {
+                    "airflow_fernet_key": "random-fernet-key",
+                    "airflow_secret_key": "random-secret-key",
+                    "airflow_ui_user_password": "password",
+                    "airflow_ui_user_email": "password",
+                    "postgres_password": "my-password",
                 },
                 "terraform": {"organization": "hello world"},
                 "google_cloud": {
@@ -185,11 +186,7 @@ class TestTerraformConfig(unittest.TestCase):
                     "zone": "us-west1-c",
                     "data_location": "us",
                 },
-                "cloud_sql_database": {
-                    "tier": "db-custom-2-7680",
-                    "backup_start_time": "23:00",
-                    "postgres_password": "my-password",
-                },
+                "cloud_sql_database": {"tier": "db-custom-2-7680", "backup_start_time": "23:00"},
                 "airflow_main_vm": {
                     "machine_type": "n2-standard-2",
                     "disk_size": 1,
@@ -220,11 +217,12 @@ class TestTerraformConfig(unittest.TestCase):
             # Test that a typical configuration is loaded
             dict_ = {
                 "backend": {"type": "terraform", "environment": "develop"},
-                "airflow": {
-                    "fernet_key": "random-fernet-key",
-                    "secret_key": "random-secret-key",
-                    "ui_user_password": "password",
-                    "ui_user_email": "password",
+                "observatory": {
+                    "airflow_fernet_key": "random-fernet-key",
+                    "airflow_secret_key": "random-secret-key",
+                    "airflow_ui_user_password": "password",
+                    "airflow_ui_user_email": "password",
+                    "postgres_password": "my-password",
                 },
                 "terraform": {"organization": "hello world"},
                 "google_cloud": {
@@ -234,11 +232,7 @@ class TestTerraformConfig(unittest.TestCase):
                     "zone": "us-west1-c",
                     "data_location": "us",
                 },
-                "cloud_sql_database": {
-                    "tier": "db-custom-2-7680",
-                    "backup_start_time": "23:00",
-                    "postgres_password": "my-password",
-                },
+                "cloud_sql_database": {"tier": "db-custom-2-7680", "backup_start_time": "23:00"},
                 "airflow_main_vm": {
                     "machine_type": "n2-standard-2",
                     "disk_size": 1,
@@ -398,7 +392,7 @@ class TestSchema(unittest.TestCase):
             "backend",
             "terraform",
             "google_cloud",
-            "airflow",
+            "observatory",
             "airflow_variables",
             "airflow_connections",
             "dags_projects",
@@ -413,7 +407,7 @@ class TestSchema(unittest.TestCase):
             "backend",
             "terraform",
             "google_cloud",
-            "airflow",
+            "observatory",
             "airflow_variables",
             "airflow_connections",
             "dags_projects",
@@ -512,26 +506,29 @@ class TestSchema(unittest.TestCase):
             ]
             self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
-    def test_local_schema_airflow(self):
+    def test_local_schema_observatory(self):
         schema = make_schema(BackendType.local)
-        schema_key = "airflow"
+        schema_key = "observatory"
 
         valid_docs = [
-            {"airflow": {"fernet_key": "random-fernet-key", "secret_key": "random-secret-key"}},
+            {"observatory": {"airflow_fernet_key": "random-fernet-key", "airflow_secret_key": "random-secret-key"}},
             {
-                "airflow": {
-                    "fernet_key": "password",
-                    "secret_key": "password",
-                    "ui_user_password": "password",
-                    "ui_user_email": "password",
+                "observatory": {
+                    "airflow_fernet_key": "password",
+                    "airflow_secret_key": "password",
+                    "airflow_ui_user_password": "password",
+                    "airflow_ui_user_email": "password",
                 }
             },
         ]
-        invalid_docs = [{}, {"airflow": {"ui_user_password": "password", "ui_user_email": "password"}}]
+        invalid_docs = [
+            {},
+            {"observatory": {"airflow_ui_user_password": "password", "airflow_ui_user_email": "password"}},
+        ]
 
         expected_errors = [
-            {"airflow": ["required field"]},
-            {"airflow": [{"fernet_key": ["required field"], "secret_key": ["required field"]}]},
+            {"observatory": ["required field"]},
+            {"observatory": [{"airflow_fernet_key": ["required field"], "airflow_secret_key": ["required field"]}]},
         ]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
@@ -660,32 +657,34 @@ class TestSchema(unittest.TestCase):
             ]
             self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
-    def test_terraform_schema_airflow(self):
+    def test_terraform_schema_observatory(self):
         # Test that airflow ui password and email required
         schema = make_schema(BackendType.terraform)
-        schema_key = "airflow"
+        schema_key = "observatory"
 
         valid_docs = [
             {
-                "airflow": {
-                    "fernet_key": "password",
-                    "secret_key": "password",
-                    "ui_user_password": "password",
-                    "ui_user_email": "password",
+                "observatory": {
+                    "airflow_fernet_key": "password",
+                    "airflow_secret_key": "password",
+                    "airflow_ui_user_password": "password",
+                    "airflow_ui_user_email": "password",
+                    "postgres_password": "password",
                 }
             }
         ]
-        invalid_docs = [{}, {"airflow": {}}]
+        invalid_docs = [{}, {"observatory": {}}]
 
         expected_errors = [
-            {"airflow": ["required field"]},
+            {"observatory": ["required field"]},
             {
-                "airflow": [
+                "observatory": [
                     {
-                        "fernet_key": ["required field"],
-                        "secret_key": ["required field"],
-                        "ui_user_email": ["required field"],
-                        "ui_user_password": ["required field"],
+                        "airflow_fernet_key": ["required field"],
+                        "airflow_secret_key": ["required field"],
+                        "airflow_ui_user_email": ["required field"],
+                        "airflow_ui_user_password": ["required field"],
+                        "postgres_password": ["required field"],
                     }
                 ]
             },
@@ -701,15 +700,14 @@ class TestSchema(unittest.TestCase):
             {
                 "cloud_sql_database": {
                     "tier": "db-custom-2-7680",
-                    "backup_start_time": "23:00",
-                    "postgres_password": "my-password",
+                    "backup_start_time": "23:00"
                 }
             }
         ]
         invalid_docs = [
             {},
             {"cloud_sql_database": {}},
-            {"cloud_sql_database": {"tier": 1, "backup_start_time": "2300", "postgres_password": "my-password"}},
+            {"cloud_sql_database": {"tier": 1, "backup_start_time": "2300"}},
         ]
 
         expected_errors = [
@@ -718,8 +716,7 @@ class TestSchema(unittest.TestCase):
                 "cloud_sql_database": [
                     {
                         "backup_start_time": ["required field"],
-                        "tier": ["required field"],
-                        "postgres_password": ["required field"],
+                        "tier": ["required field"]
                     }
                 ]
             },

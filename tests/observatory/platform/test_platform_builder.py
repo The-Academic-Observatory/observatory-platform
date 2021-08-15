@@ -18,27 +18,18 @@ import logging
 import os
 import pathlib
 import unittest
-from typing import Any
-from unittest.mock import Mock
-from unittest.mock import patch
+from typing import Any, Dict
+from unittest.mock import Mock, patch
 
 import requests
 from click.testing import CliRunner
 from redis import Redis
 
 import observatory.platform.docker as docker_module
-from observatory.platform.cli.cli import (
-    REDIS_PORT,
-    FLOWER_UI_PORT,
-    ELASTIC_PORT,
-    KIBANA_PORT,
-    AIRFLOW_UI_PORT,
-    HOST_UID,
-    HOST_GID,
-)
+from observatory.platform.cli.cli import HOST_UID, HOST_GID
 from observatory.platform.observatory_config import (
     ObservatoryConfig,
-    Airflow,
+    Observatory,
     CloudStorageBucket,
     Terraform,
     Backend,
@@ -49,7 +40,7 @@ from observatory.platform.observatory_config import (
     AirflowConnection,
     DagsProject,
 )
-from observatory.platform.platform_builder import PlatformBuilder, DOCKER_COMPOSE_PROJECT_NAME
+from observatory.platform.platform_builder import PlatformBuilder
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.url_utils import wait_for_url
 
@@ -65,64 +56,70 @@ class MockFromEnv(Mock):
         raise requests.exceptions.ConnectionError()
 
 
+def make_expected_env(cmd: PlatformBuilder) -> Dict:
+    """ Make an expected environment.
+
+    :param cmd: the PlatformBuilder.
+    :return: the environment.
+    """
+
+    return {
+        "COMPOSE_PROJECT_NAME": cmd.config.observatory.docker_compose_project_name,
+        "HOST_USER_ID": str(HOST_UID),
+        "HOST_GROUP_ID": str(HOST_GID),
+        "HOST_OBSERVATORY_HOME": cmd.config.observatory.observatory_home,
+        "HOST_DAGS_PATH": module_file_path("observatory.platform.dags", nav_back_steps=-1),
+        "HOST_PLATFORM_PACKAGE_PATH": module_file_path("observatory.platform", nav_back_steps=-3),
+        "HOST_API_PACKAGE_PATH": module_file_path("observatory.api", nav_back_steps=-3),
+        "HOST_REDIS_PORT": str(cmd.config.observatory.redis_port),
+        "HOST_FLOWER_UI_PORT": str(cmd.config.observatory.flower_ui_port),
+        "HOST_AIRFLOW_UI_PORT": str(cmd.config.observatory.airflow_ui_port),
+        "HOST_ELASTIC_PORT": str(cmd.config.observatory.elastic_port),
+        "HOST_KIBANA_PORT": str(cmd.config.observatory.kibana_port),
+        "AIRFLOW_FERNET_KEY": cmd.config.observatory.airflow_fernet_key,
+        "AIRFLOW_SECRET_KEY": cmd.config.observatory.airflow_secret_key,
+        "AIRFLOW_UI_USER_EMAIL": cmd.config.observatory.airflow_ui_user_email,
+        "AIRFLOW_UI_USER_PASSWORD": cmd.config.observatory.airflow_ui_user_password,
+        "POSTGRES_PASSWORD": cmd.config.observatory.postgres_password,
+        "AIRFLOW_VAR_ENVIRONMENT": "develop",
+    }
+
+
 class TestPlatformBuilder(unittest.TestCase):
     def setUp(self) -> None:
         self.is_env_local = True
 
-    def set_dirs(self):
-        # Make directories
-        self.config_path = os.path.abspath("config.yaml")
-        self.build_path = os.path.abspath("build")
-        self.dags_path = os.path.abspath("dags")
-        self.data_path = os.path.abspath("data")
-        self.logs_path = os.path.abspath("logs")
-        self.postgres_path = os.path.abspath("postgres")
-
-        os.makedirs(self.build_path, exist_ok=True)
-        os.makedirs(self.dags_path, exist_ok=True)
-        os.makedirs(self.data_path, exist_ok=True)
-        os.makedirs(self.logs_path, exist_ok=True)
-        os.makedirs(self.postgres_path, exist_ok=True)
-
-    def make_platform_command(self):
-        return PlatformBuilder(
-            self.config_path,
-            build_path=self.build_path,
-            dags_path=self.dags_path,
-            data_path=self.data_path,
-            logs_path=self.logs_path,
-            postgres_path=self.postgres_path,
-        )
-
     def test_is_environment_valid(self):
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
 
-            # Environment should be invalid because there is no config.yaml
-            cmd = self.make_platform_command()
-            self.assertFalse(cmd.is_environment_valid)
+            # Raise FileExistsError because is no config.yaml
+            with self.assertRaises(FileExistsError):
+                PlatformBuilder(config_path=config_path)
 
             # Environment should be valid because there is a config.yaml
             # Assumes that Docker is setup on the system where the tests are run
-            ObservatoryConfig.save_default(self.config_path)
-            cmd = self.make_platform_command()
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
             self.assertTrue(cmd.is_environment_valid)
 
     def test_docker_module_path(self):
         """ Test that the path to the Docker module  is found """
 
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-            cmd = self.make_platform_command()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
             expected_path = str(pathlib.Path(*pathlib.Path(docker_module.__file__).resolve().parts[:-1]).resolve())
             self.assertEqual(expected_path, cmd.docker_module_path)
 
     def test_docker_exe_path(self):
         """ Test that the path to the Docker executable is found """
 
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-            cmd = self.make_platform_command()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
             result = cmd.docker_exe_path
             self.assertIsNotNone(result)
             self.assertTrue(result.endswith("docker"))
@@ -130,9 +127,10 @@ class TestPlatformBuilder(unittest.TestCase):
     def test_docker_compose_path(self):
         """ Test that the path to the Docker Compose executable is found """
 
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-            cmd = self.make_platform_command()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
             result = cmd.docker_compose_path
             self.assertIsNotNone(result)
             self.assertTrue(result.endswith("docker-compose"))
@@ -143,9 +141,10 @@ class TestPlatformBuilder(unittest.TestCase):
 
         mock_from_env.return_value = MockFromEnv(True)
 
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-            cmd = self.make_platform_command()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
             self.assertTrue(cmd.is_docker_running)
 
     @patch("observatory.platform.platform_builder.docker.from_env")
@@ -154,22 +153,19 @@ class TestPlatformBuilder(unittest.TestCase):
 
         mock_from_env.return_value = MockFromEnv(False)
 
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-            cmd = self.make_platform_command()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
             self.assertFalse(cmd.is_docker_running)
 
     def test_make_observatory_files(self):
         """ Test building of the observatory files """
 
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-
-            # Save default config file
-            ObservatoryConfig.save_default(self.config_path)
-
-            # Make observatory files
-            cmd = self.make_platform_command()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
             cmd.build()
 
             # Test that the expected files have been written
@@ -183,7 +179,7 @@ class TestPlatformBuilder(unittest.TestCase):
                 "requirements.observatory-api.txt",
             ]
             for file_name in build_file_names:
-                path = os.path.join(self.build_path, "docker", file_name)
+                path = os.path.join(cmd.build_path, file_name)
                 self.assertTrue(os.path.isfile(path))
                 self.assertTrue(os.stat(path).st_size > 0)
 
@@ -191,36 +187,14 @@ class TestPlatformBuilder(unittest.TestCase):
         """ Test making of the minimal observatory platform files """
 
         # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-
-            expected_env = {
-                "COMPOSE_PROJECT_NAME": DOCKER_COMPOSE_PROJECT_NAME,
-                "HOST_USER_ID": str(HOST_UID),
-                "HOST_GROUP_ID": str(HOST_GID),
-                "HOST_LOGS_PATH": self.logs_path,
-                "HOST_DAGS_PATH": self.dags_path,
-                "HOST_DATA_PATH": self.data_path,
-                "HOST_POSTGRES_PATH": self.postgres_path,
-                "HOST_PLATFORM_PACKAGE_PATH": module_file_path("observatory.platform", nav_back_steps=-3),
-                "HOST_API_PACKAGE_PATH": module_file_path("observatory.api", nav_back_steps=-3),
-                "HOST_REDIS_PORT": str(REDIS_PORT),
-                "HOST_FLOWER_UI_PORT": str(FLOWER_UI_PORT),
-                "HOST_AIRFLOW_UI_PORT": str(AIRFLOW_UI_PORT),
-                "HOST_ELASTIC_PORT": str(ELASTIC_PORT),
-                "HOST_KIBANA_PORT": str(KIBANA_PORT),
-                "AIRFLOW_VAR_ENVIRONMENT": "develop",
-            }
-
-            # Save default config file
-            ObservatoryConfig.save_default(self.config_path)
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
 
             # Make the environment
-            cmd = self.make_platform_command()
+            expected_env = make_expected_env(cmd)
             env = cmd.make_environment()
-
-            # Set FERNET_KEY
-            expected_env["FERNET_KEY"] = cmd.config.airflow.fernet_key
 
             # Check that expected keys and values exist
             for key, value in expected_env.items():
@@ -234,31 +208,11 @@ class TestPlatformBuilder(unittest.TestCase):
         """ Test making of the observatory platform files with all settings """
 
         # Check that the environment variables are set properly for a complete config file
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-
-            expected_env = {
-                "COMPOSE_PROJECT_NAME": DOCKER_COMPOSE_PROJECT_NAME,
-                "HOST_USER_ID": str(HOST_UID),
-                "HOST_GROUP_ID": str(HOST_GID),
-                "HOST_LOGS_PATH": self.logs_path,
-                "HOST_DAGS_PATH": self.dags_path,
-                "HOST_DATA_PATH": self.data_path,
-                "HOST_POSTGRES_PATH": self.postgres_path,
-                "HOST_PLATFORM_PACKAGE_PATH": module_file_path("observatory.platform", nav_back_steps=-3),
-                "HOST_API_PACKAGE_PATH": module_file_path("observatory.api", nav_back_steps=-3),
-                "HOST_REDIS_PORT": str(REDIS_PORT),
-                "HOST_FLOWER_UI_PORT": str(FLOWER_UI_PORT),
-                "HOST_AIRFLOW_UI_PORT": str(AIRFLOW_UI_PORT),
-                "HOST_ELASTIC_PORT": str(ELASTIC_PORT),
-                "HOST_KIBANA_PORT": str(KIBANA_PORT),
-            }
-
-            # Save config file
-            ObservatoryConfig.save_default(self.config_path)
-
-            # Make the environment
-            cmd = self.make_platform_command()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
+            expected_env = make_expected_env(cmd)
 
             # Manually override the platform command with a more fleshed out config file
             bucket = CloudStorageBucket(id="download_bucket", name="my-download-bucket-name")
@@ -270,9 +224,9 @@ class TestPlatformBuilder(unittest.TestCase):
                 dags_module="observatory.dags.dags",
             )
             backend = Backend(type=BackendType.local, environment=Environment.develop)
-            airflow = Airflow(
-                fernet_key="DOJLLgvRnhy51gxLbxznn4w7MxD5kZ53bOZEoPr8wCg=",
-                secret_key="f95d60dc61b3a2b703ece8904b93947af88c2f609df8855514af097ea254",
+            observatory = Observatory(
+                airflow_fernet_key="DOJLLgvRnhy51gxLbxznn4w7MxD5kZ53bOZEoPr8wCg=",
+                airflow_secret_key="f95d60dc61b3a2b703ece8904b93947af88c2f609df8855514af097ea254",
             )
             google_cloud = GoogleCloud(
                 project_id="my-project-id", credentials="/path/to/creds.json", data_location="us", buckets=[bucket]
@@ -280,7 +234,7 @@ class TestPlatformBuilder(unittest.TestCase):
             terraform = Terraform(organization="my-terraform-org-name")
             config = ObservatoryConfig(
                 backend=backend,
-                airflow=airflow,
+                observatory=observatory,
                 google_cloud=google_cloud,
                 terraform=terraform,
                 airflow_variables=[var],
@@ -295,8 +249,8 @@ class TestPlatformBuilder(unittest.TestCase):
 
             # Set FERNET_KEY, HOST_GOOGLE_APPLICATION_CREDENTIALS, AIRFLOW_VAR_DAGS_MODULE_NAMES
             # and airflow variables and connections
-            expected_env["FERNET_KEY"] = cmd.config.airflow.fernet_key
-            expected_env["SECRET_KEY"] = cmd.config.airflow.secret_key
+            expected_env["AIRFLOW_FERNET_KEY"] = cmd.config.observatory.airflow_fernet_key
+            expected_env["AIRFLOW_SECRET_KEY"] = cmd.config.observatory.airflow_secret_key
             expected_env["HOST_GOOGLE_APPLICATION_CREDENTIALS"] = cmd.config.google_cloud.credentials
             expected_env["AIRFLOW_VAR_ENVIRONMENT"] = cmd.config.backend.environment.value
             expected_env["AIRFLOW_VAR_PROJECT_ID"] = google_cloud.project_id
@@ -317,14 +271,10 @@ class TestPlatformBuilder(unittest.TestCase):
         """ Test building of the observatory platform """
 
         # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-
-            # Save default config file
-            ObservatoryConfig.save_default(self.config_path)
-
-            # Make the environment
-            cmd = self.make_platform_command()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
             cmd.debug = True
 
             # Build the platform
@@ -339,24 +289,26 @@ class TestPlatformBuilder(unittest.TestCase):
         """ Test buildng, starting and stopping of the Observatory Platform """
 
         # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            ObservatoryConfig.save_default(config_path)
+            cmd = PlatformBuilder(config_path=config_path)
 
-            # Save default config file
-            ObservatoryConfig.save_default(self.config_path)
-
-            # Make the environment
-            cmd = self.make_platform_command()
-            cmd.airflow_ui_port = 8082
-            cmd.flower_ui_port = 5557
-            cmd.elastic_port = 9202
-            cmd.kibana_port = 5603
-            cmd.redis_port = 6381
+            cmd.config.observatory.airflow_ui_port = 8082
+            cmd.config.observatory.flower_ui_port = 5557
+            cmd.config.observatory.elastic_port = 9202
+            cmd.config.observatory.kibana_port = 5603
+            cmd.config.observatory.redis_port = 6381
             cmd.debug = True
 
             # Expected values
             expected_return_code = 0
-            expected_ports = [cmd.airflow_ui_port, cmd.flower_ui_port, cmd.elastic_port, cmd.kibana_port]
+            expected_ports = [
+                cmd.config.observatory.airflow_ui_port,
+                cmd.config.observatory.flower_ui_port,
+                cmd.config.observatory.elastic_port,
+                cmd.config.observatory.kibana_port,
+            ]
 
             # Build the platform and assert that the platform builds
             response = cmd.build()
@@ -387,7 +339,7 @@ class TestPlatformBuilder(unittest.TestCase):
                     self.assertTrue(state)
 
                 # Check if Redis is active
-                redis = Redis(port=cmd.redis_port, socket_connect_timeout=1)
+                redis = Redis(port=cmd.config.observatory.redis_port, socket_connect_timeout=1)
                 self.assertTrue(redis.ping())
 
                 # Verify that platform stops
