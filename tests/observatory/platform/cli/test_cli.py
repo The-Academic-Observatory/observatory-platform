@@ -26,26 +26,10 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from observatory.platform.cli.cli import cli
+from observatory.platform.docker.compose import ProcessOutput
 from observatory.platform.observatory_config import TerraformConfig
 from observatory.platform.observatory_config import ValidationError
-from observatory.platform.docker.compose import ProcessOutput
-from observatory.platform.platform_builder import (
-    BUILD_PATH,
-    DAGS_MODULE,
-    DATA_PATH,
-    LOGS_PATH,
-    POSTGRES_PATH,
-    HOST_UID,
-    HOST_GID,
-    REDIS_PORT,
-    FLOWER_UI_PORT,
-    AIRFLOW_UI_PORT,
-    ELASTIC_PORT,
-    KIBANA_PORT,
-    DOCKER_NETWORK_NAME,
-    DOCKER_COMPOSE_PROJECT_NAME,
-    DEBUG,
-)
+from observatory.platform.platform_builder import HOST_UID, HOST_GID, DEBUG
 from observatory.platform.terraform_api import TerraformApi
 from tests.observatory.test_utils import random_id
 
@@ -139,22 +123,9 @@ class MockPlatformCommand(Mock):
         self.docker_compose_path = docker_compose_path
         self.config_exists = config_exists
         self.config = config
-
         self.config_path = config_path
-        self.build_path = BUILD_PATH
-        self.dags_path = DAGS_MODULE
-        self.data_path = DATA_PATH
-        self.logs_path = LOGS_PATH
-        self.postgres_path = POSTGRES_PATH
         self.host_uid = HOST_UID
         self.host_gid = HOST_GID
-        self.redis_port = REDIS_PORT
-        self.flower_ui_port = FLOWER_UI_PORT
-        self.airflow_ui_port = AIRFLOW_UI_PORT
-        self.elastic_port = ELASTIC_PORT
-        self.kibana_port = KIBANA_PORT
-        self.docker_network_name = DOCKER_NETWORK_NAME
-        self.docker_compose_project_name = DOCKER_COMPOSE_PROJECT_NAME
         self.debug = DEBUG
         self._build_return_code = build_return_code
         self._start_return_code = start_return_code
@@ -356,11 +327,12 @@ class TestObservatoryTerraform(unittest.TestCase):
             config = TerraformConfig.from_dict(
                 {
                     "backend": {"type": "terraform", "environment": "develop"},
-                    "airflow": {
-                        "fernet_key": "random-fernet-key",
-                        "secret_key": "random-secret-key",
-                        "ui_user_password": "password",
-                        "ui_user_email": "password",
+                    "observatory": {
+                        "airflow_fernet_key": "random-fernet-key",
+                        "airflow_secret_key": "random-secret-key",
+                        "airflow_ui_user_password": "password",
+                        "airflow_ui_user_email": "password",
+                        "postgres_password": "my-password",
                     },
                     "terraform": {"organization": self.organisation},
                     "google_cloud": {
@@ -370,11 +342,7 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "zone": "us-west1-c",
                         "data_location": "us",
                     },
-                    "cloud_sql_database": {
-                        "tier": "db-custom-2-7680",
-                        "backup_start_time": "23:00",
-                        "postgres_password": "my-password",
-                    },
+                    "cloud_sql_database": {"tier": "db-custom-2-7680", "backup_start_time": "23:00"},
                     "airflow_main_vm": {
                         "machine_type": "n2-standard-2",
                         "disk_size": 1,
@@ -501,10 +469,11 @@ class TestObservatoryTerraform(unittest.TestCase):
             config = TerraformConfig.from_dict(
                 {
                     "backend": {"type": "terraform", "environment": "develop"},
-                    "airflow": {
-                        "fernet_key": "random-fernet-key",
-                        "ui_user_password": "password",
-                        "ui_user_email": "password",
+                    "observatory": {
+                        "airflow_fernet_key": "random-fernet-key",
+                        "airflow_ui_user_password": "password",
+                        "airflow_ui_user_email": "password",
+                        "postgres_password": "my-password",
                     },
                     "terraform": {"organization": self.organisation},
                     "google_cloud": {
@@ -514,11 +483,7 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "zone": "us-west1-c",
                         "data_location": "us",
                     },
-                    "cloud_sql_database": {
-                        "tier": "db-custom-2-7680",
-                        "backup_start_time": "23:00",
-                        "postgres_password": "my-password",
-                    },
+                    "cloud_sql_database": {"tier": "db-custom-2-7680", "backup_start_time": "23:00"},
                     "airflow_main_vm": {
                         "machine_type": "n2-standard-2",
                         "disk_size": 1,
