@@ -13,26 +13,24 @@
 # limitations under the License.
 
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
-
 import os
 import re
 from datetime import datetime
 from typing import Tuple
 
 import click
-import observatory.platform.telescopes.templates
-from airflow.configuration import generate_fernet_key
+from cryptography.fernet import Fernet
+
 import observatory.dags.dags
 import observatory.dags.telescopes
-import observatory.templates
-from cryptography.fernet import Fernet
+import observatory.platform.telescopes.templates
 from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.config_utils import module_file_path
 
 
 class GenerateCommand:
-    def generate_fernet_key(self) -> str:
+    def generate_fernet_key(self) -> bytes:
         """Generate a Fernet key.
 
         :return: the Fernet key.
