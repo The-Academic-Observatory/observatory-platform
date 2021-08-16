@@ -92,6 +92,12 @@ class MockConfig(Mock):
         self._errors = errors
 
     @property
+    def observatory(self):
+        mock = Mock()
+        mock.observatory_home = '/path/to/home'
+        return mock
+
+    @property
     def is_valid(self):
         return self._is_valid
 
@@ -114,6 +120,7 @@ class MockPlatformCommand(Mock):
         stop_return_code: int,
         wait_for_airflow_ui: bool,
         config_path: str,
+        dags_path: str,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -127,6 +134,7 @@ class MockPlatformCommand(Mock):
         self.host_uid = HOST_UID
         self.host_gid = HOST_GID
         self.debug = DEBUG
+        self.dags_path = dags_path
         self._build_return_code = build_return_code
         self._start_return_code = start_return_code
         self._stop_return_code = stop_return_code
@@ -170,6 +178,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             stop_return_code = 0
             wait_for_airflow_ui = True
             config_path = os.path.abspath("config.yaml")
+            dags_path = '/path/to/dags'
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid,
                 docker_exe_path,
@@ -182,6 +191,7 @@ class TestObservatoryPlatform(unittest.TestCase):
                 stop_return_code,
                 wait_for_airflow_ui,
                 config_path,
+                dags_path
             )
 
             # Test that start command works
@@ -193,15 +203,14 @@ class TestObservatoryPlatform(unittest.TestCase):
             self.assertEqual(result.exit_code, os.EX_OK)
 
     @patch("observatory.platform.cli.cli.PlatformCommand")
-    def test_platform_start_stop_fail(self, mock_cmd):
-        """ Test that the start and stop command error messages and return codes """
+    def test_platform_start_fail(self, mock_cmd):
+        """ Test that the start command error messages and return codes """
 
-        # Check that correct exit code returned and that output has links to install Docker and Docker Compose
-        # and generates config file
+        # Check that no config file generates an error
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with runner.isolated_filesystem() as t:
             # Environment invalid, no Docker, Docker not running, no Docker Compose, no config file
-            default_config_path = os.path.abspath("config.yaml")
+            default_config_path = os.path.join(t, "config.yaml")
             is_environment_valid = False
             docker_exe_path = None
             is_docker_running = False
@@ -212,6 +221,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             start_return_code = 0
             stop_return_code = 0
             wait_for_airflow_ui = True
+            dags_path = '/path/to/dags'
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid,
                 docker_exe_path,
@@ -224,7 +234,54 @@ class TestObservatoryPlatform(unittest.TestCase):
                 stop_return_code,
                 wait_for_airflow_ui,
                 default_config_path,
+                dags_path
             )
+
+            # Test that start command fails
+            result = runner.invoke(cli, ["platform", "start", "--config-path", default_config_path])
+            self.assertEqual(result.exit_code, os.EX_CONFIG)
+
+            # config.yaml
+            self.assertIn("- file not found, generating a default file", result.output)
+            self.assertTrue(os.path.isfile(default_config_path))
+
+            # Check return code
+            self.assertEqual(result.exit_code, os.EX_CONFIG)
+
+        # Test that docker and docker compose not installed errors show up
+        runner = CliRunner()
+        with runner.isolated_filesystem() as t:
+            # Environment invalid, no Docker, Docker not running, no Docker Compose, no config file
+            default_config_path = os.path.join(t, "config.yaml")
+            is_environment_valid = False
+            docker_exe_path = None
+            is_docker_running = False
+            docker_compose_path = None
+            config_exists = True
+            validation_error = ValidationError("google_cloud.credentials", "required field")
+            config = MockConfig(is_valid=False, errors=[validation_error])
+            build_return_code = 0
+            start_return_code = 0
+            stop_return_code = 0
+            wait_for_airflow_ui = True
+            dags_path = '/path/to/dags'
+            mock_cmd.return_value = MockPlatformCommand(
+                is_environment_valid,
+                docker_exe_path,
+                is_docker_running,
+                docker_compose_path,
+                config_exists,
+                config,
+                build_return_code,
+                start_return_code,
+                stop_return_code,
+                wait_for_airflow_ui,
+                default_config_path,
+                dags_path
+            )
+
+            # Make empty config
+            open(default_config_path, "a").close()
 
             # Test that start command fails
             result = runner.invoke(cli, ["platform", "start", "--config-path", default_config_path])
@@ -236,19 +293,15 @@ class TestObservatoryPlatform(unittest.TestCase):
             # Docker Compose not installed
             self.assertIn("https://docs.docker.com/compose/install/", result.output)
 
-            # config.yaml
-            self.assertIn("- file not found, generating a default file", result.output)
-            self.assertTrue(os.path.isfile(default_config_path))
-
             # Check return code
             self.assertEqual(result.exit_code, os.EX_CONFIG)
 
         # Test that invalid config errors show up
         # Test that error message is printed when Docker is installed but not running
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with runner.isolated_filesystem() as t :
             # Environment invalid, Docker installed but not running
-            default_config_path = os.path.abspath("config.yaml")
+            default_config_path = os.path.join(t, "config.yaml")
             is_environment_valid = False
             docker_exe_path = "/path/to/docker"
             is_docker_running = False
@@ -272,7 +325,11 @@ class TestObservatoryPlatform(unittest.TestCase):
                 stop_return_code,
                 wait_for_airflow_ui,
                 default_config_path,
+                dags_path
             )
+
+            # Make empty config
+            open(default_config_path, "a").close()
 
             # Test that start command fails
             result = runner.invoke(cli, ["platform", "start", "--config-path", default_config_path])
@@ -303,9 +360,8 @@ class TestObservatoryTerraform(unittest.TestCase):
         # Create token json
         token_json = {"credentials": {"app.terraform.io": {"token": self.token}}}
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with runner.isolated_filesystem() as working_dir:
             # File paths
-            working_dir = pathlib.Path().absolute()
             terraform_credentials_path = os.path.join(working_dir, "token.json")
             config_file_path = os.path.join(working_dir, "config-terraform.yaml")
             credentials_file_path = os.path.join(working_dir, "google_application_credentials.json")
@@ -432,8 +488,7 @@ class TestObservatoryTerraform(unittest.TestCase):
     def test_terraform_check_dependencies(self, mock_load_config):
         """ Test that checking for dependencies prints the correct output when files are missing"""
         runner = CliRunner()
-        with runner.isolated_filesystem():
-            working_dir = pathlib.Path().absolute()
+        with runner.isolated_filesystem() as working_dir:
             credentials_file_path = os.path.join(working_dir, "google_application_credentials.json")
             TerraformConfig.WORKSPACE_PREFIX = random_id() + "-"
 
@@ -471,6 +526,7 @@ class TestObservatoryTerraform(unittest.TestCase):
                     "backend": {"type": "terraform", "environment": "develop"},
                     "observatory": {
                         "airflow_fernet_key": "random-fernet-key",
+                        "airflow_secret_key": "random-secret-key",
                         "airflow_ui_user_password": "password",
                         "airflow_ui_user_email": "password",
                         "postgres_password": "my-password",

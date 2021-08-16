@@ -81,8 +81,8 @@ def platform(
     """
 
     min_line_chars = 80
-    try:
-        print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
+    print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
+    if os.path.isfile(config_path):
         # Make the platform command, which encapsulates functionality for running the observatory
         platform_cmd = PlatformCommand(config_path, host_uid=host_uid, host_gid=host_gid, debug=debug,)
 
@@ -96,7 +96,7 @@ def platform(
             platform_stop(platform_cmd)
 
         exit(os.EX_OK)
-    except FileExistsError:
+    else:
         print(indent("config.yaml:", INDENT1))
         print(indent(f"- file not found, generating a default file on path: {config_path}", INDENT2))
         generate_cmd = GenerateCommand()
@@ -128,11 +128,6 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, min_line_chars: i
     else:
         print(indent("- not installed, please install https://docs.docker.com/get-docker/", INDENT2))
 
-    print(indent("Host machine settings:", INDENT1))
-    print(indent(f"- observatory home: {observatory_home()}", INDENT2))
-    print(indent(f"- dags-path: {platform_cmd.dags_path}", INDENT2))
-    print(indent(f"- host-uid: {platform_cmd.host_uid}", INDENT2))
-
     print(indent("Docker Compose:", INDENT1))
     if platform_cmd.docker_compose_path is not None:
         print(indent(f"- path: {platform_cmd.docker_compose_path}", INDENT2))
@@ -150,6 +145,11 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, min_line_chars: i
 
     if not platform_cmd.is_environment_valid:
         exit(os.EX_CONFIG)
+
+    print(indent("Host machine settings:", INDENT1))
+    print(indent(f"- observatory home: {platform_cmd.config.observatory.observatory_home}", INDENT2))
+    print(indent(f"- dags-path: {platform_cmd.dags_path}", INDENT2))
+    print(indent(f"- host-uid: {platform_cmd.host_uid}", INDENT2))
 
 
 def platform_start(platform_cmd: PlatformCommand, min_line_chars: int = 80):

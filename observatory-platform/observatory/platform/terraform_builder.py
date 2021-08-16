@@ -57,18 +57,17 @@ class TerraformBuilder:
         else:
             self.config: TerraformConfig = TerraformConfig.load(config_path)
             self.config_is_valid = self.config.is_valid
-
-            # Set paths
-            self.build_path = os.path.join(self.config.observatory.observatory_home, "build", "terraform")
-            self.platform_builder = PlatformBuilder(
-                config_path=config_path,
-                docker_build_path=os.path.join(self.build_path, "docker"),
-                backend_type=BackendType.terraform,
-            )
-            self.packages_build_path = os.path.join(self.build_path, "packages")
-            self.terraform_build_path = os.path.join(self.build_path, "terraform")
-            os.makedirs(self.packages_build_path, exist_ok=True)
-            os.makedirs(self.terraform_build_path, exist_ok=True)
+            if self.config_is_valid:
+                self.build_path = os.path.join(self.config.observatory.observatory_home, "build", "terraform")
+                self.platform_builder = PlatformBuilder(
+                    config_path=config_path,
+                    docker_build_path=os.path.join(self.build_path, "docker"),
+                    backend_type=BackendType.terraform,
+                )
+                self.packages_build_path = os.path.join(self.build_path, "packages")
+                self.terraform_build_path = os.path.join(self.build_path, "terraform")
+                os.makedirs(self.packages_build_path, exist_ok=True)
+                os.makedirs(self.terraform_build_path, exist_ok=True)
 
     @property
     def is_environment_valid(self) -> bool:
