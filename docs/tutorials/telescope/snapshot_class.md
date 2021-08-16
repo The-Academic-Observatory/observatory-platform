@@ -75,7 +75,7 @@ from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 
 
 class MySnapshotRelease(SnapshotRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.Pendulum):
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime):
         """ Create a MySnapshotRelease instance.
 
         :param dag_id: the DAG id.
@@ -93,7 +93,7 @@ class MySnapshot(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2020, 1, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = "your_dataset_id",
         dataset_description: str = "The your_dataset dataset: https://dataseturl/",

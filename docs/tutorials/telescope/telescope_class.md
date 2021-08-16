@@ -153,7 +153,7 @@ from observatory.platform.telescopes.telescope import Release, Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
 
 class MyRelease(Release):
-    def __init__(self, dag_id: str, release_date: pendulum.Pendulum):
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime):
         """Construct a Release instance
 
         :param dag_id: the id of the DAG.
@@ -171,7 +171,7 @@ class MyTelescope(Telescope):
 
     def __init__(self,
                  dag_id: str = DAG_ID,
-                 start_date: pendulum.Pendulum = pendulum.Pendulum(2020, 1, 1),
+                 start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
                  schedule_interval: str = '@weekly',
                  catchup: bool = True, 
                  queue: str = 'default', 

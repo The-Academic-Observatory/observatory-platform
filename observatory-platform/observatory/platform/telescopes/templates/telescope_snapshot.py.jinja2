@@ -54,7 +54,7 @@ class {{ telescope_class }}(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: pendulum.Pendulum = pendulum.DateTime(2020, 1, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = "your_dataset_id",
         dataset_description: str = "The your_dataset dataset: https://dataseturl/",

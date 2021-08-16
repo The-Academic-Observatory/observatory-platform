@@ -91,7 +91,7 @@ from observatory.platform.utils.telescope_utils import make_dag_id
 
 
 class MyOrganisationRelease(OrganisationRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, organisation: Organisation):
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime, organisation: Organisation):
         """ Construct a MyOrganisationRelease.
 
         :param dag_id: the id of the DAG.
@@ -111,7 +111,7 @@ class MyOrganisation(OrganisationTelescope):
         organisation: Organisation,
         extra1: str,
         dag_id: Optional[str] = None,
-        start_date: pendulum.Pendulum = pendulum.Pendulum(2020, 1, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
         schedule_interval: str = "@weekly",
         catchup: bool = True,
         dataset_id: str = "your_dataset_id",

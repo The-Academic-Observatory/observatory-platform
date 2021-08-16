@@ -28,7 +28,7 @@ from observatory.platform.utils.template_utils import (blob_name, bq_load_partit
 
 
 class OrganisationRelease(Release):
-    def __init__(self, dag_id: str, release_date: pendulum.Pendulum, organisation: Organisation,
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime, organisation: Organisation,
                  download_files_regex: str = None, extract_files_regex: str = None, transform_files_regex: str = None):
         """ Construct an OrganisationRelease instance.
 
@@ -62,7 +62,7 @@ class OrganisationRelease(Release):
 
 
 class OrganisationTelescope(Telescope):
-    def __init__(self, organisation: Organisation, dag_id: str, start_date: pendulum.Pendulum, schedule_interval: str,
+    def __init__(self, organisation: Organisation, dag_id: str, start_date: pendulum.DateTime, schedule_interval: str,
                  dataset_id: str, catchup: bool, queue: str = 'default', max_retries: int = 3,
                  max_active_runs: int = 1, source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
                  schema_prefix: str = '', schema_version: str = None, load_bigquery_table_kwargs: Dict = None,

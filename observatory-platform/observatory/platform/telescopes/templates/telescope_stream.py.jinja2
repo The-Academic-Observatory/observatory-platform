@@ -37,7 +37,7 @@ from observatory.platform.utils.airflow_utils import AirflowVars
 
 
 class {{ telescope_class }}Release(StreamRelease):
-    def __init__(self, dag_id: str, start_date: pendulum.Pendulum, end_date: pendulum.Pendulum, first_release: bool):
+    def __init__(self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime, first_release: bool):
         """ Construct a {{ telescope_class }}Release instance
 
         :param dag_id: the id of the DAG.
@@ -55,7 +55,7 @@ class {{ telescope_class }}(StreamTelescope):
     DAG_ID = "{{ telescope_module }}"
 
     def __init__(self, dag_id: str = DAG_ID,
-                 start_date: pendulum.Pendulum = pendulum.Pendulum(2020, 1, 1),
+                 start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
                  schedule_interval: str = '@weekly',
                  dataset_id: str = 'your_dataset_id',
                  dataset_description: str = 'The your_dataset_name dataset: https://dataseturl',
