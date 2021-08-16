@@ -146,7 +146,7 @@ onix_ebook_titles as (
             ) as authors
         ) as onix
     FROM `{{ project_id }}.{{ onix_dataset_id }}.onix{{ onix_release_date.strftime('%Y%m%d') }}` as onix
-    WHERE ProductForm = "Digital download and online" OR ProductForm = "Digital (delivered electronically)"
+    WHERE ProductForm = "Digital download and online" OR ProductForm = "Digital (delivered electronically)" OR ProductForm = "Digital download"
 ),
 
 # Google Analytics
