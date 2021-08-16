@@ -151,7 +151,7 @@ from observatory.platform.utils.airflow_utils import AirflowVars
 
 class MyStreamRelease(StreamRelease):
     def __init__(self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime, first_release: bool):
-        """ Construct a MyStreamRelease instance
+        """Construct a MyStreamRelease instance
 
         :param dag_id: the id of the DAG.
         :param start_date: the start_date of the release.
@@ -163,23 +163,26 @@ class MyStreamRelease(StreamRelease):
 
 
 class MyStream(StreamTelescope):
-    """ MyStream Telescope."""
+    """MyStream Telescope."""
 
     DAG_ID = "my_stream"
 
-    def __init__(self, dag_id: str = DAG_ID,
-                 start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
-                 schedule_interval: str = '@weekly',
-                 dataset_id: str = 'your_dataset_id',
-                 dataset_description: str = 'The your_dataset_name dataset: https://dataseturl',
-                 merge_partition_field: str = 'id',
-                 bq_merge_days: int = 7,
-                 batch_load: bool = True,
-                 load_bigquery_table_kwargs: Dict = None,
-                 table_descriptions: Dict = None,
-                 airflow_vars: List = None,
-                 airflow_conns: List = None):
-        """ Construct a MyStream telescope instance.
+    def __init__(
+        self,
+        dag_id: str = DAG_ID,
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
+        schedule_interval: str = "@weekly",
+        dataset_id: str = "your_dataset_id",
+        dataset_description: str = "The your_dataset_name dataset: https://dataseturl",
+        merge_partition_field: str = "id",
+        bq_merge_days: int = 7,
+        batch_load: bool = True,
+        load_bigquery_table_kwargs: Dict = None,
+        table_descriptions: Dict = None,
+        airflow_vars: List = None,
+        airflow_conns: List = None,
+    ):
+        """Construct a MyStream telescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -209,18 +212,20 @@ class MyStream(StreamTelescope):
         # if airflow_conns is None:
         #     airflow_conns = [AirflowConns.SOMEDEFAULT_CONNECTION]
 
-        super().__init__(dag_id,
-                         start_date,
-                         schedule_interval,
-                         dataset_id,
-                         merge_partition_field,
-                         bq_merge_days,
-                         batch_load=batch_load,
-                         load_bigquery_table_kwargs=load_bigquery_table_kwargs,
-                         dataset_description=dataset_description,
-                         table_descriptions=table_descriptions,
-                         airflow_vars=airflow_vars,
-                         airflow_conns=airflow_conns)
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            dataset_id,
+            merge_partition_field,
+            bq_merge_days,
+            batch_load=batch_load,
+            load_bigquery_table_kwargs=load_bigquery_table_kwargs,
+            dataset_description=dataset_description,
+            table_descriptions=table_descriptions,
+            airflow_vars=airflow_vars,
+            airflow_conns=airflow_conns,
+        )
 
         # Add sensor tasks
         # self.add_sensor(some_airflow_sensor)
@@ -242,20 +247,19 @@ class MyStream(StreamTelescope):
         self.add_task(self.cleanup)  # From StreamTelescope
 
     def make_release(self, **kwargs) -> MyStreamRelease:
-        """ Make a Release instance
+        """Make a Release instance
 
         :param kwargs: The context passed from the PythonOperator.
         :return: MyStreamRelease
         """
-        ti: TaskInstance = kwargs['ti']
-        start_date, end_date, first_release = ti.xcom_pull(key=MyStream.RELEASE_INFO,
-                                                           include_prior_dates=True)
+        ti: TaskInstance = kwargs["ti"]
+        start_date, end_date, first_release = ti.xcom_pull(key=MyStream.RELEASE_INFO, include_prior_dates=True)
 
         release = MyStreamRelease(self.dag_id, start_date, end_date, first_release)
         return release
 
     def task1(self, release: MyStreamRelease, **kwargs):
-        """ Add your own comments.
+        """Add your own comments.
 
         :param release: A MyStream instance
         :param kwargs: The context passed from the PythonOperator.

@@ -76,7 +76,7 @@ from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 
 class MySnapshotRelease(SnapshotRelease):
     def __init__(self, dag_id: str, release_date: pendulum.DateTime):
-        """ Create a MySnapshotRelease instance.
+        """Create a MySnapshotRelease instance.
 
         :param dag_id: the DAG id.
         :param release_date: the date of the release.
@@ -86,7 +86,7 @@ class MySnapshotRelease(SnapshotRelease):
 
 
 class MySnapshot(SnapshotTelescope):
-    """ MySnapshot Telescope."""
+    """MySnapshot Telescope."""
 
     DAG_ID = "my_snapshot"
 
@@ -101,10 +101,10 @@ class MySnapshot(SnapshotTelescope):
         table_descriptions: Dict = None,
         airflow_vars: List = None,
         airflow_conns: List = None,
-        max_active_runs: int = 1
-        ):
+        max_active_runs: int = 1,
+    ):
 
-        """ The MySnapshot telescope
+        """The MySnapshot telescope
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -143,7 +143,7 @@ class MySnapshot(SnapshotTelescope):
             table_descriptions=table_descriptions,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
-            max_active_runs=max_active_runs
+            max_active_runs=max_active_runs,
         )
 
         # Add sensor tasks
@@ -160,7 +160,7 @@ class MySnapshot(SnapshotTelescope):
         self.add_task(self.cleanup)  # From SnapshotTelescope
 
     def make_release(self, **kwargs) -> List[MySnapshotRelease]:
-        """ Make release instances.
+        """Make release instances.
 
         :param kwargs: the context passed from the PythonOperator.
         :return: a list of MySnapshotRelease instances.
@@ -169,7 +169,7 @@ class MySnapshot(SnapshotTelescope):
         return [MySnapshotRelease(self.dag_id, release_date)]
 
     def task1(self, releases: List[MySnapshotRelease], **kwargs):
-        """ Add your own comments.
+        """Add your own comments.
 
         :param releases: A list of MySnapshotRelease instances
         :param kwargs: The context passed from the PythonOperator.

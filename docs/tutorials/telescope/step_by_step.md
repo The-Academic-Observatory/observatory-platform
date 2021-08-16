@@ -70,51 +70,64 @@ An example of the telescope file:
 import pendulum
 
 from observatory.platform.telescopes.telescope import Telescope, Release
-from observatory.platform.utils.airflow_utils import  AirflowConns, AirflowVars
+from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
+
 
 class MyRelease(Release):
     def __init__(self, dag_id: str, release_date: pendulum.DateTime):
-        """ Create a MyRelease instance.
-    
+        """Create a MyRelease instance.
+
         :param dag_id: the DAG id.
         :param release_date: the date of the release.
         """
-    
+
         download_files_regex = ".*.json.tar.gz$"
         extract_files_regex = f".*.json$"
         transform_files_regex = f".*.jsonl$"
         release_id = f'{dag_id}_{release_date.strftime("%Y_%m_%d")}'
         super().__init__(dag_id, release_id, download_files_regex, extract_files_regex, transform_files_regex)
-        
+
         self.url = MyTelescope.URL.format(year=release_date.year, month=release_date.month)
-    
+
     def download(self):
         success = download_from_url(self.url)
+
 
 class MyTelescope(Telescope):
     """
     Simple telescope DAG
     """
-    
+
     URL = "https://api.snapshot/{year}/{month:02d}/all.json.tar.gz"
 
-    def __init__(self, dag_id: str = 'my_telescope', start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
-                 schedule_interval: str = '@weekly', catchup: bool = False):
-        """ Construct a MyTelescope instance.
+    def __init__(
+        self,
+        dag_id: str = "my_telescope",
+        start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
+        schedule_interval: str = "@weekly",
+        catchup: bool = False,
+    ):
+        """Construct a MyTelescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         """
-        super().__init__(dag_id, start_date, schedule_interval, catchup=catchup, airflow_conns=[AirflowConns.ORCID],
-                         airflow_vars=[AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION])
-        
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            catchup=catchup,
+            airflow_conns=[AirflowConns.ORCID],
+            airflow_vars=[AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION],
+        )
+
         self.add_setup_task(self.check_dependencies, retries=3)
         self.add_task(self.download)
         self.add_task(self.cleanup)
 
     def make_release(self, **kwargs) -> MyRelease:
-        """ Create a release instance.
+        """Create a release instance.
 
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for more info.
@@ -123,19 +136,19 @@ class MyTelescope(Telescope):
         release_date = kwargs["execution_date"]
         return MyRelease(self.dag_id, release_date)
 
-
     def download(self, release: MyRelease, **kwargs):
-        """ Task to download data.
+        """Task to download data.
 
         :param release: A release instance.
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for more info.
         :return: None.
-        """ 
+        """
         release.download()
-    
+
     def cleanup(self, release: MyRelease, **kwargs):
-        release.cleanup()    
+        release.cleanup()
+
 
 def download_from_url(url: str) -> bool:
     return True
@@ -200,7 +213,7 @@ The info is then used within the `make_release` method.
 See for example the `make_release` method of the OrcidTelescope, which uses the StreamTelescope as a template.  
 ```python
 def make_release(self, **kwargs) -> OrcidRelease:
-    """ Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
+    """Make a release instance. The release is passed as an argument to the function (TelescopeFunction) that is
     called in 'task_callable'.
 
     :param kwargs: the context passed from the PythonOperator. See
@@ -245,14 +258,15 @@ For example, to add the airflow variable 'new_variable' and connection 'new_conn
 ```python
 # Inside observatory-platform/observatory/platform/utils/airflow_utils.py
 class AirflowVars:
-    """ Common Airflow Variable names used with the Observatory Platform """
-    
+    """Common Airflow Variable names used with the Observatory Platform"""
+
     # add to existing variables
     NEW_VARIABLE = "new_variable"
 
+
 class AirflowConns:
-    """ Common Airflow Connection names used with the Observatory Platform """
-    
+    """Common Airflow Connection names used with the Observatory Platform"""
+
     # add to existing connections
     NEW_CONNECTION = "new_connection"
 ```
@@ -302,7 +316,7 @@ For example, to get a variable:
 ```python
 from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars
 
-variable = AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET) 
+variable = AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET)
 ```
 
 ## 3. Creating a BigQuery schema file
@@ -343,11 +357,14 @@ import pendulum
 from observatory.platform.utils.test_utils import ObservatoryTestCase
 from observatory.platform.telescopes.telescope import Telescope, Release
 
+
 class MyTelescope(Telescope):
-    def __init__(self,
-                 dag_id: str = 'my_telescope',
-                 start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
-                 schedule_interval: str = '@weekly'):
+    def __init__(
+        self,
+        dag_id: str = "my_telescope",
+        start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
+        schedule_interval: str = "@weekly",
+    ):
         super().__init__(dag_id, start_date, schedule_interval)
 
         self.add_task(self.task1)
@@ -363,11 +380,12 @@ class MyTelescope(Telescope):
     def task2(self, release, **kwargs):
         pass
 
+
 class MyTestClass(ObservatoryTestCase):
-    """ Tests for the telescope """
+    """Tests for the telescope"""
 
     def __init__(self, *args, **kwargs):
-        """ Constructor which sets up variables used by tests.
+        """Constructor which sets up variables used by tests.
 
         :param args: arguments.
         :param kwargs: keyword arguments.
@@ -375,14 +393,11 @@ class MyTestClass(ObservatoryTestCase):
         super(MyTestClass, self).__init__(*args, **kwargs)
 
     def test_dag_structure(self):
-        """ Test that the DAG has the correct structure. 
+        """Test that the DAG has the correct structure.
 
         :return: None
         """
-        expected = {
-          "task1": ["task2"],
-          "task2": []
-        }
+        expected = {"task1": ["task2"], "task2": []}
         telescope = MyTelescope()
         dag = telescope.make_dag()
         self.assert_dag_structure(expected, dag)
@@ -400,11 +415,14 @@ from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.test_utils import ObservatoryTestCase, ObservatoryEnvironment
 from observatory.platform.telescopes.telescope import Telescope, Release
 
+
 class MyTelescope(Telescope):
-    def __init__(self,
-                 dag_id: str = 'my_telescope',
-                 start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
-                 schedule_interval: str = '@weekly'):
+    def __init__(
+        self,
+        dag_id: str = "my_telescope",
+        start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
+        schedule_interval: str = "@weekly",
+    ):
         super().__init__(dag_id, start_date, schedule_interval)
 
         self.add_task(self.task1)
@@ -420,25 +438,26 @@ class MyTelescope(Telescope):
     def task2(self, release, **kwargs):
         pass
 
+
 class MyTestClass(ObservatoryTestCase):
-    """ Tests for the telescope """
+    """Tests for the telescope"""
 
     def __init__(self, *args, **kwargs):
-        """ Constructor which sets up variables used by tests.
+        """Constructor which sets up variables used by tests.
 
         :param args: arguments.
         :param kwargs: keyword arguments.
         """
         super(MyTestClass, self).__init__(*args, **kwargs)
-    
+
     def test_dag_load(self):
-        """ Test that the DAG can be loaded from a DAG bag.
+        """Test that the DAG can be loaded from a DAG bag.
 
         :return: None
         """
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path('observatory.dags.dags'), 'my_telescope.py')
-            self.assert_dag_load('my_telescope', dag_file)
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "my_telescope.py")
+            self.assert_dag_load("my_telescope", dag_file)
 ```
 
 ### Testing telescope tasks
@@ -477,11 +496,14 @@ import pendulum
 from observatory.platform.utils.test_utils import ObservatoryTestCase, ObservatoryEnvironment
 from observatory.platform.telescopes.telescope import Telescope, Release
 
+
 class MyTelescope(Telescope):
-    def __init__(self,
-                 dag_id: str = 'my_telescope',
-                 start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
-                 schedule_interval: str = '@weekly'):
+    def __init__(
+        self,
+        dag_id: str = "my_telescope",
+        start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
+        schedule_interval: str = "@weekly",
+    ):
         super().__init__(dag_id, start_date, schedule_interval)
 
         self.add_task(self.task1)
@@ -497,18 +519,20 @@ class MyTelescope(Telescope):
     def task2(self, release, **kwargs):
         pass
 
+
 class MyTestClass(ObservatoryTestCase):
-    """ Tests for the telescope """
+    """Tests for the telescope"""
+
     def __init__(self, *args, **kwargs):
-        """ Constructor which sets up variables used by tests.
+        """Constructor which sets up variables used by tests.
         :param args: arguments.
         :param kwargs: keyword arguments.
         """
         super(MyTestClass, self).__init__(*args, **kwargs)
-        self.execution_date = datetime(2020, 1, 1)
-    
+        self.execution_date = pendulum.datetime(2020, 1, 1)
+
     def test_telescope(self):
-        """ Test the telescope end to end.
+        """Test the telescope end to end.
         :return: None.
         """
         # Setup Observatory environment
@@ -570,12 +594,12 @@ env.api_session.add(organisation)
 
 # Create telescope with API
 telescope = orm.Telescope(
-            name="Curtin Press ONIX Telescope",
-            telescope_type=telescope_type,
-            organisation=organisation,
-            modified=dt,
-            created=dt,
-        )
+    name="Curtin Press ONIX Telescope",
+    telescope_type=telescope_type,
+    organisation=organisation,
+    modified=dt,
+    created=dt,
+)
 env.api_session.add(telescope)
 
 # Commit changes

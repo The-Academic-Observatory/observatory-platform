@@ -152,6 +152,7 @@ from airflow.sensors.external_task import ExternalTaskSensor
 from observatory.platform.telescopes.telescope import Release, Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
 
+
 class MyRelease(Release):
     def __init__(self, dag_id: str, release_date: pendulum.DateTime):
         """Construct a Release instance
@@ -159,27 +160,30 @@ class MyRelease(Release):
         :param dag_id: the id of the DAG.
         :param release_date: the release date (used to construct release_id).
         """
-        
+
         self.release_date = release_date
         release_id = f'{dag_id}_{self.release_date.strftime("%Y_%m_%d")}'
         super().__init__(dag_id, release_id)
 
 
 class MyTelescope(Telescope):
-    """ MyTelescope Telescope."""
+    """MyTelescope Telescope."""
+
     DAG_ID = "my_telescope"
 
-    def __init__(self,
-                 dag_id: str = DAG_ID,
-                 start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
-                 schedule_interval: str = '@weekly',
-                 catchup: bool = True, 
-                 queue: str = 'default', 
-                 max_retries: int = 3, 
-                 max_active_runs: int = 1,
-                 airflow_vars: list = None, 
-                 airflow_conns: list = None):
-        """ Construct a Telescope instance.
+    def __init__(
+        self,
+        dag_id: str = DAG_ID,
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
+        schedule_interval: str = "@weekly",
+        catchup: bool = True,
+        queue: str = "default",
+        max_retries: int = 3,
+        max_active_runs: int = 1,
+        airflow_vars: list = None,
+        airflow_conns: list = None,
+    ):
+        """Construct a Telescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -191,7 +195,7 @@ class MyTelescope(Telescope):
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         """
-        
+
         if airflow_vars is None:
             airflow_vars = [
                 AirflowVars.DATA_PATH,
@@ -203,19 +207,21 @@ class MyTelescope(Telescope):
 
         if airflow_conns is None:
             airflow_conns = [AirflowConns.SOMEDEFAULT_CONNECTION]
-        
-        super().__init__(dag_id, 
-                         start_date, 
-                         schedule_interval,
-                         catchup=catchup,
-                         queue=queue, 
-                         max_retries=max_retries, 
-                         max_active_runs=max_active_runs,
-                         airflow_vars=airflow_vars,
-                         airflow_conns=airflow_conns)
+
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            catchup=catchup,
+            queue=queue,
+            max_retries=max_retries,
+            max_active_runs=max_active_runs,
+            airflow_vars=airflow_vars,
+            airflow_conns=airflow_conns,
+        )
 
         # Add sensor tasks
-        sensor = ExternalTaskSensor(external_dag_id='my_other_telescope', task_id='important_task', mode='reschedule')
+        sensor = ExternalTaskSensor(external_dag_id="my_other_telescope", task_id="important_task", mode="reschedule")
         self.add_sensor(sensor)
 
         # Add setup tasks
@@ -226,8 +232,8 @@ class MyTelescope(Telescope):
         self.add_task(self.cleanup)
 
     def make_release(self, **kwargs) -> MyRelease:
-        """ Make a release instance.
-        
+        """Make a release instance.
+
         :param kwargs: the context passed from the PythonOperator.
         :return: A release instance
         """
@@ -236,8 +242,8 @@ class MyTelescope(Telescope):
         return release
 
     def task1(self, release: MyRelease, **kwargs):
-        """ Add your own comments.
-        
+        """Add your own comments.
+
         :param release: A MyRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -245,8 +251,8 @@ class MyTelescope(Telescope):
         pass
 
     def cleanup(self, release: MyRelease, **kwargs):
-        """ Delete downloaded, extracted and transformed files of the release.
-        
+        """Delete downloaded, extracted and transformed files of the release.
+
         :param release: A MyRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -310,12 +316,7 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.sensors.external_task import ExternalTaskSensor
 
-from observatory.platform.utils.airflow_utils import (
-    AirflowConns, 
-    AirflowVars, 
-    check_connections, 
-    check_variables
-)
+from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars, check_connections, check_variables
 from observatory.platform.utils.template_utils import (
     SubFolder,
     on_failure_callback,
@@ -329,11 +330,13 @@ def check_dependencies() -> bool:
     :return: Whether variables and connections are available.
     """
     # check that vars and connections are available
-    airflow_vars = [AirflowVars.DATA_PATH,
-                    AirflowVars.PROJECT_ID,
-                    AirflowVars.DATA_LOCATION,
-                    AirflowVars.DOWNLOAD_BUCKET,
-                    AirflowVars.TRANSFORM_BUCKET,]
+    airflow_vars = [
+        AirflowVars.DATA_PATH,
+        AirflowVars.PROJECT_ID,
+        AirflowVars.DATA_LOCATION,
+        AirflowVars.DOWNLOAD_BUCKET,
+        AirflowVars.TRANSFORM_BUCKET,
+    ]
     vars_valid = check_variables(*airflow_vars)
 
     airflow_conns = [AirflowConns.SOMEDEFAULT_CONNECTION]
@@ -346,7 +349,7 @@ def check_dependencies() -> bool:
 
 
 def task1(**kwargs):
-    """ Add your own comments.
+    """Add your own comments.
 
     :param kwargs: The context passed from the PythonOperator.
     :return: None.
@@ -355,12 +358,12 @@ def task1(**kwargs):
 
 
 def cleanup(**kwargs):
-    """ Delete downloaded, extracted and transformed files of the release.
+    """Delete downloaded, extracted and transformed files of the release.
 
     :param kwargs: The context passed from the PythonOperator.
     :return: None.
     """
-    dag_id = 'my_telescope'
+    dag_id = "my_telescope"
     release_date = kwargs["execution_date"]
     release_id = f'{dag_id}_{release_date.strftime("%Y_%m_%d")}'
     download_folder = telescope_path(SubFolder.downloaded.value, dag_id, release_id)
@@ -375,44 +378,46 @@ def cleanup(**kwargs):
 
 
 default_args = {
-    'owner': 'airflow',
-    'start_date': datetime(2020, 1, 1),
-    'on_failure_callback': on_failure_callback,
-    'retries': 3
+    "owner": "airflow",
+    "start_date": datetime(2020, 1, 1),
+    "on_failure_callback": on_failure_callback,
+    "retries": 3,
 }
 
-with DAG(dag_id='my_telescope',
-         start_date=datetime(2020, 1, 1),
-         schedule_interval='@weekly',
-         default_args=default_args,
-         catchup=True,
-         max_active_runs=1,
-         doc_md='MyTelescope Telescope') as dag:
+with DAG(
+    dag_id="my_telescope",
+    start_date=datetime(2020, 1, 1),
+    schedule_interval="@weekly",
+    default_args=default_args,
+    catchup=True,
+    max_active_runs=1,
+    doc_md="MyTelescope Telescope",
+) as dag:
 
-    sensor_task = ExternalTaskSensor(external_dag_id='my_other_telescope', 
-                                     task_id='important_task', 
-                                     mode='reschedule', 
-                                     queue='default', 
-                                     default_args=default_args, 
-                                     provide_context=True)
+    sensor_task = ExternalTaskSensor(
+        external_dag_id="my_other_telescope",
+        task_id="important_task",
+        mode="reschedule",
+        queue="default",
+        default_args=default_args,
+        provide_context=True,
+    )
 
-    check_dependencies_task = ShortCircuitOperator(task_id='check_dependencies', 
-                                                   python_callable=check_dependencies,
-                                                   queue='default', 
-                                                   default_args=default_args, 
-                                                   provide_context=True)
+    check_dependencies_task = ShortCircuitOperator(
+        task_id="check_dependencies",
+        python_callable=check_dependencies,
+        queue="default",
+        default_args=default_args,
+        provide_context=True,
+    )
 
-    task_1 = PythonOperator(task_id='task1', 
-                            python_callable=task1, 
-                            queue='default', 
-                            default_args=default_args,
-                            provide_context=True)
+    task_1 = PythonOperator(
+        task_id="task1", python_callable=task1, queue="default", default_args=default_args, provide_context=True
+    )
 
-    cleanup_task = PythonOperator(task_id='cleanup', 
-                                  python_callable=cleanup,  
-                                  queue='default', 
-                                  default_args=default_args, 
-                                  provide_context=True)
+    cleanup_task = PythonOperator(
+        task_id="cleanup", python_callable=cleanup, queue="default", default_args=default_args, provide_context=True
+    )
 
 sensor_task >> check_dependencies_task >> task_1 >> cleanup_task
 ```

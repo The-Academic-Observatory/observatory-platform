@@ -1,7 +1,7 @@
 # Style
-All code shoudl try to conform to the Python PEP-8 standard, and the default format style of the `Black` formatter.
+All code should try to conform to the Python PEP-8 standard, and the default format style of the `Black` formatter.
 This is done with the [autopep8 package](https://pypi.org/project/autopep8), and the 
- [black formatter](https://pypi.org/project/black/).
+ [black formatter](https://pypi.org/project/black/), using a line length of 120.
 
 It is recommended to use those format tools as part of the coding workflow.
 

@@ -92,7 +92,7 @@ from observatory.platform.utils.telescope_utils import make_dag_id
 
 class MyOrganisationRelease(OrganisationRelease):
     def __init__(self, dag_id: str, release_date: pendulum.DateTime, organisation: Organisation):
-        """ Construct a MyOrganisationRelease.
+        """Construct a MyOrganisationRelease.
 
         :param dag_id: the id of the DAG.
         :param release_date: the date of the release.
@@ -102,7 +102,7 @@ class MyOrganisationRelease(OrganisationRelease):
 
 
 class MyOrganisation(OrganisationTelescope):
-    """ MyOrganisation Telescope."""
+    """MyOrganisation Telescope."""
 
     DAG_ID_PREFIX = "my_organisation"
 
@@ -122,7 +122,7 @@ class MyOrganisation(OrganisationTelescope):
         airflow_vars=None,
         airflow_conns=None,
     ):
-        """ Construct a MyOrganisationTelescope instance.
+        """Construct a MyOrganisationTelescope instance.
 
         :param organisation: the Organisation of which data is processed.
         :param extra1: the value for extra1, obtained from the 'extra' info from the API regarding the telescope.
@@ -166,7 +166,7 @@ class MyOrganisation(OrganisationTelescope):
             catchup=catchup,
             schema_prefix=schema_prefix,
             airflow_vars=airflow_vars,
-            airflow_conns=airflow_conns
+            airflow_conns=airflow_conns,
         )
 
         self.extra1 = extra1
@@ -185,7 +185,7 @@ class MyOrganisation(OrganisationTelescope):
         self.add_task(self.cleanup)  # From OrganisationTelescope
 
     def make_release(self, **kwargs) -> List[MyOrganisationRelease]:
-        """ Make release instances.
+        """Make release instances.
 
         :param kwargs: the context passed from the PythonOperator.
         :return: a list of MyOrganisationRelease instances.
@@ -196,7 +196,7 @@ class MyOrganisation(OrganisationTelescope):
         return releases
 
     def check_dependencies(self, **kwargs) -> bool:
-        """ Check dependencies of DAG. Add to parent method to additionally check for a expected extra key
+        """Check dependencies of DAG. Add to parent method to additionally check for a expected extra key
 
         :return: True if dependencies are valid.
         """
@@ -204,12 +204,13 @@ class MyOrganisation(OrganisationTelescope):
 
         if self.extra1 is None:
             expected_extra = {"extra1": "expected_value"}
-            raise AirflowException(f"Value for extra1 is not set in 'extra' of telescope, "
-                                   f"extra example: {expected_extra}")
+            raise AirflowException(
+                f"Value for extra1 is not set in 'extra' of telescope, " f"extra example: {expected_extra}"
+            )
         return True
-    
+
     def task1(self, releases: List[MyOrganisationRelease], **kwargs):
-        """ Add your own comments.
+        """Add your own comments.
 
         :param releases: A list of MyOrganisationRelease instances
         :param kwargs: The context passed from the PythonOperator.
@@ -250,7 +251,7 @@ telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
 
 # Make all telescopes
 for telescope in telescopes:
-    key1 = telescope.extra.get('key1')
+    key1 = telescope.extra.get("key1")
     telescope = MyOrganisation(telescope.organisation, key1)
     globals()[telescope.dag_id] = telescope.make_dag()
 ```
