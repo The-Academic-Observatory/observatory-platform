@@ -20,7 +20,7 @@ import pathlib
 import unittest
 from typing import Any, Dict
 from unittest.mock import Mock, patch
-
+from observatory.platform.observatory_config import save_yaml
 import requests
 from click.testing import CliRunner
 from redis import Redis
@@ -89,6 +89,18 @@ class TestPlatformBuilder(unittest.TestCase):
     def setUp(self) -> None:
         self.is_env_local = True
 
+    def save_config(self, file_path: str, observatory_home: str):
+        dict_ = {
+            "backend": {"type": "local", "environment": "develop"},
+            "observatory": {
+                "observatory_home": observatory_home,
+                "airflow_fernet_key": "random-fernet-key",
+                "airflow_secret_key": "random-secret-key",
+            }
+        }
+
+        save_yaml(file_path, dict_)
+
     def test_is_environment_valid(self):
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
@@ -99,7 +111,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
             # Environment should be valid because there is a config.yaml
             # Assumes that Docker is setup on the system where the tests are run
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
             self.assertTrue(cmd.is_environment_valid)
 
@@ -108,7 +120,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
             expected_path = str(pathlib.Path(*pathlib.Path(docker_module.__file__).resolve().parts[:-1]).resolve())
             self.assertEqual(expected_path, cmd.docker_module_path)
@@ -118,7 +130,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
             result = cmd.docker_exe_path
             self.assertIsNotNone(result)
@@ -129,7 +141,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
             result = cmd.docker_compose_path
             self.assertIsNotNone(result)
@@ -143,7 +155,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
             self.assertTrue(cmd.is_docker_running)
 
@@ -155,7 +167,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
             self.assertFalse(cmd.is_docker_running)
 
@@ -164,7 +176,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
             cmd.build()
 
@@ -189,7 +201,7 @@ class TestPlatformBuilder(unittest.TestCase):
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
 
             # Make the environment
@@ -210,7 +222,7 @@ class TestPlatformBuilder(unittest.TestCase):
         # Check that the environment variables are set properly for a complete config file
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
             expected_env = make_expected_env(cmd)
 
@@ -225,6 +237,7 @@ class TestPlatformBuilder(unittest.TestCase):
             )
             backend = Backend(type=BackendType.local, environment=Environment.develop)
             observatory = Observatory(
+                observatory_home=t,
                 airflow_fernet_key="DOJLLgvRnhy51gxLbxznn4w7MxD5kZ53bOZEoPr8wCg=",
                 airflow_secret_key="f95d60dc61b3a2b703ece8904b93947af88c2f609df8855514af097ea254",
             )
@@ -273,7 +286,7 @@ class TestPlatformBuilder(unittest.TestCase):
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
             cmd.debug = True
 
@@ -291,7 +304,7 @@ class TestPlatformBuilder(unittest.TestCase):
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
-            ObservatoryConfig.save_default(config_path)
+            self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
 
             cmd.config.observatory.airflow_ui_port = 8082

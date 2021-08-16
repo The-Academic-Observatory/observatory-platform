@@ -51,22 +51,24 @@ class TerraformBuilder:
         self.debug = debug
 
         # Load config
-        self.config_exists = os.path.exists(config_path)
-        self.config_is_valid = False
-        self.config = None
-        if self.config_exists:
+        config_exists = os.path.exists(config_path)
+        if not config_exists:
+            raise FileExistsError(f"Terraform config file does not exist: {config_path}")
+        else:
             self.config: TerraformConfig = TerraformConfig.load(config_path)
             self.config_is_valid = self.config.is_valid
 
-        # Set paths
-        build_path = os.path.join(self.config.observatory.observatory_home, "build", "terraform")
-        self.platform_builder = PlatformBuilder(
-            config_path=config_path,
-            docker_build_path=os.path.join(build_path, "docker"),
-            backend_type=BackendType.terraform,
-        )
-        self.packages_build_path = os.path.join(build_path, "packages")
-        self.terraform_build_path = os.path.join(build_path, "terraform")
+            # Set paths
+            self.build_path = os.path.join(self.config.observatory.observatory_home, "build", "terraform")
+            self.platform_builder = PlatformBuilder(
+                config_path=config_path,
+                docker_build_path=os.path.join(self.build_path, "docker"),
+                backend_type=BackendType.terraform,
+            )
+            self.packages_build_path = os.path.join(self.build_path, "packages")
+            self.terraform_build_path = os.path.join(self.build_path, "terraform")
+            os.makedirs(self.packages_build_path, exist_ok=True)
+            os.makedirs(self.terraform_build_path, exist_ok=True)
 
     @property
     def is_environment_valid(self) -> bool:
@@ -76,7 +78,7 @@ class TerraformBuilder:
         """
 
         return all(
-            [self.packer_exe_path is not None, self.config_exists, self.config_is_valid, self.config is not None]
+            [self.packer_exe_path is not None, self.config_is_valid, self.config is not None]
         )
 
     @property
