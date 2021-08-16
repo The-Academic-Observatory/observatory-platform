@@ -20,7 +20,7 @@ import pathlib
 import unittest
 from typing import Any, Dict
 from unittest.mock import Mock, patch
-from observatory.platform.observatory_config import save_yaml
+
 import requests
 from click.testing import CliRunner
 from redis import Redis
@@ -40,6 +40,7 @@ from observatory.platform.observatory_config import (
     AirflowConnection,
     DagsProject,
 )
+from observatory.platform.observatory_config import save_yaml
 from observatory.platform.platform_builder import PlatformBuilder
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.url_utils import wait_for_url
@@ -96,7 +97,7 @@ class TestPlatformBuilder(unittest.TestCase):
                 "observatory_home": observatory_home,
                 "airflow_fernet_key": "random-fernet-key",
                 "airflow_secret_key": "random-secret-key",
-            }
+            },
         }
 
         save_yaml(file_path, dict_)

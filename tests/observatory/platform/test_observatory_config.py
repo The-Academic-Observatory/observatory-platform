@@ -696,14 +696,7 @@ class TestSchema(unittest.TestCase):
         schema = make_schema(BackendType.terraform)
         schema_key = "cloud_sql_database"
 
-        valid_docs = [
-            {
-                "cloud_sql_database": {
-                    "tier": "db-custom-2-7680",
-                    "backup_start_time": "23:00"
-                }
-            }
-        ]
+        valid_docs = [{"cloud_sql_database": {"tier": "db-custom-2-7680", "backup_start_time": "23:00"}}]
         invalid_docs = [
             {},
             {"cloud_sql_database": {}},
@@ -712,14 +705,7 @@ class TestSchema(unittest.TestCase):
 
         expected_errors = [
             {"cloud_sql_database": ["required field"]},
-            {
-                "cloud_sql_database": [
-                    {
-                        "backup_start_time": ["required field"],
-                        "tier": ["required field"]
-                    }
-                ]
-            },
+            {"cloud_sql_database": [{"backup_start_time": ["required field"], "tier": ["required field"]}]},
             {
                 "cloud_sql_database": [
                     {

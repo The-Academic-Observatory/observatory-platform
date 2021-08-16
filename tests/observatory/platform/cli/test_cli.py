@@ -16,7 +16,6 @@
 
 import json
 import os
-import pathlib
 import unittest
 from typing import Any
 from typing import List
@@ -94,7 +93,7 @@ class MockConfig(Mock):
     @property
     def observatory(self):
         mock = Mock()
-        mock.observatory_home = '/path/to/home'
+        mock.observatory_home = "/path/to/home"
         return mock
 
     @property
@@ -178,7 +177,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             stop_return_code = 0
             wait_for_airflow_ui = True
             config_path = os.path.abspath("config.yaml")
-            dags_path = '/path/to/dags'
+            dags_path = "/path/to/dags"
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid,
                 docker_exe_path,
@@ -191,7 +190,7 @@ class TestObservatoryPlatform(unittest.TestCase):
                 stop_return_code,
                 wait_for_airflow_ui,
                 config_path,
-                dags_path
+                dags_path,
             )
 
             # Test that start command works
@@ -221,7 +220,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             start_return_code = 0
             stop_return_code = 0
             wait_for_airflow_ui = True
-            dags_path = '/path/to/dags'
+            dags_path = "/path/to/dags"
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid,
                 docker_exe_path,
@@ -234,7 +233,7 @@ class TestObservatoryPlatform(unittest.TestCase):
                 stop_return_code,
                 wait_for_airflow_ui,
                 default_config_path,
-                dags_path
+                dags_path,
             )
 
             # Test that start command fails
@@ -264,7 +263,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             start_return_code = 0
             stop_return_code = 0
             wait_for_airflow_ui = True
-            dags_path = '/path/to/dags'
+            dags_path = "/path/to/dags"
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid,
                 docker_exe_path,
@@ -277,7 +276,7 @@ class TestObservatoryPlatform(unittest.TestCase):
                 stop_return_code,
                 wait_for_airflow_ui,
                 default_config_path,
-                dags_path
+                dags_path,
             )
 
             # Make empty config
@@ -299,7 +298,7 @@ class TestObservatoryPlatform(unittest.TestCase):
         # Test that invalid config errors show up
         # Test that error message is printed when Docker is installed but not running
         runner = CliRunner()
-        with runner.isolated_filesystem() as t :
+        with runner.isolated_filesystem() as t:
             # Environment invalid, Docker installed but not running
             default_config_path = os.path.join(t, "config.yaml")
             is_environment_valid = False
@@ -325,7 +324,7 @@ class TestObservatoryPlatform(unittest.TestCase):
                 stop_return_code,
                 wait_for_airflow_ui,
                 default_config_path,
-                dags_path
+                dags_path,
             )
 
             # Make empty config

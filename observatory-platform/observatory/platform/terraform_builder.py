@@ -76,9 +76,7 @@ class TerraformBuilder:
         :return: whether the environment for building the Packer image is valid.
         """
 
-        return all(
-            [self.packer_exe_path is not None, self.config_is_valid, self.config is not None]
-        )
+        return all([self.packer_exe_path is not None, self.config_is_valid, self.config is not None])
 
     @property
     def packer_exe_path(self) -> str:
