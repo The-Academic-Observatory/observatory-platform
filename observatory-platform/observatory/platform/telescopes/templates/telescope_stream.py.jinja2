@@ -138,6 +138,9 @@ class {{ telescope_class }}(StreamTelescope):
         start_date, end_date, first_release = ti.xcom_pull(key={{ telescope_class }}.RELEASE_INFO,
                                                            include_prior_dates=True)
 
+        start_date = pendulum.parse(start_date)
+        end_date = pendulum.parse(end_date)
+
         release = {{ telescope_class }}Release(self.dag_id, start_date, end_date, first_release)
         return release
 

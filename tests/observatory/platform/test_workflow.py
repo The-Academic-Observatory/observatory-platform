@@ -19,7 +19,7 @@ from functools import partial
 
 from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
-from airflow.sensors.external_task_sensor import ExternalTaskSensor
+from airflow.sensors.external_task import ExternalTaskSensor
 
 from observatory.platform.workflows.workflow import Release, Workflow, make_task_id, Operator
 from observatory.platform.utils.test_utils import ObservatoryTestCase

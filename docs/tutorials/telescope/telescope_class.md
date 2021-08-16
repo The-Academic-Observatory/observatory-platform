@@ -147,7 +147,7 @@ Telescope file:
 # Author: Aniek Roelofs
 
 import pendulum
-from airflow.operators.sensors import ExternalTaskSensor
+from airflow.sensors.external_task import ExternalTaskSensor
 
 from observatory.platform.telescopes.telescope import Release, Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
@@ -306,9 +306,9 @@ import logging
 from pendulum import datetime
 from airflow import DAG
 from airflow.exceptions import AirflowException
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.python_operator import ShortCircuitOperator
-from airflow.operators.sensors import ExternalTaskSensor
+from airflow.operators.python import PythonOperator
+from airflow.operators.python import ShortCircuitOperator
+from airflow.sensors.external_task import ExternalTaskSensor
 
 from observatory.platform.utils.airflow_utils import (
     AirflowConns, 

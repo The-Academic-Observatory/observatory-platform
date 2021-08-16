@@ -86,7 +86,7 @@ class Test{{ telescope_class }}(ObservatoryTestCase):
             env.add_connection(conn)
 
             # Add a telescope
-            dt = pendulum.utcnow()
+            dt = pendulum.now("UTC")
             telescope_type = orm.TelescopeType(
                 name="{{ telescope_class}} Telescope",
                 type_id=TelescopeTypes.{{ telescope_module }},

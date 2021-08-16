@@ -67,12 +67,13 @@ An example of the telescope file:
 
 # Author: <Your Name>
 
-from pendulum import Pendulum, datetime
+import pendulum
+
 from observatory.platform.telescopes.telescope import Telescope, Release
 from observatory.platform.utils.airflow_utils import  AirflowConns, AirflowVars
 
 class MyRelease(Release):
-    def __init__(self, dag_id: str, release_date: Pendulum):
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime):
         """ Create a MyRelease instance.
     
         :param dag_id: the DAG id.
@@ -97,7 +98,7 @@ class MyTelescope(Telescope):
     
     URL = "https://api.snapshot/{year}/{month:02d}/all.json.tar.gz"
 
-    def __init__(self, dag_id: str = 'my_telescope', start_date: Pendulum = datetime(2017, 3, 20),
+    def __init__(self, dag_id: str = 'my_telescope', start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
                  schedule_interval: str = '@weekly', catchup: bool = False):
         """ Construct a MyTelescope instance.
 
@@ -165,25 +166,29 @@ An example of this can be seen in the implemented method `get_release_info` of t
 The `get_release_info` method:
 ```python
 def get_release_info(self, **kwargs) -> bool:
-    """ Push the release info (start date, end date, first release) using Xcoms.
+    """Push the release info (start date, end date, first release) using Xcoms.
 
     :param kwargs: The context passed from the PythonOperator.
     :return: None.
     """
-    ti: TaskInstance = kwargs['ti']
+    ti: TaskInstance = kwargs["ti"]
 
     first_release = False
     release_info = ti.xcom_pull(key=self.RELEASE_INFO, include_prior_dates=True)
     if not release_info:
         first_release = True
         # set start date to the start of the DAG
-        start_date = pendulum.instance(kwargs['dag'].default_args['start_date']).start_of('day')
+        start_date = pendulum.instance(kwargs["dag"].default_args["start_date"]).start_of("day")
     else:
         # set start date to end date of previous DAG run, add 1 day, because end date was processed in prev run.
-        start_date = release_info[1] + timedelta(days=1)
+        start_date = pendulum.parse(release_info[1]) + timedelta(days=1)
     # set start date to current day, subtract 1 day, because data from same day might not be available yet.
-    end_date = pendulum.today('UTC') - timedelta(days=1)
-    logging.info(f'Start date: {start_date}, end date: {end_date}, first release: {first_release}')
+    end_date = pendulum.today("UTC") - timedelta(days=1)
+    logging.info(f"Start date: {start_date}, end date: {end_date}, first release: {first_release}")
+
+    # Turn dates into strings.  Prefer JSON'able data over pickling in Airflow 2.
+    start_date = start_date.format("YYYYMMDD")
+    end_date = end_date.format("YYYYMMDD")
 
     ti.xcom_push(self.RELEASE_INFO, (start_date, end_date, first_release))
     return True
@@ -203,10 +208,12 @@ def make_release(self, **kwargs) -> OrcidRelease:
     passed to this argument.
     :return: an OrcidRelease instance.
     """
-    ti: TaskInstance = kwargs['ti']
+    ti: TaskInstance = kwargs["ti"]
     start_date, end_date, first_release = ti.xcom_pull(key=OrcidTelescope.RELEASE_INFO, include_prior_dates=True)
 
-    release = OrcidRelease(self.dag_id, start_date, end_date, first_release, self.max_processes)
+    release = OrcidRelease(
+        self.dag_id, pendulum.parse(start_date), pendulum.parse(end_date), first_release, self.max_processes
+    )
     return release
 ```
 
@@ -331,7 +338,7 @@ This expresses the relationship that the source node task is a dependency of all
 
 Example:
 ```python
-from pendulum import Pendulum, datetime
+import pendulum
 
 from observatory.platform.utils.test_utils import ObservatoryTestCase
 from observatory.platform.telescopes.telescope import Telescope, Release
@@ -339,7 +346,7 @@ from observatory.platform.telescopes.telescope import Telescope, Release
 class MyTelescope(Telescope):
     def __init__(self,
                  dag_id: str = 'my_telescope',
-                 start_date: Pendulum = datetime(2017, 3, 20),
+                 start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
                  schedule_interval: str = '@weekly'):
         super().__init__(dag_id, start_date, schedule_interval)
 
@@ -387,7 +394,7 @@ To test if a DAG loads from a DagBag, the `assert_dag_load` method can be used w
 Example:
 ```python
 import os
-from pendulum import Pendulum, datetime
+import pendulum
 
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.test_utils import ObservatoryTestCase, ObservatoryEnvironment
@@ -396,7 +403,7 @@ from observatory.platform.telescopes.telescope import Telescope, Release
 class MyTelescope(Telescope):
     def __init__(self,
                  dag_id: str = 'my_telescope',
-                 start_date: Pendulum = datetime(2017, 3, 20),
+                 start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
                  schedule_interval: str = '@weekly'):
         super().__init__(dag_id, start_date, schedule_interval)
 
@@ -465,15 +472,15 @@ This means that to run a specific task, all the previous tasks in the DAG have t
  
 Example:
 ```python
-import os
-from pendulum import Pendulum, datetime
+import pendulum
+
 from observatory.platform.utils.test_utils import ObservatoryTestCase, ObservatoryEnvironment
 from observatory.platform.telescopes.telescope import Telescope, Release
 
 class MyTelescope(Telescope):
     def __init__(self,
                  dag_id: str = 'my_telescope',
-                 start_date: Pendulum = datetime(2017, 3, 20),
+                 start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
                  schedule_interval: str = '@weekly'):
         super().__init__(dag_id, start_date, schedule_interval)
 
@@ -537,12 +544,13 @@ Example:
 ```python
 import pendulum
 from airflow.models.connection import Connection
+
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.server import orm
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.test_utils import ObservatoryEnvironment
 
-dt = pendulum.utcnow()
+dt = pendulum.now("UTC")
 
 # Create observatory environment
 env = ObservatoryEnvironment()
