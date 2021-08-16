@@ -78,31 +78,36 @@ class GenerateCommand:
 
         templates_dir = observatory.platform.telescopes.templates.__path__._path[0]
 
-        telescope_types = {"Telescope": {"dag": "dag.py.jinja2",
-                                         "telescope": "telescope.py.jinja2",
-                                         "test": "test.py.jinja2",
-                                         },
-                           "SnapshotTelescope": {"dag": "dag.py.jinja2",
-                                                 "telescope": "telescope_snapshot.py.jinja2",
-                                                 "test": "test_snapshot.py.jinja2",
-                                                 },
-                           "StreamTelescope": {"dag": "dag.py.jinja2",
-                                               "telescope": "telescope_stream.py.jinja2",
-                                               "test": "test_stream.py.jinja2",
-                                               },
-                           "OrganisationTelescope": {"dag": "dag_organisation.py.jinja2",
-                                                     "telescope": "telescope_organisation.py.jinja2",
-                                                     "test": "test_organisation.py.jinja2",
-                                                     },
-                           }
+        telescope_types = {
+            "Telescope": {
+                "dag": "dag.py.jinja2",
+                "telescope": "telescope.py.jinja2",
+                "test": "test.py.jinja2",
+            },
+            "SnapshotTelescope": {
+                "dag": "dag.py.jinja2",
+                "telescope": "telescope_snapshot.py.jinja2",
+                "test": "test_snapshot.py.jinja2",
+            },
+            "StreamTelescope": {
+                "dag": "dag.py.jinja2",
+                "telescope": "telescope_stream.py.jinja2",
+                "test": "test_stream.py.jinja2",
+            },
+            "OrganisationTelescope": {
+                "dag": "dag_organisation.py.jinja2",
+                "telescope": "telescope_organisation.py.jinja2",
+                "test": "test_organisation.py.jinja2",
+            },
+        }
 
         telescope_files = telescope_types.get(telescope_type)
         if telescope_files is None:
             raise Exception(f"Unsupported telescope type: {telescope_type}")
 
-        dag_file = telescope_files['dag']
-        telescope_file = telescope_files['telescope']
-        test_file = telescope_files['test']
+        dag_file = telescope_files["dag"]
+        telescope_file = telescope_files["telescope"]
+        test_file = telescope_files["test"]
         doc_file = "doc.md.jinja2"
         schema_file = "schema.json.jinja2"
 
@@ -124,43 +129,41 @@ class GenerateCommand:
 
         telescope_path, dag_path, test_path, doc_path, schema_path = self.get_telescope_template_path_(telescope_type)
         # Add underscores between capitalised letters, make them all lowercase and strip underscores at the start/end
-        telescope_module = re.sub(r"([A-Z])", r"_\1", telescope_class).lower().strip('_')
+        telescope_module = re.sub(r"([A-Z])", r"_\1", telescope_class).lower().strip("_")
 
         # Render templates
-        dag = render_template(dag_path,
-                              telescope_module=telescope_module,
-                              telescope_class=telescope_class,
-                              author_name=author_name)
-        telescope = render_template(telescope_path,
-                                    telescope_module=telescope_module,
-                                    telescope_class=telescope_class,
-                                    author_name=author_name)
-        test = render_template(test_path,
-                               telescope_module=telescope_module,
-                               telescope_class=telescope_class,
-                               author_name=author_name)
-        doc = render_template(doc_path,
-                              telescope_module=telescope_module,
-                              telescope_class=telescope_class,
-                              )
+        dag = render_template(
+            dag_path, telescope_module=telescope_module, telescope_class=telescope_class, author_name=author_name
+        )
+        telescope = render_template(
+            telescope_path, telescope_module=telescope_module, telescope_class=telescope_class, author_name=author_name
+        )
+        test = render_template(
+            test_path, telescope_module=telescope_module, telescope_class=telescope_class, author_name=author_name
+        )
+        doc = render_template(
+            doc_path,
+            telescope_module=telescope_module,
+            telescope_class=telescope_class,
+        )
         schema = render_template(schema_path)
 
         # Get paths to files
-        observatory_dir = module_file_path('observatory.platform', nav_back_steps=-4)
+        observatory_dir = module_file_path("observatory.platform", nav_back_steps=-4)
 
-        dag_dst_dir = module_file_path('observatory.dags.dags')
+        dag_dst_dir = module_file_path("observatory.dags.dags")
         dag_dst_file = os.path.join(dag_dst_dir, f"{telescope_module}.py")
 
-        telescope_dst_dir = module_file_path('observatory.dags.telescopes')
+        telescope_dst_dir = module_file_path("observatory.dags.telescopes")
         telescope_dst_file = os.path.join(telescope_dst_dir, f"{telescope_module}.py")
 
-        test_dst_dir = os.path.join(observatory_dir, 'tests', 'observatory', 'dags', 'telescopes')
+        test_dst_dir = os.path.join(observatory_dir, "tests", "observatory", "dags", "telescopes")
         test_dst_file = os.path.join(test_dst_dir, f"test_{telescope_module}.py")
 
-        doc_dst_dir = os.path.join(observatory_dir, 'docs', 'telescopes')
+        doc_dst_dir = os.path.join(observatory_dir, "docs", "telescopes")
         doc_dst_file = os.path.join(doc_dst_dir, f"{telescope_module}.md")
 
-        schema_dst_dir = module_file_path('observatory.dags.database.schema')
+        schema_dst_dir = module_file_path("observatory.dags.database.schema")
         schema_dst_file = os.path.join(schema_dst_dir, f"{telescope_module}_{datetime.now().strftime('%Y-%m-%d')}.json")
 
         # Write out files
@@ -178,15 +181,16 @@ class GenerateCommand:
 
         # Update TelescopeTypes in identifiers.py when using organisation template
         if telescope_type == "OrganisationTelescope":
-            identifiers_dst_file = os.path.join(module_file_path('observatory.api.client.identifiers'),
-                                                'identifiers.py')
+            identifiers_dst_file = os.path.join(
+                module_file_path("observatory.api.client.identifiers"), "identifiers.py"
+            )
             with open(identifiers_dst_file, "a") as f:
                 f.write(f'    {telescope_module} = "{telescope_module}"\n')
             print(f"- Updated the identifiers file: {identifiers_dst_file}")
 
 
 def write_telescope_file(file_path: str, template: str, file_type: str):
-    """ Write the rendered template for a telescope file to a local file.
+    """Write the rendered template for a telescope file to a local file.
 
     :param file_path: The path to the local file.
     :param template: The rendered template.
@@ -194,8 +198,9 @@ def write_telescope_file(file_path: str, template: str, file_type: str):
     :return: None.
     """
     if os.path.exists(file_path):
-        if not click.confirm(f"\nA {file_type} file already exists at: '{file_path}'\n"
-                             f"Would you like to overwrite the file?"):
+        if not click.confirm(
+            f"\nA {file_type} file already exists at: '{file_path}'\n" f"Would you like to overwrite the file?"
+        ):
             return
     with open(file_path, "w") as f:
         f.write(template)

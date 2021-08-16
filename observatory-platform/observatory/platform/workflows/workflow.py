@@ -43,6 +43,7 @@ from observatory.platform.utils.workflow_utils import (
     workflow_path,
 )
 
+
 class ReleaseFunction(Protocol):
     def __call__(self, release: "AbstractRelease", **kwargs: Any) -> Any:
         ...
@@ -235,7 +236,7 @@ class Workflow(AbstractWorkflow):
         self.dag_id = dag_id
         self.start_date = start_date
         self.schedule_interval = schedule_interval
-        self.dataset_id = 'dataset_id'
+        self.dataset_id = "dataset_id"
         self.catchup = catchup
         self.queue = queue
         self.max_retries = max_retries

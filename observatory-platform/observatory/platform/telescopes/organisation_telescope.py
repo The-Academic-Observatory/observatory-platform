@@ -23,14 +23,25 @@ from google.cloud.bigquery import SourceFormat
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.telescopes.telescope import Release, Telescope
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.template_utils import (blob_name, bq_load_partition, table_ids_from_path,
-                                                       upload_files_from_list)
+from observatory.platform.utils.template_utils import (
+    blob_name,
+    bq_load_partition,
+    table_ids_from_path,
+    upload_files_from_list,
+)
 
 
 class OrganisationRelease(Release):
-    def __init__(self, dag_id: str, release_date: pendulum.DateTime, organisation: Organisation,
-                 download_files_regex: str = None, extract_files_regex: str = None, transform_files_regex: str = None):
-        """ Construct an OrganisationRelease instance.
+    def __init__(
+        self,
+        dag_id: str,
+        release_date: pendulum.DateTime,
+        organisation: Organisation,
+        download_files_regex: str = None,
+        extract_files_regex: str = None,
+        transform_files_regex: str = None,
+    ):
+        """Construct an OrganisationRelease instance.
 
         :param dag_id: the id of the DAG.
         :param release_date: the release date (used to construct release_id).
@@ -46,7 +57,7 @@ class OrganisationRelease(Release):
 
     @property
     def download_bucket(self):
-        """ The download bucket name.
+        """The download bucket name.
 
         :return: the download bucket name.
         """
@@ -54,7 +65,7 @@ class OrganisationRelease(Release):
 
     @property
     def transform_bucket(self):
-        """ The transform bucket name.
+        """The transform bucket name.
 
         :return: the transform bucket name.
         """
@@ -62,13 +73,27 @@ class OrganisationRelease(Release):
 
 
 class OrganisationTelescope(Telescope):
-    def __init__(self, organisation: Organisation, dag_id: str, start_date: pendulum.DateTime, schedule_interval: str,
-                 dataset_id: str, catchup: bool, queue: str = 'default', max_retries: int = 3,
-                 max_active_runs: int = 1, source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
-                 schema_prefix: str = '', schema_version: str = None, load_bigquery_table_kwargs: Dict = None,
-                 dataset_description: str = '', table_descriptions: Dict[str, str] = None,
-                 airflow_vars: list = None, airflow_conns: list = None):
-        """ Construct a OrganisationTelescope instance.
+    def __init__(
+        self,
+        organisation: Organisation,
+        dag_id: str,
+        start_date: pendulum.DateTime,
+        schedule_interval: str,
+        dataset_id: str,
+        catchup: bool,
+        queue: str = "default",
+        max_retries: int = 3,
+        max_active_runs: int = 1,
+        source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
+        schema_prefix: str = "",
+        schema_version: str = None,
+        load_bigquery_table_kwargs: Dict = None,
+        dataset_description: str = "",
+        table_descriptions: Dict[str, str] = None,
+        airflow_vars: list = None,
+        airflow_conns: list = None,
+    ):
+        """Construct a OrganisationTelescope instance.
 
         :param organisation: the Organisation created with the Observatory API.
         :param dag_id: the id of the DAG.
@@ -93,8 +118,17 @@ class OrganisationTelescope(Telescope):
         if not airflow_vars:
             airflow_vars = []
         airflow_vars = list(set([AirflowVars.TRANSFORM_BUCKET] + airflow_vars))
-        super().__init__(dag_id, start_date, schedule_interval, catchup, queue, max_retries, max_active_runs,
-                         airflow_vars, airflow_conns)
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            catchup,
+            queue,
+            max_retries,
+            max_active_runs,
+            airflow_vars,
+            airflow_conns,
+        )
         self.organisation = organisation
         self.project_id = organisation.gcp_project_id
         self.dataset_id = dataset_id
@@ -107,7 +141,7 @@ class OrganisationTelescope(Telescope):
         self.table_descriptions = table_descriptions if table_descriptions else dict()
 
     def upload_downloaded(self, releases: List[OrganisationRelease], **kwargs):
-        """ Task to upload each downloaded release to a Google Cloud bucket.
+        """Task to upload each downloaded release to a Google Cloud bucket.
 
         :param releases: a list of releases.
         :param kwargs: the context passed from the PythonOperator.
@@ -117,7 +151,7 @@ class OrganisationTelescope(Telescope):
             upload_files_from_list(release.download_files, release.download_bucket)
 
     def upload_transformed(self, releases: List[OrganisationRelease], **kwargs):
-        """ Task to upload each transformed release to a Google Cloud bucket.
+        """Task to upload each transformed release to a Google Cloud bucket.
 
         :param releases: a list of releases.
         :param kwargs: the context passed from the PythonOperator.
@@ -127,7 +161,7 @@ class OrganisationTelescope(Telescope):
             upload_files_from_list(release.transform_files, release.transform_bucket)
 
     def bq_load_partition(self, releases: List[OrganisationRelease], **kwargs):
-        """ Task to load each transformed release to BigQuery.
+        """Task to load each transformed release to BigQuery.
         The table_id is set to the file name without the extension.
 
         :param releases: a list of releases.
@@ -157,7 +191,7 @@ class OrganisationTelescope(Telescope):
                 )
 
     def cleanup(self, releases: List[OrganisationRelease], **kwargs):
-        """ Delete files of downloaded, extracted and transformed release.
+        """Delete files of downloaded, extracted and transformed release.
 
         :param releases: a list of releases.
         :param kwargs:
