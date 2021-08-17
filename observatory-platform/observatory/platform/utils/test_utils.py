@@ -478,7 +478,8 @@ class ObservatoryTestCase(unittest.TestCase):
 
         # Turn logging to warning because vcr prints too much at info level
         logging.basicConfig()
-        logging.getLogger().setLevel(logging.WARNING)
+        vcr_log = logging.getLogger("vcr")
+        vcr_log.setLevel(logging.WARNING)
 
     def assert_dag_structure(self, expected: Dict, dag: DAG):
         """Assert the DAG structure.

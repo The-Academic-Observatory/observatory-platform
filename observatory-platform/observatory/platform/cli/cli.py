@@ -15,34 +15,16 @@
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
 
 import os
-from typing import Union
 
 import click
+
 from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
-from observatory.platform.platform_builder import (
-    AIRFLOW_UI_PORT,
-    BUILD_PATH,
-    DAGS_MODULE,
-    DATA_PATH,
-    DEBUG,
-    DOCKER_COMPOSE_PROJECT_NAME,
-    DOCKER_NETWORK_NAME,
-    ELASTIC_PORT,
-    FLOWER_UI_PORT,
-    HOST_GID,
-    HOST_UID,
-    KIBANA_PORT,
-    LOGS_PATH,
-    POSTGRES_PATH,
-    REDIS_PORT,
-)
+from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
 from observatory.platform.utils.config_utils import observatory_home
-from observatory.platform.utils.config_utils import (
-    terraform_credentials_path as default_terraform_credentials_path,
-)
+from observatory.platform.utils.config_utils import terraform_credentials_path as default_terraform_credentials_path
 
 PLATFORM_NAME = "Observatory Platform"
 TERRAFORM_NAME = "Observatory Terraform"
@@ -74,41 +56,6 @@ def cli():
     show_default=True,
 )
 @click.option(
-    "--build-path",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=BUILD_PATH,
-    help="The path on the host machine to use for building the Observatory Platform.",
-    show_default=True,
-)
-@click.option(
-    "--dags-path",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=DAGS_MODULE,
-    help="The path on the host machine to mount as the Apache Airflow DAGs folder.",
-    show_default=True,
-)
-@click.option(
-    "--data-path",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=DATA_PATH,
-    help="The path on the host machine to mount as the data folder.",
-    show_default=True,
-)
-@click.option(
-    "--logs-path",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=LOGS_PATH,
-    help="The path on the host machine to mount as the logs folder.",
-    show_default=True,
-)
-@click.option(
-    "--postgres-path",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, readable=False),
-    default=POSTGRES_PATH,
-    help="The path on the host machine to mount as the PostgreSQL data folder.",
-    show_default=True,
-)
-@click.option(
     "--host-uid",
     type=click.INT,
     default=HOST_UID,
@@ -122,64 +69,9 @@ def cli():
     help="The group id of the host system. Used to set the group id in the Docker containers.",
     show_default=True,
 )
-@click.option("--redis-port", type=click.INT, default=REDIS_PORT, help="The host Redis port number.", show_default=True)
-@click.option(
-    "--flower-ui-port",
-    type=click.INT,
-    default=FLOWER_UI_PORT,
-    help="The host's Flower UI port number.",
-    show_default=True,
-)
-@click.option(
-    "--airflow-ui-port",
-    type=click.INT,
-    default=AIRFLOW_UI_PORT,
-    help="The host's Apache Airflow UI port number.",
-    show_default=True,
-)
-@click.option(
-    "--elastic-port",
-    type=click.INT,
-    default=ELASTIC_PORT,
-    help="The host's Elasticsearch port number.",
-    show_default=True,
-)
-@click.option(
-    "--kibana-port", type=click.INT, default=KIBANA_PORT, help="The host's Kibana port number.", show_default=True
-)
-@click.option(
-    "--docker-network-name",
-    type=click.STRING,
-    default=DOCKER_NETWORK_NAME,
-    help="The Docker Network name, used to specify a custom Docker Network.",
-    show_default=True,
-)
-@click.option(
-    "--docker-compose-project-name",
-    type=click.STRING,
-    default=DOCKER_COMPOSE_PROJECT_NAME,
-    help="The namespace for Docker containers.",
-    show_default=True,
-)
 @click.option("--debug", is_flag=True, default=DEBUG, help="Print debugging information.")
 def platform(
-    command: str,
-    config_path: str,
-    build_path: str,
-    dags_path: str,
-    data_path: str,
-    logs_path: str,
-    postgres_path: str,
-    host_uid: int,
-    host_gid: int,
-    redis_port: int,
-    flower_ui_port: int,
-    airflow_ui_port: int,
-    elastic_port: int,
-    kibana_port: int,
-    docker_network_name: Union[None, str],
-    docker_compose_project_name: str,
-    debug,
+    command: str, config_path: str, host_uid: int, host_gid: int, debug,
 ):
     """Run the local Observatory Platform platform.\n
 
@@ -188,49 +80,37 @@ def platform(
       - stop: stop the platform.\n
     """
 
-    # Make the platform command, which encapsulates functionality for running the observatory
-    platform_cmd = PlatformCommand(
-        config_path,
-        build_path=build_path,
-        dags_path=dags_path,
-        data_path=data_path,
-        logs_path=logs_path,
-        postgres_path=postgres_path,
-        host_uid=host_uid,
-        host_gid=host_gid,
-        redis_port=redis_port,
-        flower_ui_port=flower_ui_port,
-        airflow_ui_port=airflow_ui_port,
-        elastic_port=elastic_port,
-        kibana_port=kibana_port,
-        docker_network_name=docker_network_name,
-        docker_compose_project_name=docker_compose_project_name,
-        debug=debug,
-    )
-    generate_cmd = GenerateCommand()
+    min_line_chars = 80
+    print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
+    if os.path.isfile(config_path):
+        # Make the platform command, which encapsulates functionality for running the observatory
+        platform_cmd = PlatformCommand(config_path, host_uid=host_uid, host_gid=host_gid, debug=debug,)
 
-    # Check dependencies
-    platform_check_dependencies(platform_cmd, generate_cmd)
+        # Check dependencies
+        platform_check_dependencies(platform_cmd, min_line_chars=min_line_chars)
 
-    # Start the appropriate process
-    if command == "start":
-        platform_start(platform_cmd)
-    elif command == "stop":
-        platform_stop(platform_cmd)
+        # Start the appropriate process
+        if command == "start":
+            platform_start(platform_cmd)
+        elif command == "stop":
+            platform_stop(platform_cmd)
 
-    exit(os.EX_OK)
+        exit(os.EX_OK)
+    else:
+        print(indent("config.yaml:", INDENT1))
+        print(indent(f"- file not found, generating a default file on path: {config_path}", INDENT2))
+        generate_cmd = GenerateCommand()
+        generate_cmd.generate_local_config(config_path)
+        exit(os.EX_CONFIG)
 
 
-def platform_check_dependencies(platform_cmd: PlatformCommand, generate_cmd: GenerateCommand, min_line_chars: int = 80):
+def platform_check_dependencies(platform_cmd: PlatformCommand, min_line_chars: int = 80):
     """Check Platform dependencies.
 
     :param platform_cmd: the platform command instance.
-    :param generate_cmd: the generate command instance.
     :param min_line_chars: the minimum number of lines when printing to the command line interface.
     :return: None.
     """
-
-    print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
 
     if not platform_cmd.is_environment_valid:
         print(f"{PLATFORM_NAME}: dependencies missing".ljust(min_line_chars))
@@ -248,14 +128,6 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, generate_cmd: Gen
     else:
         print(indent("- not installed, please install https://docs.docker.com/get-docker/", INDENT2))
 
-    print(indent("Host machine settings:", INDENT1))
-    print(indent(f"- observatory home: {observatory_home()}", INDENT2))
-    print(indent(f"- data-path: {platform_cmd.data_path}", INDENT2))
-    print(indent(f"- dags-path: {platform_cmd.dags_path}", INDENT2))
-    print(indent(f"- logs-path: {platform_cmd.logs_path}", INDENT2))
-    print(indent(f"- postgres-path: {platform_cmd.postgres_path}", INDENT2))
-    print(indent(f"- host-uid: {platform_cmd.host_uid}", INDENT2))
-
     print(indent("Docker Compose:", INDENT1))
     if platform_cmd.docker_compose_path is not None:
         print(indent(f"- path: {platform_cmd.docker_compose_path}", INDENT2))
@@ -263,21 +135,21 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, generate_cmd: Gen
         print(indent("- not installed, please install https://docs.docker.com/compose/install/", INDENT2))
 
     print(indent("config.yaml:", INDENT1))
-    if platform_cmd.config_exists:
-        print(indent(f"- path: {platform_cmd.config_path}", INDENT2))
-
-        if platform_cmd.config.is_valid:
-            print(indent("- file valid", INDENT2))
-        else:
-            print(indent("- file invalid", INDENT2))
-            for error in platform_cmd.config.errors:
-                print(indent("- {}: {}".format(error.key, error.value), INDENT3))
+    print(indent(f"- path: {platform_cmd.config_path}", INDENT2))
+    if platform_cmd.config.is_valid:
+        print(indent("- file valid", INDENT2))
     else:
-        print(indent(f"- file not found, generating a default file on path: {platform_cmd.config_path}", INDENT2))
-        generate_cmd.generate_local_config(platform_cmd.config_path)
+        print(indent("- file invalid", INDENT2))
+        for error in platform_cmd.config.errors:
+            print(indent("- {}: {}".format(error.key, error.value), INDENT3))
 
     if not platform_cmd.is_environment_valid:
         exit(os.EX_CONFIG)
+
+    print(indent("Host machine settings:", INDENT1))
+    print(indent(f"- observatory home: {platform_cmd.config.observatory.observatory_home}", INDENT2))
+    print(indent(f"- dags-path: {platform_cmd.dags_path}", INDENT2))
+    print(indent(f"- host-uid: {platform_cmd.host_uid}", INDENT2))
 
 
 def platform_start(platform_cmd: PlatformCommand, min_line_chars: int = 80):

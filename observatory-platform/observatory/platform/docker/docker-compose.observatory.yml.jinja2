@@ -18,37 +18,33 @@ version: '3.8'
 {# Values same for different environments #}
 {%- set postgres_user="observatory" -%}
 {%- set airflow_db_name="airflow" -%}
-
-{# Values different in different environments #}
-{%- if config.backend.type.value == 'local' -%}
-{%- set postgres_password="observatory" -%}
-{%- set postgres_hostname="postgres" -%}
-{%- set redis_hostname="redis" -%}
-{%- set airflow_ui_user_email="airflow@airflow.com" -%}
-{%- set airflow_ui_user_password="airflow" -%}
-
-{%- set host_logs_path="${HOST_LOGS_PATH}" -%}
-{%- set host_dags_path="${HOST_DAGS_PATH}" -%}
-{%- set host_data_path="${HOST_DATA_PATH}" -%}
-{%- set host_platform_package_path="${HOST_PLATFORM_PACKAGE_PATH}" -%}
-{%- set host_api_package_path="${HOST_API_PACKAGE_PATH}" -%}
-{%- set host_postgres_path="${HOST_POSTGRES_PATH}" -%}
-{%- set google_application_credentials="${HOST_GOOGLE_APPLICATION_CREDENTIALS}" -%}
-
-{%- else -%}
-
 {%- set postgres_password="${POSTGRES_PASSWORD}" -%}
-{%- set postgres_hostname="${POSTGRES_HOSTNAME}" -%}
-{%- set redis_hostname="${REDIS_HOSTNAME}" -%}
 {%- set airflow_ui_user_email="${AIRFLOW_UI_USER_EMAIL}" -%}
 {%- set airflow_ui_user_password="${AIRFLOW_UI_USER_PASSWORD}" -%}
 
+{# Values different in different environments #}
+{%- if config.backend.type.value == 'local' -%}
+
+{%- set host_data_path="${HOST_OBSERVATORY_HOME}/data" -%}
+{%- set host_logs_path="${HOST_OBSERVATORY_HOME}/logs" -%}
+{%- set host_postgres_path="${HOST_OBSERVATORY_HOME}/postgres" -%}
+{%- set host_dags_path="${HOST_DAGS_PATH}" -%}
+{%- set host_platform_package_path="${HOST_PLATFORM_PACKAGE_PATH}" -%}
+{%- set host_api_package_path="${HOST_API_PACKAGE_PATH}" -%}
+{%- set google_application_credentials="${HOST_GOOGLE_APPLICATION_CREDENTIALS}" -%}
+{%- set postgres_hostname="postgres" -%}
+{%- set redis_hostname="redis" -%}
+
+{%- else -%}
+
+{%- set host_data_path="/opt/observatory/data" -%}
 {%- set host_logs_path="/opt/airflow/logs" -%}
 {%- set host_dags_path="/opt/observatory-platform/observatory/platform/dags" -%}
-{%- set host_data_path="/opt/observatory/data" -%}
 {%- set host_platform_package_path="/opt/observatory-platform" -%}
 {%- set host_api_package_path="/opt/observatory-api" -%}
 {%- set google_application_credentials="/opt/observatory/google_application_credentials.json" -%}
+{%- set postgres_hostname="${POSTGRES_HOSTNAME}" -%}
+{%- set redis_hostname="${REDIS_HOSTNAME}" -%}
 
 {%- endif -%}
 
@@ -57,19 +53,19 @@ x-environment: &environment
   # Airflow settings
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres+psycopg2://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
-  AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+  AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
   AIRFLOW__CORE__AIRFLOW_HOME: /opt/airflow
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
   AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
   AIRFLOW__WEBSERVER__RBAC: "True"
-  AIRFLOW__WEBSERVER__SECRET_KEY: ${SECRET_KEY}
+  AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
   AIRFLOW__CELERY__BROKER_URL: "redis://:@{{ redis_hostname }}:6379/0"
   AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
   {%- if config.backend.type.value == 'terraform' %}
   AIRFLOW__CORE__REMOTE_LOGGING: "True"
   AIRFLOW__CORE__REMOTE_BASE_LOG_FOLDER: "gs://${AIRFLOW_VAR_AIRFLOW_BUCKET}/logs"
   AIRFLOW__CORE__REMOTE_LOG_CONN_ID: "google_cloud_observatory"
-  AIRFLOW__SECRETS__BACKEND: "airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend"
+  AIRFLOW__SECRETS__BACKEND: "observatory.platform.airflow.secret_manager.CloudSecretManagerBackend"
   AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
   {%- endif %}
 
@@ -173,8 +169,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      {% if config.backend.type.value == 'local' -%}
       postgres:
         condition: service_healthy
+      {%- endif %}
     ports:
       - ${HOST_FLOWER_UI_PORT}:5555
     command: celery flower
@@ -194,8 +192,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      {% if config.backend.type.value == 'local' -%}
       postgres:
         condition: service_healthy
+      {%- endif %}
     {% if config.google_cloud.credentials is not none -%}
     secrets:
       - google_application_credentials.json
@@ -251,7 +251,7 @@ services:
     {%- endif %}
     command: celery worker -q remote_queue
 
-  {%- if config.backend.type.value == 'local' %}
+  {% if config.backend.type.value == 'local' -%}
   elasticsearch:
     image: "docker.elastic.co/elasticsearch/elasticsearch:7.13.3"
     restart: always
@@ -280,7 +280,7 @@ services:
       - POSTGRES_USER={{ postgres_user }}
       - POSTGRES_PASSWORD={{ postgres_password }}
     volumes:
-      - ${HOST_POSTGRES_PATH}:/var/lib/postgresql/data
+      - {{ host_postgres_path }}:/var/lib/postgresql/data
     restart: always
     networks:
       - {{ docker_network_name }}

@@ -4,12 +4,13 @@ backend:
   type: terraform
   environment: develop
 
-# Apache Airflow settings
-airflow:
-  fernet_key: {{ fernet_key }}
-  secret_key: {{ secret_key }}
-  ui_user_email: my-email@example.com <--
-  ui_user_password: my-password <--
+# Observatory settings
+observatory:
+  airflow_fernet_key: {{ airflow_fernet_key }}
+  airflow_secret_key: {{ airflow_secret_key }}
+  airflow_ui_user_email: my-email@example.com <--
+  airflow_ui_user_password: my-password <--
+  postgres_password: my-password <--
 
 # Terraform settings
 terraform:
@@ -27,7 +28,7 @@ google_cloud:
 cloud_sql_database:
   tier: db-custom-2-7680
   backup_start_time: '23:00'
-  postgres_password: my-password <--
+
 
 # Settings for the main VM that runs the Apache Airflow scheduler and webserver
 airflow_main_vm:

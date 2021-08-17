@@ -35,7 +35,6 @@ class TerraformCommand:
 
         self.config_path = config_path
         self.terraform_credentials_path = terraform_credentials_path
-        self.terraform_builder = TerraformBuilder(config_path, debug=debug)
         self.debug = debug
 
         # Load config and
@@ -46,6 +45,7 @@ class TerraformCommand:
         if self.config_exists:
             self.config = TerraformConfig.load(config_path)
             self.config_is_valid = self.config.is_valid
+            self.terraform_builder = TerraformBuilder(config_path, debug=debug)
 
     @property
     def is_environment_valid(self):
