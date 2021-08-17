@@ -100,6 +100,11 @@ class GoogleAnalyticsRelease(SnapshotRelease):
             list_to_jsonl_gz(self.transform_path, results)
             return True
         else:
+            if (pendulum.today("UTC") - self.end_date).in_months() >= 26:
+                logging.info(
+                    "No data available. Google Analytics data is only available for 26 months, see "
+                    "https://support.google.com/analytics/answer/7667196?hl=en for more info"
+                )
             return False
 
 
