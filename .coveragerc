@@ -18,3 +18,4 @@ omit =
     observatory-api/observatory/api/client/exceptions.py
     observatory-api/observatory/api/client/model_utils.py
     observatory-api/observatory/api/client/rest.py
+    observatory-platform/observatory/platform/airflow/*

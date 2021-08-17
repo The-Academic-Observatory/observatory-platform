@@ -20,8 +20,8 @@ export HOST_USER_ID=$(id -u airflow)
 export HOST_GROUP_ID=$(id -g airflow)
 export POSTGRES_HOSTNAME="${postgres_hostname}"
 export POSTGRES_PASSWORD="sm://${project_id}/postgres_password"
-export FERNET_KEY="sm://${project_id}/fernet_key"
-export SECRET_KEY="sm://${project_id}/secret_key"
+export AIRFLOW_FERNET_KEY="sm://${project_id}/airflow_fernet_key"
+export AIRFLOW_SECRET_KEY="sm://${project_id}/airflow_secret_key"
 export REDIS_HOSTNAME="${redis_hostname}"
 export HOST_FLOWER_UI_PORT=5555
 export HOST_REDIS_PORT=6379
@@ -44,8 +44,8 @@ do export AIRFLOW_VAR_$${names[$index]^^}="$${values[$index]}";
 done
 
 # Hardcoded list of environment variables that need to be preserved
-PRESERVE_ENV="HOST_USER_ID,HOST_GROUP_ID,POSTGRES_HOSTNAME,POSTGRES_PASSWORD,FERNET_KEY,SECRET_KEY,REDIS_HOSTNAME,\
-AIRFLOW_UI_USER_PASSWORD,AIRFLOW_UI_USER_EMAIL,HOST_FLOWER_UI_PORT,HOST_REDIS_PORT,HOST_AIRFLOW_UI_PORT"
+PRESERVE_ENV="HOST_USER_ID,HOST_GROUP_ID,POSTGRES_HOSTNAME,POSTGRES_PASSWORD,AIRFLOW_FERNET_KEY,AIRFLOW_SECRET_KEY,\
+REDIS_HOSTNAME,AIRFLOW_UI_USER_PASSWORD,AIRFLOW_UI_USER_EMAIL,HOST_FLOWER_UI_PORT,HOST_REDIS_PORT,HOST_AIRFLOW_UI_PORT"
 
 # Preserve all environment variables that begin with AIRFLOW_VAR or AIRFLOW_CONN
 PRESERVE_ENV=$(printenv | awk -v tmp="$PRESERVE_ENV" -F'=' '$0 ~ /AIRFLOW_VAR|AIRFLOW_CONN/ {printf "%s,", $1} END {print tmp}')

@@ -39,7 +39,7 @@ def module_file_path(module_path: str, nav_back_steps: int = -1) -> str:
 
     module = importlib.import_module(module_path)
     file_path = pathlib.Path(module.__file__).resolve()
-    return str(pathlib.Path(*file_path.parts[:nav_back_steps]).resolve())
+    return os.path.normpath(str(pathlib.Path(*file_path.parts[:nav_back_steps]).resolve()))
 
 
 def observatory_home(*subdirs) -> str:

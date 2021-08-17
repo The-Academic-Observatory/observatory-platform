@@ -16,7 +16,6 @@
 
 import json
 import os
-import pathlib
 import unittest
 from typing import Any
 from typing import List
@@ -26,26 +25,10 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from observatory.platform.cli.cli import cli
+from observatory.platform.docker.compose import ProcessOutput
 from observatory.platform.observatory_config import TerraformConfig
 from observatory.platform.observatory_config import ValidationError
-from observatory.platform.docker.compose import ProcessOutput
-from observatory.platform.platform_builder import (
-    BUILD_PATH,
-    DAGS_MODULE,
-    DATA_PATH,
-    LOGS_PATH,
-    POSTGRES_PATH,
-    HOST_UID,
-    HOST_GID,
-    REDIS_PORT,
-    FLOWER_UI_PORT,
-    AIRFLOW_UI_PORT,
-    ELASTIC_PORT,
-    KIBANA_PORT,
-    DOCKER_NETWORK_NAME,
-    DOCKER_COMPOSE_PROJECT_NAME,
-    DEBUG,
-)
+from observatory.platform.platform_builder import HOST_UID, HOST_GID, DEBUG
 from observatory.platform.terraform_api import TerraformApi
 from tests.observatory.test_utils import random_id
 
@@ -108,6 +91,12 @@ class MockConfig(Mock):
         self._errors = errors
 
     @property
+    def observatory(self):
+        mock = Mock()
+        mock.observatory_home = "/path/to/home"
+        return mock
+
+    @property
     def is_valid(self):
         return self._is_valid
 
@@ -130,6 +119,7 @@ class MockPlatformCommand(Mock):
         stop_return_code: int,
         wait_for_airflow_ui: bool,
         config_path: str,
+        dags_path: str,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -139,23 +129,11 @@ class MockPlatformCommand(Mock):
         self.docker_compose_path = docker_compose_path
         self.config_exists = config_exists
         self.config = config
-
         self.config_path = config_path
-        self.build_path = BUILD_PATH
-        self.dags_path = DAGS_MODULE
-        self.data_path = DATA_PATH
-        self.logs_path = LOGS_PATH
-        self.postgres_path = POSTGRES_PATH
         self.host_uid = HOST_UID
         self.host_gid = HOST_GID
-        self.redis_port = REDIS_PORT
-        self.flower_ui_port = FLOWER_UI_PORT
-        self.airflow_ui_port = AIRFLOW_UI_PORT
-        self.elastic_port = ELASTIC_PORT
-        self.kibana_port = KIBANA_PORT
-        self.docker_network_name = DOCKER_NETWORK_NAME
-        self.docker_compose_project_name = DOCKER_COMPOSE_PROJECT_NAME
         self.debug = DEBUG
+        self.dags_path = dags_path
         self._build_return_code = build_return_code
         self._start_return_code = start_return_code
         self._stop_return_code = stop_return_code
@@ -187,7 +165,12 @@ class TestObservatoryPlatform(unittest.TestCase):
         """ Test that the start and stop command are successful """
 
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with runner.isolated_filesystem() as t:
+            # Make empty config
+            config_path = os.path.join(t, "config.yaml")
+            open(config_path, "a").close()
+
+            # Mock platform command
             is_environment_valid = True
             docker_exe_path = "/path/to/docker"
             is_docker_running = True
@@ -198,7 +181,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             start_return_code = 0
             stop_return_code = 0
             wait_for_airflow_ui = True
-            config_path = os.path.abspath("config.yaml")
+            dags_path = "/path/to/dags"
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid,
                 docker_exe_path,
@@ -211,26 +194,26 @@ class TestObservatoryPlatform(unittest.TestCase):
                 stop_return_code,
                 wait_for_airflow_ui,
                 config_path,
+                dags_path,
             )
 
             # Test that start command works
-            result = runner.invoke(cli, ["platform", "start"])
+            result = runner.invoke(cli, ["platform", "start", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
 
             # Test that stop command works
-            result = runner.invoke(cli, ["platform", "stop"])
+            result = runner.invoke(cli, ["platform", "stop", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
 
     @patch("observatory.platform.cli.cli.PlatformCommand")
-    def test_platform_start_stop_fail(self, mock_cmd):
-        """ Test that the start and stop command error messages and return codes """
+    def test_platform_start_fail(self, mock_cmd):
+        """ Test that the start command error messages and return codes """
 
-        # Check that correct exit code returned and that output has links to install Docker and Docker Compose
-        # and generates config file
+        # Check that no config file generates an error
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with runner.isolated_filesystem() as t:
             # Environment invalid, no Docker, Docker not running, no Docker Compose, no config file
-            default_config_path = os.path.abspath("config.yaml")
+            default_config_path = os.path.join(t, "config.yaml")
             is_environment_valid = False
             docker_exe_path = None
             is_docker_running = False
@@ -241,6 +224,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             start_return_code = 0
             stop_return_code = 0
             wait_for_airflow_ui = True
+            dags_path = "/path/to/dags"
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid,
                 docker_exe_path,
@@ -253,7 +237,54 @@ class TestObservatoryPlatform(unittest.TestCase):
                 stop_return_code,
                 wait_for_airflow_ui,
                 default_config_path,
+                dags_path,
             )
+
+            # Test that start command fails
+            result = runner.invoke(cli, ["platform", "start", "--config-path", default_config_path])
+            self.assertEqual(result.exit_code, os.EX_CONFIG)
+
+            # config.yaml
+            self.assertIn("- file not found, generating a default file", result.output)
+            self.assertTrue(os.path.isfile(default_config_path))
+
+            # Check return code
+            self.assertEqual(result.exit_code, os.EX_CONFIG)
+
+        # Test that docker and docker compose not installed errors show up
+        runner = CliRunner()
+        with runner.isolated_filesystem() as t:
+            # Environment invalid, no Docker, Docker not running, no Docker Compose, no config file
+            default_config_path = os.path.join(t, "config.yaml")
+            is_environment_valid = False
+            docker_exe_path = None
+            is_docker_running = False
+            docker_compose_path = None
+            config_exists = True
+            validation_error = ValidationError("google_cloud.credentials", "required field")
+            config = MockConfig(is_valid=False, errors=[validation_error])
+            build_return_code = 0
+            start_return_code = 0
+            stop_return_code = 0
+            wait_for_airflow_ui = True
+            dags_path = "/path/to/dags"
+            mock_cmd.return_value = MockPlatformCommand(
+                is_environment_valid,
+                docker_exe_path,
+                is_docker_running,
+                docker_compose_path,
+                config_exists,
+                config,
+                build_return_code,
+                start_return_code,
+                stop_return_code,
+                wait_for_airflow_ui,
+                default_config_path,
+                dags_path,
+            )
+
+            # Make empty config
+            open(default_config_path, "a").close()
 
             # Test that start command fails
             result = runner.invoke(cli, ["platform", "start", "--config-path", default_config_path])
@@ -265,19 +296,15 @@ class TestObservatoryPlatform(unittest.TestCase):
             # Docker Compose not installed
             self.assertIn("https://docs.docker.com/compose/install/", result.output)
 
-            # config.yaml
-            self.assertIn("- file not found, generating a default file", result.output)
-            self.assertTrue(os.path.isfile(default_config_path))
-
             # Check return code
             self.assertEqual(result.exit_code, os.EX_CONFIG)
 
         # Test that invalid config errors show up
         # Test that error message is printed when Docker is installed but not running
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with runner.isolated_filesystem() as t:
             # Environment invalid, Docker installed but not running
-            default_config_path = os.path.abspath("config.yaml")
+            default_config_path = os.path.join(t, "config.yaml")
             is_environment_valid = False
             docker_exe_path = "/path/to/docker"
             is_docker_running = False
@@ -301,7 +328,11 @@ class TestObservatoryPlatform(unittest.TestCase):
                 stop_return_code,
                 wait_for_airflow_ui,
                 default_config_path,
+                dags_path,
             )
+
+            # Make empty config
+            open(default_config_path, "a").close()
 
             # Test that start command fails
             result = runner.invoke(cli, ["platform", "start", "--config-path", default_config_path])
@@ -332,9 +363,8 @@ class TestObservatoryTerraform(unittest.TestCase):
         # Create token json
         token_json = {"credentials": {"app.terraform.io": {"token": self.token}}}
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with runner.isolated_filesystem() as working_dir:
             # File paths
-            working_dir = pathlib.Path().absolute()
             terraform_credentials_path = os.path.join(working_dir, "token.json")
             config_file_path = os.path.join(working_dir, "config-terraform.yaml")
             credentials_file_path = os.path.join(working_dir, "google_application_credentials.json")
@@ -356,11 +386,12 @@ class TestObservatoryTerraform(unittest.TestCase):
             config = TerraformConfig.from_dict(
                 {
                     "backend": {"type": "terraform", "environment": "develop"},
-                    "airflow": {
-                        "fernet_key": "random-fernet-key",
-                        "secret_key": "random-secret-key",
-                        "ui_user_password": "password",
-                        "ui_user_email": "password",
+                    "observatory": {
+                        "airflow_fernet_key": "random-fernet-key",
+                        "airflow_secret_key": "random-secret-key",
+                        "airflow_ui_user_password": "password",
+                        "airflow_ui_user_email": "password",
+                        "postgres_password": "my-password",
                     },
                     "terraform": {"organization": self.organisation},
                     "google_cloud": {
@@ -370,11 +401,7 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "zone": "us-west1-c",
                         "data_location": "us",
                     },
-                    "cloud_sql_database": {
-                        "tier": "db-custom-2-7680",
-                        "backup_start_time": "23:00",
-                        "postgres_password": "my-password",
-                    },
+                    "cloud_sql_database": {"tier": "db-custom-2-7680", "backup_start_time": "23:00"},
                     "airflow_main_vm": {
                         "machine_type": "n2-standard-2",
                         "disk_size": 1,
@@ -464,8 +491,7 @@ class TestObservatoryTerraform(unittest.TestCase):
     def test_terraform_check_dependencies(self, mock_load_config):
         """ Test that checking for dependencies prints the correct output when files are missing"""
         runner = CliRunner()
-        with runner.isolated_filesystem():
-            working_dir = pathlib.Path().absolute()
+        with runner.isolated_filesystem() as working_dir:
             credentials_file_path = os.path.join(working_dir, "google_application_credentials.json")
             TerraformConfig.WORKSPACE_PREFIX = random_id() + "-"
 
@@ -501,10 +527,12 @@ class TestObservatoryTerraform(unittest.TestCase):
             config = TerraformConfig.from_dict(
                 {
                     "backend": {"type": "terraform", "environment": "develop"},
-                    "airflow": {
-                        "fernet_key": "random-fernet-key",
-                        "ui_user_password": "password",
-                        "ui_user_email": "password",
+                    "observatory": {
+                        "airflow_fernet_key": "random-fernet-key",
+                        "airflow_secret_key": "random-secret-key",
+                        "airflow_ui_user_password": "password",
+                        "airflow_ui_user_email": "password",
+                        "postgres_password": "my-password",
                     },
                     "terraform": {"organization": self.organisation},
                     "google_cloud": {
@@ -514,11 +542,7 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "zone": "us-west1-c",
                         "data_location": "us",
                     },
-                    "cloud_sql_database": {
-                        "tier": "db-custom-2-7680",
-                        "backup_start_time": "23:00",
-                        "postgres_password": "my-password",
-                    },
+                    "cloud_sql_database": {"tier": "db-custom-2-7680", "backup_start_time": "23:00"},
                     "airflow_main_vm": {
                         "machine_type": "n2-standard-2",
                         "disk_size": 1,
