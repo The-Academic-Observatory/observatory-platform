@@ -3,6 +3,8 @@
 Google Analytics is a web analytics service offered by Google that tracks and reports website traffic.  
 This telescope gets data from Google Analytics for 1 view id per publisher and for several combinations of metrics and dimensions.  
 It is possible to add a regex expression to filter on pagepaths, so only data on relevant pagepaths is collected.  
+Note that Google Analytics data is only available for the last 26 months, see 
+[Data retention - Analytics Help](https://support.google.com/analytics/answer/7667196?hl=en) for more info.
 
 To get access to the analytics data a publisher needs to add the relevant google service account as a user.
 
