@@ -165,7 +165,12 @@ class TestObservatoryPlatform(unittest.TestCase):
         """ Test that the start and stop command are successful """
 
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with runner.isolated_filesystem() as t:
+            # Make empty config
+            config_path = os.path.join(t, "config.yaml")
+            open(config_path, "a").close()
+
+            # Mock platform command
             is_environment_valid = True
             docker_exe_path = "/path/to/docker"
             is_docker_running = True
@@ -176,7 +181,6 @@ class TestObservatoryPlatform(unittest.TestCase):
             start_return_code = 0
             stop_return_code = 0
             wait_for_airflow_ui = True
-            config_path = os.path.abspath("config.yaml")
             dags_path = "/path/to/dags"
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid,
@@ -194,11 +198,11 @@ class TestObservatoryPlatform(unittest.TestCase):
             )
 
             # Test that start command works
-            result = runner.invoke(cli, ["platform", "start"])
+            result = runner.invoke(cli, ["platform", "start", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
 
             # Test that stop command works
-            result = runner.invoke(cli, ["platform", "stop"])
+            result = runner.invoke(cli, ["platform", "stop", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
 
     @patch("observatory.platform.cli.cli.PlatformCommand")
