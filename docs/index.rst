@@ -30,14 +30,12 @@ Telescopes
 
     telescopes/index
 
-
 Datasets
 =======================
 .. toctree::
     :maxdepth: 2
 
     datasets/index
-
 
 Analytical Workflows
 =======================
@@ -46,22 +44,12 @@ Analytical Workflows
 
     workflows/index
 
-
-Reports
-=======================
-.. toctree::
-    :maxdepth: 2
-
-    reports/index
-
-
 Tutorials
 =======================
 .. toctree::
     :maxdepth: 2
 
     tutorials/index
-
 
 API Reference
 =======================
