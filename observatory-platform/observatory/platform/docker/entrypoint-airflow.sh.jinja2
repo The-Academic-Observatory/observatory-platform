@@ -27,36 +27,12 @@ if [ "$1" = "webserver" ]; then
   airflow users create -r Admin -u ${AIRFLOW_UI_USER_EMAIL} -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
 fi
 
-# Set PBR version for installing packages
-export PBR_VERSION=0.0.1
-
-###############################
-# Install observatory-api
-###############################
-# Enter observatory platform folder
-cd /opt/observatory-api
-
-# Install the Observatory API Python package
-pip3 install -e . --user
-
-###############################
-# Install observatory-platform
-###############################
-# Enter observatory platform folder
-cd /opt/observatory-platform
-
-# Install the Observatory Platform Python package
-pip3 install -e . --user
-
-unset PBR_VERSION
-
-#########################
-# Install dags projects
-#########################
-
-{% for project in config.dags_projects %}
-{% if project.type == 'local' -%}
-cd /opt/{{ project.package_name }}
+########################################
+# Install editable mode Python packages
+########################################
+{% for package in config.python_packages %}
+{% if package.type == 'editable' -%}
+cd /opt/{{ package.name }}
 pip3 install -r requirements.txt
 
 export PBR_VERSION=0.0.1
@@ -64,7 +40,6 @@ pip3 install --no-deps -e . --user
 unset PBR_VERSION
 {% endif %}
 {% endfor %}
-
 
 # Enter airflow home folder. Must be in the AIRFLOW_HOME folder (i.e. /opt/airflow) before running the next command
 # otherwise the system will start but the workers and scheduler will not find the DAGs and other files because

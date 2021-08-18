@@ -61,9 +61,9 @@ class PlatformBuilder(ComposeRunner):
         self.config_path = config_path
         self.host_uid = host_uid
         self.host_gid = host_gid
-        self.dags_path = module_file_path("observatory.platform.dags")
-        self.platform_package_path = module_file_path("observatory.platform", nav_back_steps=-3)
-        self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
+        # self.dags_path = module_file_path("observatory.platform.dags")
+        # self.platform_package_path = module_file_path("observatory.platform", nav_back_steps=-3)
+        # self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
         self.backend_type = backend_type
 
         # Set config class based on type of backend
@@ -99,7 +99,6 @@ class PlatformBuilder(ComposeRunner):
                     "config": self.config,
                     "docker_network_is_external": docker_network_is_external,
                     "docker_network_name": docker_network_name,
-                    "dags_projects_to_str": DagsProject.dags_projects_to_str,
                 },
                 debug=debug,
             )
@@ -117,22 +116,19 @@ class PlatformBuilder(ComposeRunner):
             self.add_file(
                 path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
             )
-            self.add_file(
-                path=os.path.join(self.platform_package_path, "requirements.txt"),
-                output_file_name="requirements.observatory-platform.txt",
-            )
-            self.add_file(
-                path=os.path.join(self.api_package_path, "requirements.txt"),
-                output_file_name="requirements.observatory-api.txt",
-            )
 
-            # Add all project requirements files for local projects
-            if self.config is not None:
-                for project in self.config.dags_projects:
-                    if project.type == "local":
+            if self.config is not None and self.config_is_valid:
+                for package in self.config.python_packages:
+                    if package.type == "editable":
+                        # Add project requirements files for local projects
                         self.add_file(
-                            path=os.path.join(project.path, "requirements.txt"),
-                            output_file_name=f"requirements.{project.package_name}.txt",
+                            path=os.path.join(package.host_package, "requirements.txt"),
+                            output_file_name=f"requirements.{package.name}.txt",
+                        )
+                    elif package.type == "sdist":
+                        # Add sdist package file
+                        self.add_file(
+                            path=package.host_package, output_file_name=package.docker_package,
                         )
 
     @property
@@ -209,9 +205,9 @@ class PlatformBuilder(ComposeRunner):
         env["HOST_USER_ID"] = str(self.host_uid)
         env["HOST_GROUP_ID"] = str(self.host_gid)
         env["HOST_OBSERVATORY_HOME"] = os.path.normpath(self.config.observatory.observatory_home)
-        env["HOST_DAGS_PATH"] = os.path.normpath(self.dags_path)
-        env["HOST_PLATFORM_PACKAGE_PATH"] = os.path.normpath(self.platform_package_path)
-        env["HOST_API_PACKAGE_PATH"] = os.path.normpath(self.api_package_path)
+        # env["HOST_DAGS_PATH"] = os.path.normpath(self.dags_path)
+        # env["HOST_PLATFORM_PACKAGE_PATH"] = os.path.normpath(self.platform_package_path)
+        # env["HOST_API_PACKAGE_PATH"] = os.path.normpath(self.api_package_path)
 
         env["HOST_REDIS_PORT"] = str(self.config.observatory.redis_port)
         env["HOST_FLOWER_UI_PORT"] = str(self.config.observatory.flower_ui_port)

@@ -120,10 +120,21 @@ class Backend:
 
 
 @dataclass
+class PythonPackage:
+    name: str
+    host_package: str
+    docker_package: str
+    type: str
+
+
+@dataclass
 class Observatory:
     """ The Observatory settings for the Observatory Platform.
 
     Attributes:
+        :param package: the observatory platform package, either a local path to a Python source package (editable type),
+        path to a sdist (sdist) or a PyPI package name and version (pypi).
+        :param package_type: the package type, editable, sdist, pypi.
         :param airflow_fernet_key: the Fernet key.
         :param airflow_secret_key: the secret key used to run the flask app.
         :param airflow_ui_user_password: the password for the Apache Airflow UI admin user.
@@ -139,6 +150,8 @@ class Observatory:
         :param docker_compose_project_name: The namespace for the Docker Compose containers: https://docs.docker.com/compose/reference/envvars/#compose_project_name.
      """
 
+    package: str
+    package_type: str
     airflow_fernet_key: str
     airflow_secret_key: str
     airflow_ui_user_password: str = "airflow@airflow.com"
@@ -152,6 +165,10 @@ class Observatory:
     kibana_port: int = 5601
     docker_network_name: str = "observatory-network"
     docker_compose_project_name: str = "observatory"
+
+    @property
+    def host_package(self):
+        return os.path.normpath(self.package)
 
     @property
     def docker_network_is_external(self):
@@ -176,6 +193,8 @@ class Observatory:
         :return: the Airflow instance.
         """
 
+        package = dict_.get("package")
+        package_type = dict_.get("package_type")
         airflow_fernet_key = dict_.get("airflow_fernet_key")
         airflow_secret_key = dict_.get("airflow_secret_key")
         airflow_ui_user_email = dict_.get("airflow_ui_user_email", Observatory.airflow_ui_user_email)
@@ -191,6 +210,8 @@ class Observatory:
         docker_compose_project_name = dict_.get("docker_compose_project_name", Observatory.docker_compose_project_name)
 
         return Observatory(
+            package,
+            package_type,
             airflow_fernet_key,
             airflow_secret_key,
             airflow_ui_user_password=airflow_ui_user_password,
@@ -306,12 +327,15 @@ class DagsProject:
 
     Attributes:
         package_name: the package name.
-        path: the path to the DAGs folder. TODO: check
+        :param package: the observatory platform package, either a local path to a Python source package (editable type),
+        path to a sdist (sdist) or a PyPI package name and version (pypi).
+        :param package_type: the package type, editable, sdist, pypi.
         dags_module: the Python import path to the module that contains the Apache Airflow DAGs to load.
      """
 
     package_name: str
-    path: str
+    package: str
+    package_type: str
     dags_module: str
 
     @property
@@ -334,14 +358,11 @@ class DagsProject:
         parsed_items = []
         for item in list:
             package_name = item["package_name"]
-            path = item["path"]
+            package = item["package"]
+            package_type = item["package_type"]
             dags_module = item["dags_module"]
-            parsed_items.append(DagsProject(package_name, path, dags_module))
+            parsed_items.append(DagsProject(package_name, package, package_type, dags_module))
         return parsed_items
-
-    @staticmethod
-    def dags_projects_to_str(dags_projects: List[DagsProject]):
-        return f"'{str(json.dumps([project.dags_module for project in dags_projects]))}'"
 
 
 def list_to_hcl(items: List[Union[AirflowConnection, AirflowVariable]]) -> str:
@@ -659,9 +680,9 @@ class ObservatoryConfig:
         if airflow_variables is None:
             self.airflow_connections = []
 
-        self.dags_projects = dags_projects
+        self.dags_projects: List[DagsProject] = dags_projects
         if dags_projects is None:
-            self.dags_projects = []
+            self.dags_projects: List[DagsProject] = []
 
         self.validator = validator
 
@@ -691,6 +712,43 @@ class ObservatoryConfig:
                     errors.append(ValidationError(key, *values))
 
         return errors
+
+    @property
+    def python_packages(self) -> List[PythonPackage]:
+        """ Make a list of Python Packages to build or include in the observatory.
+
+        :return: the list of Python packages.
+        """
+
+        packages = [
+            PythonPackage(
+                name="observatory-platform",
+                type=self.observatory.package_type,
+                host_package=self.observatory.package,
+                docker_package=os.path.basename(self.observatory.package),
+            )
+        ]
+
+        for project in self.dags_projects:
+            packages.append(
+                PythonPackage(
+                    name=project.package_name,
+                    type=project.package_type,
+                    host_package=project.package,
+                    docker_package=os.path.basename(project.package),
+                )
+            )
+
+        return packages
+
+    @property
+    def dags_module_names(self):
+        """ Returns a list of DAG project module names.
+
+        :return: the list of DAG project module names.
+        """
+
+        return f"'{str(json.dumps([project.dags_module for project in self.dags_projects]))}'"
 
     def make_airflow_variables(self) -> List[AirflowVariable]:
         """ Make all airflow variables for the observatory platform.
@@ -1073,10 +1131,13 @@ def make_schema(backend_type: BackendType) -> Dict:
         }
 
     # Observatory settings
+    package_types = ["editable", "sdist", "pypi"]
     schema["observatory"] = {
         "required": True,
         "type": "dict",
         "schema": {
+            "package": {"required": True, "type": "string"},
+            "package_type": {"required": True, "type": "string", "allowed": package_types},
             "airflow_fernet_key": {"required": True, "type": "string"},
             "airflow_secret_key": {"required": True, "type": "string"},
             "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
@@ -1148,7 +1209,8 @@ def make_schema(backend_type: BackendType) -> Dict:
             "type": "dict",
             "schema": {
                 "package_name": {"required": True, "type": "string",},
-                "path": {"required": True, "type": "string",},
+                "package": {"required": True, "type": "string"},
+                "package_type": {"required": True, "type": "string", "allowed": package_types},
                 "dags_module": {"required": True, "type": "string",},
             },
         },

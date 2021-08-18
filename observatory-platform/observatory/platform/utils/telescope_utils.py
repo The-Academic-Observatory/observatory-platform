@@ -42,10 +42,10 @@ from airflow.sensors.external_task import ExternalTaskSensor
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
-from observatory.api.client.api.observatory_api import ObservatoryApi
-from observatory.api.client.api_client import ApiClient
-from observatory.api.client.configuration import Configuration
-from observatory.api.server.api import Response
+# from observatory.api.client.api.observatory_api import ObservatoryApi
+# from observatory.api.client.api_client import ApiClient
+# from observatory.api.client.configuration import Configuration
+# from observatory.api.server.api import Response
 from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import load_file, write_to_file
@@ -246,7 +246,7 @@ class SftpFolders:
                 sftp.rename(in_progress_file, finished_file)
 
 
-def make_observatory_api() -> ObservatoryApi:
+def make_observatory_api() : #-> ObservatoryApi:
     """Make the ObservatoryApi object, configuring it with a host and api_key.
 
     :return: the ObservatoryApi.
@@ -271,10 +271,12 @@ def make_observatory_api() -> ObservatoryApi:
     if conn.port:
         host += f":{conn.port}"
 
+    pass
+
     # Return ObservatoryApi
-    config = Configuration(host=host, api_key={"api_key": conn.password})
-    api_client = ApiClient(config)
-    return ObservatoryApi(api_client=api_client)
+    # config = Configuration(host=host, api_key={"api_key": conn.password})
+    # api_client = ApiClient(config)
+    # return ObservatoryApi(api_client=api_client)
 
 
 def make_dag_id(namespace: str, organisation_name: str) -> str:

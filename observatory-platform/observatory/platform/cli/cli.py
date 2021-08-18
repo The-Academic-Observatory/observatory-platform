@@ -148,7 +148,7 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, min_line_chars: i
 
     print(indent("Host machine settings:", INDENT1))
     print(indent(f"- observatory home: {platform_cmd.config.observatory.observatory_home}", INDENT2))
-    print(indent(f"- dags-path: {platform_cmd.dags_path}", INDENT2))
+    # print(indent(f"- dags-path: {platform_cmd.dags_path}", INDENT2))
     print(indent(f"- host-uid: {platform_cmd.host_uid}", INDENT2))
 
 
@@ -221,18 +221,18 @@ def generate():
     pass
 
 
-@generate.command()
-@click.argument("telescope_type", nargs=1)
-@click.argument("telescope_name", nargs=1)
-def telescope(telescope_type: str, telescope_name: str):
-    """Generate boiler plate code for a new telescope.
-
-    telescope_type: Type of telescope. Options are Telescope, StreamTelescope, SnapshotTelescope.
-    telescope_name: Name of your new telescope.
-    """
-
-    cmd = GenerateCommand()
-    cmd.generate_new_telescope(telescope_type, telescope_name)
+# @generate.command()
+# @click.argument("telescope_type", nargs=1)
+# @click.argument("telescope_name", nargs=1)
+# def telescope(telescope_type: str, telescope_name: str):
+#     """Generate boiler plate code for a new telescope.
+#
+#     telescope_type: Type of telescope. Options are Telescope, StreamTelescope, SnapshotTelescope.
+#     telescope_name: Name of your new telescope.
+#     """
+#
+#     cmd = GenerateCommand()
+#     cmd.generate_new_telescope(telescope_type, telescope_name)
 
 
 @generate.command()

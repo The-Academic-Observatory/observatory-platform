@@ -22,7 +22,7 @@ import subprocess
 from subprocess import Popen
 from typing import Tuple
 
-from observatory.api.server.openapi_renderer import OpenApiRenderer
+# from observatory.api.server.openapi_renderer import OpenApiRenderer
 from observatory.platform.cli.click_utils import indent, INDENT1
 from observatory.platform.observatory_config import TerraformConfig, BackendType
 from observatory.platform.platform_builder import PlatformBuilder
@@ -138,15 +138,16 @@ class TerraformBuilder:
             f.write(render)
 
     def make_open_api_template(self):
-        # Load and render template
-        specification_path = os.path.join(self.api_path, "openapi.yaml.jinja2")
-        renderer = OpenApiRenderer(specification_path, cloud_endpoints=True)
-        render = renderer.render()
-
-        # Save file
-        output_path = os.path.join(self.terraform_build_path, "openapi.yaml.tpl")
-        with open(output_path, "w") as f:
-            f.write(render)
+        # # Load and render template
+        # specification_path = os.path.join(self.api_path, "openapi.yaml.jinja2")
+        # renderer = OpenApiRenderer(specification_path, cloud_endpoints=True)
+        # render = renderer.render()
+        #
+        # # Save file
+        # output_path = os.path.join(self.terraform_build_path, "openapi.yaml.tpl")
+        # with open(output_path, "w") as f:
+        #     f.write(render)
+        pass
 
     def build_terraform(self):
         """ Build the Observatory Platform Terraform files.
