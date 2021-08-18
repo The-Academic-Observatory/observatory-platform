@@ -18,7 +18,7 @@ Airflow works with DAG (Directed Acyclic Graph) objects that are defined in a Py
 The definition of a DAG according to Airflow is as follows:
  > A dag (directed acyclic graph) is a collection of tasks with directional dependencies. A dag also has a schedule, a start date and an end date (optional). For each schedule, (say daily or hourly), the DAG needs to run each individual tasks as their dependencies are met.
 
-Generally speaking, one DAG maps to one telescope.
+Generally speaking, a telescope is conveyed in a single DAG and there is a 1 on 1 mapping between DAGs and telescopes.
 
 ## Telescopes and Google Cloud Platform
 The Observatory Platform currently uses Google Cloud Platform as a platform for data storage and a data warehouse.  
@@ -26,9 +26,9 @@ This means that the data is stored in Google Cloud Storage buckets and loaded in
  functions as the data warehouse.  
 To be able to access the different Google Cloud resources (such as Storage Buckets and BigQuery), the
  GOOGLE_APPLICATION_CREDENTIALS environment variable is set on the Compute Engine that hosts Airflow.
-This is all done when installing either the Observatory Platform Development Environment or Terraform Environment.  
-For any Google Cloud utility functions that are used in a telescope, it is assumed that these default
- credentials are set.  
+This is all done when installing either the Observatory Platform Development Environment or Terraform Environment.
+Many telescopes make use of Google Cloud utility functions and these functions assume that the default credentials
+ are already set.
 
 ## The telescope templates
 Initially the telescopes in the observatory platform were each developed individually.  
@@ -41,15 +41,16 @@ The same properties were also often implemented, for example a download folder, 
  related properties such as the DAG id, schedule interval, start date etc.
  
 These similarities prompted the development of a telescope template that can be used as a basis for a new telescope.  
-The template abstracts away the code to create the DAG object used in Airflow, making it possible to use the template
- without previous Airflow knowledge, although having basic Airflow knowledge might help to understand the
-  possibilities and limitations of the template.  
+Additionally, the template abstracts away the code to create an Airflow DAG object, making it possible to use
+ the template and develop telescopes without previous Airflow knowledge.  
+Having said that, some basic Airflow knowledge could come in handy, as it might help to understand the possibilities
+ and limitations of the template.  
 The template also implements properties that are often used and common tasks such as cleaning up local files at the
  end of the telescope.  
-The base template is used for three other templates that implement more specific tasks for loading data into
- BigQuery and have some properties set to specific values (such as whether previous DAG runs should be run using the
-  airflow 'catchup' setting).  
+The initial template is referred to as the 'base' template and is used as a base for three other templates that
+ implement more specific tasks for loading data into BigQuery and have some properties set to specific values (such
+  as whether previous DAG runs should be run using the airflow 'catchup' setting).  
 The base template and the other three templates (snapshot, stream and organisation) are all explained in more detail
  below.  
 Each of the templates also have their own corresponding release class, this class contains properties and methods
- that are related to the specific release of a data source.  
+ that are related to the specific release of a data source, these are also explained in more detail below.  

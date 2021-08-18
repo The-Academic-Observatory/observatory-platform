@@ -81,30 +81,30 @@ The end date is set to the current daytime minus 1 day, because some data might 
 Uploads all files listed with the `transform_files` property of the release to the transform storage bucket.
 
 ### bq_load_partition
-For the first release, this task will be skipped.
+For the first release, this task will be skipped.  
 For any later releases it loads each blob that is in the release directory of the transform bucket into a separate
- BigQuery table partition, each partition is based on the ingestion time.
+ BigQuery table partition, where each partition is based on the ingestion time.  
 This BigQuery table has the `_partitions` suffix.
 
 ### bq_delete_old
-For the first release, this task will be skipped (but in the success state).
+For the first release, this task will be skipped (but in the success state).  
 For any later releases, it will be skipped if the days since the last successful execution of this task is smaller
- than the number of days set by the `bq_merge_days` property. 
+ than the number of days set by the `bq_merge_days` property.  
 If not skipped, it runs an SQL merge query which matches rows from one or more table partitions with rows in the main
- table, the matching is done based on the `merge_partition_field` property.
-When there is a matching row, this row will be deleted from the main table.
+ table, the matching is done based on the `merge_partition_field` property.  
+When there is a matching row, this row will be deleted from the main table.  
 All partitions that have been added since the last successful execution of this task will be processed.  
-When adding this task, the task specific setting `trigger_rule` should be set to 'none_failed'.
+When adding this task, the task specific setting `trigger_rule` should be set to 'none_failed'.  
 This ensures that any downstream tasks (such as clean up) will still be executed successfully.
 
 ### bq_append_new
 For the first release, this task will load each blob that is in the release directory of the transform bucket into a
- separate main BigQuery table.
+ separate main BigQuery table.  
 For any later releases, it will load one or more table partitions from the BigQuery partitions table (mentioned in
- bq_load_partition) into the main BigQuery table.
-All partitions that have been added since the last successful execution of this task will be processed.  
-When adding this task, the task specific setting `trigger_rule` should be set to 'none_failed'.
-This ensures that any downstream tasks (such as clean up) will still be executed successfully.
+ bq_load_partition) into the main BigQuery table.  
+All partitions that have been added since the last successful execution of this task will be processed.   
+When adding this task, the task specific setting `trigger_rule` should be set to 'none_failed'.  
+This ensures that any downstream tasks (such as clean up) will still be executed successfully.  
 
 ### cleanup
 The local download, extract and transform directories of the release are deleted including all files in those

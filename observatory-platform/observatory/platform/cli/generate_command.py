@@ -165,11 +165,11 @@ class GenerateCommand:
         schema_dst_file = os.path.join(schema_dst_dir, f"{telescope_module}_{datetime.now().strftime('%Y-%m-%d')}.json")
 
         # Write out files
-        write_telescope_file(dag_dst_file, dag, "dag")
-        write_telescope_file(telescope_dst_file, telescope, "telescope")
-        write_telescope_file(test_dst_file, test, "test")
-        write_telescope_file(doc_dst_file, doc, "documentation")
-        write_telescope_file(schema_dst_file, schema, "schema")
+        write_telescope_file_template(dag_dst_file, dag, "dag")
+        write_telescope_file_template(telescope_dst_file, telescope, "telescope")
+        write_telescope_file_template(test_dst_file, test, "test")
+        write_telescope_file_template(doc_dst_file, doc, "documentation")
+        write_telescope_file_template(schema_dst_file, schema, "schema")
 
         # Update documentation index
         doc_index_file = os.path.join(doc_dst_dir, "index.rst")
@@ -187,7 +187,7 @@ class GenerateCommand:
             print(f"- Updated the identifiers file: {identifiers_dst_file}")
 
 
-def write_telescope_file(file_path: str, template: str, file_type: str):
+def write_telescope_file_template(file_path: str, template: str, file_type: str):
     """Write the rendered template for a telescope file to a local file.
 
     :param file_path: The path to the local file.

@@ -26,28 +26,33 @@ Within a DAG, each task that is part of the DAG is created by instantiating an O
 There are many different types of Airflow Operators available, but in the case of the template the usage is limited to
  the BaseSensorOperator, PythonOperator and the ShortCircuitOperator.  
  
-* The BaseSensorOperator keeps executing at a time interval and succeeds when a criteria is met and fails if and when
- they time out.   
+* The BaseSensorOperator keeps executing at a regular time interval and succeeds when a criteria is met and fails if and
+ when they time out.   
 * The PythonOperator simply calls an executable Python function.  
 * The ShortCircuitOperator is derived from the PythonOperator and additionally evaluates a condition. When the
  conditions is False it short-circuits the workflow.  
 
-The **sensor** instantiates the BaseSensorOperator (or a child class of this operator) and all sensor tasks are always
- chained to the beginning of the DAG.  
-This task is useful for example to probe whether another task has finished successfully using the ExternalTaskSensor.
+The **sensor** type instantiates the BaseSensorOperator (or a child class of this operator).  
+All sensor tasks are always chained to the beginning of the DAG.  
+Tasks of this type are useful for example to probe whether another task has finished successfully using the
+ ExternalTaskSensor.
 
-The **set-up task** instantiates the ShortCircuitOperator, this means that the executable Python function that is
- called with this operator has to return a boolean.  
-The returned value is then evaluated to determine whether the workflow continues. 
+The **set-up task** type instantiates the ShortCircuitOperator.  
+Because the ShortCircuitOperator is used, the executable Python function that is called with this operator has to
+ return a boolean.  
+The returned value is then evaluated to determine whether the workflow continues.  
 Additionally, the set-up task does not require a release instance as an argument passed to the Python function, in
  contrast to a 'general' task.   
-The set-up tasks are chained after any sensors and before any remaining 'general' tasks. 
-They are useful to e.g. check whether all dependencies for a telescope are met or to list which releases
- are available.
+The set-up tasks are chained after any sensors and before any remaining 'general' tasks.  
+Tasks of this type are useful for example to check whether all dependencies for a telescope are met or to list which
+ releases are available.
 
-The general **task** instantiates the PythonOperator and the executable Python function that is called with
- this operator requires a release instance to be passed on as an argument.
-These tasks are always chained after any sensors and set-up tasks.
+The general **task** type instantiates the PythonOperator.  
+The executable Python function that is called with this operator requires a release instance to be passed on as an
+ argument.  
+These tasks are always chained after any sensors and set-up tasks.  
+Tasks of this type are the most common in the telescopes and are useful for any functionality that requires release
+ information such as downloading, transforming, loading into BigQuery, etc.
 
 Order of the different task types within a telescope:  
 <p align="center">
@@ -61,7 +66,7 @@ All tasks that are added within that context are added in parallel, however as o
  setup tasks type.
 
 ### The 'make_release' method 
-The general task requires a release instance and because of this the `make_release` method of the telescope class
+The general task type requires a release instance and because of this the `make_release` method of the telescope class
  always has to be implemented by the developer.  
 This method is called when the PythonOperator for the general task is made and has to return a release instance, the
  release class on which this instance is based is discussed in detail further below.  

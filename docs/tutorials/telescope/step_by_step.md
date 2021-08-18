@@ -231,8 +231,23 @@ def make_release(self, **kwargs) -> OrcidRelease:
 ```
 
 ### Using Airflow variables and connections
+Any information that should not be hardcoded inside the telescope, but is still required for the telescope to function
+ can be passed on using Airflow variables and connections.   
+Values for both the variables and connections are read from the relevant config file (`config.yaml` in local develop
+ environment and `config-terraform.yaml` in deployed terraform environment).  
+In the local develop environment, environment variables are created both for Airflow variables and connections, these
+ environment variables are made up of the `AIRLFOW_VAR_` or `AIRFLOW_CONN_` prefix and the name that is used for the
+  variable or connection in the config file.  
+These prefixes are determined by Airflow and any environment variables with these prefixes will automatically be
+ picked up, see the Airflow documentation for more info on managing [variables](https://airflow.apache.org/docs/apache-airflow/stable/howto/variable.html#storing-variables-in-environment-variables)
+ and [connections](https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#storing-a-connection-in-environment-variables) 
+ with environment variables.  
+In the deployed terraform environment, the Google Cloud Secret Manager is used as a backend to store both Airflow
+ variables and connections, because this is more secure than using environment variables.  
+A secret is created for each individual Airflow variable or connection, see the Airflow documentation for more info
+ on the [secrets backend](https://airflow.apache.org/docs/apache-airflow/stable/security/secrets/secrets-backend/index.html#secrets-backend). 
+
 #### Variables
-Airflow variables and connections are both used with the existing telescopes.  
 Airflow variables should never contain any sensitive information and are used for example for the project_id, bucket
  names or data location.  
 
@@ -249,7 +264,8 @@ To use a new Airflow variable or connection, it has to be added to the relevant 
 This file can be found at:  
 `observatory-platform/observatory/platform/utils/airflow_utils.py`
 
-In there are the AirflowVars and AirflowConns classes.  
+In there are the AirflowVars and AirflowConns classes, these classes make it easier to use the same key name for a
+ variable or connection in many different DAGs.
 The python variable name is used inside the telescope and the value is used inside the `config.yaml` or `config-terraform.yaml`
  file.
  
@@ -292,25 +308,14 @@ airflow_connections:
 ```
 
 #### Secrets backend issue, use custom AirflowVariable class
-In the cloud environment deployed with terraform, Airflow uses Google Cloud Secret Manager as a secrets backend and
- both the Airflow variable and connections are stored in there as secrets.
+In the cloud environment that is deployed with terraform, Airflow uses Google Cloud Secret Manager as a secrets
+ backend and both the Airflow variable and connections are stored in there as secrets.
  
-Note that there is currently an issue when Airflow tries to get a variable in the cloud environment (meaning Google
- Cloud Secrets Manager is set as a secrets backend), when the variable is not stored in the cloud.  
-Some Airflow variables (test_data_path, data_path, download_bucket, transform_bucket) are not set in the
- 'airflow_variables' section of the config-terraform.yaml file.  
-This means that these variables are not stored as Google Cloud Secrets and they only exist as environment variables
- instead.  
-The search order for variables/connections for Airflow is not configurable and with a secrets backend enabled it is:   
-```
-secrets backend > environment variables > metastore
-```
-
-Unfortunately, the current Airflow method to get variables from the secrets backend will return an error when a
- secret can not be found, meaning that it will never attempt to search the environment variables next.  
-As a workaround, there is a custom `AirflowVariable` class inside 
-`observatory-platform/observatory/platform/utils/airflow_utils.py` that should be used to get variables instead of the
- standard Airflow `Variable` class inside `airflow.models.variable.py`.
+Unfortunately, there is currently an issue with Airflow's method to obtain variables when using the secrets backend.  
+This issue has been resolved by implementing a custom `AirflowVariable` class inside 
+`observatory-platform/observatory/platform/utils/airflow_utils.py`.  
+This class should always be used to get variables instead of the standard Airflow `Variable` class inside `airflow
+.models.variable.py`.
 
 For example, to get a variable:  
 ```python
@@ -319,6 +324,26 @@ from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVar
 variable = AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET)
 ```
 
+The problem occurs when Airflow tries to get a variable while the Google Cloud Secrets Manager is set as a secrets
+ backend, but the variable is not stored as a Google Cloud Secret.  
+This is the case for some Airflow variables that are often used in the telescopes (test_data_path, data_path, 
+download_bucket, transform_bucket).  
+They are not set in the 'airflow_variables' section of the `config-terraform.yaml` file and this means that these
+ variables are not stored as Google Cloud Secrets.
+They do exist as valid Airflow variables, but as environment variables instead of Google Cloud Secrets.  
+The search order for variables/connections for Airflow is not configurable and with a secrets backend enabled the
+ order is:   
+```
+secrets backend > environment variables > metastore
+```
+
+The issue is that the current Airflow method to get variables from the secrets backend will return an error when a
+ Google Cloud Secret can not be found.
+This error prevents Airflow from searching for a variable in remaining places (environment variables & metastore),
+ so the value for a variable can never be resolved if it does not exist as a Google Cloud Secret.   
+The custom `AirflowVariable` class solves this by catching the error in a Try/Except clause, meaning that Airflow
+ will continue to look for a variable in the remaining places.
+
 ## 3. Creating a BigQuery schema file
 BigQuery database schema json files are put in `observatory-dags/dags/database/schema`.  
 They follow the scheme: `<table_name>_YYYY-MM-DD.json`.  
@@ -326,9 +351,13 @@ To provide an additional custom version as well as the date, the files should fo
  `<table_name>_<customversion>_YYYY-MM-DD.json`.
 
 The BigQuery table loading utility functions in the Observatory Platform will try to find the correct schema to use
- for loading table data, based on release date information.  
-These utility functions are used by the BigQuery load tasks of the sub templates (Snapshot, Stream, Organisation) and
- it is required to set the `schema_version` parameter to pick up the schema version when using these templates.
+ for loading table data, based on release date and version information.  
+If no version is specified, the most recent schema with a date less than or equal to the release date of the data is
+ returned.  
+If a version string is specified, the most current (date) schema in that series is returned.  
+The utility functions are used by the BigQuery load tasks of the sub templates (Snapshot, Stream, Organisation) and
+ it is required to set the `schema_version` parameter to automatically pick up the schema version when using these
+  templates.
  
 ## 4. Creating a test file
 The Observatory Platform uses the `unittest` Python framework as a base and provides additional methods to run tasks
