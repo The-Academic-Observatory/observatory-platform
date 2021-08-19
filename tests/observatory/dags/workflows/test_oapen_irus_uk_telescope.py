@@ -118,12 +118,12 @@ class TestOapenIrusUkTelescope(ObservatoryTestCase):
             env.api_session.add(telescope)
             env.api_session.commit()
 
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "oapen_irus_uk.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "oapen_irus_uk_telescope.py")
             self.assert_dag_load("oapen_irus_uk_ucl_press", dag_file)
 
-    @patch("observatory.dags.telescopes.oapen_irus_uk.build")
-    @patch("observatory.dags.telescopes.oapen_irus_uk.ServiceAccountCredentials")
-    @patch("observatory.dags.telescopes.oapen_irus_uk.AuthorizedSession.post")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.build")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.ServiceAccountCredentials")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.AuthorizedSession.post")
     def test_telescope(self, mock_authorized_session, mock_account_credentials, mock_build):
         """Test the Oapen Irus Uk telescope end to end.
         :return: None.
@@ -260,9 +260,9 @@ class TestOapenIrusUkTelescope(ObservatoryTestCase):
                 env._delete_bucket(OapenIrusUkTelescope.OAPEN_BUCKET)
 
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
-    @patch("observatory.dags.telescopes.oapen_irus_uk.upload_source_code_to_bucket")
-    @patch("observatory.dags.telescopes.oapen_irus_uk.cloud_function_exists")
-    @patch("observatory.dags.telescopes.oapen_irus_uk.create_cloud_function")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.upload_source_code_to_bucket")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.cloud_function_exists")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.create_cloud_function")
     def test_release_create_cloud_function(
         self, mock_create_function, mock_function_exists, mock_upload, mock_variable_get
     ):
@@ -350,9 +350,9 @@ class TestOapenIrusUkTelescope(ObservatoryTestCase):
                 release.create_cloud_function(telescope.max_active_runs)
 
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
-    @patch("observatory.dags.telescopes.oapen_irus_uk.BaseHook.get_connection")
-    @patch("observatory.dags.telescopes.oapen_irus_uk.get_publisher_uuid")
-    @patch("observatory.dags.telescopes.oapen_irus_uk.call_cloud_function")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.BaseHook.get_connection")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.get_publisher_uuid")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.call_cloud_function")
     def test_release_call_cloud_function(
         self, mock_call_function, mock_get_publisher, mock_conn_get, mock_variable_get
     ):
@@ -423,8 +423,8 @@ class TestOapenIrusUkTelescope(ObservatoryTestCase):
                         release.blob_name,
                     )
 
-    @patch("observatory.dags.telescopes.oapen_irus_uk.upload_file_to_cloud_storage")
-    @patch("observatory.dags.telescopes.oapen_irus_uk.create_cloud_storage_bucket")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.upload_file_to_cloud_storage")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.create_cloud_storage_bucket")
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_upload_source_code_to_bucket(self, mock_variable_get, mock_create_bucket, mock_upload_to_bucket):
         """Test getting source code from oapen irus uk release and uploading to storage bucket.
@@ -585,7 +585,7 @@ class TestOapenIrusUkTelescope(ObservatoryTestCase):
         self.assertFalse(success)
         self.assertDictEqual({"message": "error"}, msg)
 
-    @patch("observatory.dags.telescopes.oapen_irus_uk.AuthorizedSession.post")
+    @patch("observatory.dags.workflows.oapen_irus_uk_telescope.AuthorizedSession.post")
     def test_call_cloud_function(self, mock_authorized_session):
         """Test the function that calls the cloud function
         :return: None.

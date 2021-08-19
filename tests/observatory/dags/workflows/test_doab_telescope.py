@@ -76,7 +76,7 @@ class TestDoabTelescope(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "doab.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "doab_telescope.py")
             self.assert_dag_load("doab", dag_file)
 
     def test_telescope(self):

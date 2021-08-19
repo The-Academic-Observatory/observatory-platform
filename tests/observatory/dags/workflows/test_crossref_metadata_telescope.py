@@ -101,7 +101,7 @@ class TestCrossrefMetadataTelescope(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "crossref_metadata.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "crossref_metadata_telescope.py")
             self.assert_dag_load("crossref_metadata", dag_file)
 
     def test_telescope(self):
@@ -187,7 +187,7 @@ class TestCrossrefMetadataTelescope(ObservatoryTestCase):
                 env.run_task(telescope.cleanup.__name__, dag, execution_date)
                 self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
-    @patch("observatory.dags.telescopes.crossref_metadata.BaseHook.get_connection")
+    @patch("observatory.dags.workflows.crossref_metadata_telescope.BaseHook.get_connection")
     def test_download(self, mock_conn):
         """Test download method of release with failing response
 
@@ -201,7 +201,7 @@ class TestCrossrefMetadataTelescope(ObservatoryTestCase):
             with self.assertRaises(ConnectionError):
                 release.download()
 
-    @patch("observatory.dags.telescopes.crossref_metadata.subprocess.Popen")
+    @patch("observatory.dags.workflows.crossref_metadata_telescope.subprocess.Popen")
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_extract(self, mock_variable_get, mock_subprocess):
         """Test extract method of release with failing extract command
@@ -246,7 +246,7 @@ class TestCrossrefMetadataTelescope(ObservatoryTestCase):
             with self.assertRaises(AirflowException):
                 telescope.check_release_exists(execution_date=release.release_date)
 
-    @patch("observatory.dags.telescopes.crossref_metadata.subprocess.Popen")
+    @patch("observatory.dags.workflows.crossref_metadata_telescope.subprocess.Popen")
     def test_transform_file(self, mock_subprocess):
         """Test transform_file function with failing transform command.
 

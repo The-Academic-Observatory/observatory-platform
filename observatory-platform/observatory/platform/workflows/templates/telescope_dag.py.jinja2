@@ -16,7 +16,7 @@
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.telescopes.{{ telescope_module }} import {{ telescope_name }}
+from observatory.dags.workflows.{{ telescope_module }} import {{ telescope_name }}
 
 telescope = {{ telescope_name }}()
 globals()[telescope.dag_id] = telescope.make_dag()

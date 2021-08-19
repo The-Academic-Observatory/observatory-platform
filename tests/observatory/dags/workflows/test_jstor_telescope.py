@@ -132,11 +132,11 @@ class TestJstorTelescope(ObservatoryTestCase):
             env.api_session.add(telescope)
             env.api_session.commit()
 
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "jstor.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "jstor_telescope.py")
             self.assert_dag_load("jstor_curtin_press", dag_file)
 
-    @patch("observatory.dags.telescopes.jstor.build")
-    @patch("observatory.dags.telescopes.jstor.Credentials")
+    @patch("observatory.dags.workflows.jstor_telescope.build")
+    @patch("observatory.dags.workflows.jstor_telescope.Credentials")
     def test_telescope(self, mock_account_credentials, mock_build):
         """Test the Jstor telescope end to end.
 

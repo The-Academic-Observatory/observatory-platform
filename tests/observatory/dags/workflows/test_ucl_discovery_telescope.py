@@ -111,10 +111,10 @@ class TestUclDiscoveryTelescope(ObservatoryTestCase):
             env.api_session.add(telescope)
             env.api_session.commit()
 
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "ucl_discovery.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "ucl_discovery_telescope.py")
             self.assert_dag_load("ucl_discovery_ucl_press", dag_file)
 
-    @patch("observatory.dags.telescopes.ucl_discovery.get_downloads_per_country")
+    @patch("observatory.dags.workflows.ucl_discovery_telescope.get_downloads_per_country")
     def test_telescope(self, mock_downloads_per_country):
         """Test the UCL Discovery telescope end to end.
         :return: None.
@@ -203,7 +203,7 @@ class TestUclDiscoveryTelescope(ObservatoryTestCase):
                 env.run_task(telescope.cleanup.__name__, dag, execution_date)
                 self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
-    @patch("observatory.dags.telescopes.ucl_discovery.retry_session")
+    @patch("observatory.dags.workflows.ucl_discovery_telescope.retry_session")
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_download(self, mock_variable_get, mock_retry_session):
         """Test download method of UCL Discovery release

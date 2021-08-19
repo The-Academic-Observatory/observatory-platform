@@ -61,7 +61,7 @@ class TestScopusClient(unittest.TestCase):
 class TestScopusRelease(unittest.TestCase):
     """Test the ScopusRelease class."""
 
-    @patch("observatory.dags.telescopes.scopus.workflow_path", return_value="test")
+    @patch("observatory.dags.workflows.scopus_telescope.workflow_path", return_value="test")
     def test_init(self, mock_target):
         """Test initialisation."""
 
@@ -148,7 +148,7 @@ class TestScopusUtility(unittest.TestCase):
         query_truth = '(AF-ID(test1) OR AF-ID(test2)) AND PUBDATETXT("October 2018" or "November 2018" or "December 2018" or "January 2019" or "February 2019")'
         self.assertEqual(query, query_truth)
 
-    @patch("observatory.dags.telescopes.scopus.sleep")
+    @patch("observatory.dags.workflows.scopus_telescope.sleep")
     def test_sleep_if_needed(self, sleep_mock):
         """Test sleep calculation."""
         ScopusUtility.sleep_if_needed(self.reset_past, self.conn)
@@ -186,7 +186,7 @@ class TestScopusUtility(unittest.TestCase):
         new_reset = ScopusUtility.update_reset_date(self.conn, error_msg, worker, reset_date)
         self.assertEqual(new_reset, pendulum.datetime(1970, 1, 1, 0, 0, 0))
 
-    @patch("observatory.dags.telescopes.scopus.ScopusUtility.make_query", return_value=("", 0))
+    @patch("observatory.dags.workflows.scopus_telescope.ScopusUtility.make_query", return_value=("", 0))
     def test_download_scopus_period(self, mock_make_query):
         """Test downloading of a period. Mocks out actual api call."""
 
@@ -200,8 +200,8 @@ class TestScopusUtility(unittest.TestCase):
                 self.assertEqual(mock_make_query.call_count, 1)
                 self.assertNotEqual(save_file, "")
 
-    @patch("observatory.dags.telescopes.scopus.ScopusUtilWorker.QUEUE_WAIT_TIME", 1)
-    @patch("observatory.dags.telescopes.scopus.ScopusUtility.make_query", return_value=("", 0))
+    @patch("observatory.dags.workflows.scopus_telescope.ScopusUtilWorker.QUEUE_WAIT_TIME", 1)
+    @patch("observatory.dags.workflows.scopus_telescope.ScopusUtility.make_query", return_value=("", 0))
     def test_sequential(self, mock_make_query):
         """Sequential download test."""
 
@@ -234,8 +234,8 @@ class TestScopusUtility(unittest.TestCase):
             self.assertEqual(mock_make_query.call_count, 6)
             self.assertEqual(len(saved_files), 5)
 
-    @patch("observatory.dags.telescopes.scopus.ScopusUtilWorker.QUEUE_WAIT_TIME", 1)
-    @patch("observatory.dags.telescopes.scopus.ScopusUtility.make_query", return_value=("", 0))
+    @patch("observatory.dags.workflows.scopus_telescope.ScopusUtilWorker.QUEUE_WAIT_TIME", 1)
+    @patch("observatory.dags.workflows.scopus_telescope.ScopusUtility.make_query", return_value=("", 0))
     def test_parallel(self, mock_make_query):
         """Parallel download test."""
 
@@ -262,9 +262,9 @@ class TestScopusUtility(unittest.TestCase):
             self.assertEqual(mock_make_query.call_count, 9)
             self.assertEqual(len(saved_files), 5)
 
-    @patch("observatory.dags.telescopes.scopus.ScopusUtilWorker.QUEUE_WAIT_TIME", 1)
-    @patch("observatory.dags.telescopes.scopus.workflow_path", return_value="test")
-    @patch("observatory.dags.telescopes.scopus.ScopusUtility.make_query", return_value=("", 0))
+    @patch("observatory.dags.workflows.scopus_telescope.ScopusUtilWorker.QUEUE_WAIT_TIME", 1)
+    @patch("observatory.dags.workflows.scopus_telescope.workflow_path", return_value="test")
+    @patch("observatory.dags.workflows.scopus_telescope.ScopusUtility.make_query", return_value=("", 0))
     def test_download_snapshot(self, mock_make_query, mock_telepath):
         """Download snapshot test."""
 

@@ -90,7 +90,7 @@ class TestCrossrefEventsTelescope(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "crossref_events.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "crossref_events_telescope.py")
             self.assert_dag_load("crossref_events", dag_file)
 
     def test_telescope(self):
@@ -338,7 +338,7 @@ class TestCrossrefEventsTelescope(ObservatoryTestCase):
             self.release.download()
             self.assertEqual(len(self.release.urls), mock_download_batch.call_count)
 
-    @patch("observatory.dags.telescopes.crossref_events.download_events")
+    @patch("observatory.dags.workflows.crossref_events_telescope.download_events")
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_download_batch(self, mock_variable_get, mock_download_events):
         """Test download_batch function

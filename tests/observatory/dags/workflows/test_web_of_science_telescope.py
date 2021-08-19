@@ -306,8 +306,8 @@ class TestWos(unittest.TestCase):
         # Paths
         self.work_dir = "."
 
-    @patch("observatory.dags.telescopes.webofscience.WosClient")
-    @patch("observatory.dags.telescopes.webofscience.WosUtility.make_query", return_value=[""])
+    @patch("observatory.dags.workflows.web_of_science_telescope.WosClient")
+    @patch("observatory.dags.workflows.web_of_science_telescope.WosUtility.make_query", return_value=[""])
     def test_download_wos_snapshot(self, mock_query, mock_client):
         """Test whether we can successfully download and save a snapshot."""
 

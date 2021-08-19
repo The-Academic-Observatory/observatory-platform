@@ -86,7 +86,7 @@ class TestGeonamesTelescope(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "geonames.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "geonames_telescope.py")
             self.assert_dag_load("geonames", dag_file)
 
     def test_first_sunday_of_month(self):

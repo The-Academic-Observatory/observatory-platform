@@ -367,7 +367,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 for suffix in ["observatory", "anu_press", "ucl_press", "wits_press", "university_of_michigan_press"]
             ]
 
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "elastic_import.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "elastic_import_workflow.py")
             for dag_id in expected_dag_ids:
                 self.assert_dag_load(dag_id, dag_file)
 

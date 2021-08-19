@@ -125,7 +125,7 @@ class TestOnixTelescope(ObservatoryTestCase):
             env.api_session.add(telescope)
             env.api_session.commit()
 
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "onix.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "onix_telescope.py")
             self.assert_dag_load("onix_curtin_press", dag_file)
 
     def test_telescope(self):

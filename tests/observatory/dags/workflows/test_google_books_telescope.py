@@ -126,7 +126,7 @@ class TestGoogleBooksTelescope(ObservatoryTestCase):
             env.api_session.add(telescope)
             env.api_session.commit()
 
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "google_books.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "google_books_telescope.py")
             self.assert_dag_load("google_books_anu-press", dag_file)
 
     def test_telescope(self):

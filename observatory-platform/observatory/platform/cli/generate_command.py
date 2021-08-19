@@ -130,7 +130,7 @@ class GenerateCommand:
         dag_dst_dir = observatory.dags.dags.__path__[0]
         dag_dst_file = os.path.join(dag_dst_dir, telescope_file)
 
-        telescope_dst_dir = observatory.dags.telescopes.__path__[0]
+        telescope_dst_dir = observatory.dags.workflows.__path__[0]
         telescope_dst_file = os.path.join(telescope_dst_dir, telescope_file)
 
         test_dst_dir = "tests/observatory/dags/telescopes"

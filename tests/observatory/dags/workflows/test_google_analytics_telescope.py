@@ -102,11 +102,11 @@ class TestGoogleAnalyticsTelescope(ObservatoryTestCase):
             env.api_session.add(telescope)
             env.api_session.commit()
 
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "google_analytics.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "google_analytics_telescope.py")
             self.assert_dag_load("google_analytics_ucl_press", dag_file)
 
-    @patch("observatory.dags.telescopes.google_analytics.build")
-    @patch("observatory.dags.telescopes.google_analytics.ServiceAccountCredentials")
+    @patch("observatory.dags.workflows.google_analytics_telescope.build")
+    @patch("observatory.dags.workflows.google_analytics_telescope.ServiceAccountCredentials")
     def test_telescope(self, mock_account_credentials, mock_build):
         """Test the Google Analytics telescope end to end.
         :return: None.
@@ -252,8 +252,8 @@ class TestGoogleAnalyticsTelescope(ObservatoryTestCase):
                 env.run_task(telescope.cleanup.__name__, dag, execution_date)
                 self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
-    @patch("observatory.dags.telescopes.google_analytics.build")
-    @patch("observatory.dags.telescopes.google_analytics.ServiceAccountCredentials")
+    @patch("observatory.dags.workflows.google_analytics_telescope.build")
+    @patch("observatory.dags.workflows.google_analytics_telescope.ServiceAccountCredentials")
     def test_telescope_anu(self, mock_account_credentials, mock_build):
         """Test the Google Analytics telescope end to end specifically for ANU Press, to test custom dimensions.
         :return: None.

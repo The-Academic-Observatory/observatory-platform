@@ -67,7 +67,7 @@ class TestCrossrefFundrefTelescope(ObservatoryTestCase):
         :return: None
         """
         # mock create_pool to prevent querying non existing airflow db
-        with patch("observatory.dags.telescopes.crossref_fundref.create_pool"):
+        with patch("observatory.dags.workflows.crossref_fundref_telescope.create_pool"):
             dag = CrossrefFundrefTelescope().make_dag()
             self.assert_dag_structure(
                 {
@@ -91,7 +91,7 @@ class TestCrossrefFundrefTelescope(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "crossref_fundref.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "crossref_fundref_telescope.py")
             self.assert_dag_load("crossref_fundref", dag_file)
 
     def test_telescope(self):
@@ -123,7 +123,7 @@ class TestCrossrefFundrefTelescope(ObservatoryTestCase):
                         "date": pendulum.parse("2021-05-19T09:34:09.898000+00:00"),
                     }
                 ]
-                with patch("observatory.dags.telescopes.crossref_fundref.list_releases") as mock_list_releases:
+                with patch("observatory.dags.workflows.crossref_fundref_telescope.list_releases") as mock_list_releases:
                     mock_list_releases.return_value = release_info
                     ti = env.run_task(telescope.get_release_info.__name__, dag, execution_date)
 
