@@ -15,6 +15,7 @@
 # Author: James Diprose, Tuan Chien, Aniek Roelofs
 
 import os
+import shutil
 import unittest
 from click.testing import CliRunner
 from datetime import datetime
@@ -55,49 +56,61 @@ class TestGenerateCommand(unittest.TestCase):
             cmd.generate_terraform_config(config_path)
             self.assertTrue(os.path.exists(config_path))
 
-    @patch("observatory.platform.cli.generate_command.open")
-    def test_generate_telescope(self, mock_open):
+    @patch('observatory.platform.cli.generate_command.get_observatory_dir')
+    def test_generate_telescope(self, mock_module_file_path):
         """ Test generate telescope command. Cannot do filesystem isolation since we are writing explicit paths.
 
-        :param mock_open: mock the 'open' function
+        # :param mock_open: mock the 'open' function
         :return: None.
         """
-        # Create expected file paths
-        observatory_dir = module_file_path('observatory.platform', nav_back_steps=-4)
-        dag_dst_dir = module_file_path('observatory.dags.dags')
-        dag_dst_file = os.path.join(dag_dst_dir, "my_test_telescope.py")
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Set up isolated file paths and directories
+            current_dir = os.getcwd()
+            observatory_dir = os.path.join(current_dir, "observatory-platform")
+            dags_folder = os.path.join(observatory_dir, "observatory", "dags")
+            mock_module_file_path.return_value = observatory_dir
 
-        telescope_dst_dir = module_file_path('observatory.dags.telescopes')
-        telescope_dst_file = os.path.join(telescope_dst_dir, "my_test_telescope.py")
+            # Copy actual observatory platform inside isolated filesystem
+            shutil.copytree(module_file_path('observatory.platform'), observatory_dir)
 
-        test_dst_dir = os.path.join(observatory_dir, 'tests', 'observatory', 'dags', 'telescopes')
-        test_dst_file = os.path.join(test_dst_dir, "test_my_test_telescope.py")
+            # Create expected file paths
+            dag_dst_dir = os.path.join(dags_folder, "dags")
+            dag_dst_file = os.path.join(dag_dst_dir, "my_test_telescope.py")
 
-        doc_dst_dir = os.path.join(observatory_dir, 'docs', 'telescopes')
-        doc_dst_file = os.path.join(doc_dst_dir, "my_test_telescope.md")
+            telescope_dst_dir = os.path.join(dags_folder, "telescopes")
+            telescope_dst_file = os.path.join(telescope_dst_dir, "my_test_telescope.py")
 
-        schema_dst_dir = module_file_path('observatory.dags.database.schema')
-        schema_dst_file = os.path.join(schema_dst_dir, f"my_test_telescope_{datetime.now().strftime('%Y-%m-%d')}.json")
+            test_dst_dir = os.path.join(observatory_dir, "tests", "observatory", "dags", "telescopes")
+            test_dst_file = os.path.join(test_dst_dir, "test_my_test_telescope.py")
 
-        doc_index_file = os.path.join(doc_dst_dir, "index.rst")
+            doc_dst_dir = os.path.join(observatory_dir, "docs", "telescopes")
+            doc_dst_file = os.path.join(doc_dst_dir, "my_test_telescope.md")
+            doc_index_file = os.path.join(doc_dst_dir, "index.rst")
 
-        for telescope_type in ['Telescope', 'StreamTelescope', 'SnapshotTelescope', 'OrganisationTelescope']:
-            mock_open.reset_mock()
-            result = CliRunner().invoke(generate, ["telescope", telescope_type, "MyTestTelescope",
-                                                   "Firstname Lastname"])
-            self.assertEqual(0, result.exit_code)
-            expected_call_list = [call(file, 'w') for file in [dag_dst_file, telescope_dst_file, test_dst_file,
-                                                               doc_dst_file, schema_dst_file]]
-            expected_call_list.append(call(doc_index_file, 'a'))
-            if telescope_type == 'OrganisationTelescope':
-                identifiers_dst_file = os.path.join(module_file_path('observatory.api.client.identifiers'),
-                                                    'identifiers.py')
-                expected_call_list.append(call(identifiers_dst_file, 'a'))
+            schema_dst_dir = os.path.join(dags_folder, "database", "schema")
+            schema_dst_file = os.path.join(schema_dst_dir, f"my_test_telescope_{datetime.now().strftime('%Y-%m-%d')}.json")
 
-            self.assertListEqual(expected_call_list, mock_open.call_args_list)
+            identifiers_dst_dir = os.path.join(observatory_dir, "api", "client", "identifiers")
+            identifiers_dst_file = os.path.join(identifiers_dst_dir, 'identifiers.py')
 
-        result = CliRunner().invoke(generate, ["telescope", "invalid_type", "MyTestTelescope", "Firstname Lastname"])
-        self.assertEqual(1, result.exit_code)
+            # Create expected destination dirs
+            for dst_dir in [dag_dst_dir, telescope_dst_dir, test_dst_dir, doc_dst_dir, schema_dst_dir,
+                            identifiers_dst_dir]:
+                os.makedirs(dst_dir)
+
+            for telescope_type in ['Telescope', 'StreamTelescope', 'SnapshotTelescope', 'OrganisationTelescope']:
+                result = runner.invoke(generate, ["telescope", dags_folder, telescope_type, "MyTestTelescope"])
+                self.assertEqual(0, result.exit_code)
+
+                for file in [dag_dst_file, telescope_dst_file, test_dst_file, doc_dst_file,
+                             doc_index_file, schema_dst_file]:
+                    self.assertTrue(os.path.exists(file))
+                if telescope_type == 'OrganisationTelescope':
+                    self.assertTrue(os.path.exists(identifiers_dst_file))
+
+            result = CliRunner().invoke(generate, ["telescope", dags_folder, "invalid_type", "MyTestTelescope"])
+            self.assertEqual(1, result.exit_code)
 
     @patch('click.confirm')
     def test_write_telescope_file(self, mock_click_confirm):

@@ -223,20 +223,20 @@ def generate():
 
 
 @generate.command()
+@click.argument("dags_folder", nargs=1)
 @click.argument("telescope_type", nargs=1)
 @click.argument("telescope_name", nargs=1)
-@click.argument("author_name", nargs=1)
-def telescope(telescope_type: str, telescope_name: str, author_name: str):
+def telescope(dags_folder: str, telescope_type: str, telescope_name: str):
     """Generate boiler plate code for a new telescope.
 
+    - dags_folder: The dags folder where the telescope & dag file will be written to.\n
     - telescope_type: Type of telescope. Options are Telescope, StreamTelescope, SnapshotTelescope,
     OrganisationTelescope.\n
     - telescope_name: Name of your new telescope.\n
-    - author_name: Your full name in quotes, added as author of the files.\n
     """
 
     cmd = GenerateCommand()
-    cmd.generate_new_telescope(telescope_type, telescope_name, author_name)
+    cmd.generate_new_telescope(dags_folder, telescope_type, telescope_name)
 
 
 @generate.command()

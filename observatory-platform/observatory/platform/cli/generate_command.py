@@ -21,9 +21,6 @@ from typing import Tuple
 import click
 from cryptography.fernet import Fernet
 
-import observatory.dags.dags
-import observatory.dags.telescopes
-import observatory.platform.telescopes.templates
 from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.config_utils import module_file_path
@@ -74,7 +71,7 @@ class GenerateCommand:
         :return: The template paths for the telescope, dag, test, doc and schema files
         """
 
-        templates_dir = observatory.platform.telescopes.templates.__path__._path[0]
+        templates_dir = module_file_path("observatory.platform.telescopes.templates")
 
         telescope_types = {
             "Telescope": {
@@ -116,13 +113,20 @@ class GenerateCommand:
         schema_path = os.path.join(templates_dir, schema_file)
         return telescope_path, dag_path, test_path, doc_path, schema_path
 
-    def generate_new_telescope(self, telescope_type: str, telescope_class: str, author_name: str):
+    def generate_new_telescope(
+        self,
+        dags_folder: str,
+        telescope_type: str,
+        telescope_class: str,
+        observatory_dir: str = module_file_path("observatory.platform", nav_back_steps=-4),
+    ):
         """
         Write files for a new telescope which is using one of the templates
 
+        :param dags_folder: The dags folder where the telescope & dag file will be written to.
         :param telescope_type: Type of telescope to generate.
         :param telescope_class: Class name of the new telescope.
-        :param author_name: Author name of the telescope files.
+        :param observatory_dir:
         """
 
         telescope_path, dag_path, test_path, doc_path, schema_path = self.get_telescope_template_path_(telescope_type)
@@ -130,15 +134,9 @@ class GenerateCommand:
         telescope_module = re.sub(r"([A-Z])", r"_\1", telescope_class).lower().strip("_")
 
         # Render templates
-        dag = render_template(
-            dag_path, telescope_module=telescope_module, telescope_class=telescope_class, author_name=author_name
-        )
-        telescope = render_template(
-            telescope_path, telescope_module=telescope_module, telescope_class=telescope_class, author_name=author_name
-        )
-        test = render_template(
-            test_path, telescope_module=telescope_module, telescope_class=telescope_class, author_name=author_name
-        )
+        dag = render_template(dag_path, telescope_module=telescope_module, telescope_class=telescope_class)
+        telescope = render_template(telescope_path, telescope_module=telescope_module, telescope_class=telescope_class)
+        test = render_template(test_path, telescope_module=telescope_module, telescope_class=telescope_class)
         doc = render_template(
             doc_path,
             telescope_module=telescope_module,
@@ -147,13 +145,14 @@ class GenerateCommand:
         schema = render_template(schema_path)
 
         # Get paths to files
-        observatory_dir = module_file_path("observatory.platform", nav_back_steps=-4)
-
-        dag_dst_dir = module_file_path("observatory.dags.dags")
+        dag_dst_dir = os.path.join(dags_folder, "dags")
         dag_dst_file = os.path.join(dag_dst_dir, f"{telescope_module}.py")
 
-        telescope_dst_dir = module_file_path("observatory.dags.telescopes")
+        telescope_dst_dir = os.path.join(dags_folder, "telescopes")
         telescope_dst_file = os.path.join(telescope_dst_dir, f"{telescope_module}.py")
+
+        #TODO set to right folder once repositories are split
+        observatory_dir = get_observatory_dir()
 
         test_dst_dir = os.path.join(observatory_dir, "tests", "observatory", "dags", "telescopes")
         test_dst_file = os.path.join(test_dst_dir, f"test_{telescope_module}.py")
@@ -161,7 +160,7 @@ class GenerateCommand:
         doc_dst_dir = os.path.join(observatory_dir, "docs", "telescopes")
         doc_dst_file = os.path.join(doc_dst_dir, f"{telescope_module}.md")
 
-        schema_dst_dir = module_file_path("observatory.dags.database.schema")
+        schema_dst_dir = os.path.join(dags_folder, "database", "schema")
         schema_dst_file = os.path.join(schema_dst_dir, f"{telescope_module}_{datetime.now().strftime('%Y-%m-%d')}.json")
 
         # Write out files
@@ -203,3 +202,12 @@ def write_telescope_file_template(file_path: str, template: str, file_type: str)
     with open(file_path, "w") as f:
         f.write(template)
     print(f"- Created a new {file_type} file: {file_path}")
+
+
+def get_observatory_dir():
+    """ Return path to dir where docs and tests are stored, for now this is in observatory platform, but will change
+    once the repositories are split.
+
+    :return: Path to observatory platform dir
+    """
+    return module_file_path("observatory.platform", nav_back_steps=-4)
