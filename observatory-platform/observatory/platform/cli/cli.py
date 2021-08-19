@@ -289,7 +289,10 @@ def config(command: str, config_path: str, interactive: bool):
     # Make the generate command, which encapsulates functionality for generating data
     cmd = GenerateCommand()
 
-    install_odags = True if os.environ["install_odags"] == "y" else False
+    install_odags = False
+
+    if "install_odags" in os.environ and os.environ["install_odags"] == "y":
+        install_odags = True
 
     cmd_func = None
     config_name = ""

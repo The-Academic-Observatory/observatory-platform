@@ -74,6 +74,11 @@ def make_expected_env(cmd: PlatformBuilder) -> Dict:
     }
 
 
+class MockCompleteProccess:
+    def __init__(self, returncode):
+        self.returncode = returncode
+
+
 class TestPlatformBuilder(unittest.TestCase):
     def setUp(self) -> None:
         self.is_env_local = True
@@ -140,18 +145,22 @@ class TestPlatformBuilder(unittest.TestCase):
     def test_is_docker_running_true(self, mock_subprocess_run):
         """Test the property is_docker_running returns True when Docker is running"""
 
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-            cmd = self.make_platform_command()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            self.save_config(config_path, t)
+            cmd = PlatformBuilder(config_path=config_path)
+            print(f"is it running {cmd.is_docker_running}")
             self.assertTrue(cmd.is_docker_running)
 
     @patch("observatory.platform.platform_builder.subprocess.run", return_value=MockCompleteProccess(1))
     def test_is_docker_running_false(self, mock_subprocess_run):
         """Test the property is_docker_running returns False when Docker is not running"""
 
-        with CliRunner().isolated_filesystem():
-            self.set_dirs()
-            cmd = self.make_platform_command()
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            self.save_config(config_path, t)
+            cmd = PlatformBuilder(config_path=config_path)
+            print(f"is it running {cmd.is_docker_running}")
             self.assertFalse(cmd.is_docker_running)
 
     def test_make_observatory_files(self):
