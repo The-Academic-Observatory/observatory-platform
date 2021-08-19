@@ -1,0 +1,9 @@
+repos:
+-   repo: local
+    hooks:
+      - id: add-jira-id
+        name: Add Jira ID from branch name
+        description: Finds Jira ID from branch name and adds as prefix to commit message
+        entry: ./bin/prefix_commit_jira.sh
+        language: script
+        stages: [prepare-commit-msg]
