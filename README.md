@@ -127,11 +127,6 @@ Install the `observatory-dags` package (optional):
 pip3 install -e observatory-dags
 ```
 
-Install the `observatory-reports` package (optional):
-```bash
-pip3 install -e observatory-reports
-```
-
 ## Observatory Platform development environment
 
 ### Prepare configuration files
