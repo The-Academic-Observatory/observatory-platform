@@ -344,7 +344,8 @@ class InteractiveConfigBuilder:
         config.observatory.observatory_home = observatory_home
 
         text = "Enter postgres password"
-        postgres_password = click.prompt(text=text, type=str)
+        default = config.observatory.postgres_password
+        postgres_password = click.prompt(text=text, type=str, default=default, show_default=True)
         config.observatory.postgres_password = postgres_password
 
         text = "Redis port"
