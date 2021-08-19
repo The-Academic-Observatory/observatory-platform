@@ -156,8 +156,8 @@ class Observatory:
 
     airflow_fernet_key: str = field(default_factory=generate_fernet_key)
     airflow_secret_key: str = field(default_factory=generate_secret_key)
-    airflow_ui_user_password: str = "airflow@airflow.com"
-    airflow_ui_user_email: str = "airflow"
+    airflow_ui_user_email: str = "airflow@airflow.com"
+    airflow_ui_user_password: str = "airflow"
     observatory_home: str = default_observatory_home()
     postgres_password: str = "postgres"
     redis_port: int = 6379
