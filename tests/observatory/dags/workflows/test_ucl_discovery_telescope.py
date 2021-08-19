@@ -204,7 +204,7 @@ class TestUclDiscoveryTelescope(ObservatoryTestCase):
                 self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
     @patch("observatory.dags.telescopes.ucl_discovery.retry_session")
-    @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_download(self, mock_variable_get, mock_retry_session):
         """Test download method of UCL Discovery release
 

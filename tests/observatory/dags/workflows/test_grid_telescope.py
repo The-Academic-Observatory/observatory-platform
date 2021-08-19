@@ -60,7 +60,7 @@ def side_effect(arg):
     return values[arg]
 
 
-@patch("observatory.platform.utils.template_utils.AirflowVariable.get")
+@patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
 class TestGridTelescope(unittest.TestCase):
     """Tests for the functions used by the GRID telescope"""
 
@@ -84,7 +84,7 @@ class TestGridTelescope(unittest.TestCase):
         self.list_grid_records_path = os.path.join(self.vcr_cassettes_path, "list_grid_releases.yaml")
 
         # Contains GRID releases 2015-09-22 and 2015-10-09 (format for both is .csv and .json files)
-        with patch("observatory.platform.utils.template_utils.AirflowVariable.get") as mock_variable_get:
+        with patch("observatory.platform.utils.workflow_utils.AirflowVariable.get") as mock_variable_get:
             mock_variable_get.side_effect = side_effect
             self.grid_run_2015_10_18 = {
                 "start_date": pendulum.datetime(2015, 10, 11),

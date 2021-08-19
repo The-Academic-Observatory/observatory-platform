@@ -259,7 +259,7 @@ class TestOapenIrusUkTelescope(ObservatoryTestCase):
                 # Delete oapen bucket
                 env._delete_bucket(OapenIrusUkTelescope.OAPEN_BUCKET)
 
-    @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     @patch("observatory.dags.telescopes.oapen_irus_uk.upload_source_code_to_bucket")
     @patch("observatory.dags.telescopes.oapen_irus_uk.cloud_function_exists")
     @patch("observatory.dags.telescopes.oapen_irus_uk.create_cloud_function")
@@ -349,7 +349,7 @@ class TestOapenIrusUkTelescope(ObservatoryTestCase):
             with self.assertRaises(AirflowException):
                 release.create_cloud_function(telescope.max_active_runs)
 
-    @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     @patch("observatory.dags.telescopes.oapen_irus_uk.BaseHook.get_connection")
     @patch("observatory.dags.telescopes.oapen_irus_uk.get_publisher_uuid")
     @patch("observatory.dags.telescopes.oapen_irus_uk.call_cloud_function")
@@ -425,7 +425,7 @@ class TestOapenIrusUkTelescope(ObservatoryTestCase):
 
     @patch("observatory.dags.telescopes.oapen_irus_uk.upload_file_to_cloud_storage")
     @patch("observatory.dags.telescopes.oapen_irus_uk.create_cloud_storage_bucket")
-    @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_upload_source_code_to_bucket(self, mock_variable_get, mock_create_bucket, mock_upload_to_bucket):
         """Test getting source code from oapen irus uk release and uploading to storage bucket.
         Test expected results both when md5 hashes match and when they don't.

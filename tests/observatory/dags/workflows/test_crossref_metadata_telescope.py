@@ -202,7 +202,7 @@ class TestCrossrefMetadataTelescope(ObservatoryTestCase):
                 release.download()
 
     @patch("observatory.dags.telescopes.crossref_metadata.subprocess.Popen")
-    @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_extract(self, mock_variable_get, mock_subprocess):
         """Test extract method of release with failing extract command
 

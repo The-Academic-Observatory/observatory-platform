@@ -270,7 +270,7 @@ class TestGoogleBooksTelescope(ObservatoryTestCase):
                     env.run_task(telescope.cleanup.__name__, dag, execution_date)
                     self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
-    @patch("observatory.platform.utils.template_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_transform(self, mock_variable_get):
         """Test sanity check in transform method when transaction date falls outside release month
 
