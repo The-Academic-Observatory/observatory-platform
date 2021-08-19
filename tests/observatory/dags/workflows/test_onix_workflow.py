@@ -35,8 +35,8 @@ from observatory.platform.utils.gc_utils import (
     run_bigquery_query,
     upload_files_to_cloud_storage,
 )
-from observatory.platform.utils.telescope_utils import make_dag_id
-from observatory.platform.utils.template_utils import (
+from observatory.platform.utils.workflow_utils import make_dag_id
+from observatory.platform.utils.workflow_utils import (
     bq_load_partition,
     bq_load_shard_v2,
     table_ids_from_path,

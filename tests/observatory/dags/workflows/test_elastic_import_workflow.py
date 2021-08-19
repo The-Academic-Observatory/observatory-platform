@@ -41,7 +41,7 @@ from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import load_file, load_jsonl
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.jinja2_utils import render_template
-from observatory.platform.utils.telescope_utils import make_dag_id
+from observatory.platform.utils.workflow_utils import make_dag_id
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,

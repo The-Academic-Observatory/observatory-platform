@@ -19,7 +19,7 @@ from typing import Tuple
 
 import click
 import observatory.dags.dags
-import observatory.dags.telescopes
+import observatory.dags.workflows
 import observatory.templates
 from cryptography.fernet import Fernet
 from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig

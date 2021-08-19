@@ -102,7 +102,7 @@ from observatory.platform.utils.file_utils import (
     crc32c_base64_hash,
     gzip_file_crc,
 )
-from observatory.platform.utils.template_utils import reset_variables
+from observatory.platform.utils.workflow_utils import reset_variables
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 

@@ -39,8 +39,8 @@ from observatory.platform.elastic.elastic import (
     make_sharded_index,
 )
 from observatory.platform.elastic.kibana import Kibana, ObjectType, TimeField
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease
-from observatory.platform.telescopes.telescope import Telescope
+from observatory.platform.workflows.snapshot_workflow import SnapshotRelease
+from observatory.platform.workflows.workflow import Workflow
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.file_utils import (
     load_file,
@@ -536,7 +536,7 @@ class ElasticImportRelease(SnapshotRelease):
         return all(results)
 
 
-class ElasticImportWorkflow(Telescope):
+class ElasticImportWorkflow(Workflow):
     def __init__(
         self,
         *,
@@ -639,7 +639,7 @@ class ElasticImportWorkflow(Telescope):
 
         # Push table ids and release date
         ti: TaskInstance = kwargs["ti"]
-        ti.xcom_push(Telescope.RELEASE_INFO, {"release_date": release_date.format("YYYYMMDD"), "table_ids": table_ids})
+        ti.xcom_push(Workflow.RELEASE_INFO, {"release_date": release_date.format("YYYYMMDD"), "table_ids": table_ids})
 
         return True
 
@@ -655,7 +655,7 @@ class ElasticImportWorkflow(Telescope):
 
         ti: TaskInstance = kwargs["ti"]
         record = ti.xcom_pull(
-            key=Telescope.RELEASE_INFO, task_ids=self.list_release_info.__name__, include_prior_dates=False
+            key=Workflow.RELEASE_INFO, task_ids=self.list_release_info.__name__, include_prior_dates=False
         )
 
         release_date = pendulum.parse(record["release_date"])

@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.sensors.external_task import ExternalTaskSensor
 from observatory.dags.config import workflow_sql_templates_path
-from observatory.platform.telescopes.telescope import Telescope
+from observatory.platform.workflows.workflow import Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars, set_task_state
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
@@ -264,7 +264,7 @@ def make_elastic_tables(
     return tables
 
 
-class DoiWorkflow(Telescope):
+class DoiWorkflow(Workflow):
     INT_DATASET_ID = "observatory_intermediate"
     INT_DATASET_DESCRIPTION = "Intermediate processing dataset for the Academic Observatory."
     DASHBOARDS_DATASET_ID = "coki_dashboards"

@@ -36,7 +36,7 @@ from observatory.platform.utils.gc_utils import (
     load_bigquery_table,
     upload_files_to_cloud_storage,
 )
-from observatory.platform.utils.template_utils import find_schema, schema_path
+from observatory.platform.utils.workflow_utils import find_schema, schema_path
 from observatory.platform.utils.test_utils import test_fixtures_path
 
 LICENSES = ["cc-by", None]

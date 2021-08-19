@@ -26,13 +26,13 @@ from airflow.exceptions import AirflowException
 from airflow.sensors.external_task import ExternalTaskSensor
 from google.cloud.bigquery import SourceFormat
 from observatory.dags.config import workflow_sql_templates_path
-from observatory.dags.telescopes.onix import OnixTelescope
+from observatory.dags.workflows.onix_telescope import OnixTelescope
 from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
 from observatory.dags.workflows.onix_work_aggregation import (
     BookWorkAggregator,
     BookWorkFamilyAggregator,
 )
-from observatory.platform.telescopes.telescope import AbstractRelease, Telescope
+from observatory.platform.workflows.workflow import AbstractRelease, Workflow
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
@@ -43,8 +43,8 @@ from observatory.platform.utils.gc_utils import (
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.jinja2_utils import render_template
-from observatory.platform.utils.telescope_utils import make_dag_id
-from observatory.platform.utils.template_utils import (
+from observatory.platform.utils.workflow_utils import make_dag_id
+from observatory.platform.utils.workflow_utils import (
     bq_load_shard_v2,
     table_ids_from_path,
 )
@@ -215,7 +215,7 @@ def make_table_id(*, project_id: str, dataset_id: str, table_id: str, end_date: 
     return new_table_id
 
 
-class OnixWorkflow(Telescope):
+class OnixWorkflow(Workflow):
     """This workflow telescope:
     1. [Not implemented] Creates an ISBN13-> internal identifier lookup table.
     2. Creates an ISBN13 -> WorkID lookup table.

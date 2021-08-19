@@ -28,10 +28,10 @@ from observatory.platform.utils.config_utils import (
     observatory_home,
     terraform_credentials_path,
 )
-from observatory.platform.utils.template_utils import (
+from observatory.platform.utils.workflow_utils import (
     SubFolder,
     reset_variables,
-    telescope_path,
+    workflow_path,
     test_data_path,
 )
 from tests.observatory.test_utils import test_fixtures_path
