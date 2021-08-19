@@ -87,6 +87,10 @@ function ask_config_observatory_base() {
 }
 
 function configure_install_options() {
+    echo "================================"
+    echo "Configuring installation options"
+    echo "================================"
+
     while :
     do
         ask_install_observatory_tests
@@ -95,9 +99,14 @@ function configure_install_options() {
         ask_config_type
         ask_config_observatory_base
 
-        echo -e "\nConfiguration:"
+        echo -e "\n"
+
+        echo "=========================================================="
+        echo -e "Installation configuration summary:"
+        echo "----------------------------------------------------------"
         echo "Operating system: $os_human, architecture: $arch"
-        echo "Install Observatory Platform $observatory_version: y"
+        echo "Observatory platform version: $observatory_version"
+        echo "Install Observatory Platform: y"
         echo "Install extra developer testing packages: $install_test_extras"
         echo "Install Observatory API: $install_oapi"
         echo "Install Observatory DAGs: $install_odags"
@@ -113,7 +122,7 @@ function configure_install_options() {
         echo "Packer: $packer_version"
         echo "Google Cloud SDK: $google_cloud_sdk_version"
         fi
-
+        echo "=========================================================="
         echo -e "\n"
 
         local correct=""
@@ -133,7 +142,10 @@ function configure_install_options() {
 }
 
 function install_google_cloud_sdk() {
+    echo "==========================="
     echo "Installing Google Cloud SDK"
+    echo "==========================="
+
     local url="https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${google_cloud_sdk_version}-${os}-${gcloud_sdk_arch}.tar.gz"
     sudo curl -L $url -o /usr/local/bin/google-cloud-sdk.tar.gz
     sudo rm -rf /usr/local/bin/google-cloud-sdk
@@ -144,6 +156,10 @@ function install_google_cloud_sdk() {
 }
 
 function install_terraform_deps() {
+    echo "================================="
+    echo "Installing Terraform dependencies"
+    echo "================================="
+
     echo "Installing Packer"
     local url="https://releases.hashicorp.com/packer/${packer_version}/packer_${packer_version}_${os}_${terraform_arch}.zip"
     sudo rm -f /usr/local/bin/packer
@@ -166,7 +182,10 @@ function install_terraform_deps() {
 }
 
 function install_ubuntu_system_deps() {
+    echo "====================================="
     echo "Installing Ubuntu system dependencies"
+    echo "====================================="
+
     sudo apt update
     sudo apt-get install -y software-properties-common curl git python3.8 python3.8-dev python3-pip
 
@@ -192,7 +211,9 @@ function install_ubuntu_system_deps() {
 }
 
 function install_macos_system_deps() {
+    echo "====================================="
     echo "Installing Mac OS system dependencies"
+    echo "====================================="
 
     if [ "$(command -v brew)" = "" ]; then
         echo "Installing Homebrew"
@@ -236,7 +257,9 @@ function install_observatory_platform() {
     echo "Updating the virtual environment's Python packages"
     pip3 install -U pip virtualenv wheel
 
+    echo "==========================================="
     echo "Installing the observatory-platform package"
+    echo "==========================================="
     if [ "$install_test_extras" = "y" ]; then
         pip install -e observatory-platform[tests]
     else
@@ -256,7 +279,9 @@ function install_observatory_api() {
     echo "Activating the virtual environment for the observatory platform"
     source $venv_observatory_platform/bin/activate
 
+    echo "=========================="
     echo "Installing Observatory API"
+    echo "=========================="
     pip3 install -e observatory-api
 
     echo -e "Deactivating observatory platform virtual environment"
@@ -277,7 +302,9 @@ function install_observatory_dags() {
     echo "Activating the virtual environment for the observatory platform"
     source $venv_observatory_platform/bin/activate
 
+    echo "==========================="
     echo "Installing Observatory DAGs"
+    echo "==========================="
     pip3 install -e observatory-dags
 
     echo -e "Deactivating observatory platform virtual environment"
@@ -295,6 +322,10 @@ function generate_observatory_config() {
         interactive="--interactive"
     fi
 
+    echo "============================="
+    echo "Generating Observatory config"
+    echo "============================="
+
     if [ "$config_type" = "local" ]; then
        observatory generate config local $interactive
     elif [ "$config_type" = "terraform" ]; then
@@ -308,7 +339,9 @@ function generate_observatory_config() {
 
 #### ENTRY POINT ####
 
+echo "=================================================================================================================================="
 echo "Installing Academic Observatory Platform. You may be prompted at some stages to enter in a password to install system dependencies"
+echo "=================================================================================================================================="
 check_system
 install_system_deps
 configure_install_options
@@ -317,6 +350,7 @@ install_observatory_api
 install_observatory_dags
 generate_observatory_config
 
+echo "=================================================================================================================================="
 echo "Installation complete."
 echo "Please restart your computer for the docker installation to take effect."
 echo -e "You can start the observatory platform after the restart by first activating the Python virtual environment with:\n  source $(pwd)/$venv_observatory_platform/bin/activate"
