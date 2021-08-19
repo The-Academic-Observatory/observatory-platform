@@ -17,18 +17,14 @@
 import json
 import os
 import unittest
-from typing import Any
-from typing import List
-from unittest.mock import Mock
-from unittest.mock import patch
+from typing import Any, List
+from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
-
 from observatory.platform.cli.cli import cli
 from observatory.platform.docker.compose import ProcessOutput
-from observatory.platform.observatory_config import TerraformConfig
-from observatory.platform.observatory_config import ValidationError
-from observatory.platform.platform_builder import HOST_UID, HOST_GID, DEBUG
+from observatory.platform.observatory_config import TerraformConfig, ValidationError
+from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
 from observatory.platform.terraform_api import TerraformApi
 from tests.observatory.test_utils import random_id
 
@@ -37,7 +33,7 @@ class TestObservatoryGenerate(unittest.TestCase):
     @patch("click.confirm")
     @patch("os.path.exists")
     def test_generate(self, mock_path_exists, mock_click_confirm):
-        """ Test that the fernet key and default config files are generated """
+        """Test that the fernet key and default config files are generated"""
 
         # Test generate fernet key
         runner = CliRunner()
@@ -105,7 +101,7 @@ class MockConfig(Mock):
         return self._errors
 
 
-class MockPlatformCommand(Mock):
+class MockPlatformCommand:
     def __init__(
         self,
         is_environment_valid: bool,
@@ -122,7 +118,7 @@ class MockPlatformCommand(Mock):
         dags_path: str,
         **kwargs: Any,
     ):
-        super().__init__(**kwargs)
+        # super().__init__(**kwargs)
         self.is_environment_valid = is_environment_valid
         self.docker_exe_path = docker_exe_path
         self.is_docker_running = is_docker_running
@@ -162,7 +158,7 @@ class MockPlatformCommand(Mock):
 class TestObservatoryPlatform(unittest.TestCase):
     @patch("observatory.platform.cli.cli.PlatformCommand")
     def test_platform_start_stop_success(self, mock_cmd):
-        """ Test that the start and stop command are successful """
+        """Test that the start and stop command are successful"""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -182,6 +178,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             stop_return_code = 0
             wait_for_airflow_ui = True
             dags_path = "/path/to/dags"
+
             mock_cmd.return_value = MockPlatformCommand(
                 is_environment_valid,
                 docker_exe_path,
@@ -204,6 +201,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             # Test that stop command works
             result = runner.invoke(cli, ["platform", "stop", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
+
 
     @patch("observatory.platform.cli.cli.PlatformCommand")
     def test_platform_start_fail(self, mock_cmd):

@@ -76,7 +76,7 @@ class GenerateCommand:
             )
         ]
 
-    def generate_local_config(self, *, config_path: str, install_odags: bool):
+    def generate_local_config(self, config_path: str, install_odags: bool = False):
         """Command line user interface for generating an Observatory Config config.yaml.
 
         :param config_path: the path where the config file should be saved.
@@ -93,7 +93,7 @@ class GenerateCommand:
 
         click.echo(f'{file_type} saved to: "{config_path}"')
 
-    def generate_terraform_config(self, *, config_path: str, install_odags: bool):
+    def generate_terraform_config(self, config_path: str, install_odags: bool = False):
         """Command line user interface for generating a Terraform Config config-terraform.yaml.
 
         :param config_path: the path where the config file should be saved.
@@ -109,10 +109,6 @@ class GenerateCommand:
         config.save(path=config_path)
 
         click.echo(f'{file_type} saved to: "{config_path}"')
-        click.echo(
-            "Please customise the parameters with '<--' in the config file. "
-            "Parameters commented out with '#' are optional."
-        )
 
     def get_telescope_template_path_(self, telescope_type: str) -> Tuple[str, str]:
         """
