@@ -1,4 +1,4 @@
-{# Copyright 2020 Curtin University
+{#- Copyright 2020 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Author: Tuan Chien #}
-
+# Author: Tuan Chien -#}
 import logging
-import pendulum
-
 from typing import List
-from observatory.platform.telescopes.telescope import Release, Telescope
+
+import pendulum
+from observatory.platform.workflows.workflow import Release, Workflow
 
 
-class {{ telescope_name }}Release(Release):
-    def __init__(self, *, dag_id: str, release_date: str):
+class {{ workflow_class }}Release(Release):
+    def __init__(self, *, dag_id: str, release_date: pendulum.DateTime):
         """Construct a Release instance
         :param dag_id: the id of the DAG.
         :param release_id: the id of the release.
@@ -32,11 +31,19 @@ class {{ telescope_name }}Release(Release):
         release_id = f'{dag_id}_{self.release_date.strftime("%Y_%m_%d")}'
         super().__init__(dag_id=dag_id, release_id=release_id)
 
-class {{ telescope_name }}(Telescope):
-    DAG_ID = "{{ telescope_name }}"
 
-    def __init__(self, *, dag_id: str = DAG_ID, start_date: pendulum.DateTime = pendulum.datetime(2021,7,1), schedule_interval="@weekly", catchup=False):
-        """Construct a Telescope instance.
+class {{ workflow_class }}(Workflow):
+    DAG_ID = "{{ workflow_module }}"
+
+    def __init__(
+        self,
+        *,
+        dag_id: str = DAG_ID,
+        start_date: pendulum.DateTime = pendulum.datetime(2021, 7, 1),
+        schedule_interval="@weekly",
+        catchup=False,
+    ):
+        """Construct a {{ workflow_class }}Workflow instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -68,18 +75,18 @@ class {{ telescope_name }}(Telescope):
         """
 
         releases = list()
-        release = {{ telescope_name }}Release(dag_id=self.dag_id, release_date=self.start_date)
+        release = {{ workflow_class }}Release(dag_id=self.dag_id, release_date=self.start_date)
         releases.append(release)
         return releases
 
-    def task1(self, releases: List[{{ telescope_name }}Release], **kwargs):
+    def task1(self, releases: List[{{ workflow_class }}Release], **kwargs):
         """ Add your own comments. """
 
         pass
 
-    def cleanup(self, releases: List[{{ telescope_name }}Release], **kwargs):
+    def cleanup(self, releases: List[{{ workflow_class }}Release], **kwargs):
         """ Delete downloaded, extracted and transformed files of the release.
-        :param releases: List of {{ telescope_name }}Release instances
+        :param releases: List of {{ workflow_class }}Release instances
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """

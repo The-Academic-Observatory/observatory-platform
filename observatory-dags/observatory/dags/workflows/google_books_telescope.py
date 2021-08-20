@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud import bigquery
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.workflows.snapshot_workflow import (
+from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
     SnapshotTelescope,
 )

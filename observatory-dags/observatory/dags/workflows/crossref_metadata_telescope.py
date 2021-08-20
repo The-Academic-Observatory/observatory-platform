@@ -32,7 +32,7 @@ import requests
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from natsort import natsorted
-from observatory.platform.workflows.snapshot_workflow import (
+from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
     SnapshotTelescope,
 )

@@ -1,4 +1,4 @@
-{# Copyright 2020 Curtin University
+{#- Copyright 2020 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Author: Tuan Chien #}
-
+# Author: Tuan Chien -#}
 from typing import List
 import pendulum
 from observatory.platform.telescopes.stream_telescope import StreamRelease, StreamTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars
 
+
 # You could also use the StreamRelease directly if it is fit for purpose.
-class {{ telescope_name }}Release(StreamRelease):
+class {{ workflow_class }}Release(StreamRelease):
     def __init__(self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime, first_release: bool):
-        """ Construct a {{ telescope_name }}Release instance
+        """ Construct a {{ workflow_class }}Release instance
 
         :param dag_id: the id of the DAG.
         :param start_date: the start_date of the release.
@@ -32,15 +32,23 @@ class {{ telescope_name }}Release(StreamRelease):
         super().__init__(dag_id, start_date, end_date, first_release)
 
 
-class {{ telescope_name }}(StreamTelescope):
-    DAG_ID = "{{ telescope_name }}"
+class {{ workflow_class }}(StreamTelescope):
+    DAG_ID = "{{ workflow_module }}"
 
-    def __init__(self, dag_id: str = DAG_ID, start_date: pendulum.DateTime = pendulum.datetime(2018, 5, 14),
-                 schedule_interval: str = '@weekly', dataset_id: str = 'your_dataset_id',
-                 dataset_description: str = 'The your_dataset_name dataset: https://dataseturl',
-                 merge_partition_field: str = 'id', updated_date_field: str = 'timestamp',
-                 bq_merge_days: int = 7, batch_load: bool = True, airflow_vars: List = None):
-        """ Construct a {{ telescope_name }} telescope instance.
+    def __init__(
+        self,
+        dag_id: str = DAG_ID,
+        start_date: pendulum.DateTime = pendulum.datetime(2018, 5, 14),
+        schedule_interval: str = "@weekly",
+        dataset_id: str = "your_dataset_id",
+        dataset_description: str = "The your_dataset_name dataset: https://dataseturl",
+        merge_partition_field: str = "id",
+        updated_date_field: str = "timestamp",
+        bq_merge_days: int = 7,
+        batch_load: bool = True,
+        airflow_vars: List = None,
+    ):
+        """ Construct a {{ workflow_class }} telescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -80,20 +88,20 @@ class {{ telescope_name }}(StreamTelescope):
         # cleanup
         self.add_task(self.cleanup)  # From StreamTelescope
 
-    def make_release(self, **kwargs) -> {{ telescope_name }}Release:
+    def make_release(self, **kwargs) -> {{ workflow_class }}Release:
         """ Make a Release instance
 
         :param kwargs: The context passed from the PythonOperator.
-        :return: {{ telescope_name }}Release
+        :return: {{ workflow_class }}Release
         """
         ti: TaskInstance = kwargs['ti']
-        start_date, end_date, first_release = ti.xcom_pull(key={{ telescope_name }}.RELEASE_INFO,
+        start_date, end_date, first_release = ti.xcom_pull(key={{ workflow_class }}.RELEASE_INFO,
                                                            include_prior_dates=True)
 
-        release = {{ telescope_name }}Release(self.dag_id, pendulum.parse(start_date), pendulum.parse(end_date), first_release)
+        release = {{ workflow_class }}Release(self.dag_id, pendulum.parse(start_date), pendulum.parse(end_date), first_release)
         return release
 
-    def task1(self, release: {{ telescope_name }}Release, **kwargs):
+    def task1(self, release: {{ workflow_class }}Release, **kwargs):
         """ Add your own comments. """
 
         pass

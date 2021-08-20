@@ -34,7 +34,7 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
-from observatory.platform.workflows.stream_workflow import (
+from observatory.platform.workflows.stream_telescope import (
     StreamRelease,
     StreamTelescope,
 )

@@ -36,7 +36,7 @@ from google.cloud.bigquery import SourceFormat
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import Resource, build
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.workflows.snapshot_workflow import (
+from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
     SnapshotTelescope,
 )

@@ -222,17 +222,26 @@ def generate():
 
 
 @generate.command()
-@click.argument("telescope_type", nargs=1)
-@click.argument("telescope_name", nargs=1)
-def telescope(telescope_type: str, telescope_name: str):
-    """Generate boiler plate code for a new telescope.
+@click.argument(
+    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True),
+)
+@click.argument("package_name", type=str)
+@click.argument("workflow_type", type=click.Choice(["Workflow", "StreamTelescope", "SnapshotTelescope"]))
+@click.argument("workflow_name", type=str)
+def workflow(project_path: str, package_name: str, workflow_type: str, workflow_name: str):
+    """Generate boiler plate code for a new workflow.
 
-    telescope_type: Type of telescope. Options are Telescope, StreamTelescope, SnapshotTelescope.
-    telescope_name: Name of your new telescope.
+    project_path: The Python project path.
+    package_name: The Python package name.
+    workflow_type: Type of workflow. Options are Workflow, StreamTelescope, SnapshotTelescope.
+    workflow_name: Name of your new workflow.
     """
 
+    # TODO: project path and package name should be inferred somehow
     cmd = GenerateCommand()
-    cmd.generate_new_telescope(telescope_type, telescope_name)
+    cmd.generate_new_workflow(
+        project_path=project_path, package_name=package_name, workflow_type=workflow_type, workflow_name=workflow_name
+    )
 
 
 @generate.command()

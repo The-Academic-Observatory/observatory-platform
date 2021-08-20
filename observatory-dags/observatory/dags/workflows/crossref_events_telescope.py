@@ -27,7 +27,7 @@ import pendulum
 import requests
 from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
-from observatory.platform.workflows.stream_workflow import (
+from observatory.platform.workflows.stream_telescope import (
     StreamRelease,
     StreamTelescope,
 )

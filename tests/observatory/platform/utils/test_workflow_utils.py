@@ -15,20 +15,41 @@
 # Author: James Diprose, Aniek Roelofs
 
 import copy
+import datetime
+import json
 import os
 import unittest
-from datetime import datetime
-from unittest.mock import Mock, patch
-import pendulum
+from unittest.mock import Mock
+from unittest.mock import patch
+from urllib.parse import quote
 
+import dateutil
+import paramiko
+import pendulum
+import pysftp
 from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.exceptions import AirflowException
+from airflow.models.connection import Connection
 from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
+
 from observatory.dags.config import schema_path
-from observatory.platform.workflows.snapshot_workflow import SnapshotRelease, SnapshotTelescope
-from observatory.platform.workflows.stream_workflow import StreamRelease, StreamTelescope
+from observatory.platform.utils.file_utils import (
+    gzip_file_crc,
+    list_to_jsonl_gz,
+    load_jsonl,
+)
+from observatory.platform.utils.workflow_utils import (
+    PeriodCount,
+    ScheduleOptimiser,
+    get_prev_execution_date,
+    make_dag_id,
+    make_observatory_api,
+    make_sftp_connection,
+    make_workflow_sensor,
+    normalized_schedule_interval,
+)
 from observatory.platform.utils.workflow_utils import (
     SubFolder,
     blob_name,
@@ -50,38 +71,8 @@ from observatory.platform.utils.workflow_utils import (
     upload_files_from_list,
 )
 from observatory.platform.utils.workflow_utils import add_partition_date
-import datetime
-import json
-import os
-import unittest
-from unittest.mock import patch
-from urllib.parse import quote
-
-import dateutil
-import paramiko
-import pendulum
-import pysftp
-from airflow.models.connection import Connection
-from click.testing import CliRunner
-from observatory.platform.utils.file_utils import (
-    gzip_file_crc,
-    list_to_jsonl_gz,
-    load_jsonl,
-)
-from observatory.platform.utils.workflow_utils import (
-    PeriodCount,
-    ScheduleOptimiser,
-    get_prev_execution_date,
-    make_dag_id,
-    make_observatory_api,
-    make_sftp_connection,
-    make_workflow_sensor,
-    normalized_schedule_interval,
-)
-
-
-
-
+from observatory.platform.workflows.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope
 from tests.observatory.test_utils import random_id
 
 
@@ -89,7 +80,7 @@ class MockSnapshotTelescope(SnapshotTelescope):
     def __init__(
         self,
         dag_id: str = "dag_id",
-        start_date: datetime = datetime(2021, 1, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2021, 1, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = random_id(),
         source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
@@ -111,14 +102,14 @@ class MockSnapshotTelescope(SnapshotTelescope):
         )
 
     def make_release(self, **kwargs):
-        return SnapshotRelease(self.dag_id, datetime(2021, 3, 1), transform_files_regex="file.txt")
+        return SnapshotRelease(self.dag_id, pendulum.datetime(2021, 3, 1), transform_files_regex="file.txt")
 
 
 class MockStreamTelescope(StreamTelescope):
     def __init__(
         self,
         dag_id: str = "dag_id",
-        start_date: datetime = datetime(2021, 1, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2021, 1, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = random_id(),
         merge_partition_field: str = "id",
@@ -145,7 +136,11 @@ class MockStreamTelescope(StreamTelescope):
 
     def make_release(self, **kwargs):
         return StreamRelease(
-            self.dag_id, datetime(2021, 2, 1), datetime(2021, 3, 1), False, transform_files_regex="file.txt"
+            self.dag_id,
+            pendulum.datetime(2021, 2, 1),
+            pendulum.datetime(2021, 3, 1),
+            False,
+            transform_files_regex="file.txt",
         )
 
 
@@ -221,7 +216,7 @@ class TestTemplateUtils(unittest.TestCase):
 
     def test_add_partition_date(self):
         list_of_dicts = [{"k1a": "v2a"}, {"k1b": "v2b"}, {"k1c": "v2c"}]
-        partition_date = datetime(2020, 1, 1)
+        partition_date = datetime.datetime(2020, 1, 1)
 
         # Add partition date with default partition_type and partition_field
         result = add_partition_date(copy.deepcopy(list_of_dicts), partition_date)
@@ -260,7 +255,7 @@ class TestTemplateUtils(unittest.TestCase):
 
     def test_create_date_table_id(self):
         table_id = "table"
-        date = datetime(2020, 1, 1)
+        date = datetime.datetime(2020, 1, 1)
         time_type = bigquery.TimePartitioningType
 
         type_map = {time_type.HOUR: "%Y%m%d%H", time_type.DAY: "%Y%m%d", time_type.MONTH: "%Y%m", time_type.YEAR: "%Y"}
@@ -270,7 +265,7 @@ class TestTemplateUtils(unittest.TestCase):
             date_str = date_table_id.split("$")[1]
 
             self.assertEqual(table_id, orginal_table_id)
-            self.assertIsInstance(datetime.strptime(date_str, date_format), datetime)
+            self.assertIsInstance(datetime.datetime.strptime(date_str, date_format), datetime.datetime)
 
         with self.assertRaises(TypeError):
             create_date_table_id(table_id, date, "error")
@@ -694,8 +689,8 @@ class TestTemplateUtils(unittest.TestCase):
             mock_copy_bigquery_table.return_value = True
 
             telescope, release = setup(MockStreamTelescope)
-            start_date = datetime(2020, 2, 1)
-            end_date = datetime(2020, 2, 3)
+            start_date = pendulum.datetime(2020, 2, 1)
+            end_date = pendulum.datetime(2020, 2, 3)
 
             for transform_path in release.transform_files:
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
@@ -840,9 +835,6 @@ def setup(telescope_class, mock_variable_get, mock_airflowvariable_get):
             f.write("data")
 
     return telescope, release
-
-
-
 
 
 class TestWorkflowUtils(unittest.TestCase):

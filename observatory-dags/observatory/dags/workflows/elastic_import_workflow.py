@@ -39,7 +39,7 @@ from observatory.platform.elastic.elastic import (
     make_sharded_index,
 )
 from observatory.platform.elastic.kibana import Kibana, ObjectType, TimeField
-from observatory.platform.workflows.snapshot_workflow import SnapshotRelease
+from observatory.platform.workflows.snapshot_telescope import SnapshotRelease
 from observatory.platform.workflows.workflow import Workflow
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.file_utils import (

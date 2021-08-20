@@ -1,4 +1,4 @@
-{# Copyright 2020 Curtin University
+{#- Copyright 2020 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,15 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Author: Tuan Chien #}
-
+# Author: Tuan Chien -#}
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
 )
 
-class Test{{ telescope_name }}(ObservatoryTestCase):
-    """ Tests for the {{ telescope_name }} telescope """
+
+class Test{{ workflow_class }}(ObservatoryTestCase):
+    """ Tests for the {{ workflow_class }} telescope """
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -28,7 +28,7 @@ class Test{{ telescope_name }}(ObservatoryTestCase):
         :param kwargs: keyword arguments.
         """
 
-        super(Test{{ telescope_name }}, self).__init__(*args, **kwargs)
+        super(Test{{ workflow_class }}, self).__init__(*args, **kwargs)
 
     def test_some_method(self):
         pass

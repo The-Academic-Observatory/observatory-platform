@@ -23,7 +23,7 @@ from typing import Tuple
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-from observatory.platform.workflows.stream_workflow import (
+from observatory.platform.workflows.stream_telescope import (
     StreamRelease,
     StreamTelescope,
 )

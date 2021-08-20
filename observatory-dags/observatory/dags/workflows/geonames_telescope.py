@@ -29,7 +29,7 @@ import pendulum
 import requests
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from observatory.platform.workflows.snapshot_workflow import (
+from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
     SnapshotTelescope,
 )

@@ -33,7 +33,7 @@ import requests
 from airflow.api.common.experimental.pool import create_pool
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-from observatory.platform.workflows.snapshot_workflow import (
+from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
     SnapshotTelescope,
 )

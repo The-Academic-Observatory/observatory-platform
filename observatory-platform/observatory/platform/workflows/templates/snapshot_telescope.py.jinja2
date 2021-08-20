@@ -1,4 +1,4 @@
-{# Copyright 2020 Curtin University
+{#- Copyright 2020 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,19 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Author: Tuan Chien #}
-
-from observatory.platform.telescopes.snapshot_telescope import SnapshotRelease, SnapshotTelescope
-from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-
+# Author: Tuan Chien -#}
 from typing import List, Dict
+
 import pendulum
-import os
+from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.workflows.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+
 
 # You could also use the SnapshotRelease directly if it is fit for purpose.
-class {{ telescope_name }}Release(SnapshotRelease):
+class {{ workflow_class }}Release(SnapshotRelease):
     def __init__(self, dag_id: str, release_date: pendulum.DateTime):
-        """ Create a {{ telescope_name }}Release instance.
+        """ Create a {{ workflow_class }}Release instance.
 
         :param dag_id: the DAG id.
         :param release_date: the date of the release.
@@ -32,13 +31,13 @@ class {{ telescope_name }}Release(SnapshotRelease):
         super().__init__(dag_id, release_date)
 
 
-class {{ telescope_name }}(SnapshotTelescope):
-    DAG_ID = "{{ telescope_name }}"
+class {{ workflow_class }}(SnapshotTelescope):
+    DAG_ID = "{{ workflow_module }}"
 
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: pendulum.DateTime = pendulum.datetime(2021,7,1),
+        start_date: pendulum.DateTime = pendulum.datetime(2021, 7, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = "your_dataset_id",
         dataset_description: str = "The your_dataset dataset: https://dataseturl/",
@@ -47,10 +46,9 @@ class {{ telescope_name }}(SnapshotTelescope):
         airflow_vars: List = None,
         airflow_conns: List = None,
         max_active_runs: int = 1,
-        max_processes: int = min(32, os.cpu_count() + 4),
     ):
 
-        """ The {{ telescope_name }} telescope
+        """ The {{ workflow_class }} telescope
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -62,7 +60,6 @@ class {{ telescope_name }}(SnapshotTelescope):
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
-        :param max_processes: the number of max workers used in ThreadPoolExecutor to transform files in parallel.
         """
 
         if table_descriptions is None:
@@ -104,17 +101,16 @@ class {{ telescope_name }}(SnapshotTelescope):
         # self.add_task(self.bq_load)  # From SnapshotTelescope
         self.add_task(self.cleanup)  # From SnapshotTelescope
 
-
-    def make_release(self, **kwargs) -> List[{{ telescope_name }}Release]:
+    def make_release(self, **kwargs) -> List[{{ workflow_class }}Release]:
         """ Make release instances.
 
         :param kwargs: the context passed from the PythonOperator.
-        :return: a list of {{ telescope_name }}Release instances.
+        :return: a list of {{ workflow_class }}Release instances.
         """
 
         release_date = kwargs["execution_date"]
-        return [{{ telescope_name }}Release(self.dag_id, release_date)]
+        return [{{ workflow_class }}Release(self.dag_id, release_date)]
 
-    def task1(self, releases: List[{{ telescope_name }}Release], **kwargs):
+    def task1(self, releases: List[{{ workflow_class }}Release], **kwargs):
         """ Add your own comment. """
         pass

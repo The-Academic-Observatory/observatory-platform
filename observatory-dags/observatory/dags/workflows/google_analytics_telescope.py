@@ -28,7 +28,7 @@ from google.cloud import bigquery
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.workflows.snapshot_workflow import (
+from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
     SnapshotTelescope,
 )
