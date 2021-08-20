@@ -43,7 +43,7 @@ class GenerateCommand:
         :return: the Fernet key.
         """
 
-        return str(Fernet.generate_key())
+        return Fernet.generate_key()
 
     def generate_local_config(self, config_path: str):
         """Command line user interface for generating an Observatory Config config.yaml.
@@ -113,7 +113,7 @@ class GenerateCommand:
         # Standardise names
         package_name = stringcase.snakecase(package_name)
         workflow_class = stringcase.capitalcase(stringcase.camelcase(workflow_name))
-        workflow_module = stringcase.snakecase(stringcase.lowercase(workflow_name))
+        workflow_module = stringcase.lowercase(stringcase.snakecase(workflow_name))
         workflow_file = f"{workflow_module}.py"
 
         # Destination folders e.g.
