@@ -21,7 +21,7 @@ from airflow.operators.python import (
     PythonOperator,
     ShortCircuitOperator,
 )
-from observatory.platform.tasks.terraform import TerraformTasks
+from observatory.platform.workflows.terraform import TerraformTasks
 
 default_args = {"owner": "airflow", "start_date": pendulum.datetime(2020, 1, 1)}
 
