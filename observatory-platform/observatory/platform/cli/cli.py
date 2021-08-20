@@ -229,12 +229,38 @@ def generate():
 @click.argument("workflow_type", type=click.Choice(["Workflow", "StreamTelescope", "SnapshotTelescope"]))
 @click.argument("workflow_name", type=str)
 def workflow(project_path: str, package_name: str, workflow_type: str, workflow_name: str):
-    """Generate boiler plate code for a new workflow.
+    """Generate a new workflow.
 
-    project_path: The Python project path.
-    package_name: The Python package name.
-    workflow_type: Type of workflow. Options are Workflow, StreamTelescope, SnapshotTelescope.
-    workflow_name: Name of your new workflow.
+    \b
+    PROJECT_PATH is the Python project path.
+    PACKAGE_NAME is the Python package name.
+    WORKFLOW_TYPE is the type of workflow.
+    WORKFLOW_NAME is the the name of your new workflow.
+
+    \b
+    For example, the command: observatory generate workflow /path/to/my-workflows-project my_workflows_project Workflow MyWorkflow
+
+    \b Will generate the following files and folders:
+
+    \b
+    └── my-workflows-project
+        ├── docs
+        │   ├── index.rst
+        │   └── my_workflow.md
+        ├── my_workflows_project
+        │   ├── dags
+        │   │   ├── __init__.py
+        │   │   └── my_workflow.py
+        │   ├── __init__.py
+        │   └── workflows
+        │       ├── __init__.py
+        │       └── my_workflow.py
+        └── tests
+            └── my_workflows_project
+                ├── __init__.py
+                └── workflows
+                    ├── __init__.py
+                    └── test_my_workflow.py
     """
 
     # TODO: project path and package name should be inferred somehow

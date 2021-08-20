@@ -135,7 +135,8 @@ class GenerateCommand:
         tests_package_folder = os.path.join(project_path, "tests", package_name)
         init_paths = [package_folder, tests_package_folder, workflow_dst_dir, dags_dst_dir, test_dst_dir]
         for path in init_paths:
-            open(os.path.join(path, "__init__.py"), "w").close()
+            if not os.path.isfile(path):
+                open(os.path.join(path, "__init__.py"), "a").close()
 
         # Destination files
         workflow_dst_file = os.path.join(workflow_dst_dir, workflow_file)
