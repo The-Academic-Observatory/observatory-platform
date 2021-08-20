@@ -26,7 +26,6 @@ class {{ workflow_class }}Release(Release):
         :param release_id: the id of the release.
         """
 
-        self.dag_id = dag_id
         self.release_date = release_date
         release_id = f'{dag_id}_{self.release_date.strftime("%Y_%m_%d")}'
         super().__init__(dag_id=dag_id, release_id=release_id)
@@ -52,10 +51,10 @@ class {{ workflow_class }}(Workflow):
         """
 
         super().__init__(
-            dag_id=self.dag_id,
-            start_date=self.start_date,
-            schedule_interval=self.schedule_interval,
-            catchup=self.catchup,
+            dag_id=dag_id,
+            start_date=start_date,
+            schedule_interval=schedule_interval,
+            catchup=catchup,
         )
 
         # Add sensor tasks
