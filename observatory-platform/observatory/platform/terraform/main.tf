@@ -466,7 +466,7 @@ module "airflow_variables" {
 ########################################################################################################################
 
 module "airflow_connections" {
-  for_each = var.airflow_connections
+  for_each = toset(nonsensitive(keys(var.airflow_connections)))
   source = "./secret"
   secret_id = "airflow-connections-${each.key}"
   secret_data = each.value

@@ -57,4 +57,5 @@ EOF
     api_key = string
     host = string
   })
+  sensitive = true
 }
