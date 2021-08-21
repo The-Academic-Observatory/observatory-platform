@@ -17,11 +17,9 @@
 import os
 import subprocess
 import unittest
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
-
 from observatory.platform.observatory_config import save_yaml
 from observatory.platform.terraform_builder import TerraformBuilder
 from observatory.platform.utils.proc_utils import stream_process
@@ -48,8 +46,8 @@ class TestTerraformBuilder(unittest.TestCase):
             "backend": {"type": "terraform", "environment": "develop"},
             "observatory": {
                 "observatory_home": observatory_home,
-                "airflow_fernet_key": "random-fernet-key",
-                "airflow_secret_key": "random-secret-key",
+                "airflow_fernet_key": "ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
+                "airflow_secret_key": "a" * 16,
                 "airflow_ui_user_password": "password",
                 "airflow_ui_user_email": "password",
                 "postgres_password": "my-password",
@@ -94,7 +92,7 @@ class TestTerraformBuilder(unittest.TestCase):
 
     @unittest.skip
     def test_packer_exe_path(self):
-        """ Test that the path to the Packer executable is found """
+        """Test that the path to the Packer executable is found"""
 
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
@@ -104,7 +102,7 @@ class TestTerraformBuilder(unittest.TestCase):
             self.assertTrue(result.endswith("packer"))
 
     def test_build_terraform(self):
-        """ Test building of the terraform files """
+        """Test building of the terraform files"""
 
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
@@ -159,7 +157,7 @@ class TestTerraformBuilder(unittest.TestCase):
     @patch("subprocess.Popen")
     @patch("observatory.platform.terraform_builder.stream_process")
     def test_build_image(self, mock_stream_process, mock_subprocess):
-        """ Test building of the observatory platform """
+        """Test building of the observatory platform"""
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
@@ -183,7 +181,7 @@ class TestTerraformBuilder(unittest.TestCase):
     @patch("subprocess.Popen")
     @patch("observatory.platform.terraform_builder.stream_process")
     def test_gcloud_activate_service_account(self, mock_stream_process, mock_subprocess):
-        """ Test activating the gcloud service account """
+        """Test activating the gcloud service account"""
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
@@ -207,7 +205,7 @@ class TestTerraformBuilder(unittest.TestCase):
     @patch("subprocess.Popen")
     @patch("observatory.platform.terraform_builder.stream_process")
     def test_gcloud_builds_submit(self, mock_stream_process, mock_subprocess):
-        """ Test gcloud builds submit command """
+        """Test gcloud builds submit command"""
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
@@ -229,7 +227,7 @@ class TestTerraformBuilder(unittest.TestCase):
             self.assertEqual(expected_return_code, return_code)
 
     def test_build_api_image(self):
-        """ Test building API image using Docker """
+        """Test building API image using Docker"""
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:

@@ -256,13 +256,13 @@ class InteractiveConfigBuilder:
 
         if backend_type == BackendType.local:
             config = ObservatoryConfig(dags_projects=dags_projects)
-        elif backend_type == BackendType.terraform:
+        else:
             config = TerraformConfig(dags_projects=dags_projects)
 
         # Common sections for all backends
         InteractiveConfigBuilder.config_backend(config=config, backend_type=backend_type)
         InteractiveConfigBuilder.config_observatory(config)
-        InteractiveConfigBuilder.config_terraform(config=config, backend_type=backend_type)
+        InteractiveConfigBuilder.config_terraform(config)
         InteractiveConfigBuilder.config_google_cloud(config)
         InteractiveConfigBuilder.config_airflow_connections(config)
         InteractiveConfigBuilder.config_airflow_variables(config)
@@ -313,14 +313,14 @@ class InteractiveConfigBuilder:
         fernet_key = click.prompt(text=text, type=str, default=default)
 
         if fernet_key != "":
-            config.airflow_fernet_key = fernet_key
+            config.observatory.airflow_fernet_key = fernet_key
 
         text = "Enter an Airflow secret key (leave blank to autogenerate)"
         default = ""
         secret_key = click.prompt(text=text, type=str, default=default)
 
         if secret_key != "":
-            config.airflow_secret_key = secret_key
+            config.observatory.airflow_secret_key = secret_key
 
         text = "Enter an email address to use for logging into the Airflow web interface"
         default = config.observatory.airflow_ui_user_email
@@ -386,6 +386,10 @@ class InteractiveConfigBuilder:
         :param config: Configuration object to edit.
         """
 
+        zone = None
+        region = None
+        buckets = list()
+
         if not config.schema["google_cloud"]["required"]:
             text = "Do you want to configure Google Cloud settings?"
             proceed = click.confirm(text=text, default=False, abort=False, show_default=True)
@@ -402,24 +406,24 @@ class InteractiveConfigBuilder:
         default = "us"
         data_location = click.prompt(text=text, type=str, default=default, show_default=True)
 
-        text = "Region"
-        default = "us-west1"
-        region = click.prompt(text=text, type=str, default=default, show_default=True)
+        if config.backend.type == BackendType.terraform:
+            text = "Region"
+            default = "us-west1"
+            region = click.prompt(text=text, type=str, default=default, show_default=True)
 
-        text = "Zone"
-        default = "us-west1-a"
-        zone = click.prompt(text=text, type=str, default=default, show_default=True)
+            text = "Zone"
+            default = "us-west1-a"
+            zone = click.prompt(text=text, type=str, default=default, show_default=True)
 
-        text = "Download bucket name"
-        download_bucket = click.prompt(text=text, type=str)
+        if config.backend.type == BackendType.local:
+            text = "Download bucket name"
+            download_bucket = click.prompt(text=text, type=str)
 
-        text = "Transform bucket name"
-        transform_bucket = click.prompt(text=text, type=str)
+            text = "Transform bucket name"
+            transform_bucket = click.prompt(text=text, type=str)
 
-        buckets = [
-            CloudStorageBucket(id="download_bucket", name=download_bucket),
-            CloudStorageBucket(id="transform_bucket", name=transform_bucket),
-        ]
+            buckets.append(CloudStorageBucket(id="download_bucket", name=download_bucket))
+            buckets.append(CloudStorageBucket(id="transform_bucket", name=transform_bucket))
 
         config.google_cloud = GoogleCloud(
             project_id=project_id,
@@ -431,7 +435,7 @@ class InteractiveConfigBuilder:
         )
 
     @staticmethod
-    def config_terraform(*, config: Union[ObservatoryConfig, TerraformConfig], backend_type: BackendType):
+    def config_terraform(config: Union[ObservatoryConfig, TerraformConfig]):
         """Configure the Terraform section.
 
         :param config: Configuration object to edit.
@@ -443,10 +447,10 @@ class InteractiveConfigBuilder:
             if not proceed:
                 return
 
-        if backend_type == BackendType.local:
+        if config.backend.type == BackendType.local:
             suffix = " (leave blank to disable)"
             default = ""
-        elif backend_type == BackendType.terraform:
+        else:
             suffix = ""
             default = None
 
@@ -567,24 +571,18 @@ class InteractiveConfigBuilder:
         config.dags_projects.extend(projects)
 
     @staticmethod
-    def config_cloud_sql_database(config: Union[ObservatoryConfig, TerraformConfig]):
+    def config_cloud_sql_database(config: TerraformConfig):
         """Configure the cloud SQL database section.
 
         :param config: Configuration object to edit.
         """
-
-        if not config.schema["cloud_sql_database"]["required"]:
-            text = "Do you want to configure Terraform settings?"
-            proceed = click.confirm(text=text, default=False, abort=False, show_default=True)
-            if not proceed:
-                return
 
         click.echo("Configuring the Google Cloud SQL Database")
 
         text = "Google CloudSQL db tier"
         tier = click.prompt(text=text, type=str)
 
-        text = "Google CloudSQL backup start time, e.g., '13:00'"
+        text = "Google CloudSQL backup start time, e.g., 13:00"
         backup_start_time = click.prompt(text=text, type=str)
 
         config.cloud_sql_database = CloudSqlDatabase(
@@ -593,13 +591,13 @@ class InteractiveConfigBuilder:
         )
 
     @staticmethod
-    def config_airflow_main_vm(config: Union[ObservatoryConfig, TerraformConfig]):
+    def config_airflow_main_vm(config: TerraformConfig):
         """Configure the Airflow main virtual machine section.
 
         :param config: Configuration object to edit.
         """
 
-        click.echo("Configuring settings for the main VM that runs the Airflow scheduler and webserver")
+        click.echo("Configuring settings for the main VM that   runs the Airflow scheduler and webserver")
 
         text = "Machine type, e.g., n2-standard-2"
         machine_type = click.prompt(text=text, type=str)
@@ -622,7 +620,7 @@ class InteractiveConfigBuilder:
         )
 
     @staticmethod
-    def config_airflow_worker_vm(config: Union[ObservatoryConfig, TerraformConfig]):
+    def config_airflow_worker_vm(config: TerraformConfig):
         """Configure the Airflow worker virtual machine section.
 
         :param config: Configuration object to edit.
@@ -651,7 +649,7 @@ class InteractiveConfigBuilder:
         )
 
     @staticmethod
-    def config_elasticsearch(config: Union[ObservatoryConfig, TerraformConfig]):
+    def config_elasticsearch(config: TerraformConfig):
         """Configure the ElasticSearch section.
 
         :param config: Configuration object to edit.
@@ -671,7 +669,7 @@ class InteractiveConfigBuilder:
         )
 
     @staticmethod
-    def config_api(config: Union[ObservatoryConfig, TerraformConfig]):
+    def config_api(config: TerraformConfig):
         """Configure the API section.
 
         :param config: Configuration object to edit.
@@ -686,9 +684,9 @@ class InteractiveConfigBuilder:
 
         text = "Subdomain scheme"
         choices = click.Choice(choices=["project_id", "environment"], case_sensitive=False)
-        subdomain_type = click.prompt(text=text, type=choices, show_default=True, show_choices=True)
+        subdomain = click.prompt(text=text, type=choices, show_default=True, show_choices=True)
 
         config.api = Api(
             domain_name=domain_name,
-            subdomain=subdomain_type,
+            subdomain=subdomain,
         )

@@ -17,13 +17,14 @@
 
 from __future__ import annotations
 
+import base64
 import binascii
 import io
 import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, ClassVar, Dict, List, Tuple, Union
+from typing import Any, Callable, ClassVar, Dict, List, Tuple, Union
 
 import cerberus.validator
 import yaml
@@ -55,7 +56,7 @@ def generate_secret_key(length: int = 30) -> str:
     :return: the random key.
     """
 
-    return str(binascii.b2a_hex(os.urandom(length)))
+    return binascii.b2a_hex(os.urandom(length)).decode("utf-8")
 
 
 def save_yaml(file_path: str, dict_: Dict):
@@ -594,6 +595,91 @@ class Api:
         return Api(domain_name, subdomain)
 
 
+def is_base64(text: bytes) -> bool:
+    """Check if the string is base64.
+    :param text: Text to check.
+    :return: Whether it is base64.
+    """
+
+    try:
+        base64.decodebytes(text)
+    except:
+        return False
+
+    return True
+
+
+def is_secret_key(key: str) -> Tuple[bool, Union[str, None]]:
+    """Check if the Airflow Flask webserver secret key is valid.
+    :param key: Key to check.
+    :return: Validity, and an error message if not valid.
+    """
+
+    key_bytes = bytes(key, "utf-8")
+    message = None
+
+    key_length = len(key_bytes)
+    if key_length < 16:
+        message = f"Secret key should be length >=16, but is length {key_length}."
+        return False, message
+
+    valid = is_base64(key_bytes)
+
+    if not valid:
+        message = "Key is not base64."
+
+    return valid, message
+
+
+def is_fernet_key(key: str) -> Tuple[bool, Union[str, None]]:
+    """Check if the Fernet key is valid.
+    :param key: Key to check.
+    :return: Validity, and an error message if not valid.
+    """
+
+    key_bytes = bytes(key, "utf-8")
+
+    try:
+        decoded_key = base64.urlsafe_b64decode(key_bytes)
+    except:
+        message = "Key could not be urlsafe b64decoded."
+        return False, message
+
+    key_length = len(decoded_key)
+    if key_length != 32:
+        message = f"Decoded Fernet key should be length 32, but is length {key_length}."
+        return False, message
+
+    message = None
+    return True, message
+
+
+def check_schema_field_fernet_key(field: str, value: str, error: Callable):
+    """
+    :param field: Field name.
+    :param value: Field value.
+    :param error: Error handler passed in by Cerberus.
+    """
+
+    valid, message = is_fernet_key(value)
+
+    if not valid:
+        error(field, f"is not a valid Fernet key. Reason: {message}")
+
+
+def check_schema_field_secret_key(field: str, value: str, error: Callable):
+    """
+    :param field: Field name.
+    :param value: Field value.
+    :param error: Error handler passed in by Cerberus.
+    """
+
+    valid, message = is_secret_key(value)
+
+    if not valid:
+        error(field, f"is not a valid secret key. Reason: {message}")
+
+
 def customise_pointer(field, value, error):
     """Throw an error when a field contains the value ' <--' which means that the user should customise the
     value in the config file.
@@ -671,7 +757,6 @@ class ObservatoryConfig:
 
         self.google_cloud = google_cloud
         self.terraform = terraform
-
         self.airflow_variables = airflow_variables if airflow_variables is not None else list()
         self.airflow_connections = airflow_connections if airflow_connections is not None else list()
         self.dags_projects = dags_projects if dags_projects is not None else list()
@@ -1200,7 +1285,7 @@ class TerraformConfig(ObservatoryConfig):
                 "# The subdomain type determines what kind of subdomains will be created for access."
                 "# The options are: project_id, environment"
                 "# If project_id is selected, the project_id will be used for API access for that project, e.g., project_id.domain_name"
-                "# If environment is selected, the environment parameter will be used, e.g., production.domain_name"
+                "# If environment is selected, the environment parameter will be used, e.g., production.domain_name\n"
             )
         )
         lines = ObserveratoryConfigString.api(self.api)
@@ -1276,8 +1361,8 @@ def make_schema(backend_type: BackendType) -> Dict:
         "required": True,
         "type": "dict",
         "schema": {
-            "airflow_fernet_key": {"required": True, "type": "string"},
-            "airflow_secret_key": {"required": True, "type": "string"},
+            "airflow_fernet_key": {"required": True, "type": "string", "check_with": check_schema_field_fernet_key},
+            "airflow_secret_key": {"required": True, "type": "string", "check_with": check_schema_field_secret_key},
             "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
             "airflow_ui_user_email": {"required": is_backend_terraform, "type": "string"},
             "observatory_home": {"required": False, "type": "string"},
@@ -1493,7 +1578,7 @@ class ObserveratoryConfigString:
         if backend.type == BackendType.terraform:
             lines.append(indent(f"region: {google_cloud.region}\n", INDENT1))
             lines.append(indent(f"zone: {google_cloud.zone}\n", INDENT1))
-        elif backend.type == BackendType.local:
+        else:
             lines.append(indent("buckets:\n", INDENT1))
             for bucket in google_cloud.buckets:
                 lines.append(indent(f"{bucket.id}: {bucket.name}\n", INDENT3))
@@ -1593,7 +1678,7 @@ class ObserveratoryConfigString:
         lines = [
             "cloud_sql_database:\n",
             indent(f"tier: {cloud_sql_database.tier}\n", INDENT1),
-            indent(f"backup_start_time: {cloud_sql_database.backup_start_time}\n", INDENT1),
+            indent(f"backup_start_time: '{cloud_sql_database.backup_start_time}'\n", INDENT1),
         ]
 
         return lines

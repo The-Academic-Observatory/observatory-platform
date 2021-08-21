@@ -88,8 +88,8 @@ class TestPlatformBuilder(unittest.TestCase):
             "backend": {"type": "local", "environment": "develop"},
             "observatory": {
                 "observatory_home": observatory_home,
-                "airflow_fernet_key": "random-fernet-key",
-                "airflow_secret_key": "random-secret-key",
+                "airflow_fernet_key": "ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
+                "airflow_secret_key": "f95d60dc61b3a2b703ece8904b93947af88c2f609df8855514af097ea254",
             },
         }
 
@@ -230,7 +230,7 @@ class TestPlatformBuilder(unittest.TestCase):
             backend = Backend(type=BackendType.local, environment=Environment.develop)
             observatory = Observatory(
                 observatory_home=t,
-                airflow_fernet_key="DOJLLgvRnhy51gxLbxznn4w7MxD5kZ53bOZEoPr8wCg=",
+                airflow_fernet_key="ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
                 airflow_secret_key="f95d60dc61b3a2b703ece8904b93947af88c2f609df8855514af097ea254",
             )
             google_cloud = GoogleCloud(

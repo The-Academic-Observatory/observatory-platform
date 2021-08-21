@@ -202,10 +202,9 @@ class TestObservatoryPlatform(unittest.TestCase):
             result = runner.invoke(cli, ["platform", "stop", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
 
-
     @patch("observatory.platform.cli.cli.PlatformCommand")
     def test_platform_start_fail(self, mock_cmd):
-        """ Test that the start command error messages and return codes """
+        """Test that the start command error messages and return codes"""
 
         # Check that no config file generates an error
         runner = CliRunner()
@@ -356,7 +355,7 @@ class TestObservatoryTerraform(unittest.TestCase):
     @patch("click.confirm")
     @patch("observatory.platform.observatory_config.TerraformConfig.load")
     def test_terraform_create_update(self, mock_load_config, mock_click_confirm):
-        """ Test creating and updating a terraform cloud workspace"""
+        """Test creating and updating a terraform cloud workspace"""
 
         # Create token json
         token_json = {"credentials": {"app.terraform.io": {"token": self.token}}}
@@ -385,8 +384,8 @@ class TestObservatoryTerraform(unittest.TestCase):
                 {
                     "backend": {"type": "terraform", "environment": "develop"},
                     "observatory": {
-                        "airflow_fernet_key": "random-fernet-key",
-                        "airflow_secret_key": "random-secret-key",
+                        "airflow_fernet_key": "ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
+                        "airflow_secret_key": "a" * 16,
                         "airflow_ui_user_password": "password",
                         "airflow_ui_user_email": "password",
                         "postgres_password": "my-password",
@@ -487,7 +486,7 @@ class TestObservatoryTerraform(unittest.TestCase):
 
     @patch("observatory.platform.observatory_config.TerraformConfig.load")
     def test_terraform_check_dependencies(self, mock_load_config):
-        """ Test that checking for dependencies prints the correct output when files are missing"""
+        """Test that checking for dependencies prints the correct output when files are missing"""
         runner = CliRunner()
         with runner.isolated_filesystem() as working_dir:
             credentials_file_path = os.path.join(working_dir, "google_application_credentials.json")
@@ -526,8 +525,8 @@ class TestObservatoryTerraform(unittest.TestCase):
                 {
                     "backend": {"type": "terraform", "environment": "develop"},
                     "observatory": {
-                        "airflow_fernet_key": "random-fernet-key",
-                        "airflow_secret_key": "random-secret-key",
+                        "airflow_fernet_key": "ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
+                        "airflow_secret_key": "a" * 16,
                         "airflow_ui_user_password": "password",
                         "airflow_ui_user_email": "password",
                         "postgres_password": "my-password",

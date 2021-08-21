@@ -19,17 +19,34 @@ import pathlib
 import random
 import string
 import unittest
-from typing import List, Dict
+from typing import Dict, List
 
 import yaml
 from click.testing import CliRunner
-
+from cryptography.fernet import Fernet
 from observatory.platform.observatory_config import (
-    make_schema,
+    AirflowConnection,
+    AirflowVariable,
+    Api,
+    Backend,
     BackendType,
+    CloudSqlDatabase,
+    CloudStorageBucket,
+    DagsProject,
+    ElasticSearch,
+    Environment,
+    GoogleCloud,
+    Observatory,
     ObservatoryConfig,
-    TerraformConfig,
     ObservatoryConfigValidator,
+    Terraform,
+    TerraformConfig,
+    VirtualMachine,
+    generate_fernet_key,
+    is_base64,
+    is_fernet_key,
+    is_secret_key,
+    make_schema,
     save_yaml,
 )
 
@@ -44,8 +61,8 @@ class TestObservatoryConfigValidator(unittest.TestCase):
         }
 
     def test_validate_google_application_credentials(self):
-        """ Check if an error occurs for pointing to a file that does not exist when the
-        'google_application_credentials' tag is present in the schema. """
+        """Check if an error occurs for pointing to a file that does not exist when the
+        'google_application_credentials' tag is present in the schema."""
 
         with CliRunner().isolated_filesystem():
             # Make google application credentials
@@ -68,7 +85,10 @@ class TestObservatoryConfig(unittest.TestCase):
         # Test that a minimal configuration works
         dict_ = {
             "backend": {"type": "local", "environment": "develop"},
-            "observatory": {"airflow_fernet_key": "random-fernet-key", "airflow_secret_key": "random-secret-key"},
+            "observatory": {
+                "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                "airflow_secret_key": "a" * 16,
+            },
         }
 
         file_path = "config-valid-minimal.yaml"
@@ -96,7 +116,10 @@ class TestObservatoryConfig(unittest.TestCase):
                         "transform_bucket": "my-transform-bucket-1234",
                     },
                 },
-                "observatory": {"airflow_fernet_key": "random-fernet-key", "airflow_secret_key": "random-secret-key"},
+                "observatory": {
+                    "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                    "airflow_secret_key": "a" * 16,
+                },
                 "airflow_variables": {"my-variable-name": "my-variable-value"},
                 "airflow_connections": {"my-connection": "http://:my-token-key@"},
                 "dags_projects": [
@@ -172,8 +195,8 @@ class TestTerraformConfig(unittest.TestCase):
             dict_ = {
                 "backend": {"type": "terraform", "environment": "develop"},
                 "observatory": {
-                    "airflow_fernet_key": "random-fernet-key",
-                    "airflow_secret_key": "random-secret-key",
+                    "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                    "airflow_secret_key": "a" * 16,
                     "airflow_ui_user_password": "password",
                     "airflow_ui_user_email": "password",
                     "postgres_password": "my-password",
@@ -218,8 +241,8 @@ class TestTerraformConfig(unittest.TestCase):
             dict_ = {
                 "backend": {"type": "terraform", "environment": "develop"},
                 "observatory": {
-                    "airflow_fernet_key": "random-fernet-key",
-                    "airflow_secret_key": "random-secret-key",
+                    "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                    "airflow_secret_key": "a" * 16,
                     "airflow_ui_user_password": "password",
                     "airflow_ui_user_email": "password",
                     "postgres_password": "my-password",
@@ -511,11 +534,16 @@ class TestSchema(unittest.TestCase):
         schema_key = "observatory"
 
         valid_docs = [
-            {"observatory": {"airflow_fernet_key": "random-fernet-key", "airflow_secret_key": "random-secret-key"}},
             {
                 "observatory": {
-                    "airflow_fernet_key": "password",
-                    "airflow_secret_key": "password",
+                    "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                    "airflow_secret_key": "a" * 16,
+                }
+            },
+            {
+                "observatory": {
+                    "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                    "airflow_secret_key": "a" * 16,
                     "airflow_ui_user_password": "password",
                     "airflow_ui_user_email": "password",
                 }
@@ -665,8 +693,8 @@ class TestSchema(unittest.TestCase):
         valid_docs = [
             {
                 "observatory": {
-                    "airflow_fernet_key": "password",
-                    "airflow_secret_key": "password",
+                    "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                    "airflow_secret_key": "a" * 16,
                     "airflow_ui_user_password": "password",
                     "airflow_ui_user_email": "password",
                     "postgres_password": "password",
@@ -779,3 +807,214 @@ def tmp_config_file(dict_: dict) -> str:
     with open(file_name, "w") as f:
         f.write(content)
     return file_name
+
+
+class TestObservatoryConfigGeneration(unittest.TestCase):
+    def test_get_requirement_string(self):
+        with CliRunner().isolated_filesystem():
+            config = ObservatoryConfig()
+            requirement = config.get_requirement_string("backend")
+            self.assertEqual(requirement, "Required")
+
+            requirement = config.get_requirement_string("google_cloud")
+            self.assertEqual(requirement, "Optional")
+
+    def test_save_observatory_config(self):
+        config = ObservatoryConfig(
+            terraform=Terraform(organization="myorg"),
+            backend=Backend(type=BackendType.local, environment=Environment.staging),
+            observatory=Observatory(
+                observatory_home="home",
+                postgres_password="pass",
+                redis_port=111,
+                airflow_ui_user_password="pass",
+                airflow_ui_user_email="email@email",
+                flower_ui_port=10,
+                airflow_ui_port=23,
+                elastic_port=5345,
+                kibana_port=5123,
+                docker_network_name="name",
+                docker_compose_project_name="proj",
+            ),
+            google_cloud=GoogleCloud(
+                project_id="myproject",
+                credentials="config.yaml",
+                data_location="us",
+                buckets=[CloudStorageBucket(id="id", name="name")],
+            ),
+            airflow_variables=[AirflowVariable(name="var", value="val")],
+            airflow_connections=[AirflowConnection(name="conn", value="https://login:pass@host:port/schema")],
+            dags_projects=[DagsProject(package_name="myname", path="path", dags_module="module")],
+        )
+
+        with CliRunner().isolated_filesystem():
+            file = "config.yaml"
+            config.save(path=file)
+            self.assertTrue(os.path.exists(file))
+
+            loaded = ObservatoryConfig.load(file)
+
+            self.assertEqual(loaded.backend, config.backend)
+            self.assertEqual(loaded.observatory, config.observatory)
+            self.assertEqual(loaded.terraform, config.terraform)
+            self.assertEqual(loaded.google_cloud, config.google_cloud)
+            self.assertEqual(loaded.airflow_connections, config.airflow_connections)
+            self.assertEqual(loaded.airflow_variables, config.airflow_variables)
+            self.assertEqual(loaded.dags_projects, config.dags_projects)
+
+    def test_save_terraform_config(self):
+        config = TerraformConfig(
+            backend=Backend(type=BackendType.terraform, environment=Environment.staging),
+            observatory=Observatory(),
+            google_cloud=GoogleCloud(
+                project_id="myproject",
+                credentials="config.yaml",
+                data_location="us",
+                region="us-west1",
+                zone="us-west1-a",
+            ),
+            terraform=Terraform(organization="myorg"),
+            cloud_sql_database=CloudSqlDatabase(tier="test", backup_start_time="12:00"),
+            airflow_main_vm=VirtualMachine(machine_type="aa", disk_size=1, disk_type="pd-standard", create=False),
+            airflow_worker_vm=VirtualMachine(machine_type="bb", disk_size=1, disk_type="pd-ssd", create=True),
+            elasticsearch=ElasticSearch(host="http://", api_key="key"),
+            api=Api(domain_name="api.something", subdomain="project_id"),
+        )
+
+        file = "config.yaml"
+
+        with CliRunner().isolated_filesystem():
+            config.save(path=file)
+            self.assertTrue(os.path.exists(file))
+            loaded = TerraformConfig.load(file)
+
+            self.assertEqual(loaded.backend, config.backend)
+            self.assertEqual(loaded.terraform, config.terraform)
+            self.assertEqual(loaded.google_cloud, config.google_cloud)
+            self.assertEqual(loaded.observatory, config.observatory)
+            self.assertEqual(loaded.cloud_sql_database, config.cloud_sql_database)
+            self.assertEqual(loaded.airflow_main_vm, config.airflow_main_vm)
+            self.assertEqual(loaded.airflow_worker_vm, config.airflow_worker_vm)
+            self.assertEqual(loaded.elasticsearch, config.elasticsearch)
+            self.assertEqual(loaded.api, config.api)
+
+    def test_save_observatory_config_defaults(self):
+        config = ObservatoryConfig(
+            backend=Backend(type=BackendType.local, environment=Environment.staging),
+        )
+
+        with CliRunner().isolated_filesystem():
+            file = "config.yaml"
+            config.save(path=file)
+            self.assertTrue(os.path.exists(file))
+
+            loaded = ObservatoryConfig.load(file)
+            self.assertEqual(loaded.backend, config.backend)
+            self.assertEqual(loaded.terraform, Terraform(organization=None))
+            self.assertEqual(loaded.google_cloud.project_id, None)
+            self.assertEqual(loaded.observatory, config.observatory)
+
+    def test_save_terraform_config_defaults(self):
+        config = TerraformConfig(
+            backend=Backend(type=BackendType.terraform, environment=Environment.staging),
+            observatory=Observatory(),
+            google_cloud=GoogleCloud(
+                project_id="myproject",
+                credentials="config.yaml",
+                data_location="us",
+                region="us-west1",
+                zone="us-west1-a",
+            ),
+            terraform=Terraform(organization="myorg"),
+        )
+
+        file = "config.yaml"
+
+        with CliRunner().isolated_filesystem():
+            config.save(path=file)
+            self.assertTrue(os.path.exists(file))
+            loaded = TerraformConfig.load(file)
+
+            self.assertEqual(loaded.backend, config.backend)
+            self.assertEqual(loaded.terraform, config.terraform)
+            self.assertEqual(loaded.google_cloud, config.google_cloud)
+            self.assertEqual(loaded.observatory, config.observatory)
+
+            self.assertEqual(
+                loaded.cloud_sql_database,
+                CloudSqlDatabase(
+                    tier="db-custom-2-7680",
+                    backup_start_time="23:00",
+                ),
+            )
+
+            self.assertEqual(
+                loaded.airflow_main_vm,
+                VirtualMachine(
+                    machine_type="n2-standard-2",
+                    disk_size=50,
+                    disk_type="pd-ssd",
+                    create=True,
+                ),
+            )
+
+            self.assertEqual(
+                loaded.airflow_worker_vm,
+                VirtualMachine(
+                    machine_type="n1-standard-8",
+                    disk_size=3000,
+                    disk_type="pd-standard",
+                    create=False,
+                ),
+            )
+
+            self.assertEqual(
+                loaded.elasticsearch,
+                ElasticSearch(
+                    host="https://address.region.gcp.cloud.es.io:port",
+                    api_key="myapikey",
+                ),
+            )
+
+            self.assertEqual(loaded.api, Api(domain_name="api.observatory.academy", subdomain="project_id"))
+
+
+class TestKeyCheckers(unittest.TestCase):
+    def test_is_base64(self):
+        text = b"bWFrZSB0aGlzIHZhbGlk"
+        self.assertTrue(is_base64(text))
+
+        text = b"This is invalid base64"
+        self.assertFalse(is_base64(text))
+
+    def test_is_secret_key(self):
+        text = "invalid length"
+        valid, message = is_secret_key(text)
+        self.assertFalse(valid)
+        self.assertEqual(message, "Secret key should be length >=16, but is length 14.")
+
+        text = "a" * 16
+        valid, message = is_secret_key(text)
+        self.assertTrue(valid)
+        self.assertEqual(message, None)
+
+        text = "This is invalid "
+        valid, message = is_secret_key(text)
+        self.assertFalse(valid)
+        self.assertEqual(message, "Key is not base64.")
+
+    def test_is_fernet_key(self):
+        text = "invalid key"
+        valid, message = is_fernet_key(text)
+        self.assertFalse(valid)
+        self.assertEqual(message, "Key could not be urlsafe b64decoded.")
+
+        text = "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY="
+        valid, message = is_fernet_key(text)
+        self.assertTrue(valid)
+        self.assertEqual(message, None)
+
+        text = "[]}{!*/~inv" * 4
+        valid, message = is_fernet_key(text)
+        self.assertFalse(valid)
+        self.assertEqual(message, "Decoded Fernet key should be length 32, but is length 12.")
