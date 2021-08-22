@@ -165,3 +165,12 @@ def find_schema(
     # No schemas were found
     logging.error("No schema found.")
     return None
+
+
+def utils_templates_path() -> str:
+    """Return the path to the util templates.
+
+    :return: the path.
+    """
+
+    return module_file_path("observatory.platform.utils.templates")

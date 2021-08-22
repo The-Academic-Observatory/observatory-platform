@@ -51,8 +51,6 @@ from google.cloud.bigquery import SourceFormat
 from observatory.api.client.api.observatory_api import ObservatoryApi
 from observatory.api.client.api_client import ApiClient
 from observatory.api.client.configuration import Configuration
-from observatory.dags.config import schema_path
-from observatory.dags.config import workflow_sql_templates_path
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.airflow_utils import (
@@ -60,7 +58,7 @@ from observatory.platform.utils.airflow_utils import (
     AirflowVars,
     create_slack_webhook,
 )
-from observatory.platform.utils.config_utils import find_schema
+from observatory.platform.utils.config_utils import find_schema, utils_templates_path
 from observatory.platform.utils.file_utils import load_file, write_to_file
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
@@ -212,6 +210,7 @@ def create_date_table_id(table_id: str, date: datetime, partition_type: bigquery
 
 
 def prepare_bq_load(
+    schema_path: str,
     dataset_id: str,
     table_id: str,
     release_date: pendulum.datetime,
@@ -224,6 +223,7 @@ def prepare_bq_load(
      - create the dataset if it does not exist yet
      - get the path to the schema
      - return values of project id, bucket name, and data location
+    :param schema_path: the path to the SQL schemas.
     :param dataset_id: Dataset id.
     :param table_id: Table id.
     :param release_date: The release date used for schema lookup.
@@ -246,14 +246,14 @@ def prepare_bq_load(
     create_bigquery_dataset(project_id, dataset_id, data_location, dataset_description)
 
     # Select schema file based on release date
-    analysis_schema_path = schema_path()
-    schema_file_path = find_schema(analysis_schema_path, table_id, release_date, prefix, schema_version)
+    schema_file_path = find_schema(schema_path, table_id, release_date, prefix, schema_version)
     if schema_file_path is None:
         exit(os.EX_CONFIG)
     return project_id, bucket_name, data_location, schema_file_path
 
 
 def prepare_bq_load_v2(
+    schema_path: str,
     project_id: str,
     dataset_id: str,
     dataset_location: str,
@@ -268,6 +268,7 @@ def prepare_bq_load_v2(
      - create the dataset if it does not exist yet
      - get the path to the schema
      - return values of project id, bucket name, and data location
+    :param schema_path: the path to the SQL schemas.
     :param project_id: project id.
     :param dataset_id: Dataset id.
     :param dataset_location: location of dataset.
@@ -284,8 +285,7 @@ def prepare_bq_load_v2(
     create_bigquery_dataset(project_id, dataset_id, dataset_location, dataset_description)
 
     # Select schema file based on release date
-    analysis_schema_path = schema_path()
-    schema_file_path = find_schema(analysis_schema_path, table_id, release_date, prefix, schema_version)
+    schema_file_path = find_schema(schema_path, table_id, release_date, prefix, schema_version)
     if schema_file_path is None:
         exit(os.EX_CONFIG)
     return schema_file_path
@@ -523,7 +523,7 @@ def bq_delete_old(
     partitioned_table = partition_table_id
     merge_condition_field = merge_partition_field
 
-    template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("merge_delete_matched"))
+    template_path = os.path.join(utils_templates_path(), make_sql_jinja2_filename("merge_delete_matched"))
     query = render_template(
         template_path,
         dataset=dataset_id,

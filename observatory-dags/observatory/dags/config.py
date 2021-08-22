@@ -33,3 +33,13 @@ def workflow_sql_templates_path() -> str:
     """
 
     return module_file_path("observatory.dags.database.sql")
+
+
+def make_elastic_mappings_path() -> str:
+    """Get the Elasticsearch mappings path.
+
+    :return: the elastic search schema path.
+    """
+
+    return module_file_path("observatory.dags.database.mappings")
+

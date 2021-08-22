@@ -25,7 +25,7 @@ from observatory.dags.workflows.elastic_import_workflow import (
     load_elastic_mappings_ao,
     load_elastic_mappings_oaebu,
 )
-from observatory.platform.elastic.elastic import make_elastic_mappings_path
+from observatory.dags.config import make_elastic_mappings_path
 from observatory.platform.elastic.kibana import TimeField
 from observatory.platform.utils.workflow_utils import make_dag_id
 

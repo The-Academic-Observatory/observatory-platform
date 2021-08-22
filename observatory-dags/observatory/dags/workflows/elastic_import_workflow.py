@@ -33,14 +33,14 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import TaskInstance
 from airflow.sensors.external_task import ExternalTaskSensor
 from natsort import natsorted
+from pendulum import Date
+
+from observatory.dags.config import make_elastic_mappings_path
 from observatory.platform.elastic.elastic import (
     Elastic,
-    make_elastic_mappings_path,
     make_sharded_index,
 )
 from observatory.platform.elastic.kibana import Kibana, ObjectType, TimeField
-from observatory.platform.workflows.snapshot_telescope import SnapshotRelease
-from observatory.platform.workflows.workflow import Workflow
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.file_utils import (
     load_file,
@@ -54,7 +54,8 @@ from observatory.platform.utils.gc_utils import (
     select_table_shard_dates,
 )
 from observatory.platform.utils.jinja2_utils import render_template
-from pendulum import Date
+from observatory.platform.workflows.snapshot_telescope import SnapshotRelease
+from observatory.platform.workflows.workflow import Workflow
 
 ES_INDEX_STATE_TOPIC_NAME = "es_index_state"
 CSV_TYPES = ["csv", "csv.gz"]
