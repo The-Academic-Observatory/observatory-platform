@@ -34,7 +34,7 @@ from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 
-from observatory.dags.config import schema_path
+from observatory.dags.config import schema_path as default_schema_path
 from observatory.platform.utils.file_utils import (
     gzip_file_crc,
     list_to_jsonl_gz,
@@ -83,6 +83,7 @@ class MockSnapshotTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2021, 1, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = random_id(),
+        schema_path: str = default_schema_path(),
         source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "prefix",
         schema_version: str = "1",
@@ -94,6 +95,7 @@ class MockSnapshotTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            schema_path,
             source_format=source_format,
             schema_prefix=schema_prefix,
             schema_version=schema_version,
@@ -281,11 +283,13 @@ class TestTemplateUtils(unittest.TestCase):
             mock_airflowvariable_get.side_effect = side_effect
             mock_variable_get.side_effect = side_effect
             mock_find_schema.return_value = "schema.json"
+            schema_path = default_schema_path()
 
             telescope, release = setup(MockSnapshotTelescope)
 
             table_id, _ = table_ids_from_path(release.transform_files[0])
             project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
+                schema_path,
                 telescope.dataset_id,
                 table_id,
                 release.release_date,
@@ -299,7 +303,7 @@ class TestTemplateUtils(unittest.TestCase):
             self.assertEqual("US", data_location)
             self.assertEqual("schema.json", schema_file_path)
             mock_find_schema.assert_called_once_with(
-                schema_path(), table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
+                schema_path, table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
             )
             mock_create_bigquery_dataset.assert_called_once_with(
                 project_id, telescope.dataset_id, data_location, telescope.dataset_description
@@ -308,6 +312,7 @@ class TestTemplateUtils(unittest.TestCase):
             mock_find_schema.return_value = None
             with self.assertRaises(SystemExit):
                 prepare_bq_load(
+                    schema_path,
                     telescope.dataset_id,
                     table_id,
                     release.release_date,
@@ -327,12 +332,12 @@ class TestTemplateUtils(unittest.TestCase):
             telescope, release = setup(MockSnapshotTelescope)
             telescope.project_id = "project_id"
             telescope.dataset_location = "us"
-            schema_folder = schema_path()
+            schema_path = default_schema_path()
 
             table_id, _ = table_ids_from_path(release.transform_files[0])
 
             schema_file_path = prepare_bq_load_v2(
-                schema_folder,
+                schema_path,
                 telescope.project_id,
                 telescope.dataset_id,
                 telescope.dataset_location,
@@ -345,7 +350,7 @@ class TestTemplateUtils(unittest.TestCase):
 
             self.assertEqual("schema.json", schema_file_path)
             mock_find_schema.assert_called_once_with(
-                schema_folder, table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
+                schema_path, table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
             )
             mock_create_bigquery_dataset.assert_called_once_with(
                 telescope.project_id, telescope.dataset_id, telescope.dataset_location, telescope.dataset_description
@@ -354,7 +359,7 @@ class TestTemplateUtils(unittest.TestCase):
             mock_find_schema.return_value = None
             with self.assertRaises(SystemExit):
                 prepare_bq_load_v2(
-                    schema_folder,
+                    schema_path,
                     telescope.project_id,
                     telescope.dataset_id,
                     telescope.dataset_location,

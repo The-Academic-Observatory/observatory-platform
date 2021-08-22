@@ -25,7 +25,6 @@ from observatory.platform.elastic.elastic import (
     make_sharded_index,
     make_elastic_uri,
 )
-from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import yield_csv, load_file
 from observatory.platform.utils.test_utils import random_id, test_fixtures_path
 
