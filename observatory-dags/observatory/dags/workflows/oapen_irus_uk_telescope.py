@@ -32,11 +32,9 @@ from google.cloud import bigquery
 from google.oauth2.service_account import IDTokenCredentials
 from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
+
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.workflows.snapshot_telescope import (
-    SnapshotRelease,
-    SnapshotTelescope,
-)
+from observatory.dags.config import schema_path as default_schema_path
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.file_utils import _hash_file, list_to_jsonl_gz
@@ -47,16 +45,20 @@ from observatory.platform.utils.gc_utils import (
     upload_file_to_cloud_storage,
 )
 from observatory.platform.utils.workflow_utils import (
-    add_partition_date,
-    make_dag_id,
-    make_org_id,
-)
-from observatory.platform.utils.workflow_utils import (
     SubFolder,
     blob_name,
     bq_load_partition,
     table_ids_from_path,
     workflow_path,
+)
+from observatory.platform.utils.workflow_utils import (
+    add_partition_date,
+    make_dag_id,
+    make_org_id,
+)
+from observatory.platform.workflows.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
 )
 
 
@@ -250,6 +252,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2018, 1, 1),
         schedule_interval: str = "0 0 14 * *",
         dataset_id: str = "oapen",
+        schema_path: str = default_schema_path(),
         dataset_description: str = "OAPEN dataset",
         table_descriptions: Dict = None,
         catchup: bool = True,
@@ -266,6 +269,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the BigQuery dataset id.
+        :param schema_path: the SQL schema path.
         :param dataset_description: description for the BigQuery dataset.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
         :param catchup:  whether to catchup the DAG or not.
@@ -306,6 +310,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            schema_path,
             dataset_description=dataset_description,
             catchup=catchup,
             airflow_vars=airflow_vars,

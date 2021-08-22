@@ -23,7 +23,6 @@ import pendulum
 from observatory.platform.elastic.elastic import (
     Elastic,
     make_sharded_index,
-    make_elastic_mappings_path,
     make_elastic_uri,
 )
 from observatory.platform.utils.config_utils import module_file_path
@@ -47,13 +46,6 @@ class TestElastic(unittest.TestCase):
             {"first_name": "Naomi", "last_name": "Nagata"},
             {"first_name": "Amos", "last_name": "Burton"},
         ]
-
-    def test_elastic_schema_path(self):
-        """ Test that the Elasticsearch schema path is correct """
-
-        expected_path = module_file_path("observatory.dags.database.mappings")
-        actual_path = make_elastic_mappings_path()
-        self.assertEqual(expected_path, actual_path)
 
     def test_make_sharded_index(self):
         """ Test making an Elasticsearch sharded index name """

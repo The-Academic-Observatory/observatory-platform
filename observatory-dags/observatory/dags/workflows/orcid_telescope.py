@@ -34,10 +34,8 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
-from observatory.platform.workflows.stream_telescope import (
-    StreamRelease,
-    StreamTelescope,
-)
+
+from observatory.dags.config import schema_path as default_schema_path
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.airflow_utils import AirflowVars
@@ -46,6 +44,10 @@ from observatory.platform.utils.gc_utils import (
     storage_bucket_exists,
 )
 from observatory.platform.utils.proc_utils import wait_for_process
+from observatory.platform.workflows.stream_telescope import (
+    StreamRelease,
+    StreamTelescope,
+)
 
 
 class OrcidRelease(StreamRelease):
@@ -268,6 +270,7 @@ class OrcidTelescope(StreamTelescope):
         table_descriptions: dict = None,
         merge_partition_field: str = "orcid_identifier.uri",
         bq_merge_days: int = 7,
+        schema_path: str = default_schema_path(),
         batch_load: bool = True,
         airflow_vars: List = None,
         airflow_conns: List = None,
@@ -283,6 +286,7 @@ class OrcidTelescope(StreamTelescope):
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
+        :param schema_path: the SQL schema path.
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
@@ -313,6 +317,7 @@ class OrcidTelescope(StreamTelescope):
             dataset_id,
             merge_partition_field,
             bq_merge_days,
+            schema_path,
             dataset_description=dataset_description,
             table_descriptions=table_descriptions,
             airflow_vars=airflow_vars,

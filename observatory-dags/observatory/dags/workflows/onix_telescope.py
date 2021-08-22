@@ -14,23 +14,19 @@
 
 # Author: James Diprose
 
-import datetime
 import logging
 import os
 import re
 import shutil
 import subprocess
-from datetime import datetime
 from typing import Dict, List, Optional
 
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from observatory.platform.workflows.snapshot_telescope import (
-    SnapshotRelease,
-    SnapshotTelescope,
-)
+
+from observatory.dags.config import schema_path as default_schema_path
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.config_utils import observatory_home
 from observatory.platform.utils.data_utils import get_file
@@ -46,6 +42,10 @@ from observatory.platform.utils.workflow_utils import (
     bq_load_shard_v2,
     table_ids_from_path,
     upload_files_from_list,
+)
+from observatory.platform.workflows.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
 )
 
 
@@ -173,12 +173,7 @@ class OnixRelease(SnapshotRelease):
         self.sftp_folders.move_files_to_finished(self.file_name)
 
 
-def list_release_info(
-    *,
-    sftp_upload_folder: str,
-    date_regex: str,
-    date_format: str,
-) -> List[Dict]:
+def list_release_info(*, sftp_upload_folder: str, date_regex: str, date_format: str,) -> List[Dict]:
     """List the ONIX release info, a release date and a file name for each release.
 
     :param sftp_upload_folder: the SFTP upload folder.
@@ -220,6 +215,7 @@ class OnixTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2021, 3, 28),
         schedule_interval: str = "@weekly",
         dataset_id: str = "onix",
+        schema_path: str = default_schema_path(),
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
         catchup: bool = False,
         airflow_vars: List = None,
@@ -240,6 +236,7 @@ class OnixTelescope(SnapshotTelescope):
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the BigQuery dataset id.
+        :param schema_path: the SQL schema path.
         :param source_format: the format of the data to load into BigQuery.
         :param catchup: whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable, it is checked if it exists in airflow.
@@ -275,6 +272,7 @@ class OnixTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            schema_path,
             source_format=source_format,
             dataset_description=dataset_description,
             catchup=catchup,

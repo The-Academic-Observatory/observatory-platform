@@ -33,6 +33,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat, WriteDisposition
+from ratelimit import limits, sleep_and_retry
+
 from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
@@ -43,6 +45,8 @@ from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
     load_bigquery_table,
 )
+from observatory.platform.utils.url_utils import get_ao_user_agent
+from observatory.platform.utils.workflow_utils import SubFolder, workflow_path
 from observatory.platform.utils.workflow_utils import (
     build_schedule,
     delete_msg_files,
@@ -52,9 +56,6 @@ from observatory.platform.utils.workflow_utils import (
     upload_telescope_file_list,
     validate_date,
 )
-from observatory.platform.utils.workflow_utils import SubFolder, workflow_path
-from observatory.platform.utils.url_utils import get_ao_user_agent
-from ratelimit import limits, sleep_and_retry
 
 
 class ScopusRelease:

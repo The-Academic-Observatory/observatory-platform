@@ -292,6 +292,7 @@ def prepare_bq_load_v2(
 
 
 def bq_load_shard(
+    schema_path: str,
     release_date: pendulum.datetime,
     transform_blob: str,
     dataset_id: str,
@@ -303,6 +304,7 @@ def bq_load_shard(
     **load_bigquery_table_kwargs,
 ):
     """Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
+    :param schema_path: the path to the SQL schema folder.
     :param release_date: Release date.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
@@ -314,7 +316,7 @@ def bq_load_shard(
     :return: None.
     """
     _, bucket_name, data_location, schema_file_path = prepare_bq_load(
-        dataset_id, table_id, release_date, prefix, schema_version, dataset_description
+        schema_path, dataset_id, table_id, release_date, prefix, schema_version, dataset_description
     )
 
     # Create table id
@@ -332,6 +334,7 @@ def bq_load_shard(
 
 
 def bq_load_shard_v2(
+    schema_path: str,
     project_id: str,
     transform_bucket: str,
     transform_blob: str,
@@ -347,6 +350,7 @@ def bq_load_shard_v2(
 ):
     """Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
 
+    :param schema_path: the path to the SQL schemas folder.
     :param project_id: project id.
     :param transform_bucket: transform bucket name.
     :param transform_blob: Name of the transform blob.
@@ -362,7 +366,15 @@ def bq_load_shard_v2(
     """
 
     schema_file_path = prepare_bq_load_v2(
-        project_id, dataset_id, dataset_location, table_id, release_date, prefix, schema_version, dataset_description
+        schema_path,
+        project_id,
+        dataset_id,
+        dataset_location,
+        table_id,
+        release_date,
+        prefix,
+        schema_version,
+        dataset_description,
     )
 
     # Create table id
@@ -387,6 +399,7 @@ def bq_load_shard_v2(
 
 
 def bq_load_ingestion_partition(
+    schema_path: str,
     end_date: pendulum.datetime,
     transform_blob: str,
     dataset_id: str,
@@ -402,6 +415,7 @@ def bq_load_ingestion_partition(
     """Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
     given it will automatically partition by ingestion datetime.
 
+    :param schema_path: the path to the SQL schema folder.
     :param end_date: End date.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
@@ -415,7 +429,7 @@ def bq_load_ingestion_partition(
     :return: None.
     """
     _, bucket_name, data_location, schema_file_path = prepare_bq_load(
-        dataset_id, main_table_id, end_date, prefix, schema_version, dataset_description
+        schema_path, dataset_id, main_table_id, end_date, prefix, schema_version, dataset_description
     )
 
     uri = f"gs://{bucket_name}/{transform_blob}"
@@ -438,6 +452,7 @@ def bq_load_ingestion_partition(
 
 
 def bq_load_partition(
+    schema_path: str,
     project_id: str,
     transform_bucket: str,
     transform_blob: str,
@@ -455,6 +470,7 @@ def bq_load_partition(
 ):
     """Load data from a specific file (blob) in the transform bucket to a partition.
 
+    :param schema_path: the path to the SQL schema path.
     :param project_id: project id.
     :param transform_bucket: transform bucket name.
     :param transform_blob: Name of the transform blob.
@@ -472,7 +488,15 @@ def bq_load_partition(
     """
 
     schema_file_path = prepare_bq_load_v2(
-        project_id, dataset_id, dataset_location, table_id, release_date, prefix, schema_version, dataset_description
+        schema_path,
+        project_id,
+        dataset_id,
+        dataset_location,
+        table_id,
+        release_date,
+        prefix,
+        schema_version,
+        dataset_description,
     )
 
     uri = f"gs://{transform_bucket}/{transform_blob}"
@@ -575,6 +599,7 @@ def bq_append_from_partition(
 
 
 def bq_append_from_file(
+    schema_path: str,
     end_date: pendulum.datetime,
     transform_blob: str,
     dataset_id: str,
@@ -586,6 +611,7 @@ def bq_append_from_file(
     **load_bigquery_table_kwargs,
 ):
     """Appends rows to the main table by loading data from a specific file (blob) in the transform bucket.
+    :param schema_path: the path to the SQL schema folder.
     :param end_date: End date.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
@@ -597,7 +623,7 @@ def bq_append_from_file(
     :return: None.
     """
     project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
-        dataset_id, main_table_id, end_date, prefix, schema_version, dataset_description
+        schema_path, dataset_id, main_table_id, end_date, prefix, schema_version, dataset_description
     )
 
     # Load BigQuery table

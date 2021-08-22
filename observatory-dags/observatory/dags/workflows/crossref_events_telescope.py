@@ -27,22 +27,24 @@ import pendulum
 import requests
 from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential, wait_fixed
+
+from observatory.dags.config import schema_path as default_schema_path
+from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.url_utils import get_ao_user_agent
+from observatory.platform.utils.workflow_utils import upload_files_from_list
 from observatory.platform.workflows.stream_telescope import (
     StreamRelease,
     StreamTelescope,
 )
-from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.workflow_utils import upload_files_from_list
-from observatory.platform.utils.url_utils import get_ao_user_agent
-from tenacity import RetryError, retry, stop_after_attempt, wait_exponential, wait_fixed
 
 
 class CrossrefEventsRelease(StreamRelease):
     def __init__(
         self,
         dag_id: str,
-        start_date: pendulum.datetime,
-        end_date: pendulum.datetime,
+        start_date: pendulum.DateTime,
+        end_date: pendulum.DateTime,
         first_release: bool,
         mailto: str,
         max_processes: int,
@@ -211,6 +213,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         dataset_description: str = "The Crossref Events dataset: https://www.eventdata.crossref.org/guide/",
         merge_partition_field: str = "id",
         bq_merge_days: int = 7,
+        schema_path: str = default_schema_path(),
         batch_load: bool = True,
         airflow_vars: List = None,
         mailto: str = "aniek.roelofs@curtin.edu.au",
@@ -225,6 +228,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         :param dataset_description: the dataset description.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
+        :param schema_path: the SQL schema path.
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param mailto: Email address used in the download url
@@ -246,6 +250,7 @@ class CrossrefEventsTelescope(StreamTelescope):
             dataset_id,
             merge_partition_field,
             bq_merge_days,
+            schema_path,
             dataset_description=dataset_description,
             batch_load=batch_load,
             airflow_vars=airflow_vars,
@@ -307,8 +312,7 @@ class CrossrefEventsTelescope(StreamTelescope):
 
 
 @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(20) + wait_exponential(multiplier=10, exp_base=3, max=60 * 10),
+    stop=stop_after_attempt(3), wait=wait_fixed(20) + wait_exponential(multiplier=10, exp_base=3, max=60 * 10),
 )
 def get_response(url: str, headers: dict):
     """Get response from the url with given headers and retry for certain status codes.

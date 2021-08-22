@@ -32,18 +32,20 @@ import requests
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from natsort import natsorted
-from observatory.platform.workflows.snapshot_telescope import (
-    SnapshotRelease,
-    SnapshotTelescope,
-)
+
+from observatory.dags.config import schema_path as default_schema_path
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.proc_utils import wait_for_process
+from observatory.platform.utils.url_utils import retry_session
 from observatory.platform.utils.workflow_utils import (
     blob_name,
     bq_load_shard,
     upload_files_from_list,
 )
-from observatory.platform.utils.url_utils import retry_session
+from observatory.platform.workflows.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
 
 
 class CrossrefMetadataRelease(SnapshotRelease):
@@ -169,6 +171,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2020, 6, 7),
         schedule_interval: str = SCHEDULE_INTERVAL,
         dataset_id: str = "crossref",
+        schema_path: str = default_schema_path(),
         queue: str = "remote_queue",
         dataset_description: str = "The Crossref Metadata Plus dataset: "
         "https://www.crossref.org/services/metadata-retrieval/metadata-plus/",
@@ -185,6 +188,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the BigQuery dataset id.
+        :param schema_path: the SQL schema path.
         :param queue: Crossref Metadata tasks run on the worker VM, indicated by the 'remote_queue'.
         :param dataset_description: description for the BigQuery dataset.
         :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
@@ -213,6 +217,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            schema_path,
             queue=queue,
             load_bigquery_table_kwargs=load_bigquery_table_kwargs,
             dataset_description=dataset_description,

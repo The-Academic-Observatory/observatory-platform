@@ -28,6 +28,8 @@ from airflow import DAG
 from airflow.models import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from faker import Faker
+
+from observatory.dags.config import make_elastic_mappings_path
 from observatory.dags.model import Table, bq_load_tables
 from observatory.dags.workflows.elastic_import_workflow import (
     ElasticImportWorkflow,
@@ -35,18 +37,18 @@ from observatory.dags.workflows.elastic_import_workflow import (
     load_elastic_mappings_oaebu,
     load_elastic_mappings_simple,
 )
-from observatory.platform.elastic.elastic import Elastic, make_elastic_mappings_path
+from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.kibana import Kibana, TimeField
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import load_file, load_jsonl
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.jinja2_utils import render_template
-from observatory.platform.utils.workflow_utils import make_dag_id
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
 )
+from observatory.platform.utils.workflow_utils import make_dag_id
 
 
 def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:

@@ -18,19 +18,18 @@
 import csv
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import List, Optional, Tuple
 
 import pendulum
 from airflow.exceptions import AirflowException, AirflowSkipException
 from google.cloud import bigquery
+
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.workflows.snapshot_telescope import (
-    SnapshotRelease,
-    SnapshotTelescope,
-)
+from observatory.dags.config import schema_path as default_schema_path
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
+from observatory.platform.utils.url_utils import retry_session
 from observatory.platform.utils.workflow_utils import add_partition_date, make_dag_id
 from observatory.platform.utils.workflow_utils import (
     blob_name,
@@ -38,7 +37,10 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
 )
-from observatory.platform.utils.url_utils import retry_session
+from observatory.platform.workflows.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
 
 
 class UclDiscoveryRelease(SnapshotRelease):
@@ -236,6 +238,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2008, 1, 1),
         schedule_interval: str = "@monthly",
         dataset_id: str = "ucl",
+        schema_path: str = default_schema_path(),
         airflow_vars: list = None,
         max_active_runs: int = 10,
     ):
@@ -245,6 +248,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the name of the dataset in BigQuery.
+        :param schema_path: the SQL schema path.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         :param max_active_runs: the maximum number of DAG runs to execute in parallel.
         """
@@ -265,6 +269,7 @@ class UclDiscoveryTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            schema_path,
             airflow_vars=airflow_vars,
             max_active_runs=max_active_runs,
         )

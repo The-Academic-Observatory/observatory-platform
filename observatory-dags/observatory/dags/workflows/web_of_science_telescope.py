@@ -32,6 +32,10 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat, WriteDisposition
+from ratelimit import limits, sleep_and_retry
+from suds import WebFault
+from wos import WosClient
+
 from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
@@ -41,6 +45,7 @@ from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
     load_bigquery_table,
 )
+from observatory.platform.utils.workflow_utils import SubFolder, workflow_path
 from observatory.platform.utils.workflow_utils import (
     build_schedule,
     delete_msg_files,
@@ -52,10 +57,6 @@ from observatory.platform.utils.workflow_utils import (
     validate_date,
     write_xml_to_json,
 )
-from observatory.platform.utils.workflow_utils import SubFolder, workflow_path
-from ratelimit import limits, sleep_and_retry
-from suds import WebFault
-from wos import WosClient
 
 
 class WosUtilConst:

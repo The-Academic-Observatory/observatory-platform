@@ -33,10 +33,8 @@ import requests
 from airflow.api.common.experimental.pool import create_pool
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-from observatory.platform.workflows.snapshot_telescope import (
-    SnapshotRelease,
-    SnapshotTelescope,
-)
+
+from observatory.dags.config import schema_path as default_schema_path
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.gc_utils import (
@@ -44,8 +42,12 @@ from observatory.platform.utils.gc_utils import (
     bigquery_table_exists,
 )
 from observatory.platform.utils.proc_utils import wait_for_process
-from observatory.platform.utils.workflow_utils import upload_files_from_list
 from observatory.platform.utils.url_utils import retry_session
+from observatory.platform.utils.workflow_utils import upload_files_from_list
+from observatory.platform.workflows.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
 
 
 class CrossrefFundrefRelease(SnapshotRelease):
@@ -180,6 +182,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2014, 3, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = DATASET_ID,
+        schema_path: str = default_schema_path(),
         table_descriptions: Dict = None,
         catchup: bool = True,
         airflow_vars: List = None,
@@ -191,8 +194,9 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the BigQuery dataset id.
+        :param schema_path: the SQL schema path.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
-        :param catchup:  whether to catchup the DAG or not.
+        :param catchup: whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         """
 
@@ -214,6 +218,7 @@ class CrossrefFundrefTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            schema_path,
             table_descriptions=table_descriptions,
             catchup=catchup,
             airflow_vars=airflow_vars,

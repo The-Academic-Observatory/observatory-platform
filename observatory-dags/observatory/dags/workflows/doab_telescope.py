@@ -13,8 +13,6 @@
 # limitations under the License.
 
 
-# Author: Aniek Roelofs
-
 import csv
 import logging
 import os
@@ -23,15 +21,18 @@ from typing import Tuple
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
+
+# Author: Aniek Roelofs
+from observatory.dags.config import schema_path as default_schema_path
+from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.file_utils import list_to_jsonl_gz
+from observatory.platform.utils.url_utils import get_ao_user_agent, retry_session
+from observatory.platform.utils.workflow_utils import convert
+from observatory.platform.utils.workflow_utils import upload_files_from_list
 from observatory.platform.workflows.stream_telescope import (
     StreamRelease,
     StreamTelescope,
 )
-from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.file_utils import list_to_jsonl_gz
-from observatory.platform.utils.workflow_utils import convert
-from observatory.platform.utils.workflow_utils import upload_files_from_list
-from observatory.platform.utils.url_utils import get_ao_user_agent, retry_session
 
 
 class DoabRelease(StreamRelease):
@@ -166,6 +167,7 @@ class DoabTelescope(StreamTelescope):
         dataset_id: str = "doab",
         merge_partition_field: str = "id",
         bq_merge_days: int = 7,
+        schema_path: str = default_schema_path(),
         airflow_vars: list = None,
     ):
         if airflow_vars is None:
@@ -183,6 +185,7 @@ class DoabTelescope(StreamTelescope):
             dataset_id,
             merge_partition_field,
             bq_merge_days,
+            schema_path,
             airflow_vars=airflow_vars,
         )
 

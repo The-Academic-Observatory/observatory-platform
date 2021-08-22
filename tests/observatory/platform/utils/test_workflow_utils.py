@@ -327,10 +327,12 @@ class TestTemplateUtils(unittest.TestCase):
             telescope, release = setup(MockSnapshotTelescope)
             telescope.project_id = "project_id"
             telescope.dataset_location = "us"
+            schema_folder = schema_path()
 
             table_id, _ = table_ids_from_path(release.transform_files[0])
 
             schema_file_path = prepare_bq_load_v2(
+                schema_folder,
                 telescope.project_id,
                 telescope.dataset_id,
                 telescope.dataset_location,
@@ -343,7 +345,7 @@ class TestTemplateUtils(unittest.TestCase):
 
             self.assertEqual("schema.json", schema_file_path)
             mock_find_schema.assert_called_once_with(
-                schema_path(), table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
+                schema_folder, table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
             )
             mock_create_bigquery_dataset.assert_called_once_with(
                 telescope.project_id, telescope.dataset_id, telescope.dataset_location, telescope.dataset_description
@@ -352,6 +354,7 @@ class TestTemplateUtils(unittest.TestCase):
             mock_find_schema.return_value = None
             with self.assertRaises(SystemExit):
                 prepare_bq_load_v2(
+                    schema_folder,
                     telescope.project_id,
                     telescope.dataset_id,
                     telescope.dataset_location,

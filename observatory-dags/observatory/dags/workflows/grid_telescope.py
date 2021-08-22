@@ -28,15 +28,17 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
+
+from observatory.dags.config import schema_path as default_schema_path
+from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.data_utils import get_file
+from observatory.platform.utils.file_utils import list_to_jsonl_gz
+from observatory.platform.utils.url_utils import retry_session
+from observatory.platform.utils.workflow_utils import upload_files_from_list
 from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
     SnapshotTelescope,
 )
-from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.data_utils import get_file
-from observatory.platform.utils.file_utils import list_to_jsonl_gz
-from observatory.platform.utils.workflow_utils import upload_files_from_list
-from observatory.platform.utils.url_utils import retry_session
 
 
 class GridRelease(SnapshotRelease):
@@ -211,6 +213,7 @@ class GridTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2015, 9, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = DATASET_ID,
+        schema_path: str = default_schema_path(),
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
         dataset_description: str = "Datasets provided by Digital Science: https://www.digital-science.com/",
         catchup: bool = True,
@@ -222,6 +225,7 @@ class GridTelescope(SnapshotTelescope):
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the BigQuery dataset id.
+        :param schema_path: the SQL schema path.
         :param source_format: the format of the data to load into BigQuery.
         :param dataset_description: description for the BigQuery dataset.
         :param catchup: whether to catchup the DAG or not.
@@ -241,6 +245,7 @@ class GridTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            schema_path,
             source_format=source_format,
             dataset_description=dataset_description,
             catchup=catchup,

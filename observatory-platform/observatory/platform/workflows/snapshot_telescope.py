@@ -57,6 +57,7 @@ class SnapshotTelescope(Workflow):
         start_date: pendulum.DateTime,
         schedule_interval: str,
         dataset_id: str,
+        schema_path: str,
         catchup: bool = True,
         queue: str = "default",
         max_retries: int = 3,
@@ -76,6 +77,7 @@ class SnapshotTelescope(Workflow):
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the dataset id.
+        :param schema_path: the path to the SQL schema folder.
         :param catchup: whether to catchup the DAG or not.
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
@@ -106,6 +108,7 @@ class SnapshotTelescope(Workflow):
             airflow_conns,
         )
         self.dataset_id = dataset_id
+        self.schema_path = schema_path
         self.source_format = source_format
         self.schema_prefix = schema_prefix
         self.schema_version = schema_version
@@ -139,6 +142,7 @@ class SnapshotTelescope(Workflow):
                 table_id, _ = table_ids_from_path(transform_path)
                 table_description = self.table_descriptions.get(table_id, "")
                 bq_load_shard(
+                    self.schema_path,
                     release.release_date,
                     transform_blob,
                     self.dataset_id,

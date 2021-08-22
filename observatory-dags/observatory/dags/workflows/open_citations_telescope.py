@@ -27,6 +27,7 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
+
 from observatory.dags.config import schema_path
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
@@ -40,8 +41,8 @@ from observatory.platform.utils.gc_utils import (
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.proc_utils import wait_for_process
-from observatory.platform.utils.workflow_utils import SubFolder, workflow_path
 from observatory.platform.utils.url_utils import retry_session
+from observatory.platform.utils.workflow_utils import SubFolder, workflow_path
 
 OPEN_CITATIONS_ARTICLE_ID = 6741422
 OPEN_CITATIONS_VERSION_URL = "https://api.figshare.com/v2/articles/{article_id}/versions"
