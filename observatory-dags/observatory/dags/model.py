@@ -29,6 +29,9 @@ import pendulum
 from airflow.exceptions import AirflowException
 from click.testing import CliRunner
 from faker import Faker
+from pendulum import DateTime
+
+from observatory.dags.config import schema_path
 from observatory.platform.utils.file_utils import list_to_jsonl_gz, load_jsonl
 from observatory.platform.utils.gc_utils import (
     SourceFormat,
@@ -36,8 +39,8 @@ from observatory.platform.utils.gc_utils import (
     load_bigquery_table,
     upload_files_to_cloud_storage,
 )
-from observatory.platform.utils.workflow_utils import find_schema, schema_path
 from observatory.platform.utils.test_utils import test_fixtures_path
+from observatory.platform.utils.workflow_utils import find_schema
 
 LICENSES = ["cc-by", None]
 
@@ -131,12 +134,12 @@ class Institution:
     coordinates: str = None
 
 
-def date_between_dates(start_ts: int, end_ts: int) -> pendulum.Pendulum:
+def date_between_dates(start_ts: int, end_ts: int) -> DateTime:
     """Return a datetime between two timestamps.
 
     :param start_ts: the start timestamp.
     :param end_ts: the end timestamp.
-    :return: the pendulum.Pendulum datetime.
+    :return: the DateTime datetime.
     """
 
     r_ts = random.randint(start_ts, end_ts - 1)
@@ -314,7 +317,7 @@ class Event:
     """
 
     source: str = None
-    event_date: pendulum.Pendulum = None
+    event_date: DateTime = None
 
 
 InstitutionList = List[Institution]
@@ -912,7 +915,7 @@ def bq_load_observatory_dataset(
     bucket_name: str,
     dataset_id_all: str,
     dataset_id_settings: str,
-    release_date: pendulum.Pendulum,
+    release_date: DateTime,
     data_location: str,
 ):
     """Load the fake Observatory Dataset in BigQuery.
@@ -1029,11 +1032,7 @@ def bq_load_observatory_dataset(
 
 
 def bq_load_tables(
-    *,
-    tables: List[Table],
-    bucket_name: str,
-    release_date: pendulum.Pendulum,
-    data_location: str,
+    *, tables: List[Table], bucket_name: str, release_date: DateTime, data_location: str,
 ):
     """Load the fake Observatory Dataset in BigQuery.
 
@@ -1080,12 +1079,7 @@ def bq_load_tables(
             uri = f"gs://{bucket_name}/{blob_name}"
             logging.info(f"URI: {uri}")
             success = load_bigquery_table(
-                uri,
-                table.dataset_id,
-                data_location,
-                table_id,
-                schema_file_path,
-                SourceFormat.NEWLINE_DELIMITED_JSON,
+                uri, table.dataset_id, data_location, table_id, schema_file_path, SourceFormat.NEWLINE_DELIMITED_JSON,
             )
             if not success:
                 raise AirflowException("bq_load task: data failed to load data into BigQuery")
