@@ -205,10 +205,12 @@ class PlatformBuilder(ComposeRunner):
         :return: whether Docker is running or not.
         """
 
+        docker_cmd = ["docker", "info"]
+
         is_running = False
 
         try:
-            proc_info = subprocess.run(["docker", "info"], stdout=subprocess.DEVNULL)
+            proc_info = subprocess.run(docker_cmd, stdout=subprocess.DEVNULL)
 
             if proc_info.returncode == 0:
                 is_running = True

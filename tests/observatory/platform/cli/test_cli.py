@@ -40,6 +40,9 @@ class TestObservatoryGenerate(unittest.TestCase):
         result = runner.invoke(cli, ["generate", "secrets", "fernet-key"])
         self.assertEqual(result.exit_code, os.EX_OK)
 
+        result = runner.invoke(cli, ["generate", "secrets", "secret-key"])
+        self.assertEqual(result.exit_code, os.EX_OK)
+
         # Test that files are generated
         with runner.isolated_filesystem():
             mock_click_confirm.return_value = True
@@ -78,6 +81,28 @@ class TestObservatoryGenerate(unittest.TestCase):
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertFalse(os.path.isfile(config_path))
             self.assertIn("Not generating Terraform Config", result.output)
+
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config_interactive")
+    def test_generate_local_interactive(self, m_gen_config):
+        pass
+        runner = CliRunner()
+        config_path = os.path.abspath("config.yaml")
+        result = runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path, "--interactive"])
+        self.assertEqual(result.exit_code, os.EX_OK)
+        self.assertEqual(m_gen_config.call_count, 1)
+        self.assertEqual(m_gen_config.call_args.kwargs["install_odags"], False)
+        self.assertEqual(m_gen_config.call_args.kwargs["config_path"], config_path)
+
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_config_interactive")
+    def test_generate_terraform_interactive(self, m_gen_config):
+        pass
+        runner = CliRunner()
+        config_path = os.path.abspath("config.yaml")
+        result = runner.invoke(cli, ["generate", "config", "terraform", "--config-path", config_path, "--interactive"])
+        self.assertEqual(result.exit_code, os.EX_OK)
+        self.assertEqual(m_gen_config.call_count, 1)
+        self.assertEqual(m_gen_config.call_args.kwargs["install_odags"], False)
+        self.assertEqual(m_gen_config.call_args.kwargs["config_path"], config_path)
 
 
 class MockConfig(Mock):

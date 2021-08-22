@@ -25,6 +25,7 @@ import observatory.platform.docker as docker_module
 import requests
 from click.testing import CliRunner
 from observatory.platform.cli.cli import HOST_GID, HOST_UID
+from observatory.platform.docker.compose import File
 from observatory.platform.observatory_config import (
     AirflowConnection,
     AirflowVariable,
@@ -154,6 +155,20 @@ class TestPlatformBuilder(unittest.TestCase):
 
     @patch("observatory.platform.platform_builder.subprocess.run", return_value=MockCompleteProccess(1))
     def test_is_docker_running_false(self, mock_subprocess_run):
+        """Test the property is_docker_running returns False when Docker is not running"""
+
+        with CliRunner().isolated_filesystem() as t:
+            config_path = os.path.join(t, "config.yaml")
+            self.save_config(config_path, t)
+            cmd = PlatformBuilder(config_path=config_path)
+            print(f"is it running {cmd.is_docker_running}")
+            self.assertFalse(cmd.is_docker_running)
+
+    @patch(
+        "observatory.platform.platform_builder.subprocess.run",
+        **{"return_value.raiseError.side_effect": Exception("some exception")},
+    )
+    def test_is_docker_running_false_throw_exception(self, mock_subprocess_run):
         """Test the property is_docker_running returns False when Docker is not running"""
 
         with CliRunner().isolated_filesystem() as t:
@@ -355,3 +370,18 @@ class TestPlatformBuilder(unittest.TestCase):
             finally:
                 # Always the observatory, e.g. in case the start command got half way through
                 cmd.stop()
+
+    def test_load_valid_config(self):
+        with CliRunner().isolated_filesystem() as t:
+            path = "config.yaml"
+            config = ObservatoryConfig(
+                dags_projects=[
+                    DagsProject(package_name="something", path="path", dags_module="mod"),
+                ]
+            )
+            config.save(path=path)
+
+            builder = PlatformBuilder(config_path=path)
+            self.assertEqual(
+                builder.files[-1], File(path="path/requirements.txt", output_file_name="requirements.something.txt")
+            )
