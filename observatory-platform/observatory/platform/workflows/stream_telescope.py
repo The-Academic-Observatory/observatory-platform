@@ -72,7 +72,7 @@ class StreamTelescope(Workflow):
         dataset_id: str,
         merge_partition_field: str,
         bq_merge_days: int,
-        schema_path: str,
+        schema_folder: str,
         catchup: bool = False,
         queue: str = "default",
         max_retries: int = 3,
@@ -95,7 +95,7 @@ class StreamTelescope(Workflow):
         :param dataset_id: the dataset id.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
-        :param schema_path: the path to the SQL schema folder.
+        :param schema_folder: the path to the SQL schema folder.
         :param catchup: whether to catchup the DAG or not.
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
@@ -134,7 +134,7 @@ class StreamTelescope(Workflow):
         self.source_format = source_format
         self.merge_partition_field = merge_partition_field
         self.bq_merge_days = bq_merge_days
-        self.schema_path = schema_path
+        self.schema_folder = schema_folder
         self.load_bigquery_table_kwargs = load_bigquery_table_kwargs if load_bigquery_table_kwargs else dict()
         self.dataset_description = dataset_description
         self.table_descriptions = table_descriptions if table_descriptions else dict()
@@ -195,7 +195,7 @@ class StreamTelescope(Workflow):
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
             table_description = self.table_descriptions.get(main_table_id, "")
             bq_load_ingestion_partition(
-                self.schema_path,
+                self.schema_folder,
                 release.end_date,
                 transform_blob,
                 self.dataset_id,
@@ -276,7 +276,7 @@ class StreamTelescope(Workflow):
                     main_table_id, partition_table_id = table_ids_from_path(transform_path)
                 table_description = self.table_descriptions.get(main_table_id, "")
                 bq_append_from_file(
-                    self.schema_path,
+                    self.schema_folder,
                     release.end_date,
                     transform_blob,
                     self.dataset_id,
@@ -300,7 +300,7 @@ class StreamTelescope(Workflow):
                 if self.batch_load:
                     main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
                     bq_append_from_partition(
-                        self.schema_path,
+                        self.schema_folder,
                         start_date,
                         end_date,
                         self.dataset_id,
@@ -313,7 +313,7 @@ class StreamTelescope(Workflow):
                 else:
                     main_table_id, partition_table_id = table_ids_from_path(transform_path)
                     bq_append_from_partition(
-                        self.schema_path,
+                        self.schema_folder,
                         start_date,
                         end_date,
                         self.dataset_id,

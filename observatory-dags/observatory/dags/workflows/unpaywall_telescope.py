@@ -29,7 +29,7 @@ from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 
-from observatory.dags.config import schema_path
+from observatory.dags.config import schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
@@ -451,7 +451,7 @@ class UnpaywallTelescope:
             table_id = bigquery_sharded_table_id(UnpaywallTelescope.DAG_ID, release.release_date)
 
             # Select schema file based on release date
-            analysis_schema_path = schema_path()
+            analysis_schema_path = schema_folder()
             schema_file_path = find_schema(analysis_schema_path, UnpaywallTelescope.DAG_ID, release.release_date)
             if schema_file_path is None:
                 logging.error(

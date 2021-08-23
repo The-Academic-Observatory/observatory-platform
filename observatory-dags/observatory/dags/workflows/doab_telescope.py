@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 
 # Author: Aniek Roelofs
-from observatory.dags.config import schema_path as default_schema_path
+from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.url_utils import get_ao_user_agent, retry_session
@@ -167,7 +167,7 @@ class DoabTelescope(StreamTelescope):
         dataset_id: str = "doab",
         merge_partition_field: str = "id",
         bq_merge_days: int = 7,
-        schema_path: str = default_schema_path(),
+        schema_folder: str = default_schema_folder(),
         airflow_vars: list = None,
     ):
         if airflow_vars is None:
@@ -185,7 +185,7 @@ class DoabTelescope(StreamTelescope):
             dataset_id,
             merge_partition_field,
             bq_merge_days,
-            schema_path,
+            schema_folder,
             airflow_vars=airflow_vars,
         )
 

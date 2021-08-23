@@ -17,8 +17,8 @@
 from observatory.platform.utils.config_utils import module_file_path
 
 
-def schema_path() -> str:
-    """Return the path to the database schema templates.
+def schema_folder() -> str:
+    """Return the path to the database schema template folder.
 
     :return: the path.
     """
@@ -26,8 +26,8 @@ def schema_path() -> str:
     return module_file_path("observatory.dags.database.schema")
 
 
-def workflow_sql_templates_path() -> str:
-    """Return the path to the workflow SQL templates.
+def sql_folder() -> str:
+    """Return the path to the workflow SQL template folder.
 
     :return: the path.
     """
@@ -35,7 +35,7 @@ def workflow_sql_templates_path() -> str:
     return module_file_path("observatory.dags.database.sql")
 
 
-def make_elastic_mappings_path() -> str:
+def elastic_mappings_folder() -> str:
     """Get the Elasticsearch mappings path.
 
     :return: the elastic search schema path.

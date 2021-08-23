@@ -35,7 +35,7 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat, WriteDisposition
 from ratelimit import limits, sleep_and_retry
 
-from observatory.dags.config import schema_path
+from observatory.dags.config import schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
@@ -429,7 +429,7 @@ class ScopusTelescope:
         # Load into BigQuery
         for file in jsonl_zip_blobs:
             schema_file_path = find_schema(
-                schema_path(), ScopusTelescope.TABLE_NAME, release.release_date, "", release.schema_ver
+                schema_folder(), ScopusTelescope.TABLE_NAME, release.release_date, "", release.schema_ver
             )
             if schema_file_path is None:
                 logging.error(

@@ -31,7 +31,7 @@ from click.testing import CliRunner
 from faker import Faker
 from pendulum import DateTime
 
-from observatory.dags.config import schema_path
+from observatory.dags.config import schema_folder
 from observatory.platform.utils.file_utils import list_to_jsonl_gz, load_jsonl
 from observatory.platform.utils.gc_utils import (
     SourceFormat,
@@ -899,7 +899,7 @@ class Table:
     :param dataset_id: the dataset id.
     :param records: the records to load.
     :param schema_prefix: the schema prefix.
-    :param schema_path: the schema path.
+    :param schema_folder: the schema path.
     """
 
     table_name: str
@@ -907,7 +907,7 @@ class Table:
     dataset_id: str
     records: List[Dict]
     schema_prefix: str
-    schema_path: str
+    schema_folder: str
 
 
 def bq_load_observatory_dataset(
@@ -945,7 +945,7 @@ def bq_load_observatory_dataset(
     groupings = load_jsonl(os.path.join(test_doi_path, "groupings.jsonl"))
     mag_affiliation_override = load_jsonl(os.path.join(test_doi_path, "mag_affiliation_override.jsonl"))
 
-    analysis_schema_path = schema_path()
+    analysis_schema_path = schema_folder()
     with CliRunner().isolated_filesystem() as t:
         tables = [
             Table("crossref_events", False, dataset_id_all, crossref_events, "crossref_events", analysis_schema_path),
@@ -1067,10 +1067,10 @@ def bq_load_tables(
                 table_id = table.table_name
 
             # Select schema file based on release date
-            schema_file_path = find_schema(table.schema_path, table.schema_prefix, release_date)
+            schema_file_path = find_schema(table.schema_folder, table.schema_prefix, release_date)
             if schema_file_path is None:
                 logging.error(
-                    f"No schema found with search parameters: analysis_schema_path={table.schema_path}, "
+                    f"No schema found with search parameters: analysis_schema_path={table.schema_folder}, "
                     f"table_name={table.table_name}, release_date={release_date}"
                 )
                 exit(os.EX_CONFIG)

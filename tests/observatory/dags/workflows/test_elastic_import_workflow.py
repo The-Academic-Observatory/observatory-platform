@@ -29,7 +29,7 @@ from airflow.models import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from faker import Faker
 
-from observatory.dags.config import make_elastic_mappings_path
+from observatory.dags.config import elastic_mappings_folder
 from observatory.dags.model import Table, bq_load_tables
 from observatory.dags.workflows.elastic_import_workflow import (
     ElasticImportWorkflow,
@@ -133,7 +133,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
     def test_load_elastic_mappings_ao(self):
         """Test load_elastic_mappings_ao"""
 
-        path = make_elastic_mappings_path()
+        path = elastic_mappings_folder()
         aggregate = "author"
         expected = [
             ("ao_dois", load_file(os.path.join(path, "ao-dois-mappings.json"))),
@@ -233,7 +233,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         """Test load_elastic_mappings_oaebu"""
 
         aggregate_level = "product"
-        path = make_elastic_mappings_path()
+        path = elastic_mappings_folder()
         expected = [
             (
                 "oaebu_anu_press_book_product_author_metrics",
@@ -398,7 +398,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 dataset_id=dataset_id,
                 records=author_records,
                 schema_prefix=table_name,
-                schema_path=self.cwd,
+                schema_folder=self.cwd,
             )
         ]
 
@@ -444,7 +444,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 data_location=self.data_location,
                 file_type="jsonl.gz",
                 sensor_dag_ids=[dag_id_sensor],
-                elastic_mappings_path=self.cwd,
+                elastic_mappings_folder=self.cwd,
                 elastic_mappings_func=load_elastic_mappings_simple,
                 kibana_spaces=[space_id],
                 kibana_time_fields=kibana_time_fields,

@@ -25,7 +25,7 @@ from observatory.dags.workflows.elastic_import_workflow import (
     load_elastic_mappings_ao,
     load_elastic_mappings_oaebu,
 )
-from observatory.dags.config import make_elastic_mappings_path
+from observatory.dags.config import elastic_mappings_folder
 from observatory.platform.elastic.kibana import TimeField
 from observatory.platform.utils.workflow_utils import make_dag_id
 
@@ -34,7 +34,7 @@ DATA_LOCATION = "us"
 FILE_TYPE_JSONL = "jsonl.gz"
 DAG_ONIX_WORKFLOW_PREFIX = "onix_workflow"
 DAG_PREFIX = "elastic_import"
-ELASTIC_MAPPINGS_PATH = make_elastic_mappings_path()
+ELASTIC_MAPPINGS_PATH = elastic_mappings_folder()
 AO_KIBANA_TIME_FIELDS = [TimeField("^.*$", "published_year")]
 OAEBU_KIBANA_TIME_FIELDS = [
     TimeField("^oaebu-.*-unmatched-book-metrics$", "release_date"),
@@ -135,7 +135,7 @@ for config in configs:
         data_location=config.data_location,
         file_type=config.file_type,
         sensor_dag_ids=config.sensor_dag_ids,
-        elastic_mappings_path=ELASTIC_MAPPINGS_PATH,
+        elastic_mappings_folder=ELASTIC_MAPPINGS_PATH,
         elastic_mappings_func=config.elastic_mappings_func,
         kibana_spaces=config.kibana_spaces,
         kibana_time_fields=config.kibana_time_fields,

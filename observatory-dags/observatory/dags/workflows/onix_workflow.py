@@ -26,8 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.sensors.external_task import ExternalTaskSensor
 from google.cloud.bigquery import SourceFormat
 
-from observatory.dags.config import schema_path as default_schema_path
-from observatory.dags.config import workflow_sql_templates_path
+from observatory.dags.config import schema_folder as default_schema_folder
+from observatory.dags.config import sql_folder
 from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
 from observatory.dags.workflows.onix_telescope import OnixTelescope
 from observatory.dags.workflows.onix_work_aggregation import (
@@ -240,7 +240,7 @@ class OnixWorkflow(Workflow):
         gcp_bucket_name: str,
         onix_dataset_id: str = "onix",
         onix_table_id: str = "onix",
-        schema_path: str = default_schema_path(),
+        schema_folder: str = default_schema_folder(),
         dag_id: Optional[str] = None,
         start_date: Optional[pendulum.datetime] = pendulum.datetime(2021, 3, 28),
         schedule_interval: Optional[str] = "@weekly",
@@ -253,7 +253,7 @@ class OnixWorkflow(Workflow):
         :param gcp_bucket_name: GCP bucket name to store files.
         :param onix_dataset_id: GCP dataset ID of the onix data.
         :param onix_table_id: GCP table ID of the onix data.
-        :param schema_path: the SQL schema path.
+        :param schema_folder: the SQL schema path.
         :param dag_id: DAG ID.
         :param start_date: Start date of the DAG.
         :param schedule_interval: Scheduled interval for running the DAG.
@@ -273,7 +273,7 @@ class OnixWorkflow(Workflow):
         self.gcp_bucket_name = gcp_bucket_name
         self.onix_dataset_id = onix_dataset_id
         self.onix_table_id = onix_table_id
-        self.schema_path = schema_path
+        self.schema_folder = schema_folder
 
         # Initialise Telesecope base class
         super().__init__(
@@ -317,7 +317,7 @@ class OnixWorkflow(Workflow):
         """
 
         isbn_utils_file = "isbn_utils.sql"
-        isbn_utils_path = os.path.join(workflow_sql_templates_path(), isbn_utils_file)
+        isbn_utils_path = os.path.join(sql_folder(), isbn_utils_file)
         with open(isbn_utils_path, "r") as f:
             isbn_utils_sql = f.read()
 
@@ -417,7 +417,7 @@ class OnixWorkflow(Workflow):
         blob = os.path.join(release.transform_folder, os.path.basename(release.workslookup_filename))
         table_id, _ = table_ids_from_path(release.workslookup_filename)
         bq_load_shard_v2(
-            schema_path=self.schema_path,
+            schema_folder=self.schema_path,
             project_id=release.project_id,
             transform_bucket=release.transform_bucket,
             transform_blob=blob,
@@ -523,7 +523,7 @@ class OnixWorkflow(Workflow):
         data_location = release.dataset_location
         release_date = release.release_date
         table_joining_template_file = "assign_workid_workfamilyid.sql.jinja2"
-        template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+        template_path = os.path.join(sql_folder(), table_joining_template_file)
         table_id = bigquery_sharded_table_id(output_table, release_date)
         dst_table_suffix = release_date.strftime("%Y%m%d")
 
@@ -613,7 +613,7 @@ class OnixWorkflow(Workflow):
         release_date = release.release_date
 
         table_joining_template_file = "create_book_products.sql.jinja2"
-        template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+        template_path = os.path.join(sql_folder(), table_joining_template_file)
 
         table_id = bigquery_sharded_table_id(output_table, release_date)
 
@@ -693,7 +693,7 @@ class OnixWorkflow(Workflow):
         create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
 
         table_id = bigquery_sharded_table_id(f"{release.project_id.replace('-', '_')}_{output_table}", release_date)
-        template_path = os.path.join(workflow_sql_templates_path(), query_template)
+        template_path = os.path.join(sql_folder(), query_template)
 
         sql = render_template(
             template_path, project_id=release.project_id, dataset_id=release.oaebu_dataset, release=release_date,
@@ -762,7 +762,7 @@ class OnixWorkflow(Workflow):
         output_table = "unmatched_book_metrics"
         table_id = bigquery_sharded_table_id(f"{release.project_id.replace('-', '_')}_{output_table}", release_date)
         table_joining_template_file = "export_unmatched_metrics.sql.jinja2"
-        template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+        template_path = os.path.join(sql_folder(), table_joining_template_file)
 
         sql = render_template(
             template_path,
@@ -946,7 +946,7 @@ class OnixWorkflow(Workflow):
         """
 
         template_file = "onix_aggregate_metrics.sql.jinja2"
-        template_path = os.path.join(workflow_sql_templates_path(), template_file)
+        template_path = os.path.join(sql_folder(), template_file)
 
         onix_project_id = release.project_id
         onix_dataset_id = release.onix_dataset_id
@@ -1034,7 +1034,7 @@ class OnixWorkflow(Workflow):
         isbn_utils_sql = self.get_isbn_utils_sql_string()
 
         isbn_validate_template_file = "validate_isbn.sql.jinja2"
-        template_path = os.path.join(workflow_sql_templates_path(), isbn_validate_template_file)
+        template_path = os.path.join(sql_folder(), isbn_validate_template_file)
 
         sql = render_template(
             template_path, project_id=project_id, dataset_id=orig_dataset_id, table_id=orig_table_id, isbn=isbn,
@@ -1430,7 +1430,7 @@ class OnixWorkflow(Workflow):
         """
 
         template_file = "oaebu_intermediate_metrics.sql.jinja2"
-        template_path = os.path.join(workflow_sql_templates_path(), template_file)
+        template_path = os.path.join(sql_folder(), template_file)
 
         release_date = release.release_date
         intermediate_table_id = (

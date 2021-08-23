@@ -29,7 +29,7 @@ import requests
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 
-from observatory.dags.config import schema_path as default_schema_path
+from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.workflow_utils import upload_files_from_list
@@ -151,7 +151,7 @@ class GeonamesTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2020, 9, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = "geonames",
-        schema_path: str = default_schema_path(),
+        schema_folder: str = default_schema_folder(),
         source_format: str = SourceFormat.CSV,
         dataset_description: str = "The GeoNames geographical database: https://www.geonames.org/",
         load_bigquery_table_kwargs: Dict = None,
@@ -166,7 +166,7 @@ class GeonamesTelescope(SnapshotTelescope):
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the BigQuery dataset id.
-        :param schema_path: the SQL schema path.
+        :param schema_folder: the SQL schema path.
         :param source_format: the format of the data to load into BigQuery.
         :param dataset_description: description for the BigQuery dataset.
         :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
@@ -194,7 +194,7 @@ class GeonamesTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
-            schema_path,
+            schema_folder,
             source_format=source_format,
             load_bigquery_table_kwargs=load_bigquery_table_kwargs,
             dataset_description=dataset_description,

@@ -38,7 +38,7 @@ from googleapiclient.discovery import Resource, build
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
 
 from observatory.api.client.model.organisation import Organisation
-from observatory.dags.config import schema_path as default_schema_path
+from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.url_utils import get_ao_user_agent
@@ -176,7 +176,7 @@ class JstorTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2018, 1, 1),
         schedule_interval: str = "@monthly",
         dataset_id: str = "jstor",
-        schema_path: str = default_schema_path(),
+        schema_folder: str = default_schema_folder(),
         source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
         dataset_description: str = "",
         catchup: bool = False,
@@ -191,7 +191,7 @@ class JstorTelescope(SnapshotTelescope):
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the BigQuery dataset id.
-        :param schema_path: the SQL schema path.
+        :param schema_folder: the SQL schema path.
         :param source_format: the format of the data to load into BigQuery.
         :param dataset_description: description for the BigQuery dataset.
         :param catchup: whether to catchup the DAG or not.
@@ -218,7 +218,7 @@ class JstorTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
-            schema_path,
+            schema_folder,
             source_format=source_format,
             dataset_description=dataset_description,
             catchup=catchup,
@@ -367,7 +367,7 @@ class JstorTelescope(SnapshotTelescope):
                 table_description = self.table_descriptions.get(table_id, "")
 
                 bq_load_partition(
-                    self.schema_path,
+                    self.schema_folder,
                     self.project_id,
                     release.transform_bucket,
                     transform_blob,

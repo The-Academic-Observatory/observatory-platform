@@ -35,7 +35,7 @@ from airflow.sensors.external_task import ExternalTaskSensor
 from natsort import natsorted
 from pendulum import Date
 
-from observatory.dags.config import make_elastic_mappings_path
+from observatory.dags.config import elastic_mappings_folder as default_elastic_mappings_folder
 from observatory.platform.elastic.elastic import (
     Elastic,
     make_sharded_index,
@@ -231,7 +231,7 @@ def load_elastic_index(
     data_path: str,
     table_id: str,
     release_date: Date,
-    elastic_mappings_path: str,
+    elastic_mappings_folder: str,
     elastic_mappings_func: Callable,
     file_type: str,
     elastic_host: str,
@@ -244,7 +244,7 @@ def load_elastic_index(
     :param table_id: the id of the table that will be loaded into Elasticsearch.
     :param release_date: the release date.
     :param file_type: the file type of the data that will be loaded.
-    :param elastic_mappings_path: the mappings path.
+    :param elastic_mappings_folder: the mappings path.
     :param elastic_mappings_func: the mappings Callable.
     :param elastic_host: the full Elasticsearch host including username and password.
     :param chunk_size: the size of the batches to load.
@@ -263,7 +263,7 @@ def load_elastic_index(
     file_paths = natsorted(glob.glob(file_pattern))
 
     # Load mappings file
-    mappings = elastic_mappings_func(elastic_mappings_path, table_prefix)
+    mappings = elastic_mappings_func(elastic_mappings_folder, table_prefix)
 
     if len(file_paths) == 0:
         # If no files found then set result to False
@@ -311,7 +311,7 @@ class ElasticImportRelease(SnapshotRelease):
         bucket_name: str,
         data_location: str,
         elastic_host: str,
-        elastic_mappings_path: str,
+        elastic_mappings_folder: str,
         elastic_mappings_func: Callable,
         kibana_host: str,
         kibana_username: str,
@@ -330,7 +330,7 @@ class ElasticImportRelease(SnapshotRelease):
         self.bucket_name = bucket_name
         self.data_location = data_location
         self.elastic_host = elastic_host
-        self.elastic_mappings_path = elastic_mappings_path
+        self.elastic_mappings_folder = elastic_mappings_folder
         self.elastic_mappings_func = elastic_mappings_func
         self.kibana_host = kibana_host
         self.kibana_username = kibana_username
@@ -438,7 +438,7 @@ class ElasticImportRelease(SnapshotRelease):
                     data_path=self.download_folder,
                     table_id=table_id,
                     release_date=self.release_date,
-                    elastic_mappings_path=self.elastic_mappings_path,
+                    elastic_mappings_folder=self.elastic_mappings_folder,
                     elastic_mappings_func=self.elastic_mappings_func,
                     file_type=self.file_type,
                     elastic_host=self.elastic_host,
@@ -547,7 +547,7 @@ class ElasticImportWorkflow(Workflow):
         data_location="us",
         file_type: str = "csv.gz",
         sensor_dag_ids: List[str] = None,
-        elastic_mappings_path: str = make_elastic_mappings_path(),
+        elastic_mappings_folder: str = default_elastic_mappings_folder(),
         elastic_mappings_func: Callable = None,
         kibana_spaces: List[str] = None,
         kibana_time_fields: List[TimeField] = None,
@@ -558,7 +558,7 @@ class ElasticImportWorkflow(Workflow):
         airflow_vars: List = None,
         airflow_conns: List = None,
     ):
-        """Create the DoiWorkflow.
+        """Create the ElasticImportWorkflow.
 
         :param project_id: the project id to import data from.
         :param dataset_id: the dataset id to import data from.
@@ -596,7 +596,7 @@ class ElasticImportWorkflow(Workflow):
         self.bucket_name = bucket_name
         self.data_location = data_location
         self.file_type = file_type
-        self.elastic_mappings_path = elastic_mappings_path
+        self.elastic_mappings_folder = elastic_mappings_folder
         self.elastic_mappings_func = elastic_mappings_func
         self.kibana_time_fields = kibana_time_fields
 
@@ -677,7 +677,7 @@ class ElasticImportWorkflow(Workflow):
             bucket_name=self.bucket_name,
             data_location=self.data_location,
             elastic_host=elastic_host,
-            elastic_mappings_path=self.elastic_mappings_path,
+            elastic_mappings_folder=self.elastic_mappings_folder,
             elastic_mappings_func=self.elastic_mappings_func,
             kibana_host=kibana_host,
             kibana_username=kibana_conn.login,

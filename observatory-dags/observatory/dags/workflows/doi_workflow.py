@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.sensors.external_task import ExternalTaskSensor
 
-from observatory.dags.config import workflow_sql_templates_path
+from observatory.dags.config import sql_folder
 from observatory.platform.utils.airflow_utils import AirflowVars, set_task_state
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
@@ -668,7 +668,7 @@ class ObservatoryRelease:
 
         # Create processed table
         template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(f"create_{output_table_id}")
+            sql_folder(), make_sql_jinja2_filename(f"create_{output_table_id}")
         )
         sql = render_template(template_path, project_id=self.project_id, release_date=self.release_date, **inputs)
 
@@ -714,7 +714,7 @@ class ObservatoryRelease:
         :return: None.
         """
 
-        template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("create_aggregate"))
+        template_path = os.path.join(sql_folder(), make_sql_jinja2_filename("create_aggregate"))
         sql = render_template(
             template_path,
             project_id=self.project_id,
@@ -768,7 +768,7 @@ class ObservatoryRelease:
         """
 
         # Create processed dataset
-        template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("comparison_view"))
+        template_path = os.path.join(sql_folder(), make_sql_jinja2_filename("comparison_view"))
 
         # Create views
         table_ids = ["country", "funder", "group", "institution", "publisher", "subregion"]
@@ -861,7 +861,7 @@ class ObservatoryRelease:
         :return:
         """
 
-        template_path = os.path.join(workflow_sql_templates_path(), template_file_name)
+        template_path = os.path.join(sql_folder(), template_file_name)
         sql = render_template(
             template_path,
             project_id=self.project_id,

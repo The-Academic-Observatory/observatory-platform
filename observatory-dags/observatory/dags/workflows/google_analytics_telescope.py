@@ -29,7 +29,7 @@ from googleapiclient.discovery import Resource, build
 from oauth2client.service_account import ServiceAccountCredentials
 
 from observatory.api.client.model.organisation import Organisation
-from observatory.dags.config import schema_path as default_schema_path
+from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.workflow_utils import add_partition_date, make_dag_id
@@ -125,7 +125,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2018, 1, 1),
         schedule_interval: str = "@monthly",
         dataset_id: str = "google",
-        schema_path: str = default_schema_path(),
+        schema_folder: str = default_schema_folder(),
         catchup: bool = True,
         airflow_vars=None,
         airflow_conns=None,
@@ -140,7 +140,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
         organisation name.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
-        :param schema_path: the SQL schema path.
+        :param schema_folder: the SQL schema path.
         :param catchup: whether to catchup the DAG or not.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param schema_prefix: the prefix used to find the schema path.
@@ -169,7 +169,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
-            schema_path,
+            schema_folder,
             catchup=catchup,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
@@ -241,7 +241,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
                 table_id, _ = table_ids_from_path(transform_path)
                 table_description = self.table_descriptions.get(table_id, "")
                 bq_load_partition(
-                    self.schema_path,
+                    self.schema_folder,
                     self.project_id,
                     release.transform_bucket,
                     transform_blob,

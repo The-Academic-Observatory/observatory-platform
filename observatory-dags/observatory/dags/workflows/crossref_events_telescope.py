@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential, wait_fixed
 
-from observatory.dags.config import schema_path as default_schema_path
+from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.url_utils import get_ao_user_agent
 from observatory.platform.utils.workflow_utils import upload_files_from_list
@@ -213,7 +213,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         dataset_description: str = "The Crossref Events dataset: https://www.eventdata.crossref.org/guide/",
         merge_partition_field: str = "id",
         bq_merge_days: int = 7,
-        schema_path: str = default_schema_path(),
+        schema_folder: str = default_schema_folder(),
         batch_load: bool = True,
         airflow_vars: List = None,
         mailto: str = "aniek.roelofs@curtin.edu.au",
@@ -228,7 +228,7 @@ class CrossrefEventsTelescope(StreamTelescope):
         :param dataset_description: the dataset description.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
-        :param schema_path: the SQL schema path.
+        :param schema_folder: the SQL schema path.
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param mailto: Email address used in the download url
@@ -250,7 +250,7 @@ class CrossrefEventsTelescope(StreamTelescope):
             dataset_id,
             merge_partition_field,
             bq_merge_days,
-            schema_path,
+            schema_folder,
             dataset_description=dataset_description,
             batch_load=batch_load,
             airflow_vars=airflow_vars,

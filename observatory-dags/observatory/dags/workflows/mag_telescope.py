@@ -37,7 +37,7 @@ from google.cloud.storage import Blob
 from mag_archiver.mag import MagArchiverClient, MagDateType, MagRelease, MagState
 from natsort import natsorted
 
-from observatory.dags.config import schema_path
+from observatory.dags.config import schema_folder
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.airflow_utils import (
@@ -576,7 +576,7 @@ def db_load_mag_release(
         # Create tasks
         futures = []
         futures_msgs = {}
-        analysis_schema_path = schema_path()
+        analysis_schema_path = schema_folder()
         prefix = "Mag"
         file_extension = ".txt"
 

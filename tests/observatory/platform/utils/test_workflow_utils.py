@@ -84,7 +84,7 @@ class MockSnapshotTelescope(SnapshotTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2021, 1, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = random_id(),
-        schema_path: str = DEFAULT_SCHEMA_PATH,
+        schema_folder: str = DEFAULT_SCHEMA_PATH,
         source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "prefix",
         schema_version: str = "1",
@@ -96,7 +96,7 @@ class MockSnapshotTelescope(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
-            schema_path,
+            schema_folder,
             source_format=source_format,
             schema_prefix=schema_prefix,
             schema_version=schema_version,
@@ -117,7 +117,7 @@ class MockStreamTelescope(StreamTelescope):
         dataset_id: str = random_id(),
         merge_partition_field: str = "id",
         bq_merge_days: int = 7,
-        schema_path: str = DEFAULT_SCHEMA_PATH,
+        schema_folder: str = DEFAULT_SCHEMA_PATH,
         source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "prefix",
         schema_version: str = "1",
@@ -131,7 +131,7 @@ class MockStreamTelescope(StreamTelescope):
             dataset_id,
             merge_partition_field,
             bq_merge_days,
-            schema_path,
+            schema_folder,
             source_format=source_format,
             schema_prefix=schema_prefix,
             schema_version=schema_version,
@@ -286,13 +286,13 @@ class TestTemplateUtils(unittest.TestCase):
             mock_airflowvariable_get.side_effect = side_effect
             mock_variable_get.side_effect = side_effect
             mock_find_schema.return_value = "schema.json"
-            schema_path = DEFAULT_SCHEMA_PATH
+            schema_folder = DEFAULT_SCHEMA_PATH
 
             telescope, release = setup(MockSnapshotTelescope)
 
             table_id, _ = table_ids_from_path(release.transform_files[0])
             project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
-                schema_path,
+                schema_folder,
                 telescope.dataset_id,
                 table_id,
                 release.release_date,
@@ -306,7 +306,7 @@ class TestTemplateUtils(unittest.TestCase):
             self.assertEqual("US", data_location)
             self.assertEqual("schema.json", schema_file_path)
             mock_find_schema.assert_called_once_with(
-                schema_path, table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
+                schema_folder, table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
             )
             mock_create_bigquery_dataset.assert_called_once_with(
                 project_id, telescope.dataset_id, data_location, telescope.dataset_description
@@ -315,7 +315,7 @@ class TestTemplateUtils(unittest.TestCase):
             mock_find_schema.return_value = None
             with self.assertRaises(SystemExit):
                 prepare_bq_load(
-                    schema_path,
+                    schema_folder,
                     telescope.dataset_id,
                     table_id,
                     release.release_date,
@@ -335,12 +335,12 @@ class TestTemplateUtils(unittest.TestCase):
             telescope, release = setup(MockSnapshotTelescope)
             telescope.project_id = "project_id"
             telescope.dataset_location = "us"
-            schema_path = DEFAULT_SCHEMA_PATH
+            schema_folder = DEFAULT_SCHEMA_PATH
 
             table_id, _ = table_ids_from_path(release.transform_files[0])
 
             schema_file_path = prepare_bq_load_v2(
-                schema_path,
+                schema_folder,
                 telescope.project_id,
                 telescope.dataset_id,
                 telescope.dataset_location,
@@ -353,7 +353,7 @@ class TestTemplateUtils(unittest.TestCase):
 
             self.assertEqual("schema.json", schema_file_path)
             mock_find_schema.assert_called_once_with(
-                schema_path, table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
+                schema_folder, table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
             )
             mock_create_bigquery_dataset.assert_called_once_with(
                 telescope.project_id, telescope.dataset_id, telescope.dataset_location, telescope.dataset_description
@@ -362,7 +362,7 @@ class TestTemplateUtils(unittest.TestCase):
             mock_find_schema.return_value = None
             with self.assertRaises(SystemExit):
                 prepare_bq_load_v2(
-                    schema_path,
+                    schema_folder,
                     telescope.project_id,
                     telescope.dataset_id,
                     telescope.dataset_location,
@@ -381,7 +381,7 @@ class TestTemplateUtils(unittest.TestCase):
             mock_variable_get.side_effect = side_effect
             mock_prepare_bq_load.return_value = (None, "bucket_name", "data_location", "schema.json")
             mock_load_bigquery_table.return_value = True
-            schema_path = DEFAULT_SCHEMA_PATH
+            schema_folder = DEFAULT_SCHEMA_PATH
 
             telescope, release = setup(MockSnapshotTelescope)
 
@@ -391,7 +391,7 @@ class TestTemplateUtils(unittest.TestCase):
                 table_description = telescope.table_descriptions.get(table_id, "")
 
                 bq_load_shard(
-                    schema_path,
+                    schema_folder,
                     release.release_date,
                     transform_blob,
                     telescope.dataset_id,
@@ -405,7 +405,7 @@ class TestTemplateUtils(unittest.TestCase):
                 )
 
                 mock_prepare_bq_load.assert_called_once_with(
-                    schema_path,
+                    schema_folder,
                     telescope.dataset_id,
                     table_id,
                     release.release_date,
@@ -426,7 +426,7 @@ class TestTemplateUtils(unittest.TestCase):
                 mock_load_bigquery_table.return_value = False
                 with self.assertRaises(AirflowException):
                     bq_load_shard(
-                        schema_path,
+                        schema_folder,
                         release.release_date,
                         transform_blob,
                         telescope.dataset_id,
@@ -447,7 +447,7 @@ class TestTemplateUtils(unittest.TestCase):
             mock_variable_get.side_effect = side_effect
             mock_prepare_bq_load.return_value = "schema.json"
             mock_load_bigquery_table.return_value = True
-            schema_path = DEFAULT_SCHEMA_PATH
+            schema_folder = DEFAULT_SCHEMA_PATH
 
             telescope, release = setup(MockSnapshotTelescope)
             telescope.project_id = "project_id"
@@ -458,7 +458,7 @@ class TestTemplateUtils(unittest.TestCase):
                 table_id, _ = table_ids_from_path(transform_path)
 
                 bq_load_shard_v2(
-                    schema_path,
+                    schema_folder,
                     telescope.project_id,
                     release.transform_bucket,
                     transform_blob,
@@ -474,7 +474,7 @@ class TestTemplateUtils(unittest.TestCase):
                 )
 
                 mock_prepare_bq_load.assert_called_once_with(
-                    schema_path,
+                    schema_folder,
                     telescope.project_id,
                     telescope.dataset_id,
                     telescope.dataset_location,
@@ -497,7 +497,7 @@ class TestTemplateUtils(unittest.TestCase):
                 mock_load_bigquery_table.return_value = False
                 with self.assertRaises(AirflowException):
                     bq_load_shard_v2(
-                        schema_path,
+                        schema_folder,
                         telescope.project_id,
                         release.transform_bucket,
                         transform_blob,

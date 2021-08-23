@@ -25,7 +25,7 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 
-from observatory.dags.config import schema_path as default_schema_path
+from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.url_utils import get_ao_user_agent, retry_session
@@ -144,7 +144,7 @@ class OapenMetadataTelescope(StreamTelescope):
         dataset_id: str = "oapen",
         merge_partition_field: str = "id",
         bq_merge_days: int = 7,
-        schema_path: str = default_schema_path(),
+        schema_folder: str = default_schema_folder(),
         schema_prefix: str = "oapen_",
         airflow_vars: List = None,
     ):
@@ -156,7 +156,7 @@ class OapenMetadataTelescope(StreamTelescope):
         :param dataset_id: the dataset id.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
-        :param schema_path: the SQL schema path.
+        :param schema_folder: the SQL schema path.
         :param schema_prefix: the prefix used to find the schema path
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         """
@@ -176,7 +176,7 @@ class OapenMetadataTelescope(StreamTelescope):
             dataset_id,
             merge_partition_field,
             bq_merge_days,
-            schema_path,
+            schema_folder,
             schema_prefix=schema_prefix,
             airflow_vars=airflow_vars,
         )

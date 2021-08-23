@@ -36,7 +36,7 @@ from ratelimit import limits, sleep_and_retry
 from suds import WebFault
 from wos import WosClient
 
-from observatory.dags.config import schema_path
+from observatory.dags.config import schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.file_utils import write_to_file, zip_files
@@ -717,7 +717,7 @@ class WosTelescope:
         table_id = bigquery_sharded_table_id(WosTelescope.TABLE_NAME, release.release_date)
 
         # Load into BigQuery
-        analysis_schema_path = schema_path()
+        analysis_schema_path = schema_folder()
 
         for file in jsonl_zip_blobs:
             schema_file_path = find_schema(

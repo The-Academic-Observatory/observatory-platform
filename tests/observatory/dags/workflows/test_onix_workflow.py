@@ -29,7 +29,7 @@ from google.cloud.bigquery import SourceFormat
 import observatory.api.server.orm as orm
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.server.orm import Organisation
-from observatory.dags.config import schema_path as default_schema_path
+from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
 from observatory.dags.workflows.onix_workflow import OnixWorkflow, OnixWorkflowRelease
 from observatory.platform.utils.airflow_utils import AirflowConns
@@ -1510,7 +1510,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         self.gcp_project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
         self.timestamp = pendulum.now()
-        self.schema_path = default_schema_path()
+        self.schema_path = default_schema_folder()
 
         self.onix_table_id = "onix"
         self.test_onix_folder = random_id()  # "onix_workflow_test_onix_table"
