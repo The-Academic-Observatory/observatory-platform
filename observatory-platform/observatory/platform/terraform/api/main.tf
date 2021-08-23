@@ -40,7 +40,7 @@ resource "google_service_account" "api-backend_service_account" {
 
 # Create Elasticsearch secrets
 module "elasticsearch-logins" {
-  for_each = toset(nonsensitive(keys(var.elasticsearch)))
+  for_each = toset(nonsensitive(keys(var.elasticsearch))) # Make keys of variable nonsensitive.
   source = "../secret"
   secret_id = "elasticsearch-${each.key}"
   secret_data = each.value
