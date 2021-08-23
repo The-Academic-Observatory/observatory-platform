@@ -222,17 +222,52 @@ def generate():
 
 
 @generate.command()
-@click.argument("telescope_type", nargs=1)
-@click.argument("telescope_name", nargs=1)
-def telescope(telescope_type: str, telescope_name: str):
-    """Generate boiler plate code for a new telescope.
+@click.argument(
+    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True),
+)
+@click.argument("package_name", type=str)
+@click.argument("workflow_type", type=click.Choice(["Workflow", "StreamTelescope", "SnapshotTelescope"]))
+@click.argument("workflow_name", type=str)
+def workflow(project_path: str, package_name: str, workflow_type: str, workflow_name: str):
+    """Generate a new workflow.
 
-    telescope_type: Type of telescope. Options are Telescope, StreamTelescope, SnapshotTelescope.
-    telescope_name: Name of your new telescope.
+    \b
+    PROJECT_PATH is the Python project path.
+    PACKAGE_NAME is the Python package name.
+    WORKFLOW_TYPE is the type of workflow.
+    WORKFLOW_NAME is the the name of your new workflow.
+
+    \b
+    For example, the command: observatory generate workflow /path/to/my-workflows-project my_workflows_project Workflow MyWorkflow
+
+    \b Will generate the following files and folders:
+
+    \b
+    └── my-workflows-project
+        ├── docs
+        │   ├── index.rst
+        │   └── my_workflow.md
+        ├── my_workflows_project
+        │   ├── dags
+        │   │   ├── __init__.py
+        │   │   └── my_workflow.py
+        │   ├── __init__.py
+        │   └── workflows
+        │       ├── __init__.py
+        │       └── my_workflow.py
+        └── tests
+            └── my_workflows_project
+                ├── __init__.py
+                └── workflows
+                    ├── __init__.py
+                    └── test_my_workflow.py
     """
 
+    # TODO: project path and package name should be inferred somehow
     cmd = GenerateCommand()
-    cmd.generate_new_telescope(telescope_type, telescope_name)
+    cmd.generate_new_workflow(
+        project_path=project_path, package_name=package_name, workflow_type=workflow_type, workflow_name=workflow_name
+    )
 
 
 @generate.command()

@@ -38,7 +38,7 @@ For Airflow to pickup new DAGs, we currently require you to create a new Python 
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.telescopes.my_telescope import MyTelescope
+from observatory.dags.workflows.my_telescope import MyTelescope
 
 telescope = MyTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()

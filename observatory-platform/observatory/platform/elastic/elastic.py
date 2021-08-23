@@ -25,17 +25,6 @@ from elasticsearch.helpers import parallel_bulk
 from elasticsearch.helpers import scan
 from pendulum import Date
 
-from observatory.platform.utils.config_utils import module_file_path
-
-
-def make_elastic_mappings_path() -> str:
-    """Get the Elasticsearch mappings path.
-
-    :return: the elastic search schema path.
-    """
-
-    return module_file_path("observatory.dags.database.mappings")
-
 
 def make_sharded_index(index_prefix: str, release_date: Date) -> str:
     """Make a sharded Elasticsearch index given an index prefix and a date.

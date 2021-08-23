@@ -82,7 +82,7 @@ def find_schema(
 
     If no version string is sepcified, the most recent schema with a date less than or equal to the release date of the
     dataset is returned. If a version string is specified, the most current (date) schema in that series is returned.
-    Use the schema_path function to find the path to the folder containing the schemas.
+    Use the schema_folder function to find the path to the folder containing the schemas.
     For example (grid schemas):
      - grid_2015-09-22.json
      - grid_2016-04-28.json
@@ -165,3 +165,12 @@ def find_schema(
     # No schemas were found
     logging.error("No schema found.")
     return None
+
+
+def utils_templates_path() -> str:
+    """Return the path to the util templates.
+
+    :return: the path.
+    """
+
+    return module_file_path("observatory.platform.utils.templates")

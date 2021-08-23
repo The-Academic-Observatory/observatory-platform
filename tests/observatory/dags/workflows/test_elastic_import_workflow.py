@@ -28,6 +28,8 @@ from airflow import DAG
 from airflow.models import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from faker import Faker
+
+from observatory.dags.config import elastic_mappings_folder
 from observatory.dags.model import Table, bq_load_tables
 from observatory.dags.workflows.elastic_import_workflow import (
     ElasticImportWorkflow,
@@ -35,18 +37,18 @@ from observatory.dags.workflows.elastic_import_workflow import (
     load_elastic_mappings_oaebu,
     load_elastic_mappings_simple,
 )
-from observatory.platform.elastic.elastic import Elastic, make_elastic_mappings_path
+from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.kibana import Kibana, TimeField
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import load_file, load_jsonl
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.jinja2_utils import render_template
-from observatory.platform.utils.telescope_utils import make_dag_id
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
 )
+from observatory.platform.utils.workflow_utils import make_dag_id
 
 
 def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
@@ -131,7 +133,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
     def test_load_elastic_mappings_ao(self):
         """Test load_elastic_mappings_ao"""
 
-        path = make_elastic_mappings_path()
+        path = elastic_mappings_folder()
         aggregate = "author"
         expected = [
             ("ao_dois", load_file(os.path.join(path, "ao-dois-mappings.json"))),
@@ -231,7 +233,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         """Test load_elastic_mappings_oaebu"""
 
         aggregate_level = "product"
-        path = make_elastic_mappings_path()
+        path = elastic_mappings_folder()
         expected = [
             (
                 "oaebu_anu_press_book_product_author_metrics",
@@ -367,7 +369,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 for suffix in ["observatory", "anu_press", "ucl_press", "wits_press", "university_of_michigan_press"]
             ]
 
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "elastic_import.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "elastic_import_workflow.py")
             for dag_id in expected_dag_ids:
                 self.assert_dag_load(dag_id, dag_file)
 
@@ -396,7 +398,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 dataset_id=dataset_id,
                 records=author_records,
                 schema_prefix=table_name,
-                schema_path=self.cwd,
+                schema_folder=self.cwd,
             )
         ]
 
@@ -442,7 +444,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 data_location=self.data_location,
                 file_type="jsonl.gz",
                 sensor_dag_ids=[dag_id_sensor],
-                elastic_mappings_path=self.cwd,
+                elastic_mappings_folder=self.cwd,
                 elastic_mappings_func=load_elastic_mappings_simple,
                 kibana_spaces=[space_id],
                 kibana_time_fields=kibana_time_fields,

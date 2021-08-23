@@ -16,7 +16,6 @@
 
 
 import unittest
-from unittest.mock import patch
 
 from observatory.dags.workflows.onix_work_aggregation import (
     BookWork,

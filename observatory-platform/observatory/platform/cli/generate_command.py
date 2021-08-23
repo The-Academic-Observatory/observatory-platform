@@ -18,20 +18,20 @@ import os
 from typing import Tuple
 
 import click
-import observatory.dags.dags
-import observatory.dags.telescopes
-import observatory.templates
+import stringcase
 from cryptography.fernet import Fernet
+
 from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig
+from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
 
 
-class TelescopeTypes:
+class WorkflowTypes:
     """
-    Telescope types that we can generate from a template.
+    Workflow types that we can generate from a template.
     """
 
-    telescope = "Telescope"
+    workflow = "Workflow"
     stream_telescope = "StreamTelescope"
     snapshot_telescope = "SnapshotTelescope"
 
@@ -73,95 +73,120 @@ class GenerateCommand:
             "Parameters commented out with '#' are optional."
         )
 
-    def get_telescope_template_path_(self, telescope_type: str) -> Tuple[str, str]:
+    def get_workflow_template_path_(self, workflow_type: str) -> Tuple[str, str, str, str]:
         """
         Get the correct template files to use.
 
-        :param telescope_type: Name of the telescope type.
-        :return: The telescope template path, and the dag template path.
+        :param workflow_type: Name of the workflow type.
+        :return: The workflow template path, and the dag template path.
         """
 
-        templates_dir = observatory.templates.__path__._path[0]
-
-        dag_file = "telescope_dag.py.jinja2"
+        templates_dir = module_file_path("observatory.platform.workflows.templates")
+        dag_file = "workflow_dag.py.jinja2"
         test_file = "test.py.jinja2"
         doc_file = "doc.md.jinja2"
 
-        if telescope_type == TelescopeTypes.telescope:
-            telescope_file = "telescope.py.jinja2"
-        elif telescope_type == TelescopeTypes.stream_telescope:
-            telescope_file = "streamtelescope.py.jinja2"
-        elif telescope_type == TelescopeTypes.snapshot_telescope:
-            telescope_file = "snapshottelescope.py.jinja2"
+        if workflow_type == WorkflowTypes.workflow:
+            workflow_file = "workflow.py.jinja2"
+        elif workflow_type == WorkflowTypes.stream_telescope:
+            workflow_file = "stream_telescope.py.jinja2"
+        elif workflow_type == WorkflowTypes.snapshot_telescope:
+            workflow_file = "snapshot_telescope.py.jinja2"
         else:
-            raise Exception(f"Unsupported telescope type: {telescope_type}")
+            raise Exception(f"Unsupported workflow type: {workflow_type}")
 
-        telescope_path = os.path.join(templates_dir, telescope_file)
+        workflow_path = os.path.join(templates_dir, workflow_file)
         dag_path = os.path.join(templates_dir, dag_file)
         test_path = os.path.join(templates_dir, test_file)
         doc_path = os.path.join(templates_dir, doc_file)
-        return telescope_path, dag_path, test_path, doc_path
+        return workflow_path, dag_path, test_path, doc_path
 
-    def generate_new_telescope(self, telescope_type: str, telescope_name: str):
+    def generate_new_workflow(self, *, project_path: str, package_name: str, workflow_type: str, workflow_name: str):
+        """ Make a new workflow template.
+
+        :param project_path: the path to the workflows project.
+        :param package_name: the Python package name.
+        :param workflow_type: Type of workflow to generate.
+        :param workflow_name: Class name of the new telescope.
         """
-        Make a new telescope template.
 
-        :param telescope_type: Type of telescope to generate.
-        :param telescope_name: Class name of the new telescope.
-        """
+        # Standardise names
+        package_name = stringcase.snakecase(package_name)
+        workflow_class = stringcase.capitalcase(stringcase.camelcase(workflow_name))
+        workflow_module = stringcase.lowercase(stringcase.snakecase(workflow_name))
+        workflow_file = f"{workflow_module}.py"
 
-        telescope_path, dag_path, test_path, doc_path = self.get_telescope_template_path_(telescope_type)
-        telescope_module = telescope_name.lower()
-        telescope_file = f"{telescope_module}.py"
+        # Destination folders e.g.
+        # academic-observatory-workflows/academic_observatory_workflows/workflows
+        # academic-observatory-workflows/academic_observatory_workflows/dags
+        # academic-observatory-workflows/tests/academic_observatory_workflows/workflows
+        # academic-observatory-workflows/docs
+        workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
+        dags_dst_dir = os.path.join(project_path, package_name, "dags")
+        test_dst_dir = os.path.join(project_path, "tests", package_name, "workflows")
+        doc_dst_dir = os.path.join(project_path, "docs")
 
-        # Render dag
-        dag = render_template(dag_path, telescope_module=telescope_module, telescope_name=telescope_name)
+        # Make folders
+        for path in [workflow_dst_dir, dags_dst_dir, test_dst_dir, doc_dst_dir]:
+            os.makedirs(path, exist_ok=True)
 
-        # Render telescope
-        telescope = render_template(telescope_path, telescope_name=telescope_name)
+        # Make init files
+        package_folder = os.path.join(project_path, package_name)
+        tests_package_folder = os.path.join(project_path, "tests", package_name)
+        init_paths = [package_folder, tests_package_folder, workflow_dst_dir, dags_dst_dir, test_dst_dir]
+        for path in init_paths:
+            if not os.path.isfile(path):
+                open(os.path.join(path, "__init__.py"), "a").close()
 
-        # Render test
-        test = render_template(test_path, telescope_name=telescope_name)
+        # Destination files
+        workflow_dst_file = os.path.join(workflow_dst_dir, workflow_file)
+        dag_dst_file = os.path.join(dags_dst_dir, workflow_file)
+        test_dst_file = os.path.join(test_dst_dir, f"test_{workflow_file}")
+        doc_dst_file = os.path.join(doc_dst_dir, f"{workflow_module}.md")
+        doc_index_file = os.path.join(doc_dst_dir, f"index.rst")
 
-        # Render documentation
-        doc = render_template(doc_path, telescope_name=telescope_name)
+        # Get template paths
+        (
+            workflow_template_path,
+            dag_template_path,
+            test_template_path,
+            doc_template_path,
+        ) = self.get_workflow_template_path_(workflow_type)
 
-        # Save templates
-        dag_dst_dir = observatory.dags.dags.__path__[0]
-        dag_dst_file = os.path.join(dag_dst_dir, telescope_file)
-
-        telescope_dst_dir = observatory.dags.telescopes.__path__[0]
-        telescope_dst_file = os.path.join(telescope_dst_dir, telescope_file)
-
-        test_dst_dir = "tests/observatory/dags/telescopes"
-        test_dst_file = os.path.join(test_dst_dir, f"test_{telescope_module}.py")
-
-        doc_dst_dir = "docs"
-        doc_dst_file = os.path.join(doc_dst_dir, "telescopes", f"{telescope_module}.md")
-
-        doc_index_file = os.path.join(doc_dst_dir, "telescopes", "index.rst")
-
-        print(f"Created a new dag file: {dag_dst_file}")
-        print(f"Created a new telescope file: {telescope_dst_file}")
-        print(f"Created a new telescope documentation file: {doc_dst_file}")
-        print(f"Created a new telescope test file: {test_dst_file}")
+        # Render files
+        workflow = render_template(
+            workflow_template_path, workflow_class=workflow_class, workflow_module=workflow_module
+        )
+        dag = render_template(
+            dag_template_path,
+            package_name=package_name,
+            workflow_class=workflow_class,
+            workflow_module=workflow_module,
+        )
+        test = render_template(test_template_path, workflow_class=workflow_class, workflow_module=workflow_module)
+        doc = render_template(doc_template_path, workflow_class=workflow_class, workflow_module=workflow_module)
 
         # Write out dag template
         with open(dag_dst_file, "w") as f:
             f.write(dag)
+        print(f"Created a new workflow file: {workflow_dst_file}")
 
-        # Write out telescope template
-        with open(telescope_dst_file, "w") as f:
-            f.write(telescope)
+        # Write out workflow template
+        with open(workflow_dst_file, "w") as f:
+            f.write(workflow)
+        print(f"Created a new dag file: {dag_dst_file}")
 
         # Write out test template
         with open(test_dst_file, "w") as f:
             f.write(test)
+        print(f"Created a new workflow documentation file: {doc_dst_file}")
 
         # Write out documentation template
         with open(doc_dst_file, "w") as f:
             f.write(doc)
+        print(f"Created a new workflow test file: {test_dst_file}")
 
-        # Add the new telescope doc to the documentation index
+        # Add the new workflow doc to the documentation index
         with open(doc_index_file, "a") as f:
-            f.write(f"    {telescope_module}\n")
+            f.write(f"    {workflow_module}\n")
+        print(f"Add the new workflow doc to the documentation index: {test_dst_file}")

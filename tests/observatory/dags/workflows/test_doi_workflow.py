@@ -194,7 +194,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment(self.gcp_project_id, self.gcp_data_location)
         with env.create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "doi.py")
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "doi_telescope.py")
             self.assert_dag_load("doi", dag_file)
 
     def test_telescope(self):

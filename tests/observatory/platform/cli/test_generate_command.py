@@ -14,12 +14,12 @@
 
 # Author: James Diprose, Tuan Chien
 
+import logging
 import os
 import unittest
-from unittest.mock import Mock, patch
 
-import click
 from click.testing import CliRunner
+
 from observatory.platform.cli.cli import generate
 from observatory.platform.cli.generate_command import GenerateCommand
 
@@ -53,49 +53,37 @@ class TestGenerateCommand(unittest.TestCase):
             cmd.generate_terraform_config(config_path)
             self.assertTrue(os.path.exists(config_path))
 
-    @patch("observatory.platform.cli.generate_command.open")
-    def test_generate_telescope_telescope(self, mock_open):
-        # Cannot do filesystem isolation since we are writing explicit paths.
+    def test_generate_workflow(self):
+        """ Test generate workflow """
+
+        # Test valid workflow types
+        package_name = "my_workflows_package"
+        workflow_module = "my_test_workflow"
+        workflow_types = ["Workflow", "SnapshotTelescope", "StreamTelescope"]
+        for workflow_type in workflow_types:
+            runner = CliRunner()
+            with runner.isolated_filesystem() as t:
+                result = runner.invoke(generate, ["workflow", t, package_name, workflow_type, "MyTestWorkflow"])
+                self.assertEqual(result.exit_code, 0)
+                expected_files = [
+                    os.path.join(t, package_name, "__init__.py"),
+                    os.path.join(t, package_name, "dags", f"{workflow_module}.py"),
+                    os.path.join(t, package_name, "dags", "__init__.py"),
+                    os.path.join(t, package_name, "workflows", f"{workflow_module}.py"),
+                    os.path.join(t, package_name, "workflows", "__init__.py"),
+                    os.path.join(t, "docs", "index.rst"),
+                    os.path.join(t, "docs", f"{workflow_module}.md"),
+                    os.path.join(t, "tests", package_name, "workflows", "__init__.py"),
+                    os.path.join(t, "tests", package_name, "workflows", f"test_{workflow_module}.py"),
+                    os.path.join(t, "tests", package_name, "__init__.py"),
+                ]
+                for file_path in expected_files:
+                    logging.info(file_path)
+                    self.assertTrue(os.path.isfile(file_path))
+
+        # Test invalid workflow types
         runner = CliRunner()
-        result = runner.invoke(generate, ["telescope", "Telescope", "MyTestTelescope"])
-        self.assertEqual(result.exit_code, 0)
-        call_args = mock_open.call_args_list
-        dagfile = os.path.basename(call_args[0][0][0])
-        telescopefile = os.path.basename(call_args[1][0][0])
-        testfile = os.path.basename(call_args[2][0][0])
-        docfile = os.path.basename(call_args[3][0][0])
-        docindexfile = os.path.basename(call_args[4][0][0])
-        self.assertEqual(dagfile, "mytesttelescope.py")
-        self.assertEqual(telescopefile, "mytesttelescope.py")
-        self.assertEqual(testfile, "test_mytesttelescope.py")
-        self.assertEqual(docfile, "mytesttelescope.md")
-        self.assertEqual(docindexfile, "index.rst")
-
-        result = runner.invoke(generate, ["telescope", "StreamTelescope", "MyTestTelescope"])
-        self.assertEqual(result.exit_code, 0)
-        dagfile = os.path.basename(call_args[5][0][0])
-        telescopefile = os.path.basename(call_args[6][0][0])
-        testfile = os.path.basename(call_args[7][0][0])
-        docfile = os.path.basename(call_args[8][0][0])
-        docindexfile = os.path.basename(call_args[9][0][0])
-        self.assertEqual(dagfile, "mytesttelescope.py")
-        self.assertEqual(telescopefile, "mytesttelescope.py")
-        self.assertEqual(testfile, "test_mytesttelescope.py")
-        self.assertEqual(docfile, "mytesttelescope.md")
-        self.assertEqual(docindexfile, "index.rst")
-
-        result = runner.invoke(generate, ["telescope", "SnapshotTelescope", "MyTestTelescope"])
-        self.assertEqual(result.exit_code, 0)
-        dagfile = os.path.basename(call_args[10][0][0])
-        telescopefile = os.path.basename(call_args[11][0][0])
-        testfile = os.path.basename(call_args[12][0][0])
-        docfile = os.path.basename(call_args[13][0][0])
-        docindexfile = os.path.basename(call_args[14][0][0])
-        self.assertEqual(dagfile, "mytesttelescope.py")
-        self.assertEqual(telescopefile, "mytesttelescope.py")
-        self.assertEqual(testfile, "test_mytesttelescope.py")
-        self.assertEqual(docfile, "mytesttelescope.md")
-        self.assertEqual(docindexfile, "index.rst")
-
-        result = runner.invoke(generate, ["telescope", "unknown", "MyTestTelscope"])
-        self.assertEqual(result.exit_code, 1)
+        with runner.isolated_filesystem() as t:
+            result = CliRunner().invoke(generate, ["workflow", t, "my_workflows_package", "Unknown", "MyTestTelescope"])
+            self.assertEqual(result.exit_code, 2)
+            self.assertTrue("invalid choice: Unknown" in result.output)

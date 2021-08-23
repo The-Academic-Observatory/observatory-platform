@@ -19,5 +19,5 @@ AUTHORS
 ChangeLog
 .eggs/
 .DS_Store
-/observatory-dags/observatory/dags/telescopes/oapen_cloud_function.zip
+/observatory-dags/observatory/dags/workflows/oapen_cloud_function.zip
 docs/schemas
