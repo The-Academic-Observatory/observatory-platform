@@ -160,7 +160,10 @@ function install_terraform_deps() {
     echo "Installing Terraform dependencies"
     echo "================================="
 
+    echo "-----------------"
     echo "Installing Packer"
+    echo "-----------------"
+
     local url="https://releases.hashicorp.com/packer/${packer_version}/packer_${packer_version}_${os}_${terraform_arch}.zip"
     sudo rm -f /usr/local/bin/packer
     sudo curl -L $url -o /usr/local/bin/packer.zip
@@ -171,7 +174,10 @@ function install_terraform_deps() {
     # Install Google Cloud SDK
     install_google_cloud_sdk
 
+    echo "--------------------"
     echo "Installing Terraform"
+    echo "--------------------"
+
     local url="https://releases.hashicorp.com/terraform/${terraform_version}/terraform_${terraform_version}_${os}_${terraform_arch}.zip"
     sudo curl -L $url -o /usr/local/bin/terraform.zip
     # When asked to replace, answer 'y'
@@ -189,13 +195,20 @@ function install_ubuntu_system_deps() {
     sudo apt update
     sudo apt-get install -y software-properties-common curl git python3.8 python3.8-dev python3-pip
 
+    echo "------------------------------"
     echo "Installing Python dependencies"
+    echo "------------------------------"
+
     pip3 install -U virtualenv pbr
 
+    echo "-----------------"
     echo "Installing docker"
+    echo "-----------------"
     sudo apt-get install -y docker.io
 
+    echo "-------------------------"
     echo "Installing docker-compose"
+    echo "-------------------------"
     local url="https://github.com/docker/compose/releases/download/${docker_compose_version}/docker-compose-${os}-${arch}"
     sudo curl -L $url -o /usr/local/bin/docker-compose
     sudo chmod +x /usr/local/bin/docker-compose
@@ -220,14 +233,20 @@ function install_macos_system_deps() {
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
     fi
 
+    echo "---------------------"
     echo "Installing Python 3.8"
+    echo "---------------------"
     brew install python@3.8
     echo 'export PATH="/usr/local/opt/python@3.8/bin:$PATH"' >> ~/.bash_profile
 
+    echo "------------------------------"
     echo "Installing Python dependencies"
+    echo "------------------------------"
     pip3.8 install -U virtualenv pbr
 
+    echo "-----------------"
     echo "Installing Docker"
+    echo "-----------------"
     brew cask install docker
 
     if [ "$config_type" = "terraform" ]; then
@@ -343,8 +362,8 @@ echo "==========================================================================
 echo "Installing Academic Observatory Platform. You may be prompted at some stages to enter in a password to install system dependencies"
 echo "=================================================================================================================================="
 check_system
-install_system_deps
 configure_install_options
+install_system_deps
 install_observatory_platform
 install_observatory_api
 install_observatory_dags
