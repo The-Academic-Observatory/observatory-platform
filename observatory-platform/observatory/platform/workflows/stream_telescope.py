@@ -300,6 +300,7 @@ class StreamTelescope(Workflow):
                 if self.batch_load:
                     main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
                     bq_append_from_partition(
+                        self.schema_path,
                         start_date,
                         end_date,
                         self.dataset_id,
@@ -312,6 +313,7 @@ class StreamTelescope(Workflow):
                 else:
                     main_table_id, partition_table_id = table_ids_from_path(transform_path)
                     bq_append_from_partition(
+                        self.schema_path,
                         start_date,
                         end_date,
                         self.dataset_id,

@@ -19,27 +19,23 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-import observatory.api.server.orm as orm
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
+
+import observatory.api.server.orm as orm
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.server.orm import Organisation
+from observatory.dags.config import schema_path as default_schema_path
 from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
 from observatory.dags.workflows.onix_workflow import OnixWorkflow, OnixWorkflowRelease
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import (
     run_bigquery_query,
     upload_files_to_cloud_storage,
-)
-from observatory.platform.utils.workflow_utils import make_dag_id
-from observatory.platform.utils.workflow_utils import (
-    bq_load_partition,
-    bq_load_shard_v2,
-    table_ids_from_path,
 )
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
@@ -49,6 +45,12 @@ from observatory.platform.utils.test_utils import (
     random_id,
     test_fixtures_path,
 )
+from observatory.platform.utils.workflow_utils import (
+    bq_load_partition,
+    bq_load_shard_v2,
+    table_ids_from_path,
+)
+from observatory.platform.utils.workflow_utils import make_dag_id
 
 
 class TestOnixWorkflowRelease(unittest.TestCase):
@@ -108,29 +110,21 @@ class TestOnixWorkflow(ObservatoryTestCase):
             "RelatedWorks": [
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [
-                        {"WorkIDType": "ISBN-13", "IDValue": "112"},
-                    ],
+                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "112"},],
                 },
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [
-                        {"WorkIDType": "ISBN-13", "IDValue": "113"},
-                    ],
+                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "113"},],
                 },
             ],
-            "RelatedProducts": [
-                {"ProductRelationCodes": ["Replaces", "something random"], "ISBN13": "211"},
-            ],
+            "RelatedProducts": [{"ProductRelationCodes": ["Replaces", "something random"], "ISBN13": "211"},],
         },
         {
             "ISBN13": "112",
             "RelatedWorks": [
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [
-                        {"WorkIDType": "ISBN-13", "IDValue": "112"},
-                    ],
+                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "112"},],
                 },
             ],
             "RelatedProducts": [],
@@ -140,9 +134,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             "RelatedWorks": [
                 {
                     "WorkRelationCode": "Manifestation of",
-                    "WorkIdentifiers": [
-                        {"WorkIDType": "ISBN-13", "IDValue": "211"},
-                    ],
+                    "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "211"},],
                 },
             ],
             "RelatedProducts": [],
@@ -151,10 +143,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
     class MockTelescopeResponse:
         def __init__(self):
-            self.organisation = Organisation(
-                name="test",
-                gcp_project_id="project_id",
-            )
+            self.organisation = Organisation(name="test", gcp_project_id="project_id",)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1521,6 +1510,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         self.gcp_project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
         self.timestamp = pendulum.now()
+        self.schema_path = default_schema_path()
 
         self.onix_table_id = "onix"
         self.test_onix_folder = random_id()  # "onix_workflow_test_onix_table"
@@ -1574,6 +1564,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
         # Load into bigquery
         table_id, _ = table_ids_from_path("onix.json")
         bq_load_shard_v2(
+            self.schema_path,
             project_id=self.gcp_project_id,
             transform_bucket=self.gcp_bucket_name,
             transform_blob=blobs[0],
@@ -1611,6 +1602,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
             schema_prefix = "anu_press_" if table_id == "google_analytics" else ""
 
             bq_load_partition(
+                self.schema_path,
                 project_id=self.gcp_project_id,
                 transform_bucket=self.gcp_bucket_name,
                 transform_blob=blob,
@@ -1784,27 +1776,15 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                     self.assertEqual(expected_state, ti.state)
 
                 # Create oaebu output tables
-                ti = env.run_task(
-                    telescope.create_oaebu_book_product_table.__name__,
-                    workflow_dag,
-                    execution_date,
-                )
+                ti = env.run_task(telescope.create_oaebu_book_product_table.__name__, workflow_dag, execution_date,)
                 self.assertEqual(expected_state, ti.state)
 
                 # ONIX isbn check
-                ti = env.run_task(
-                    telescope.create_oaebu_data_qa_onix_isbn.__name__,
-                    workflow_dag,
-                    execution_date,
-                )
+                ti = env.run_task(telescope.create_oaebu_data_qa_onix_isbn.__name__, workflow_dag, execution_date,)
                 self.assertEqual(expected_state, ti.state)
 
                 # ONIX aggregate metrics
-                ti = env.run_task(
-                    telescope.create_oaebu_data_qa_onix_aggregate.__name__,
-                    workflow_dag,
-                    execution_date,
-                )
+                ti = env.run_task(telescope.create_oaebu_data_qa_onix_aggregate.__name__, workflow_dag, execution_date,)
                 self.assertEqual(expected_state, ti.state)
 
                 # JSTOR country isbn check
@@ -1841,9 +1821,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
                 # Google Books Sales isbn check
                 ti = env.run_task(
-                    telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__,
-                    workflow_dag,
-                    execution_date,
+                    telescope.create_oaebu_data_qa_google_books_sales_isbn.__name__, workflow_dag, execution_date,
                 )
                 self.assertEqual(expected_state, ti.state)
 
@@ -1857,9 +1835,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
                 # Google Books Traffic isbn check
                 ti = env.run_task(
-                    telescope.create_oaebu_data_qa_google_books_traffic_isbn.__name__,
-                    workflow_dag,
-                    execution_date,
+                    telescope.create_oaebu_data_qa_google_books_traffic_isbn.__name__, workflow_dag, execution_date,
                 )
                 self.assertEqual(expected_state, ti.state)
 
@@ -1873,9 +1849,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
                 # OAPEN IRUS UK isbn check
                 ti = env.run_task(
-                    telescope.create_oaebu_data_qa_oapen_irus_uk_isbn.__name__,
-                    workflow_dag,
-                    execution_date,
+                    telescope.create_oaebu_data_qa_oapen_irus_uk_isbn.__name__, workflow_dag, execution_date,
                 )
                 self.assertEqual(expected_state, ti.state)
 
@@ -1890,9 +1864,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 if include_google_analytics:
                     # Google Analytics isbn check
                     env.run_task(
-                        telescope.create_oaebu_data_qa_google_analytics_isbn.__name__,
-                        workflow_dag,
-                        execution_date,
+                        telescope.create_oaebu_data_qa_google_analytics_isbn.__name__, workflow_dag, execution_date,
                     )
 
                     # Google Books Analytics unmatched isbns
@@ -1922,19 +1894,11 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                 ]
 
                 for table in export_tables:
-                    ti = env.run_task(
-                        f"{telescope.export_oaebu_table.__name__}.{table}",
-                        workflow_dag,
-                        execution_date,
-                    )
+                    ti = env.run_task(f"{telescope.export_oaebu_table.__name__}.{table}", workflow_dag, execution_date,)
                     self.assertEqual(expected_state, ti.state)
 
                 # Export oaebu elastic qa table
-                ti = env.run_task(
-                    telescope.export_oaebu_qa_metrics.__name__,
-                    workflow_dag,
-                    execution_date,
-                )
+                ti = env.run_task(telescope.export_oaebu_qa_metrics.__name__, workflow_dag, execution_date,)
                 self.assertEqual(expected_state, ti.state)
 
                 # Test conditions

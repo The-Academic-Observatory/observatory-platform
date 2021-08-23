@@ -241,6 +241,7 @@ class GoogleAnalyticsTelescope(SnapshotTelescope):
                 table_id, _ = table_ids_from_path(transform_path)
                 table_description = self.table_descriptions.get(table_id, "")
                 bq_load_partition(
+                    self.schema_path,
                     self.project_id,
                     release.transform_bucket,
                     transform_blob,

@@ -408,6 +408,7 @@ class OapenIrusUkTelescope(SnapshotTelescope):
                 table_description = self.table_descriptions.get(table_id, "")
 
                 bq_load_partition(
+                    self.schema_path,
                     self.project_id,
                     release.transform_bucket,
                     transform_blob,

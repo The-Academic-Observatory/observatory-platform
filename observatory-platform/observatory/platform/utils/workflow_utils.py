@@ -561,6 +561,7 @@ def bq_delete_old(
 
 
 def bq_append_from_partition(
+    schema_path: str,
     start_date: pendulum.datetime,
     end_date: pendulum.datetime,
     dataset_id: str,
@@ -570,6 +571,7 @@ def bq_append_from_partition(
     schema_version: str = None,
 ):
     """Appends rows to the main table by coping specific partitions from the partition table to the main table.
+    :param schema_path: the SQL schema path.
     :param start_date: Start date, excluded.
     :param end_date: End date, included.
     :param dataset_id: Dataset id.
@@ -580,7 +582,7 @@ def bq_append_from_partition(
     :return: None.
     """
     project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
-        dataset_id, main_table_id, end_date, prefix, schema_version
+        schema_path, dataset_id, main_table_id, end_date, prefix, schema_version
     )
     # exclude start date and include end date in period
     period = pendulum.period(start_date.date() + timedelta(days=1), end_date.date())

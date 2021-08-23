@@ -346,6 +346,7 @@ class CrossrefMetadataTelescope(SnapshotTelescope):
             transform_blob = f"{blob_name(release.transform_folder)}/*"
             table_description = self.table_descriptions.get(self.dag_id, "")
             bq_load_shard(
+                self.schema_path,
                 release.release_date,
                 transform_blob,
                 self.dataset_id,

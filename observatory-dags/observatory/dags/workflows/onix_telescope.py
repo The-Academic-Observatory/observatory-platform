@@ -404,6 +404,7 @@ class OnixTelescope(SnapshotTelescope):
                 table_id, _ = table_ids_from_path(transform_path)
 
                 bq_load_shard_v2(
+                    self.schema_path,
                     self.project_id,
                     self.transform_bucket,
                     transform_blob,
