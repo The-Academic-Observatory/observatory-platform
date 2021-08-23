@@ -247,7 +247,9 @@ class FernetKeyType(click.ParamType):
 
     name = "FernetKeyType"
 
-    def convert(self, value: Any, param: Optional["Parameter"] = None, ctx: Optional["Context"] = None) -> Any:
+    def convert(
+        self, value: Any, param: Optional[click.core.Parameter] = None, ctx: Optional[click.core.Context] = None
+    ) -> Any:
         valid, msg = is_fernet_key(value)
         if not valid:
             self.fail(f"Input is not a valid Fernet key. Reason: {msg}", param=param, ctx=ctx)
@@ -260,7 +262,9 @@ class FlaskSecretKeyType(click.ParamType):
 
     name = "SecretKeyType"
 
-    def convert(self, value: Any, param: Optional["Parameter"] = None, ctx: Optional["Context"] = None) -> Any:
+    def convert(
+        self, value: Any, param: Optional[click.core.Parameter] = None, ctx: Optional[click.core.Context] = None
+    ) -> Any:
         valid, msg = is_secret_key(value)
         if not valid:
             self.fail(f"Input is not a valid secret key. Reason: {msg}", param=param, ctx=ctx)
