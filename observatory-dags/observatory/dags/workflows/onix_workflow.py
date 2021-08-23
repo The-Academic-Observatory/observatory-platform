@@ -417,7 +417,7 @@ class OnixWorkflow(Workflow):
         blob = os.path.join(release.transform_folder, os.path.basename(release.workslookup_filename))
         table_id, _ = table_ids_from_path(release.workslookup_filename)
         bq_load_shard_v2(
-            schema_folder=self.schema_path,
+            schema_folder=self.schema_folder,
             project_id=release.project_id,
             transform_bucket=release.transform_bucket,
             transform_blob=blob,
@@ -440,7 +440,7 @@ class OnixWorkflow(Workflow):
         blob = os.path.join(release.transform_folder, os.path.basename(release.workslookup_errors_filename))
         table_id, _ = table_ids_from_path(release.workslookup_errors_filename)
         bq_load_shard_v2(
-            schema_path=self.schema_path,
+            schema_folder=self.schema_folder,
             project_id=release.project_id,
             transform_bucket=release.transform_bucket,
             transform_blob=blob,
@@ -465,7 +465,7 @@ class OnixWorkflow(Workflow):
         blob = os.path.join(release.transform_folder, os.path.basename(release.worksfamilylookup_filename))
         table_id, _ = table_ids_from_path(release.worksfamilylookup_filename)
         bq_load_shard_v2(
-            schema_path=self.schema_path,
+            schema_folder=self.schema_folder,
             project_id=release.project_id,
             transform_bucket=release.transform_bucket,
             transform_blob=blob,
