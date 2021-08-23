@@ -896,10 +896,14 @@ class TerraformConfig(ObservatoryConfig):
         """
 
         # Create airflow variables from fixed config file values
-        variables = [AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)]
+        data_path = "/opt/observatory/data"  # Hardcoded in docker-compose.observatory.yml.jinja2
+        variables = [AirflowVariable(AirflowVars.DATA_PATH, data_path),
+                     AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)]
 
         if self.google_cloud.project_id is not None:
             variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
+            variables.append(AirflowVariable(AirflowVars.DOWNLOAD_BUCKET, f"{self.google_cloud.project_id}-download"))
+            variables.append(AirflowVariable(AirflowVars.TRANSFORM_BUCKET, f"{self.google_cloud.project_id}-transform"))
 
         if self.google_cloud.data_location:
             variables.append(AirflowVariable(AirflowVars.DATA_LOCATION, self.google_cloud.data_location))
