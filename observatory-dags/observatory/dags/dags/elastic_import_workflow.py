@@ -124,6 +124,19 @@ configs = [
         kibana_spaces=["oaebu-umich-press", "dev-oaebu-umich-press"],
         kibana_time_fields=OAEBU_KIBANA_TIME_FIELDS,
     ),
+ElasticImportConfig(
+        dag_id=make_dag_id(DAG_PREFIX, "oapen"),
+        project_id="oaebu-oapen",
+        dataset_id=DATASET_ID,
+        bucket_name="oaebu-oapen-transform",
+        data_location=DATA_LOCATION,
+        file_type=FILE_TYPE_JSONL,
+        sensor_dag_ids=[make_dag_id(DAG_ONIX_WORKFLOW_PREFIX, "oapen")],
+        elastic_mappings_path=ELASTIC_MAPPINGS_PATH,
+        elastic_mappings_func=load_elastic_mappings_oaebu,
+        kibana_spaces=["oaebu-oapen", "dev-oaebu-oapen"],
+        kibana_time_fields=OAEBU_KIBANA_TIME_FIELDS,
+    ),
 ]
 
 for config in configs:

@@ -101,6 +101,15 @@ empty_google_analytics as (
         ) as unique_views
 ),
 
+empty_ucl_discovery as (
+    SELECT
+        CAST(NULL as STRING) as isbn,
+        CAST(NULL as STRING) as book_title,
+        CAST(NULL as DATE) as release_date,
+        CAST(NULL as INT64) as total_downloads,
+        [STRUCT(CAST(NULL as STRING) as country_name, CAST(NULL as STRING) as country_code, CAST(null as INT64) as download_count)] as downloads_per_country
+),
+
 onix_ebook_titles as (
     SELECT
         ISBN13,
@@ -229,8 +238,14 @@ oapen_irus_uk_metadata as (
     GROUP BY ISBN
 ),
 
-# TODO UCL Discovery
-
+# UCL Discovery
+ucl_discovery_metrics as (
+    SELECT
+        isbn as ISBN13, release_date, STRUCT(SUM(total_downloads) as total_downloads, ARRAY_CONCAT_AGG(downloads_per_country) as downloads_per_country ) as metrics
+    FROM {% if ucl %} `{{ project_id }}.{{ dataset_id }}.{{ ucl_dataset }}_ucl_discovery_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_ucl_discovery {% endif %} as ucl_discovery
+    WHERE isbn IS NOT NULL
+    GROUP BY isbn, release_date
+),
 
 crossref_events as (
     SELECT
@@ -279,7 +294,8 @@ metrics as (
             google_books_traffic.metrics as google_books_traffic,
             jstor_country.metrics as jstor_country,
             jstor_institution.metrics as jstor_institution,
-            oapen_irus_uk.metrics as oapen_irus_uk
+            oapen_irus_uk.metrics as oapen_irus_uk,
+            ucl_discovery.metrics as ucl_discovery
         ) ORDER BY ebook_months.release_date DESC) as months
     FROM ebook_months
     LEFT JOIN google_analytics_metrics as google_analytics ON ebook_months.ISBN13 = google_analytics.ISBN13 AND ebook_months.release_date = google_analytics.release_date
@@ -288,7 +304,8 @@ metrics as (
     LEFT JOIN jstor_country_metrics as jstor_country ON ebook_months.ISBN13 = jstor_country.ISBN13 AND ebook_months.release_date = jstor_country.release_date
     LEFT JOIN jstor_institution_metrics as jstor_institution ON ebook_months.ISBN13 = jstor_institution.ISBN13 AND ebook_months.release_date = jstor_institution.release_date
     LEFT JOIN oapen_irus_uk_metrics as oapen_irus_uk ON ebook_months.ISBN13 = oapen_irus_uk.ISBN13 AND ebook_months.release_date = oapen_irus_uk.release_date
-    LEFT JOIN crossref_events  as crossref_events ON ebook_months.ISBN13 = crossref_events.ISBN13 AND ebook_months.release_date = crossref_events.release_date
+    LEFT JOIN ucl_discovery_metrics as ucl_discovery ON ebook_months.ISBN13 = ucl_discovery.ISBN13 AND ebook_months.release_date = ucl_discovery.release_date
+    LEFT JOIN crossref_events as crossref_events ON ebook_months.ISBN13 = crossref_events.ISBN13 AND ebook_months.release_date = crossref_events.release_date
     WHERE crossref_events.metrics IS NOT NULL OR google_books_sales.metrics IS NOT NULL OR google_books_traffic.metrics IS NOT NULL OR jstor_country.metrics IS NOT NULL OR jstor_institution.metrics is not null OR oapen_irus_uk.metrics IS NOT NULL
     GROUP BY ebook_months.ISBN13
 )
@@ -302,4 +319,4 @@ LEFT JOIN google_books_traffic_metadata on google_books_traffic_metadata.ISBN13 
 LEFT JOIN jstor_country_metadata on jstor_country_metadata.ISBN13 = onix_ebook_titles.ISBN13
 LEFT JOIN jstor_institution_metadata on jstor_institution_metadata.ISBN13 = onix_ebook_titles.ISBN13
 LEFT JOIN oapen_irus_uk_metadata on oapen_irus_uk_metadata.ISBN13 = onix_ebook_titles.ISBN13
-LEFT JOIN `academic-observatory.observatory.book20210529` as public_data on public_data.isbn = onix_ebook_titles.ISBN13
+LEFT JOIN `academic-observatory.observatory.book{{ public_book_release_date.strftime('%Y%m%d') }}` as public_data on public_data.isbn = onix_ebook_titles.ISBN13

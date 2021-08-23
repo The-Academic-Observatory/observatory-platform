@@ -617,6 +617,14 @@ class OnixWorkflow(Workflow):
 
         table_id = bigquery_sharded_table_id(output_table, release_date)
 
+        # Identify latest Book release from the Academic Observatory
+        public_book_release_date = select_table_shard_dates(
+            project_id='academic-observatory',
+            dataset_id='observatory',
+            table_id='book',
+            end_date=release.release_date,
+        )[0]
+
         sql = render_template(
             template_path,
             project_id=release.project_id,
@@ -634,6 +642,7 @@ class OnixWorkflow(Workflow):
             jstor_dataset=jstor_dataset,
             oapen_dataset=oapen_dataset,
             ucl_dataset=ucl_dataset,
+            public_book_release_date=public_book_release_date,
         )
 
         create_bigquery_dataset(project_id=release.project_id, dataset_id=output_dataset, location=data_location)
