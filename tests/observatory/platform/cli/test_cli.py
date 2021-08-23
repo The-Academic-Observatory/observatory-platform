@@ -84,25 +84,38 @@ class TestObservatoryGenerate(unittest.TestCase):
 
     @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config_interactive")
     def test_generate_local_interactive(self, m_gen_config):
-        pass
         runner = CliRunner()
-        config_path = os.path.abspath("config.yaml")
-        result = runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path, "--interactive"])
-        self.assertEqual(result.exit_code, os.EX_OK)
-        self.assertEqual(m_gen_config.call_count, 1)
-        self.assertEqual(m_gen_config.call_args.kwargs["install_odags"], False)
-        self.assertEqual(m_gen_config.call_args.kwargs["config_path"], config_path)
+        with runner.isolated_filesystem():
+            config_path = os.path.abspath("config.yaml")
+            result = runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path, "--interactive"])
+            self.assertEqual(result.exit_code, os.EX_OK)
+            self.assertEqual(m_gen_config.call_count, 1)
+            self.assertEqual(m_gen_config.call_args.kwargs["install_odags"], False)
+            self.assertEqual(m_gen_config.call_args.kwargs["config_path"], config_path)
+
+
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config_interactive")
+    def test_generate_local_interactive_install_odags(self, m_gen_config):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            config_path = os.path.abspath("config.yaml")
+            result = runner.invoke(cli, args=["generate", "config", "local", "--config-path", config_path, "--interactive"], env={"install_odags":"y"})
+            self.assertEqual(result.exit_code, os.EX_OK)
+            self.assertEqual(m_gen_config.call_count, 1)
+            self.assertEqual(m_gen_config.call_args.kwargs["install_odags"], True)
+            self.assertEqual(m_gen_config.call_args.kwargs["config_path"], config_path)
+
 
     @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_config_interactive")
     def test_generate_terraform_interactive(self, m_gen_config):
-        pass
         runner = CliRunner()
-        config_path = os.path.abspath("config.yaml")
-        result = runner.invoke(cli, ["generate", "config", "terraform", "--config-path", config_path, "--interactive"])
-        self.assertEqual(result.exit_code, os.EX_OK)
-        self.assertEqual(m_gen_config.call_count, 1)
-        self.assertEqual(m_gen_config.call_args.kwargs["install_odags"], False)
-        self.assertEqual(m_gen_config.call_args.kwargs["config_path"], config_path)
+        with runner.isolated_filesystem():
+            config_path = os.path.abspath("config.yaml")
+            result = runner.invoke(cli, ["generate", "config", "terraform", "--config-path", config_path, "--interactive"])
+            self.assertEqual(result.exit_code, os.EX_OK)
+            self.assertEqual(m_gen_config.call_count, 1)
+            self.assertEqual(m_gen_config.call_args.kwargs["install_odags"], False)
+            self.assertEqual(m_gen_config.call_args.kwargs["config_path"], config_path)
 
 
 class MockConfig(Mock):

@@ -150,7 +150,6 @@ class TestPlatformBuilder(unittest.TestCase):
             config_path = os.path.join(t, "config.yaml")
             self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
-            print(f"is it running {cmd.is_docker_running}")
             self.assertTrue(cmd.is_docker_running)
 
     @patch("observatory.platform.platform_builder.subprocess.run", return_value=MockCompleteProccess(1))
@@ -161,21 +160,19 @@ class TestPlatformBuilder(unittest.TestCase):
             config_path = os.path.join(t, "config.yaml")
             self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
-            print(f"is it running {cmd.is_docker_running}")
             self.assertFalse(cmd.is_docker_running)
 
     @patch(
-        "observatory.platform.platform_builder.subprocess.run",
-        **{"return_value.raiseError.side_effect": Exception("some exception")},
-    )
+        "observatory.platform.platform_builder.subprocess.run")
     def test_is_docker_running_false_throw_exception(self, mock_subprocess_run):
         """Test the property is_docker_running returns False when Docker is not running"""
+
+        mock_subprocess_run.side_effect = Exception("test")
 
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
             self.save_config(config_path, t)
             cmd = PlatformBuilder(config_path=config_path)
-            print(f"is it running {cmd.is_docker_running}")
             self.assertFalse(cmd.is_docker_running)
 
     def test_make_observatory_files(self):
