@@ -3,66 +3,6 @@ This is a tutorial for deploying the Observatory Platform to Google Cloud with T
 
 You should have [installed the Observatory Platform](installation.html) before following this tutorial.
 
-## Install dependencies
-The dependencies that are required include:
-* [Packer](https://www.packer.io/): for automating the creation of the Google Cloud VM images.
-* [Terraform](https://www.terraform.io/): to automate the deployment of the various Google Cloud services.
-* [Google Cloud SDK](https://cloud.google.com/sdk/docs#install_the_latest_cloud_tools_version_cloudsdk_current_version): the Google
-Cloud SDK including the gcloud command line tool.
-
-### Linux
-Install Packer:
-```bash
-sudo curl -L "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_linux_amd64.zip" -o /usr/local/bin/packer
-# When asked to replace, answer 'y'
-unzip /usr/local/bin/packer -d /usr/local/bin/
-sudo chmod +x /usr/local/bin/packer
-```
-
-Install Google Cloud SDK:
-```bash
-sudo curl -L "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-330.0.0-linux-x86_64.tar.gz" -o /usr/local/bin/google-cloud-sdk.tar.gz
-sudo tar -xzvf /usr/local/bin/google-cloud-sdk.tar.gz -C /usr/local/bin
-rm /usr/local/bin/google-cloud-sdk.tar.gz
-sudo chmod +x /usr/local/bin/google-cloud-sdk
-/usr/local/bin/google-cloud-sdk/install.sh
-```
-
-Install Terraform:
-```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_linux_amd64.zip" -o /usr/local/bin/terraform
-# When asked to replace, answer 'y'
-sudo unzip /usr/local/bin/terraform -d /usr/local/bin/
-sudo chmod +x /usr/local/bin/terraform
-```
-
-### Mac
-Install Packer:
-```bash
-sudo curl -L "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_darwin_amd64.zip" -o /usr/local/bin/packer
-# When asked to replace, answer 'y'
-unzip /usr/local/bin/packer -d /usr/local/bin/
-sudo chmod +x /usr/local/bin/packer
-```
-
-Install Google Cloud SDK:
-```bash
-sudo curl -L "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-330.0.0-darwin-x86_64.tar.gz" -o /usr/local/bin/google-cloud-sdk.tar.gz
-mkdir /usr/local/bin/google-cloud-sdk
-sudo tar -xzvf /usr/local/bin/google-cloud-sdk.tar.gz -C /usr/local/bin
-rm /usr/local/bin/google-cloud-sdk.tar.gz
-sudo chmod +x /usr/local/bin/google-cloud-sdk
-/usr/local/bin/google-cloud-sdk/install.sh
-```
-
-Install Terraform:
-```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_darwin_amd64.zip" -o /usr/local/bin/terraform
-# When asked to replace, answer 'y'
-unzip /usr/local/bin/terraform -d /usr/local/bin/
-sudo chmod +x /usr/local/bin/terraform
-```
-
 ## Prepare Google Cloud project
 Each environment (develop, staging, production) requires its own project.
 See [Creating and managing projects](https://cloud.google.com/resource-manager/docs/creating-managing-projects) for more 
@@ -176,11 +116,11 @@ backend:
   type: terraform
   environment: develop
 
-# Apache Airflow settings
-airflow:
-  fernet_key: 4yfYXnxjUZSsh1CefVigTuUGcH-AUnuKC9jJ2sUq-xA= # the fernet key which is used to encrypt the secrets in the airflow database
-  ui_user_email: my-email@example.com <-- # the email for the Apache Airflow UI's airflow user
-  ui_user_password: my-password <-- # the password for the Apache Airflow UI's airflow user
+# Observatory
+observatory:
+  airflow_fernet_key: 4yfYXnxjUZSsh1CefVigTuUGcH-AUnuKC9jJ2sUq-xA= # the fernet key which is used to encrypt the secrets in the airflow database
+  airflow_ui_user_email: my-email@example.com <-- # the email for the Apache Airflow UI's airflow user
+  airflow_ui_user_password: my-password <-- # the password for the Apache Airflow UI's airflow user
 
 # Terraform settings
 terraform:
