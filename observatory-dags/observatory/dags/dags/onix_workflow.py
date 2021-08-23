@@ -21,7 +21,7 @@
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
 from observatory.dags.workflows.onix_workflow import OnixWorkflow
-from observatory.platform.utils.telescope_utils import make_observatory_api
+from observatory.platform.utils.workflow_utils import make_observatory_api
 
 
 # Temporary function. Create oaebu partner metadata.

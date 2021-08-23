@@ -759,16 +759,10 @@ class ObservatoryConfig:
         airflow_fernet_key = Fernet.generate_key()
         airflow_secret_key = generate_secret_key()
 
-        try:
-            observatory_dags_path = module_file_path("observatory.dags", nav_back_steps=-3)
-        except ModuleNotFoundError:
-            observatory_dags_path = "/path/to/observatory-platform/observatory-dags"
-
         render = render_template(
             template_path,
             airflow_fernet_key=airflow_fernet_key,
-            airflow_secret_key=airflow_secret_key,
-            airflow_observatory_dags_path=observatory_dags_path,
+            airflow_secret_key=airflow_secret_key
         )
 
         # Save file

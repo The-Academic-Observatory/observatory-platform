@@ -31,7 +31,7 @@ from airflow.operators.dummy import DummyOperator
 from click.testing import CliRunner
 from google.cloud.bigquery import SourceFormat
 from google.cloud.exceptions import NotFound
-from observatory.platform.telescopes.telescope import AbstractRelease, Telescope
+from observatory.platform.workflows.workflow import AbstractRelease, Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
@@ -61,7 +61,7 @@ globals()['test-telescope'] = telescope.make_dag()
 """
 
 
-class TelescopeTest(Telescope):
+class TelescopeTest(Workflow):
     """A telescope for testing purposes"""
 
     def __init__(

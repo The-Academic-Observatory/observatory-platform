@@ -26,8 +26,8 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.sensors.external_task import ExternalTaskSensor
-from observatory.dags.config import workflow_sql_templates_path
-from observatory.platform.telescopes.telescope import Telescope
+
+from observatory.dags.config import sql_folder
 from observatory.platform.utils.airflow_utils import AirflowVars, set_task_state
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
@@ -41,6 +41,7 @@ from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
 )
+from observatory.platform.workflows.workflow import Workflow
 
 MAX_QUERIES = 100
 
@@ -212,44 +213,24 @@ def make_elastic_tables(
         )
     if relate_to_countries:
         tables.append(
-            {
-                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
-                "aggregate": aggregate_table_id,
-                "facet": "countries",
-            }
+            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "countries",}
         )
     if relate_to_groups:
         tables.append(
-            {
-                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
-                "aggregate": aggregate_table_id,
-                "facet": "groupings",
-            }
+            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "groupings",}
         )
     if relate_to_members:
         tables.append(
-            {
-                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
-                "aggregate": aggregate_table_id,
-                "facet": "members",
-            }
+            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "members",}
         )
     if relate_to_journals:
         tables.append(
-            {
-                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
-                "aggregate": aggregate_table_id,
-                "facet": "journals",
-            }
+            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "journals",}
         )
 
     if relate_to_funders:
         tables.append(
-            {
-                "file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME,
-                "aggregate": aggregate_table_id,
-                "facet": "funders",
-            }
+            {"file_name": DoiWorkflow.EXPORT_RELATIONS_FILENAME, "aggregate": aggregate_table_id, "facet": "funders",}
         )
 
     if relate_to_publishers:
@@ -264,7 +245,7 @@ def make_elastic_tables(
     return tables
 
 
-class DoiWorkflow(Telescope):
+class DoiWorkflow(Workflow):
     INT_DATASET_ID = "observatory_intermediate"
     INT_DATASET_DESCRIPTION = "Intermediate processing dataset for the Academic Observatory."
     DASHBOARDS_DATASET_ID = "coki_dashboards"
@@ -647,10 +628,7 @@ class ObservatoryRelease:
 
         for dataset_id, description in datasets:
             create_bigquery_dataset(
-                self.project_id,
-                dataset_id,
-                self.data_location,
-                description=description,
+                self.project_id, dataset_id, self.data_location, description=description,
             )
 
     def create_intermediate_table(
@@ -690,7 +668,7 @@ class ObservatoryRelease:
 
         # Create processed table
         template_path = os.path.join(
-            workflow_sql_templates_path(), make_sql_jinja2_filename(f"create_{output_table_id}")
+            sql_folder(), make_sql_jinja2_filename(f"create_{output_table_id}")
         )
         sql = render_template(template_path, project_id=self.project_id, release_date=self.release_date, **inputs)
 
@@ -736,7 +714,7 @@ class ObservatoryRelease:
         :return: None.
         """
 
-        template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("create_aggregate"))
+        template_path = os.path.join(sql_folder(), make_sql_jinja2_filename("create_aggregate"))
         sql = render_template(
             template_path,
             project_id=self.project_id,
@@ -790,7 +768,7 @@ class ObservatoryRelease:
         """
 
         # Create processed dataset
-        template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("comparison_view"))
+        template_path = os.path.join(sql_folder(), make_sql_jinja2_filename("comparison_view"))
 
         # Create views
         table_ids = ["country", "funder", "group", "institution", "publisher", "subregion"]
@@ -883,7 +861,7 @@ class ObservatoryRelease:
         :return:
         """
 
-        template_path = os.path.join(workflow_sql_templates_path(), template_file_name)
+        template_path = os.path.join(sql_folder(), template_file_name)
         sql = render_template(
             template_path,
             project_id=self.project_id,

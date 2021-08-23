@@ -25,24 +25,23 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
-from typing import Any, List, Tuple, Union
+from typing import List, Tuple, Union
 
-import google.auth
 import pendulum
 from google.api_core.exceptions import BadRequest, Conflict
-from google.api_core.iam import Policy
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat
 from google.cloud.exceptions import Conflict, NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
-from observatory.dags.config import workflow_sql_templates_path
+from requests.exceptions import ChunkedEncodingError
+
+from observatory.platform.utils.config_utils import module_file_path, utils_templates_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
 )
-from requests.exceptions import ChunkedEncodingError
 
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
 DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
@@ -387,9 +386,7 @@ def create_bigquery_table_from_query(
     # Set partitioning settings
     if partition:
         job_config.time_partitioning = bigquery.TimePartitioning(
-            type_=partition_type,
-            field=partition_field,
-            require_partition_filter=require_partition_filter,
+            type_=partition_type, field=partition_field, require_partition_filter=require_partition_filter,
         )
 
     if cluster:
@@ -863,9 +860,7 @@ def azure_to_google_cloud_storage_transfer(
         "transferSpec": {
             "azureBlobStorageDataSource": {
                 "storageAccount": azure_storage_account_name,
-                "azureCredentials": {
-                    "sasToken": azure_sas_token,
-                },
+                "azureCredentials": {"sasToken": azure_sas_token,},
                 "container": azure_container,
             },
             "objectConditions": {"includePrefixes": include_prefixes},
@@ -919,10 +914,7 @@ def aws_to_google_cloud_storage_transfer(
         "transferSpec": {
             "awsS3DataSource": {
                 "bucketName": aws_bucket,
-                "awsAccessKey": {
-                    "accessKeyId": aws_access_key_id,
-                    "secretAccessKey": aws_secret_key,
-                },
+                "awsAccessKey": {"accessKeyId": aws_access_key_id, "secretAccessKey": aws_secret_key,},
             },
             "objectConditions": {"includePrefixes": include_prefixes},
             "gcsDataSink": {"bucketName": gc_bucket},
@@ -954,7 +946,9 @@ def select_table_shard_dates(
     :return:
     """
 
-    template_path = os.path.join(workflow_sql_templates_path(), make_sql_jinja2_filename("select_table_shard_dates"))
+    template_path = os.path.join(
+        utils_templates_path(), make_sql_jinja2_filename("select_table_shard_dates")
+    )
     query = render_template(
         template_path,
         project_id=project_id,
