@@ -34,7 +34,6 @@ from google.api_core.exceptions import PermissionDenied
 class AirflowVars:
     """ Common Airflow Variable names used with the Observatory Platform """
 
-    TEST_DATA_PATH = "test_data_path"
     DATA_PATH = "data_path"
     ENVIRONMENT = "environment"
     PROJECT_ID = "project_id"
@@ -43,8 +42,6 @@ class AirflowVars:
     TRANSFORM_BUCKET = "transform_bucket"
     TERRAFORM_ORGANIZATION = "terraform_organization"
     DAGS_MODULE_NAMES = "dags_module_names"
-    KIBANA_SPACES = "kibana_spaces"
-    OBSERVATORY_API = "observatory_api"
     ORCID_BUCKET = "orcid_bucket"
     VM_DAGS_WATCH_LIST = "vm_dags_watch_list"
 

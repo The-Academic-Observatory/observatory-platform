@@ -67,7 +67,6 @@ from observatory.platform.utils.workflow_utils import (
     reset_variables,
     table_ids_from_path,
     workflow_path,
-    test_data_path,
     upload_files_from_list,
 )
 from observatory.platform.utils.workflow_utils import add_partition_date
@@ -181,15 +180,6 @@ class TestTemplateUtils(unittest.TestCase):
             expected = os.path.join(root_path, SubFolder.transformed.value, telescope_name)
             self.assertEqual(expected, path_transformed)
             self.assertTrue(os.path.exists(path_transformed))
-
-    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
-    def test_test_data_path(self, mock_variable_get):
-        # Mock test data path variable
-        expected_path = "/tmp/test_data"
-        mock_variable_get.return_value = expected_path
-
-        actual_path = test_data_path()
-        self.assertEqual(expected_path, actual_path)
 
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_blob_name(self, mock_variable_get):
