@@ -15,7 +15,7 @@
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
 
 import os
-from typing import List, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import click
 import observatory.dags.dags
@@ -38,6 +38,8 @@ from observatory.platform.observatory_config import (
     TerraformConfig,
     VirtualMachine,
     generate_secret_key,
+    is_fernet_key,
+    is_secret_key,
 )
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
@@ -240,6 +242,32 @@ class GenerateCommand:
         click.echo(f'{file_type} saved to: "{config_path}"')
 
 
+class FernetKeyType(click.ParamType):
+    """Fernet key type for click prompt.  Will validate the input against the is_fernet_key method."""
+
+    name = "FernetKeyType"
+
+    def convert(self, value: Any, param: Optional["Parameter"] = None, ctx: Optional["Context"] = None) -> Any:
+        valid, msg = is_fernet_key(value)
+        if not valid:
+            self.fail(f"Input is not a valid Fernet key. Reason: {msg}", param=param, ctx=ctx)
+
+        return value
+
+
+class FlaskSecretKeyType(click.ParamType):
+    """Secret key type for click prompt.  Will validate the input against the is_secret_key method."""
+
+    name = "SecretKeyType"
+
+    def convert(self, value: Any, param: Optional["Parameter"] = None, ctx: Optional["Context"] = None) -> Any:
+        valid, msg = is_secret_key(value)
+        if not valid:
+            self.fail(f"Input is not a valid secret key. Reason: {msg}", param=param, ctx=ctx)
+
+        return value
+
+
 class InteractiveConfigBuilder:
     """Helper class for configuring the ObservatoryConfig class parameters through interactive user input."""
 
@@ -310,14 +338,14 @@ class InteractiveConfigBuilder:
         click.echo("Configuring Observatory settings")
         text = "Enter an Airflow Fernet key (leave blank to autogenerate)"
         default = ""
-        fernet_key = click.prompt(text=text, type=str, default=default)
+        fernet_key = click.prompt(text=text, type=FernetKeyType(), default=default)
 
         if fernet_key != "":
             config.observatory.airflow_fernet_key = fernet_key
 
         text = "Enter an Airflow secret key (leave blank to autogenerate)"
         default = ""
-        secret_key = click.prompt(text=text, type=str, default=default)
+        secret_key = click.prompt(text=text, type=FlaskSecretKeyType(), default=default)
 
         if secret_key != "":
             config.observatory.airflow_secret_key = secret_key
@@ -605,8 +633,11 @@ class InteractiveConfigBuilder:
         text = "Disk size (GB), e.g., 50"
         disk_size = click.prompt(text=text, type=int)
 
-        text = "Disk type, e.g., pd-ssd"
-        disk_type = click.prompt(text=text, type=str)
+        text = "Disk type, e.g., pd-standard"
+        schema = config.schema["airflow_main_vm"]["schema"]
+        default = schema["disk_type"]["allowed"][0]
+        choices = click.Choice(choices=schema["disk_type"]["allowed"], case_sensitive=False)
+        disk_type = click.prompt(text=text, type=choices, show_choices=True, default=default, show_default=True)
 
         # FIND OUT WHAT CREATE MEANS
         text = "Create VM?"
@@ -635,7 +666,10 @@ class InteractiveConfigBuilder:
         disk_size = click.prompt(text=text, type=int)
 
         text = "Disk type, e.g., pd-standard"
-        disk_type = click.prompt(text=text, type=str)
+        schema = config.schema["airflow_worker_vm"]["schema"]
+        default = schema["disk_type"]["allowed"][0]
+        choices = click.Choice(choices=schema["disk_type"]["allowed"], case_sensitive=False)
+        disk_type = click.prompt(text=text, type=choices, show_choices=True, default=default, show_default=True)
 
         # FIND OUT WHAT CREATE MEANS
         text = "Create VM?"

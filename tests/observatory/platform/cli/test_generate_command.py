@@ -22,6 +22,8 @@ import click
 from click.testing import CliRunner
 from observatory.platform.cli.cli import generate
 from observatory.platform.cli.generate_command import (
+    FernetKeyType,
+    FlaskSecretKeyType,
     GenerateCommand,
     InteractiveConfigBuilder,
 )
@@ -591,3 +593,31 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         config = TerraformConfig()
         InteractiveConfigBuilder.config_api(config)
         self.assertEqual(config.api, api)
+
+
+class TestFernetKeyParamType(unittest.TestCase):
+    def test_fernet_key_convert_fail(self):
+        ctype = FernetKeyType()
+        self.assertTrue(hasattr(ctype, "name"))
+        self.assertRaises(click.exceptions.BadParameter, ctype.convert, "badkey")
+
+    def test_fernet_key_convert_succeed(self):
+        ctype = FernetKeyType()
+        self.assertTrue(hasattr(ctype, "name"))
+        key = "2a-Wxx5CZdb7wm_T6OailRtUilT7gajYTmPxoUvhVfM="
+        result = ctype.convert(key)
+        self.assertEqual(result, key)
+
+
+class TestSecretKeyParamType(unittest.TestCase):
+    def test_secret_key_convert_fail(self):
+        ctype = FlaskSecretKeyType()
+        self.assertTrue(hasattr(ctype, "name"))
+        self.assertRaises(click.exceptions.BadParameter, ctype.convert, "badkey")
+
+    def test_secret_key_convert_succeed(self):
+        ctype = FlaskSecretKeyType()
+        self.assertTrue(hasattr(ctype, "name"))
+        key = "a" * 16
+        result = ctype.convert(key)
+        self.assertEqual(result, key)
