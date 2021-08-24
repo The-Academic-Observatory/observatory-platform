@@ -154,7 +154,7 @@ Telescope file:
 import pendulum
 from airflow.sensors.external_task import ExternalTaskSensor
 
-from observatory.platform.telescopes.telescope import Release, Telescope
+from observatory.platform.workflows.workflow import Release, Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
 
 
@@ -286,7 +286,7 @@ DAG file:
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.telescopes.my_telescope import MyTelescope
+from observatory.dags.workflows.my_telescope import MyTelescope
 
 telescope = MyTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()

@@ -37,7 +37,7 @@ An example of the DAG file:
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.telescopes.my_telescope import MyTelescope
+from observatory.dags.workflows.my_telescope import MyTelescope
 
 telescope = MyTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()
@@ -69,7 +69,7 @@ An example of the telescope file:
 
 import pendulum
 
-from observatory.platform.telescopes.telescope import Telescope, Release
+from observatory.platform.workflows.workflow import Release, Workflow
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 
 
@@ -93,7 +93,7 @@ class MyRelease(Release):
         success = download_from_url(self.url)
 
 
-class MyTelescope(Telescope):
+class MyTelescope(Workflow):
     """
     Simple telescope DAG
     """
@@ -384,10 +384,10 @@ Example:
 import pendulum
 
 from observatory.platform.utils.test_utils import ObservatoryTestCase
-from observatory.platform.telescopes.telescope import Telescope, Release
+from observatory.platform.workflows.workflow import Release, Workflow
 
 
-class MyTelescope(Telescope):
+class MyTelescope(Workflow):
     def __init__(
         self,
         dag_id: str = "my_telescope",
@@ -442,10 +442,10 @@ import pendulum
 
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.test_utils import ObservatoryTestCase, ObservatoryEnvironment
-from observatory.platform.telescopes.telescope import Telescope, Release
+from observatory.platform.workflows.workflow import Release, Workflow
 
 
-class MyTelescope(Telescope):
+class MyTelescope(Workflow):
     def __init__(
         self,
         dag_id: str = "my_telescope",
@@ -523,7 +523,7 @@ Example:
 import pendulum
 
 from observatory.platform.utils.test_utils import ObservatoryTestCase, ObservatoryEnvironment
-from observatory.platform.telescopes.telescope import Telescope, Release
+from observatory.platform.workflows.workflow import Release, Workflow
 
 
 class MyTelescope(Telescope):

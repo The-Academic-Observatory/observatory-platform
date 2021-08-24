@@ -15,7 +15,7 @@
 import os
 import pendulum
 
-from observatory.dags.telescopes.{{ telescope_module }} import {{ telescope_class }}
+from observatory.dags.workflows.{{ telescope_module }} import {{ telescope_class }}
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
@@ -28,7 +28,6 @@ class Test{{ telescope_class }}(ObservatoryTestCase):
 
     def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
-
         :param args: arguments.
         :param kwargs: keyword arguments.
         """
@@ -40,9 +39,9 @@ class Test{{ telescope_class }}(ObservatoryTestCase):
 
     def test_dag_structure(self):
         """ Test that the DAG has the correct structure.
-
         :return: None
         """
+
         dag = {{ telescope_class }}().make_dag()
         self.assert_dag_structure({
             'check_dependencies': ['task1'],
@@ -52,16 +51,15 @@ class Test{{ telescope_class }}(ObservatoryTestCase):
 
     def test_dag_load(self):
         """ Test that the DAG can be loaded from a DAG bag.
-
         :return: None
         """
+
         with ObservatoryEnvironment().create():
             dag_file = os.path.join(module_file_path('observatory.dags.dags'), '{{ telescope_module }}.py')
             self.assert_dag_load('{{ telescope_module }}', dag_file)
 
     def test_telescope(self):
         """ Test the telescope end to end.
-
         :return: None.
         """
         # Setup Observatory environment
@@ -69,7 +67,7 @@ class Test{{ telescope_class }}(ObservatoryTestCase):
         dataset_id = env.add_dataset()
 
         # Setup Telescope
-        telescope = {{ telescope_class }}(dataset_id=dataset_id)
+        telescope = {{ telescope_class }}()
         dag = telescope.make_dag()
 
         # Create the Observatory environment and run tests

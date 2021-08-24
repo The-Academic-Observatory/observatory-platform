@@ -85,7 +85,7 @@ import pendulum
 from airflow.exceptions import AirflowException
 
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.telescopes.organisation_telescope import OrganisationRelease, OrganisationTelescope
+from observatory.platform.workflows.organisation_telescope import OrganisationRelease, OrganisationTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.telescope_utils import make_dag_id
 
@@ -241,7 +241,7 @@ DAG file:
 # https://airflow.apache.org/docs/stable/faq.html
 
 from observatory.api.client.identifiers import TelescopeTypes
-from observatory.dags.telescopes.my_organisation import MyOrganisation
+from observatory.dags.workflows.my_organisation import MyOrganisation
 from observatory.platform.utils.telescope_utils import make_observatory_api
 
 # Fetch all telescopes

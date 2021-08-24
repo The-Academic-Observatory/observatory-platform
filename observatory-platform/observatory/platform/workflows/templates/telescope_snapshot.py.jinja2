@@ -11,68 +11,61 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Author: Aniek Roelofs -#}
-import logging
-from typing import Dict, List, Optional
-
+# Author: Tuan Chien, Aniek Roelofs -#}
 import pendulum
-from airflow.exceptions import AirflowException
+from typing import List, Dict
 
-from observatory.api.client.model.organisation import Organisation
-from observatory.platform.telescopes.organisation_telescope import OrganisationRelease, OrganisationTelescope
+from observatory.platform.workflows.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import make_dag_id
 
 
-class {{ telescope_class }}Release(OrganisationRelease):
-    def __init__(self, dag_id: str, release_date: pendulum.DateTime, organisation: Organisation):
-        """ Construct a {{ telescope_class }}Release.
+class {{ telescope_class }}Release(SnapshotRelease):
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime):
+        """ Create a {{ telescope_class }}Release instance.
 
-        :param dag_id: the id of the DAG.
+        :param dag_id: the DAG id.
         :param release_date: the date of the release.
-        :param organisation: the Organisation of which data is processed.
         """
-        super().__init__(dag_id=dag_id, release_date=release_date, organisation=organisation)
+
+        super().__init__(dag_id, release_date)
 
 
-class {{ telescope_class }}(OrganisationTelescope):
-    """ {{ telescope_class }} Telescope."""
+class {{ telescope_class }}(SnapshotTelescope):
+    """ {{ telescope_class}} Telescope."""
 
-    DAG_ID_PREFIX = "{{ telescope_module }}"
+    DAG_ID = "{{ telescope_module }}"
 
     def __init__(
         self,
-        organisation: Organisation,
-        extra1: str,
-        dag_id: Optional[str] = None,
+        dag_id: str = DAG_ID,
         start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
         schedule_interval: str = "@weekly",
-        catchup: bool = True,
         dataset_id: str = "your_dataset_id",
         dataset_description: str = "The your_dataset dataset: https://dataseturl/",
         load_bigquery_table_kwargs: Dict = None,
         table_descriptions: Dict = None,
-        schema_prefix: str = "",
-        airflow_vars=None,
-        airflow_conns=None,
-    ):
-        """ Construct a {{ telescope_class }}Telescope instance.
+        airflow_vars: List = None,
+        airflow_conns: List = None,
+        max_active_runs: int = 1
+        ):
 
-        :param organisation: the Organisation of which data is processed.
-        :param extra1: the value for extra1, obtained from the 'extra' info from the API regarding the telescope.
-        :param dag_id: the id of the DAG, by default this is automatically generated based on the DAG_ID_PREFIX and the
-        organisation name.
+        """ The {{ telescope_class }} telescope
+
+        :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
-        :param catchup: whether to catchup the DAG or not.
         :param dataset_id: the BigQuery dataset id.
         :param dataset_description: description for the BigQuery dataset.
         :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
-        :param schema_prefix: the prefix used to find the schema path.
-        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
+        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
+        :param max_active_runs: the maximum number of DAG runs that can be run at once.
         """
+
+        if table_descriptions is None:
+            table_descriptions = {dag_id: "A single your_dataset_name snapshot."}
+
         if airflow_vars is None:
             airflow_vars = [
                 AirflowVars.DATA_PATH,
@@ -85,11 +78,7 @@ class {{ telescope_class }}(OrganisationTelescope):
         # if airflow_conns is None:
         #     airflow_conns = [AirflowConns.SOMEDEFAULT_CONNECTION]
 
-        if dag_id is None:
-            dag_id = make_dag_id(self.DAG_ID_PREFIX, organisation.name)
-
         super().__init__(
-            organisation,
             dag_id,
             start_date,
             schedule_interval,
@@ -97,26 +86,23 @@ class {{ telescope_class }}(OrganisationTelescope):
             load_bigquery_table_kwargs=load_bigquery_table_kwargs,
             dataset_description=dataset_description,
             table_descriptions=table_descriptions,
-            catchup=catchup,
-            schema_prefix=schema_prefix,
             airflow_vars=airflow_vars,
-            airflow_conns=airflow_conns
+            airflow_conns=airflow_conns,
+            max_active_runs=max_active_runs
         )
-
-        self.extra1 = extra1
 
         # Add sensor tasks
         # self.add_sensor(some_airflow_sensor)
 
         # Add setup tasks
-        self.add_setup_task(self.check_dependencies)  # From OrganisationTelescope
+        self.add_setup_task(self.check_dependencies)  # From SnapshotTelescope
 
         # Add ETL tasks
         self.add_task(self.task1)
-        # self.add_task(self.upload_downloaded)  # From OrganisationTelescope
-        # self.add_task(self.upload_transformed)  # From OrganisationTelescope
-        # self.add_task(self.bq_load_partition)  # From OrganisationTelescope
-        self.add_task(self.cleanup)  # From OrganisationTelescope
+        # self.add_task(self.upload_downloaded)  # From SnapshotTelescope
+        # self.add_task(self.upload_transformed)  # From SnapshotTelescope
+        # self.add_task(self.bq_load)  # From SnapshotTelescope
+        self.add_task(self.cleanup)  # From SnapshotTelescope
 
     def make_release(self, **kwargs) -> List[{{ telescope_class }}Release]:
         """ Make release instances.
@@ -125,23 +111,8 @@ class {{ telescope_class }}(OrganisationTelescope):
         :return: a list of {{ telescope_class }}Release instances.
         """
         release_date = kwargs["execution_date"]
-        logging.info(f"Release date: {release_date}")
-        releases = [{{ telescope_class }}Release(self.dag_id, release_date, self.organisation)]
-        return releases
+        return [{{ telescope_class }}Release(self.dag_id, release_date)]
 
-    def check_dependencies(self, **kwargs) -> bool:
-        """ Check dependencies of DAG. Add to parent method to additionally check for a expected extra key
-
-        :return: True if dependencies are valid.
-        """
-        super().check_dependencies()
-
-        if self.extra1 is None:
-            expected_extra = {"extra1": "expected_value"}
-            raise AirflowException(f"Value for extra1 is not set in 'extra' of telescope, "
-                                   f"extra example: {expected_extra}")
-        return True
-    
     def task1(self, releases: List[{{ telescope_class }}Release], **kwargs):
         """ Add your own comments.
 

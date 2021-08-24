@@ -223,21 +223,98 @@ def generate():
 
 
 @generate.command()
-@click.argument("dags_folder", nargs=1)
-@click.argument("telescope_type", nargs=1)
-@click.argument("telescope_name", nargs=1)
-def telescope(dags_folder: str, telescope_type: str, telescope_name: str):
-    """Generate boiler plate code for a new telescope.
+@click.argument(
+    "project_path", type=click.Path(exists=False, file_okay=False, dir_okay=True),
+)
+@click.argument("package_name", type=str)
+def project(project_path: str, package_name: str):
+    """Generate a new workflows project.
 
-    - dags_folder: The dags folder where the telescope & dag file will be written to.\n
-    - telescope_type: Type of telescope. Options are Telescope, StreamTelescope, SnapshotTelescope,
-    OrganisationTelescope.\n
-    - telescope_name: Name of your new telescope.\n
+    \b
+    PROJECT_PATH is the Python project path.
+    PACKAGE_NAME is the Python package name.
+
+    \b
+    For example, the command: observatory generate project /path/to/my-workflows-project my_workflows_project
+
+    \b Will generate the following files and folders:
+
+    \b
+    └── my-workflows-project
+        ├── docs
+        │   └── index.rst
+        ├── my_workflows_project
+        │   ├── __init__.py
+        │   ├── dags
+        │   │   └── __init__.py
+        │   ├── database
+        │   │   ├── __init__.py
+        │   │   └── schema
+        │   │       └── __init__.py
+        │   └── workflows
+        │       └── __init__.py
+        └── tests
+            ├── __init__.py
+            └── workflows
+                └── __init__.py
     """
 
+    #TODO add setup.py and setup.cfg file?
     cmd = GenerateCommand()
-    cmd.generate_new_telescope(dags_folder, telescope_type, telescope_name)
+    cmd.generate_new_workflows_project(project_path, package_name)
 
+@generate.command()
+@click.argument(
+    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True),
+)
+@click.argument("package_name", type=str)
+@click.argument("workflow_type", type=click.Choice(["Workflow", "StreamTelescope", "SnapshotTelescope",
+                                                    "OrganisationTelescope"]))
+@click.argument("workflow_name", type=str)
+def workflow(project_path: str, package_name: str, workflow_type: str, workflow_name: str):
+    """Generate a new workflow.
+
+    \b
+    PROJECT_PATH is the Python project path.
+    PACKAGE_NAME is the Python package name.
+    WORKFLOW_TYPE is the type of workflow.
+    WORKFLOW_NAME is the the name of your new workflow.
+
+    \b
+    For example, the command: observatory generate workflow /path/to/my-workflows-project my_workflows_project Workflow MyWorkflow
+
+    \b Will generate the files in bold inside your workflows project:
+
+    \b
+    └── my-workflows-project
+        ├── docs
+        │   ├── index.rst
+        │   └── \033[1mmy_workflow.md\033[0m
+        ├── my_workflows_project
+        │   ├── __init__.py
+        │   ├── dags
+        │   │   ├── __init__.py
+        │   │   └── \033[1mmy_workflow.py\033[0m
+        │   ├── database
+        │   │   ├── __init__.py
+        │   │   └── schema
+        │   │       ├── __init__.py
+        │   │       └── \033[1mmy_workflow_YYYY_MM_DD.json\033[0m
+        │   └── workflows
+        │       ├── __init__.py
+        │       └── \033[1mmy_workflow.py\033[0m
+        └── tests
+            ├── __init__.py
+            └── workflows
+                ├── __init__.py
+                └── \033[1mtest_my_workflow.py\033[0m
+    """
+
+    # TODO: project path and package name should be inferred somehow
+    cmd = GenerateCommand()
+    cmd.generate_new_workflow(
+        project_path=project_path, package_name=package_name, workflow_type=workflow_type, workflow_class=workflow_name
+    )
 
 @generate.command()
 @click.argument("command", type=click.Choice(["fernet-key"]))

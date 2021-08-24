@@ -19,7 +19,7 @@ from airflow.models.connection import Connection
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
-from observatory.dags.telescopes.{{ telescope_module }} import {{ telescope_class }}
+from observatory.dags.workflows.{{ telescope_module }} import {{ telescope_class }}
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.test_utils import (

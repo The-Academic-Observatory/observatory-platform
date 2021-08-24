@@ -145,7 +145,7 @@ import pendulum
 from airflow.models.taskinstance import TaskInstance
 from typing import Dict, List
 
-from observatory.platform.telescopes.stream_telescope import StreamRelease, StreamTelescope
+from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars
 
 
@@ -289,7 +289,7 @@ DAG file:
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.telescopes.my_stream import MyStream
+from observatory.dags.workflows.my_stream import MyStream
 
 telescope = MyStream()
 globals()[telescope.dag_id] = telescope.make_dag()

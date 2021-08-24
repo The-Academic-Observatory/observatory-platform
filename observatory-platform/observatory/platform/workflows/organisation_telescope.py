@@ -21,9 +21,9 @@ from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 
 from observatory.api.client.model.organisation import Organisation
-from observatory.platform.telescopes.telescope import Release, Telescope
+from observatory.platform.workflows.workflow import Release, Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.template_utils import (
+from observatory.platform.utils.workflow_utils import (
     blob_name,
     bq_load_partition,
     table_ids_from_path,
@@ -72,7 +72,7 @@ class OrganisationRelease(Release):
         return self.organisation.gcp_transform_bucket
 
 
-class OrganisationTelescope(Telescope):
+class OrganisationTelescope(Workflow):
     def __init__(
         self,
         organisation: Organisation,
@@ -80,6 +80,7 @@ class OrganisationTelescope(Telescope):
         start_date: pendulum.DateTime,
         schedule_interval: str,
         dataset_id: str,
+        schema_folder: str,
         catchup: bool,
         queue: str = "default",
         max_retries: int = 3,
@@ -100,6 +101,7 @@ class OrganisationTelescope(Telescope):
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param dataset_id: the dataset id.
+        :param schema_folder: the path to the SQL schema folder.
         :param catchup: whether to catchup the DAG or not.
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
@@ -134,6 +136,7 @@ class OrganisationTelescope(Telescope):
         self.dataset_id = dataset_id
         self.dataset_location = "us"  # TODO: add to API
         self.source_format = source_format
+        self.schema_folder = schema_folder
         self.schema_prefix = schema_prefix
         self.schema_version = schema_version
         self.load_bigquery_table_kwargs = load_bigquery_table_kwargs if load_bigquery_table_kwargs else dict()
@@ -174,6 +177,7 @@ class OrganisationTelescope(Telescope):
                 table_id, _ = table_ids_from_path(transform_path)
                 table_description = self.table_descriptions.get(table_id, "")
                 bq_load_partition(
+                    self.schema_folder,
                     self.project_id,
                     release.transform_bucket,
                     transform_blob,

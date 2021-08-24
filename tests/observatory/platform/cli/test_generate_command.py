@@ -22,7 +22,7 @@ from datetime import datetime
 from unittest.mock import patch, call
 
 from observatory.platform.cli.cli import generate
-from observatory.platform.cli.generate_command import GenerateCommand, write_telescope_file_template
+from observatory.platform.cli.generate_command import GenerateCommand, write_workflow_file_template
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import _hash_file
 
@@ -127,11 +127,11 @@ class TestGenerateCommand(unittest.TestCase):
             self.assertEqual('098f6bcd4621d373cade4e832627b4f6', _hash_file(file_path, 'md5'))
 
             mock_click_confirm.return_value = False
-            write_telescope_file_template(file_path, template="some text", file_type="test")
+            write_workflow_file_template(file_path, template="some text", file_type="test")
             # Assert that file content stays the same ('test')
             self.assertEqual('098f6bcd4621d373cade4e832627b4f6', _hash_file(file_path, 'md5'))
 
             mock_click_confirm.return_value = True
-            write_telescope_file_template(file_path, template="some text", file_type="test")
+            write_workflow_file_template(file_path, template="some text", file_type="test")
             # Assert that file content is now 'some text' instead of 'test'
             self.assertEqual('552e21cd4cd9918678e3c1a0df491bc3', _hash_file(file_path, 'md5'))
