@@ -408,6 +408,7 @@ class OapenWorkflow(Telescope):
             jstor=False,
             oapen=True,
             ucl=False,
+            onix_workflow=False,
             google_analytics_dataset='',
             google_books_dataset='',
             jstor_dataset='',

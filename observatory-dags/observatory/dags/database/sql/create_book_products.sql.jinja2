@@ -110,6 +110,18 @@ empty_ucl_discovery as (
         [STRUCT(CAST(NULL as STRING) as country_name, CAST(NULL as STRING) as country_code, CAST(null as INT64) as download_count)] as downloads_per_country
 ),
 
+empty_work_ids as (
+    SELECT
+        CAST(NULL as STRING) as isbn13,
+        CAST(NULL as STRING) as work_id,
+),
+
+empty_work_family_ids as (
+    SELECT
+        CAST(NULL as STRING) as isbn13,
+        CAST(NULL as STRING) as work_family_id,
+),
+
 onix_ebook_titles as (
     SELECT
         ISBN13,
@@ -311,8 +323,10 @@ metrics as (
 )
 
 SELECT
-    onix_ebook_titles.*, STRUCT(crossref_objects, chapters, events.overall as events, google_books_sales_metadata as google_books_sales, google_books_traffic_metadata as google_books_traffic, jstor_country_metadata as jstor_metadata, jstor_institution_metadata as jstor_institution_metadata, oapen_irus_uk_metadata as oapen_irus_uk_metadata) as metadata, metrics.months
+    onix_ebook_titles.*, empty_work_ids.work_id, empty_work_family_ids.work_family_id, STRUCT(crossref_objects, chapters, events.overall as events, google_books_sales_metadata as google_books_sales, google_books_traffic_metadata as google_books_traffic, jstor_country_metadata as jstor_metadata, jstor_institution_metadata as jstor_institution_metadata, oapen_irus_uk_metadata as oapen_irus_uk_metadata) as metadata, metrics.months
 FROM onix_ebook_titles
+LEFT JOIN {% if onix_workflow %} `{{ project_id }}.{{ dataset_id }}.onix_workid_isbn{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_work_ids {% endif %} as empty_work_ids on empty_work_ids.isbn13 = onix_ebook_titles.isbn13
+LEFT JOIN {% if onix_workflow %} `{{ project_id }}.{{ dataset_id }}.onix_workfamilyid_isbn{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_work_family_ids {% endif %} as empty_work_family_ids on empty_work_family_ids.isbn13 = onix_ebook_titles.isbn13
 LEFT JOIN metrics as metrics on metrics.ISBN13 = onix_ebook_titles.ISBN13
 LEFT JOIN google_books_sales_metadata on google_books_sales_metadata.ISBN13  = onix_ebook_titles.ISBN13
 LEFT JOIN google_books_traffic_metadata on google_books_traffic_metadata.ISBN13  = onix_ebook_titles.ISBN13
