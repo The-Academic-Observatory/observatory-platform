@@ -25,13 +25,13 @@ from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.variable import Variable
 from croniter import croniter
 
 from observatory.platform.observatory_config import TerraformConfig, VirtualMachine
 from observatory.platform.terraform_api import TerraformApi
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
-    AirflowVariable,
     AirflowVars,
     change_task_log_level,
     check_connections,
@@ -49,10 +49,10 @@ def get_workspace_id() -> str:
     terraform_api = TerraformApi(token)
 
     # Get organization
-    organization = AirflowVariable.get(AirflowVars.TERRAFORM_ORGANIZATION)
+    organization = Variable.get(AirflowVars.TERRAFORM_ORGANIZATION)
 
     # Get workspace
-    environment = AirflowVariable.get(AirflowVars.ENVIRONMENT)
+    environment = Variable.get(AirflowVars.ENVIRONMENT)
     workspace = TerraformConfig.WORKSPACE_PREFIX + environment
 
     # Get workspace ID
@@ -300,7 +300,7 @@ class TerraformTasks:
 
         ti: TaskInstance = kwargs["ti"]
         run_id = ti.xcom_pull(key=TerraformTasks.XCOM_TERRAFORM_RUN_ID, task_ids=TerraformTasks.TASK_ID_RUN)
-        project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
 
         token = BaseHook.get_connection(AirflowConns.TERRAFORM).password
         terraform_api = TerraformApi(token)
@@ -468,7 +468,7 @@ class TerraformTasks:
                         f"{hours_on}."
                         f" Warning limit: {TerraformTasks.VM_RUNTIME_H_WARNING}H"
                     )
-                    project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
+                    project_id = Variable.get(AirflowVars.PROJECT_ID)
                     slack_hook = create_slack_webhook(comments, project_id, **kwargs)
 
                     # http_hook outputs the secret token, suppressing logging 'info' by setting level to 'warning'

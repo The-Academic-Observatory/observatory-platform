@@ -150,7 +150,7 @@ class MockStreamTelescope(StreamTelescope):
 
 
 class TestTemplateUtils(unittest.TestCase):
-    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_telescope_path(self, mock_variable_get):
         runner = CliRunner()
         with runner.isolated_filesystem():
@@ -181,7 +181,7 @@ class TestTemplateUtils(unittest.TestCase):
             self.assertEqual(expected, path_transformed)
             self.assertTrue(os.path.exists(path_transformed))
 
-    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_blob_name(self, mock_variable_get):
         with CliRunner().isolated_filesystem() as t:
             data_path = os.path.join(t, "data")
@@ -194,7 +194,7 @@ class TestTemplateUtils(unittest.TestCase):
             self.assertEqual(expected, blob)
 
     @patch("observatory.platform.utils.workflow_utils.upload_files_to_cloud_storage")
-    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_upload_files_from_list(self, mock_variable_get, mock_upload_files):
 
         with CliRunner().isolated_filesystem() as t:
@@ -275,7 +275,7 @@ class TestTemplateUtils(unittest.TestCase):
     @patch("observatory.platform.utils.workflow_utils.find_schema")
     @patch("observatory.platform.utils.workflow_utils.create_bigquery_dataset")
     @patch("airflow.models.variable.Variable.get")
-    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_prepare_bq_load(
         self, mock_airflowvariable_get, mock_variable_get, mock_create_bigquery_dataset, mock_find_schema
     ):
@@ -438,7 +438,7 @@ class TestTemplateUtils(unittest.TestCase):
 
     @patch("observatory.platform.utils.workflow_utils.load_bigquery_table")
     @patch("observatory.platform.utils.workflow_utils.prepare_bq_load_v2")
-    @patch("observatory.platform.utils.airflow_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.airflow_utils.Variable.get")
     def test_bq_load_shard_v2(self, mock_variable_get, mock_prepare_bq_load, mock_load_bigquery_table):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -583,7 +583,7 @@ class TestTemplateUtils(unittest.TestCase):
 
     @patch("observatory.platform.utils.workflow_utils.load_bigquery_table")
     @patch("observatory.platform.utils.workflow_utils.prepare_bq_load_v2")
-    @patch("observatory.platform.utils.airflow_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.airflow_utils.Variable.get")
     def test_bq_load_partition(self, mock_variable_get, mock_prepare_bq_load, mock_load_bigquery_table):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
@@ -830,7 +830,7 @@ class TestTemplateUtils(unittest.TestCase):
                     )
 
     @patch("observatory.platform.utils.workflow_utils.create_slack_webhook")
-    @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_on_failure_callback(self, mock_variable_get, mock_create_slack_webhook):
         mock_variable_get.side_effect = ["develop", "project_id", "staging", "project_id"]
         mock_create_slack_webhook.return_value = Mock(spec=SlackWebhookHook)
@@ -856,7 +856,7 @@ def side_effect(arg, data_path: str = ""):
     return values[arg]
 
 
-@patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
+@patch("observatory.platform.utils.workflow_utils.Variable.get")
 @patch("airflow.models.variable.Variable.get")
 def setup(telescope_class, mock_variable_get, mock_airflowvariable_get):
     mock_airflowvariable_get.side_effect = side_effect
