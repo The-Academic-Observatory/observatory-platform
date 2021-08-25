@@ -19,12 +19,12 @@ from pathlib import Path
 
 from recommonmark.transform import AutoStructify
 
-from generate_schema_csv import generate_csv, generate_latest_files
+# from generate_schema_csv import generate_csv, generate_latest_files
 
 # -- Project information -----------------------------------------------------
 
-project = "Observatory Platform"
-copyright = "2020 Curtin University"
+project = "Academic Observatory Workflows"
+copyright = "2020-2021 Curtin University"
 author = "Curtin University"
 
 # -- General configuration ---------------------------------------------------
@@ -44,7 +44,7 @@ extensions = [
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = "python"
 autoapi_dirs = ["../academic_observatory_workflows"]
-autoapi_add_toctree_entry = False
+autoapi_add_toctree_entry = True
 autoapi_python_use_implicit_namespaces = True
 
 # Add any paths that contain templates here, relative to this directory.
@@ -61,20 +61,27 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+html_logo = "logo.png"
+html_theme_options = {
+    'logo_only': True,
+    'display_version': False,
+}
+# html_css_files = ['default.css']
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = []
+html_static_path = ["static"]
 
 
 # recommonmark config, used to enable rst to be evaluated within markdown files
 def setup(app):
+    # app.add_css_file('default.css')
     app.add_config_value("recommonmark_config", {"enable_eval_rst": True, "auto_toc_tree_section": "Contents"}, True)
     app.add_transform(AutoStructify)
 
 
-generate_csv(schema_dir="../academic_observatory_workflows/database/schema")
-generate_latest_files()
-html_build_dir = "_build/html"
-Path(html_build_dir).mkdir(exist_ok=True, parents=True)
+# generate_csv(schema_dir="../academic_observatory_workflows/database/schema")
+# generate_latest_files()
+# html_build_dir = "_build/html"
+# Path(html_build_dir).mkdir(exist_ok=True, parents=True)

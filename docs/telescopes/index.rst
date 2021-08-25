@@ -23,4 +23,4 @@ output data to other places. Workflows are built on top of Apache Airflow's DAGs
     terraform
     ucl_discovery
     unpaywall
-    wos
+    web_of_science
