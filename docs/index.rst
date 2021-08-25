@@ -43,9 +43,12 @@ Analytic workflows process the data ingested by telescope workflows and are also
 
     workflows/doi
 
-Indices and tables
+Misc
 =======================
+License and API reference details.
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. toctree::
+    :maxdepth: 1
+
+    license
+
