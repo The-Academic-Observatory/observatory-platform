@@ -39,7 +39,7 @@ jobs:
           pip install -e observatory-platform
           cd ..
 
-          cd academic-observatory-workflows
+          cd observatory-platform
           pip install -e .[tests]
 
       - name: Set up JDK 11
