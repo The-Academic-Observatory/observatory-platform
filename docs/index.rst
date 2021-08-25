@@ -29,7 +29,7 @@ Analytic workflows process the data ingested by telescope workflows and are also
 
 License & Contributing Guidelines
 =================================
-Information about licenses, contributing etc.
+Information about licenses, contributing guidelines etc.
 
 .. toctree::
     :maxdepth: 1
