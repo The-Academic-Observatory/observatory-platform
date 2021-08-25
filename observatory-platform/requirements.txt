@@ -32,6 +32,7 @@ elasticsearch==7.13.3
 markupsafe==1.1.*
 typing-extensions==3.7.4.*
 stringcase==1.2.*
+boto3==1.15.*
 google-crc32c==1.1.*
 google-cloud-bigquery==2.1.*
 google-api-python-client==2.0.*
