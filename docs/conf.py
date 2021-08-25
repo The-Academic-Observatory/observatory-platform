@@ -38,14 +38,13 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "autoapi.extension",
-    "recommonmark",
-    "sphinxcontrib.openapi",
+    "recommonmark"
 ]
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = "python"
 autoapi_dirs = ["../academic_observatory_workflows"]
-autoapi_add_toctree_entry = True
+autoapi_add_toctree_entry = False
 autoapi_python_use_implicit_namespaces = True
 
 # Add any paths that contain templates here, relative to this directory.

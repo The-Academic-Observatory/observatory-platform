@@ -13,42 +13,33 @@ A telescope a type of workflow used to ingest data from different data sources, 
 output data to other places. Workflows are built on top of Apache Airflow's DAGs.
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
-    workflows/crossref_events
-    workflows/crossref_fundref
-    workflows/crossref_metadata
-    workflows/doab
-    workflows/geonames
-    workflows/google_analytics
-    workflows/google_books
-    workflows/grid
-    workflows/jstor
-    workflows/mag
-    workflows/oapen_metadata
-    workflows/oapen_irus_uk
-    workflows/orcid
-    workflows/scopus
-    workflows/terraform
-    workflows/ucl_discovery
-    workflows/unpaywall
-    workflows/wos
+    telescopes/index
 
 Analytic Workflows
 =======================
 Analytic workflows process the data ingested by telescope workflows and are also built on top of Apache Airflow DAGs.
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
-    workflows/doi
+    workflows/index
+
+Python Package Reference
+========================
+Documentation for academic-observatory-workflow Python package.
+
+.. toctree::
+    :maxdepth: 2
+
+    autoapi/academic_observatory_workflows/index
 
 Misc
-=======================
-License and API reference details.
+========================
+Information about licenses, contributing etc.
 
 .. toctree::
     :maxdepth: 1
 
     license
-
