@@ -78,10 +78,4 @@ def setup(app):
 generate_csv(schema_dir="../academic_observatory_workflows/database/schema")
 generate_latest_files()
 html_build_dir = "_build/html"
-src_graphics_dir = "graphics"
-dst_graphics_dir = os.path.join(html_build_dir, "graphics")
 Path(html_build_dir).mkdir(exist_ok=True, parents=True)
-
-# In case of older version of shutil. Newer versions of copytree have dirs_exists_ok as a kwarg.
-if not os.path.exists(dst_graphics_dir):
-    shutil.copytree(src_graphics_dir, dst_graphics_dir)
