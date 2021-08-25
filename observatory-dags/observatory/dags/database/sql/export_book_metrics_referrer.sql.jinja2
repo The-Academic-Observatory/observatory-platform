@@ -16,6 +16,8 @@
 
 SELECT
     ISBN13 as product_id,
+    MAX(work_id) as work_id,
+    MAX(work_family_id) as work_family_id,
     MAX(onix.title) as title,
     CAST(MAX(onix.published_year) as INT64) as published_year,
     month.month,

@@ -16,6 +16,7 @@
 
 SELECT
   {{ isbn }},
+  {{ title }} as title,
   release_date
 FROM
   `{{ project_id }}.{{ dataset_id }}.{{ table_id }}`

@@ -394,6 +394,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="jstor_country",
                 isbn_field_name="isbn",
+                title_field_name="Book_Title",
                 sharded=False,
             ),
             OaebuPartners(
@@ -403,6 +404,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="oapen_irus_uk",
                 isbn_field_name="ISBN",
+                title_field_name="book_title",
                 sharded=False,
             ),
             OaebuPartners(
@@ -412,6 +414,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="google_books_sales",
                 isbn_field_name="Primary_ISBN",
+                title_field_name="Title",
                 sharded=False,
             ),
             OaebuPartners(
@@ -421,6 +424,17 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="google_books_traffic",
                 isbn_field_name="Primary_ISBN",
+                title_field_name="Title",
+                sharded=False,
+            ),
+            OaebuPartners(
+                name=OaebuPartnerName.ucl_discovery,
+                dag_id_prefix="ucl_discovery",
+                gcp_project_id=project_id,
+                gcp_dataset_id="ucl",
+                gcp_table_id="ucl_discovery",
+                isbn_field_name="ISBN",
+                title_field_name="book_title",
                 sharded=False,
             ),
         ]
@@ -524,6 +538,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="jstor_country",
                 isbn_field_name="isbn",
+                title_field_name="Book_Title",
                 sharded=False,
             ),
             OaebuPartners(
@@ -533,6 +548,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="oapen_irus_uk",
                 isbn_field_name="ISBN",
+                title_field_name="book_title",
                 sharded=False,
             ),
             OaebuPartners(
@@ -542,6 +558,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="google_books_sales",
                 isbn_field_name="Primary_ISBN",
+                title_field_name="Title",
                 sharded=False,
             ),
             OaebuPartners(
@@ -551,6 +568,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="google_books_traffic",
                 isbn_field_name="Primary_ISBN",
+                title_field_name="Title",
                 sharded=False,
             ),
             OaebuPartners(
@@ -560,6 +578,17 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="dataset",
                 gcp_table_id="google_analytics",
                 isbn_field_name="publication_id",
+                title_field_name="title",
+                sharded=False,
+            ),
+            OaebuPartners(
+                name=OaebuPartnerName.ucl_discovery,
+                dag_id_prefix="ucl_discovery",
+                gcp_project_id=project_id,
+                gcp_dataset_id="ucl",
+                gcp_table_id="ucl_discovery",
+                isbn_field_name="ISBN",
+                title_field_name="book_title",
                 sharded=False,
             ),
         ]
@@ -884,6 +913,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="test_dataset",
                 gcp_table_id="test_table",
                 isbn_field_name="isbn",
+                title_field_name="title",
                 sharded=True,
             ),
             OaebuPartners(
@@ -893,6 +923,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="test_dataset",
                 gcp_table_id="test_table2",
                 isbn_field_name="isbn",
+                title_field_name="title",
                 sharded=True,
             ),
         ]
@@ -1078,6 +1109,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="jstor",
                 gcp_table_id="country",
                 isbn_field_name="ISBN",
+                title_field_name="Book_Title",
                 sharded=False,
             )
         ]
@@ -1151,6 +1183,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="google_books",
                 gcp_table_id="sales",
                 isbn_field_name="Primary_ISBN",
+                title_field_name="Title",
                 sharded=False,
             )
         ]
@@ -1224,6 +1257,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="google_books",
                 gcp_table_id="traffic",
                 isbn_field_name="Primary_ISBN",
+                title_field_name="Title",
                 sharded=False,
             )
         ]
@@ -1295,6 +1329,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="irus_uk",
                 gcp_table_id="oapen_irus_uk",
                 isbn_field_name="ISBN",
+                title_field_name="book_title",
                 sharded=False,
             )
         ]
@@ -1366,6 +1401,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="google",
                 gcp_table_id="google_analytics",
                 isbn_field_name="publication_id",
+                title_field_name="book_title",
                 sharded=False,
             )
         ]
@@ -1439,6 +1475,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_dataset_id="jstor",
                 gcp_table_id="country",
                 isbn_field_name="ISBN",
+                title_field_name="Book_Title",
                 sharded=False,
             )
         ]
@@ -1621,14 +1658,14 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
 
         # Make partners
         partners = []
-        for (name, isbn_field_name, dag_id_prefix), table_id in zip(
+        for (name, isbn_field_name, title_field_name, dag_id_prefix), table_id in zip(
             [
-                (OaebuPartnerName.jstor_country, "ISBN", "jstor"),
-                (OaebuPartnerName.jstor_institution, "ISBN", "jstor"),
-                (OaebuPartnerName.google_books_sales, "Primary_ISBN", "google_books"),
-                (OaebuPartnerName.google_books_traffic, "Primary_ISBN", "google_books"),
-                (OaebuPartnerName.oapen_irus_uk, "ISBN", "oapen_irus_uk"),
-                (OaebuPartnerName.google_analytics, "publication_id", "google_analytics"),
+                (OaebuPartnerName.jstor_country, "ISBN", "Book_Title", "jstor"),
+                (OaebuPartnerName.jstor_institution, "ISBN", "Book_Title", "jstor"),
+                (OaebuPartnerName.google_books_sales, "Primary_ISBN", "Title", "google_books"),
+                (OaebuPartnerName.google_books_traffic, "Primary_ISBN", "Title", "google_books"),
+                (OaebuPartnerName.oapen_irus_uk, "ISBN", "book_title", "oapen_irus_uk"),
+                (OaebuPartnerName.google_analytics, "publication_id", "title", "google_analytics"),
             ],
             table_ids,
         ):
@@ -1640,6 +1677,7 @@ class TestOnixWorkflowFunctional(ObservatoryTestCase):
                     gcp_dataset_id=self.fake_partner_dataset,
                     gcp_table_id=table_id,
                     isbn_field_name=isbn_field_name,
+                    title_field_name=title_field_name,
                     sharded=False,
                 )
             )

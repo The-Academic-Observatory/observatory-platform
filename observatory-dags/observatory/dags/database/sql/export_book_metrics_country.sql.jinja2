@@ -16,6 +16,8 @@
 
 WITH months as (SELECT
     ISBN13,
+    work_id,
+    work_family_id,
     onix.title as title,
     CAST(onix.published_year as INT64) as published_year,
     month.month,
@@ -36,6 +38,8 @@ countries as (
 month_country as (
     SELECT
         ISBN13,
+        work_id,
+        work_family_id,
         title,
         published_year,
         month,
@@ -81,7 +85,7 @@ google_analytics_month_country as (
         value
     FROM months, UNNEST(google_analytics)) as google
     LEFT JOIN `academic-observatory.settings.country_to_alpha2` as country_code on country_code.country_name = google.country_name
-)
+),
 
 ucl_discovery_month_country as (
     SELECT
@@ -95,6 +99,8 @@ ucl_discovery_month_country as (
 
 SELECT
     month_country.ISBN13 as product_id,
+    month_country.work_id as work_id,
+    month_country.work_family_id as work_family_id,
     month_country.title,
     month_country.published_year,
     month_country.month,

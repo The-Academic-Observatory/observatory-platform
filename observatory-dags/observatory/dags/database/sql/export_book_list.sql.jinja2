@@ -16,6 +16,8 @@
 
 SELECT
     ISBN13 as product_id,
+    work_id,
+    work_family_id,
     onix.ProductForm,
     onix.EditionNumber,
     DATE(CAST(onix.published_year as INT64), 12, 31) AS time_field,

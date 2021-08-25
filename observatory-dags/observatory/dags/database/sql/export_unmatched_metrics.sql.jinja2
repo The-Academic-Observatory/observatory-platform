@@ -18,12 +18,14 @@ WITH google_analytics as (
     {% if google_analytics %}
     SELECT
         {{ google_analytics_isbn }} as ISBN,
+        title,
         release_date,
         "google_analytics" as source
     FROM `{{ project_id }}.{{ dataset_id }}.{{ google_analytics_table }}_unmatched_{{ google_analytics_isbn }}{{ release.strftime('%Y%m%d') }}`
     {% else %}
     SELECT
         CAST(NULL as STRING) as ISBN,
+        CAST(NULL as STRING) as title,
         CAST(NULL as DATE) as release_date,
         "google_analytics" as source
     {% endif %}
@@ -33,12 +35,14 @@ google_books as (
     {% if google_books %}
     SELECT
         {{ google_books_isbn }} as ISBN,
+        title,
         release_date,
         "google_books" as source
     FROM `{{ project_id }}.{{ dataset_id }}.{{ google_books_table }}_unmatched_{{ google_books_isbn }}{{ release.strftime('%Y%m%d') }}`
     {% else %}
     SELECT
         CAST(NULL as STRING) as ISBN,
+        CAST(NULL as STRING) as title,
         CAST(NULL as DATE) as release_date,
         "google_books" as source
     {% endif %}
@@ -48,12 +52,14 @@ jstor as (
     {% if jstor %}
     SELECT
         {{ jstor_isbn }} as ISBN,
+        title,
         release_date,
         "jstor" as source
     FROM `{{ project_id }}.{{ dataset_id }}.{{ jstor_table }}_unmatched_{{ jstor_isbn }}{{ release.strftime('%Y%m%d') }}`
     {% else %}
     SELECT
         CAST(NULL as STRING) as ISBN,
+        CAST(NULL as STRING) as title,
         CAST(NULL as DATE) as release_date,
         "jstor" as source
     {% endif %}
@@ -63,12 +69,14 @@ oapen as (
     {% if oapen %}
     SELECT
         {{ oapen_isbn }} as ISBN,
+        title,
         release_date,
         "oapen" as source
     FROM `{{ project_id }}.{{ dataset_id }}.{{ oapen_table }}_unmatched_{{ oapen_isbn }}{{ release.strftime('%Y%m%d') }}`
     {% else %}
     SELECT
         CAST(NULL as STRING) as ISBN,
+        CAST(NULL as STRING) as title,
         CAST(NULL as DATE) as release_date,
         "oapen" as source
     {% endif %}
@@ -87,6 +95,10 @@ SELECT * FROM oapen
 SELECT
     ISBN,
     release_date,
+    ARRAY_AGG(DISTINCT IF(source = "google_analytics", title, NULL) IGNORE NULLS LIMIT 1)[SAFE_OFFSET(0)] as google_analytics_title,
+    ARRAY_AGG(DISTINCT IF(source = "google_books", title, NULL) IGNORE NULLS LIMIT 1)[SAFE_OFFSET(0)] as google_books_title,
+    ARRAY_AGG(DISTINCT IF(source = "jstor", title, NULL) IGNORE NULLS LIMIT 1)[SAFE_OFFSET(0)] as jstor_title,
+    ARRAY_AGG(DISTINCT IF(source = "oapen", title, NULL) IGNORE NULLS LIMIT 1)[SAFE_OFFSET(0)] as oapen_title,
     "google_analytics" in UNNEST(ARRAY_AGG(source)) as in_google_analytics,
     "google_books" in UNNEST(ARRAY_AGG(source)) as in_google_books,
     "jstor" in UNNEST(ARRAY_AGG(source)) as in_jstor,

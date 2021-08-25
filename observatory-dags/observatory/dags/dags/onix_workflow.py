@@ -36,6 +36,7 @@ def get_oaebu_partner_data(project_id, org_name):
             gcp_dataset_id="google",
             gcp_table_id="google_analytics",
             isbn_field_name="publication_id",
+            title_field_name="title",
             sharded=False,
         ),
         OaebuPartners(
@@ -45,6 +46,7 @@ def get_oaebu_partner_data(project_id, org_name):
             gcp_dataset_id="google",
             gcp_table_id="google_books_sales",
             isbn_field_name="Primary_ISBN",
+            title_field_name="Title",
             sharded=False,
         ),
         OaebuPartners(
@@ -54,6 +56,7 @@ def get_oaebu_partner_data(project_id, org_name):
             gcp_dataset_id="google",
             gcp_table_id="google_books_traffic",
             isbn_field_name="Primary_ISBN",
+            title_field_name="Title",
             sharded=False,
         ),
         OaebuPartners(
@@ -63,6 +66,7 @@ def get_oaebu_partner_data(project_id, org_name):
             gcp_dataset_id="jstor",
             gcp_table_id="jstor_country",
             isbn_field_name="eISBN",
+            title_field_name="Book_Title",
             sharded=False,
         ),
         OaebuPartners(
@@ -72,6 +76,7 @@ def get_oaebu_partner_data(project_id, org_name):
             gcp_dataset_id="jstor",
             gcp_table_id="jstor_institution",
             isbn_field_name="eISBN",
+            title_field_name="Book_Title",
             sharded=False,
         ),
         OaebuPartners(
@@ -81,6 +86,7 @@ def get_oaebu_partner_data(project_id, org_name):
             gcp_dataset_id="oapen",
             gcp_table_id="oapen_irus_uk",
             isbn_field_name="ISBN",
+            title_field_name="book_title",
             sharded=False,
         ),
         OaebuPartners(
@@ -90,6 +96,7 @@ def get_oaebu_partner_data(project_id, org_name):
             gcp_dataset_id="ucl",
             gcp_table_id="ucl_discovery",
             isbn_field_name="ISBN",
+            title_field_name="book_title",
             sharded=False,
         ),
     ]

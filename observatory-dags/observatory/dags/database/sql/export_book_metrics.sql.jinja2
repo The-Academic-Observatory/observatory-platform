@@ -15,7 +15,9 @@
 # Author: Richard Hosking #}
 
 SELECT
-    ISBN13,
+    ISBN13 as product_id,
+    work_id,
+    work_family_id,
     onix.title as title,
     CAST(onix.published_year as INT64) as published_year,
     month.month,

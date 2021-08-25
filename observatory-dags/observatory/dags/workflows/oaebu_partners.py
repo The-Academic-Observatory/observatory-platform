@@ -41,6 +41,7 @@ class OaebuPartners:
     :param gcp_dataset_id: GCP Dataset ID.
     :param gcp_table_id: Table name without the date suffix.
     :param isbn_field_name: Name of the field containing the ISBN.
+    :param title_field_name: Name of the field containing the Title.
     :param sharded: whether the table is sharded or not.
     """
 
@@ -50,4 +51,5 @@ class OaebuPartners:
     gcp_dataset_id: str
     gcp_table_id: str
     isbn_field_name: str
+    title_field_name: str
     sharded: bool

@@ -1411,6 +1411,7 @@ class OnixWorkflow(Workflow):
             orig_dataset_id=data_partner.gcp_dataset_id,
             orig_table=data_partner.gcp_table_id,
             orig_isbn=data_partner.isbn_field_name,
+            orig_title=data_partner.title_field_name,
         )
 
         # Populate the __name__ attribute of the partial object (it lacks one by default).
@@ -1429,6 +1430,7 @@ class OnixWorkflow(Workflow):
         orig_dataset_id: str,
         orig_table: str,
         orig_isbn: str,
+        orig_title: str,
         *args,
         **kwargs,
     ):
@@ -1438,6 +1440,7 @@ class OnixWorkflow(Workflow):
         :param orig_dataset_id: Dataset ID of the original partner data.
         :param orig_table: Original table name for the partner data.
         :param orig_isbn: Name of the ISBN field we're checking.
+        :param orig_title: Name of the title field we're including.
         """
 
         template_file = "oaebu_intermediate_metrics.sql.jinja2"
@@ -1457,6 +1460,7 @@ class OnixWorkflow(Workflow):
             dataset_id=release.oaebu_intermediate_dataset,
             table_id=intermediate_table_id,
             isbn=orig_isbn,
+            title=orig_title,
         )
 
         create_bigquery_dataset(
