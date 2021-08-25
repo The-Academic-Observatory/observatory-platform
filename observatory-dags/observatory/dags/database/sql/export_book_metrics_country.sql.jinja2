@@ -71,10 +71,17 @@ google_analytics_month_country as (
     SELECT
         ISBN13,
         month,
+        google.country_name,
+        country_code.country_code,
+        value
+    FROM (SELECT
+        ISBN13,
+        month,
         name as country_name,
         value
-    FROM months, UNNEST(google_analytics)
-),
+    FROM months, UNNEST(google_analytics)) as google
+    LEFT JOIN `academic-observatory.settings.country_to_alpha2` as country_code on country_code.country_name = google.country_name
+)
 
 ucl_discovery_month_country as (
     SELECT
@@ -100,6 +107,6 @@ SELECT
 FROM month_country
 LEFT JOIN jstor_month_country as jstor ON month_country.ISBN13 = jstor.ISBN13 AND month_country.month = jstor.month AND month_country.alpha2 = jstor.alpha2
 LEFT JOIN oapen_month_country as oapen ON month_country.ISBN13 = oapen.ISBN13 AND month_country.month = oapen.month AND month_country.alpha2 = oapen.alpha2
-LEFT JOIN google_analytics_month_country as google ON month_country.ISBN13 = google.ISBN13 AND month_country.month = google.month AND UPPER(month_country.country_name) = UPPER(google.country_name)
+LEFT JOIN google_analytics_month_country as google ON month_country.ISBN13 = google.ISBN13 AND month_country.month = google.month AND month_country.alpha2 = google.country_code
 LEFT JOIN ucl_discovery_month_country as ucl_discovery ON month_country.ISBN13 = ucl_discovery.ISBN13 AND month_country.month = ucl_discovery.month AND month_country.alpha2 = ucl_discovery.alpha2
 WHERE jstor.total_item_requests IS NOT NULL OR oapen.title_requests IS NOT NULL OR 	oapen.total_item_requests IS NOT NULL or google.value IS NOT NULL
