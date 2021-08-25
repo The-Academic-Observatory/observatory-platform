@@ -159,7 +159,7 @@ class TestOapenWorkflowFunctional(ObservatoryTestCase):
         self.timestamp = pendulum.now()
         self.oapen_table_id = "oapen"
 
-        self.data_location = os.getenv("TESTS_DATA_LOCATION")
+        self.data_location = os.getenv("TEST_DATA_LOCATION")
 
         self.ao_gcp_project_id = "academic-observatory"
         self.oapen_metadata_dataset_id = "oapen"
@@ -168,7 +168,7 @@ class TestOapenWorkflowFunctional(ObservatoryTestCase):
         self.public_book_metadata_table_id = "book"
 
         self.org_name = "OAPEN"
-        self.gcp_project_id = os.getenv("TESTS_GOOGLE_CLOUD_PROJECT_ID")
+        self.gcp_project_id = os.getenv("TEST_GOOGLE_CLOUD_PROJECT_ID")
 
         self.gcp_dataset_id = "oaebu"
         self.irus_uk_dag_id_prefix = "oapen_irus_uk"

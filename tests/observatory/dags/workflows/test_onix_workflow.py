@@ -1494,7 +1494,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
 
             sql_hash = hashlib.md5(call_args["sql"].encode("utf-8"))
             sql_hash = sql_hash.hexdigest()
-            expected_hash = "bca797c0edc0fe8cc30e263a3fb37ee6"
+            expected_hash = "71bc329dd609017504e91bc8fd8931fe"
             self.assertEqual(sql_hash, expected_hash)
 
             mock_bq_table_query.return_value = False
