@@ -1,0 +1,305 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Richard Hosking #}
+
+WITH empty_oapen as (
+    SELECT
+        CAST(null as STRING) as ISBN,
+        CAST(null as DATE) as release_date,
+        CAST(null as STRING) as book_title,
+        CAST(null as STRING) as publisher,
+        CAST(null as STRING) as version,
+        CAST(null as INT64) as title_requests,
+        CAST(null as INT64) as total_item_investigations,
+        CAST(null as INT64) as total_item_requests,
+        CAST(null as INT64) as unique_item_investigations,
+        CAST(null as INT64) as unique_item_requests,
+        [STRUCT(
+            CAST(null as STRING) as name, null as code, CAST(null as INT64) as title_requests, CAST(null as INT64) as total_item_investigations, CAST(null as INT64) as total_item_requests, CAST(null as INT64) as unique_item_investigations, CAST(null as INT64) as unique_item_requests
+        )] as country,
+        [STRUCT(
+            CAST(null as FLOAT64) as latitude, CAST(null as FLOAT64) as longitude, CAST(null as STRING) as city, CAST(null as STRING) as country_name, CAST(null as STRING) as country_code, CAST(null as INT64) as title_requests, CAST(null as INT64) as total_item_investigations, null as total_item_requests, CAST(null as INT64) as unique_item_investigations, CAST(null as INT64) as unique_item_requests
+        )] as locations
+),
+
+empty_jstor_institution as (
+    SELECT
+        Cast(null as STRING) as eISBN,
+        Cast(null as STRING) as ISBN,
+        CAST(null as Date) as release_date,
+        Cast(null as STRING) as Book_Title,
+        Cast(null as STRING) as Book_ID,
+        Cast(null as STRING) as Authors,
+        Cast(null as INT64) as Copyright_Year,
+        Cast(null as STRING) as Disciplines,
+        Cast(null as STRING) as Usage_Type,
+        Cast(null as STRING) as Institution,
+        Cast(null as INT64) as Total_Item_Requests
+),
+
+empty_jstor_country as (
+    SELECT
+        Cast(null as STRING) as eISBN,
+        Cast(null as STRING) as ISBN,
+        CAST(null as Date) as release_date,
+        Cast(null as STRING) as Book_Title,
+        Cast(null as STRING) as Book_ID,
+        Cast(null as STRING) as Authors,
+        Cast(null as INT64) as Copyright_Year,
+        Cast(null as STRING) as Disciplines,
+        Cast(null as STRING) as Usage_Type,
+        Cast(null as STRING) as Country_Name,
+        Cast(null as INT64) as Total_Item_Requests
+),
+
+empty_google_books_traffic as (
+    SELECT
+        CAST(NULL as STRING) as Primary_ISBN,
+        CAST(NULL as DATE) as release_date,
+        CAST(NULL as STRING) as title,
+        CAST(NULL as INT64) as Book_Visits_BV_,
+        CAST(NULL as INT64) as Non_Unique_Buy_Clicks,
+        CAST(NULL as INT64) as BV_with_Buy_Clicks,
+        CAST(NULL as INT64) as Pages_Viewed,
+        CAST(NULL as INT64) as BV_with_Pages_Viewed,
+        CAST(NULL as FLOAT64) as Buy_Link_CTR
+),
+
+empty_google_books_sales as (
+    SELECT
+        CAST(NULL as STRING) as Primary_ISBN,
+        CAST(NULL as STRING) as Imprint_Name,
+        CAST(NULL as STRING) as Title,
+        CAST(NULL as STRING) as Author,
+        CAST(NULL as DATE) as release_date,
+        CAST(NULL as INT64) as qty
+),
+
+empty_google_analytics as (
+    SELECT
+        CAST(null as STRING) as publication_id,
+        CAST(null as DATE) as release_date,
+        CAST(null as FLOAT64) as average_time,
+        CAST(null as STRING) as publication_whole_or_part,
+        CAST(null as STRING) as publication_type,
+        STRUCT(
+            [STRUCT(CAST(NULL as STRING) as name, CAST(null as INT64) as value)] as country,
+            [STRUCT(CAST(NULL as STRING) as name, CAST(null as INT64) as value)] as referrer,
+            [STRUCT(CAST(NULL as STRING) as name, CAST(null as INT64) as value)] as social_network
+        ) as unique_views
+),
+
+onix_ebook_titles as (
+    SELECT
+        ISBN13,
+        STRUCT(
+            Doi,
+            ProductForm,
+            EditionNumber,
+            IF(
+                onix.TitleDetails[SAFE_OFFSET(0)].TitleElements[SAFE_OFFSET(0)].TitleText is not null,
+                onix.TitleDetails[SAFE_OFFSET(0)].TitleElements[SAFE_OFFSET(0)].TitleText,
+                onix.TitleDetails[SAFE_OFFSET(0)].TitleElements[SAFE_OFFSET(0)].TitleWithoutPrefix) as title,
+            ARRAY(SELECT
+                SUBSTRING(CAST(dates.Date as STRING), 0, 4)
+            FROM UNNEST(onix.PublishingDates) as dates
+            WHERE dates.PublishingDateRole = "Publication date")[SAFE_OFFSET(0)] as published_year,
+            ARRAY(
+                SELECT
+                    subject.SubjectCode
+                FROM UNNEST(onix.Subjects) as subject
+                WHERE subject.SubjectSchemeIdentifier = "BIC_subject_category") as bic_subjects,
+            ARRAY(
+                SELECT
+                    subject.SubjectCode
+                FROM UNNEST(onix.Subjects) as subject
+                WHERE subject.SubjectSchemeIdentifier = "BISAC_Subject_Heading") as bisac_subjects,
+            ARRAY(
+                SELECT
+                    subject.SubjectCode
+                FROM UNNEST(onix.Subjects) as subject
+                WHERE subject.SubjectSchemeIdentifier = "Thema_subject_category") as thema_subjects,
+            (SELECT
+                ARRAY(
+                    SELECT
+                        TRIM(LOWER(keyword)) FROM UNNEST(SPLIT(subject.SubjectHeadingText[SAFE_OFFSET(0)], ';')) as keyword)
+                    FROM UNNEST(onix.Subjects) as subject
+                    WHERE subject.SubjectSchemeIdentifier = "Keywords") as keywords,
+            (SELECT
+                ARRAY(
+                    SELECT as STRUCT
+                        PersonName, ORCID
+                    FROM UNNEST(onix.Contributors) as contributor
+                )
+            ) as authors
+        ) as onix
+    FROM `{{ project_id }}.{{ onix_dataset_id }}.onix{{ onix_release_date.strftime('%Y%m%d') }}` as onix
+    WHERE ProductForm = "Digital download and online" OR ProductForm = "Digital (delivered electronically)" OR ProductForm = "Digital download"
+),
+
+# Google Analytics
+google_analytics_metrics as (
+    SELECT
+        publication_id as ISBN13, release_date, STRUCT(STRUCT(AVG(average_time) as average_time, ARRAY_CONCAT_AGG(unique_views.country) as country, ARRAY_CONCAT_AGG(unique_views.referrer) as referrer, ARRAY_CONCAT_AGG(unique_views.social_network) as social_network) as unique_views) as metrics
+    FROM {% if google_analytics %} `{{ project_id }}.{{ dataset_id }}.{{ google_analytics_dataset }}_google_analytics_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_google_analytics {% endif %}
+    WHERE publication_whole_or_part = '(citation)' and publication_type = "book"
+    GROUP BY publication_id, release_date
+),
+
+# Google Books
+google_books_sales_metrics as (
+    SELECT
+        Primary_ISBN as ISBN13, release_date, STRUCT(SUM(qty) as qty) as metrics
+    FROM {% if google_books %} `{{ project_id }}.{{ dataset_id }}.{{ google_books_dataset }}_google_books_sales_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_google_books_sales {% endif %} as google_books
+    GROUP BY Primary_ISBN, release_date
+),
+
+google_books_sales_metadata as (
+    SELECT
+        Primary_ISBN as ISBN13, MAX(Imprint_Name) as Imprint_Name, MAX(Title) as Title, MAX(Author) as Author
+    FROM {% if google_books %} `{{ project_id }}.{{ dataset_id }}.{{ google_books_dataset }}_google_books_sales_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_google_books_sales {% endif %} as google_books
+    GROUP BY Primary_ISBN
+),
+
+google_books_traffic_metrics as (
+    SELECT
+        Primary_ISBN  as ISBN13, release_date, STRUCT(Book_Visits_BV_, BV_with_Pages_Viewed, Non_Unique_Buy_Clicks, BV_with_Buy_Clicks, Buy_Link_CTR, Pages_Viewed) as metrics
+    FROM {% if google_books %} `{{ project_id }}.{{ dataset_id }}.{{ google_books_dataset }}_google_books_traffic_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_google_books_traffic {% endif %} as google_books
+),
+
+google_books_traffic_metadata as (
+    SELECT
+        Primary_ISBN  as ISBN13, MAX(title) as Title
+    FROM {% if google_books %} `{{ project_id }}.{{ dataset_id }}.{{ google_books_dataset }}_google_books_traffic_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_google_books_traffic {% endif %} as google_books
+    GROUP BY Primary_ISBN
+),
+
+# JSTOR
+jstor_country_metrics as (
+    SELECT
+        eISBN as ISBN13, release_date, ARRAY_AGG(STRUCT(Country_name, Total_Item_Requests)) as metrics
+    FROM {% if jstor %} `{{ project_id }}.{{ dataset_id }}.{{ jstor_dataset }}_jstor_country_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_jstor_country {% endif %} as jstor_country
+    GROUP BY eISBN, release_date
+),
+
+jstor_country_metadata as (
+    SELECT
+        eISBN as ISBN13, MAX(Book_Title) as Book_Title, MAX(Book_ID) as Book_ID, MAX(Authors) as Authors, MAX(ISBN) as ISBN, eISBN, MAX(Copyright_Year) as Copyright_Year, MAX(Disciplines) as Disciplines, MAX(Usage_Type) as Usage_Type
+    FROM {% if jstor %} `{{ project_id }}.{{ dataset_id }}.{{ jstor_dataset }}_jstor_country_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_jstor_country {% endif %} as jstor_country
+    GROUP BY eISBN
+),
+
+jstor_institution_metrics as (
+    SELECT
+        eISBN as ISBN13, release_date, ARRAY_AGG(STRUCT(Institution, Total_Item_Requests)) as metrics
+    FROM {% if jstor %} `{{ project_id }}.{{ dataset_id }}.{{ jstor_dataset }}_jstor_institution_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_jstor_institution {% endif %} as jstor_institution
+    GROUP BY eISBN, release_date
+),
+
+jstor_institution_metadata as (
+    SELECT
+        eISBN as ISBN13, MAX(Book_Title) as Book_Title, MAX(Book_ID) as Book_ID, MAX(Authors) as Authors, MAX(ISBN) as ISBN, eISBN, MAX(Copyright_Year) as Copyright_Year, MAX(Disciplines) as Disciplines, MAX(Usage_Type) as Usage_Type
+    FROM {% if jstor %} `{{ project_id }}.{{ dataset_id }}.{{ jstor_dataset }}_jstor_institution_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_jstor_institution {% endif %} as jstor_institution
+    GROUP BY eISBN
+),
+
+# OAPEN IRUS UK
+oapen_irus_uk_metrics as (
+    SELECT
+        ISBN as ISBN13, release_date, STRUCT(version, title_requests, total_item_investigations, total_item_requests, unique_item_investigations, unique_item_requests, country, locations) as metrics
+    FROM {% if oapen %} `{{ project_id }}.{{ dataset_id }}.{{ oapen_dataset }}_oapen_irus_uk_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_oapen {% endif %} as oapen_irus_uk
+),
+
+oapen_irus_uk_metadata as (
+    SELECT
+        ISBN as ISBN13, MAX(book_title) as book_title, MAX(publisher) as publisher
+    FROM {% if oapen %} `{{ project_id }}.{{ dataset_id }}.{{ oapen_dataset }}_oapen_irus_uk_matched{{ release_date.strftime('%Y%m%d') }}` {% else %} empty_oapen {% endif %} as oapen_irus_uk
+    GROUP BY ISBN
+),
+
+# TODO UCL Discovery
+
+
+crossref_events as (
+    SELECT
+        public_data.isbn as ISBN13,
+        LAST_DAY(DATE(CAST(SPLIT(month_source.month, "-")[OFFSET(0)] as INT64), CAST(SPLIT(month_source.month, "-")[OFFSET(1)] as INT64), 1), MONTH) as release_date,
+        ARRAY_AGG(STRUCT(month_source.source, month_source.count)) as metrics
+    FROM `academic-observatory.observatory.book20210529` as public_data, UNNEST(public_data.events.months) as month_source
+    GROUP BY public_data.isbn, month_source.month
+),
+
+
+unique_releases as (
+    SELECT
+        DISTINCT(release_date) as release_date,
+    FROM
+        UNNEST(ARRAY_CONCAT(
+            ARRAY(SELECT DISTINCT(release_date) FROM crossref_events),
+            ARRAY(SELECT DISTINCT(release_date) FROM google_analytics_metrics),
+            ARRAY(SELECT DISTINCT(release_date) FROM crossref_events),
+            ARRAY(SELECT DISTINCT(release_date) FROM google_books_sales_metrics),
+            ARRAY(SELECT DISTINCT(release_date) FROM google_books_traffic_metrics),
+            ARRAY(SELECT DISTINCT(release_date) FROM jstor_country_metrics),
+            ARRAY(SELECT DISTINCT(release_date) FROM jstor_institution_metrics),
+            ARRAY(SELECT DISTINCT(release_date) FROM oapen_irus_uk_metrics)
+        )
+    ) as release_date
+    ORDER BY release_date DESC
+),
+
+ebook_months as (
+    SELECT
+        ISBN13, release_date
+    FROM onix_ebook_titles
+    LEFT JOIN unique_releases on 1 = 1
+    ORDER BY ISBN13, release_date DESC
+),
+
+metrics as (
+    SELECT
+        ebook_months.ISBN13,
+        ARRAY_AGG(STRUCT(
+            ebook_months.release_date as month,
+            crossref_events.metrics as crossref_events,
+            google_analytics.metrics as google_analytics,
+            google_books_sales.metrics as google_books_sales,
+            google_books_traffic.metrics as google_books_traffic,
+            jstor_country.metrics as jstor_country,
+            jstor_institution.metrics as jstor_institution,
+            oapen_irus_uk.metrics as oapen_irus_uk
+        ) ORDER BY ebook_months.release_date DESC) as months
+    FROM ebook_months
+    LEFT JOIN google_analytics_metrics as google_analytics ON ebook_months.ISBN13 = google_analytics.ISBN13 AND ebook_months.release_date = google_analytics.release_date
+    LEFT JOIN google_books_sales_metrics as google_books_sales ON ebook_months.ISBN13 = google_books_sales.ISBN13 AND ebook_months.release_date = google_books_sales.release_date
+    LEFT JOIN google_books_traffic_metrics as google_books_traffic ON ebook_months.ISBN13 = google_books_traffic.ISBN13 AND ebook_months.release_date = google_books_traffic.release_date
+    LEFT JOIN jstor_country_metrics as jstor_country ON ebook_months.ISBN13 = jstor_country.ISBN13 AND ebook_months.release_date = jstor_country.release_date
+    LEFT JOIN jstor_institution_metrics as jstor_institution ON ebook_months.ISBN13 = jstor_institution.ISBN13 AND ebook_months.release_date = jstor_institution.release_date
+    LEFT JOIN oapen_irus_uk_metrics as oapen_irus_uk ON ebook_months.ISBN13 = oapen_irus_uk.ISBN13 AND ebook_months.release_date = oapen_irus_uk.release_date
+    LEFT JOIN crossref_events  as crossref_events ON ebook_months.ISBN13 = crossref_events.ISBN13 AND ebook_months.release_date = crossref_events.release_date
+    WHERE crossref_events.metrics IS NOT NULL OR google_books_sales.metrics IS NOT NULL OR google_books_traffic.metrics IS NOT NULL OR jstor_country.metrics IS NOT NULL OR jstor_institution.metrics is not null OR oapen_irus_uk.metrics IS NOT NULL
+    GROUP BY ebook_months.ISBN13
+)
+
+SELECT
+    onix_ebook_titles.*, STRUCT(crossref_objects, chapters, events.overall as events, google_books_sales_metadata as google_books_sales, google_books_traffic_metadata as google_books_traffic, jstor_country_metadata as jstor_metadata, jstor_institution_metadata as jstor_institution_metadata, oapen_irus_uk_metadata as oapen_irus_uk_metadata) as metadata, metrics.months
+FROM onix_ebook_titles
+LEFT JOIN metrics as metrics on metrics.ISBN13 = onix_ebook_titles.ISBN13
+LEFT JOIN google_books_sales_metadata on google_books_sales_metadata.ISBN13  = onix_ebook_titles.ISBN13
+LEFT JOIN google_books_traffic_metadata on google_books_traffic_metadata.ISBN13  = onix_ebook_titles.ISBN13
+LEFT JOIN jstor_country_metadata on jstor_country_metadata.ISBN13 = onix_ebook_titles.ISBN13
+LEFT JOIN jstor_institution_metadata on jstor_institution_metadata.ISBN13 = onix_ebook_titles.ISBN13
+LEFT JOIN oapen_irus_uk_metadata on oapen_irus_uk_metadata.ISBN13 = onix_ebook_titles.ISBN13
+LEFT JOIN `academic-observatory.observatory.book20210529` as public_data on public_data.isbn = onix_ebook_titles.ISBN13

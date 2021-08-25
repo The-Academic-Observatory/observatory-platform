@@ -1,0 +1,17 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Papers.PaperId"
+  }, 
+  {
+    "name": "PaperReferenceId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Papers.PaperId"
+  }, 
+  {
+    "name": "CitationContext", 
+    "type": "STRING",
+    "description": "The text from where the citation was made"
+  }
+]

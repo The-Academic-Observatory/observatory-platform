@@ -1,0 +1,12 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY FOREIGN KEY REFERENCES Papers.PaperId"
+  }, 
+  {
+    "name": "IndexedAbstract", 
+    "type": "STRING",
+    "description": "Paper Abstract - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#what-format-are-paper-abstracts-published-in"
+  }
+]

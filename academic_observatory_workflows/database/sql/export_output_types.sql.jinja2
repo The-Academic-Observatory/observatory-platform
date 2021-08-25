@@ -1,0 +1,30 @@
+{#
+Copyright 2020 Curtin University.
+Authors: James Diprose, Richard Hosking
+#}
+
+SELECT
+  id as {{ aggregate }}_id,
+  name as {{ aggregate }}_name,
+  country as {{ aggregate }}_country,
+  country_code as {{ aggregate }}_country_code,
+  region as {{ aggregate }}_region,
+  subregion as {{ aggregate }}_subregion,
+  coordinates as {{ aggregate }}_coordinates,
+  DATE(time_period, 12, 31) AS published_year,
+  output_types.output_type as output_types_output_type,
+  output_types.total_outputs as output_types_total_outputs,
+  output_types.num_oa_outputs as output_types_num_oa_outputs,
+  output_types.num_green_outputs as output_types_num_green_outputs,
+  output_types.num_gold_outputs as output_types_num_gold_outputs,
+  output_types.num_gold_just_doaj_outputs as output_types_num_gold_just_doaj_outputs,
+  output_types.num_hybrid_outputs as output_types_num_hybrid_outputs,
+  output_types.num_bronze_outputs as output_types_num_bronze_outputs,
+  output_types.num_green_only_outputs as output_types_num_green_only_outputs,
+  ROUND(SAFE_DIVIDE( ( output_types.num_oa_outputs ) * 100 , output_types.total_outputs ), 2) as output_types_percent_oa,
+  ROUND(SAFE_DIVIDE( ( output_types.num_green_outputs ) * 100 , output_types.total_outputs ), 2) as output_types_percent_green,
+  ROUND(SAFE_DIVIDE( ( output_types.num_gold_outputs ) * 100 , output_types.total_outputs ), 2) as output_types_percent_gold
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}{{ release_date.strftime('%Y%m%d') }}`,
+  UNNEST(output_types) as output_types
+ORDER BY id, published_year ASC

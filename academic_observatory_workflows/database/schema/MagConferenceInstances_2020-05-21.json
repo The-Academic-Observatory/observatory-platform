@@ -1,0 +1,92 @@
+[
+  {
+    "name": "ConferenceInstanceId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY: Unique Identifier for a Conference Instance"
+  }, 
+  {
+    "name": "NormalizedName", 
+    "type": "STRING",
+    "description": "Normalised name of the Conference"
+  }, 
+  {
+    "name": "DisplayName", 
+    "type": "STRING",
+    "description": "The Displayed name of the Conference"
+  }, 
+  {
+    "name": "ConferenceSeriesId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES ConferenceSeries.ConferenceSeriesId"
+  }, 
+  {
+    "name": "Location", 
+    "type": "STRING",
+    "description": "The location of the Conference"
+  }, 
+  {
+    "name": "OfficialUrl", 
+    "type": "STRING",
+    "description": "The URL of the Offical Conference Website"
+  }, 
+  {
+    "name": "StartDate", 
+    "type": "DATETIME",
+    "description": "The start date of the Conference Instance"
+  }, 
+  {
+    "name": "EndDate", 
+    "type": "DATETIME",
+    "description": "The end date of the Conference Instance"
+  }, 
+  {
+    "name": "AbstractRegistrationDate", 
+    "type": "DATETIME",
+    "description": "The Abstract registration date for this Conference Instance"
+  }, 
+  {
+    "name": "SubmissionDeadlineDate", 
+    "type": "DATETIME",
+    "description": "The submission deadline for this Conference Instance"
+  }, 
+  {
+    "name": "NotificationDueDate", 
+    "type": "DATETIME",
+    "description": "The notification date for this Conference Instance"
+  }, 
+  {
+    "name": "FinalVersionDueDate", 
+    "type": "DATETIME",
+    "description": "The final version due date for this Conference Instance"
+  }, 
+  {
+    "name": "PaperCount", 
+    "type": "INTEGER",
+    "description": "The number of Papers that have been identified from this Conference Instance"
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER",
+    "description": "Same as PaperCount with the following provisions - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#papercount-vs-paperfamilycount"
+  },
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER",
+    "description": "The sum of citations for Papers that have been linked to this Conference Instance"
+  }, 
+  {
+    "name": "Latitude", 
+    "type": "FLOAT",
+    "description": "The Latitude of the Conference Instance"
+  }, 
+  {
+    "name": "Longitude", 
+    "type": "FLOAT",
+    "description": "The Longitude of the Conference Instance"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "DATETIME",
+    "description": "The date in which this record was first created"
+  }
+]

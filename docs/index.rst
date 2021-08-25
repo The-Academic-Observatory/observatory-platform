@@ -1,60 +1,47 @@
 =======================
-Observatory Platform
+Academic Observatory Workflows
 =======================
-The Observatory Platform provides an environment and workflows for fetching, processing and analysing data to
-understand how well universities operate as open knowledge institutions. The Observatory Platform is build with
-Apache Airflow and includes DAGs (workflows) for processing: Crossref Metadata, Fundref, GRID, Microsoft Academic
-Graph (MAG) and Unpaywall.
+Academic Observatory Workflows provides Apache Airflow workflows for fetching, processing and analysing
+data about academic institutions.
 
-Tutorials
+The workflows include: Crossref Events, Crossref Fundref, Crossref Metadata, Geonames, GRID, Microsoft Academic
+Graph, Open Citations, ORCID, Scopus, Unpaywall and Web of Science.
+
+Telescope Workflows
 =======================
+A telescope a type of workflow used to ingest data from different data sources, and to run workflows that process and
+output data to other places. Workflows are built on top of Apache Airflow's DAGs.
+
 .. toctree::
     :maxdepth: 1
 
-    installation
-    observatory_dev
-    deploy_terraform
-    license
+    workflows/crossref_events
+    workflows/crossref_fundref
+    workflows/crossref_metadata
+    workflows/doab
+    workflows/geonames
+    workflows/google_analytics
+    workflows/google_books
+    workflows/grid
+    workflows/jstor
+    workflows/mag
+    workflows/oapen_metadata
+    workflows/oapen_irus_uk
+    workflows/orcid
+    workflows/scopus
+    workflows/terraform
+    workflows/ucl_discovery
+    workflows/unpaywall
+    workflows/wos
 
-Observatory Platform API
-=========================
-.. toctree::
-    :maxdepth: 2
-
-    api/index
-
-Telescopes
+Analytic Workflows
 =======================
-.. toctree::
-    :maxdepth: 2
+Analytic workflows process the data ingested by telescope workflows and are also built on top of Apache Airflow DAGs.
 
-    telescopes/index
-
-Datasets
-=======================
-.. toctree::
-    :maxdepth: 2
-
-    datasets/index
-
-Analytical Workflows
-=======================
-.. toctree::
-    :maxdepth: 2
-
-    workflows/index
-
-Tutorials
-=======================
-.. toctree::
-    :maxdepth: 2
-
-    tutorials/index
-
-API Reference
-=======================
 .. toctree::
     :maxdepth: 1
+
+    workflows/doi
 
 Indices and tables
 =======================

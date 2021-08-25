@@ -1,0 +1,17 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY FOREIGN KEY REFERENCES Papers.PaperId"
+  }, 
+  {
+    "name": "FieldOfStudyId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY FOREIGN KEY REFERENCES FieldsOfStudy.FieldOfStudyId"
+  }, 
+  {
+    "name": "Score", 
+    "type": "FLOAT",
+    "description": "Confidence range between 0 and 1. Bigger number representing higher confidence"
+  }
+]

@@ -1,0 +1,145 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Richard Hosking, James Diprose #}
+
+WITH dois_temp_table as (
+SELECT
+  *,
+  (SELECT ARRAY(SELECT DISTINCT grid FROM UNNEST( IF(mag.grids IS NOT NULL, mag.grids, [])) AS grid)) as grids
+FROM
+  (SELECT 
+    UPPER(TRIM(ref.doi)) as doi,
+    STRUCT( title, abstract, issued.date_parts[offset(0)] as published_year, CASE WHEN ARRAY_LENGTH(issued.date_parts) > 1 THEN issued.date_parts[offset(1)] ELSE 13 END as published_month, CONCAT(issued.date_parts[offset(0)], "-", CASE WHEN ARRAY_LENGTH(issued.date_parts) > 1 THEN issued.date_parts[offset(1)] ELSE 13 END) as published_year_month, type, ISSN, ISBN, issn_type, publisher_location, publisher, member, prefix, container_title, short_container_title, group_title, references_count, is_referenced_by_count, subject, published_print, license, volume, funder, page, author, link, clinical_trial_number, alternative_id ) as crossref,
+    (SELECT as STRUCT * from `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.unpaywall{{ release_date.strftime('%Y%m%d') }}` as oa WHERE oa.doi = UPPER(TRIM(ref.doi))) as unpaywall,
+    ARRAY((SELECT as STRUCT _TABLE_SUFFIX as unpaywall_release, * from `{{ project_id }}.{{ unpaywall.dataset_id }}.unpaywall*` as oa WHERE oa.doi = UPPER(TRIM(ref.doi)))) as unpaywall_history,
+    (SELECT as STRUCT * from `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.mag{{ release_date.strftime('%Y%m%d') }}` as mag WHERE mag.doi = UPPER(TRIM(ref.doi))) as mag,
+    (SELECT as STRUCT * from `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.open_citations{{ release_date.strftime('%Y%m%d') }}` as oa WHERE oa.doi = UPPER(TRIM(ref.doi))) as open_citations,
+    (SELECT as STRUCT * from `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.crossref_events{{ release_date.strftime('%Y%m%d') }}` as events WHERE events.doi = UPPER(TRIM(ref.doi))) as events
+  FROM `{{ project_id }}.{{ crossref_metadata.dataset_id }}.crossref_metadata{{ crossref_metadata.release_date.strftime('%Y%m%d') }}` as ref
+  WHERE ARRAY_LENGTH(issued.date_parts) > 0)
+),
+
+affiliations_temp_table as (
+SELECT
+  extras.doi as doi,
+
+  institutions,
+  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Country"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count, ARRAY_AGG(DISTINCT member_identifier IGNORE NULLS) as members FROM UNNEST(countries) GROUP BY identifier) as countries,
+  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Subregion"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count, ARRAY_AGG(DISTINCT member_identifier IGNORE NULLS) as members  FROM UNNEST(subregions) GROUP BY identifier) as subregions,
+  ARRAY(SELECT as STRUCT identifier, MAX(name) as name, ["Region"] as types, CAST(ARRAY_AGG(home_repo IGNORE NULLS) AS ARRAY<STRING>) as home_repo, CAST(MAX(country) as STRING) as country, CAST(MAX(country_code) as STRING) as country_code, CAST(MAX(country_code_2) as STRING) as country_code_2, CAST(MAX(region) as STRING) as region, CAST(MAX(subregion) as STRING) as subregion, CAST(NULL as STRING) as coordinates, COUNT(*) as count, ARRAY_AGG(DISTINCT member_identifier IGNORE NULLS) as members FROM UNNEST(regions) GROUP BY identifier) as regions,
+  ARRAY( SELECT as STRUCT grouping_entity.group_id as identifier, MAX(grouping_entity.group_name) as name, ["Grouping"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, MAX(grouping_entity.country_code) as country_code, MAX(grouping_entity.country_code) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, ARRAY_AGG(DISTINCT grid_group.member_identifier IGNORE NULLS) as members FROM UNNEST(grid_groups) as grid_group, UNNEST(grid_group.groupings) as grouping_entity GROUP BY grouping_entity.group_id) as groupings,
+
+  -- Funder 
+  ARRAY(SELECT as STRUCT funder.funder.name as identifier, funder.funder.name as name, funder.funder.doi as doi, ["Funder"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(funder.fundref.country as STRING) as country, CAST(funder.fundref.country_code as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(funder.fundref.region as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, funder.fundref.funding_body_type as funding_body_type, funder.fundref.funding_body_sub_type as funding_body_subtype, CAST([] AS ARRAY<STRING>) as members FROM UNNEST(fundref.funders) as funder) as funders,
+
+  -- Authors
+  ARRAY(SELECT as STRUCT author.uri as identifier, CONCAT(author.given_names, " ", author.family_name) as name, author.given_names as given_names, author.family_name as family_name,["Author"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, CAST([] AS ARRAY<STRING>) as members FROM UNNEST(orcid.orcid) as author) as authors,
+
+  -- Journal  
+  [ STRUCT( unpaywall.journal_name as identifier, unpaywall.journal_name as name, ["Journal"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, CAST([] AS ARRAY<STRING>) as members )] as journals,
+  
+  -- Publisher 
+  [ STRUCT( crossref.publisher as identifier,crossref.publisher as name, ["Publisher"] as types, CAST([] AS ARRAY<STRING>) as home_repo, CAST(NULL as STRING) as country, CAST(NULL as STRING) as country_code, CAST(NULL as STRING) as country_code_2, CAST(NULL as STRING) as region, CAST(NULL as STRING) as subregion, CAST(NULL as STRING) as coordinates, CAST([] AS ARRAY<STRING>) as members)] as publishers,
+  
+FROM
+  dois_temp_table as extras
+LEFT JOIN(
+SELECT
+    doi,
+    
+    ARRAY_AGG(
+      STRUCT(
+        institution.id as identifier,
+        institution.types as types,
+        institution.name as name,
+        CAST((SELECT ARRAY_AGG(x IGNORE NULLS) FROM UNNEST([institution.home_repo]) x) AS ARRAY<STRING>) as home_repo,
+        institution.iso3166.regions.name as country,
+        institution.iso3166.regions.alpha3 as country_code,
+        institution.iso3166.regions.alpha2 as country_code_2,
+        institution.iso3166.regions.region as region,
+        institution.iso3166.regions.subregion as subregion,
+        CONCAT(CAST(institution.addresses[SAFE_OFFSET(0)].lat as STRING), ", ", CAST(institution.addresses[SAFE_OFFSET(0)].lng as STRING)) as coordinates,
+        CAST([] AS ARRAY<STRING>) as members
+      )
+    ) as institutions,
+
+    ARRAY_AGG(
+      STRUCT(
+        institution.iso3166.regions.alpha3 as identifier,
+        institution.types as types,
+        institution.iso3166.regions.name as name,
+        institution.home_repo as home_repo,
+        institution.iso3166.regions.name as country,
+        institution.iso3166.regions.alpha3 as country_code,
+        institution.iso3166.regions.alpha2 as country_code_2,
+        institution.iso3166.regions.region as region,
+        institution.iso3166.regions.subregion as subregion,
+        NULL as coordinates,
+        institution.id as member_identifier
+      )
+    ) as countries,
+    
+    ARRAY_AGG(
+      STRUCT(
+        institution.iso3166.regions.subregion as identifier,
+        NULL as types,
+        institution.iso3166.regions.subregion as name,
+        institution.home_repo as home_repo,
+        NULL as country,
+        NULL as country_code,
+        NULL as country_code_2,
+        institution.iso3166.regions.region as region,
+        NULL as subregion,
+        NULL as coordinates,
+        institution.iso3166.regions.alpha3 as member_identifier
+      )
+    ) as subregions,
+
+    ARRAY_AGG(
+      STRUCT(
+        institution.iso3166.regions.region as identifier,
+        NULL as types,
+        institution.iso3166.regions.region as name,
+        institution.home_repo as home_repo,
+        NULL as country,
+        NULL as country_code,
+        NULL as country_code_2,
+        institution.iso3166.regions.region as region,
+        NULL as subregion,
+        NULL as coordinates,
+        institution.iso3166.regions.subregion as member_identifier
+      )
+    ) as regions,
+    
+    ARRAY_AGG(
+      STRUCT(
+        grid_groups.groupings as groupings,
+        institution.id as member_identifier
+      )
+    ) as grid_groups,
+
+  FROM dois_temp_table as dois, UNNEST(grids) as grid_id
+  LEFT JOIN `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.grid{{ release_date.strftime('%Y%m%d') }}` as institution on grid_id = institution.id
+  LEFT JOIN (SELECT grid, ARRAY_AGG(STRUCT(group_id, group_name, country_code)) as groupings FROM `{{ project_id }}.{{ settings.dataset_id }}.groupings` CROSS JOIN UNNEST(grids) as grid GROUP BY grid) as grid_groups on institution.id = grid_groups.grid
+  GROUP BY doi) as base on extras.doi = base.doi
+  LEFT JOIN `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.crossref_fundref{{ release_date.strftime('%Y%m%d') }}` as fundref on fundref.doi = extras.doi
+  LEFT JOIN `{{ project_id }}.{{ observatory_intermediate.dataset_id }}.orcid{{ release_date.strftime('%Y%m%d') }}` as orcid on orcid.doi = extras.doi
+)
+
+SELECT
+  dois.*,
+  affiliations
+FROM dois_temp_table as dois
+LEFT JOIN affiliations_temp_table as affiliations on affiliations.doi = dois.doi

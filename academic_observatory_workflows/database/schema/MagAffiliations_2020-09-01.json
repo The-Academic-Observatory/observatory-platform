@@ -1,0 +1,72 @@
+[
+  {
+    "name": "AffiliationId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY: Unique Identifier for an Organisation"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "INTEGER",
+    "description": "The static rank roughly reflects the log probability of an entity being 'important' - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#what-is-the-rank-value-on-entities"
+  }, 
+  {
+    "name": "NormalizedName", 
+    "type": "STRING",
+    "description": "Normalised name of the Organisation"
+  }, 
+  {
+    "name": "DisplayName", 
+    "type": "STRING",
+    "description": "The Displayed name of the Organisation"
+  }, 
+  {
+    "name": "GridId", 
+    "type": "STRING",
+    "description": "The Grid ID of the Organisation"
+  }, 
+  {
+    "name": "OfficialPage", 
+    "type": "STRING",
+    "description": "The URL of the Organisations Offical Website"
+  }, 
+  {
+    "name": "WikiPage", 
+    "type": "STRING",
+    "description": "The URL of the Wikipedia entry of the Organisation"
+  }, 
+  {
+    "name": "PaperCount", 
+    "type": "INTEGER",
+    "description": "The number of Papers that have been identified to have authors from this Organisation"
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER",
+    "description": "Same as PaperCount with the following provisions - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#papercount-vs-paperfamilycount"
+  }, 
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER",
+    "description": "The sum of citations for Papers that have been linked to this Organisation"
+  },
+  {
+    "name": "Iso3166Code",
+    "type": "STRING",
+    "description": "Two-letter codes (alpha-2) defined in ISO_3166 Code (ISO.org) and ISO 3166-2 (Wiki). Example: US"
+  },
+  {
+    "name": "Latitude", 
+    "type": "FLOAT",
+    "description": "The Latitude of the Organisation"
+  }, 
+  {
+    "name": "Longitude", 
+    "type": "FLOAT",
+    "description": "The Longitude of the Organisation"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "DATETIME",
+    "description": "The date in which this record was first created"
+  }
+]

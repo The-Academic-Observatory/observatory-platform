@@ -1,2 +1,8 @@
-This file is required so that when python3 setup.py sdist is run, pbr will copy the requirements.txt files in
-observatory-dags, observatory-platform and observatory-reports into the respective builds.
+mag-archiver==2021.8.1.dev1
+xmltodict==0.12.*
+backoff==1.10.*
+ratelimit==2.2.*
+wos==0.2.*
+vcrpy==4.0.*
+Faker==8.1.*
+pandas==1.3.*

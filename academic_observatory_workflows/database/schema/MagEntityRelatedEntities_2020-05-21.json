@@ -1,0 +1,32 @@
+[
+  {
+    "name": "EntityId", 
+    "type": "INTEGER",
+    "description": "The Entity ID"
+  }, 
+  {
+    "name": "EntityType", 
+    "type": "STRING",
+    "description": "af: Affiliation, j: Journal, c: Conference"
+  }, 
+  {
+    "name": "RelatedEntityId", 
+    "type": "INTEGER",
+    "description": "The Related Entity ID"
+  }, 
+  {
+    "name": "RelatedEntityType", 
+    "type": "STRING",
+    "description": "af: Affiliation, j: Journal, c: Conference"
+  }, 
+  {
+    "name": "RelatedType", 
+    "type": "INTEGER",
+    "description": "How the entities were determined to be related - https://docs.microsoft.com/en-us/academic-services/graph/reference-data-schema#entity-related-entities"
+  }, 
+  {
+    "name": "Score", 
+    "type": "FLOAT",
+    "description": "Confidence range between 0 and 1. Larger number representing higher confidence"
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Papers.PaperId"
+  }, 
+  {
+    "name": "AuthorId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Authors.AuthorId"
+  }, 
+  {
+    "name": "AffiliationId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Affiliations.AffiliationId"
+  }, 
+  {
+    "name": "AuthorSequenceNumber", 
+    "type": "INTEGER",
+    "description": "1-based author sequence number. 1: the 1st author listed on paper, 2: the 2nd author listed on paper, etc."
+  }, 
+  {
+    "name": "OriginalAuthor", 
+    "type": "STRING",
+    "description": "Original Author Name"
+  }, 
+  {
+    "name": "OriginalAffiliation", 
+    "type": "STRING",
+    "description": "Original Author Affiliation String"
+  }
+]

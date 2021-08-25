@@ -1,0 +1,602 @@
+[
+  {
+    "description": "The ID of the institute which should now be used",
+    "mode": "NULLABLE",
+    "name": "redirect",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "description": "The unique ID of the related institute",
+        "mode": "NULLABLE",
+        "name": "id",
+        "type": "STRING"
+      },
+      {
+        "description": "The name of the related institute",
+        "mode": "NULLABLE",
+        "name": "label",
+        "type": "STRING"
+      },
+      {
+        "description": "The relationship type, see our policies https://grid.ac/pages/policies for more details on the types and the meaning of these",
+        "mode": "NULLABLE",
+        "name": "type",
+        "type": "STRING"
+      }
+    ],
+    "description": "Any relationships the institute has to others. See our policies https://grid.ac/pages/policies for more details",
+    "mode": "REPEATED",
+    "name": "relationships",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "description": "A list of all IDs in the \"External ID Type\" format",
+            "mode": "REPEATED",
+            "name": "all",
+            "type": "STRING"
+          },
+          {
+            "description": "The preferred ID for this type, or null if none are preferred",
+            "mode": "NULLABLE",
+            "name": "preferred",
+            "type": "STRING"
+          }
+        ],
+        "description": "UK Provider Reference Number from the UK Registry of Learning Providers",
+        "mode": "NULLABLE",
+        "name": "UKPRN",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "description": "A list of all IDs in the \"External ID Type\" format",
+            "mode": "REPEATED",
+            "name": "all",
+            "type": "STRING"
+          },
+          {
+            "description": "The preferred ID for this type, or null if none are preferred",
+            "mode": "NULLABLE",
+            "name": "preferred",
+            "type": "STRING"
+          }
+        ],
+        "description": "Universities and Colleges Admissions Service ID",
+        "mode": "NULLABLE",
+        "name": "UCAS",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "description": "A list of all IDs in the \"External ID Type\" format",
+            "mode": "REPEATED",
+            "name": "all",
+            "type": "STRING"
+          },
+          {
+            "description": "The preferred ID for this type, or null if none are preferred",
+            "mode": "NULLABLE",
+            "name": "preferred",
+            "type": "INTEGER"
+          }
+        ],
+        "description": "OrgRef ID",
+        "mode": "NULLABLE",
+        "name": "OrgRef",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "description": "A list of all IDs in the \"External ID Type\" format",
+            "mode": "REPEATED",
+            "name": "all",
+            "type": "STRING"
+          },
+          {
+            "description": "The preferred ID for this type, or null if none are preferred",
+            "mode": "NULLABLE",
+            "name": "preferred",
+            "type": "INTEGER"
+          }
+        ],
+        "description": "Funder Registry ID",
+        "mode": "NULLABLE",
+        "name": "FundRef",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "description": "A list of all IDs in the \"External ID Type\" format",
+            "mode": "REPEATED",
+            "name": "all",
+            "type": "STRING"
+          },
+          {
+            "description": "The preferred ID for this type, or null if none are preferred",
+            "mode": "NULLABLE",
+            "name": "preferred",
+            "type": "STRING"
+          }
+        ],
+        "description": "HESA ID",
+        "mode": "NULLABLE",
+        "name": "HESA",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "description": "A list of all IDs in the \"External ID Type\" format",
+            "mode": "REPEATED",
+            "name": "all",
+            "type": "STRING"
+          },
+          {
+            "description": "The preferred ID for this type, or null if none are preferred",
+            "mode": "NULLABLE",
+            "name": "preferred",
+            "type": "STRING"
+          }
+        ],
+        "description": "WikiData ID",
+        "mode": "NULLABLE",
+        "name": "Wikidata",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "description": "A list of all IDs in the \"External ID Type\" format",
+            "mode": "REPEATED",
+            "name": "all",
+            "type": "STRING"
+          },
+          {
+            "description": "The preferred ID for this type, or null if none are preferred",
+            "mode": "NULLABLE",
+            "name": "preferred",
+            "type": "STRING"
+          }
+        ],
+        "description": "International Standard Name Identifier",
+        "mode": "NULLABLE",
+        "name": "ISNI",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "description": "A list of all IDs in the \"External ID Type\" format",
+            "mode": "REPEATED",
+            "name": "all",
+            "type": "STRING"
+          },
+          {
+            "description": "The preferred ID for this type, or null if none are preferred",
+            "mode": "NULLABLE",
+            "name": "preferred",
+            "type": "STRING"
+          }
+        ],
+        "description": "Research Organization Registry ID",
+        "mode": "NULLABLE",
+        "name": "ROR",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "description": "A list of all IDs in the \"External ID Type\" format",
+            "mode": "REPEATED",
+            "name": "all",
+            "type": "STRING"
+          },
+          {
+            "description": "The preferred ID for this type, or null if none are preferred",
+            "mode": "NULLABLE",
+            "name": "preferred",
+            "type": "STRING"
+          }
+        ],
+        "description": "The French National Centre for Scientific Research ID",
+        "mode": "NULLABLE",
+        "name": "CNRS",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "description": "A list of all IDs in the \"External ID Type\" format",
+            "mode": "REPEATED",
+            "name": "all",
+            "type": "STRING"
+          },
+          {
+            "description": "The preferred ID for this type, or null if none are preferred",
+            "mode": "NULLABLE",
+            "name": "preferred",
+            "type": "STRING"
+          }
+        ],
+        "description": "LinkedIn ID",
+        "mode": "NULLABLE",
+        "name": "LinkedIn",
+        "type": "RECORD"
+      }
+    ],
+    "description": "Other IDs known to refer to the institute. See our policies https://grid.ac/pages/policies for more details",
+    "mode": "NULLABLE",
+    "name": "external_ids",
+    "type": "RECORD"
+  },
+  {
+    "description": "For an active institute, this is always set to \"active\"",
+    "mode": "NULLABLE",
+    "name": "status",
+    "type": "STRING"
+  },
+  {
+    "description": "A unique ID for the institute",
+    "mode": "NULLABLE",
+    "name": "id",
+    "type": "STRING"
+  },
+  {
+    "description": "URL of the wikipedia page for the institute",
+    "mode": "NULLABLE",
+    "name": "wikipedia_url",
+    "type": "STRING"
+  },
+  {
+    "description": "A contact email address for the institute",
+    "mode": "NULLABLE",
+    "name": "email_address",
+    "type": "STRING"
+  },
+  {
+    "description": "An array of URLs linking to things like the homepage for the institute",
+    "mode": "REPEATED",
+    "name": "links",
+    "type": "STRING"
+  },
+  {
+    "description": "The year the institute opened, CE",
+    "mode": "NULLABLE",
+    "name": "established",
+    "type": "INTEGER"
+  },
+  {
+    "description": "IP addresses known to belong to the institute",
+    "mode": "REPEATED",
+    "name": "ip_addresses",
+    "type": "STRING"
+  },
+  {
+    "description": "The name typically used to refer to the institute.",
+    "mode": "NULLABLE",
+    "name": "name",
+    "type": "STRING"
+  },
+  {
+    "description": "A list of other names the institute is known as",
+    "mode": "REPEATED",
+    "name": "aliases",
+    "type": "STRING"
+  },
+  {
+    "description": "Undocumented. Unclear what this is. Seems to be null or 1",
+    "mode": "NULLABLE",
+    "name": "weight",
+    "type": "INTEGER"
+  },
+  {
+    "description": "A list of short acronyms the institute is known as (e.g. MRC for the Medical Research Council)",
+    "mode": "REPEATED",
+    "name": "acronyms",
+    "type": "STRING"
+  },
+  {
+    "description": "A list of types describing the institute. For an explanation of valid values see our policies https://grid.ac/pages/policies",
+    "mode": "REPEATED",
+    "name": "types",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "description": "License URL or name",
+                "mode": "NULLABLE",
+                "name": "license",
+                "type": "STRING"
+              },
+              {
+                "description": "License attribution string",
+                "mode": "NULLABLE",
+                "name": "attribution",
+                "type": "STRING"
+              }
+            ],
+            "description": "License information",
+            "mode": "NULLABLE",
+            "name": "license",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "description": "Geonames code",
+                "mode": "NULLABLE",
+                "name": "code",
+                "type": "STRING"
+              },
+              {
+                "description": "A preferred ASCII encoded name for the region",
+                "mode": "NULLABLE",
+                "name": "ascii_name",
+                "type": "STRING"
+              },
+              {
+                "description": "The name of the region",
+                "mode": "NULLABLE",
+                "name": "name",
+                "type": "STRING"
+              },
+              {
+                "description": "The ID in the region format",
+                "mode": "NULLABLE",
+                "name": "id",
+                "type": "INTEGER"
+              }
+            ],
+            "description": "The admin2 region in GeoNames, documented",
+            "mode": "NULLABLE",
+            "name": "geonames_admin2",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "description": "Geonames code",
+                "mode": "NULLABLE",
+                "name": "code",
+                "type": "STRING"
+              },
+              {
+                "description": "The name of the region",
+                "mode": "NULLABLE",
+                "name": "name",
+                "type": "STRING"
+              },
+              {
+                "description": "A preferred ASCII encoded name for the region",
+                "mode": "NULLABLE",
+                "name": "ascii_name",
+                "type": "STRING"
+              }
+            ],
+            "description": "The NUTS level 3 region the GeoNames city is in, documented",
+            "mode": "NULLABLE",
+            "name": "nuts_level3",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "description": "Geonames code",
+                "mode": "NULLABLE",
+                "name": "code",
+                "type": "STRING"
+              },
+              {
+                "description": "The name of the region",
+                "mode": "NULLABLE",
+                "name": "name",
+                "type": "STRING"
+              },
+              {
+                "description": "A preferred ASCII encoded name for the region",
+                "mode": "NULLABLE",
+                "name": "ascii_name",
+                "type": "STRING"
+              }
+            ],
+            "description": "The NUTS level 2 region the GeoNames city is in, documented",
+            "mode": "NULLABLE",
+            "name": "nuts_level2",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "description": "Geonames code",
+                "mode": "NULLABLE",
+                "name": "code",
+                "type": "STRING"
+              },
+              {
+                "description": "A preferred ASCII encoded name for the region",
+                "mode": "NULLABLE",
+                "name": "ascii_name",
+                "type": "STRING"
+              },
+              {
+                "description": "The name of the region",
+                "mode": "NULLABLE",
+                "name": "name",
+                "type": "STRING"
+              },
+              {
+                "description": "The ID in the region format",
+                "mode": "NULLABLE",
+                "name": "id",
+                "type": "INTEGER"
+              }
+            ],
+            "description": "The admin1 region in GeoNames, documented",
+            "mode": "NULLABLE",
+            "name": "geonames_admin1",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "description": "Geonames code",
+                "mode": "NULLABLE",
+                "name": "code",
+                "type": "STRING"
+              },
+              {
+                "description": "The name of the region",
+                "mode": "NULLABLE",
+                "name": "name",
+                "type": "STRING"
+              },
+              {
+                "description": "A preferred ASCII encoded name for the region",
+                "mode": "NULLABLE",
+                "name": "ascii_name",
+                "type": "STRING"
+              }
+            ],
+            "description": "The NUTS level 1 region the GeoNames city is in, documented",
+            "mode": "NULLABLE",
+            "name": "nuts_level1",
+            "type": "RECORD"
+          },
+          {
+            "description": "The name of the city",
+            "mode": "NULLABLE",
+            "name": "city",
+            "type": "STRING"
+          },
+          {
+            "description": "The GeoNames ID",
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "INTEGER"
+          }
+        ],
+        "description": "The linked GeoNames data",
+        "mode": "NULLABLE",
+        "name": "geonames_city",
+        "type": "RECORD"
+      },
+      {
+        "description": "The ISO 3166-1 alpha-2 code of the country",
+        "mode": "NULLABLE",
+        "name": "country_code",
+        "type": "STRING"
+      },
+      {
+        "description": "First line of the address",
+        "mode": "NULLABLE",
+        "name": "line_1",
+        "type": "STRING"
+      },
+      {
+        "description": "The name of the country",
+        "mode": "NULLABLE",
+        "name": "country",
+        "type": "STRING"
+      },
+      {
+        "description": "Third line of the address",
+        "mode": "NULLABLE",
+        "name": "line_3",
+        "type": "STRING"
+      },
+      {
+        "description": "The name of the city",
+        "mode": "NULLABLE",
+        "name": "city",
+        "type": "STRING"
+      },
+      {
+        "description": "Second line of the address",
+        "mode": "NULLABLE",
+        "name": "line_2",
+        "type": "STRING"
+      },
+      {
+        "description": "Longitude of the institute",
+        "mode": "NULLABLE",
+        "name": "lng",
+        "type": "FLOAT"
+      },
+      {
+        "description": "The postcode/zipcode",
+        "mode": "NULLABLE",
+        "name": "postcode",
+        "type": "STRING"
+      },
+      {
+        "description": "If there is more than one address, identifies the main location",
+        "mode": "NULLABLE",
+        "name": "primary",
+        "type": "BOOLEAN"
+      },
+      {
+        "description": "Latitute of the institute",
+        "mode": "NULLABLE",
+        "name": "lat",
+        "type": "FLOAT"
+      },
+      {
+        "description": "The name of the state/region",
+        "mode": "NULLABLE",
+        "name": "state",
+        "type": "STRING"
+      },
+      {
+        "description": "The ISO 3166-2 region code",
+        "mode": "NULLABLE",
+        "name": "state_code",
+        "type": "STRING"
+      },
+      {
+        "description": "The GeoNames ID of the country",
+        "mode": "NULLABLE",
+        "name": "country_geonames_id",
+        "type": "INTEGER"
+      }
+    ],
+    "description": "An array of addresses associated with the institute, address format described",
+    "mode": "REPEATED",
+    "name": "addresses",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "description": "The ISO-639-1 language code",
+        "mode": "NULLABLE",
+        "name": "iso639",
+        "type": "STRING"
+      },
+      {
+        "description": "The institute name in a language variant",
+        "mode": "NULLABLE",
+        "name": "label",
+        "type": "STRING"
+      }
+    ],
+    "description": "The name of the institute in different languages",
+    "mode": "REPEATED",
+    "name": "labels",
+    "type": "RECORD"
+  }
+]

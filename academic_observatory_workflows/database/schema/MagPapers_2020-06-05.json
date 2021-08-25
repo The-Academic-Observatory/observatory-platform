@@ -1,0 +1,122 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "INTEGER",
+    "description": "The static rank roughly reflects the log probability of an entity being 'important' - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#what-is-the-rank-value-on-entities"
+  }, 
+  {
+    "name": "Doi", 
+    "type": "STRING",
+    "description": "Doi values are upper-cased per DOI standard"
+  }, 
+  {
+    "name": "DocType", 
+    "type": "STRING",
+    "description": "Book, BookChapter, Conference, Dataset, Journal, Patent, Repository, Thesis, NULL : unknown"
+  }, 
+  {
+    "name": "PaperTitle", 
+    "type": "STRING",
+    "description": "The title of the Paper"
+  }, 
+  {
+    "name": "OriginalTitle", 
+    "type": "STRING",
+    "description": "The Original Title of the Paper"
+  }, 
+  {
+    "name": "BookTitle", 
+    "type": "STRING",
+    "description": "The Book Title (optional)"
+  }, 
+  {
+    "name": "Year", 
+    "type": "INTEGER",
+    "description": "The year of publication"
+  }, 
+  {
+    "name": "Date", 
+    "type": "DATETIME",
+    "description": "The date of publication"
+  }, 
+  {
+    "name": "OnlineDate",
+    "type": "DATETIME",
+    "description": "The online date of publication"
+  },
+  {
+    "name": "Publisher", 
+    "type": "STRING",
+    "description": "The name of the publisher"
+  }, 
+  {
+    "name": "JournalId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Journals.JournalId"
+  }, 
+  {
+    "name": "ConferenceSeriesId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES ConferenceSeries.ConferenceSeriesId"
+  }, 
+  {
+    "name": "ConferenceInstanceId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES ConferenceInstances.ConferenceInstanceId"
+  }, 
+  {
+    "name": "Volume", 
+    "type": "STRING",
+    "description": "The volume (optional)"
+  }, 
+  {
+    "name": "Issue", 
+    "type": "STRING",
+    "description": "The Issue (optional)"
+  }, 
+  {
+    "name": "FirstPage", 
+    "type": "STRING",
+    "description": "The First Page (optional)"
+  }, 
+  {
+    "name": "LastPage", 
+    "type": "STRING",
+    "description": "The Last page (optional)"
+  }, 
+  {
+    "name": "ReferenceCount", 
+    "type": "INTEGER",
+    "description": "The number of Papers this Paper references"
+  }, 
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER",
+    "description": "The number of Papers that cite this Paper"
+  }, 
+  {
+    "name": "EstimatedCitation", 
+    "type": "INTEGER",
+    "description": "An estimation of objects citing this paper beyond what MAG has in it's database"
+  }, 
+  {
+    "name": "OriginalVenue", 
+    "type": "STRING",
+    "description": "The original venue of publication"
+  },
+  {
+    "name": "FamilyId",
+    "type": "INTEGER",
+    "description": "A paper 'family' is defined as a group of papers that have been determined to be the same fundamental paper, but published in different venues - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#what-is-familyid-in-papers"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "DATETIME",
+    "description": "The date in which this record was first created"
+  }
+]

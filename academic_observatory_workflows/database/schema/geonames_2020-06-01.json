@@ -1,0 +1,116 @@
+[
+  {
+    "description": "integer id of record in geonames database",
+    "mode": "NULLABLE",
+    "name": "geonameid",
+    "type": "INTEGER"
+  },
+  {
+    "description": "name of geographical point (utf8) varchar(200)",
+    "mode": "NULLABLE",
+    "name": "name",
+    "type": "STRING"
+  },
+  {
+    "description": "name of geographical point in plain ascii characters, varchar(200)",
+    "mode": "NULLABLE",
+    "name": "asciiname",
+    "type": "STRING"
+  },
+  {
+    "description": "alternatenames, comma separated, ascii names automatically transliterated, convenience attribute from alternatename table, varchar(10000)",
+    "mode": "NULLABLE",
+    "name": "alternatenames",
+    "type": "STRING"
+  },
+  {
+    "description": "latitude in decimal degrees (wgs84)",
+    "mode": "NULLABLE",
+    "name": "latitude",
+    "type": "FLOAT"
+  },
+  {
+    "description": "longitude in decimal degrees (wgs84)",
+    "mode": "NULLABLE",
+    "name": "longitude",
+    "type": "FLOAT"
+  },
+  {
+    "description": "see http://www.geonames.org/export/codes.html, char(1)",
+    "mode": "NULLABLE",
+    "name": "featureclass",
+    "type": "STRING"
+  },
+  {
+    "description": "see http://www.geonames.org/export/codes.html, varchar(10)",
+    "mode": "NULLABLE",
+    "name": "featurecode",
+    "type": "STRING"
+  },
+  {
+    "description": "ISO-3166 2-letter country code, 2 characters",
+    "mode": "NULLABLE",
+    "name": "countrycode",
+    "type": "STRING"
+  },
+  {
+    "description": "alternate country codes, comma separated, ISO-3166 2-letter country code, 200 characters",
+    "mode": "NULLABLE",
+    "name": "cc2",
+    "type": "STRING"
+  },
+  {
+    "description": "fipscode (subject to change to iso code), see exceptions below, see file admin1Codes.txt at https://download.geonames.org/export/dump/ for display names of this code; varchar(20)",
+    "mode": "NULLABLE",
+    "name": "admin1code",
+    "type": "STRING"
+  },
+  {
+    "description": "code for the second administrative division, a county in the US, see file admin2Codes.txt; varchar(80)",
+    "mode": "NULLABLE",
+    "name": "admin2code",
+    "type": "STRING"
+  },
+  {
+    "description": "code for third level administrative division, varchar(20)",
+    "mode": "NULLABLE",
+    "name": "admin3code",
+    "type": "STRING"
+  },
+  {
+    "description": "code for fourth level administrative division, varchar(20)",
+    "mode": "NULLABLE",
+    "name": "admin4code",
+    "type": "STRING"
+  },
+  {
+    "description": "bigint (8 byte int)",
+    "mode": "NULLABLE",
+    "name": "population",
+    "type": "INTEGER"
+  },
+  {
+    "description": "in meters, integer",
+    "mode": "NULLABLE",
+    "name": "elevation",
+    "type": "STRING"
+  },
+  {
+    "description": "digital elevation model, srtm3 or gtopo30, average elevation of 3''x3'' (ca 90mx90m) or 30''x30'' (ca 900mx900m) area in meters, integer. srtm processed by cgiar/ciat.",
+    "mode": "NULLABLE",
+    "name": "dem",
+    "type": "INTEGER"
+  },
+  {
+    "description": "the iana timezone id (see file timeZone.txt) varchar(40)",
+    "mode": "NULLABLE",
+    "name": "timezone",
+    "type": "STRING"
+  },
+  {
+    "description": "date of last modification in yyyy-MM-dd format",
+    "mode": "NULLABLE",
+    "name": "modificationdate",
+    "type": "DATE"
+  }
+]

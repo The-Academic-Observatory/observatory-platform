@@ -1,0 +1,32 @@
+[
+  {
+    "name": "PaperId",
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Papers.PaperId"
+  },
+  {
+    "name": "DescriptorUI",
+    "type": "STRING",
+    "description": "Descriptor Unique Identifier. Seven-character alpha-numeric string - https://www.nlm.nih.gov/mesh/mbinfo.html"
+  },
+  {
+    "name": "DescriptorName",
+    "type": "STRING",
+    "description": "A term that uniquely refers to its <DescriptorRecord>"
+  },
+  {
+    "name": "QualifierUI",
+    "type": "STRING",
+    "description": "Qualifier Unique Identifier. Seven-character alpha-numeric string uniquely identifying a <QualifierRecord>"
+  },
+  {
+    "name": "QualifierName",
+    "type": "STRING",
+    "description": "Term that uniquely names its <QualifierRecord> "
+  },
+  {
+    "name": "IsMajorTopic",
+    "type": "BOOLEAN",
+    "description": ""
+  }
+]

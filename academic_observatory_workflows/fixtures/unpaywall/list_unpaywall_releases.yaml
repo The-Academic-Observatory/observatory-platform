@@ -1,0 +1,38 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.23.0
+    method: GET
+    uri: https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com/
+  response:
+    body:
+      string: '<?xml version="1.0" encoding="UTF-8"?>
+
+        <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>unpaywall-data-snapshots</Name><Prefix></Prefix><Marker></Marker><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>unpaywall_snapshot_2018-03-29T113154.jsonl.gz</Key><LastModified>2018-04-28T17:28:55.000Z</LastModified><ETag>&quot;c6efd5c4a6ce3acbbc414a10cd336969-1943&quot;</ETag><Size>16291678484</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2018-04-28T230327.jsonl.gz</Key><LastModified>2018-04-29T05:36:54.000Z</LastModified><ETag>&quot;37653b57a84f1d4df242b301c449852a-1941&quot;</ETag><Size>16281383505</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2018-06-21T164548_with_versions.jsonl.gz</Key><LastModified>2018-06-25T16:33:23.000Z</LastModified><ETag>&quot;b966658580d74810d02599c3cefed1b9-1991&quot;</ETag><Size>16698209026</Size><Owner><ID>939b29b4c797df6e24fe9cfc5ba956ee79b9531399cf2fa50856c7f50acc27e2</ID><DisplayName>develop</DisplayName></Owner><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2018-09-02T230014.jsonl.gz</Key><LastModified>2018-09-03T05:03:02.000Z</LastModified><ETag>&quot;6c2c1804edfea63b14837f4aa3b8c0f5-2125&quot;</ETag><Size>17822241440</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2018-09-06T005029.jsonl.gz</Key><LastModified>2018-09-06T07:52:20.000Z</LastModified><ETag>&quot;8dac58f9912019864b7c1c5e8da06a47-2127&quot;</ETag><Size>17841794282</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2018-09-24T232615.jsonl.gz</Key><LastModified>2018-09-25T07:32:55.000Z</LastModified><ETag>&quot;237cd5e1c149f3df5ee517fd6eafe235-2137&quot;</ETag><Size>17918918990</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2018-09-27T192440.jsonl.gz</Key><LastModified>2018-09-28T01:59:01.000Z</LastModified><ETag>&quot;e67102fb0ffedfc15f495fde8b1e3ac7-2138&quot;</ETag><Size>17929447489</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2019-02-21T031509.jsonl.gz</Key><LastModified>2019-02-21T10:10:41.000Z</LastModified><ETag>&quot;a759e7354f405bb9ebc45ccfcb8fe1be-2233&quot;</ETag><Size>18725953008</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2019-04-19T193256.jsonl.gz</Key><LastModified>2019-04-20T03:10:44.000Z</LastModified><ETag>&quot;4343348f12687702d603ed8a3e15b44f-2286&quot;</ETag><Size>19175749888</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2019-08-16T155437.jsonl.gz</Key><LastModified>2019-08-16T23:27:17.000Z</LastModified><ETag>&quot;08f7a8d6d8e5ab3a8aeeb09e12e947c8-2451&quot;</ETag><Size>20555587482</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2019-11-22T074546.jsonl.gz</Key><LastModified>2019-11-22T15:02:24.000Z</LastModified><ETag>&quot;23311993dfb0f1d9d7a756385c99d15a-2607&quot;</ETag><Size>21866041135</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2020-02-25T115244.jsonl.gz</Key><LastModified>2020-02-25T20:05:09.000Z</LastModified><ETag>&quot;959dfa2a660c2909aa069231b7f12384-2687&quot;</ETag><Size>22539821786</Size><Owner><ID>939b29b4c797df6e24fe9cfc5ba956ee79b9531399cf2fa50856c7f50acc27e2</ID><DisplayName>develop</DisplayName></Owner><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>unpaywall_snapshot_2020-04-27T153236.jsonl.gz</Key><LastModified>2020-04-28T00:19:11.000Z</LastModified><ETag>&quot;6ca076f1beff8d6da30cd2b0da327696-2841&quot;</ETag><Size>23827795555</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>'
+    headers:
+      Content-Type:
+      - application/xml
+      Date:
+      - Tue, 23 Jun 2020 09:02:52 GMT
+      Server:
+      - AmazonS3
+      Transfer-Encoding:
+      - chunked
+      x-amz-bucket-region:
+      - us-west-2
+      x-amz-id-2:
+      - C4EVdNw3r6uZTCuaOMB9zQdYRSp/BAVe3+VSb4UCD9MWdxwLEZzYbUuvKb0JDO4htUOMHYE78/0=
+      x-amz-request-id:
+      - 27ED5488502E70DD
+    status:
+      code: 200
+      message: OK
+version: 1

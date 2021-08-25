@@ -44,7 +44,7 @@ extensions = [
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = "python"
-autoapi_dirs = ["../observatory-api", "../observatory-platform", "../observatory-dags"]
+autoapi_dirs = ["../academic_observatory_workflows"]
 autoapi_add_toctree_entry = True
 autoapi_python_use_implicit_namespaces = True
 
@@ -75,7 +75,7 @@ def setup(app):
     app.add_transform(AutoStructify)
 
 
-generate_csv(schema_dir="../observatory-dags/observatory/dags/database/schema")
+generate_csv(schema_dir="../academic_observatory_workflows/database/schema")
 generate_latest_files()
 html_build_dir = "_build/html"
 src_graphics_dir = "graphics"

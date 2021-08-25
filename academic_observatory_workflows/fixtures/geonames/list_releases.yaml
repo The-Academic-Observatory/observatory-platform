@@ -1,0 +1,40 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.20.0
+    method: HEAD
+    uri: https://download.geonames.org/export/dump/allCountries.zip
+  response:
+    body:
+      string: ''
+    headers:
+      Accept-Ranges:
+      - bytes
+      Connection:
+      - Keep-Alive
+      Content-Length:
+      - '366839688'
+      Content-Type:
+      - application/zip
+      Date:
+      - Fri, 05 Mar 2021 02:22:02 GMT
+      ETag:
+      - '"15dd8788-5bcc0160928e0"'
+      Keep-Alive:
+      - timeout=5, max=100
+      Last-Modified:
+      - Fri, 05 Mar 2021 01:34:32 GMT
+      Server:
+      - Apache/2.4.6 (CentOS) mod_jk/1.2.41 OpenSSL/1.0.1e-fips
+    status:
+      code: 200
+      message: OK
+version: 1

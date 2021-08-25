@@ -1,0 +1,2402 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA6XMMQ6DMAwAwK9EnhFWTEgQX6kYIpSWSLSgOLAg/t4OXTx7vOUeFxxlhdHAUuvO
+        I2Lcc/vML15iSe28vfEkjKXmeU2MPjjriPBMhfP2YbTQGPjrt9i7McqR5Ej6sZNjpx+dHJ1+7OXY
+        60cvR68fgxyDfhzkONzTFz/eqy6QAgAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '138'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:56:57 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/1
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1481'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:56:58 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/2
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA7VXW2/bNhT+K4SeEsDWzU4se56BLsWKDAMyoMUeVhcCJVEWMYoUSMpZWuS/7xxK
+        smXPSTNgezASHZ3Ld+5H37yClVyyIrVPDUslrZm3Il5BLTXMehPisTqjeqdSIOEr2QoB1JxbarmS
+        yLxt4zDMJuShYfKupxtyFYdRcr0idw939+Tu4++k10lUSagQxFaMDFrcO5+UfGcqqplP3ne8Pqms
+        bcwqCArFfaV3QRT6t2EyD+qlf+C+XcyjeRwj2FaLtNF8D1hT2nBEN2iAx6NIrupgHwc0z1UrbUC1
+        5blgJhipGvzWjJrOT6RqVjLNZM4MUD475aBbgeeDL8aXzAZcFuyvIFc5976AWNnKgstdKrixKPjN
+        UZgeAt5H1XIrXPzfiVKzgvzmk49CUUl+BphFF6qdptKCQJ0xTT5g7KMQfovuv2UShojTcaW5KtiA
+        nBfw3+zmNkqW+GTS1oD9PvvwKnr+MgSwzQTP3xS/C3FzdvpnLJTWWFWnJWeicDFDK4Z/RVzJYhYu
+        wmiWhECrmaVYBmcB7yP3nwRlgJ+Cl2PXTtw6+NTXa3CnlTGQ9xTrOx0KPL3HDKdQ2GnPmKoyhcJO
+        obDToRjcu0tVhd2GEEoOCR9n/s3tglLj3sXsdontbbisllQYBuQ906Zr19hVsVGtzlkKbTXqaSVL
+        XjBpORXnWQCYpitcMCC4/DNVUjyNDIwnh5+bvf+VNyhp2qYRHDDWxQ2+z+Ylm5W30TKJyiKOwtub
+        iJVRki8ymifLxcJzQOqmtf9OxpVdFM/CeLZAFwv1KKFKivNcy+EF06fl7FwMBg3epSp1HVJRWYhD
+        VxXM5Jo3wyhcF3y/+VRxc0gfBNVSDvPwYhLJFZcu26XSNbXXhMtctAVUOdKhFCZEMwGpAAqIoPzc
+        VlgTv7TiieCI9cm9JI2r2lZQPSGM5hWBFDFkQwmnH7wjXbkAlAOICQFvBqPGcZdKCPUILQfkDhXw
+        rdYBeubcW7disxZ8s842n11bk60Hc27rfVkH2cbpwE4hQ6eQe1dTwKrJFbh0jc6ehOKHdYD6znTC
+        W0AxVvv+4X7wqXtJULF9elGeFS+LQ0RflYYGQGxjBQMNU8dGqjriFfdhcyGpG6AXWY+gry/btbxm
+        pqEndpFGkPiKTS4t03sqyFZmzD4yJr8H5RAAVwPnzFv5MnK/Qx5gIRzrwpV9P2cGufMuWK0zfSig
+        WXQ7ieezSRLGB4/MMSrzm0kEvyRZkowDMAVDvql4TobpZV7CAcGC1h0wwCBqwFeq84rvIVCGJH5M
+        Pvw0IY8VdoU9429lL3HoGxCZL0HCH3cBOnJ8fFcUHPFDAkZtQ2imWtudQDmkL2MA3mrO9l2Ho7k1
+        JRVslx+3bzkmtt5GlSXPYUKTR5Y1dMfWAd30XXxBn/mHwkeliwZCaNzUwwkShIsgnAUgPM37XTdF
+        mekgNHUApj0AqDStija3Sj+RTKgdaZSxDkYP4fQQRBb/GC637eiuu5+G3Xo+MdAeMmLk8O+JRm90
+        fx5WISTLXVrYKzj8QP032HN73q89Dz2dhotpNPsUx6soWkWLbrNpYx9kL3LOFa5mc+RCD90+vcjw
+        fHZ5VrZ+5b545eZ0Awb2Xn9rXzL2B/LVqsB5OmaMw2m4BN5PYbIC3jh0jLS1ldL95kaIw5o+CWjq
+        dYcDzS10CLy2umWHkzG8TeKbpTvFxAsKSPcJgGqUznmROknPcwsTFHeD5agYZgzbKeiDHhmsLxgt
+        ndRNfNjmyc34MvqVZ5rqblrdj3rso20L1OSM2QpuwGE5G4DXogmvB9ChGd85owumu4W873xhgBom
+        TVdeZ6dFtx72DLJcY6fh90pnuFA1TL/gK9MqiPww8EYH092du01hdLf4HD+7G6M7siDD7kA8gjwz
+        +daj/HDwDdHsT77Ruf960f5vR3Hg8DkMpnpD6e+0apuuUnofIKOjb4ccxtsQr+e/AS6KRPPeDgAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1482'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:00 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/3
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1594'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:03 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/4
+  response:
+    body:
+      string: !!binary |
+        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
+        aeP19C+lgYaQoxAAAA==
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1609'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:05 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/5
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1687'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:06 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/6
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1759'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:08 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/7
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA91YbW/jNhL+K4S/dAPYkki9+9wAbYo75HDAAtegBa5ZCJRI2WxlUSApp7uL/Pcb
+        UpKtGE7Wi0W/FAjgiOIMn3k4r/q8YLwWLWeF+djxoqV7vlijBaOGam4WS7Tg+5KqrSxgyb5q+6aB
+        1UoYaoRs7ebHngRBuUTvO97ejesavSMBzm7W6O793T26+/kXNOpEska0aZDZcTRpce88VIut3lHF
+        PfTTsNdDO2M6vfZ9JoUn1dbHgZcEWeTvc++4O0kjHBHiHVKLt1dN0SlxALgF7YQFOCmBx5NUJff+
+        gfi0qmTfGp8qI6qGa3/UNjddcaoHU+2q4jVXvK24hpXfnHLQLcH4yRzttdz4omX8T7+SlVh8ALG6
+        b5lot0UjtLGCn90KVxPnI7FGmMZdwa+8aQAjRw+q1wZ9Z9lFPwpYYaKiDToxLVp0J1vD/zTwq7pe
+        f4dW7jLQf7nmVFU79E84CtkLWR4ZfRr1e7Ty+j/8EZ7fcdk1fEVbtuqU/J1XRvtbRVujV/SJKsaZ
+        M3VVHpGsjmavqgEG/FoYliwnWlSS8Yk+weA/nOQ5JiGxz7roNdAw+qF9+fxhuse+bER11TVeuD53
+        0vhsXRZolPuiFrxh7ursKVp8sshwFudxkoYpDmFxzw21Hnl28SNFf5/LmUgsgOs5wS/IPTI7xq9/
+        p6TWEASFtaKYLC3urbsXEOjFuLGQdQGBXkCgFxMK9+5SiNnsYyHUArx/HgZXpw8rNc9lIBwO7jWe
+        4Xyrpo3msHzgSg/pK3UhrWWvKl5AmpnlONnWgvHWCNqcuwLA1EMUwwGNaP8oZNt8nB0wZVK413yF
+        gxXBD4SsI7wmQYFXSeh9Ep3VpPuuawRg3rPY7o9xHIdVHsQR5mmWllFY4zooY5aVIY3ABgds3/Xm
+        62RcMBCMcxyFlhcmn9pGUnZ+9+30gquXQeZM9icNi1nsQELGCU4znD8v0RWEkGAV4BUOH3C+DvEa
+        50BI9BofQURJyOI4jau0jgOa4yQlURXCf2FJQ3yJj2tkBj5IkJEwTL+Bj1HDjI80iUiekDi4no1o
+        ReKHIFpH2TpMgI34NTY4w0FIq6CK8iAKkopFLCOE1DTIkjrLy0tsXCMzspEk4EnZt7AxaJh7Bwkx
+        JmmWfQUdiXOObA1/QQx0kNfoyEJWpXHMcBZVcQkPOasCUmZpntS4StNLdFwjM9ARJhmOIvwNdIwa
+        ZnTEOEtCDC7iatwOMnlzrIyM60qJbmqrNkwcbh92Qh9Tn83gVEBRuZgA0TtbayBT1lLtqbmB0lM1
+        PdQEV4MgjS6R4g2kMVgBkQj9u28+Isu4h+5b1LlE3zdULRGnUJbgnrjNtvYgpxZsQkOGBQTHs5cI
+        jJjO0m53LZtGPkHBguUBDOxbb3xrkLNq0ze3m0bcbsrb31w9Ro8L6JMeFx82fnnrdLgSORUXdO/S
+        MGxV6B1YcmNtfMHAPza+1XemE94Cirnan97fTzYNL5FVbD6+Ks/Z6+JA5JvSUDMstrmCac3eGJ+p
+        GhbfCQ+aX7s0dD4Xt55A31w+14g91x19ca5dQ3bxjTMF9AfqAN3LY1ty88ThAr4A5UiA84HzzY/t
+        1yL/HapwC8VWVxN2YcBpoWNhGj3tOOh5ee1IWFccxZDmTX1qeGaWjWdPIGfIhfVlNeLWuyFY7B4N
+        GWlS/Apa2pudVF8JtkWD2EuwV2Pd0QNH1CAbx9ALQYSO6gA2JJ69bG+8TaluB8C+jbNT2LlkMnY+
+        07Wc55a1kx7jMyV4mcTxMszJ0Qp9IgNKRZYmy4RgVArgT0Iv2u1EhaZ+Snuv4AB+IR9OGCC7d2Ck
+        bYYFmAcgcepF6F8/LoFHm3XMmUDfjiLHvGRlcOLFIOTNE42j4vj4A2PC2gC+MstMiJayN8OgWsEF
+        lRwMMErww8kdNhTtoOf9/vGaee9xcSvrWlTQN6InXnZ0yzc+vfVOaFyLS7fDBGkPtgsv5ufFbMg+
+        9rdgrpslbTTb9Azin6F5PYixlx3rZwodxQO2reY6Cod2VWnzvh1FbE+arTC0YOSB4HVE1nFkd3VS
+        G9ckX1TzfDZb78z+jaHhjanapUCox+MHhUuH/c/u20tmM/75xhz2PgTZGrppEriNQwSM7biFOHUT
+        LwgtFsM0QCsDTgavjer5VOvDIMlInLshr3lFARq+c1g1UlWCFU5ysXCVHBQPqe+kGLIg30pwoxEZ
+        FFgI40EqJsdJOIvn485/RKmoGvLp/cxFfzY9s5rcYWbX78upa9AAr7dHLEYAA5r58DJrtIYBZ/Hl
+        zyigibd68LCzrmeoYQc+5BvtvssMZzO5hxzif+JK+tgL/MWstbu7C+wj1JfePpNn1/8M7SBcshv8
+        TjjPjrx25D8OchOh4yg3+5jwtt/+ZcOu71g9lpkvev9Wyb4bnGW0AS519mHClpmJr+f/A62L2BLG
+        EwAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1827'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:09 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/8
+  response:
+    body:
+      string: !!binary |
+        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
+        FAAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1884'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:11 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA6XMMQ6DMAwAwK9EnhFWTEgQX6kYIpSWSLSgOLAg/t4OXTx7vOUeFxxlhdHAUuvO
+        I2Lcc/vML15iSe28vfEkjKXmeU2MPjjriPBMhfP2YbTQGPjrt9i7McqR5Ej6sZNjpx+dHJ1+7OXY
+        60cvR68fgxyDfhzkONzTFz/eqy6QAgAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '138'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:14 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/1
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1481'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:15 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/2
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1482'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:17 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/3
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1594'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:18 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/4
+  response:
+    body:
+      string: !!binary |
+        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
+        aeP19C+lgYaQoxAAAA==
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1609'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:20 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/5
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1687'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:22 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/6
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA91YXW/rNhL9K4ReegPYEkl9WHK9AbYpdhGgxQW2QQu0uRAoibLZyqJAUs79QP77
+        DinJVgwn1xfFvuxTIpIzPHM4czj0F6/itWh5lZtPHc9btufeGnkVM0xz4y2Qx/cFU1uZw5Cdavum
+        gdFSGGaEbO3ix55iXCzQ+463d+O4Ru8oJunNGt29v7tHd7/8ikafSNaINQ0yO44mL27OR7XY6h1T
+        3Ec/Dmt9tDOm0+sgqKTwpdoGBPsJTqNgn/nH1ckqIhGl/iGxeHvV5J0SB4Cbs05YgJMT+DxZlXIf
+        HGjAylL2rQmYMqJsuA5Gb/PQFWd6CNWOKl5zxduSaxj5wzkH3xKCn8LRfstNINqKfwxKWQrvA5jV
+        fVuJdps3Qhtr+MWNcDVxPhJrhGncEfzGmwYwcvSgem3Qd5Zd9IOAkUqUrEEnpkWL7mRr+EcDf1XX
+        6+/Q0h0G+g/XnKlyh/4FWyF7IIsjo0+jf5+Vfv9XMMILOi67hi9ZWy07Jf/kpdHBVrHW6CV7Yqri
+        lQt1WRyRLI9hL8sBBvy1MCxZzjQvZcUn+kQF/5EkywgNqf3Wea+BhjEP7eTzh+kc+6IR5VXHeOH4
+        3E7jt01ZoFHu81rwpnJHZ3fR4rNFRlK8WuGIZFEGg3tumM3Is4MfKfr/OZyJxBy4nhP8gtwjs2P9
+        BndKag1FkNso8inS/N6mew6Fno8Lc1nnUOg5FHo+oXBzl0rMqo+FUAvI/nkZXC0f1mquZWAcDuk1
+        7uFyq2aN5jB84EoP8pW4ktayVyXPQWZmGifbWlS8NYI156kAMPVQxbBBI9q/ctk2n2YbTEoK55ot
+        CV5S8kDpOiJrinOyTEL/s+isJ913XSMA876K7fqYxHFYZjiOCF+lqyIKa1LjIq7SImQRxOCA7bve
+        fJuNKwZKSEai0PJSyae2kaw6P/t2muDqZZG5kIPJgzerHRBkkpBVSrLnBbqCEIqXmCxJ+ECydUjW
+        JANCotf4wBGjYRXHq7hc1TFmGUlWNCpD+C8sWEgu8XGNzcAHxSkNw9Xf4GP0MONjlUQ0S2iMr2cj
+        WtL4AUfrKF2HCbARv8YGrwgOWYnLKMMRTsoqqlJKac1wmtRpVlxi4xqbkY0kgUxK/w4bg4d5dtCQ
+        ELpKU+xUfQfa1RzvgorrUoluaiQ2lTjcPuyEPha71SwmQEYvljx6Z9UVtKGWas/MDYht2fSggk51
+        QTgWSPEGChdGwIRQ9DP7hCzlPrpvUeekrW+YWiDOQIjhoLjVF7uRcwtBoUFTAMFx7wWCIKa9tFtd
+        y6aRTyDRMDyAgXXrTWADclFt+uZ204jbTXH7h7uB0KMHncGj92ETFLfOh7sUJjlF9054YKlC7yCS
+        GxvjCwa+3wTW35lPmAUUc7c/vr+fYhomkXVsPr1qz6vXzYHIN61BJS22uYNpzJ4Yn7kaBt8JH9o9
+        OzTc9ReXnkDfXN7XiD3XHXuxrx1DdvCNPQXciOoA9/VjW3DzxOEAvgLlSIDLgfPFj+23Iv8T7p0W
+        rhddTtiFgaSFO7rS6GnHwc/LY0fCpuJohjRv6tMVP4ts3HsCOUMubC6rEbfeDcVi12iQpMnxK2hZ
+        b3ZSfSPYFg1mL8FejXXHDhwxg2wdw+0PFTq6A9igPHvZ3vibQt0OgANbZ6eyc2Iy3vXTsZxry9pZ
+        j/W5wnSxWtFFHOJjFPpEBogjpinMRqgQwJ+E7qvbiRJNHYT2X8EB/IIgThhA3jsI0rZ/AsIDkCTx
+        M/TvHxbAo1Udc2bQt6PJUZesDQn9CIz8udA4Ko6f/6wqYWOAXJkpE2KF7M3wNCvhgAoOARgl+OGU
+        DhuGdtDl/ePxmhfOo3cr61qU0CmhJ150bMs3Abv1T2hcU8e2w5vJbmwHXrwYvdmz8tjRQbju9WSr
+        2cozmH+Bdu0gxu5tvEDjsZ2Io3WcDA2a0uZ9O5rYLixdEmg66AMl64jCQruqk9q4tvCim+ez1+TO
+        7N9ok994RzoJhAt5fEJf2ux3u24vK6v45wuzJV494HQN/SPFbuFQAWMDaiFO7cQLQnNv6H9ZaSDJ
+        YNqonk+XfYiTlMaZe9Y0rzhAw8veupGqFFXuLD3P3eTgeJC+k2NQQb6VkEYjMrhgoYwHq5ge335p
+        PG/wfxKFYmrQ0/tZiv5i+sp6cpuZXb8vpq5BA7zebuGNAAY083Z91mkNLb339R8OwBNv9ZBhZ23P
+        cIcd+KA32v0SMexdyT1oSPCZKxkQHwferLe7u8P2E+6X3n7TZ9f/DP0gHLJ76pxwnm157SP3+HSZ
+        CB0fL7Pn89t5+z973gWO1eM189Xs3yrZd0OyjDHAoc6e4vaamfh6/i9RAc/VuBIAAA==
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1759'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:23 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/7
+  response:
+    body:
+      string: !!binary |
+        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
+        EwAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1827'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:24 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/8
+  response:
+    body:
+      string: !!binary |
+        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
+        FAAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1884'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:26 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA6XMMQ6DMAwAwK9EnhFWTEgQX6kYIpSWSLSgOLAg/t4OXTx7vOUeFxxlhdHAUuvO
+        I2Lcc/vML15iSe28vfEkjKXmeU2MPjjriPBMhfP2YbTQGPjrt9i7McqR5Ej6sZNjpx+dHJ1+7OXY
+        60cvR68fgxyDfhzkONzTFz/eqy6QAgAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '138'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:27 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/1
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA7VX227jNhD9FUJPCWDrZjuWXdfANosWKQqkwC760M1CoETKIiqRAkk5zS7y752h
+        JFtxHW+Ktg9GYnIuZ2bODMdfPcYLITlL7VPDU0lr7q2Jx6ilhltvQjxeZ1TvVApHeCXbqoLTXFhq
+        hZIo/NDGYZhNyH3D5W1/bshVHEbJ9ZrcamWM5oW7JsM9uZOM/0luP/xGel9EFYRWFbElJ4N1d+eT
+        QuxMSTX3yftO1ieltY1ZBwFTwld6F0ShfxMm86Be+Qfpm+U8msexv48wjlZXaaPFHsJIaSMQ+GAE
+        vh61clUH+zigea5aaQOqrcgrboLe2jglmlPTpQBPIUauucy5gZNPzjjYVhD1EI7xJbeBwMiDXOXC
+        +wxqRSuZkLu0Esai4ld3wvVQiz7hVtjKleZdVWjOyK8++VApKsmPAJN12dppKi0o1BnX5CcsSxTC
+        Z9n9t0rCEHE6qTRXjA/IBYP/ZoubKFnhN5O2Bvz3xICr6PnzkMA2q0T+pvydyZvz039HDrXGqjot
+        BK+Yyxl6MeIL4kqWs3AZRrMkhLOaW4pMOEl4n7n/JCkD/BSiHIf2IqxDTD1lg4HbKXI7HbidOm6n
+        wO20F0xVkQK3U+B2OpDB3Z1jFTYiQigEFHxc+X/dSWht3O5Y9a7gvW9X7YJWhsPxnmvTdXjk2G1U
+        q3OeQseNxoCShWBcWkGr0+oAfNMRGhxUQv6RKlk9jRyMh42fm73/RTSoadqmqQRgrNkC77N5wWfF
+        TbRKooLFUXiziHgRJfkyo3myWi49B6RuWvvPdBwdo3gWxrMl8pGpRwnsYacckMMF1y9p7kIMBgve
+        Ofa6zimpZNWh2xg3uRbNMD03TOy3H0thDuWDpFoqYISeLSK5EtJVu1C6pvaaCJlXLQP2wzlKX6SJ
+        5hVUCYRVJzy3JdLl57Z6IjiwfZAjjSN6W1E9IZzmJYHqcRRz5tE1BE46JgHKA74JgUAHPMZJF6qq
+        1CN0KRx3gEFuvQkwaBf5pq22m0psN9n2k5sE5MGD0fjgfd4E2dbZOInD0Q1ENbm6v727xjy8yNJ3
+        mwDtndiEW0AxNvv+/m6IqbskaNg+varP2evqkNGL2tAbiG1sYDjDqvKRqe7wSvjw3uFRN3PPih5B
+        X5/3a0XNTUNf+MUzgocXfAppud7TijzIjNtHzuW3oBwS4DhwKvwgX0fud8gDJMKRF64j+hE06J02
+        yHqT6QOBZtHNJJ7PJkkYHyIyx6zMF5MIPkmyIpkAYArehaYUORkGm3kNByQLunrAADOqgVipzkux
+        h0QZkvgx+emHCXkssSvsiXwre41D34DKfAUa/rgLMJDj13eMCcQPBRi1DaGZau23ezyH0mYcArNa
+        8P1xMGwoKUHn+4e37CYP3lYVhchhsJNHnjV0xzcB3fYdfsae+ZvBR6VZA+k1bljidAnCZRDOAlCe
+        5n0EU9SZDkpTB2DaAwAWasXa3Cr9RLJK7UijjHUweggvV04U8Y+pdI8n3XXr2KWMoeAtzBL8+8Ki
+        N9p0Dy8oFNItbthHOBjB/Fd4Hveify09jHQaLqfh4mMUr8PZOky6B1Ebey97ldekMEL3DJ8VeD5Z
+        ZEtbX1hXLqywbvjAc9lv9eec/Y5ytWI4a8eCcTgNVyD7MUzWcbyOQydIW1sq3T/4CHF43V8kNPW6
+        fYPmFroHrq1u+WEDDW+SeLFym131igHS/dhAM0rngqVO0/PcOwuGu6FzNAzzh+8U9EGPDJ42GDud
+        1iI+LAHJYrxo/SIyTXU3ye5G/ffBtgwtOWe2hJVyeNMNwGvRhdcD6NCM16PR4tOtUN63f7OAJS5N
+        x7CTpaR7PfYcCl1js+GPoM43UzUMx+AL1yqI/DDwRqvW7a3bdmGyt/g9fnbbSbeeQZHdynnEeeLy
+        rWv+YVUcEtovi6MfEJd5+7+t2YHLqsNgyjewf6dV23Rk6WOAoo5+jeQw4YZ8Pf8Fux+970sPAAA=
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1481'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:29 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/2
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1482'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:31 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/3
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1594'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:32 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/4
+  response:
+    body:
+      string: !!binary |
+        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
+        aeP19C+lgYaQoxAAAA==
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1609'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:34 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/5
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1687'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:35 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/6
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1759'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:37 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/7
+  response:
+    body:
+      string: !!binary |
+        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
+        EwAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1827'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:39 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/8
+  response:
+    body:
+      string: !!binary |
+        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
+        FAAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1884'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:40 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA6XMMQ6DMAwAwK9EnhFWTEgQX6kYIpSWSLSgOLAg/t4OXTx7vOUeFxxlhdHAUuvO
+        I2Lcc/vML15iSe28vfEkjKXmeU2MPjjriPBMhfP2YbTQGPjrt9i7McqR5Ej6sZNjpx+dHJ1+7OXY
+        60cvR68fgxyDfhzkONzTFz/eqy6QAgAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '138'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:42 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/1
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1481'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:44 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/2
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1482'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:45 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/3
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1594'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:47 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/4
+  response:
+    body:
+      string: !!binary |
+        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
+        aeP19C+lgYaQoxAAAA==
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1609'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:48 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/5
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1687'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:50 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/6
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1759'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:52 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/7
+  response:
+    body:
+      string: !!binary |
+        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
+        EwAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1827'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:53 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-encoding:
+      - gzip
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.24.0
+    method: GET
+    uri: https://api.figshare.com/v2/articles/6741422/versions/8
+  response:
+    body:
+      string: !!binary |
+        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
+        FAAA
+    headers:
+      Access-Control-Allow-Headers:
+      - Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Max-Age:
+      - '3600'
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '1884'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 08 Sep 2020 21:57:55 GMT
+      Server:
+      - nginx
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+version: 1

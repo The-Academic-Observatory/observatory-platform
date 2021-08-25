@@ -1,0 +1,17 @@
+[
+  {
+    "name": "FieldOfStudyId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES FieldsOfStudy.FieldOfStudyId"
+  },  
+  {
+    "name": "AttributeType", 
+    "type": "INTEGER",
+    "description": "1: AUI: Atom Unique Identifier defined in Unified Medical Language System (UMLS), version 2018AA. 2: SourceUrl"
+  }, 
+  {
+    "name": "AttributeValue", 
+    "type": "STRING",
+    "description": "The value of the attribute"
+  }
+]

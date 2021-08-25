@@ -1,0 +1,23 @@
+{#
+Copyright 2020 Curtin University.
+Authors: James Diprose, Richard Hosking
+#}
+
+SELECT
+  id as {{ aggregate }}_id,
+  name as {{ aggregate }}_name,
+  country as {{ aggregate }}_country,
+  country_code as {{ aggregate }}_country_code,
+  region as {{ aggregate }}_region,
+  subregion as {{ aggregate }}_subregion,
+  coordinates as {{ aggregate }}_coordinates,
+  DATE(time_period, 12, 31) AS published_year,
+  events.source as events_source,
+  events.total_outputs as events_total_outputs,
+  events.num_oa_outputs as events_num_oa_outputs,
+  events.num_green_outputs as events_num_green_outputs,
+  events.num_gold_outputs as events_num_gold_outputs
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}{{ release_date.strftime('%Y%m%d') }}`,
+  UNNEST(events) as events
+ORDER BY id, published_year ASC

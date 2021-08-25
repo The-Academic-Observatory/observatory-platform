@@ -1,0 +1,57 @@
+[
+  {
+    "name": "JournalId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "INTEGER",
+    "description": "The static rank roughly reflects the log probability of an entity being 'important' - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#what-is-the-rank-value-on-entities"
+  }, 
+  {
+    "name": "NormalizedName", 
+    "type": "STRING",
+    "description": "Normalised name of the Journal"
+  }, 
+  {
+    "name": "DisplayName", 
+    "type": "STRING",
+    "description": "The displayed name of the Journal"
+  }, 
+  {
+    "name": "Issn", 
+    "type": "STRING",
+    "description": "The Journals ISSN"
+  }, 
+  {
+    "name": "Publisher", 
+    "type": "STRING",
+    "description": "The Publisher of this Journal"
+  }, 
+  {
+    "name": "Webpage", 
+    "type": "STRING",
+    "description": "The URL for the webpage of this journal"
+  }, 
+  {
+    "name": "PaperCount", 
+    "type": "INTEGER",
+    "description": "The number of Papers that have been identified from this Journal"
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER",
+    "description": "Same as PaperCount with the following provisions - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#papercount-vs-paperfamilycount"
+  },
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER",
+    "description": "The sum of citations for Papers that have been linked to this Journal"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "DATETIME",
+    "description": "The date in which this record was first created"
+  }
+]

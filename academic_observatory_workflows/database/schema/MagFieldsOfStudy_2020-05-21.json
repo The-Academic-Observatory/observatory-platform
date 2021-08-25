@@ -1,0 +1,52 @@
+[
+  {
+    "name": "FieldOfStudyId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "INTEGER",
+    "description": "The static rank roughly reflects the log probability of an entity being 'important' - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#what-is-the-rank-value-on-entities"
+  }, 
+  {
+    "name": "NormalizedName", 
+    "type": "STRING",
+    "description": "Normalised name of the Field of Study"
+  }, 
+  {
+    "name": "DisplayName", 
+    "type": "STRING",
+    "description": "The displayed name of the Field of Study"
+  }, 
+  {
+    "name": "MainType", 
+    "type": "STRING",
+    "description": "Optional: The type or category of entity this field of study belongs within "
+  }, 
+  {
+    "name": "Level", 
+    "type": "INTEGER",
+    "description": "Between 0-5 - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#how-is-the-field-of-study-hierarchy-generated"
+  }, 
+  {
+    "name": "PaperCount", 
+    "type": "INTEGER",
+    "description": "The number of Papers that have been identified from this Field of Study"
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER",
+    "description": "Same as PaperCount with the following provisions - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#papercount-vs-paperfamilycount"
+  },
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER",
+    "description": "The sum of citations for Papers that have been linked to this Field of Study"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "STRING",
+    "description": "The date in which this record was first created"
+  }
+]

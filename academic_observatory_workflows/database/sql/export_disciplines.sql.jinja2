@@ -1,0 +1,36 @@
+{#
+Copyright 2020 Curtin University.
+Authors: Richard Hosking
+#}
+
+SELECT
+  id as {{ aggregate }}_id,
+  name as {{ aggregate }}_name,
+  country as {{ aggregate }}_country,
+  country_code as {{ aggregate }}_country_code,
+  region as {{ aggregate }}_region,
+  subregion as {{ aggregate }}_subregion,
+  coordinates as {{ aggregate }}_coordinates,
+  DATE(time_period, 12, 31) AS published_year,
+  discipline.field as disciplines_field,
+  discipline.total_outputs as disciplines_total_outputs,
+  discipline.sum_of_scores as disciplines_sum_of_scores,
+  discipline.num_oa_outputs as disciplines_num_oa_outputs,
+  discipline.num_green_outputs as disciplines_num_green_outputs,
+  discipline.num_gold_outputs as disciplines_num_gold_outputs,
+  ROUND(SAFE_DIVIDE( ( discipline.num_oa_outputs ) * 100 , discipline.total_outputs ), 2) as disciplines_percent_oa,
+  ROUND(SAFE_DIVIDE( ( discipline.num_green_outputs ) * 100 , discipline.total_outputs ), 2) as disciplines_percent_green,
+  ROUND(SAFE_DIVIDE( ( discipline.num_gold_outputs ) * 100 , discipline.total_outputs ), 2) as disciplines_percent_gold,
+  discipline.citations.mag.total_citations as disciplines_total_citations,
+  discipline.citations.mag.percentiles.median as disciplines_median_citations_per_output,
+  discipline.funding.total_funded_outputs as disciplines_total_funded_outputs,
+  discipline.funding.num_international_outputs as disciplines_num_international_funded_outputs,
+  discipline.funding.num_domestic_outputs as disciplines_num_domestic_funded_outputs,
+  discipline.funding.num_international_and_domestic_outputs as disciplines_num_international_and_domestic_funded_outputs,
+  discipline.funding.num_government_outputs as disciplines_num_government_funded_outputs,
+  discipline.funding.num_private_outputs as disciplines_num_private_funded_outputs,
+  discipline.funding.num_government_and_private_outputs as disciplines_num_government_and_private_funded_outputs
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}{{ release_date.strftime('%Y%m%d') }}`,
+  UNNEST(disciplines.level0) as discipline
+ORDER BY id, published_year ASC

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "ConferenceSeriesId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY: Unique Identifier for a Conference Series"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "INTEGER",
+    "description": "The static rank roughly reflects the log probability of an entity being 'important' - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#what-is-the-rank-value-on-entities"
+  }, 
+  {
+    "name": "NormalizedName", 
+    "type": "STRING",
+    "description": "Normalised name of the Conference Series"
+  }, 
+  {
+    "name": "DisplayName", 
+    "type": "STRING",
+    "description": "The Displayed name of the Conference Series"
+  }, 
+  {
+    "name": "PaperCount", 
+    "type": "INTEGER",
+    "description": "The number of Papers that have been identified from this Conference Series"
+  },
+  {
+    "name": "PaperFamilyCount",
+    "type": "INTEGER",
+    "description": "Same as PaperCount with the following provisions - https://docs.microsoft.com/en-us/academic-services/graph/resources-faq#papercount-vs-paperfamilycount"
+  },
+  {
+    "name": "CitationCount", 
+    "type": "INTEGER",
+    "description": "The sum of citations for Papers that have been linked to this Conference Series"
+  }, 
+  {
+    "name": "CreatedDate", 
+    "type": "DATETIME",
+    "description": "The date in which this record was first created"
+  }
+]

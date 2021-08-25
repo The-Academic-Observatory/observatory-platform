@@ -1,0 +1,154 @@
+{
+  "mappings": {
+    "properties": {
+      "{{ aggregate }}_id": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_name": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_country": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_country_code": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_region": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_subregion": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_coordinates": {
+        "type": "geo_point"
+      },
+      "published_year": {
+        "type": "date",
+        "format": "yyyy-MM-dd"
+      },
+      "{{ facet }}_id": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ facet }}_name": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ facet }}_country": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ facet }}_country_code": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ facet }}_region": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ facet }}_subregion": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ facet }}_coordinates": {
+        "type": "geo_point"
+      },
+      "{{ facet }}_total_outputs": {
+        "type": "long"
+      },
+      "{{ facet }}_num_oa_outputs": {
+        "type": "long"
+      },
+      "{{ facet }}_num_green_outputs": {
+        "type": "long"
+      },
+      "{{ facet }}_num_gold_outputs": {
+        "type": "long"
+      },
+      "{{ facet }}_total_citations": {
+        "type": "long"
+      },
+      "{{ facet }}_percent_oa": {
+        "type": "double"
+      },
+      "{{ facet }}_percent_green": {
+        "type": "double"
+      },
+      "{{ facet }}_percent_gold": {
+        "type": "double"
+      },
+      "{{ facet }}_percent_of_all_outputs": {
+        "type": "double"
+      },
+      "{{ facet }}_percent_of_all_oa": {
+        "type": "double"
+      }
+    }
+  }
+}

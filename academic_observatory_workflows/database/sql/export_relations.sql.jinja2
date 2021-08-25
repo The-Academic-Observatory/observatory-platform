@@ -1,0 +1,35 @@
+{#
+Copyright 2020 Curtin University.
+Authors: Richard Hosking
+#}
+
+SELECT
+  entity.id as {{ aggregate }}_id,
+  entity.name as {{ aggregate }}_name,
+  entity.country as {{ aggregate }}_country,
+  entity.country_code as {{ aggregate }}_country_code,
+  entity.region as {{ aggregate }}_region,
+  entity.subregion as {{ aggregate }}_subregion,
+  entity.coordinates as {{ aggregate }}_coordinates,
+  DATE(entity.time_period, 12, 31) AS published_year,
+  relation.id as {{ facet }}_id,
+  relation.name as {{ facet }}_name,
+  relation.country as {{ facet }}_country,
+  relation.country_code as {{ facet }}_country_code,
+  relation.region as {{ facet }}_region,
+  relation.subregion as {{ facet }}_subregion,
+  relation.coordinates as {{ facet }}_coordinates,
+  relation.total_outputs as {{ facet }}_total_outputs,
+  relation.num_oa_outputs as {{ facet }}_num_oa_outputs,
+  relation.num_green_outputs as {{ facet }}_num_green_outputs,
+  relation.num_gold_outputs as {{ facet }}_num_gold_outputs,
+  relation.citations.mag as {{ facet }}_total_citations,
+  ROUND(SAFE_DIVIDE( ( relation.num_oa_outputs ) * 100 , relation.total_outputs ), 2) as {{ facet }}_percent_oa,
+  ROUND(SAFE_DIVIDE( ( relation.num_green_outputs ) * 100 , relation.total_outputs ), 2) as {{ facet }}_percent_green,
+  ROUND(SAFE_DIVIDE( ( relation.num_gold_outputs ) * 100 , relation.total_outputs ), 2) as {{ facet }}_percent_gold,
+  relation.percentage_of_all_outputs as {{ facet }}_percent_of_all_outputs,
+  relation.percentage_of_all_oa as {{ facet }}_percent_of_all_oa
+FROM
+  `{{ project_id }}.{{ dataset_id }}.{{ table_id }}{{ release_date.strftime('%Y%m%d') }}` as entity,
+  UNNEST({{ facet }}) as relation
+ORDER BY entity.id, published_year ASC

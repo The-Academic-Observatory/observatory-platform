@@ -1,0 +1,22 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY FOREIGN KEY REFERENCES Papers.PaperId"
+  }, 
+  {
+    "name": "SourceType", 
+    "type": "INTEGER",
+    "description": "1 = Html, 2 = Text, 3 = Pdf, 4 = Doc, 5 = Ppt, 6 = Xls, 8 = Rtf, 12 = Xml, 13 = Rss, 20 = Swf, 27 = Ics, 31 = Pub, 33 = Ods, 34 = Odp, 35 = Odt, 36 = Zip, 40 = Mp3, 0/999/NULL = unknown"
+  }, 
+  {
+    "name": "SourceUrl", 
+    "type": "STRING",
+    "description": "PRIMARY KEY"
+  },
+  {
+    "name": "LanguageCode",
+    "type": "STRING",
+    "description": "Language Code"
+  }
+]

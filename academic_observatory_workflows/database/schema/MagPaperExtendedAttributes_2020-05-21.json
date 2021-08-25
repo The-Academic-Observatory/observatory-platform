@@ -1,0 +1,17 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Papers.PaperId"
+  },  
+  {
+    "name": "AttributeType", 
+    "type": "INTEGER",
+    "description": "1: PatentId, 2: PubMedId, 3: PmcId, 4: Alternative Title"
+  }, 
+  {
+    "name": "AttributeValue", 
+    "type": "STRING",
+    "description": "The value of the attribute"
+  }
+]

@@ -1,0 +1,349 @@
+[
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "evidence",
+        "type": "STRING",
+        "description": "How we found this OA location. Used for debugging. Don’t depend on the exact contents of this for anything, because values are subject to change without warning."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "host_type",
+        "type": "STRING",
+        "description": "The type of host that serves this OA location. There are two possible values: 'publisher' means this location is served by the article’s publisher (in practice, this usually means it is hosted on the same domain the DOI resolves to). 'repository' means this location is served by an Open Access repository. Preprint servers are considered repositories even if the DOI resolves there."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_best",
+        "type": "BOOLEAN",
+        "description": "Is this location the best_oa_location for its resource. See the DOI object's best_oa_location description for more on how we select which location is \"best.\""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "license",
+        "type": "STRING",
+        "description": "The license under which this copy is published. We return several types of licenses: Creative Commons licenses are uniformly abbreviated and lowercased. Example: 'cc-by-nc'. Publisher-specific licenses are normalized using this format: 'acs-specific: authorchoice/editors choice usage agreement'. When we have evidence that an OA license of some kind was used, but it’s not reported directly on the webpage at this location, this field returns 'implied-oa'"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "pmh_id",
+        "type": "STRING",
+        "description": "OAI-PMH endpoint where we found this location. This is primarily for internal debugging. It's null for locations that weren't found using OAI-PMH."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "updated",
+        "type": "TIMESTAMP",
+        "description": "Time when the data for this location was last updated. Returned as an ISO8601-formatted timestamp. Example: 2017-08-17T23:43:27.753663"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url",
+        "type": "STRING",
+        "description": "The url_for_pdf if there is one; otherwise landing page URL. When we can't find a url_for_pdf (or there isn't one), this field uses the url_for_landing_page, which is a useful fallback for some use cases."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_landing_page",
+        "type": "STRING",
+        "description": "The URL for a landing page describing this OA copy. When the host_type is \"publisher\" the landing page usually includes HTML fulltext."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_pdf",
+        "type": "STRING",
+        "description": "The URL with a PDF version of this OA copy."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "version",
+        "type": "STRING",
+        "description": "The content version accessible at this location. We use the DRIVER Guidelines v2.0 VERSION standard (https://wiki.surfnet.nl/display/DRIVERguidelines/DRIVER-VERSION+Mappings) to define versions of a given article; see those docs for complete definitions of terms."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "repository_institution",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "endpoint_id",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "id",
+        "type": "STRING"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "best_oa_location",
+    "type": "RECORD",
+    "description": "The best OA Location Object we could find for this DOI. The \"best\" location is determined using an algorithm that prioritizes publisher-hosted content first (eg Hybrid or Gold), then prioritizes versions closer to the version of record (PublishedVersion over AcceptedVersion), then more authoritative repositories (PubMed Central over CiteSeerX). Returns null if we couldn't find any OA Locations."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "data_standard",
+    "type": "INTEGER",
+    "description": "Indicates the data collection approaches used for this resource. Possible values: '1' First-generation hybrid detection. Uses only data from the Crossref API to determine hybrid status. Does a good job for Elsevier articles and a few other publishers, but most publishers are not checked for hybrid. '2' Second-generation hybrid detection. Uses additional sources, checks all publishers for hybrid. Gets about 10x as much hybrid. data_standard==2 is the version used in the paper we wrote about the dataset."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "doi",
+    "type": "STRING",
+    "description": "The DOI of this resource. This is always lowercase."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "doi_url",
+    "type": "STRING",
+    "description": "The DOI in hyperlink form. This field simply contains \"https://doi.org/\" prepended to the doi field. It expresses the DOI in its correct format according to the Crossref DOI display guidelines."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "genre",
+    "type": "STRING",
+    "description": "The type of resource. Currently the genre is identical to the Crossref-reported type of a given resource. The \"journal-article\" type is most common, but there are many others."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "is_oa",
+    "type": "BOOLEAN",
+    "description": "Is there an OA copy of this resource. Convenience attribute; returns true when best_oa_location is not null."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "journal_is_in_doaj",
+    "type": "BOOLEAN",
+    "description": "Is this resource published in a DOAJ-indexed journal. Useful for defining whether a resource is Gold OA (depending on your definition, see also journal_is_oa)."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "journal_is_oa",
+    "type": "BOOLEAN",
+    "description": "Is this resource published in a completely OA journal.\tUseful for defining whether a resource is Gold OA. Includes any fully-OA journal, regardless of inclusion in DOAJ. This includes journals by all-OA publishers and journals that would otherwise be all Hybrid or Bronze OA."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "journal_issns",
+    "type": "STRING",
+    "description": "Any ISSNs assigned to the journal publishing this resource. Separate ISSNs are sometimes assigned to print and electronic versions of the same journal. If there are multiple ISSNs, they are separated by commas. Example: 1232-1203,1532-6203"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "journal_issn_l",
+    "type": "STRING",
+    "description": "A single ISSN for the journal publishing this resource. An ISSN-L can be used as a primary key for a journal when more than one ISSN is assigned to it. Resources' journal_issns are mapped to ISSN-Ls using the issn.org table, with some manual corrections."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "journal_name",
+    "type": "STRING",
+    "description": "The name of the journal publishing this resource. The same journal may have multiple name strings (eg, \"J. Foo\", \"Journal of Foo\", \"JOURNAL OF FOO\", etc). These have not been fully normalized within our database, so use with care."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "evidence",
+        "type": "STRING",
+        "description": "How we found this OA location. Used for debugging. Don’t depend on the exact contents of this for anything, because values are subject to change without warning."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "host_type",
+        "type": "STRING",
+        "description": "The type of host that serves this OA location. There are two possible values: 'publisher' means this location is served by the article’s publisher (in practice, this usually means it is hosted on the same domain the DOI resolves to). 'repository' means this location is served by an Open Access repository. Preprint servers are considered repositories even if the DOI resolves there."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "is_best",
+        "type": "BOOLEAN",
+        "description": "Is this location the best_oa_location for its resource. See the DOI object's best_oa_location description for more on how we select which location is \"best.\""
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "license",
+        "type": "STRING",
+        "description": "The license under which this copy is published. We return several types of licenses: Creative Commons licenses are uniformly abbreviated and lowercased. Example: 'cc-by-nc'. Publisher-specific licenses are normalized using this format: 'acs-specific: authorchoice/editors choice usage agreement'. When we have evidence that an OA license of some kind was used, but it’s not reported directly on the webpage at this location, this field returns 'implied-oa'"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "pmh_id",
+        "type": "STRING",
+        "description": "OAI-PMH endpoint where we found this location. This is primarily for internal debugging. It's null for locations that weren't found using OAI-PMH."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "updated",
+        "type": "TIMESTAMP",
+        "description": "Time when the data for this location was last updated. Returned as an ISO8601-formatted timestamp. Example: 2017-08-17T23:43:27.753663"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url",
+        "type": "STRING",
+        "description": "The url_for_pdf if there is one; otherwise landing page URL. When we can't find a url_for_pdf (or there isn't one), this field uses the url_for_landing_page, which is a useful fallback for some use cases."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_landing_page",
+        "type": "STRING",
+        "description": "The URL for a landing page describing this OA copy. When the host_type is \"publisher\" the landing page usually includes HTML fulltext."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url_for_pdf",
+        "type": "STRING",
+        "description": "The URL with a PDF version of this OA copy."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "version",
+        "type": "STRING",
+        "description": "The content version accessible at this location. We use the DRIVER Guidelines v2.0 VERSION standard (https://wiki.surfnet.nl/display/DRIVERguidelines/DRIVER-VERSION+Mappings) to define versions of a given article; see those docs for complete definitions of terms."
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "repository_institution",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "endpoint_id",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "id",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "oa_locations",
+    "type": "RECORD",
+    "description": "List of all the OA Location objects associated with this resource. This list is unnecessary for the vast majority of use-cases, since you probably just want the best_oa_location. It's included primarily for research purposes."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "oa_status",
+    "type": "STRING",
+    "description": "The OA status, or color, of this resource. Classifies OA resources by location and license terms as one of: gold, hybrid, bronze, green or closed. See here for more information on how we assign an oa_status: https://support.unpaywall.org/support/solutions/articles/44001777288-what-do-the-types-of-oa-status-green-gold-hybrid-and-bronze-mean-"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "published_date",
+    "type": "DATE",
+    "description": "The date this resource was published. As reported by the publishers, who unfortunately have inconsistent definitions of what counts as officially \"published.\" Returned as an ISO8601-formatted timestamp, generally with only year-month-day."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "publisher",
+    "type": "STRING",
+    "description": "The name of this resource's publisher. Keep in mind that publisher name strings change over time, particularly as publishers are acquired or split up."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "title",
+    "type": "STRING",
+    "description": "The title of this resource."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "updated",
+    "type": "TIMESTAMP",
+    "description": "Time when the data for this resource was last updated. Returned as an ISO8601-formatted timestamp. Example: 2017-08-17T23:43:27.753663"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "year",
+    "type": "INTEGER",
+    "description": "The year this resource was published. Just the year part of the published_date"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "family",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "given",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ORCID",
+        "type": "STRING",
+        "description": "URL-form of an ORCID identifier"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "authenticated_orcid",
+        "type": "BOOLEAN",
+        "description": "If true, record owner asserts that the ORCID user completed ORCID OAuth authentication"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "affiliation",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "sequence",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "suffix",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "z_authors",
+    "type": "RECORD",
+    "description": "The authors of this resource. These are formatted as a list of Crossref Contributor objects, which are described in the Crossref API docs here: https://github.com/CrossRef/rest-api-doc/blob/master/api_format.md#contributor"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "has_repository_copy",
+    "type": "BOOLEAN",
+    "description": "Is a full-text available in a repository?"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "issn_l",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "blank",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "x_reported_noncompliant_copies",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "x_error",
+    "type": "BOOLEAN"
+  }
+]

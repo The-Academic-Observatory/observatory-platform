@@ -1,0 +1,420 @@
+[
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "description": "Category name",
+            "mode": "NULLABLE",
+            "name": "text",
+            "type": "STRING"
+          },
+          {
+            "description": "Category code",
+            "mode": "NULLABLE",
+            "name": "code",
+            "type": "STRING"
+          },
+          {
+            "description": "Defines the two collection of subject categories used to classify journals in Web of Knowledge",
+            "mode": "NULLABLE",
+            "name": "ascatype",
+            "type": "STRING"
+          }
+        ],
+        "description": "Category subjects",
+        "mode": "REPEATED",
+        "name": "subjects",
+        "type": "RECORD"
+      },
+      {
+        "description": "Category subheadings",
+        "mode": "REPEATED",
+        "name": "subheadings",
+        "type": "STRING"
+      },
+      {
+        "description": "Category headings",
+        "mode": "REPEATED",
+        "name": "headings",
+        "type": "STRING"
+      }
+    ],
+    "description": "Category descriptions",
+    "mode": "NULLABLE",
+    "name": "categories",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "description": "Grant id",
+            "mode": "REPEATED",
+            "name": "ids",
+            "type": "STRING"
+          },
+          {
+            "description": "Grant agency",
+            "mode": "NULLABLE",
+            "name": "agency",
+            "type": "STRING"
+          }
+        ],
+        "description": "Grant information",
+        "mode": "REPEATED",
+        "name": "grants",
+        "type": "RECORD"
+      },
+      {
+        "description": "Funding acknowledgement texts",
+        "mode": "REPEATED",
+        "name": "text",
+        "type": "STRING"
+      }
+    ],
+    "description": "Funding acknowledgements",
+    "mode": "NULLABLE",
+    "name": "fund_ack",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "art_no",
+        "type": "STRING"
+      },
+      {
+        "description": "Digital object identifier",
+        "mode": "NULLABLE",
+        "name": "doi",
+        "type": "STRING"
+      },
+      {
+        "description": "Electronic ISSN",
+        "mode": "NULLABLE",
+        "name": "eissn",
+        "type": "STRING"
+      },
+      {
+        "description": "ISSN",
+        "mode": "NULLABLE",
+        "name": "issn",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "meeting_abs",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "xref_doi",
+        "type": "STRING"
+      },
+      {
+        "description": "ISBN",
+        "mode": "NULLABLE",
+        "name": "isbn",
+        "type": "STRING"
+      },
+      {
+        "description": "Electronic ISBN",
+        "mode": "NULLABLE",
+        "name": "eisbn",
+        "type": "STRING"
+      },
+      {
+        "description": "",
+        "mode": "NULLABLE",
+        "name": "parent_book_doi",
+        "type": "STRING"
+      },
+      {
+        "description": "Web of Science UID",
+        "mode": "NULLABLE",
+        "name": "uid",
+        "type": "STRING"
+      }
+    ],
+    "description": "Document identifiers",
+    "mode": "NULLABLE",
+    "name": "identifiers",
+    "type": "RECORD"
+  },
+  {
+    "description": "List of abstracts",
+    "mode": "REPEATED",
+    "name": "abstract",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "description": "Conference name",
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      },
+      {
+        "description": "Conference id",
+        "mode": "NULLABLE",
+        "name": "id",
+        "type": "INTEGER"
+      }
+    ],
+    "description": "Information on the conference proceedings",
+    "mode": "REPEATED",
+    "name": "conferences",
+    "type": "RECORD"
+  },
+  {
+    "description": "Reference count",
+    "mode": "NULLABLE",
+    "name": "ref_count",
+    "type": "INTEGER"
+  },
+  {
+    "description": "Timestamp from when the query was performed",
+    "mode": "NULLABLE",
+    "name": "harvest_datetime",
+    "type": "TIMESTAMP"
+  },
+  {
+    "fields": [
+      {
+        "description": "Full name",
+        "mode": "NULLABLE",
+        "name": "full_name",
+        "type": "STRING"
+      },
+      {
+        "description": "WoS identifier from their entity disambiguation algorithm",
+        "mode": "NULLABLE",
+        "name": "daisng_id",
+        "type": "INTEGER"
+      },
+      {
+        "description": "ORCID identifier",
+        "mode": "NULLABLE",
+        "name": "orcid",
+        "type": "STRING"
+      },
+      {
+        "description": "Last name",
+        "mode": "NULLABLE",
+        "name": "last_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Surname followed by a comma and up to five initials",
+        "mode": "NULLABLE",
+        "name": "wos_standard",
+        "type": "STRING"
+      },
+      {
+        "description": "Role of name, e.g., author",
+        "mode": "NULLABLE",
+        "name": "role",
+        "type": "STRING"
+      },
+      {
+        "description": "First name",
+        "mode": "NULLABLE",
+        "name": "first_name",
+        "type": "STRING"
+      },
+      {
+        "description": "ResearcherID identifier",
+        "mode": "NULLABLE",
+        "name": "r_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Position the author appears in the publication",
+        "mode": "NULLABLE",
+        "name": "seq_no",
+        "type": "INTEGER"
+      }
+    ],
+    "description": "Names associated with publication",
+    "mode": "REPEATED",
+    "name": "names",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "description": "Name of language",
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      },
+      {
+        "description": "Type of role language plays, e.g., primary",
+        "mode": "NULLABLE",
+        "name": "type",
+        "type": "STRING"
+      }
+    ],
+    "description": "Languages used in the publication",
+    "mode": "REPEATED",
+    "name": "languages",
+    "type": "RECORD"
+  },
+  {
+    "description": "Title of publication",
+    "mode": "NULLABLE",
+    "name": "title",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "description": "Organisation name",
+        "mode": "NULLABLE",
+        "name": "org_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Country where organisation resides",
+        "mode": "NULLABLE",
+        "name": "country",
+        "type": "STRING"
+      },
+      {
+        "description": "State where organisation resides",
+        "mode": "NULLABLE",
+        "name": "state",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "description": "Surname followed by a comma and up to five initials",
+            "mode": "NULLABLE",
+            "name": "wos_standard",
+            "type": "STRING"
+          },
+          {
+            "description": "Full name",
+            "mode": "NULLABLE",
+            "name": "full_name",
+            "type": "STRING"
+          },
+          {
+            "description": "WoS identifier from their entity disambiguation algorithm",
+            "mode": "NULLABLE",
+            "name": "daisng_id",
+            "type": "INTEGER"
+          },
+          {
+            "description": "Last name",
+            "mode": "NULLABLE",
+            "name": "last_name",
+            "type": "STRING"
+          },
+          {
+            "description": "First name",
+            "mode": "NULLABLE",
+            "name": "first_name",
+            "type": "STRING"
+          }
+        ],
+        "description": "Names associated with this organisation, e.g., authors",
+        "mode": "REPEATED",
+        "name": "names",
+        "type": "RECORD"
+      },
+      {
+        "description": "Any relevant suborganisations of this organisation",
+        "mode": "REPEATED",
+        "name": "suborgs",
+        "type": "STRING"
+      },
+      {
+        "description": "City where organisation resides",
+        "mode": "NULLABLE",
+        "name": "city",
+        "type": "STRING"
+      }
+    ],
+    "description": "Organisations affiliated with the publication (possibly through authors)",
+    "mode": "REPEATED",
+    "name": "orgs",
+    "type": "RECORD"
+  },
+  {
+    "description": "List of keywords and keywords plus (where available)",
+    "mode": "REPEATED",
+    "name": "keywords",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "description": "Name of publisher",
+        "mode": "NULLABLE",
+        "name": "publisher",
+        "type": "STRING"
+      },
+      {
+        "description": "City where publisher is",
+        "mode": "NULLABLE",
+        "name": "publisher_city",
+        "type": "STRING"
+      },
+      {
+        "description": "Type of publication",
+        "mode": "NULLABLE",
+        "name": "doc_type",
+        "type": "STRING"
+      },
+      {
+        "description": "Source publication, e.g., publishing journal",
+        "mode": "NULLABLE",
+        "name": "source",
+        "type": "STRING"
+      },
+      {
+        "description": "Type of publication",
+        "mode": "NULLABLE",
+        "name": "pub_type",
+        "type": "STRING"
+      },
+      {
+        "description": "Page count for this document",
+        "mode": "NULLABLE",
+        "name": "page_count",
+        "type": "INTEGER"
+      },
+      {
+        "description": "%E4Y-%m-%d",
+        "mode": "NULLABLE",
+        "name": "sort_date",
+        "type": "DATE"
+      }
+    ],
+    "description": "Publication information summary",
+    "mode": "NULLABLE",
+    "name": "pub_info",
+    "type": "RECORD"
+  },
+  {
+    "description": "%E4Y-%m-%d currently keyed to the DAG execution date.",
+    "mode": "NULLABLE",
+    "name": "release_date",
+    "type": "DATE"
+  },
+  {
+    "description": "Institution IDs used to fetch record.  This indicates the list of institutions fetched under same key in a OR query, e.g., OG=(Curtin University OR Other authorised institution)",
+    "mode": "REPEATED",
+    "name": "institution_ids",
+    "type": "STRING"
+  }
+]

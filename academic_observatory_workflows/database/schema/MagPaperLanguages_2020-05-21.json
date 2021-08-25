@@ -1,0 +1,12 @@
+[
+  {
+    "name": "PaperId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY FOREIGN KEY REFERENCES Papers.PaperId"
+  }, 
+  {
+    "name": "LanguageCode", 
+    "type": "STRING",
+    "description": "Langauge Code"
+  }
+]

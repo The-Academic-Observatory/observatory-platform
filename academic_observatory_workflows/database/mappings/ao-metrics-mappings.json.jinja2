@@ -1,0 +1,130 @@
+{
+  "mappings": {
+    "properties": {
+      "{{ aggregate }}_id": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_name": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_country": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_country_code": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_region": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_subregion": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_coordinates": {
+        "type": "geo_point"
+      },
+      "published_year": {
+        "type": "date",
+        "format": "yyyy-MM-dd"
+      },
+      "metrics_total_outputs": {
+        "type": "long"
+      },
+      "metrics_num_oa_outputs": {
+        "type": "long"
+      },
+      "metrics_num_not_oa_outputs": {
+        "type": "long"
+      },
+      "metrics_num_green_outputs": {
+        "type": "long"
+      },
+      "metrics_num_gold_outputs": {
+        "type": "long"
+      },
+      "metrics_num_hybrid_outputs": {
+        "type": "long"
+      },
+      "metrics_num_bronze_outputs": {
+        "type": "long"
+      },
+      "metrics_num_green_only_outputs": {
+        "type": "long"
+      },
+      "metrics_num_gold_just_doaj_outputs": {
+        "type": "long"
+      },
+      "metrics_percent_oa": {
+        "type": "double"
+      },
+      "metrics_percent_green": {
+        "type": "double"
+      },
+      "metrics_percent_green_only": {
+        "type": "double"
+      },
+      "metrics_percent_gold": {
+        "type": "double"
+      },
+      "metrics_percent_gold_doaj": {
+        "type": "double"
+      },
+      "metrics_percent_hybrid": {
+        "type": "double"
+      },
+      "metrics_percent_bronze": {
+        "type": "double"
+      },
+      "metrics_total_citations": {
+        "type": "long"
+      },
+      "metrics_citations_per_output": {
+        "type": "double"
+      },
+      "metrics_outputs_with_citations": {
+        "type": "long"
+      },
+      "metrics_outputs_without_citations": {
+        "type": "long"
+      },
+      "metrics_citations_per_cited_outputs": {
+        "type": "double"
+      }
+    }
+  }
+}

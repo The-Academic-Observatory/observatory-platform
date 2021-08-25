@@ -1,0 +1,17 @@
+[
+  {
+    "name": "AuthorId",
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES Authors.AuthorId"
+  },
+  {
+    "name": "AttributeType",
+    "type": "INTEGER",
+    "description": "1: Alternative Name"
+  },
+  {
+    "name": "AttributeValue",
+    "type": "STRING",
+    "description": "Value of the Attribute"
+  }
+]

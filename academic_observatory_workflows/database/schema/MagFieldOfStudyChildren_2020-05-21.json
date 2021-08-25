@@ -1,0 +1,12 @@
+[
+  {
+    "name": "FieldOfStudyId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY and FOREIGN KEY REFERENCES FieldsOfStudy.FieldOfStudyId"
+  }, 
+  {
+    "name": "ChildFieldOfStudyId", 
+    "type": "INTEGER",
+    "description": "PRIMARY KEY and FOREIGN KEY REFERENCES FieldsOfStudy.FieldOfStudyId"
+  }
+]

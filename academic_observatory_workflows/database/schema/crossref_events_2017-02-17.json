@@ -1,0 +1,552 @@
+[
+  {
+    "description": "Unique ID for the Event.",
+    "mode": "REQUIRED",
+    "name": "id",
+    "type": "STRING"
+  },
+  {
+    "description": "Subject persistent ID.",
+    "mode": "NULLABLE",
+    "name": "subj_id",
+    "type": "STRING"
+  },
+  {
+    "description": "Type of the relationship between the subject and object.",
+    "mode": "NULLABLE",
+    "name": "relation_type_id",
+    "type": "STRING"
+  },
+  {
+    "description": "Object persistent ID.",
+    "mode": "NULLABLE",
+    "name": "obj_id",
+    "type": "STRING"
+  },
+  {
+    "description": "Timestamp of when the Event was created.",
+    "mode": "REQUIRED",
+    "name": "timestamp",
+    "type": "TIMESTAMP"
+  },
+  {
+    "description": "Timestamp of when the Event is reported to have occurred.",
+    "mode": "REQUIRED",
+    "name": "occurred_at",
+    "type": "TIMESTAMP"
+  },
+  {
+    "description": "",
+    "mode": "NULLABLE",
+    "name": "experimental",
+    "type": "BOOL"
+  },
+  {
+    "description": "",
+    "mode": "NULLABLE",
+    "name": "total",
+    "type": "INTEGER"
+  },
+  {
+    "description": "A name for the source.",
+    "mode": "REQUIRED",
+    "name": "source_id",
+    "type": "STRING"
+  },
+  {
+    "description": "Unique ID that identifies the Agent that generated the Event.",
+    "mode": "NULLABLE",
+    "name": "source_token",
+    "type": "STRING"
+  },
+  {
+    "description": "Terms of use for using the API at the point that you acquire the Event.",
+    "mode": "NULLABLE",
+    "name": "terms",
+    "type": "STRING"
+  },
+  {
+    "description": "A license under which the Event is made available.",
+    "mode": "NULLABLE",
+    "name": "license",
+    "type": "STRING"
+  },
+  {
+    "description": "Link to an Evidence Record for this Event.",
+    "mode": "NULLABLE",
+    "name": "evidence_record",
+    "type": "STRING"
+  },
+  {
+    "description": "Subject metadata.",
+    "mode": "NULLABLE",
+    "name": "subj",
+    "type": "RECORD",
+    "fields": [
+      {
+        "description": "The persistent ID. Must correspond to 'subj_id' or 'obj_id'",
+        "mode": "NULLABLE",
+        "name": "pid",
+        "type": "STRING"
+      },
+      {
+        "description": "Publication date.",
+        "mode": "NULLABLE",
+        "name": "issued",
+        "type": "TIMESTAMP"
+      },
+      {
+        "description": "The title of the webpage, comment, etc.",
+        "mode": "NULLABLE",
+        "name": "title",
+        "type": "STRING"
+      },
+      {
+        "description": "Author of the comment, blog etc.",
+        "mode": "REPEATED",
+        "name": "author",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "url",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "description": "URL where this was found. May be different to 'pid'",
+        "mode": "NULLABLE",
+        "name": "url",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "alternative_id",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "original_tweet_author",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "original_tweet_url",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "work_type_id",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "work_subtype_id",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "jurisdiction",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "api_url",
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "publisher",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "url",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "json_url",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "datePublished",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "registrantId",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "dateModified",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "id",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "proxyIdentifiers",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "funder",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "issueNumber",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "periodical",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "issn",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "pagination",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "version",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "volumeNumber",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "includedInDataCatalog",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "description": "Object metadata.",
+    "mode": "REPEATED",
+    "name": "obj",
+    "type": "RECORD",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "pid",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "url",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "method",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "verification",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "work_type_id",
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "publisher",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "url",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "datePublished",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "registrantId",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "dateModified",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "id",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "proxyIdentifiers",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "author",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "funder",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "issueNumber",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "periodical",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "issn",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          }
+        ]
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "pagination",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "version",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "volumeNumber",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "includedInDataCatalog",
+        "type": "RECORD",
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "id",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "description": "will have a value of 'deleted' or 'edited'",
+    "mode": "NULLABLE",
+    "name": "updated",
+    "type": "STRING"
+  },
+  {
+    "description": "optional, may point to an announcement page explaining the edit",
+    "mode": "NULLABLE",
+    "name": "updated_reason",
+    "type": "STRING"
+  },
+  {
+    "description": "ISO8601 date string for when the event was updated",
+    "mode": "NULLABLE",
+    "name": "updated_date",
+    "type": "TIMESTAMP"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "message_action",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "action",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "jwt",
+    "type": "STRING"
+  }
+]

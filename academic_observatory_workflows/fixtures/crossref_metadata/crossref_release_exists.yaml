@@ -1,0 +1,64 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.23.0
+    method: HEAD
+    uri: https://api.crossref.org/snapshots/monthly/2020/06/all.json.tar.gz
+  response:
+    body:
+      string: ''
+    headers:
+      Connection:
+      - close
+      Content-Length:
+      - '0'
+      Crossref-Deployment-Name:
+      - svc1a-1
+      Date:
+      - Sun, 19 Jul 2020 11:30:58 GMT
+      Location:
+      - https://s3.amazonaws.com/org.crossref.snapshots/monthly/2020/06/all.json.tar.gz?Signature=7te1hnCKzxa%2BRpmtDJLyPU8HkDw%3D&AWSAccessKeyId=AKIAXKMFHONDMY2XFPDT&Expires=1595159158
+      Server:
+      - Apache-Coyote/1.1
+    status:
+      code: 302
+      message: Found
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.23.0
+    method: HEAD
+    uri: https://api.crossref.org/snapshots/monthly/3000/01/all.json.tar.gz
+  response:
+    body:
+      string: ''
+    headers:
+      Connection:
+      - close
+      Content-Length:
+      - '0'
+      Crossref-Deployment-Name:
+      - svc1a-1
+      Date:
+      - Sun, 19 Jul 2020 11:30:59 GMT
+      Server:
+      - Apache-Coyote/1.1
+    status:
+      code: 404
+      message: Not Found
+version: 1

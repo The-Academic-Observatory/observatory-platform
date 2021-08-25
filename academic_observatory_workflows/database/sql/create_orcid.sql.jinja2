@@ -1,0 +1,50 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Richard Hosking#}
+
+WITH orcid_processed as (SELECT 
+  orcid.orcid_identifier.uri,
+  orcid.person.name.given_names,
+  orcid.person.name.family_name,
+
+  ARRAY(
+    SELECT AS STRUCT
+      work_group.work_summary[OFFSET(0)].title.title, 
+      ARRAY(
+        SELECT as STRUCT 
+          external_id.external_id_type, 
+          external_id.external_id_value
+        FROM UNNEST(work_group.work_summary[OFFSET(0)].external_ids.external_id) as external_id
+      ) as external_ids,
+      
+      work_group.work_summary[OFFSET(0)].type,
+      work_group.work_summary[OFFSET(0)].publication_date
+    FROM UNNEST(activities_summary.works.group) as work_group
+  ) as works
+FROM `{{ project_id }}.{{ orcid.dataset_id }}.{{ orcid.table_id }}` as orcid)
+
+SELECT
+  doi,
+  ARRAY_AGG(orcid) as orcid
+FROM (
+  SELECT 
+    external_id.external_id_value as doi,
+    STRUCT(
+        orcid.uri,
+        orcid.given_names,
+        orcid.family_name) as orcid
+  FROM orcid_processed as orcid, UNNEST(works) as work, UNNEST(work.external_ids) as external_id 
+  WHERE external_id.external_id_type = "doi")
+GROUP BY doi

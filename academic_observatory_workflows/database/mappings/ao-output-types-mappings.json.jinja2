@@ -1,0 +1,109 @@
+{
+  "mappings": {
+    "properties": {
+      "{{ aggregate }}_id": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_name": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_country": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_country_code": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_region": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_subregion": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "{{ aggregate }}_coordinates": {
+        "type": "geo_point"
+      },
+      "published_year": {
+        "type": "date",
+        "format": "yyyy-MM-dd"
+      },
+      "output_types_output_type": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "output_types_total_outputs": {
+        "type": "long"
+      },
+      "output_types_num_oa_outputs": {
+        "type": "long"
+      },
+      "output_types_num_green_outputs": {
+        "type": "long"
+      },
+      "output_types_num_gold_outputs": {
+        "type": "long"
+      },
+      "output_types_num_gold_just_doaj_outputs": {
+        "type": "long"
+      },
+      "output_types_num_hybrid_outputs": {
+        "type": "long"
+      },
+      "output_types_num_bronze_outputs": {
+        "type": "long"
+      },
+      "output_types_num_green_only_outputs": {
+        "type": "long"
+      },
+      "output_types_percent_oa": {
+        "type": "double"
+      },
+      "output_types_percent_green": {
+        "type": "double"
+      },
+      "output_types_percent_gold": {
+        "type": "double"
+      }
+    }
+  }
+}

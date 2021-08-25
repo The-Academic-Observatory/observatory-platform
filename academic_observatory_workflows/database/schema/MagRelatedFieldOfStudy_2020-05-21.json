@@ -1,0 +1,27 @@
+[
+  {
+    "name": "FieldOfStudyId1", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES FieldsOfStudy.FieldOfStudyId"
+  }, 
+  {
+    "name": "Type1", 
+    "type": "STRING",
+    "description": "general, disease, disease_cause, medical_treatment, symptom"
+  }, 
+  {
+    "name": "FieldOfStudyId2", 
+    "type": "INTEGER",
+    "description": "FOREIGN KEY REFERENCES FieldsOfStudy.FieldOfStudyId"
+  }, 
+  {
+    "name": "Type2", 
+    "type": "STRING",
+    "description": "general, disease, disease_cause, medical_treatment, symptom"
+  }, 
+  {
+    "name": "Rank", 
+    "type": "FLOAT",
+    "description": "Confidence. Bigger number representing higher confidence."
+  }
+]
