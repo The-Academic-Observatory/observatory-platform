@@ -637,6 +637,8 @@ class OnixWorkflow(Workflow):
             jstor=include_jstor,
             oapen=include_oapen,
             ucl=include_ucl,
+            onix_workflow=True,
+            onix_workflow_dataset=release.workflow_dataset,
             google_analytics_dataset=google_analytics_dataset,
             google_books_dataset=google_books_dataset,
             jstor_dataset=jstor_dataset,

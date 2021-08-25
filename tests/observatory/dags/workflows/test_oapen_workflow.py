@@ -14,27 +14,23 @@
 
 # Author: Richard Hosking
 
-import hashlib
+
 import os
-import unittest
 from unittest.mock import MagicMock, patch
 
 import pendulum
 from click.testing import CliRunner
-
-from observatory.api.server.orm import Organisation
 
 from observatory.dags.workflows.oapen_workflow import OapenWorkflow, OapenWorkflowRelease
 
 from observatory.platform.utils.gc_utils import (
     run_bigquery_query,
 )
-from observatory.platform.utils.telescope_utils import make_dag_id
+from observatory.platform.utils.workflow_utils import make_dag_id
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     make_dummy_dag,
-    random_id,
 )
 
 

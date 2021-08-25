@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 #
-# Author: Richard Hosking & Tuan Chien
+# Author: Richard Hosking
 
 import os
 import shutil
@@ -25,25 +25,22 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.sensors.external_task import ExternalTaskSensor
 from google.cloud.bigquery import SourceFormat
-from observatory.dags.config import workflow_sql_templates_path
+from observatory.dags.config import sql_folder
 
-from observatory.dags.workflows.oaebu_partners import OaebuPartnerName, OaebuPartners
-from observatory.platform.telescopes.telescope import AbstractRelease, Telescope
-from observatory.platform.utils.file_utils import list_to_jsonl_gz
+from observatory.platform.workflows.workflow import AbstractRelease, Workflow
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     create_bigquery_dataset,
     create_bigquery_table_from_query,
     run_bigquery_query,
     select_table_shard_dates,
-    upload_files_to_cloud_storage,
     copy_bigquery_table
 )
 from observatory.platform.utils.jinja2_utils import render_template
-from observatory.platform.utils.telescope_utils import make_dag_id
-from observatory.platform.utils.template_utils import (
+from observatory.platform.utils.workflow_utils import (
     bq_load_shard_v2,
     table_ids_from_path,
+    make_dag_id,
 )
 
 
@@ -207,7 +204,7 @@ def make_table_id(*, project_id: str, dataset_id: str, table_id: str, end_date: 
     return new_table_id
 
 
-class OapenWorkflow(Telescope):
+class OapenWorkflow(Workflow):
     """
     Workflow for processing the OAPEN metadata and IRUS-UK metrics data
     """
@@ -341,7 +338,7 @@ class OapenWorkflow(Telescope):
 
         # SQL reference
         table_joining_template_file = "create_mock_onix_data.sql.jinja2"
-        template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+        template_path = os.path.join(sql_folder(), table_joining_template_file)
 
         sql = render_template(
             template_path,
@@ -384,7 +381,7 @@ class OapenWorkflow(Telescope):
         release_date = release.release_date
 
         table_joining_template_file = "create_book_products.sql.jinja2"
-        template_path = os.path.join(workflow_sql_templates_path(), table_joining_template_file)
+        template_path = os.path.join(sql_folder(), table_joining_template_file)
 
         table_id = bigquery_sharded_table_id(output_table, release_date)
 
@@ -409,6 +406,7 @@ class OapenWorkflow(Telescope):
             oapen=True,
             ucl=False,
             onix_workflow=False,
+            onix_workflow_dataset='',
             google_analytics_dataset='',
             google_books_dataset='',
             jstor_dataset='',
@@ -453,7 +451,7 @@ class OapenWorkflow(Telescope):
         create_bigquery_dataset(project_id=project_id, dataset_id=output_dataset, location=data_location)
 
         table_id = bigquery_sharded_table_id(f"{project_id.replace('-', '_')}_{output_table}", release_date)
-        template_path = os.path.join(workflow_sql_templates_path(), query_template)
+        template_path = os.path.join(sql_folder(), query_template)
 
         sql = render_template(
             template_path,
