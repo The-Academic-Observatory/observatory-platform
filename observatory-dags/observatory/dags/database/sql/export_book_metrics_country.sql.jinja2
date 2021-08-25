@@ -22,7 +22,7 @@ WITH months as (SELECT
     CAST(onix.published_year as INT64) as published_year,
     month.month,
     month.jstor_country as jstor,
-    month.oapen_irus_uk.locations as oapen_irus_uk,
+    month.oapen_irus_uk.country as oapen_irus_uk,
     month.google_analytics.unique_views.country as google_analytics,
     month.ucl_discovery.downloads_per_country as ucl_discovery
 FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(months) as month
@@ -62,7 +62,7 @@ oapen_month_country as (
     SELECT
         ISBN13,
         month,
-        country_code as alpha2,
+        code as alpha2,
         title_requests,
         total_item_investigations,
         total_item_requests,
