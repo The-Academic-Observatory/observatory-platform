@@ -427,16 +427,6 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 title_field_name="Title",
                 sharded=False,
             ),
-            OaebuPartners(
-                name=OaebuPartnerName.ucl_discovery,
-                dag_id_prefix="ucl_discovery",
-                gcp_project_id="project",
-                gcp_dataset_id="ucl",
-                gcp_table_id="ucl_discovery",
-                isbn_field_name="ISBN",
-                title_field_name="book_title",
-                sharded=False,
-            ),
         ]
 
         with CliRunner().isolated_filesystem():
@@ -579,16 +569,6 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 gcp_table_id="google_analytics",
                 isbn_field_name="publication_id",
                 title_field_name="title",
-                sharded=False,
-            ),
-            OaebuPartners(
-                name=OaebuPartnerName.ucl_discovery,
-                dag_id_prefix="ucl_discovery",
-                gcp_project_id="project",
-                gcp_dataset_id="ucl",
-                gcp_table_id="ucl_discovery",
-                isbn_field_name="ISBN",
-                title_field_name="book_title",
                 sharded=False,
             ),
         ]
@@ -1501,6 +1481,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 orig_dataset_id="jstor",
                 orig_table="country",
                 orig_isbn="isbn",
+                orig_title="Book_Title",
             )
 
             _, call_args = mock_bq_ds.call_args
@@ -1533,6 +1514,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
                 orig_dataset_id="jstor",
                 orig_table="country",
                 orig_isbn="isbn",
+                orig_title="Book_Title",
             )
 
 

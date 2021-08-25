@@ -168,7 +168,7 @@ class TestOapenWorkflowFunctional(ObservatoryTestCase):
         self.public_book_metadata_table_id = "book"
 
         self.org_name = "OAPEN"
-        self.gcp_project_id = os.getenv("TEST_GCP_PROJECT_ID")
+        self.gcp_project_id = os.getenv("TESTS_GOOGLE_CLOUD_PROJECT_ID")
 
         self.gcp_dataset_id = "oaebu"
         self.irus_uk_dag_id_prefix = "oapen_irus_uk"
