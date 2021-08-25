@@ -19,7 +19,7 @@ from pathlib import Path
 
 from recommonmark.transform import AutoStructify
 
-# from generate_schema_csv import generate_csv, generate_latest_files
+from generate_schema_csv import generate_csv, generate_latest_files
 
 # -- Project information -----------------------------------------------------
 
@@ -66,7 +66,6 @@ html_theme_options = {
     'logo_only': True,
     'display_version': False,
 }
-# html_css_files = ['default.css']
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -76,12 +75,10 @@ html_static_path = ["static"]
 
 # recommonmark config, used to enable rst to be evaluated within markdown files
 def setup(app):
-    # app.add_css_file('default.css')
     app.add_config_value("recommonmark_config", {"enable_eval_rst": True, "auto_toc_tree_section": "Contents"}, True)
     app.add_transform(AutoStructify)
 
-
-# generate_csv(schema_dir="../academic_observatory_workflows/database/schema")
-# generate_latest_files()
-# html_build_dir = "_build/html"
-# Path(html_build_dir).mkdir(exist_ok=True, parents=True)
+generate_csv(schema_dir="../academic_observatory_workflows/database/schema")
+generate_latest_files()
+html_build_dir = "_build/html"
+Path(html_build_dir).mkdir(exist_ok=True, parents=True)
