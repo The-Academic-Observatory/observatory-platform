@@ -430,7 +430,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             OaebuPartners(
                 name=OaebuPartnerName.ucl_discovery,
                 dag_id_prefix="ucl_discovery",
-                gcp_project_id=project_id,
+                gcp_project_id="project",
                 gcp_dataset_id="ucl",
                 gcp_table_id="ucl_discovery",
                 isbn_field_name="ISBN",
@@ -584,7 +584,7 @@ class TestOnixWorkflow(ObservatoryTestCase):
             OaebuPartners(
                 name=OaebuPartnerName.ucl_discovery,
                 dag_id_prefix="ucl_discovery",
-                gcp_project_id=project_id,
+                gcp_project_id="project",
                 gcp_dataset_id="ucl",
                 gcp_table_id="ucl_discovery",
                 isbn_field_name="ISBN",
