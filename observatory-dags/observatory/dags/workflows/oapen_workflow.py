@@ -313,11 +313,12 @@ class OapenWorkflow(Workflow):
 
         source_table_id = f"{release.gcp_project_id}.{release.irus_uk_dataset_id}.{release.irus_uk_table_id}"
         destination_table_id = f"{release.gcp_project_id}.{release.oaebu_intermediate_dataset}.{release.irus_uk_dataset_id}_{bigquery_sharded_table_id('oapen_irus_uk_matched', release.release_date)}"
-        success = copy_bigquery_table(source_table_id, destination_table_id, release.dataset_location)
+        status = copy_bigquery_table(source_table_id, destination_table_id, release.dataset_location)
 
-        if not success:
-            logging.error(f"Issue copying table: {source_table_id} to {destination_table_id}")
-
+        if not status:
+            raise AirflowException(
+                f"Issue copying table: {source_table_id} to {destination_table_id}"
+            )
 
     def create_onix_formatted_metadata_output_tasks(
             self,
