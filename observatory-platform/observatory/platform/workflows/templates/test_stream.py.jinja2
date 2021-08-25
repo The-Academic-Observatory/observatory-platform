@@ -15,7 +15,7 @@
 import os
 import pendulum
 
-from observatory.dags.workflows.{{ telescope_module }} import {{ telescope_class }}
+from {{ package_name }}.workflows.{{ workflow_module }} import {{ workflow_class }}
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
@@ -23,17 +23,17 @@ from observatory.platform.utils.test_utils import (
 )
 
 
-class Test{{ telescope_class }}(ObservatoryTestCase):
-    """ Tests for the {{ telescope_class }} telescope """
+class Test{{ workflow_class }}(ObservatoryTestCase):
+    """ Tests for the {{ workflow_class }} workflow """
 
     def __init__(self, *args, **kwargs):
         """ Constructor which sets up variables used by tests.
         :param args: arguments.
         :param kwargs: keyword arguments.
         """
-        super(Test{{ telescope_class }}, self).__init__(*args, **kwargs)
-        self.project_id = os.getenv('TEST_GCP_PROJECT_ID')
-        self.data_location = os.getenv('TEST_GCP_DATA_LOCATION')
+        super(Test{{ workflow_class }}, self).__init__(*args, **kwargs)
+        self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
+        self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
         self.first_execution_date = pendulum.datetime(year=2021, month=1, day=1)
         self.second_execution_date = pendulum.datetime(year=2021, month=2, day=1)
@@ -43,12 +43,12 @@ class Test{{ telescope_class }}(ObservatoryTestCase):
 
         :return: None
         """
-        dag = {{ telescope_class }}().make_dag()
+        dag = {{ workflow_class }}().make_dag()
         self.assert_dag_structure({
-            'check_dependencies': ['get_release_info'],
-            'get_release_info': ['task1'],
-            'task1': ['cleanup'],
-            'cleanup': []
+            "check_dependencies": ["get_release_info"],
+            "get_release_info": ["task1"],
+            "task1": ["cleanup"],
+            "cleanup": []
         }, dag)
 
     def test_dag_load(self):
@@ -57,11 +57,11 @@ class Test{{ telescope_class }}(ObservatoryTestCase):
         :return: None
         """
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path('observatory.dags.dags'), '{{ telescope_module }}.py')
-            self.assert_dag_load('{{ telescope_module }}', dag_file)
+            dag_file = os.path.join(module_file_path("{{ package_name }}.dags"), "{{ workflow_module }}.py")
+            self.assert_dag_load("{{ workflow_module }}", dag_file)
 
-    def test_telescope(self):
-        """ Test the telescope end to end.
+    def test_workflow(self):
+        """ Test the workflow end to end.
 
         :return: None.
         """
@@ -69,22 +69,22 @@ class Test{{ telescope_class }}(ObservatoryTestCase):
         env = ObservatoryEnvironment(self.project_id, self.data_location)
         dataset_id = env.add_dataset()
 
-        # Setup Telescope
-        telescope = {{ telescope_class }}(dataset_id=dataset_id)
-        dag = telescope.make_dag()
+        # Setup Workflow
+        workflow = {{ workflow_class }}(dataset_id=dataset_id)
+        dag = workflow.make_dag()
 
-        # Test the telescope tasks
+        # Test the workflow tasks
         with env.create(task_logging=True):
             # Test the dag run for the first release
             with env.create_dag_run(dag, self.first_execution_date):
-                env.run_task(telescope.check_dependencies.__name__)
-                env.run_task(telescope.get_release_info.__name__)
-                env.run_task(telescope.task1.__name__)
-                env.run_task(telescope.cleanup.__name__)
+                env.run_task(workflow.check_dependencies.__name__)
+                env.run_task(workflow.get_release_info.__name__)
+                env.run_task(workflow.task1.__name__)
+                env.run_task(workflow.cleanup.__name__)
 
             # Test the dag run for a later release
             with env.create_dag_run(dag, self.second_execution_date):
-                env.run_task(telescope.check_dependencies.__name__)
-                env.run_task(telescope.get_release_info.__name__)
-                env.run_task(telescope.task1.__name__)
-                env.run_task(telescope.cleanup.__name__)
+                env.run_task(workflow.check_dependencies.__name__)
+                env.run_task(workflow.get_release_info.__name__)
+                env.run_task(workflow.task1.__name__)
+                env.run_task(workflow.cleanup.__name__)

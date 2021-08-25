@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # Author: Aniek Roelofs -#}
-# {{ telescope_class }}
+# {{ workflow_class }}
 
-Add Telescope Description here
+Add Workflow Description here
 
  ```eval_rst
 +------------------------------+--------------------------------------+
@@ -38,7 +38,7 @@ Add Telescope Description here
 +------------------------------+--------------------------------------+
 | Credentials Required         | Yes/No                               |
 +------------------------------+--------------------------------------+
-| Uses Telescope Template      |Telescope/Snapshot/Stream/Organisation|
+| Uses Workflow Template       | Workflow/Snapshot/Stream/Organisation|
 +------------------------------+--------------------------------------+
 | Each shard includes all data | Yes/No                               |
 +------------------------------+--------------------------------------+
@@ -64,7 +64,7 @@ my_variable_name: my-variable-value
 ## Latest schema
 ``` eval_rst
 .. csv-table::
-   :file: ../schemas/{{ telescope_module }}_latest.csv
+   :file: ../schemas/{{ workflow_module }}_latest.csv
    :width: 100%
    :header-rows: 1
 ```

@@ -85,12 +85,25 @@ class GenerateCommand:
             if not os.path.isfile(path):
                 open(os.path.join(path, "__init__.py"), "a").close()
 
+        # Make setup files
+        templates_dir = module_file_path("observatory.platform.utils.templates")
+        setup_cfg_template = os.path.join(templates_dir, "setup.cfg.jinja2")
+        setup_py_template = os.path.join(templates_dir, "setup.py.jinja2")
+
+        setup_cfg = render_template(setup_cfg_template, package_name=package_name)
+        setup_py = render_template(setup_py_template)
+
+        setup_cfg_path = os.path.join(project_path, "setup.cfg")
+        setup_py_path = os.path.join(project_path, "setup.py")
+
+        write_rendered_template(setup_cfg_path, setup_cfg, "setup.cfg")
+        write_rendered_template(setup_py_path, setup_py, "setup.py")
+
         print(f"""
         Created the following files and directories:
         
         └── {project_path}
             ├── docs
-            │   └── index.rst
             ├── {package_name}
             │   ├── __init__.py
             │   ├── dags
@@ -101,6 +114,8 @@ class GenerateCommand:
             │   │       └── __init__.py
             │   └── workflows
             │       └── __init__.py
+            ├── setup.cfg
+            ├── setup.py
             └── tests
                 ├── __init__.py
                 └── workflows
@@ -123,7 +138,7 @@ class GenerateCommand:
         :param workflow_class: Class name of the new telescope.
         """
         # Add underscores between capitalised letters, make them all lowercase and strip underscores at the start/end
-        telescope_module = re.sub(r"([A-Z])", r"_\1", workflow_class).lower().strip("_")
+        workflow_module = re.sub(r"([A-Z])", r"_\1", workflow_class).lower().strip("_")
 
         # Get paths to folders
         dag_dst_dir = os.path.join(project_path, package_name, "dags")
@@ -133,46 +148,44 @@ class GenerateCommand:
         doc_dst_dir = os.path.join(project_path, "docs")
 
         # Get paths to files
-        dag_dst_file = os.path.join(dag_dst_dir, f"{telescope_module}.py")
-        telescope_dst_file = os.path.join(workflow_dst_dir, f"{telescope_module}.py")
-        test_dst_file = os.path.join(test_dst_dir, f"test_{telescope_module}.py")
-        doc_dst_file = os.path.join(doc_dst_dir, f"{telescope_module}.md")
-        schema_dst_file = os.path.join(schema_dst_dir, f"{telescope_module}_{datetime.now().strftime('%Y-%m-%d')}.json")
+        dag_dst_file = os.path.join(dag_dst_dir, f"{workflow_module}.py")
+        workflow_dst_file = os.path.join(workflow_dst_dir, f"{workflow_module}.py")
+        test_dst_file = os.path.join(test_dst_dir, f"test_{workflow_module}.py")
+        index_dst_file = os.path.join(doc_dst_dir, "index.rst")
+        doc_dst_file = os.path.join(doc_dst_dir, f"{workflow_module}.md")
+        schema_dst_file = os.path.join(schema_dst_dir, f"{workflow_module}_{datetime.now().strftime('%Y-%m-%d')}.json")
 
         # Render templates
-        workflow_path, dag_path, test_path, doc_path, schema_path = get_workflow_template_path(workflow_type)
-        dag = render_template(dag_path, telescope_module=telescope_module, telescope_class=workflow_class)
-        workflow = render_template(workflow_path, telescope_module=telescope_module, telescope_class=workflow_class)
-        test = render_template(test_path, telescope_module=telescope_module, telescope_class=workflow_class)
+        workflow_path, dag_path, test_path, doc_index_path, doc_path, schema_path = get_workflow_template_path(
+            workflow_type)
+        dag = render_template(dag_path, workflow_module=workflow_module, workflow_class=workflow_class,
+                              package_name=package_name)
+        workflow = render_template(workflow_path, workflow_module=workflow_module, workflow_class=workflow_class,
+                                   package_name=package_name)
+        test = render_template(test_path, workflow_module=workflow_module, workflow_class=workflow_class,
+                               package_name=package_name)
+        doc_index = render_template(doc_index_path)
         doc = render_template(
             doc_path,
-            telescope_module=telescope_module,
-            telescope_class=workflow_class,
+            workflow_module=workflow_module,
+            workflow_class=workflow_class,
         )
         schema = render_template(schema_path)
 
         # Write out files
-        write_workflow_file_template(dag_dst_file, dag, "dag")
-        write_workflow_file_template(telescope_dst_file, workflow, "workflow")
-        write_workflow_file_template(test_dst_file, test, "test")
-        write_workflow_file_template(doc_dst_file, doc, "documentation")
-        write_workflow_file_template(schema_dst_file, schema, "schema")
+        write_rendered_template(dag_dst_file, dag, "dag")
+        write_rendered_template(workflow_dst_file, workflow, "workflow")
+        write_rendered_template(test_dst_file, test, "test")
+        write_rendered_template(doc_dst_file, doc, "documentation")
+        write_rendered_template(schema_dst_file, schema, "schema")
 
         # Update documentation index
-        doc_index_file = os.path.join(doc_dst_dir, "index.rst")
-        if not os.path.isfile(doc_index_file):
-            with open(doc_index_file, "w") as f:
-                f.write(
-                    """
-Telescopes
-=======================
-.. toctree::
-    :maxdepth: 2
+        if not os.path.isfile(index_dst_file):
+            write_rendered_template(index_dst_file, doc_index, "index.rst")
 
-""")
-        with open(doc_index_file, "a") as f:
-            f.write(f"    {telescope_module}\n")
-        print(f"- Updated the documentation index file: {doc_index_file}")
+        with open(index_dst_file, "a") as f:
+            f.write(f"    {workflow_module}\n")
+        print(f"- Updated the documentation index file: {index_dst_file}")
 
         # Update TelescopeTypes in identifiers.py when using organisation template
         if workflow_type == "OrganisationTelescope":
@@ -180,11 +193,11 @@ Telescopes
                 module_file_path("observatory.api.client.identifiers"), "identifiers.py"
             )
             with open(identifiers_dst_file, "a") as f:
-                f.write(f'    {telescope_module} = "{telescope_module}"\n')
+                f.write(f'    {workflow_module} = "{workflow_module}"\n')
             print(f"- Updated the identifiers file: {identifiers_dst_file}")
 
 
-def get_workflow_template_path(workflow_type: str) -> Tuple[str, str, str, str, str]:
+def get_workflow_template_path(workflow_type: str) -> Tuple[str, str, str, str, str, str]:
     """
     Get the correct template files to use.
 
@@ -221,21 +234,23 @@ def get_workflow_template_path(workflow_type: str) -> Tuple[str, str, str, str, 
     if workflow_files is None:
         raise Exception(f"Unsupported telescope type: {workflow_type}")
 
-    dag_file = workflow_files["dag"]
     workflow_file = workflow_files["telescope"]
+    dag_file = workflow_files["dag"]
     test_file = workflow_files["test"]
+    doc_index_file = "index.rst.jinja2"
     doc_file = "doc.md.jinja2"
     schema_file = "schema.json.jinja2"
 
     workflow_path = os.path.join(templates_dir, workflow_file)
     dag_path = os.path.join(templates_dir, dag_file)
     test_path = os.path.join(templates_dir, test_file)
+    doc_index_path = os.path.join(templates_dir, doc_index_file)
     doc_path = os.path.join(templates_dir, doc_file)
     schema_path = os.path.join(templates_dir, schema_file)
-    return workflow_path, dag_path, test_path, doc_path, schema_path
+    return workflow_path, dag_path, test_path, doc_index_path, doc_path, schema_path
 
 
-def write_workflow_file_template(file_path: str, template: str, file_type: str):
+def write_rendered_template(file_path: str, template: str, file_type: str):
     """Write the rendered template for a workflow file to a local file.
 
     :param file_path: The path to the local file.

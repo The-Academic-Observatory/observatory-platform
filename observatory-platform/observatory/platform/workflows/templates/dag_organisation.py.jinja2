@@ -16,17 +16,17 @@
 # https://airflow.apache.org/docs/stable/faq.html
 
 from observatory.api.client.identifiers import TelescopeTypes
-from observatory.dags.workflows.{{ telescope_module }} import {{ telescope_class }}
-from observatory.platform.utils.telescope_utils import make_observatory_api
+from {{ package_name }}.workflows.{{ workflow_module }} import {{ workflow_class }}
+from observatory.platform.utils.workflow_utils import make_observatory_api
 
 # Fetch all telescopes
 api = make_observatory_api()
-telescope_type = api.get_telescope_type(type_id=TelescopeTypes.{{ telescope_module }})
+telescope_type = api.get_telescope_type(type_id=TelescopeTypes.{{ workflow_module }})
 telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
 
 # Make all telescopes
 for telescope in telescopes:
-    key1 = telescope.extra.get('key1')
-    telescope = {{ telescope_class }}(telescope.organisation, key1)
+    key1 = telescope.extra.get("key1")
+    telescope = {{ workflow_class }}(telescope.organisation, key1)
     globals()[telescope.dag_id] = telescope.make_dag()
 

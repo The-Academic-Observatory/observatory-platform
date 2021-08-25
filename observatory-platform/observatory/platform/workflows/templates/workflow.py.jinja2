@@ -18,7 +18,7 @@ from observatory.platform.workflows.workflow import Release, Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
 
 
-class {{ telescope_class }}Release(Release):
+class {{ workflow_class }}Release(Release):
     def __init__(self, dag_id: str, release_date: pendulum.DateTime):
         """Construct a Release instance
 
@@ -27,25 +27,25 @@ class {{ telescope_class }}Release(Release):
         """
         
         self.release_date = release_date
-        release_id = f'{dag_id}_{self.release_date.strftime("%Y_%m_%d")}'
+        release_id = f"{dag_id}_{self.release_date.strftime('%Y_%m_%d')}"
         super().__init__(dag_id, release_id)
 
 
-class {{ telescope_class }}(Telescope):
-    """ {{ telescope_class }} Telescope."""
-    DAG_ID = "{{ telescope_module }}"
+class {{ workflow_class }}(Workflow):
+    """ {{ workflow_class }} Workflow."""
+    DAG_ID = "{{ workflow_module }}"
 
     def __init__(self,
                  dag_id: str = DAG_ID,
                  start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
-                 schedule_interval: str = '@weekly',
+                 schedule_interval: str = "@weekly",
                  catchup: bool = True,
-                 queue: str = 'default', 
+                 queue: str = "default",
                  max_retries: int = 3, 
                  max_active_runs: int = 1,
                  airflow_vars: list = None, 
                  airflow_conns: list = None):
-        """ Construct a Telescope instance.
+        """ Construct a Workflow instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -90,29 +90,29 @@ class {{ telescope_class }}(Telescope):
         self.add_task(self.task1)
         self.add_task(self.cleanup)
 
-    def make_release(self, **kwargs) -> {{ telescope_class }}Release:
+    def make_release(self, **kwargs) -> {{ workflow_class }}Release:
         """ Make a release instance.
         
         :param kwargs: the context passed from the PythonOperator.
         :return: A release instance
         """
         release_date = kwargs["execution_date"]
-        release = {{ telescope_class }}Release(dag_id=self.dag_id, release_date=release_date)
+        release = {{ workflow_class }}Release(dag_id=self.dag_id, release_date=release_date)
         return release
 
-    def task1(self, release: {{ telescope_class }}Release, **kwargs):
+    def task1(self, release: {{ workflow_class }}Release, **kwargs):
         """ Add your own comments.
         
-        :param release: A {{ telescope_class }}Release instance
+        :param release: A {{ workflow_class }}Release instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
         pass
 
-    def cleanup(self, release: {{ telescope_class }}Release, **kwargs):
+    def cleanup(self, release: {{ workflow_class }}Release, **kwargs):
         """ Delete downloaded, extracted and transformed files of the release.
         
-        :param release: A {{ telescope_class }}Release instance
+        :param release: A {{ workflow_class }}Release instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """

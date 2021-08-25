@@ -16,15 +16,18 @@
 
 import os
 import shutil
+import subprocess
+import sys
 import unittest
 from click.testing import CliRunner
 from datetime import datetime
 from unittest.mock import patch, call
 
 from observatory.platform.cli.cli import generate
-from observatory.platform.cli.generate_command import GenerateCommand, write_workflow_file_template
+from observatory.platform.cli.generate_command import GenerateCommand, write_rendered_template
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.proc_utils import wait_for_process
 
 
 class TestGenerateCommand(unittest.TestCase):
@@ -56,65 +59,150 @@ class TestGenerateCommand(unittest.TestCase):
             cmd.generate_terraform_config(config_path)
             self.assertTrue(os.path.exists(config_path))
 
-    @patch('observatory.platform.cli.generate_command.get_observatory_dir')
-    def test_generate_telescope(self, mock_module_file_path):
-        """ Test generate telescope command. Cannot do filesystem isolation since we are writing explicit paths.
+    def test_generate_new_workflows_project(self):
+        with CliRunner().isolated_filesystem():
+            project_path = os.path.join(os.getcwd(), 'my-project')
+            package_name = 'my_dags'
+            CliRunner().invoke(generate, ["project", project_path, package_name])
 
-        # :param mock_open: mock the 'open' function
+            # Check that all directories and __init__.py files exist
+            init_dirs = [package_name, os.path.join(package_name, "dags"), os.path.join(package_name,
+                                                                                                "database"),
+                         os.path.join(package_name, "database", "schema"), os.path.join(package_name, "workflows"),
+                         "tests", os.path.join("tests", "workflows")]
+            for d in init_dirs:
+                init_file_path = os.path.join(project_path, d, "__init__.py")
+                self.assertTrue(os.path.isfile(init_file_path))
+
+            # Check that setup files exist
+            setup_cfg_path = os.path.join(project_path, "setup.cfg")
+            setup_py_path = os.path.join(project_path, "setup.py")
+
+            self.assertTrue(os.path.isfile(setup_cfg_path))
+            self.assertTrue(os.path.isfile(setup_py_path))
+
+    def test_generate_workflow(self):
+        """ Test generate workflow command.
+
         :return: None.
         """
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Set up isolated file paths and directories
-            current_dir = os.getcwd()
-            observatory_dir = os.path.join(current_dir, "observatory-platform")
-            dags_folder = os.path.join(observatory_dir, "observatory", "dags")
-            mock_module_file_path.return_value = observatory_dir
-
             # Copy actual observatory platform inside isolated filesystem
+            observatory_dir = os.path.join(os.getcwd(), "observatory-platform")
             shutil.copytree(module_file_path('observatory.platform'), observatory_dir)
 
-            # Create expected file paths
-            dag_dst_dir = os.path.join(dags_folder, "dags")
-            dag_dst_file = os.path.join(dag_dst_dir, "my_test_telescope.py")
+            # Create new workflows project
+            project_path = os.path.join(os.getcwd(), 'my-project')
+            package_name = 'unittest_dags'
+            result = runner.invoke(generate, ["project", project_path, package_name], input='n')
+            self.assertEqual(0, result.exit_code)
 
-            telescope_dst_dir = os.path.join(dags_folder, "telescopes")
-            telescope_dst_file = os.path.join(telescope_dst_dir, "my_test_telescope.py")
+            # Fake install package
+            eggs_info_dir = os.path.join(project_path, f"{package_name}.egg-info")
+            os.makedirs(eggs_info_dir, exist_ok=True)
+            with open(os.path.join(eggs_info_dir, "top_level.txt"), "w") as f:
+                f.write(package_name + "\n")
 
-            test_dst_dir = os.path.join(observatory_dir, "tests", "observatory", "dags", "telescopes")
-            test_dst_file = os.path.join(test_dst_dir, "test_my_test_telescope.py")
+            # Install package
+            # proc = subprocess.Popen(["git", "init"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project_path)
+            # out, err = wait_for_process(proc)
+            # #TODO check that package does not exist yet, raise error and exit if it does
+            # proc = subprocess.Popen(["pip3", "show", package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # proc = subprocess.Popen(["pip3", "install", "-e", "."], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            #                         cwd=project_path)
+            # out, err = wait_for_process(proc)
+            # #TODO uninstall package after tests, even when tests failed
 
-            doc_dst_dir = os.path.join(observatory_dir, "docs", "telescopes")
-            doc_dst_file = os.path.join(doc_dst_dir, "my_test_telescope.md")
-            doc_index_file = os.path.join(doc_dst_dir, "index.rst")
-
-            schema_dst_dir = os.path.join(dags_folder, "database", "schema")
-            schema_dst_file = os.path.join(schema_dst_dir, f"my_test_telescope_{datetime.now().strftime('%Y-%m-%d')}.json")
-
+            # Get expected file dirs
+            dag_dst_dir = os.path.join(project_path, package_name, "dags")
+            workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
+            schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
+            test_dst_dir = os.path.join(project_path, "tests", "workflows")
+            doc_dst_dir = os.path.join(project_path, "docs")
             identifiers_dst_dir = os.path.join(observatory_dir, "api", "client", "identifiers")
+
+            # Get expected file paths
+            dag_dst_file = os.path.join(dag_dst_dir, "my_test_workflow.py")
+            workflow_dst_file = os.path.join(workflow_dst_dir, "my_test_workflow.py")
+            test_dst_file = os.path.join(test_dst_dir, "test_my_test_workflow.py")
+            index_dst_file = os.path.join(doc_dst_dir, "index.rst")
+            doc_dst_file = os.path.join(doc_dst_dir, "my_test_workflow.md")
+            schema_dst_file = os.path.join(schema_dst_dir, f"my_test_workflow"
+                                                           f"_{datetime.now().strftime('%Y-%m-%d')}.json")
             identifiers_dst_file = os.path.join(identifiers_dst_dir, 'identifiers.py')
 
-            # Create expected destination dirs
-            for dst_dir in [dag_dst_dir, telescope_dst_dir, test_dst_dir, doc_dst_dir, schema_dst_dir,
-                            identifiers_dst_dir]:
-                os.makedirs(dst_dir)
+            # # Set up isolated file paths and directories
+            # current_dir = os.getcwd()
+            # observatory_dir = os.path.join(current_dir, "observatory-platform")
+            # dags_folder = os.path.join(observatory_dir, "observatory", "dags")
+            # mock_module_file_path.return_value = observatory_dir
+            #
+            # # Copy actual observatory platform inside isolated filesystem
+            # shutil.copytree(module_file_path('observatory.platform'), observatory_dir)
+            #
+            # # Create expected file paths
+            # dag_dst_dir = os.path.join(dags_folder, "dags")
+            # dag_dst_file = os.path.join(dag_dst_dir, "my_test_telescope.py")
+            #
+            # telescope_dst_dir = os.path.join(dags_folder, "telescopes")
+            # telescope_dst_file = os.path.join(telescope_dst_dir, "my_test_telescope.py")
+            #
+            # test_dst_dir = os.path.join(observatory_dir, "tests", "observatory", "dags", "telescopes")
+            # test_dst_file = os.path.join(test_dst_dir, "test_my_test_telescope.py")
+            #
+            # doc_dst_dir = os.path.join(observatory_dir, "docs", "telescopes")
+            # doc_dst_file = os.path.join(doc_dst_dir, "my_test_telescope.md")
+            # doc_index_file = os.path.join(doc_dst_dir, "index.rst")
+            #
+            # schema_dst_dir = os.path.join(dags_folder, "database", "schema")
+            # schema_dst_file = os.path.join(schema_dst_dir, f"my_test_telescope_{datetime.now().strftime('%Y-%m-%d')}.json")
+            #
+            # identifiers_dst_dir = os.path.join(observatory_dir, "api", "client", "identifiers")
+            # identifiers_dst_file = os.path.join(identifiers_dst_dir, 'identifiers.py')
+            #
+            # # Create expected destination dirs
+            # for dst_dir in [dag_dst_dir, telescope_dst_dir, test_dst_dir, doc_dst_dir, schema_dst_dir,
+            #                 identifiers_dst_dir]:
+            #     os.makedirs(dst_dir)
 
-            for telescope_type in ['Telescope', 'StreamTelescope', 'SnapshotTelescope', 'OrganisationTelescope']:
-                result = runner.invoke(generate, ["telescope", dags_folder, telescope_type, "MyTestTelescope"])
+            # Test valid workflows
+            for workflow_type in ['Workflow', 'StreamTelescope', 'SnapshotTelescope', 'OrganisationTelescope']:
+                result = runner.invoke(generate, ["workflow", workflow_type, "MyTestWorkflow", "-p", project_path])
                 self.assertEqual(0, result.exit_code)
 
-                for file in [dag_dst_file, telescope_dst_file, test_dst_file, doc_dst_file,
-                             doc_index_file, schema_dst_file]:
+                # Check whether all expected files are generated
+                for file in [dag_dst_file, workflow_dst_file, test_dst_file, index_dst_file, doc_dst_file,
+                             schema_dst_file]:
                     self.assertTrue(os.path.exists(file))
-                if telescope_type == 'OrganisationTelescope':
+                #TODO mock observatory api path
+                if workflow_type == 'OrganisationTelescope':
                     self.assertTrue(os.path.exists(identifiers_dst_file))
 
-            result = CliRunner().invoke(generate, ["telescope", dags_folder, "invalid_type", "MyTestTelescope"])
+                # Check whether the template files do not contain any errors
+                proc = subprocess.Popen([sys.executable, "-m", "unittest", test_dst_file], stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE, env=dict(os.environ, PYTHONPATH=project_path))
+                #                                                                          TEST_GCP_PROJECT_ID="project_id",
+                #                                                                          TEST_GCP_DATA_LOCATION="data_location"
+                out, err = wait_for_process(proc)
+                print(out, err)
+                self.assertEqual("OK", err.splitlines()[-1])
+
+                #TODO, would be nicer to run tests & validate results, but can't fix modulenotfound error
+                # from unittest import TestLoader, TestResult
+                # sys.path.insert(0, project_path)
+                # test_suite = TestLoader().discover(project_path, pattern="test_*.py", top_level_dir=project_path)
+                # result = test_suite.run(result=TestResult())
+
+            # Test invalid workflow type
+            result = runner.invoke(generate, ["workflow", "invalid_type", "MyTestWorkflow", "-p", project_path])
             self.assertEqual(1, result.exit_code)
 
+            # Test invalid workflows project, no package
+
     @patch('click.confirm')
-    def test_write_telescope_file(self, mock_click_confirm):
-        """ Test writing a telescope file, only overwrite when file exists if confirmed by user
+    def test_write_rendered_template(self, mock_click_confirm):
+        """ Test writing a rendered template file, only overwrite when file exists if confirmed by user
 
         :param mock_click_confirm: Mock the click.confirm user confirmation
         :return: None.
@@ -127,11 +215,11 @@ class TestGenerateCommand(unittest.TestCase):
             self.assertEqual('098f6bcd4621d373cade4e832627b4f6', _hash_file(file_path, 'md5'))
 
             mock_click_confirm.return_value = False
-            write_workflow_file_template(file_path, template="some text", file_type="test")
+            write_rendered_template(file_path, template="some text", file_type="test")
             # Assert that file content stays the same ('test')
             self.assertEqual('098f6bcd4621d373cade4e832627b4f6', _hash_file(file_path, 'md5'))
 
             mock_click_confirm.return_value = True
-            write_workflow_file_template(file_path, template="some text", file_type="test")
+            write_rendered_template(file_path, template="some text", file_type="test")
             # Assert that file content is now 'some text' instead of 'test'
             self.assertEqual('552e21cd4cd9918678e3c1a0df491bc3', _hash_file(file_path, 'md5'))
