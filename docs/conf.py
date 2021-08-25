@@ -19,7 +19,6 @@ from pathlib import Path
 
 from recommonmark.transform import AutoStructify
 
-from generate_schema_csv import generate_csv, generate_latest_files
 
 # -- Project information -----------------------------------------------------
 
@@ -44,7 +43,7 @@ extensions = [
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = "python"
-autoapi_dirs = ["../observatory-api", "../observatory-platform", "../observatory-dags"]
+autoapi_dirs = ["../observatory-api", "../observatory-dags"]
 autoapi_add_toctree_entry = True
 autoapi_python_use_implicit_namespaces = True
 
@@ -74,14 +73,3 @@ def setup(app):
     app.add_config_value("recommonmark_config", {"enable_eval_rst": True, "auto_toc_tree_section": "Contents"}, True)
     app.add_transform(AutoStructify)
 
-
-generate_csv(schema_dir="../observatory-dags/observatory/dags/database/schema")
-generate_latest_files()
-html_build_dir = "_build/html"
-src_graphics_dir = "graphics"
-dst_graphics_dir = os.path.join(html_build_dir, "graphics")
-Path(html_build_dir).mkdir(exist_ok=True, parents=True)
-
-# In case of older version of shutil. Newer versions of copytree have dirs_exists_ok as a kwarg.
-if not os.path.exists(dst_graphics_dir):
-    shutil.copytree(src_graphics_dir, dst_graphics_dir)
