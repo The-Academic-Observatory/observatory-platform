@@ -75,7 +75,7 @@ class TestConfigUtils(unittest.TestCase):
         self.assertEqual(expected_path, actual_path)
 
     def test_find_schema(self):
-        schemas_path = os.path.join(test_fixtures_path(), "telescopes")
+        schemas_path = os.path.join(test_fixtures_path(), "test_schemas")
 
         # Tests that don't use a prefix
         table_name = "grid"
