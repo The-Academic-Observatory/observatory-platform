@@ -29,9 +29,9 @@ from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential, wait_fixed
 
-from observatory.dags.config import schema_folder as default_schema_folder
+from academic_observatory_workflows.config import schema_folder as default_schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.url_utils import get_ao_user_agent
+from observatory.platform.utils.url_utils import get_user_agent
 from observatory.platform.utils.workflow_utils import upload_files_from_list
 from observatory.platform.workflows.stream_telescope import (
     StreamRelease,
@@ -151,7 +151,7 @@ class CrossrefEventsRelease(StreamRelease):
             return
 
         logging.info(f"{i + 1}.{event_type} Downloading date: {date}")
-        headers = {"User-Agent": get_ao_user_agent()}
+        headers = {"User-Agent": get_user_agent(package_name="academic_observatory_workflows")}
         next_cursor, counts, total_events = download_events(url, headers, events_path, cursor_path)
         counter = counts
         while next_cursor:

@@ -35,7 +35,7 @@ from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat, WriteDisposition
 from ratelimit import limits, sleep_and_retry
 
-from observatory.dags.config import schema_folder
+from academic_observatory_workflows.config import schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
 from observatory.platform.utils.config_utils import find_schema
@@ -45,7 +45,7 @@ from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
     load_bigquery_table,
 )
-from observatory.platform.utils.url_utils import get_ao_user_agent
+from observatory.platform.utils.url_utils import get_user_agent
 from observatory.platform.utils.workflow_utils import SubFolder, workflow_path
 from observatory.platform.utils.workflow_utils import (
     build_schedule,
@@ -501,7 +501,11 @@ class ScopusClient:
         :param view: The 'view' access level. Can be 'standard' or 'complete'.
         """
 
-        self._headers = {"X-ELS-APIKey": api_key, "Accept": "application/json", "User-Agent": get_ao_user_agent()}
+        self._headers = {
+            "X-ELS-APIKey": api_key,
+            "Accept": "application/json",
+            "User-Agent": get_user_agent(package_name="academic_observatory_workflows"),
+        }
 
         self._view = view
 

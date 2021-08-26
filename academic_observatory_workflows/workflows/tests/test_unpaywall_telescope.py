@@ -24,7 +24,9 @@ from unittest.mock import patch
 import pendulum
 import vcr
 from click.testing import CliRunner
-from observatory.dags.workflows.unpaywall_telescope import (
+
+from academic_observatory_workflows.config import test_fixtures_folder
+from academic_observatory_workflows.workflows.unpaywall_telescope import (
     UnpaywallRelease,
     UnpaywallTelescope,
     extract_release,
@@ -33,8 +35,6 @@ from observatory.dags.workflows.unpaywall_telescope import (
 )
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.workflow_utils import SubFolder, workflow_path
-
-from tests.observatory.test_utils import test_fixtures_path
 
 
 class TestUnpaywallTelescope(unittest.TestCase):
@@ -51,12 +51,12 @@ class TestUnpaywallTelescope(unittest.TestCase):
 
         # Unpaywall releases list
         self.list_unpaywall_releases_path = os.path.join(
-            test_fixtures_path(), "vcr_cassettes", "list_unpaywall_releases.yaml"
+            test_fixtures_folder("unpaywall"), "list_unpaywall_releases.yaml"
         )
         self.list_unpaywall_releases_hash = "78d1a129cb0aba072ca49e2599f60c10"
 
         # Unpaywall test release
-        self.unpaywall_test_path = os.path.join(test_fixtures_path(), "telescopes", "unpaywall.jsonl.gz")
+        self.unpaywall_test_path = os.path.join(test_fixtures_folder("unpaywall"), "unpaywall.jsonl.gz")
         self.unpaywall_test_file = "unpaywall_snapshot_3000-01-27T153236.jsonl.gz"
         self.unpaywall_test_url = (
             "https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com"

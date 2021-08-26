@@ -26,7 +26,9 @@ from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud import storage
 from google.cloud.storage import Blob
-from observatory.dags.workflows.mag_telescope import (
+
+from academic_observatory_workflows.config import test_fixtures_folder
+from academic_observatory_workflows.workflows.mag_telescope import (
     db_load_mag_release,
     list_mag_release_files,
     transform_mag_file,
@@ -34,8 +36,7 @@ from observatory.dags.workflows.mag_telescope import (
 )
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
-
-from tests.observatory.test_utils import random_id, test_fixtures_path
+from tests.observatory.test_utils import random_id
 
 
 def extract_mag_release(file_path: str, unzip_path: str):
@@ -66,7 +67,7 @@ class TestMagTelescope(unittest.TestCase):
         self.gc_bucket_name: str = os.getenv("TEST_GCP_BUCKET_NAME")
         self.gc_data_location: str = os.getenv("TEST_GCP_DATA_LOCATION")
 
-        self.data_path = os.path.join(test_fixtures_path(), "telescopes", "mag-2020-05-21.zip")
+        self.data_path = os.path.join(test_fixtures_folder("mag"), "mag-2020-05-21.zip")
         self.release_date = pendulum.datetime(year=2020, month=5, day=21)
         self.release_folder = "mag-2020-05-21"
         self.extracted_folder = "extracted"

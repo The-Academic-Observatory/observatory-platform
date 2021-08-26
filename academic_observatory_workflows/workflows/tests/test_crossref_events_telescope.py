@@ -22,19 +22,20 @@ import pendulum
 import vcr
 from airflow.exceptions import AirflowSkipException
 from click.testing import CliRunner
-from observatory.dags.workflows.crossref_events_telescope import (
+
+from academic_observatory_workflows.config import test_fixtures_folder
+from academic_observatory_workflows.workflows.crossref_events_telescope import (
     CrossrefEventsRelease,
     CrossrefEventsTelescope,
     parse_event_url,
 )
-from observatory.platform.utils.workflow_utils import blob_name
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
-    test_fixtures_path,
 )
-from observatory.platform.utils.url_utils import get_ao_user_agent
+from observatory.platform.utils.url_utils import get_user_agent
+from observatory.platform.utils.workflow_utils import blob_name
 
 
 class TestCrossrefEventsTelescope(ObservatoryTestCase):
@@ -50,10 +51,10 @@ class TestCrossrefEventsTelescope(ObservatoryTestCase):
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
         self.first_execution_date = pendulum.datetime(year=2018, month=5, day=14)
-        self.first_cassette = test_fixtures_path("vcr_cassettes", "crossref_events", "crossref_events1.csv")
+        self.first_cassette = test_fixtures_folder("crossref_events", "crossref_events1.csv")
 
         self.second_execution_date = pendulum.datetime(year=2018, month=5, day=20)
-        self.second_cassette = test_fixtures_path("vcr_cassettes", "crossref_events", "crossref_events2.csv")
+        self.second_cassette = test_fixtures_folder("crossref_events", "crossref_events2.csv")
 
         # additional tests setup
         self.start_date = pendulum.datetime(2021, 5, 6)
@@ -90,7 +91,9 @@ class TestCrossrefEventsTelescope(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "crossref_events_telescope.py")
+            dag_file = os.path.join(
+                module_file_path("academic_observatory_workflows.dags"), "crossref_events_telescope.py"
+            )
             self.assert_dag_load("crossref_events", dag_file)
 
     def test_telescope(self):
@@ -338,7 +341,7 @@ class TestCrossrefEventsTelescope(ObservatoryTestCase):
             self.release.download()
             self.assertEqual(len(self.release.urls), mock_download_batch.call_count)
 
-    @patch("observatory.dags.workflows.crossref_events_telescope.download_events")
+    @patch("academic_observatory_workflows.workflows.crossref_events_telescope.download_events")
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_download_batch(self, mock_variable_get, mock_download_events):
         """Test download_batch function
@@ -348,7 +351,7 @@ class TestCrossrefEventsTelescope(ObservatoryTestCase):
         self.release.first_release = True
         batch_number = 0
         url = self.release.urls[batch_number]
-        headers = {"User-Agent": get_ao_user_agent()}
+        headers = {"User-Agent": get_user_agent(package_name="academic_observatory_workflows")}
         with CliRunner().isolated_filesystem():
             events_path = self.release.batch_path(url)
             cursor_path = self.release.batch_path(url, cursor=True)

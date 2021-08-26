@@ -27,19 +27,20 @@ from airflow.models.connection import Connection
 from airflow.models.variable import Variable
 from botocore.response import StreamingBody
 from click.testing import CliRunner
-from observatory.dags.workflows.orcid_telescope import OrcidRelease, OrcidTelescope
+
+from academic_observatory_workflows.config import test_fixtures_folder
+from academic_observatory_workflows.workflows.orcid_telescope import OrcidRelease, OrcidTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars, BaseHook
 from observatory.platform.utils.gc_utils import (
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
 )
-from observatory.platform.utils.workflow_utils import blob_name
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
-    test_fixtures_path,
 )
+from observatory.platform.utils.workflow_utils import blob_name
 
 
 class TestOrcidTelescope(ObservatoryTestCase):
@@ -62,10 +63,10 @@ class TestOrcidTelescope(ObservatoryTestCase):
         for file in ["0000-0002-9227-8610.xml", "0000-0002-9228-8514.xml", "0000-0002-9229-8514.xml"]:
             self.records[file] = {
                 "blob": f"{file[-7:-4]}/{file}",
-                "path": os.path.join(test_fixtures_path("telescopes", "orcid"), file),
+                "path": os.path.join(test_fixtures_folder("orcid"), file),
             }
         # last modified file
-        self.last_modified_path = os.path.join(test_fixtures_path("telescopes", "orcid"), "last_modified.csv.tar")
+        self.last_modified_path = os.path.join(test_fixtures_folder("orcid"), "last_modified.csv.tar")
 
         # release used for method tests
         self.release = OrcidRelease(
@@ -100,11 +101,11 @@ class TestOrcidTelescope(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "orcid_telescope.py")
+            dag_file = os.path.join(module_file_path("academic_observatory_workflows.dags"), "orcid_telescope.py")
             self.assert_dag_load("orcid", dag_file)
 
-    @patch("observatory.dags.workflows.orcid_telescope.aws_to_google_cloud_storage_transfer")
-    @patch("observatory.dags.workflows.orcid_telescope.boto3.client")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.aws_to_google_cloud_storage_transfer")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.boto3.client")
     def test_telescope(self, mock_client, mock_transfer):
         """Test the ORCID telescope end to end.
         :return: None.
@@ -344,9 +345,9 @@ class TestOrcidTelescope(ObservatoryTestCase):
                 env.run_task(telescope.cleanup.__name__)
                 self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
-    @patch("observatory.dags.workflows.orcid_telescope.aws_to_google_cloud_storage_transfer")
-    @patch("observatory.dags.workflows.orcid_telescope.get_aws_conn_info")
-    @patch("observatory.dags.workflows.orcid_telescope.Variable.get")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.aws_to_google_cloud_storage_transfer")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.get_aws_conn_info")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.Variable.get")
     def test_transfer(self, mock_variable_get, mock_aws_info, mock_transfer):
         """Test transfer method of the ORCID release.
 
@@ -398,10 +399,10 @@ class TestOrcidTelescope(ObservatoryTestCase):
         with self.assertRaises(AirflowSkipException):
             self.release.transfer(max_retries)
 
-    @patch("observatory.dags.workflows.orcid_telescope.subprocess.Popen")
-    @patch("observatory.dags.workflows.orcid_telescope.get_aws_conn_info")
-    @patch("observatory.dags.workflows.orcid_telescope.write_modified_record_blobs")
-    @patch("observatory.dags.workflows.orcid_telescope.Variable.get")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.subprocess.Popen")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.get_aws_conn_info")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.write_modified_record_blobs")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.Variable.get")
     def test_download_transferred(self, mock_variable_get, mock_write_blobs, mock_aws_info, mock_subprocess):
         """Test the download_transferred method of the ORCID release.
 
@@ -508,7 +509,7 @@ class TestOrcidTelescope(ObservatoryTestCase):
             with self.assertRaises(AirflowException):
                 self.release.download_transferred()
 
-    @patch("observatory.dags.workflows.orcid_telescope.Variable.get")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.Variable.get")
     def test_transform_single_file(self, mock_variable_get):
         """Test the transform_single_file method.
 
@@ -563,9 +564,9 @@ class TestOrcidTelescope(ObservatoryTestCase):
             with self.assertRaises(AirflowException):
                 self.release.transform_single_file(file_name)
 
-    @patch("observatory.dags.workflows.orcid_telescope.Variable.get")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.Variable.get")
     @patch.object(BaseHook, "get_connection")
-    @patch("observatory.dags.workflows.orcid_telescope.storage_bucket_exists")
+    @patch("academic_observatory_workflows.workflows.orcid_telescope.storage_bucket_exists")
     def test_check_dependencies(self, mock_bucket_exists, mock_conn_get, mock_variable_get):
         """Test the check_dependencies task
 

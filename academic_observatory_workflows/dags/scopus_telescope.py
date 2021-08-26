@@ -21,7 +21,7 @@ import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.subdag import SubDagOperator
-from observatory.dags.workflows.scopus_telescope import ScopusTelescope
+from academic_observatory_workflows.workflows.scopus_telescope import ScopusTelescope
 from observatory.platform.utils.airflow_utils import list_connections
 
 default_args = {

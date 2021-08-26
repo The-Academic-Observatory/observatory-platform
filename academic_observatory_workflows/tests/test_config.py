@@ -15,13 +15,13 @@
 
 import unittest
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.dags.config import elastic_mappings_folder
+from academic_observatory_workflows.config import elastic_mappings_folder
 
 
 class AcademicObservatoryWorkflowsConfig(unittest.TestCase):
     def test_elastic_schema_path(self):
         """ Test that the Elasticsearch schema path is correct """
 
-        expected_path = module_file_path("observatory.dags.database.mappings")
+        expected_path = module_file_path("academic_observatory_workflows.database.mappings")
         actual_path = elastic_mappings_folder()
         self.assertEqual(expected_path, actual_path)

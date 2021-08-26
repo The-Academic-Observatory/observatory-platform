@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from airflow.sensors.external_task import ExternalTaskSensor
 
-from observatory.dags.config import sql_folder
+from academic_observatory_workflows.config import sql_folder
 from observatory.platform.utils.airflow_utils import AirflowVars, set_task_state
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,

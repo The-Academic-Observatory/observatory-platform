@@ -14,7 +14,19 @@
 
 # Author: James Diprose
 
+import os
+
 from observatory.platform.utils.config_utils import module_file_path
+
+
+def test_fixtures_folder(*subdirs) -> str:
+    """Get the path to the Academic Observatory Workflows test data directory.
+
+    :return: the test data directory.
+    """
+
+    base_path = module_file_path("academic_observatory_workflows.fixtures")
+    return os.path.join(base_path, *subdirs)
 
 
 def schema_folder() -> str:
@@ -23,7 +35,7 @@ def schema_folder() -> str:
     :return: the path.
     """
 
-    return module_file_path("observatory.dags.database.schema")
+    return module_file_path("academic_observatory_workflows.database.schema")
 
 
 def sql_folder() -> str:
@@ -32,7 +44,7 @@ def sql_folder() -> str:
     :return: the path.
     """
 
-    return module_file_path("observatory.dags.database.sql")
+    return module_file_path("academic_observatory_workflows.database.sql")
 
 
 def elastic_mappings_folder() -> str:
@@ -41,5 +53,4 @@ def elastic_mappings_folder() -> str:
     :return: the elastic search schema path.
     """
 
-    return module_file_path("observatory.dags.database.mappings")
-
+    return module_file_path("academic_observatory_workflows.database.mappings")

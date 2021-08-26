@@ -17,7 +17,7 @@
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.workflows.orcid_telescope import OrcidTelescope
+from academic_observatory_workflows.workflows.orcid_telescope import OrcidTelescope
 
 telescope = OrcidTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()

@@ -44,7 +44,7 @@ Saved to the BigQuery tables:
 import pendulum
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator, ShortCircuitOperator
-from observatory.dags.workflows.mag_telescope import MagTelescope
+from academic_observatory_workflows.workflows.mag_telescope import MagTelescope
 
 default_args = {"owner": "airflow", "start_date": pendulum.datetime(2020, 7, 1)}
 

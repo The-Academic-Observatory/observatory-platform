@@ -37,7 +37,7 @@ from google.cloud.storage import Blob
 from mag_archiver.mag import MagArchiverClient, MagDateType, MagRelease, MagState
 from natsort import natsorted
 
-from observatory.dags.config import schema_folder
+from academic_observatory_workflows.config import schema_folder
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.airflow_utils import AirflowVariable as Variable
 from observatory.platform.utils.airflow_utils import (

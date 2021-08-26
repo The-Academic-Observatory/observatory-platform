@@ -20,14 +20,15 @@ from unittest.mock import patch
 
 import pendulum
 import vcr
-from observatory.dags.workflows.open_citations_telescope import (
+
+from academic_observatory_workflows.config import test_fixtures_folder
+from academic_observatory_workflows.workflows.open_citations_telescope import (
     File,
     OpenCitationsRelease,
     fetch_open_citations_versions,
     list_open_citations_releases,
 )
 from observatory.platform.utils.workflow_utils import reset_variables
-from tests.observatory.test_utils import test_fixtures_path
 
 
 class TestOpenCitationsTelescope(unittest.TestCase):
@@ -35,10 +36,10 @@ class TestOpenCitationsTelescope(unittest.TestCase):
 
     def setUp(self) -> None:
         self.list_open_citations_releases_path = os.path.join(
-            test_fixtures_path(), "vcr_cassettes", "list_open_citations_releases.yaml"
+            test_fixtures_folder("open_citations"), "list_open_citations_releases.yaml"
         )
         self.fetch_open_citations_versions_path = os.path.join(
-            test_fixtures_path(), "vcr_cassettes", "fetch_open_citations_versions.yaml"
+            test_fixtures_folder("open_citations"), "fetch_open_citations_versions.yaml"
         )
 
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")

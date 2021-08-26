@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 
-from observatory.dags.config import schema_folder as default_schema_folder
+from academic_observatory_workflows.config import schema_folder as default_schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.data_utils import get_file
 from observatory.platform.utils.file_utils import list_to_jsonl_gz

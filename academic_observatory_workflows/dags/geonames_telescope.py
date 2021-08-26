@@ -17,7 +17,7 @@
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.workflows.geonames_telescope import GeonamesTelescope
+from academic_observatory_workflows.workflows.geonames_telescope import GeonamesTelescope
 
 telescope = GeonamesTelescope()
 globals()[telescope.dag_id] = telescope.make_dag()

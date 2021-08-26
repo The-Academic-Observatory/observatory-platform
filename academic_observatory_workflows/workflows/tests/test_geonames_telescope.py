@@ -19,7 +19,9 @@ import os
 import httpretty
 import pendulum
 import vcr
-from observatory.dags.workflows.geonames_telescope import (
+
+from academic_observatory_workflows.config import test_fixtures_folder
+from academic_observatory_workflows.workflows.geonames_telescope import (
     GeonamesRelease,
     GeonamesTelescope,
     fetch_release_date,
@@ -27,17 +29,16 @@ from observatory.dags.workflows.geonames_telescope import (
 )
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
-from observatory.platform.utils.workflow_utils import (
-    SubFolder,
-    blob_name,
-    workflow_path,
-)
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
 )
-from tests.observatory.test_utils import test_fixtures_path
+from observatory.platform.utils.workflow_utils import (
+    SubFolder,
+    blob_name,
+    workflow_path,
+)
 
 
 class TestGeonamesTelescope(ObservatoryTestCase):
@@ -53,9 +54,9 @@ class TestGeonamesTelescope(ObservatoryTestCase):
         super(TestGeonamesTelescope, self).__init__(*args, **kwargs)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
-        self.all_countries_path = test_fixtures_path("telescopes", "geonames", "allCountries.zip")
-        self.fetch_release_date_path = test_fixtures_path("vcr_cassettes", "geonames", "fetch_release_date.yaml")
-        self.list_releases_path = test_fixtures_path("vcr_cassettes", "geonames", "list_releases.yaml")
+        self.all_countries_path = test_fixtures_folder("geonames", "allCountries.zip")
+        self.fetch_release_date_path = test_fixtures_folder("geonames", "fetch_release_date.yaml")
+        self.list_releases_path = test_fixtures_folder("geonames", "list_releases.yaml")
 
     def test_dag_structure(self):
         """Test that the Geonames DAG has the correct structure.
@@ -86,7 +87,7 @@ class TestGeonamesTelescope(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "geonames_telescope.py")
+            dag_file = os.path.join(module_file_path("academic_observatory_workflows.dags"), "geonames_telescope.py")
             self.assert_dag_load("geonames", dag_file)
 
     def test_first_sunday_of_month(self):

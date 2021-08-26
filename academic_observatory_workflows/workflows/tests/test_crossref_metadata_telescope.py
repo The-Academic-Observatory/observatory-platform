@@ -24,20 +24,21 @@ import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from natsort import natsorted
-from observatory.dags.workflows.crossref_metadata_telescope import (
+
+from academic_observatory_workflows.config import test_fixtures_folder
+from academic_observatory_workflows.workflows.crossref_metadata_telescope import (
     CrossrefMetadataRelease,
     CrossrefMetadataTelescope,
     transform_file,
 )
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
-from observatory.platform.utils.workflow_utils import blob_name
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
 )
-from tests.observatory.test_utils import test_fixtures_path
+from observatory.platform.utils.workflow_utils import blob_name
 
 
 class TestCrossrefMetadataTelescope(ObservatoryTestCase):
@@ -53,7 +54,7 @@ class TestCrossrefMetadataTelescope(ObservatoryTestCase):
         super(TestCrossrefMetadataTelescope, self).__init__(*args, **kwargs)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
-        self.download_path = test_fixtures_path("telescopes", "crossref_metadata", "crossref_metadata.json.tar.gz")
+        self.download_path = test_fixtures_folder("crossref_metadata", "crossref_metadata.json.tar.gz")
         self.extract_file_hashes = [
             "4a55065d90aaa58c69bc5f5a54da3006",
             "c45901a52154789470410aad51485e9c",
@@ -101,7 +102,7 @@ class TestCrossrefMetadataTelescope(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "crossref_metadata_telescope.py")
+            dag_file = os.path.join(module_file_path("academic_observatory_workflows.dags"), "crossref_metadata_telescope.py")
             self.assert_dag_load("crossref_metadata", dag_file)
 
     def test_telescope(self):
@@ -187,7 +188,7 @@ class TestCrossrefMetadataTelescope(ObservatoryTestCase):
                 env.run_task(telescope.cleanup.__name__, dag, execution_date)
                 self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
-    @patch("observatory.dags.workflows.crossref_metadata_telescope.BaseHook.get_connection")
+    @patch("academic_observatory_workflows.workflows.crossref_metadata_telescope.BaseHook.get_connection")
     def test_download(self, mock_conn):
         """Test download method of release with failing response
 
@@ -201,7 +202,7 @@ class TestCrossrefMetadataTelescope(ObservatoryTestCase):
             with self.assertRaises(ConnectionError):
                 release.download()
 
-    @patch("observatory.dags.workflows.crossref_metadata_telescope.subprocess.Popen")
+    @patch("academic_observatory_workflows.workflows.crossref_metadata_telescope.subprocess.Popen")
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_extract(self, mock_variable_get, mock_subprocess):
         """Test extract method of release with failing extract command
@@ -246,7 +247,7 @@ class TestCrossrefMetadataTelescope(ObservatoryTestCase):
             with self.assertRaises(AirflowException):
                 telescope.check_release_exists(execution_date=release.release_date)
 
-    @patch("observatory.dags.workflows.crossref_metadata_telescope.subprocess.Popen")
+    @patch("academic_observatory_workflows.workflows.crossref_metadata_telescope.subprocess.Popen")
     def test_transform_file(self, mock_subprocess):
         """Test transform_file function with failing transform command.
 

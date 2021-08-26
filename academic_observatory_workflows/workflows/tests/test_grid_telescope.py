@@ -22,13 +22,14 @@ from unittest.mock import patch
 import pendulum
 import vcr
 from click.testing import CliRunner
-from observatory.dags.workflows.grid_telescope import (
+
+from academic_observatory_workflows.config import test_fixtures_folder
+from academic_observatory_workflows.workflows.grid_telescope import (
     GridRelease,
     GridTelescope,
     list_grid_records,
 )
 from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
-from tests.observatory.test_utils import test_fixtures_path
 
 
 class MockTaskInstance:
@@ -80,7 +81,7 @@ class TestGridTelescope(unittest.TestCase):
         self.grid = GridTelescope()
 
         # Paths
-        self.vcr_cassettes_path = os.path.join(test_fixtures_path(), "vcr_cassettes")
+        self.vcr_cassettes_path = test_fixtures_folder("grid")
         self.list_grid_records_path = os.path.join(self.vcr_cassettes_path, "list_grid_releases.yaml")
 
         # Contains GRID releases 2015-09-22 and 2015-10-09 (format for both is .csv and .json files)

@@ -24,8 +24,10 @@ from unittest.mock import patch
 import pendulum
 from airflow.models import Connection
 from click.testing import CliRunner
-from observatory.dags.workflows.web_of_science_telescope import WosJsonParser, WosUtility
-from tests.observatory.test_utils import test_fixtures_path
+
+from academic_observatory_workflows.config import test_fixtures_folder
+from academic_observatory_workflows.workflows.web_of_science_telescope import WosJsonParser, WosUtility
+
 
 # class TestRecordWosVcr(unittest.TestCase):
 #     """ A test that records the WoS response into a vcr cassette. This is in lieu of creating a separate program to
@@ -57,7 +59,7 @@ class TestWosParse(unittest.TestCase):
         super(TestWosParse, self).__init__(*args, **kwargs)
 
         # Paths
-        self.telescopes_path = os.path.join(test_fixtures_path(), "telescopes")
+        self.telescopes_path = test_fixtures_folder("web_of_science")
         self.work_dir = "../../../tests/observatory/dags/workflows"
         self.wos_2020_10_01_json_path = os.path.join(self.telescopes_path, "wos-2020-10-01.json")
         with open(self.wos_2020_10_01_json_path, "r") as f:
@@ -306,8 +308,8 @@ class TestWos(unittest.TestCase):
         # Paths
         self.work_dir = "../../../tests/observatory/dags/workflows"
 
-    @patch("observatory.dags.workflows.web_of_science_telescope.WosClient")
-    @patch("observatory.dags.workflows.web_of_science_telescope.WosUtility.make_query", return_value=[""])
+    @patch("academic_observatory_workflows.workflows.web_of_science_telescope.WosClient")
+    @patch("academic_observatory_workflows.workflows.web_of_science_telescope.WosUtility.make_query", return_value=[""])
     def test_download_wos_snapshot(self, mock_query, mock_client):
         """Test whether we can successfully download and save a snapshot."""
 

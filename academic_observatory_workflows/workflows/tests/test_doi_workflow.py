@@ -22,7 +22,7 @@ from typing import Dict, List
 import pendulum
 from airflow.exceptions import AirflowException
 
-from observatory.dags.model import (
+from academic_observatory_workflows.model import (
     bq_load_observatory_dataset,
     make_observatory_dataset,
     Institution,
@@ -30,7 +30,8 @@ from observatory.dags.model import (
     make_country_table,
     sort_events,
 )
-from observatory.dags.workflows.doi_workflow import DoiWorkflow, make_dataset_transforms, make_elastic_tables
+from academic_observatory_workflows.workflows.doi_workflow import DoiWorkflow, make_dataset_transforms, \
+    make_elastic_tables
 from observatory.platform.utils.airflow_utils import set_task_state
 from observatory.platform.utils.gc_utils import run_bigquery_query
 from observatory.platform.utils.test_utils import (
@@ -194,7 +195,7 @@ class TestDoiWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment(self.gcp_project_id, self.gcp_data_location)
         with env.create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "doi_telescope.py")
+            dag_file = os.path.join(module_file_path("academic_observatory_workflows.dags"), "doi_telescope.py")
             self.assert_dag_load("doi", dag_file)
 
     def test_telescope(self):

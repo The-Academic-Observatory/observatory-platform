@@ -29,7 +29,7 @@ Does not work with the following releases:
 import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
-from observatory.dags.workflows.unpaywall_telescope import UnpaywallTelescope
+from academic_observatory_workflows.workflows.unpaywall_telescope import UnpaywallTelescope
 
 default_args = {"owner": "airflow", "start_date": pendulum.datetime(2018, 9, 7)}
 

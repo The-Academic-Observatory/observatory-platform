@@ -33,7 +33,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from natsort import natsorted
 
-from observatory.dags.config import schema_folder as default_schema_folder
+from academic_observatory_workflows.config import schema_folder as default_schema_folder
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.proc_utils import wait_for_process
 from observatory.platform.utils.url_utils import retry_session

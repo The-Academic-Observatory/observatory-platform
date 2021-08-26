@@ -23,7 +23,7 @@ Saved to the BigQuery table: <project_id>.open_citations.open_citationsYYYYMMDD
 import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
-from observatory.dags.workflows.open_citations_telescope import OpenCitationsTelescope
+from academic_observatory_workflows.workflows.open_citations_telescope import OpenCitationsTelescope
 
 default_args = {"owner": "airflow", "start_date": pendulum.datetime(2018, 7, 1)}
 

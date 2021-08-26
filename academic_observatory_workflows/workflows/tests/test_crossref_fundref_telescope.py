@@ -15,7 +15,6 @@
 # Author: Aniek Roelofs
 
 import os
-from datetime import datetime
 from typing import List
 from unittest.mock import patch
 
@@ -24,23 +23,24 @@ import pendulum
 import vcr
 from airflow.utils.state import State
 from click.testing import CliRunner
-from observatory.dags.workflows.crossref_fundref_telescope import (
+
+from academic_observatory_workflows.config import test_fixtures_folder
+from academic_observatory_workflows.workflows.crossref_fundref_telescope import (
     CrossrefFundrefRelease,
     CrossrefFundrefTelescope,
     list_releases,
     strip_whitespace,
 )
 from observatory.platform.utils.file_utils import _hash_file
-from observatory.platform.utils.workflow_utils import (
-    bigquery_sharded_table_id,
-    blob_name,
-)
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
 )
-from tests.observatory.test_utils import test_fixtures_path
+from observatory.platform.utils.workflow_utils import (
+    bigquery_sharded_table_id,
+    blob_name,
+)
 
 
 class TestCrossrefFundrefTelescope(ObservatoryTestCase):
@@ -56,7 +56,7 @@ class TestCrossrefFundrefTelescope(ObservatoryTestCase):
         super(TestCrossrefFundrefTelescope, self).__init__(*args, **kwargs)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
-        self.download_path = test_fixtures_path("telescopes", "crossref_fundref", "crossref_fundref_v1.34.tar.gz")
+        self.download_path = test_fixtures_folder("crossref_fundref", "crossref_fundref_v1.34.tar.gz")
         self.download_hash = "0cd65042"
         self.extract_hash = "559aa89d41a85ff84d705084c1caeb8d"
         self.transform_hash = "632b453a"
@@ -67,7 +67,7 @@ class TestCrossrefFundrefTelescope(ObservatoryTestCase):
         :return: None
         """
         # mock create_pool to prevent querying non existing airflow db
-        with patch("observatory.dags.workflows.crossref_fundref_telescope.create_pool"):
+        with patch("academic_observatory_workflows.workflows.crossref_fundref_telescope.create_pool"):
             dag = CrossrefFundrefTelescope().make_dag()
             self.assert_dag_structure(
                 {
@@ -91,7 +91,7 @@ class TestCrossrefFundrefTelescope(ObservatoryTestCase):
         """
 
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "crossref_fundref_telescope.py")
+            dag_file = os.path.join(module_file_path("academic_observatory_workflows.dags"), "crossref_fundref_telescope.py")
             self.assert_dag_load("crossref_fundref", dag_file)
 
     def test_telescope(self):
@@ -123,7 +123,7 @@ class TestCrossrefFundrefTelescope(ObservatoryTestCase):
                         "date": pendulum.parse("2021-05-19T09:34:09.898000+00:00"),
                     }
                 ]
-                with patch("observatory.dags.workflows.crossref_fundref_telescope.list_releases") as mock_list_releases:
+                with patch("academic_observatory_workflows.workflows.crossref_fundref_telescope.list_releases") as mock_list_releases:
                     mock_list_releases.return_value = release_info
                     ti = env.run_task(telescope.get_release_info.__name__, dag, execution_date)
 
@@ -189,7 +189,7 @@ class TestCrossrefFundrefTelescope(ObservatoryTestCase):
 
         :return: None.
         """
-        cassette_path = test_fixtures_path("telescopes", "crossref_fundref", "list_fundref_releases.yaml")
+        cassette_path = test_fixtures_folder("crossref_fundref", "list_fundref_releases.yaml")
         with vcr.use_cassette(cassette_path):
             releases = list_releases(pendulum.datetime(2014, 3, 1), pendulum.datetime(2020, 6, 1))
             self.assertIsInstance(releases, List)

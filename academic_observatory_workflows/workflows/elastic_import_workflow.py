@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import glob
 import json
 import logging
@@ -23,7 +24,8 @@ import os
 import re
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
+from typing import List, Callable
 
 import elasticsearch.exceptions
 import google.cloud.bigquery as bigquery
@@ -35,7 +37,8 @@ from airflow.sensors.external_task import ExternalTaskSensor
 from natsort import natsorted
 from pendulum import Date
 
-from observatory.dags.config import elastic_mappings_folder as default_elastic_mappings_folder
+from academic_observatory_workflows.config import elastic_mappings_folder
+from academic_observatory_workflows.config import elastic_mappings_folder as default_elastic_mappings_folder
 from observatory.platform.elastic.elastic import (
     Elastic,
     make_sharded_index,
@@ -60,6 +63,35 @@ from observatory.platform.workflows.workflow import Workflow
 ES_INDEX_STATE_TOPIC_NAME = "es_index_state"
 CSV_TYPES = ["csv", "csv.gz"]
 JSONL_TYPES = ["jsonl", "jsonl.gz"]
+
+
+DATASET_ID = "data_export"
+DATA_LOCATION = "us"
+FILE_TYPE_JSONL = "jsonl.gz"
+DAG_ONIX_WORKFLOW_PREFIX = "onix_workflow"
+DAG_PREFIX = "elastic_import"
+ELASTIC_MAPPINGS_PATH = elastic_mappings_folder()
+AO_KIBANA_TIME_FIELDS = [TimeField("^.*$", "published_year")]
+OAEBU_KIBANA_TIME_FIELDS = [
+    TimeField("^oaebu-.*-unmatched-book-metrics$", "release_date"),
+    TimeField("^oaebu-.*-book-product-list$", "time_field"),
+    TimeField("^oaebu-.*$", "month"),
+]
+
+
+@dataclasses.dataclass
+class ElasticImportConfig:
+    dag_id: str = None
+    project_id: str = None
+    dataset_id: str = None
+    bucket_name: str = None
+    data_location: str = None
+    file_type: str = None
+    sensor_dag_ids: List[str] = None
+    elastic_mappings_path: str = None
+    elastic_mappings_func: Callable = None
+    kibana_spaces: List[str] = None
+    kibana_time_fields: List[TimeField] = None
 
 
 def load_elastic_mappings_simple(path: str, table_prefix: str) -> Dict:
@@ -98,27 +130,6 @@ def load_elastic_mappings_ao(path: str, table_prefix: str, simple_prefixes: List
             mappings_file_name = f"ao-{facet.replace('_', '-')}-mappings.json.jinja2"
         mappings_path = os.path.join(path, mappings_file_name)
         return json.loads(render_template(mappings_path, aggregate=aggregate, facet=facet))
-
-
-def load_elastic_mappings_oaebu(path: str, table_prefix: str) -> Dict:
-    """For the OAEBU project, load the Elastic mappings for a given table_prefix.
-
-    :param path: the path to the mappings files.
-    :param table_prefix: the table_id prefix (without shard date).
-    :return: the rendered mapping as a Dict.
-    """
-
-    if not table_prefix.startswith("oaebu"):
-        raise ValueError("Table must begin with 'oaebu'")
-    elif "unmatched" in table_prefix:
-        mappings_path = os.path.join(path, "oaebu-unmatched-metrics-mappings.json.jinja2")
-        return json.loads(render_template(mappings_path))
-    else:
-        parts = table_prefix.split("_")[3:]
-        mappings_file_name = "oaebu" + "-" + "-".join(parts[2:]) + "-mappings.json.jinja2"
-        mappings_path = os.path.join(path, mappings_file_name)
-        aggregation_level = parts[1]
-        return json.loads(render_template(mappings_path, aggregation_level=aggregation_level))
 
 
 def make_index_prefix(table_id: str):
