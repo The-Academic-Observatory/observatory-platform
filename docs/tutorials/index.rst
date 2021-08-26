@@ -15,3 +15,11 @@ Developing a telescope
     telescope/step_by_step
     telescope/cli
     telescope/style
+
+Starting an Observatory Platform development environment
+##########################################################
+
+.. toctree::
+    :maxdepth: 2
+
+    observatory_dev

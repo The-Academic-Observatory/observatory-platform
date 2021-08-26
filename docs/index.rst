@@ -2,16 +2,9 @@
 Observatory Platform
 =======================
 The Observatory Platform provides an environment and workflows for fetching, processing and analysing data to
-understand how well universities operate as Open Knowledge Institutions.
+understand how well universities operate as open knowledge institutions.
 
-Getting Started
-=======================
-.. toctree::
-    :maxdepth: 3
-
-    setup/index
-
-Instructions
+Installation
 =======================
 .. toctree::
     :maxdepth: 1
@@ -21,12 +14,12 @@ Instructions
     deploy_terraform
     license
 
-REST API
-=========================
+Tutorials
+=======================
 .. toctree::
     :maxdepth: 2
 
-    api/index
+    tutorials/index
 
 Telescopes
 =======================
@@ -35,13 +28,6 @@ Telescopes
 
     telescopes/index
 
-Datasets
-=======================
-.. toctree::
-    :maxdepth: 2
-
-    datasets/index
-
 Analytical Workflows
 =======================
 .. toctree::
@@ -49,28 +35,17 @@ Analytical Workflows
 
     workflows/index
 
-Tutorials
-=======================
+Observatory Platform API
+=========================
 .. toctree::
     :maxdepth: 2
 
-    tutorials/index
+    api/index
 
-License & Contributing Guidelines
-=================================
-Information about licenses, contributing guidelines etc.
-
+API Reference
+=======================
 .. toctree::
     :maxdepth: 1
-
-    license
-
-Python API Reference
-=====================
-Documentation for the observatory.platform Python API.
-
-.. toctree::
-    :maxdepth: 3
 
 Indices and tables
 =======================
