@@ -230,7 +230,7 @@ class StreamTelescope(Workflow):
         for transform_path in release.transform_files:
             if self.batch_load:
                 transform_blob = batch_blob_name(release.transform_folder)
-                main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
+                main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
             else:
                 transform_blob = blob_name(transform_path)
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
@@ -274,7 +274,7 @@ class StreamTelescope(Workflow):
             )
             for transform_path in release.transform_files:
                 if self.batch_load:
-                    main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
+                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
                     bq_delete_old(
                         start_date,
                         end_date,
@@ -313,7 +313,7 @@ class StreamTelescope(Workflow):
             for transform_path in release.transform_files:
                 if self.batch_load:
                     transform_blob = batch_blob_name(release.transform_folder)
-                    main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
+                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
                 else:
                     transform_blob = blob_name(transform_path)
                     main_table_id, partition_table_id = table_ids_from_path(transform_path)
@@ -341,7 +341,7 @@ class StreamTelescope(Workflow):
             logging.info(f"Appending data to main table from partitions after {start_date} and on or before {end_date}")
             for transform_path in release.transform_files:
                 if self.batch_load:
-                    main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
+                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
                     bq_append_from_partition(
                         self.schema_folder,
                         start_date,

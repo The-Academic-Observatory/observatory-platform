@@ -598,7 +598,7 @@ Example:
 import pendulum
 from airflow.models.connection import Connection
 
-from observatory.api.client.identifiers import TelescopeTypes
+from observatory.dags.utils.identifiers import TelescopeTypes
 from observatory.api.server import orm
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.test_utils import ObservatoryEnvironment

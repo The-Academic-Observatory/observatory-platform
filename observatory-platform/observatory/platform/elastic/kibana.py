@@ -75,10 +75,7 @@ class ObjectType(Enum):
 class Kibana:
     HTTP_NOT_FOUND = 404
 
-    headers = {
-        "Content-Type": "application/json",
-        "kbn-xsrf": "true",
-    }
+    headers = {"Content-Type": "application/json", "kbn-xsrf": "true"}
 
     def __init__(self, host: str = "http://kibana:5601/", username: str = None, password: str = None):
         """Create a Kibana API client.

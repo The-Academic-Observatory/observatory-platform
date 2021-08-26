@@ -39,13 +39,11 @@ from airflow.utils.process_utils import patch_environ
 log = logging.getLogger(__name__)
 
 AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT = "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
-_DEFAULT_SCOPES: Sequence[str] = ('https://www.googleapis.com/auth/cloud-platform',)
+_DEFAULT_SCOPES: Sequence[str] = ("https://www.googleapis.com/auth/cloud-platform",)
 
 
 def build_gcp_conn(
-    key_file_path: Optional[str] = None,
-    scopes: Optional[Sequence[str]] = None,
-    project_id: Optional[str] = None,
+    key_file_path: Optional[str] = None, scopes: Optional[Sequence[str]] = None, project_id: Optional[str] = None
 ) -> str:
     """
     Builds a uri that can be used as :envvar:`AIRFLOW_CONN_{CONN_ID}` with provided service key,
@@ -110,9 +108,7 @@ def provide_gcp_credentials(key_file_path: Optional[str] = None, key_file_dict: 
 
 @contextmanager
 def provide_gcp_connection(
-    key_file_path: Optional[str] = None,
-    scopes: Optional[Sequence] = None,
-    project_id: Optional[str] = None,
+    key_file_path: Optional[str] = None, scopes: Optional[Sequence] = None, project_id: Optional[str] = None
 ) -> Generator:
     """
     Context manager that provides a temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`
@@ -137,9 +133,7 @@ def provide_gcp_connection(
 
 @contextmanager
 def provide_gcp_conn_and_credentials(
-    key_file_path: Optional[str] = None,
-    scopes: Optional[Sequence] = None,
-    project_id: Optional[str] = None,
+    key_file_path: Optional[str] = None, scopes: Optional[Sequence] = None, project_id: Optional[str] = None
 ) -> Generator:
     """
     Context manager that provides both:
@@ -159,9 +153,7 @@ def provide_gcp_conn_and_credentials(
         if key_file_path:
             stack.enter_context(provide_gcp_credentials(key_file_path))  # type; ignore
         if project_id:
-            stack.enter_context(  # type; ignore
-                patch_environ({PROJECT: project_id, LEGACY_PROJECT: project_id})
-            )
+            stack.enter_context(patch_environ({PROJECT: project_id, LEGACY_PROJECT: project_id}))  # type; ignore
 
         stack.enter_context(provide_gcp_connection(key_file_path, scopes, project_id))  # type; ignore
         yield
@@ -211,8 +203,7 @@ class _CredentialProvider(LoggingMixin):
         super().__init__()
         if key_path and keyfile_dict:
             raise AirflowException(
-                "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
-                "Please provide only one value."
+                "The `keyfile_dict` and `key_path` fields are mutually exclusive. " "Please provide only one value."
             )
         self.key_path = key_path
         self.keyfile_dict = keyfile_dict
@@ -237,7 +228,7 @@ class _CredentialProvider(LoggingMixin):
             credentials, project_id = self._get_credentials_using_adc()
 
         if self.delegate_to:
-            if hasattr(credentials, 'with_subject'):
+            if hasattr(credentials, "with_subject"):
                 credentials = credentials.with_subject(self.delegate_to)
             else:
                 raise AirflowException(
@@ -259,10 +250,10 @@ class _CredentialProvider(LoggingMixin):
         return credentials, project_id
 
     def _get_credentials_using_keyfile_dict(self):
-        self._log_debug('Getting connection using JSON Dict')
+        self._log_debug("Getting connection using JSON Dict")
         # Depending on how the JSON was formatted, it may contain
         # escaped newlines. Convert those to actual newlines.
-        self.keyfile_dict['private_key'] = self.keyfile_dict['private_key'].replace('\\n', '\n')
+        self.keyfile_dict["private_key"] = self.keyfile_dict["private_key"].replace("\\n", "\n")
         credentials = google.oauth2.service_account.Credentials.from_service_account_info(
             self.keyfile_dict, scopes=self.scopes
         )
@@ -270,13 +261,13 @@ class _CredentialProvider(LoggingMixin):
         return credentials, project_id
 
     def _get_credentials_using_key_path(self):
-        if self.key_path.endswith('.p12'):
-            raise AirflowException('Legacy P12 key file are not supported, use a JSON key file.')
+        if self.key_path.endswith(".p12"):
+            raise AirflowException("Legacy P12 key file are not supported, use a JSON key file.")
 
-        if not self.key_path.endswith('.json'):
-            raise AirflowException('Unrecognised extension for key file.')
+        if not self.key_path.endswith(".json"):
+            raise AirflowException("Unrecognised extension for key file.")
 
-        self._log_debug('Getting connection using JSON key file %s', self.key_path)
+        self._log_debug("Getting connection using JSON key file %s", self.key_path)
         credentials = google.oauth2.service_account.Credentials.from_service_account_file(
             self.key_path, scopes=self.scopes
         )
@@ -284,9 +275,7 @@ class _CredentialProvider(LoggingMixin):
         return credentials, project_id
 
     def _get_credentials_using_adc(self):
-        self._log_info(
-            'Getting connection using `google.auth.default()` since no key file is defined for hook.'
-        )
+        self._log_info("Getting connection using `google.auth.default()` since no key file is defined for hook.")
         credentials, project_id = google.auth.default(scopes=self.scopes)
         return credentials, project_id
 
@@ -314,7 +303,7 @@ def _get_scopes(scopes: Optional[str] = None) -> Sequence[str]:
     :return: Returns the scope defined in the connection configuration, or the default scope
     :rtype: Sequence[str]
     """
-    return [s.strip() for s in scopes.split(',')] if scopes else _DEFAULT_SCOPES
+    return [s.strip() for s in scopes.split(",")] if scopes else _DEFAULT_SCOPES
 
 
 def _get_target_principal_and_delegates(
@@ -352,7 +341,7 @@ def _get_project_id_from_service_account_email(service_account_email: str) -> st
     :rtype: str
     """
     try:
-        return service_account_email.split('@')[1].split('.')[0]
+        return service_account_email.split("@")[1].split(".")[0]
     except IndexError:
         raise AirflowException(
             f"Could not extract project_id from service account's email: " f"{service_account_email}."

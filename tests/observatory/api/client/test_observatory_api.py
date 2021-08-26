@@ -35,11 +35,7 @@ import pytz
 import observatory.api.server.orm as orm
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
-from observatory.api.client.exceptions import (
-    ApiException,
-    ApiValueError,
-    NotFoundException,
-)
+from observatory.api.client.exceptions import ApiException, ApiValueError, NotFoundException
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType

@@ -37,11 +37,7 @@ from observatory.platform.utils.airflow_utils import (
     check_variables,
 )
 from observatory.platform.utils.file_utils import list_files
-from observatory.platform.utils.workflow_utils import (
-    SubFolder,
-    on_failure_callback,
-    workflow_path,
-)
+from observatory.platform.utils.workflow_utils import SubFolder, on_failure_callback, workflow_path
 
 
 class ReleaseFunction(Protocol):
@@ -408,10 +404,7 @@ class Workflow(AbstractWorkflow):
                 kwargs_ = copy.copy(op.kwargs)
                 kwargs_["task_id"] = make_task_id(op.func, op.kwargs)
                 task = ShortCircuitOperator(
-                    python_callable=op.func,
-                    queue=self.queue,
-                    default_args=self.default_args,
-                    **kwargs_,
+                    python_callable=op.func, queue=self.queue, default_args=self.default_args, **kwargs_
                 )
                 tasks.append(task)
 

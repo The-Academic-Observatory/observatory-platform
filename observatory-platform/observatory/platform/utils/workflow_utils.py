@@ -64,10 +64,8 @@ from observatory.platform.utils.gc_utils import (
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
 )
-from observatory.platform.utils.jinja2_utils import (
-    make_sql_jinja2_filename,
-    render_template,
-)
+from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
+from observatory.platform.utils.jinja2_utils import make_sql_jinja2_filename, render_template
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -1202,7 +1200,7 @@ class ScheduleOptimiser:
             raise Exception("Empty historic_counts received.")
 
         if n == 1:
-            return historic_counts, ScheduleOptimiser.get_num_calls(historic_counts[0].count, max_per_call)
+            return (historic_counts, ScheduleOptimiser.get_num_calls(historic_counts[0].count, max_per_call))
 
         min_calls = [sys.maxsize] * n
         moves = [0] * n

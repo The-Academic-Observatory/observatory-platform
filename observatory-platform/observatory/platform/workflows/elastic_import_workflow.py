@@ -42,12 +42,7 @@ from observatory.platform.elastic.elastic import (
 )
 from observatory.platform.elastic.kibana import Kibana, ObjectType, TimeField
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.file_utils import (
-    load_file,
-    write_to_file,
-    yield_csv,
-    yield_jsonl,
-)
+from observatory.platform.utils.file_utils import load_file, write_to_file, yield_csv, yield_jsonl
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     download_blobs_from_cloud_storage,

@@ -60,8 +60,7 @@ class ElasticEnvironment(ComposeRunner):
 
         # Add files
         self.add_file(
-            path=os.path.join(self.elastic_module_path, "elasticsearch.yml"),
-            output_file_name="elasticsearch.yml",
+            path=os.path.join(self.elastic_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
         )
 
         # Stop the awful unnecessary Elasticsearch connection warnings being logged

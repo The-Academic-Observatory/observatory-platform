@@ -351,7 +351,7 @@ def queryv1() -> Union[Tuple[str, int], dict]:
     # use search body
     else:
         if alias == "":
-            return "Invalid combination of aggregation (publisher) and subset (collaborations)", 400
+            return ("Invalid combination of aggregation (publisher) and subset (collaborations)", 400)
 
         search_body = create_search_body(from_date, to_date, filter_fields, size)
 

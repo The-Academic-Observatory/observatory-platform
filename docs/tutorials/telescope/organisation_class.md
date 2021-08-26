@@ -240,7 +240,7 @@ DAG file:
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.api.client.identifiers import TelescopeTypes
+from observatory.dags.utils.identifiers import TelescopeTypes
 from observatory.dags.workflows.my_organisation import MyOrganisation
 from observatory.platform.utils.telescope_utils import make_observatory_api
 

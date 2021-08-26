@@ -30,20 +30,17 @@ with DAG(
 ) as dag:
     # Check that dependencies exist before starting
     check = PythonOperator(
-        task_id=TerraformTasks.TASK_ID_CHECK_DEPENDENCIES,
-        python_callable=TerraformTasks.check_dependencies,
+        task_id=TerraformTasks.TASK_ID_CHECK_DEPENDENCIES, python_callable=TerraformTasks.check_dependencies
     )
 
     # If vm is already on, stop DAG
     vm_status = ShortCircuitOperator(
-        task_id=TerraformTasks.TASK_ID_VM_STATUS,
-        python_callable=TerraformTasks.get_variable_create,
+        task_id=TerraformTasks.TASK_ID_VM_STATUS, python_callable=TerraformTasks.get_variable_create
     )
 
     # Update terraform variable vm_create to True
     var_create = PythonOperator(
-        task_id=TerraformTasks.TASK_ID_VAR_UPDATE,
-        python_callable=TerraformTasks.update_terraform_variable,
+        task_id=TerraformTasks.TASK_ID_VAR_UPDATE, python_callable=TerraformTasks.update_terraform_variable
     )
 
     # Run terraform configuration
@@ -51,8 +48,7 @@ with DAG(
 
     # Check status of terraform run
     check_run_status = PythonOperator(
-        task_id=TerraformTasks.TASK_ID_RUN_STATUS,
-        python_callable=TerraformTasks.check_terraform_run_status,
+        task_id=TerraformTasks.TASK_ID_RUN_STATUS, python_callable=TerraformTasks.check_terraform_run_status
     )
 
     check >> vm_status >> var_create >> run_terraform >> check_run_status
