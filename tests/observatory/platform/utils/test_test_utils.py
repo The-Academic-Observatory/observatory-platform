@@ -24,13 +24,12 @@ import croniter
 import httpretty
 import pendulum
 import pysftp
-from airflow.models import DAG
 from airflow.models.connection import Connection
 from airflow.models.variable import Variable
-from airflow.operators.dummy import DummyOperator
 from click.testing import CliRunner
 from google.cloud.bigquery import SourceFormat
 from google.cloud.exceptions import NotFound
+
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
