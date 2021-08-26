@@ -57,4 +57,6 @@ EOF
     api_key = string
     host = string
   })
+  # needs 'sensitive' mark to use nonsensitive() function. Not recognized as sensitive value even though it is derived from one
+  sensitive = true
 }
