@@ -23,7 +23,7 @@ import os
 import random
 import unittest
 from typing import Dict, List
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 import pendulum
 from airflow import DAG
@@ -114,9 +114,10 @@ def author_records_to_bq(author_records: List[Dict]):
 class TestElasticImportRelease(unittest.TestCase):
     @patch(
         "observatory.dags.workflows.elastic_import_workflow.ElasticImportRelease.extract_folder",
-        return_value="test",
+        new_callable=PropertyMock,
     )
     def test_get_keep_info(self, m_extract_folder):
+        m_extract_folder.return_value = "test"
         self.release = ElasticImportRelease(
             dag_id="dag",
             release_date=pendulum.now(),
