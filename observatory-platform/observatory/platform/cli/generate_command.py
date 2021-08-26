@@ -64,23 +64,38 @@ class GenerateCommand:
         )
 
     def generate_new_workflows_project(self, project_path: str, package_name: str):
+        """ Create all directories, init files and a setup.cfg + setup.py file for a new workflows project.
+
+        :param project_path: The path to the new project directory
+        :param package_name: The name of the new project package
+        :return: None.
+        """
         # Get paths to folders
         dag_dst_dir = os.path.join(project_path, package_name, "dags")
+        utils_dst_dir = os.path.join(project_path, package_name, "utils")
         workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
         schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
         test_dst_dir = os.path.join(project_path, "tests", "workflows")
         doc_dst_dir = os.path.join(project_path, "docs")
 
         # Make folders
-        for path in [dag_dst_dir, workflow_dst_dir, test_dst_dir, doc_dst_dir, schema_dst_dir]:
+        for path in [dag_dst_dir, utils_dst_dir, workflow_dst_dir, test_dst_dir, doc_dst_dir, schema_dst_dir]:
             os.makedirs(path, exist_ok=True)
 
         # Make init files
         package_folder = os.path.join(project_path, package_name)
         database_folder = os.path.join(project_path, package_name, "database")
         tests_folder = os.path.join(project_path, "tests")
-        init_paths = [package_folder, dag_dst_dir, workflow_dst_dir, tests_folder, test_dst_dir, database_folder,
-                      schema_dst_dir]
+        init_paths = [
+            package_folder,
+            dag_dst_dir,
+            utils_dst_dir,
+            workflow_dst_dir,
+            tests_folder,
+            test_dst_dir,
+            database_folder,
+            schema_dst_dir,
+        ]
         for path in init_paths:
             if not os.path.isfile(path):
                 open(os.path.join(path, "__init__.py"), "a").close()
@@ -99,7 +114,8 @@ class GenerateCommand:
         write_rendered_template(setup_cfg_path, setup_cfg, "setup.cfg")
         write_rendered_template(setup_py_path, setup_py, "setup.py")
 
-        print(f"""
+        print(
+            f"""
         Created the following files and directories:
         
         └── {project_path}
@@ -112,6 +128,8 @@ class GenerateCommand:
             │   │   ├── __init__.py
             │   │   └── schema
             │   │       └── __init__.py
+            │   ├── utils
+            │   │   └── __init__.py
             │   └── workflows
             │       └── __init__.py
             ├── setup.cfg
@@ -120,15 +138,10 @@ class GenerateCommand:
                 ├── __init__.py
                 └── workflows
                     └── __init__.py
-        """)
+        """
+        )
 
-    def generate_new_workflow(
-            self,
-            project_path: str,
-            package_name: str,
-            workflow_type: str,
-            workflow_class: str,
-    ):
+    def generate_new_workflow(self, project_path: str, package_name: str, workflow_type: str, workflow_class: str):
         """
         Write files for a new telescope which is using one of the templates
 
@@ -142,6 +155,7 @@ class GenerateCommand:
 
         # Get paths to folders
         dag_dst_dir = os.path.join(project_path, package_name, "dags")
+        utils_dst_dir = os.path.join(project_path, package_name, "utils")
         workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
         schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
         test_dst_dir = os.path.join(project_path, "tests", "workflows")
@@ -149,6 +163,7 @@ class GenerateCommand:
 
         # Get paths to files
         dag_dst_file = os.path.join(dag_dst_dir, f"{workflow_module}.py")
+        identifiers_dst_file = os.path.join(utils_dst_dir, "identifiers.py")
         workflow_dst_file = os.path.join(workflow_dst_dir, f"{workflow_module}.py")
         test_dst_file = os.path.join(test_dst_dir, f"test_{workflow_module}.py")
         index_dst_file = os.path.join(doc_dst_dir, "index.rst")
@@ -157,19 +172,19 @@ class GenerateCommand:
 
         # Render templates
         workflow_path, dag_path, test_path, doc_index_path, doc_path, schema_path = get_workflow_template_path(
-            workflow_type)
-        dag = render_template(dag_path, workflow_module=workflow_module, workflow_class=workflow_class,
-                              package_name=package_name)
-        workflow = render_template(workflow_path, workflow_module=workflow_module, workflow_class=workflow_class,
-                                   package_name=package_name)
-        test = render_template(test_path, workflow_module=workflow_module, workflow_class=workflow_class,
-                               package_name=package_name)
-        doc_index = render_template(doc_index_path)
-        doc = render_template(
-            doc_path,
-            workflow_module=workflow_module,
-            workflow_class=workflow_class,
+            workflow_type
         )
+        dag = render_template(
+            dag_path, workflow_module=workflow_module, workflow_class=workflow_class, package_name=package_name
+        )
+        workflow = render_template(
+            workflow_path, workflow_module=workflow_module, workflow_class=workflow_class, package_name=package_name
+        )
+        test = render_template(
+            test_path, workflow_module=workflow_module, workflow_class=workflow_class, package_name=package_name
+        )
+        doc_index = render_template(doc_index_path)
+        doc = render_template(doc_path, workflow_module=workflow_module, workflow_class=workflow_class)
         schema = render_template(schema_path)
 
         # Write out files
@@ -182,16 +197,15 @@ class GenerateCommand:
         # Update documentation index
         if not os.path.isfile(index_dst_file):
             write_rendered_template(index_dst_file, doc_index, "index.rst")
-
         with open(index_dst_file, "a") as f:
             f.write(f"    {workflow_module}\n")
         print(f"- Updated the documentation index file: {index_dst_file}")
 
         # Update TelescopeTypes in identifiers.py when using organisation template
         if workflow_type == "OrganisationTelescope":
-            identifiers_dst_file = os.path.join(
-                module_file_path("observatory.api.client.identifiers"), "identifiers.py"
-            )
+            if not os.path.isfile(identifiers_dst_file):
+                with open(identifiers_dst_file, "w") as f:
+                    f.write("class TelescopeTypes:\n")
             with open(identifiers_dst_file, "a") as f:
                 f.write(f'    {workflow_module} = "{workflow_module}"\n')
             print(f"- Updated the identifiers file: {identifiers_dst_file}")
@@ -208,11 +222,7 @@ def get_workflow_template_path(workflow_type: str) -> Tuple[str, str, str, str, 
     templates_dir = module_file_path("observatory.platform.workflows.templates")
 
     workflow_types = {
-        "Workflow": {
-            "dag": "dag.py.jinja2",
-            "telescope": "workflow.py.jinja2",
-            "test": "test.py.jinja2",
-        },
+        "Workflow": {"dag": "dag.py.jinja2", "telescope": "workflow.py.jinja2", "test": "test.py.jinja2"},
         "SnapshotTelescope": {
             "dag": "dag.py.jinja2",
             "telescope": "telescope_snapshot.py.jinja2",
@@ -260,18 +270,10 @@ def write_rendered_template(file_path: str, template: str, file_type: str):
     """
     if os.path.exists(file_path):
         if not click.confirm(
-                f"\nA {file_type} file already exists at: '{file_path}'\n" f"Would you like to overwrite the file?"
+            f"\nA {file_type} file already exists at: '{file_path}'\n" f"Would you like to overwrite the file?"
         ):
             return
     with open(file_path, "w") as f:
         f.write(template)
     print(f"- Created a new {file_type} file: {file_path}")
 
-
-def get_observatory_dir():
-    """ Return path to dir where docs and tests are stored, for now this is in observatory platform, but will change
-    once the repositories are split.
-
-    :return: Path to observatory platform dir
-    """
-    return module_file_path("observatory.platform", nav_back_steps=-4)
