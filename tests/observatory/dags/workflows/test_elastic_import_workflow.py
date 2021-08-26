@@ -21,18 +21,22 @@ import json
 import logging
 import os
 import random
+import unittest
 from typing import Dict, List
+from unittest.mock import patch
 
 import pendulum
 from airflow import DAG
 from airflow.models import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from faker import Faker
-
 from observatory.dags.config import elastic_mappings_folder
 from observatory.dags.model import Table, bq_load_tables
 from observatory.dags.workflows.elastic_import_workflow import (
+    ElasticImportRelease,
     ElasticImportWorkflow,
+    KeepInfo,
+    KeepOrder,
     load_elastic_mappings_ao,
     load_elastic_mappings_oaebu,
     load_elastic_mappings_simple,
@@ -105,6 +109,54 @@ def author_records_to_bq(author_records: List[Dict]):
         records.append(tmp)
 
     return records
+
+
+class TestElasticImportRelease(unittest.TestCase):
+    @patch(
+        "observatory.dags.workflows.elastic_import_workflow.ElasticImportRelease.extract_folder",
+        return_value="test",
+    )
+    def test_get_keep_info(self, m_extract_folder):
+        self.release = ElasticImportRelease(
+            dag_id="dag",
+            release_date=pendulum.now(),
+            dataset_id="dataset",
+            file_type="",
+            table_ids=list(),
+            project_id=os.environ["TEST_GCP_PROJECT_ID"],
+            bucket_name="bucket",
+            data_location=os.environ["TEST_GCP_DATA_LOCATION"],
+            elastic_host="",
+            elastic_mappings_folder="",
+            elastic_mappings_func=None,
+            kibana_host="",
+            kibana_username="",
+            kibana_password="",
+            kibana_spaces=list(),
+            kibana_time_fields=list(),
+        )
+
+        self.release.index_keep_info = {}
+        keep_info = self.release.get_keep_info("something")
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=2))
+
+        self.release.index_keep_info = {"": KeepInfo(ordering=KeepOrder.newest, num=1)}
+        keep_info = self.release.get_keep_info("something")
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=1))
+
+        self.release.index_keep_info = {
+            "test-very-specific": KeepInfo(ordering=KeepOrder.newest, num=5),
+            "test": KeepInfo(ordering=KeepOrder.newest, num=3),
+        }
+
+        keep_info = self.release.get_keep_info("test-very-different")
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=3))
+
+        keep_info = self.release.get_keep_info("test-very-specific")
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=5))
+
+        keep_info = self.release.get_keep_info("nomatch")
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=2))
 
 
 class TestElasticImportWorkflow(ObservatoryTestCase):
@@ -349,7 +401,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 "export_bigquery_tables": ["download_exported_data"],
                 "download_exported_data": ["import_to_elastic"],
                 "import_to_elastic": ["update_elastic_aliases"],
-                "update_elastic_aliases": ["create_kibana_index_patterns"],
+                "update_elastic_aliases": ["delete_stale_indices"],
+                "delete_stale_indices": ["create_kibana_index_patterns"],
                 "create_kibana_index_patterns": ["cleanup"],
                 "cleanup": [],
             },
@@ -542,6 +595,19 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 expected_indexes = [index_id]
                 actual_indexes = self.elastic.get_alias_indexes(expected_alias_id)
                 self.assertListEqual(expected_indexes, actual_indexes)  # Check that aliases updated
+
+                # Test delete_stale_indices task
+                # Artificially load extra indices for ao-author
+                client = Elastic(host=self.elastic_uri)
+                client.create_index("ao-author-20210523")
+                client.create_index("ao-author-20210524")
+                client.create_index("ao-author-20210525")
+                ti = env.run_task(workflow.delete_stale_indices.__name__, es_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                indices_after_cleanup = set(client.list_indices("ao-author-*"))
+                self.assertEqual(len(indices_after_cleanup), 2)
+                self.assertTrue("ao-author-20210525" in indices_after_cleanup)
+                self.assertTrue("ao-author-20210524" in indices_after_cleanup)
 
                 # Test list create_kibana_index_patterns info task
                 expected_index_pattern_id = expected_alias_id

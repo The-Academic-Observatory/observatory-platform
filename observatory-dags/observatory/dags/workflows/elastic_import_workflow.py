@@ -33,11 +33,13 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import TaskInstance
 from airflow.sensors.external_task import ExternalTaskSensor
 from natsort import natsorted
-from pendulum import Date
-
-from observatory.dags.config import elastic_mappings_folder as default_elastic_mappings_folder
+from observatory.dags.config import (
+    elastic_mappings_folder as default_elastic_mappings_folder,
+)
 from observatory.platform.elastic.elastic import (
     Elastic,
+    KeepInfo,
+    KeepOrder,
     make_sharded_index,
 )
 from observatory.platform.elastic.kibana import Kibana, ObjectType, TimeField
@@ -56,6 +58,7 @@ from observatory.platform.utils.gc_utils import (
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease
 from observatory.platform.workflows.workflow import Workflow
+from pendulum import Date
 
 ES_INDEX_STATE_TOPIC_NAME = "es_index_state"
 CSV_TYPES = ["csv", "csv.gz"]
@@ -343,6 +346,40 @@ class ElasticImportRelease(SnapshotRelease):
         self.bucket_prefix = f"telescopes/{dag_id}/{self.release_id}"
         self.elastic_import_task_state_path = os.path.join(self.extract_folder, "elastic_import_task_state.json")
 
+        # This needs to be migrated into an API in the future.
+        # If you want to provide a default, add an entry for key "".
+        # If key "" is not specified, get_keep_info will provide its own default.
+        self.index_keep_info = {
+            "": KeepInfo(ordering=KeepOrder.newest, num=2),
+            "dois-doi": KeepInfo(ordering=KeepOrder.newest, num=1),
+        }
+
+    def get_keep_info(self, index: str) -> KeepInfo:
+        """Get the best KeepInfo for a given index prefix in self.index_keep_info.
+        If there is an exact index match, it will return the info for that.  Otherwise it will keep looking for higher
+        level matches.  If it completely fails to match, it will return the default configuration.
+
+        Assumes index names are in the format: {level0 name}-{level1 name}-...-{leveln name}.
+        Index should not include the -YYYYMMD suffix.
+
+        :param index: Index pattern to match.
+        :return: KeepInfo for an index.
+        """
+
+        index_name = index
+        while True:
+            if index_name == "" and index_name not in self.index_keep_info:
+                break
+
+            if index_name in self.index_keep_info:
+                return self.index_keep_info[index_name]
+
+            end_ptr = index_name.rfind("-")
+            index_name = index_name[:end_ptr]
+
+        # Return a default configuration. Keep newest 2.
+        return KeepInfo(ordering=KeepOrder.newest, num=2)
+
     def export_bigquery_tables(self) -> bool:
         """Export the BigQuery tables to Google Cloud Storage.
 
@@ -503,6 +540,20 @@ class ElasticImportRelease(SnapshotRelease):
 
         return success
 
+    def delete_stale_indices(self):
+        """Delete all the stale indices."""
+
+        client = Elastic(host=self.elastic_host)
+
+        # If you want to do a global cleanup of all indices, we can just call delete_stale_indices on index="*" instead
+        indexed_table_ids = self.read_import_state()
+
+        for table_id in indexed_table_ids:
+            table_prefix = make_table_prefix(table_id)
+            index_prefix = make_index_prefix(table_prefix)
+            keep_info = self.get_keep_info(index_prefix)
+            client.delete_stale_indices(index=f"{index_prefix}-*", keep_info=keep_info)
+
     def get_kibana_time_field(self, index_pattern_id):
         time_field_name = None
 
@@ -622,6 +673,7 @@ class ElasticImportWorkflow(Workflow):
         self.add_task(self.download_exported_data)
         self.add_task(self.import_to_elastic)
         self.add_task(self.update_elastic_aliases)
+        self.add_task(self.delete_stale_indices)
         self.add_task(self.create_kibana_index_patterns)
         self.add_task(self.cleanup)
 
@@ -743,6 +795,18 @@ class ElasticImportWorkflow(Workflow):
         success = release.update_elastic_aliases()
         if not success:
             raise AirflowException("update_elastic_aliases failed")
+
+    def delete_stale_indices(self, release: ElasticImportRelease, **kwargs):
+        """Delete stale Elasticsearch indices.
+
+        :param release: the ElasticRelease.
+        :param kwargs: the context passed from the Airflow Operator.
+        See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed
+        to this argument.
+        :return: None.
+        """
+
+        release.delete_stale_indices()
 
     def create_kibana_index_patterns(self, release: ElasticImportRelease, **kwargs):
         """Create Kibana index patterns.
