@@ -201,6 +201,12 @@ function install_ubuntu_system_deps() {
 
     pip3 install -U virtualenv pbr
 
+    echo "--------------------------"
+    echo "Creating Python virtualenv"
+    echo "--------------------------"
+
+    virtualenv -p python3.8 $venv_observatory_platform
+
     echo "-----------------"
     echo "Installing docker"
     echo "-----------------"
@@ -242,7 +248,13 @@ function install_macos_system_deps() {
     echo "------------------------------"
     echo "Installing Python dependencies"
     echo "------------------------------"
-    pip3.8 install -U virtualenv pbr
+    pip3 install -U virtualenv pbr
+
+    echo "--------------------------"
+    echo "Creating Python virtualenv"
+    echo "--------------------------"
+
+    virtualenv -p /usr/local/opt/python@3.8/Frameworks/Python.framework/Versions/3.8/bin/python3 $venv_observatory_platform
 
     echo "-----------------"
     echo "Installing Docker"
@@ -267,13 +279,12 @@ function install_system_deps() {
 }
 
 function install_observatory_platform() {
-    echo "Creating a Python virtual environment for installing the observatory platform"
-    python3 -m venv $venv_observatory_platform
-
     echo "Activating the virtual environment for the observatory platform"
     source $venv_observatory_platform/bin/activate
 
+    echo "--------------------------------------------------"
     echo "Updating the virtual environment's Python packages"
+    echo "--------------------------------------------------"
     pip3 install -U pip virtualenv wheel
 
     echo "==========================================="
