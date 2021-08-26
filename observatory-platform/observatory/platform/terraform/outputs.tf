@@ -16,6 +16,7 @@ output "airflow_worker_vm_ip_address" {
 output "airflow_main_vm_script" {
   value = module.airflow_main_vm.vm_rendered
   description = "Rendered template file"
+  sensitive = true # explicitly mark as sensitive so it can be exported
 }
 
 output "airflow_worker_vm_script" {
@@ -34,6 +35,7 @@ output "default_transfer_service_account" {
 output "api-domain-name" {
   value = module.observatory_api.api-domain-name
   description = "Custom domain name for the API"
+  sensitive = true # explicitly mark as sensitive so it can be exported
 }
 
 output "api-gateway-url" {

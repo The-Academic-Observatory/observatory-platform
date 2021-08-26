@@ -30,7 +30,7 @@ sudo chmod +x /usr/local/bin/google-cloud-sdk
 
 Install Terraform:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_linux_amd64.zip" -o /usr/local/bin/terraform
+sudo curl -L "https://releases.hashicorp.com/terraform/1.0.5/terraform_1.0.5_linux_amd64.zip" -o /usr/local/bin/terraform
 # When asked to replace, answer 'y'
 sudo unzip /usr/local/bin/terraform -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/terraform
@@ -57,7 +57,7 @@ sudo chmod +x /usr/local/bin/google-cloud-sdk
 
 Install Terraform:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_darwin_amd64.zip" -o /usr/local/bin/terraform
+sudo curl -L "https://releases.hashicorp.com/terraform/1.0.5/terraform_1.0.5_darwin_amd64.zip" -o /usr/local/bin/terraform
 # When asked to replace, answer 'y'
 unzip /usr/local/bin/terraform -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/terraform
