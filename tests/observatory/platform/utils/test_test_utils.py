@@ -31,7 +31,6 @@ from airflow.operators.dummy import DummyOperator
 from click.testing import CliRunner
 from google.cloud.bigquery import SourceFormat
 from google.cloud.exceptions import NotFound
-from observatory.platform.workflows.workflow import AbstractRelease, Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
@@ -46,6 +45,7 @@ from observatory.platform.utils.test_utils import (
     test_fixtures_path,
 )
 from observatory.platform.utils.url_utils import retry_session
+from observatory.platform.workflows.workflow import AbstractRelease, Workflow
 
 DAG_ID = "telescope-test"
 MY_VAR_ID = "my-variable"
