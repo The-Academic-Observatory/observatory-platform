@@ -59,10 +59,11 @@ class TestGenerateCommand(unittest.TestCase):
             self.assertTrue(os.path.exists(config_path))
 
     def test_generate_new_workflows_project(self):
-        with CliRunner().isolated_filesystem():
+        runner = CliRunner()
+        with runner.isolated_filesystem():
             project_path = os.path.join(os.getcwd(), "my-project")
             package_name = "my_dags"
-            CliRunner().invoke(generate, ["project", project_path, package_name])
+            runner.invoke(generate, ["project", project_path, package_name])
 
             # Check that all directories and __init__.py files exist
             init_dirs = [
@@ -85,8 +86,7 @@ class TestGenerateCommand(unittest.TestCase):
             self.assertTrue(os.path.isfile(setup_cfg_path))
             self.assertTrue(os.path.isfile(setup_py_path))
 
-    @patch("observatory.platform.cli.generate_command.get_observatory_api_dir")
-    def test_generate_workflow(self, mock_observatory_api_dir):
+    def test_generate_workflow(self):
         """ Test generate workflow command and run unit tests that are generated for each of the workflow types.
 
         :return: None.
@@ -96,10 +96,6 @@ class TestGenerateCommand(unittest.TestCase):
             # Copy actual observatory platform inside isolated filesystem
             observatory_dir = os.path.join(os.getcwd(), "observatory-platform")
             shutil.copytree(module_file_path("observatory.platform"), observatory_dir)
-
-            # Mock observatory api dir, so that actual file path is not used with module_file_path
-            observatory_api_dir = os.path.join(os.getcwd(), "observatory-api")
-            mock_observatory_api_dir.return_value = observatory_api_dir
 
             # Create new workflows project
             project_path = os.path.join(os.getcwd(), "my-project")
