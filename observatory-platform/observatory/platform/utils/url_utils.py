@@ -129,17 +129,17 @@ def wait_for_url(url: str, timeout: int = 60):
     return started
 
 
-def get_ao_user_agent():
-    """Return a standardised user agent that can be used by custom web clients to indicate it came from the
-        Academic Observatory.
+def get_user_agent(*, package_name):
+    """Return a standardised user agent that can be used by custom web clients to indicate which Python
+    package they came from.
 
     :return: User agent string.
     """
 
-    pkg_info = metadata("observatory-dags")
+    pkg_info = metadata(package_name)
     version = pkg_info.get("Version")
     url = pkg_info.get("Home-page")
     mailto = pkg_info.get("Author-email")
-    ua = f"Observatory Platform v{version} (+{url}; mailto: {mailto})"
+    ua = f"{package_name} v{version} (+{url}; mailto: {mailto})"
 
     return ua
