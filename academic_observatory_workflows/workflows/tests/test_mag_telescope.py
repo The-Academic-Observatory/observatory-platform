@@ -36,7 +36,7 @@ from academic_observatory_workflows.workflows.mag_telescope import (
 )
 from observatory.platform.utils.file_utils import _hash_file
 from observatory.platform.utils.gc_utils import upload_files_to_cloud_storage
-from tests.observatory.test_utils import random_id
+from observatory.platform.utils.test_utils import random_id
 
 
 def extract_mag_release(file_path: str, unzip_path: str):
