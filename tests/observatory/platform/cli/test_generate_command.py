@@ -73,11 +73,6 @@ class TestGenerateCommand(unittest.TestCase):
             project_path = os.path.join(os.getcwd(), "my-project")
             package_name = "my_dags"
             result = runner.invoke(generate, ["project", project_path, package_name], input='n')
-            logging.warning(result.output)
-            logging.warning(os.listdir(project_path))
-            # cmd = GenerateCommand()
-            # cmd.generate_new_workflows_project(project_path, package_name)
-            # logging.warning(os.listdir(project_path))
             self.assertEqual(0, result.exit_code)
 
             # Check that all directories and __init__.py files exist
@@ -116,8 +111,7 @@ class TestGenerateCommand(unittest.TestCase):
             project_path = os.path.join(os.getcwd(), "my-project")
             package_name = "unittest_dags"
             result = runner.invoke(generate, ["project", project_path, package_name], input="n")
-            logging.warning(result.output)
-            self.assertEqual(0, result.exit_code, msg=result.output)
+            self.assertEqual(0, result.exit_code)
 
             # Fake install package
             eggs_info_dir = os.path.join(project_path, f"{package_name}.egg-info")
@@ -142,7 +136,7 @@ class TestGenerateCommand(unittest.TestCase):
             ]:
                 result = runner.invoke(generate, ["workflow", workflow_type, workflow_name, "-p", project_path])
                 logging.warning(result.output)
-                self.assertEqual(0, result.exit_code, msg=result.output)
+                self.assertEqual(0, result.exit_code)
 
                 # Get expected file paths
                 workflow_module = re.sub(r"([A-Z])", r"_\1", workflow_name).lower().strip("_")
