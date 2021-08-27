@@ -107,7 +107,7 @@ class TestGenerateCommand(unittest.TestCase):
             project_path = os.path.join(os.getcwd(), "my-project")
             package_name = "unittest_dags"
             result = runner.invoke(generate, ["project", project_path, package_name], input="n")
-            self.assertEqual(0, result.exit_code)
+            self.assertEqual(0, result.exit_code, msg=result.output)
 
             # Fake install package
             eggs_info_dir = os.path.join(project_path, f"{package_name}.egg-info")
@@ -131,7 +131,7 @@ class TestGenerateCommand(unittest.TestCase):
                 ("MySnapshot", "SnapshotTelescope"),
             ]:
                 result = runner.invoke(generate, ["workflow", workflow_type, workflow_name, "-p", project_path])
-                self.assertEqual(0, result.exit_code)
+                self.assertEqual(0, result.exit_code, msg=result.output)
 
                 # Get expected file paths
                 workflow_module = re.sub(r"([A-Z])", r"_\1", workflow_name).lower().strip("_")
@@ -181,8 +181,7 @@ class TestGenerateCommand(unittest.TestCase):
 
                 # Run the unit tests
                 result = test_suite.run(result=TestResult())
-                print(result)
-                self.assertTrue(result.wasSuccessful())
+                self.assertTrue(result.wasSuccessful(), msg=result.errors)
 
             # Test invalid workflow type
             result = runner.invoke(generate, ["workflow", "invalid_type", "MyTestWorkflow", "-p", project_path])
