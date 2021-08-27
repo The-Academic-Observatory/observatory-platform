@@ -16,13 +16,15 @@
 
 import json
 import os
+import sys
 import unittest
 from typing import Any, List
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 
-from observatory.platform.cli.cli import cli
+from observatory.platform.cli.cli import cli, generate
+from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.docker.compose import ProcessOutput
 from observatory.platform.observatory_config import TerraformConfig, ValidationError
 from observatory.platform.platform_builder import HOST_UID, HOST_GID, DEBUG
@@ -33,8 +35,8 @@ from observatory.platform.utils.test_utils import random_id
 class TestObservatoryGenerate(unittest.TestCase):
     @patch("click.confirm")
     @patch("os.path.exists")
-    def test_generate(self, mock_path_exists, mock_click_confirm):
-        """Test that the fernet key and default config files are generated"""
+    def test_generate_secrets(self, mock_path_exists, mock_click_confirm):
+        """ Test that the fernet key and default config files are generated """
 
         # Test generate fernet key
         runner = CliRunner()
@@ -79,6 +81,72 @@ class TestObservatoryGenerate(unittest.TestCase):
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertFalse(os.path.isfile(config_path))
             self.assertIn("Not generating Terraform Config", result.output)
+
+    @patch("observatory.platform.cli.cli.stream_process")
+    @patch("observatory.platform.cli.cli.subprocess.Popen")
+    @patch.object(GenerateCommand, "generate_workflows_project")
+    def test_generate_project(self, mock_generate_project, mock_subprocess, mock_stream_process):
+        """ Test generating a new workflows project, with and without installing the created package.
+
+        :return: None.
+        """
+        mock_subprocess.return_value = "proc"
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Test creating project and installing package with pip
+            os.makedirs("project_path")
+            result = runner.invoke(generate, ["project", "project_path", "package_name"], input='y')
+            self.assertEqual(0, result.exit_code)
+            mock_generate_project.assert_called_once_with("project_path", "package_name")
+            mock_subprocess.assert_called_once_with([sys.executable, "-m", "pip", "install", "-e", "."],
+                                                    cwd="project_path", stderr=-1, stdout=-1)
+            mock_stream_process.called_once_with("proc", True)
+
+            # Test creating project without installing
+            mock_generate_project.reset_mock()
+            mock_subprocess.reset_mock()
+            mock_stream_process.reset_mock()
+            result = runner.invoke(generate, ["project", "project_path", "package_name"], input='n')
+            self.assertEqual(0, result.exit_code)
+            mock_generate_project.assert_called_once_with("project_path", "package_name")
+            mock_subprocess.assert_not_called()
+            mock_stream_process.assert_not_called()
+
+    @patch.object(GenerateCommand, "generate_workflow")
+    def test_generate_workflow(self, mock_generate_workflow):
+        """ Test generating workflow files for valid and invalid project dirs
+
+        :return: None.
+        """
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            workflow_type = "Workflow"
+            workflow_name = "MyWorkflow"
+
+            # Test running with --project-path parameter for valid project dir
+            project_dir = "project1"
+            package_name = "package1"
+            os.makedirs(os.path.join(project_dir, "test.egg-info"))
+            with open(os.path.join(project_dir, "test.egg-info", "top_level.txt"), "w") as f:
+                f.write(package_name)
+            result = runner.invoke(generate, ["workflow", workflow_type, workflow_name, "-p", project_dir])
+            self.assertEqual(0, result.exit_code)
+            mock_generate_workflow.assert_called_once_with(package_name=package_name, project_path=project_dir,
+                                                           workflow_class=workflow_name, workflow_type=workflow_type)
+
+            # Test running with --project-path parameter for invalid project dirs
+            mock_generate_workflow.reset_mock()
+            project_dir = "project2"
+            os.makedirs(project_dir)
+            result = runner.invoke(generate, ["workflow", workflow_type, workflow_name, "-p", project_dir])
+            self.assertEqual(78, result.exit_code)
+            mock_generate_workflow.assert_not_called()
+
+            os.makedirs(os.path.join(project_dir, "test1.egg-info"))
+            os.makedirs(os.path.join(project_dir, "test2.egg-info"))
+            result = runner.invoke(generate, ["workflow", workflow_type, workflow_name, "-p", project_dir])
+            self.assertEqual(78, result.exit_code)
+            mock_generate_workflow.assert_not_called()
 
 
 class MockConfig(Mock):

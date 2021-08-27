@@ -63,7 +63,7 @@ class GenerateCommand:
             "Parameters commented out with '#' are optional."
         )
 
-    def generate_new_workflows_project(self, project_path: str, package_name: str):
+    def generate_workflows_project(self, project_path: str, package_name: str):
         """ Create all directories, init files and a setup.cfg + setup.py file for a new workflows project.
 
         :param project_path: The path to the new project directory
@@ -141,7 +141,7 @@ class GenerateCommand:
         """
         )
 
-    def generate_new_workflow(self, project_path: str, package_name: str, workflow_type: str, workflow_class: str):
+    def generate_workflow(self, project_path: str, package_name: str, workflow_type: str, workflow_class: str):
         """
         Write files for a new telescope which is using one of the templates
 

@@ -262,7 +262,7 @@ def project(project_path: str, package_name: str):
                 └── __init__.py
     """
     cmd = GenerateCommand()
-    cmd.generate_new_workflows_project(project_path, package_name)
+    cmd.generate_workflows_project(project_path, package_name)
 
     if click.confirm(
         f"Would you like to install the '{package_name}' package inside your new project? This is required for "
@@ -353,6 +353,7 @@ def workflow(workflow_type: str, workflow_name: str, project_path: str):
             "project with the '--project-path' option.\n"
             "A new workflows project can be created using the 'observatory generate project' command."
         )
+        exit(os.EX_CONFIG)
 
     # Get package name
     top_level_file = os.path.join(project_path, egg_info_dir[0], "top_level.txt")
@@ -361,7 +362,7 @@ def workflow(workflow_type: str, workflow_name: str, project_path: str):
         print(f"Found package inside project: {package_name}")
 
     cmd = GenerateCommand()
-    cmd.generate_new_workflow(
+    cmd.generate_workflow(
         project_path=project_path, package_name=package_name, workflow_type=workflow_type, workflow_class=workflow_name
     )
 
