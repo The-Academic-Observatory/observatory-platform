@@ -181,6 +181,7 @@ class TestGenerateCommand(unittest.TestCase):
 
                 # Run the unit tests
                 result = test_suite.run(result=TestResult())
+                print(result)
                 self.assertTrue(result.wasSuccessful())
 
             # Test invalid workflow type

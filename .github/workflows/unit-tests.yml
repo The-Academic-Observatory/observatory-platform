@@ -66,7 +66,7 @@ jobs:
           TEST_KIBANA_HOST: ${{ secrets.TEST_KIBANA_HOST }}
         run: |
           echo "${TEST_GCP_SERVICE_KEY}" | base64 --decode > /tmp/google_application_credentials.json
-          coverage run -m unittest discover test_generate_command.py
+          coverage run -m unittest discover -v -p test_generate_command.py
           coverage xml
 
       - name: Upload coverage to Codecov
