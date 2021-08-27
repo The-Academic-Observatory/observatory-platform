@@ -42,6 +42,7 @@ import six
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.variable import Variable
 from airflow.sensors.external_task import ExternalTaskSensor
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
@@ -54,7 +55,6 @@ from observatory.api.client.configuration import Configuration
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.airflow_utils import (
-    AirflowVariable,
     AirflowVars,
     create_slack_webhook,
 )
@@ -80,7 +80,6 @@ ScheduleInterval = Union[str, timedelta, relativedelta]
 # To avoid hitting the airflow database and the secret backend unnecessarily, some variables are stored as a global
 # variable and only requested once
 data_path = None
-test_data_path_val_ = None
 
 
 def reset_variables():
@@ -90,10 +89,8 @@ def reset_variables():
     """
 
     global data_path
-    global test_data_path_val_
 
     data_path = None
-    test_data_path_val_ = None
 
 
 def workflow_path(*subdirs) -> str:
@@ -104,7 +101,7 @@ def workflow_path(*subdirs) -> str:
     global data_path
     if data_path is None:
         logging.info("workflow_path: requesting data_path variable")
-        data_path = AirflowVariable.get(AirflowVars.DATA_PATH)
+        data_path = Variable.get(AirflowVars.DATA_PATH)
 
     subdirs = [subdir.value if isinstance(subdir, Enum) else subdir for subdir in subdirs]
 
@@ -113,19 +110,6 @@ def workflow_path(*subdirs) -> str:
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
     return path
-
-
-def test_data_path() -> str:
-    """Return the path for the test data.
-
-    :return: the path.
-    """
-    global test_data_path_val_
-    if test_data_path_val_ is None:
-        logging.info("test_data_path: requesting test_data_path variable")
-        test_data_path_val_ = AirflowVariable.get(AirflowVars.TEST_DATA_PATH)
-
-    return test_data_path_val_
 
 
 def blob_name(path: str) -> str:
@@ -234,13 +218,13 @@ def prepare_bq_load(
     """
 
     logging.info("requesting project_id variable")
-    project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
+    project_id = Variable.get(AirflowVars.PROJECT_ID)
 
     logging.info("requesting transform_bucket variable")
-    bucket_name = AirflowVariable.get(AirflowVars.TRANSFORM_BUCKET)
+    bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
     logging.info("requesting data_location variable")
-    data_location = AirflowVariable.get(AirflowVars.DATA_LOCATION)
+    data_location = Variable.get(AirflowVars.DATA_LOCATION)
 
     # Create dataset
     create_bigquery_dataset(project_id, dataset_id, data_location, dataset_description)
@@ -656,10 +640,10 @@ def on_failure_callback(**kwargs):
     """
 
     logging.info("requesting environment variable")
-    environment = AirflowVariable.get(AirflowVars.ENVIRONMENT)
+    environment = Variable.get(AirflowVars.ENVIRONMENT)
 
     logging.info("requesting project_id variable")
-    project_id = AirflowVariable.get(AirflowVars.PROJECT_ID)
+    project_id = Variable.get(AirflowVars.PROJECT_ID)
 
     if environment == Environment.develop.value:
         logging.info("Not sending slack notification in develop environment.")
