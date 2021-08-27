@@ -14,6 +14,7 @@
 
 # Author: James Diprose, Tuan Chien, Aniek Roelofs
 
+import logging
 import os
 import re
 import shutil
@@ -68,7 +69,7 @@ class TestGenerateCommand(unittest.TestCase):
             project_path = os.path.join(os.getcwd(), "my-project")
             package_name = "my_dags"
             result = runner.invoke(generate, ["project", project_path, package_name], input='n')
-            print(result)
+            logging.warning(result.output)
             self.assertEqual(0, result.exit_code)
 
             # Check that all directories and __init__.py files exist
@@ -107,6 +108,7 @@ class TestGenerateCommand(unittest.TestCase):
             project_path = os.path.join(os.getcwd(), "my-project")
             package_name = "unittest_dags"
             result = runner.invoke(generate, ["project", project_path, package_name], input="n")
+            logging.warning(result.output)
             self.assertEqual(0, result.exit_code, msg=result.output)
 
             # Fake install package
@@ -131,6 +133,7 @@ class TestGenerateCommand(unittest.TestCase):
                 ("MySnapshot", "SnapshotTelescope"),
             ]:
                 result = runner.invoke(generate, ["workflow", workflow_type, workflow_name, "-p", project_path])
+                logging.warning(result.output)
                 self.assertEqual(0, result.exit_code, msg=result.output)
 
                 # Get expected file paths
