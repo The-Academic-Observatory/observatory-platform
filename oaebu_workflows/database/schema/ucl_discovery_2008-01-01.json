@@ -1,0 +1,196 @@
+[
+  {
+    "description": "Eprint id.",
+    "mode": "REQUIRED",
+    "name": "eprintid",
+    "type": "STRING"
+  },
+  {
+    "description": "Title of the book.",
+    "mode": "REQUIRED",
+    "name": "book_title",
+    "type": "STRING"
+  },
+  {
+    "description": "Family name of the creators",
+    "mode": "REPEATED",
+    "name": "creators_name_family",
+    "type": "STRING"
+  },
+  {
+    "description": "Given name of the creators",
+    "mode": "REPEATED",
+    "name": "creators_name_given",
+    "type": "STRING"
+  },
+    {
+    "description": "Info on whether the book is published",
+    "mode": "NULLABLE",
+    "name": "ispublished",
+    "type": "STRING"
+  },
+  {
+    "description": "Subjects",
+    "mode": "REPEATED",
+    "name": "subjects",
+    "type": "STRING"
+  },
+  {
+    "description": "Divisions",
+    "mode": "REPEATED",
+    "name": "divisions",
+    "type": "STRING"
+  },
+  {
+    "description": "Keywords",
+    "mode": "REPEATED",
+    "name": "keywords",
+    "type": "STRING"
+  },
+  {
+    "description": "Abstract",
+    "mode": "NULLABLE",
+    "name": "abstract",
+    "type": "STRING"
+  },
+  {
+    "description": "Date",
+    "mode": "NULLABLE",
+    "name": "date",
+    "type": "STRING"
+  },
+  {
+    "description": "Publisher",
+    "mode": "NULLABLE",
+    "name": "publisher",
+    "type": "STRING"
+  },
+  {
+    "description": "Official URL",
+    "mode": "NULLABLE",
+    "name": "official_url",
+    "type": "STRING"
+  },
+  {
+    "description": "OA status",
+    "mode": "NULLABLE",
+    "name": "oa_status",
+    "type": "STRING"
+  },
+  {
+    "description": "Language",
+    "mode": "NULLABLE",
+    "name": "language",
+    "type": "STRING"
+  },
+  {
+    "description": "DOI",
+    "mode": "NULLABLE",
+    "name": "doi",
+    "type": "STRING"
+  },
+  {
+    "description": "ISBN",
+    "mode": "NULLABLE",
+    "name": "isbn",
+    "type": "STRING"
+  },
+  {
+    "description": "Language elements",
+    "mode": "NULLABLE",
+    "name": "language_elements",
+    "type": "STRING"
+  },
+  {
+    "description": "Series",
+    "mode": "NULLABLE",
+    "name": "series",
+    "type": "STRING"
+  },
+    {
+    "description": "Page range",
+    "mode": "NULLABLE",
+    "name": "pagerange",
+    "type": "STRING"
+  },
+  {
+    "description": "Pages",
+    "mode": "NULLABLE",
+    "name": "pages",
+    "type": "INTEGER"
+  },
+  {
+    "description": "Family name of the editors",
+    "mode": "REPEATED",
+    "name": "editors_name_family",
+    "type": "STRING"
+  },
+  {
+    "description": "Given name of the editors",
+    "mode": "REPEATED",
+    "name": "editors_name_given",
+    "type": "STRING"
+  },
+  {
+    "description": "Family name of the lyricists",
+    "mode": "REPEATED",
+    "name": "lyricists_name_family",
+    "type": "STRING"
+  },
+  {
+    "description": "Given name of the lyricists",
+    "mode": "REPEATED",
+    "name": "lyricists_name_given",
+    "type": "STRING"
+  },
+  {
+    "description": "Begin date.",
+    "mode": "REQUIRED",
+    "name": "begin_date",
+    "type": "DATE"
+  },
+  {
+    "description": "End date.",
+    "mode": "REQUIRED",
+    "name": "end_date",
+    "type": "DATE"
+  },
+  {
+    "description": "Number of downloads",
+    "mode": "REQUIRED",
+    "name": "total_downloads",
+    "type": "INTEGER"
+  },
+  {
+    "description": "Number of downloads per country",
+    "mode": "REPEATED",
+    "name": "downloads_per_country",
+    "type": "RECORD",
+    "fields": [
+      {
+        "description": "Number of downloads for the given country",
+        "mode": "NULLABLE",
+        "name": "download_count",
+        "type": "INTEGER"
+      },
+      {
+        "description": "Country name",
+        "mode": "NULLABLE",
+        "name": "country_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Country code",
+        "mode": "NULLABLE",
+        "name": "country_code",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "release_date",
+    "type": "DATE",
+    "description": "Last day of the release month. Table is partitioned on this column."
+  }
+]

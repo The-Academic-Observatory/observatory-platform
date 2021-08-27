@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
+    <Header>
+        <Sender>
+            <SenderName>Academic Observatory</SenderName>
+            <EmailAddress>test@test.data</EmailAddress>
+        </Sender>
+        <MessageNumber>1</MessageNumber>
+        <SentDateTime>20210215T0303Z</SentDateTime>
+    </Header>
+    <!-- product record 1 of 1 in message -->
+    <Product>
+        <RecordReference>some.test.data</RecordReference>
+        <NotificationType>03</NotificationType>
+        <RecordSourceType>04</RecordSourceType>
+        <RecordSourceIdentifier>
+            <RecordSourceIDType>06</RecordSourceIDType>
+            <IDValue>0000000000000</IDValue>
+        </RecordSourceIdentifier>
+        <RecordSourceName>Academic Observatory</RecordSourceName>
+        <ProductIdentifier>
+            <ProductIDType>03</ProductIDType>
+            <IDValue>9780000000000</IDValue>
+        </ProductIdentifier>
+        <ProductIdentifier>
+            <ProductIDType>15</ProductIDType>
+            <IDValue>9780000000000</IDValue>
+        </ProductIdentifier>
+        <DescriptiveDetail>
+            <CountryOfManufacture>NZ</CountryOfManufacture>
+            <ProductForm>BC</ProductForm>
+            <TitleDetail>
+                <TitleType>01</TitleType>
+                <TitleElement>
+                    <SequenceNumber>1</SequenceNumber>
+                    <TitleElementLevel>01</TitleElementLevel>
+                    <NoPrefix/>
+                    <TitleWithoutPrefix textcase="01">TestTitle</TitleWithoutPrefix>
+                    <Subtitle>Subtitle text</Subtitle>
+                </TitleElement>
+            </TitleDetail>
+            <TitleDetail>
+                <TitleType>10</TitleType>
+                <TitleElement>
+                    <TitleElementLevel>01</TitleElementLevel>
+                    <TitleText>TestTitle Book</TitleText>
+                </TitleElement>
+            </TitleDetail>
+            <Contributor>
+                <SequenceNumber>1</SequenceNumber>
+                <ContributorRole>A01</ContributorRole>
+                <NameIdentifier>
+                    <NameIDType>01</NameIDType>
+                    <IDTypeName>Test Identifier</IDTypeName>
+                    <IDValue>1111</IDValue>
+                </NameIdentifier>
+                <NameIdentifier>
+                    <NameIDType>16</NameIDType>
+                    <IDValue>0000000111111111</IDValue>
+                </NameIdentifier>
+                <NamesBeforeKey>MyName</NamesBeforeKey>
+                <KeyNames>TestKeyName</KeyNames>
+                <PersonName>MyPersonName</PersonName>
+                <BiographicalNote textformat="05">Some note.</BiographicalNote>
+            </Contributor>
+            <Contributor>
+                <SequenceNumber>2</SequenceNumber>
+                <ContributorRole>A01</ContributorRole>
+                <NameIdentifier>
+                    <NameIDType>01</NameIDType>
+                    <IDTypeName>HCP Author ID</IDTypeName>
+                    <IDValue>7422</IDValue>
+                </NameIdentifier>
+                <NameIdentifier>
+                    <NameIDType>16</NameIDType>
+                    <IDValue>0000000111111111</IDValue>
+                </NameIdentifier>
+                <NamesBeforeKey>BeforeName</NamesBeforeKey>
+                <KeyNames>KeyName</KeyNames>
+                <BiographicalNote textformat="05">Some note.</BiographicalNote>
+            </Contributor>
+            <EditionNumber>1</EditionNumber>
+            <Collection>
+                <CollectionType>10</CollectionType>
+                <TitleDetail>
+                    <TitleType>01</TitleType>
+                    <TitleElement>
+                        <TitleElementLevel>02</TitleElementLevel>
+                        <TitleText>Some series</TitleText>
+                    </TitleElement>
+                </TitleDetail>
+            </Collection>
+            <Language>
+                <LanguageRole>01</LanguageRole>
+                <LanguageCode>eng</LanguageCode>
+            </Language>
+            <Extent>
+                <ExtentType>07</ExtentType>
+                <ExtentValue>100</ExtentValue>
+                <ExtentUnit>03</ExtentUnit>
+            </Extent>
+            <Subject>
+                <MainSubject/>
+                <SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>
+                <SubjectSchemeVersion>1.0</SubjectSchemeVersion>
+                <SubjectCode>BISAC HEADING</SubjectCode>
+            </Subject>
+            <Subject>
+                <SubjectSchemeIdentifier>12</SubjectSchemeIdentifier>
+                <SubjectSchemeVersion>1.1</SubjectSchemeVersion>
+                <SubjectCode>BIC CATEGORY</SubjectCode>
+            </Subject>
+            <Subject>
+                <SubjectSchemeIdentifier>20</SubjectSchemeIdentifier>
+                <SubjectSchemeVersion>1.2</SubjectSchemeVersion>
+                <SubjectCode>KEYWORD</SubjectCode>
+            </Subject>
+        </DescriptiveDetail>
+        <CollateralDetail>
+            <TextContent>
+                <TextType>02</TextType>
+                <Text textformat="05">Some text.</Text>
+            </TextContent>
+            <TextContent>
+                <TextType>03</TextType>
+                <Text textformat="05">More text.</Text>
+            </TextContent>
+            <TextContent>
+                <TextType>04</TextType>
+                <Text textformat="05">TOC.</Text>
+            </TextContent>
+        </CollateralDetail>
+        <!-- there is no Block 3 -->
+        <PublishingDetail>
+            <Imprint>
+                <ImprintName>Academic Observatory</ImprintName>
+            </Imprint>
+            <Publisher>
+                <PublishingRole>01</PublishingRole>
+                <PublisherIdentifier>
+                    <PublisherIDType>16</PublisherIDType>
+                    <IDValue>0000000000000000</IDValue>
+                </PublisherIdentifier>
+                <PublisherName>Academic Observatory</PublisherName>
+                <Website>
+                    <WebsiteRole>01</WebsiteRole>
+                    <WebsiteLink>http://observatory.academic</WebsiteLink>
+                </Website>
+            </Publisher>
+            <CityOfPublication>Auckland</CityOfPublication>
+            <CountryOfPublication>NZ</CountryOfPublication>
+            <PublishingStatus>04</PublishingStatus>
+            <PublishingDate>
+                <PublishingDateRole>01</PublishingDateRole>
+                <Date dateformat="00">20200101</Date>
+            </PublishingDate>
+            <PublishingDate>
+                <PublishingDateRole>11</PublishingDateRole>
+                <Date dateformat="05">2020</Date>
+            </PublishingDate>
+            <PublishingDate>
+                <PublishingDateRole>20</PublishingDateRole>
+                <Date dateformat="05">2020</Date>
+            </PublishingDate>
+        </PublishingDetail>
+        <RelatedMaterial>
+            <RelatedWork>
+                <!--Product is a manifestation of-->
+                <WorkRelationCode>01</WorkRelationCode>
+                <WorkIdentifier>
+                    <!--Proprietary system identifier for the work-->
+                    <WorkIDType>01</WorkIDType>
+                    <IDTypeName>some proprietary id</IDTypeName>
+                    <IDValue>0000000000</IDValue>
+                </WorkIdentifier>
+                <WorkIdentifier>
+                    <!--Work DOI-->
+                    <WorkIDType>06</WorkIDType>
+                    <IDValue>somedoi</IDValue>
+                </WorkIdentifier>
+            </RelatedWork>
+            <RelatedProduct>
+                <!--Epublication based on-->
+                <ProductRelationCode>13</ProductRelationCode>
+                <ProductIdentifier>
+                    <!--ISBN-->
+                    <ProductIDType>15</ProductIDType>
+                    <IDValue>9780000000000</IDValue>
+                </ProductIdentifier>
+                <ProductForm>BC</ProductForm>
+            </RelatedProduct>
+        </RelatedMaterial>
+    </Product>
+</ONIXMessage>

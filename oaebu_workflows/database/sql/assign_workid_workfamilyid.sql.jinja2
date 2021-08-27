@@ -1,0 +1,36 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Tuan Chien #}
+
+
+WITH orig_wid AS (
+SELECT
+    orig.*, wid.work_id
+FROM
+    `{{ project_id }}.{{ orig_dataset }}.{{ orig_table }}` orig
+LEFT JOIN
+    `{{ project_id }}.{{ onix_workflow_dataset }}.{{ wid_table }}` wid
+ON
+    orig.{{ orig_isbn }} = wid.isbn13
+)
+
+SELECT
+    orig_wid.*, wfam.work_family_id
+FROM
+    orig_wid
+LEFT JOIN
+    `{{ project_id }}.{{ onix_workflow_dataset }}.{{ wfam_table }}` wfam
+ON
+    orig_wid.{{ orig_isbn }} = wfam.isbn13

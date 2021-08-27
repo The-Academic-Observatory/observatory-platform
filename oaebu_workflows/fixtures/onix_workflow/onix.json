@@ -1,0 +1,3 @@
+{"ISBN13": "111", "RelatedWorks": [{"WorkRelationCode": "Manifestation of", "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "112"}]}, {"WorkRelationCode": "Manifestation of", "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "113"}]}], "RelatedProducts": [{"ProductRelationCodes": ["Replaces", "something random"], "ISBN13": "211"}]}
+{"ISBN13": "112", "ProductForm": "Digital download and online", "RelatedWorks": [{"WorkRelationCode": "Manifestation of", "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "112"}]}], "RelatedProducts": []}
+{"ISBN13": "211", "ProductForm": "Digital download and online", "RelatedWorks": [{"WorkRelationCode": "Manifestation of", "WorkIdentifiers": [{"WorkIDType": "ISBN-13", "IDValue": "211"}]}], "RelatedProducts": []}

@@ -1,0 +1,139 @@
+[
+  {
+    "description": "The date of the transaction.",
+    "mode": "REQUIRED",
+    "name": "Transaction_Date",
+    "type": "DATE"
+  },
+    {
+    "description": "A unique identifier for this transaction.",
+    "mode": "REQUIRED",
+    "name": "Id",
+    "type": "STRING"
+  },
+    {
+    "description": "In UCL Press case \"Single Purchase\" (a normal sale). Can also be \"Rental\".",
+    "mode": "NULLABLE",
+    "name": "Product",
+    "type": "STRING"
+  },
+    {
+    "description": "Type of transaction (can be 'sale' or 'refund').",
+    "mode": "NULLABLE",
+    "name": "Type",
+    "type": "STRING"
+  },
+    {
+    "description": "Whether this transaction applied to a preorder. In UCL Press case 'None': The transaction didn't involve a preorder.",
+    "mode": "NULLABLE",
+    "name": "Preorder",
+    "type": "STRING"
+  },
+    {
+    "description": "The number of units in the transaction. Negative for refunds.",
+    "mode": "NULLABLE",
+    "name": "Qty",
+    "type": "INTEGER"
+  },
+    {
+    "description": "The primary ISBN or other identifier the book, prefixed by a single quotation mark so spreadsheet programs will display the entire ISBN.",
+    "mode": "NULLABLE",
+    "name": "Primary_ISBN",
+    "type": "STRING"
+  },
+    {
+    "description": "The template used for the book.",
+    "mode": "REQUIRED",
+    "name": "Imprint_Name",
+    "type": "STRING"
+  },
+    {
+    "description": "The title of the book.",
+    "mode": "REQUIRED",
+    "name": "Title",
+    "type": "STRING"
+  },
+    {
+    "description": "The author of the book.",
+    "mode": "NULLABLE",
+    "name": "Author",
+    "type": "STRING"
+  },
+    {
+    "description": "The original currency of the book's list price.",
+    "mode": "NULLABLE",
+    "name": "Original_List_Price_Currency",
+    "type": "STRING"
+  },
+    {
+    "description": "The original list price of the book.",
+    "mode": "NULLABLE",
+    "name": "Original_List_Price",
+    "type": "FLOAT"
+  },    {
+    "description": "The currency of the book's list price. If currency conversion was enabled, this is the currency of purchase as seen by the buyer.",
+    "mode": "NULLABLE",
+    "name": "List_Price_Currency",
+    "type": "STRING"
+  },
+      {
+    "description": "The book's list prince including tax.",
+    "mode": "NULLABLE",
+    "name": "List_Price_tax_inclusive_",
+    "type": "FLOAT"
+  },
+      {
+    "description": "The book's list price excluding tax.",
+    "mode": "NULLABLE",
+    "name": "List_Price_tax_exclusive_",
+    "type": "FLOAT"
+  },
+      {
+    "description": "The country where the buyer bought the book.",
+    "mode": "NULLABLE",
+    "name": "Country_of_Sale",
+    "type": "STRING"
+  },
+  {
+    "description": "The publisher's percentage of the list price.",
+    "mode": "NULLABLE",
+    "name": "Publisher_Revenue_Perc",
+    "type": "FLOAT"
+  },
+  {
+    "description": "The amount of revenue earned by the publisher. This will be negative if the transaction was a refund. Negative for refunds. The currency is the same as the payment currency.",
+    "mode": "NULLABLE",
+    "name": "Publisher_Revenue",
+    "type": "FLOAT"
+  },
+        {
+    "description": "The currency of the publisher's earnings.",
+    "mode": "NULLABLE",
+    "name": "Payment_Currency",
+    "type": "STRING"
+  },
+        {
+    "description": "The amount earned by the publisher for this transaction. Negative for refunds.",
+    "mode": "NULLABLE",
+    "name": "Payment_Amount",
+    "type": "FLOAT"
+  },
+        {
+    "description": "If the list price and payment amount are in different currencies, the rate of exchange between the two currencies.",
+    "mode": "NULLABLE",
+    "name": "Currency_Conversion_Rate",
+    "type": "FLOAT"
+  },
+          {
+    "description": "  This field is not present for some publishers (UCL Press). For ANU Press the field value is “E-Book”.",
+    "mode": "NULLABLE",
+    "name": "Line_of_Business",
+    "type": "STRING"
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "release_date",
+    "type": "DATE",
+    "description": "Last day of the release month. Table is partitioned on this column."
+  }
+]

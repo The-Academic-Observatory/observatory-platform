@@ -1,0 +1,669 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "CountryOfManufacture",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "RecordSourceName",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "RecordSourceType",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Value",
+                    "type": "STRING"
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "PartNumber",
+                "type": "RECORD"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "TitleElementLevel",
+                "type": "STRING"
+              },
+              {
+                "fields": [
+                  {
+                    "mode": "NULLABLE",
+                    "name": "Value",
+                    "type": "STRING"
+                  }
+                ],
+                "mode": "NULLABLE",
+                "name": "TitlePrefix",
+                "type": "RECORD"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "TitleWithoutPrefix",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "SequenceNumber",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "TitleText",
+                "type": "STRING"
+              }
+            ],
+            "mode": "REPEATED",
+            "name": "TitleElements",
+            "type": "RECORD"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "TitleType",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "TitleDetails",
+        "type": "RECORD"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "CollectionIdentifers",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "CollectionType",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "Collections",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "EditionNumber",
+    "type": "INTEGER"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "RecordRef",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "WorkRelationCode",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "WorkIDType",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "IDValue",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "IDTypeName",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "WorkIdentifiers",
+        "type": "RECORD"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "RelatedWorks",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "TextType",
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "Text",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "TextContent",
+    "type": "RECORD"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "CityOfPublications",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "DOI",
+    "type": "STRING"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "EditionType",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "ImprintIDType",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "IDValue",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "IDTypeName",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "ImprintIdentifiers",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ImprintName",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "Imprints",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "PublisherName",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "mode": "REPEATED",
+            "name": "WebsiteDescriptions",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "WebsiteRole",
+            "type": "STRING"
+          },
+          {
+            "mode": "REPEATED",
+            "name": "WebsiteLinks",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "Websites",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "PublishingRole",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "Publishers",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "ISBN13",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ProductForm",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "DOI",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "GTIN_13",
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "ProductRelationCodes",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "RelatedProducts",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "PID_Proprietary",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ISBN10",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ISBN13",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "TitleWithoutPrefix_TextCaseFlags",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "TitleText_TextCaseFlags",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "Subtitle_TextCaseFlags",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "TitleText",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "TitleText_Language",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "TitleElementLevel",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "Subtitle",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "SequenceNumber",
+            "type": "INTEGER"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "TitleWithoutPrefix",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "Subtitle_Language",
+            "type": "STRING"
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "Value",
+                "type": "STRING"
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "TitlePrefix",
+            "type": "RECORD"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "TitleElements",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "TitleType",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "TitleStatement",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "TitleDetails",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "PublishingDateRole",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Date",
+        "type": "INTEGER"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "PublishingDates",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "GTIN_13",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "CountryCode",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LanguageRole",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "LanguageCode",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "Languages",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ProductForm",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "LettersAfterNames",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Gender",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "Proprietary",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "NameType",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "mode": "REPEATED",
+            "name": "Positions",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "Affiliations",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "ProfessionalAffiliations",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ORCID",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "TextFormat",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "Note",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "BiographicalNotes",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "TitlesBeforeNames",
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "Roles",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "mode": "REPEATED",
+            "name": "WebsiteDescriptions",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "WebsiteRole",
+            "type": "STRING"
+          },
+          {
+            "mode": "REPEATED",
+            "name": "WebsiteLinks",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "Websites",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "PersonNameInverted",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "Date",
+            "type": "INTEGER"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "Role",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "Dates",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "SequenceNumber",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "PrefixToKey",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "KeyNames",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "TitlesAfterNames",
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "AlternativeNames",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "NamesBeforeKey",
+        "type": "STRING"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "CountryCode",
+            "type": "STRING"
+          },
+          {
+            "mode": "REPEATED",
+            "name": "Locations",
+            "type": "STRING"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "Relation",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "Places",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "PersonName",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ISNI",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "Contributors",
+    "type": "RECORD"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "COKI_ID",
+    "type": "STRING"
+  },
+  {
+    "fields": [
+      {
+        "mode": "REPEATED",
+        "name": "SubjectHeadingText",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "SubjectSchemeIdentifier",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "SubjectSchemeVersion",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "SubjectCode",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "MainSubject",
+        "type": "BOOLEAN"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "Subjects",
+    "type": "RECORD"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "ExtentType",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ExtentValue",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ExtentUnit",
+        "type": "STRING"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "Extent",
+    "type": "RECORD"
+  }
+]

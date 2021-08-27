@@ -1,0 +1,28 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Richard Hosking #}
+
+SELECT
+    ISBN13 as product_id,
+    MAX(onix.title) as title,
+    CAST(MAX(onix.published_year) as INT64) as published_year,
+    month.month,
+    events.source as event_source,
+    STRUCT(
+        SUM(events.count) as count
+    ) as crossref_events,
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(months) as month, UNNEST(month.crossref_events) as events
+WHERE events IS NOT NULL
+GROUP BY ISBN13, month, event_source

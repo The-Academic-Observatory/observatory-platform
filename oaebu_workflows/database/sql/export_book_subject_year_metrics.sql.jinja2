@@ -1,0 +1,58 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Richard Hosking #}
+
+CREATE TEMP FUNCTION group_counts(counts ARRAY<STRUCT<name STRING, value INT64>>) AS (
+  (SELECT
+    SUM(value) as value
+  FROM UNNEST(counts))
+);
+
+CREATE TEMP FUNCTION top_level_subjects(subjects ARRAY<STRING>) AS (
+  ARRAY(SELECT
+    DISTINCT(SUBSTRING(subject, 0, 1)) as top_level
+  FROM UNNEST(subjects) as subject)
+);
+
+SELECT
+    subject,
+    CAST(onix.published_year as INT64) as published_year,
+    count(ISBN13) as unique_books,
+    month.month,
+    STRUCT(group_counts(ARRAY_CONCAT_AGG(month.google_analytics.unique_views.country)) as unique_views) as google_analytics,
+    STRUCT(group_counts(ARRAY_CONCAT_AGG(month.crossref_events)) as count) as crossref_events,
+    STRUCT(
+        SUM(month.google_books_traffic.Book_Visits_BV_) as Book_Visits_BV_,
+        SUM(month.google_books_traffic.BV_with_Pages_Viewed) as BV_with_Pages_Viewed,
+        SUM(month.google_books_traffic.Non_Unique_Buy_Clicks) as Non_Unique_Buy_Clicks,
+        SUM(month.google_books_traffic.BV_with_Buy_Clicks) as BV_with_Buy_Clicks,
+        SUM(month.google_books_traffic.Buy_Link_CTR) as Buy_Link_CTR,
+        SUM(month.google_books_traffic.Pages_Viewed) as Pages_Viewed
+    ) as google_books_traffic,
+    STRUCT(
+        SUM(month.google_books_sales.qty) as qty
+    ) as google_books_sales,
+    STRUCT(group_counts(ARRAY_CONCAT_AGG(month.jstor_country)) as Total_Item_Requests) as jstor,
+    STRUCT(
+        SUM(month.oapen_irus_uk.title_requests) as title_requests,
+        SUM(month.oapen_irus_uk.total_item_investigations) as total_item_investigations,
+        SUM(month.oapen_irus_uk.total_item_requests) as total_item_requests,
+        SUM(month.oapen_irus_uk.unique_item_investigations) as unique_item_investigations,
+        SUM(month.oapen_irus_uk.unique_item_requests) as unique_item_requests
+    ) as oapen_irus_uk,
+FROM `{{ project_id }}.{{ dataset_id }}.book_product{{ release.strftime('%Y%m%d') }}`, UNNEST(top_level_subjects(onix.bic_subjects)) as subject, UNNEST(months) as month
+WHERE month.oapen_irus_uk IS NOT NULL OR month.google_books_traffic IS NOT NULL OR month.google_books_sales IS NOT NULL
+GROUP BY subject, onix.published_year, month
+ORDER BY subject ASC, published_year DESC, month DESC

@@ -1,0 +1,74 @@
+[
+  {
+    "description": "Institution name.",
+    "mode": "NULLABLE",
+    "name": "Institution",
+    "type": "STRING"
+  },
+  {
+    "description": "Title of the book.",
+    "mode": "REQUIRED",
+    "name": "Book_Title",
+    "type": "STRING"
+  },
+  {
+    "description": "DOI of the book on JSTOR.",
+    "mode": "NULLABLE",
+    "name": "Book_ID",
+    "type": "STRING"
+  },
+  {
+    "description": "Author of the book.",
+    "mode": "NULLABLE",
+    "name": "Authors",
+    "type": "STRING"
+  },
+  {
+    "description": "ISBN of the book (13 digits).",
+    "mode": "NULLABLE",
+    "name": "ISBN",
+    "type": "STRING"
+  },
+  {
+    "description": "ISBN of the digital version of the book (13 digits).",
+    "mode": "NULLABLE",
+    "name": "eISBN",
+    "type": "STRING"
+  },
+  {
+    "description": "Publication year.",
+    "mode": "NULLABLE",
+    "name": "Copyright_Year",
+    "type": "INTEGER"
+  },
+  {
+    "description": "Subject category of the book.",
+    "mode": "REQUIRED",
+    "name": "Disciplines",
+    "type": "STRING"
+  },
+  {
+    "description": "For our case it is Open Access.",
+    "mode": "NULLABLE",
+    "name": "Usage_Type",
+    "type": "STRING"
+  },
+  {
+    "description": "Date (as month and year) of the request.",
+    "mode": "REQUIRED",
+    "name": "Usage_Month",
+    "type": "STRING"
+  },
+  {
+    "description": "Total number of request made from that specific country.",
+    "mode": "NULLABLE",
+    "name": "Total_Item_Requests",
+    "type": "INTEGER"
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "release_date",
+    "type": "DATE",
+    "description": "Last day of the release month. Table is partitioned on this column."
+  }
+]

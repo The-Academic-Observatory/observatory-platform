@@ -1,0 +1,82 @@
+{
+  "mappings": {
+    "properties": {
+      "month": {
+        "type": "date",
+        "format": "yyyy-MM-dd"
+      },
+      "unique_books": {
+        "type": "integer"
+      },
+      "google_analytics": {
+        "properties": {
+          "unique_views": {
+            "type": "integer"
+          }
+        }
+      },
+      "crossref_events": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "google_books_traffic": {
+        "properties": {
+          "BV_with_Buy_Clicks": {
+            "type": "integer"
+          },
+          "BV_with_Pages_Viewed": {
+            "type": "integer"
+          },
+          "Book_Visits_BV_": {
+            "type": "integer"
+          },
+          "Buy_Link_CTR": {
+            "type": "float"
+          },
+          "Non_Unique_Buy_Clicks": {
+            "type": "integer"
+          },
+          "Pages_Viewed": {
+            "type": "integer"
+          }
+        }
+      },
+      "google_books_sales": {
+        "properties": {
+          "qty": {
+            "type": "integer"
+          }
+        }
+      },
+      "jstor": {
+        "properties": {
+          "Total_Item_Requests": {
+            "type": "integer"
+          }
+        }
+      },
+      "oapen_irus_uk": {
+        "properties": {
+          "title_requests": {
+            "type": "integer"
+          },
+          "total_item_investigations": {
+            "type": "integer"
+          },
+          "total_item_requests": {
+            "type": "integer"
+          },
+          "unique_item_investigations": {
+            "type": "integer"
+          },
+          "unique_item_requests": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}

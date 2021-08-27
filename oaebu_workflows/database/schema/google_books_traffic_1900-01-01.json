@@ -1,0 +1,55 @@
+[
+  {
+    "description": "The primary identifier (e.g., ISBN) of the book. This column appears in the report if data is organized by book.",
+    "mode": "NULLABLE",
+    "name": "Primary_ISBN",
+    "type": "STRING"
+  },
+    {
+    "description": "The title of the book.",
+    "mode": "REQUIRED",
+    "name": "Title",
+    "type": "STRING"
+  },
+    {
+    "description": "A Book Visit is registered each time a unique user views one of your books on Google Books. This number includes informational page views (such as the \"About this book\" page) as well as preview content page views.",
+    "mode": "NULLABLE",
+    "name": "Book_Visits_BV_",
+    "type": "INTEGER"
+  },
+    {
+    "description": "The number of Book Visits in which users accessed preview pages of your book. This doesn't include visits where a user accessed only informational pages for your books.",
+    "mode": "NULLABLE",
+    "name": "BV_with_Pages_Viewed",
+    "type": "INTEGER"
+  },
+    {
+    "description": "The number of clicks on links for purchasing the book on retailer websites (including your website, if you provided a buy link).",
+    "mode": "NULLABLE",
+    "name": "Non_Unique_Buy_Clicks",
+    "type": "INTEGER"
+  },    {
+    "description": "The number of visits which included a click on a purchase link.",
+    "mode": "NULLABLE",
+    "name": "BV_with_Buy_Clicks",
+    "type": "INTEGER"
+  },
+      {
+    "description": "The clickthrough rate for purchase links. The values are percentages.",
+    "mode": "NULLABLE",
+    "name": "Buy_Link_CTR",
+    "type": "FLOAT"
+  },
+      {
+    "description": "The total number of unique preview content pages that a user viewed in a given session (counted as a 24-hour period). If a user views the same page of your book twice during a session, only a single page view is registered.",
+    "mode": "NULLABLE",
+    "name": "Pages_Viewed",
+    "type": "INTEGER"
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "release_date",
+    "type": "DATE",
+    "description": "Last day of the release month. Table is partitioned on this column."
+  }
+]

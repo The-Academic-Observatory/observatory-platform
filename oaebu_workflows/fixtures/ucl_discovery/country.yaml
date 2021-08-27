@@ -1,0 +1,213 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.20.0
+    method: GET
+    uri: https://discovery.ucl.ac.uk/cgi/stats/get?from=20210401&to=20210501&irs2report=eprint&datatype=countries&top=countries&view=Table&limit=all&set_name=eprint&export=CSV&set_value=10124354
+  response:
+    body:
+      string: 'count,value,description
+
+        ="116",MX,"<img src=''/images/irstats2/flags/mx.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Mexico</span>"
+
+        ="100",US,"<img src=''/images/irstats2/flags/us.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>United
+        States</span>"
+
+        ="80",GB,"<img src=''/images/irstats2/flags/gb.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>United
+        Kingdom</span>"
+
+        ="64",BR,"<img src=''/images/irstats2/flags/br.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Brazil</span>"
+
+        ="56",CO,"<img src=''/images/irstats2/flags/co.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Colombia</span>"
+
+        ="44",AR,"<img src=''/images/irstats2/flags/ar.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Argentina</span>"
+
+        ="35",DE,"<img src=''/images/irstats2/flags/de.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Germany</span>"
+
+        ="27",CL,"<img src=''/images/irstats2/flags/cl.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Chile</span>"
+
+        ="26",EC,"<img src=''/images/irstats2/flags/ec.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Ecuador</span>"
+
+        ="16",CA,"<img src=''/images/irstats2/flags/ca.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Canada</span>"
+
+        ="15",NL,"<img src=''/images/irstats2/flags/nl.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Netherlands</span>"
+
+        ="15",FR,"<img src=''/images/irstats2/flags/fr.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>France</span>"
+
+        ="11",ES,"<img src=''/images/irstats2/flags/es.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Spain</span>"
+
+        ="8",IT,"<img src=''/images/irstats2/flags/it.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Italy</span>"
+
+        ="6",PT,"<img src=''/images/irstats2/flags/pt.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Portugal</span>"
+
+        ="6",TW,"<img src=''/images/irstats2/flags/tw.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Taiwan</span>"
+
+        ="6",SE,"<img src=''/images/irstats2/flags/se.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Sweden</span>"
+
+        ="5",PE,"<img src=''/images/irstats2/flags/pe.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Peru</span>"
+
+        ="5",NO,"<img src=''/images/irstats2/flags/no.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Norway</span>"
+
+        ="4",CH,"<img src=''/images/irstats2/flags/ch.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Switzerland</span>"
+
+        ="4",CR,"<img src=''/images/irstats2/flags/cr.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Costa
+        Rica</span>"
+
+        ="4",GR,"<img src=''/images/irstats2/flags/gr.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Greece</span>"
+
+        ="4",AT,"<img src=''/images/irstats2/flags/at.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Austria</span>"
+
+        ="3",CZ,"<img src=''/images/irstats2/flags/cz.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Czech
+        Republic</span>"
+
+        ="3",AU,"<img src=''/images/irstats2/flags/au.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Australia</span>"
+
+        ="3",IE,"<img src=''/images/irstats2/flags/ie.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Ireland</span>"
+
+        ="3",PH,"<img src=''/images/irstats2/flags/ph.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Philippines</span>"
+
+        ="2",IN,"<img src=''/images/irstats2/flags/in.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>India</span>"
+
+        ="2",NZ,"<img src=''/images/irstats2/flags/nz.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>New
+        Zealand</span>"
+
+        ="2",PR,"<img src=''/images/irstats2/flags/pr.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Puerto
+        Rico</span>"
+
+        ="2",FI,"<img src=''/images/irstats2/flags/fi.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Finland</span>"
+
+        ="2",ZA,"<img src=''/images/irstats2/flags/za.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>South
+        Africa</span>"
+
+        ="2",RO,"<img src=''/images/irstats2/flags/ro.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Romania</span>"
+
+        ="1",VE,"<img src=''/images/irstats2/flags/ve.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Venezuela</span>"
+
+        ="1",EU,"<img src=''/images/irstats2/flags/eu.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Europe</span>"
+
+        ="1",RS,"<img src=''/images/irstats2/flags/rs.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Serbia</span>"
+
+        ="1",NG,"<img src=''/images/irstats2/flags/ng.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Nigeria</span>"
+
+        ="1",HR,"<img src=''/images/irstats2/flags/hr.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Croatia</span>"
+
+        ="1",BE,"<img src=''/images/irstats2/flags/be.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Belgium</span>"
+
+        ="1",MM,"<img src=''/images/irstats2/flags/mm.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Myanmar</span>"
+
+        ="1",DK,"<img src=''/images/irstats2/flags/dk.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Denmark</span>"
+
+        ="1",ID,"<img src=''/images/irstats2/flags/id.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Indonesia</span>"
+
+        ="1",JP,"<img src=''/images/irstats2/flags/jp.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Japan</span>"
+
+        ="1",SK,"<img src=''/images/irstats2/flags/sk.png'' xmlns=''http://www.w3.org/1999/xhtml''
+        /><span style=''padding-left:5px;'' xmlns=''http://www.w3.org/1999/xhtml''>Slovakia</span>"
+
+        '
+    headers:
+      Cache-Control:
+      - no-store, no-cache, must-revalidate
+      Connection:
+      - close
+      Content-Disposition:
+      - attachment; filename=report_2021-05-12.csv
+      Content-Type:
+      - text/csv
+      Date:
+      - Wed, 12 May 2021 04:03:21 GMT
+      Server:
+      - Apache/2.2.15 (Red Hat)
+      Transfer-Encoding:
+      - chunked
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.20.0
+    method: GET
+    uri: https://discovery.ucl.ac.uk/cgi/stats/get?from=20210401&to=20210501&irs2report=eprint&datatype=countries&top=countries&view=Table&limit=all&set_name=eprint&export=CSV&set_value=10127557
+  response:
+    body:
+      string: '
+
+        '
+    headers:
+      Cache-Control:
+      - no-store, no-cache, must-revalidate
+      Connection:
+      - close
+      Content-Disposition:
+      - attachment; filename=report_2021-05-12.csv
+      Content-Type:
+      - text/csv
+      Date:
+      - Wed, 12 May 2021 04:06:58 GMT
+      Server:
+      - Apache/2.2.15 (Red Hat)
+      Transfer-Encoding:
+      - chunked
+    status:
+      code: 200
+      message: OK
+version: 1

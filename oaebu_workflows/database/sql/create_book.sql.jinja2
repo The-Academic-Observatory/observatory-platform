@@ -1,0 +1,174 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Richard Hosking, Tuan Chien #}
+
+CREATE TEMPORARY FUNCTION normalise_isbn_string(input STRING)
+RETURNS STRING
+  LANGUAGE js AS r"""
+
+  function calc_isbn13_check_digit(isbn13) {
+    var mask = [1,3,1,3,1,3,1,3,1,3,1,3];
+
+    var prefix = [];
+    for(let i = 0; i < 12; i++) {
+        prefix.push(Number(isbn13[i]));
+    }
+
+    let check_digit = 0;
+    for(let i = 0; i < 12; i++) {
+        check_digit += mask[i]*prefix[i];
+    }
+
+    return (10-(check_digit % 10)) % 10;
+  }
+
+  function calc_isbn10_check_digit(isbn10) {
+    var mask = [10,9,8,7,6,5,4,3,2];
+
+    var prefix = [];
+    for(let i = 0; i < 9; i++) {
+        prefix.push(Number(isbn10[i]));
+    }
+
+    let check_digit = 0;
+    for(let i = 0; i < 9; i++) {
+        check_digit += mask[i]*prefix[i];
+    }
+
+    check_digit = (11-(check_digit % 11)) % 11;
+
+    if(check_digit == 10)
+        return 'X';
+    
+    return check_digit;
+  }
+
+  function is_isbn13(isbn) {
+    if(isbn.length != 13) {
+        return false;
+    }
+
+    if(isNaN(Number(isbn))) {
+        return false;
+    }
+
+    let check_digit = String(calc_isbn13_check_digit(isbn));
+    return check_digit == isbn[12];
+}
+
+  function is_isbn10(isbn) {
+    if(isbn.length != 10) {
+        return false;
+    }
+
+    if(isNaN(Number(isbn.slice(0,9)))) {
+        return false;
+    }
+
+    let check_digit = String(calc_isbn10_check_digit(isbn));
+    return check_digit == isbn[9];
+}
+
+  function convert_isbn10_to_isbn13(isbn10) {
+    let isbn = "978" + isbn10.slice(0, 9);
+    let check_digit = calc_isbn13_check_digit(isbn);
+    isbn += String(check_digit);
+    return isbn;
+  }
+
+  function strip_isbn_string(isbn) {
+    var regexp = /[^0-9X]/gi;
+    return isbn.replace(regexp, "");
+  }
+
+  let stripped = strip_isbn_string(input);
+    
+  if(stripped.length == 13 && is_isbn13(stripped)) {
+      return stripped;
+  }
+
+  if(stripped.length == 10 && is_isbn10(stripped)) {
+      return convert_isbn10_to_isbn13(stripped);
+  }
+
+  return null;
+""";
+
+with isbns as (
+SELECT
+    normalise_isbn_string(isbn) as isbn,
+    doi,
+    crossref.title,
+    crossref.type,
+    crossref.publisher,
+    crossref.published_year,
+    crossref.published_year_month,
+    (SELECT ARRAY_AGG(normalise_isbn_string(candidate_isbn) IGNORE NULLS) FROM UNNEST(crossref.isbn) as candidate_isbn) as work_isbns
+    --ARRAY(SELECT normalise_isbn_string(candidate_isbn) as work_isbn from UNNEST(crossref.isbn) as candidate_isbn) as work_isbns
+FROM `{{ project_id }}.{{ observatory.dataset_id }}.doi{{ observatory.release_date.strftime('%Y%m%d') }}` as original, UNNEST(crossref.ISBN) as isbn),
+
+books as (
+SELECT
+    book.isbn,
+    book.crossref_objects,
+    book_part.chapters
+FROM (
+SELECT 
+    isbn,
+    ARRAY_AGG(STRUCT(doi, title, type, publisher, published_year, published_year_month, work_isbns)) as crossref_objects
+ FROM isbns
+ WHERE type in ("book", "monograph") AND isbn IS NOT NULL
+ GROUP BY isbn) as book
+ left join (
+     SELECT 
+        isbn,
+        ARRAY_AGG(STRUCT(doi, title, type) ORDER BY doi) as chapters
+    FROM isbns
+    WHERE type in ("book-chapter") AND isbn IS NOT NULL
+    GROUP BY isbn
+ ) as book_part on book.isbn = book_part.isbn),
+
+ISBN_DOI as (SELECT 
+  ISBN,
+  ARRAY_CONCAT(ARRAY(SELECT doi FROM book.crossref_objects), ARRAY(SELECT doi FROM book.chapters)) as dois
+FROM books as book),
+
+events_matched as (SELECT
+  ISBN,
+  ARRAY_CONCAT_AGG(crossref_events.events) as events,
+  ARRAY_CONCAT_AGG(crossref_events.months) as months,
+  ARRAY_CONCAT_AGG(crossref_events.years) as years,
+FROM ISBN_DOI, UNNEST(dois) as doi
+LEFT JOIN `{{ project_id }}.{{ crossref_events.dataset_id }}.{{ crossref_events.table_id }}{{ crossref_events.release_date.strftime('%Y%m%d') }}` as crossref_events ON crossref_events.doi = doi
+GROUP BY ISBN),
+
+events_aggregated as (SELECT
+  ISBN,
+  ARRAY(SELECT as STRUCT source, SUM(count) as count FROM UNNEST(events) GROUP BY source) as overall,
+  ARRAY(SELECT as STRUCT month, source, SUM(count) as count FROM UNNEST(months) GROUP BY month, source ORDER BY month DESC) as months,
+  ARRAY(SELECT as STRUCT year, source, SUM(count) as count FROM UNNEST(years) GROUP BY year, source ORDER BY year DESC) as years
+FROM events_matched)
+
+SELECT
+    book.isbn,
+    book.crossref_objects,
+    book.chapters,
+    STRUCT(
+        events.overall,
+        events.months,
+        events.years
+    ) as events
+FROM books as book 
+LEFT join events_aggregated as events on events.ISBN = book.ISBN
