@@ -63,18 +63,19 @@ class TestGenerateCommand(unittest.TestCase):
             cmd.generate_terraform_config(config_path)
             self.assertTrue(os.path.exists(config_path))
 
-    def test_generate_workflows_project(self):
+    @patch("click.confirm")
+    def test_generate_workflows_project(self, mock_cli_confirm):
         """ Test generate a new workflows project
 
         :return: None.
         """
+        cmd = GenerateCommand()
         runner = CliRunner()
         with runner.isolated_filesystem():
             # Test creating new project
             project_path = os.path.join(os.getcwd(), "my-project")
             package_name = "my_dags"
-            result = runner.invoke(generate, ["project", project_path, package_name], input='n')
-            self.assertEqual(0, result.exit_code)
+            cmd.generate_workflows_project(project_path, package_name)
 
             # Check that all directories and __init__.py files exist
             init_dirs = [
@@ -100,8 +101,8 @@ class TestGenerateCommand(unittest.TestCase):
             self.assertTrue(os.path.isfile(setup_py_path))
 
             # Test creating new project when files already exist
-            result = runner.invoke(generate, ["project", project_path, package_name], input='n')
-            self.assertEqual(0, result.exit_code)
+            mock_cli_confirm.return_value = "y"
+            cmd.generate_workflows_project(project_path, package_name)
 
             # Check that file hash stayed the same (no new empty init files)
             for d in init_dirs:
@@ -110,6 +111,7 @@ class TestGenerateCommand(unittest.TestCase):
                 self.assertEqual('098f6bcd4621d373cade4e832627b4f6', _hash_file(init_file_path, "md5"))
 
             # Check that setup files exist
+            self.assertEqual(2, mock_cli_confirm.call_count)
             self.assertTrue(os.path.isfile(setup_cfg_path))
             self.assertTrue(os.path.isfile(setup_py_path))
 
