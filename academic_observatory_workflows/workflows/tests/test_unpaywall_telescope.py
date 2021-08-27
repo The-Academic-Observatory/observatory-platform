@@ -50,13 +50,11 @@ class TestUnpaywallTelescope(unittest.TestCase):
         super(TestUnpaywallTelescope, self).__init__(*args, **kwargs)
 
         # Unpaywall releases list
-        self.list_unpaywall_releases_path = os.path.join(
-            test_fixtures_folder("unpaywall"), "list_unpaywall_releases.yaml"
-        )
+        self.list_unpaywall_releases_path = test_fixtures_folder("unpaywall", "list_unpaywall_releases.yaml")
         self.list_unpaywall_releases_hash = "78d1a129cb0aba072ca49e2599f60c10"
 
         # Unpaywall test release
-        self.unpaywall_test_path = os.path.join(test_fixtures_folder("unpaywall"), "unpaywall.jsonl.gz")
+        self.unpaywall_test_path = test_fixtures_folder("unpaywall", "unpaywall.jsonl.gz")
         self.unpaywall_test_file = "unpaywall_snapshot_3000-01-27T153236.jsonl.gz"
         self.unpaywall_test_url = (
             "https://unpaywall-data-snapshots.s3-us-west-2.amazonaws.com"

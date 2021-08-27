@@ -63,10 +63,10 @@ class TestOrcidTelescope(ObservatoryTestCase):
         for file in ["0000-0002-9227-8610.xml", "0000-0002-9228-8514.xml", "0000-0002-9229-8514.xml"]:
             self.records[file] = {
                 "blob": f"{file[-7:-4]}/{file}",
-                "path": os.path.join(test_fixtures_folder("orcid"), file),
+                "path": test_fixtures_folder("orcid", file),
             }
         # last modified file
-        self.last_modified_path = os.path.join(test_fixtures_folder("orcid"), "last_modified.csv.tar")
+        self.last_modified_path = test_fixtures_folder("orcid", "last_modified.csv.tar")
 
         # release used for method tests
         self.release = OrcidRelease(

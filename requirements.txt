@@ -3,6 +3,4 @@ xmltodict==0.12.*
 backoff==1.10.*
 ratelimit==2.2.*
 wos==0.2.*
-vcrpy==4.0.*
-Faker==8.1.*
 pandas==1.3.*

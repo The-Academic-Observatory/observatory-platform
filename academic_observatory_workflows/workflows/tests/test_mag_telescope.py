@@ -67,7 +67,7 @@ class TestMagTelescope(unittest.TestCase):
         self.gc_bucket_name: str = os.getenv("TEST_GCP_BUCKET_NAME")
         self.gc_data_location: str = os.getenv("TEST_GCP_DATA_LOCATION")
 
-        self.data_path = os.path.join(test_fixtures_folder("mag"), "mag-2020-05-21.zip")
+        self.data_path = test_fixtures_folder("mag", "mag-2020-05-21.zip")
         self.release_date = pendulum.datetime(year=2020, month=5, day=21)
         self.release_folder = "mag-2020-05-21"
         self.extracted_folder = "extracted"

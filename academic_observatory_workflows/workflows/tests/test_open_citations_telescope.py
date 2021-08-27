@@ -14,7 +14,6 @@
 
 # Author: James Diprose
 
-import os
 import unittest
 from unittest.mock import patch
 
@@ -35,11 +34,11 @@ class TestOpenCitationsTelescope(unittest.TestCase):
     """Tests for the functions used by the Open Citations workflow"""
 
     def setUp(self) -> None:
-        self.list_open_citations_releases_path = os.path.join(
-            test_fixtures_folder("open_citations"), "list_open_citations_releases.yaml"
+        self.list_open_citations_releases_path = test_fixtures_folder(
+            "open_citations", "list_open_citations_releases.yaml"
         )
-        self.fetch_open_citations_versions_path = os.path.join(
-            test_fixtures_folder("open_citations"), "fetch_open_citations_versions.yaml"
+        self.fetch_open_citations_versions_path = test_fixtures_folder(
+            "open_citations", "fetch_open_citations_versions.yaml"
         )
 
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")

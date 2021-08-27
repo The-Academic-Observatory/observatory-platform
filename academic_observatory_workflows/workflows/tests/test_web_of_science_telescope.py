@@ -17,7 +17,6 @@
 
 import json
 import logging
-import os
 import unittest
 from unittest.mock import patch
 
@@ -59,9 +58,8 @@ class TestWosParse(unittest.TestCase):
         super(TestWosParse, self).__init__(*args, **kwargs)
 
         # Paths
-        self.telescopes_path = test_fixtures_folder("web_of_science")
         self.work_dir = "../../../tests/observatory/dags/workflows"
-        self.wos_2020_10_01_json_path = os.path.join(self.telescopes_path, "wos-2020-10-01.json")
+        self.wos_2020_10_01_json_path = test_fixtures_folder("web_of_science", "wos-2020-10-01.json")
         with open(self.wos_2020_10_01_json_path, "r") as f:
             self.data = json.load(f)
         self.harvest_datetime = pendulum.now().isoformat()
