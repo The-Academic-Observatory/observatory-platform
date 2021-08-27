@@ -13,7 +13,7 @@ import unittest
 
 from observatory.api.client.exceptions import ApiTypeError, ApiAttributeError
 from observatory.api.client.model.query_response import QueryResponse
-from tests.observatory.api.client.test_observatory_api import RES_EXAMPLE, SCROLL_ID
+from observatory.api.client.tests.test_observatory_api import RES_EXAMPLE, SCROLL_ID
 
 
 class TestQueryResponse(unittest.TestCase):

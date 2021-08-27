@@ -282,7 +282,7 @@ class TestTerraformApi(unittest.TestCase):
         # create configuration version
         upload_url, _ = self.terraform_api.create_configuration_version(workspace_id)
 
-        configuration_path = os.path.join(test_fixtures_path(), "utils", "terraform_utils", "main.tf")
+        configuration_path = os.path.join(test_fixtures_path(), "../../../../tests/observatory/platform/utils", "terraform_utils", "main.tf")
         configuration_tar = "conf.tar.gz"
 
         with CliRunner().isolated_filesystem():
@@ -301,7 +301,7 @@ class TestTerraformApi(unittest.TestCase):
         # create configuration version
         upload_url, configuration_id = self.terraform_api.create_configuration_version(workspace_id)
 
-        configuration_path = os.path.join(test_fixtures_path(), "utils", "terraform_utils", "main.tf")
+        configuration_path = os.path.join(test_fixtures_path(), "../../../../tests/observatory/platform/utils", "terraform_utils", "main.tf")
         configuration_tar = "conf.tar.gz"
 
         with CliRunner().isolated_filesystem():
@@ -333,7 +333,7 @@ class TestTerraformApi(unittest.TestCase):
         # create configuration version
         upload_url, configuration_id = self.terraform_api.create_configuration_version(workspace_id)
 
-        configuration_path = os.path.join(test_fixtures_path(), "utils", "terraform_utils", "main.tf")
+        configuration_path = os.path.join(test_fixtures_path(), "../../../../tests/observatory/platform/utils", "terraform_utils", "main.tf")
         configuration_tar = "conf.tar.gz"
 
         with CliRunner().isolated_filesystem():

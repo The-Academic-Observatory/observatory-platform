@@ -1,0 +1,468 @@
+[
+  {
+    "@r_id_disclaimer": "Data synthetically generated",
+    "UID": "WOS:000000000000000",
+    "static_data": {
+      "summary": {
+        "conferences": {
+          "conference": [
+            {
+              "@conf_id": 12345,
+              "conf_titles": {
+                "conf_title": [
+                  "Annual Jupiter Meeting of the Minds"
+                ]
+              }
+            }
+          ]
+        },
+        "EWUID": {
+          "WUID": {
+            "@coll_id": "WOS"
+          },
+          "edition": {
+            "@value": "WOS.SCI"
+          }
+        },
+        "pub_info": {
+          "@sortdate": "2020-01-01",
+          "@pubyear": "2020",
+          "@has_abstract": "Y",
+          "@coverdate": "JAN 2020",
+          "@pubmonth": "JAN",
+          "@vol": "1",
+          "@pubtype": "Journal",
+          "page": {
+            "@begin": "1",
+            "@end": "2",
+            "@page_count": "2",
+            "#text": "1-2"
+          }
+        },
+        "titles": {
+          "@count": "6",
+          "title": [
+            {
+              "@type": "source",
+              "#text": "JUPITER GAZETTE"
+            },
+            {
+              "@type": "source_abbrev",
+              "#text": "JUP GAZET"
+            },
+            {
+              "@type": "abbrev_iso",
+              "#text": "Jup. Gazet."
+            },
+            {
+              "@type": "abbrev_11",
+              "#text": "JUP GAZET"
+            },
+            {
+              "@type": "abbrev_29",
+              "#text": "JUP GAZET"
+            },
+            {
+              "@type": "item",
+              "#text": "The habitats of endangered hypnotoads on the southern oceans of Europa: a Ophiophagus hannah perspective"
+            }
+          ]
+        },
+        "names": {
+          "@count": "3",
+          "name": [
+            {
+              "@seq_no": "1",
+              "@role": "author",
+              "@addr_no": "1",
+              "@daisng_id": "101010",
+              "display_name": "Snake, Big Eaty",
+              "full_name": "Snake, Big Eaty",
+              "wos_standard": "Snake, BE",
+              "first_name": "Big Eaty",
+              "last_name": "Snake"
+            },
+            {
+              "@seq_no": "2",
+              "@role": "author",
+              "@reprint": "Y",
+              "@addr_no": "1",
+              "@daisng_id": "100000",
+              "display_name": "Toad, Hypno",
+              "full_name": "Toad, Hypno",
+              "wos_standard": "Toad, H",
+              "first_name": "Hypno",
+              "last_name": "Toad"
+            },
+            {
+              "@seq_no": "3",
+              "@role": "author",
+              "@addr_no": "1",
+              "@daisng_id": "200000",
+              "@claim_status": "true",
+              "display_name": "Historian, Great",
+              "full_name": "Historian, Great",
+              "wos_standard": "Historian, G",
+              "first_name": "Great",
+              "last_name": "Historian",
+              "data-item-ids": {
+                "data-item-id": [
+                  {
+                    "@id-type": "PreferredRID",
+                    "@type": "person",
+                    "#text": "D-0000-2000"
+                  },
+                  {
+                    "@id-type": "OtherRID",
+                    "@type": "person",
+                    "#text": "D-0000-2000"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "doctypes": {
+          "@count": "1",
+          "doctype": "Article"
+        },
+        "publishers": {
+          "publisher": {
+            "address_spec": {
+              "@addr_no": "1",
+              "full_address": "THE GREAT OCEAN OF EUROPA, SPRINGFIELD 0345, JUPITER",
+              "city": "SPRINGFIELD"
+            },
+            "names": {
+              "@count": "1",
+              "name": {
+                "@role": "publisher",
+                "@seq_no": "1",
+                "@addr_no": "1",
+                "display_name": "JUPITER PUBLISHING LTD",
+                "full_name": "JUPITER PUBLISHING LTD"
+              }
+            }
+          }
+        }
+      },
+      "fullrecord_metadata": {
+        "languages": {
+          "@count": "1",
+          "language": {
+            "@type": "primary",
+            "#text": "Mindwaves"
+          }
+        },
+        "normalized_languages": {
+          "@count": "1",
+          "language": {
+            "@type": "primary",
+            "#text": "Mindwaves"
+          }
+        },
+        "normalized_doctypes": {
+          "@count": "1",
+          "doctype": "Article"
+        },
+        "refs": {
+          "@count": "10000"
+        },
+        "addresses": {
+          "@count": "1",
+          "address_name": {
+            "address_spec": {
+              "@addr_no": "1",
+              "full_address": "Generic University, Centre of Excellence for Extraterrestrial Telepathic Studies, Springfield, SF, Jupiter",
+              "organizations": {
+                "@count": "2",
+                "organization": [
+                  "Generic Univ",
+                  {
+                    "@pref": "Y",
+                    "#text": "Generic University"
+                  }
+                ]
+              },
+              "suborganizations": {
+                "@count": "2",
+                "suborganization": [
+                  "Centre of Excellence for Extraterrestrial Telepathic Studies",
+                  "Zoology"
+                ]
+              },
+              "city": "Springfield",
+              "state": "SF",
+              "country": "Jupiter",
+              "zip": {
+                "@location": "SF",
+                "#text": "0000"
+              }
+            },
+            "names": {
+              "@count": "3",
+              "name": [
+                {
+                  "@seq_no": "1",
+                  "@role": "author",
+                  "@addr_no": "1",
+                  "@daisng_id": "101010",
+                  "display_name": "Snake, Big Eaty",
+                  "full_name": "Snake, Big Eaty",
+                  "wos_standard": "Snake, BE",
+                  "first_name": "Big Eaty",
+                  "last_name": "Snake"
+                },
+                {
+                  "@seq_no": "2",
+                  "@role": "author",
+                  "@reprint": "Y",
+                  "@addr_no": "1",
+                  "@daisng_id": "100000",
+                  "display_name": "Toad, Hypno",
+                  "full_name": "Toad, Hypno",
+                  "wos_standard": "Toad, H",
+                  "first_name": "Hypno",
+                  "last_name": "Toad"
+                },
+                {
+                  "@seq_no": "3",
+                  "@role": "author",
+                  "@addr_no": "1",
+                  "@daisng_id": "200000",
+                  "@claim_status": "true",
+                  "display_name": "Historian, Great",
+                  "full_name": "Historian, Great",
+                  "wos_standard": "Historian, G",
+                  "first_name": "Great",
+                  "last_name": "Historian",
+                  "data-item-ids": {
+                    "data-item-id": [
+                      {
+                        "@id-type": "PreferredRID",
+                        "@type": "person",
+                        "#text": "D-0000-2000"
+                      },
+                      {
+                        "@id-type": "OtherRID",
+                        "@type": "person",
+                        "#text": "D-0000-2000"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "reprint_addresses": {
+          "@count": "1",
+          "address_name": {
+            "address_spec": {
+              "@addr_no": "1",
+              "full_address": "Generic University, Centre of Excellence for Extraterrestrial Telepathic Studies, Springfield, SF, Jupiter",
+              "organizations": {
+                "@count": "2",
+                "organization": [
+                  "Generic Univ",
+                  {
+                    "@pref": "Y",
+                    "#text": "Generic University"
+                  }
+                ]
+              },
+              "suborganizations": {
+                "@count": "2",
+                "suborganization": [
+                  "Centre of Excellence for Extraterrestrial Telepathic Studies",
+                  "Zoology"
+                ]
+              },
+              "city": "Springfield",
+              "state": "SF",
+              "country": "Jupiter",
+              "zip": {
+                "@location": "SF",
+                "#text": "0000"
+              }
+            },
+            "names": {
+              "@count": "1",
+              "name": {
+                "@seq_no": "1",
+                "@role": "author",
+                "@reprint": "Y",
+                "@addr_no": "1",
+                "display_name": "Snake, Big Eaty",
+                "full_name": "Snake, Big Eaty",
+                "wos_standard": "Snake, BE",
+                "first_name": "Big Eaty",
+                "last_name": "Snake"
+              }
+            }
+          }
+        },
+        "category_info": {
+          "headings": {
+            "@count": "1",
+            "heading": "Hynology"
+          },
+          "subheadings": {
+            "@count": "1",
+            "subheading": "Zoology"
+          },
+          "subjects": {
+            "@count": "3",
+            "subject": [
+              {
+                "@ascatype": "traditional",
+                "@code": "XX",
+                "#text": "Jupiter Toads"
+              },
+              {
+                "@ascatype": "traditional",
+                "@code": "X",
+                "#text": "Jupiter life"
+              },
+              {
+                "@ascatype": "extended",
+                "#text": "Jupiter Science"
+              }
+            ]
+          }
+        },
+        "fund_ack": {
+          "fund_text": {
+            "p": "The authors would like to thank all life in the universe for not making us extinct yet."
+          },
+          "grants": {
+            "@count": "1",
+            "grant": {
+              "grant_agency": "Jupiter research council",
+              "grant_ids": {
+                "@count": "1",
+                "grant_id": "JP00000000HT1"
+              }
+            }
+          }
+        },
+        "keywords": {
+          "@count": "5",
+          "keyword": [
+            "Jupiter",
+            "Toads",
+            "Snakes",
+            "JPT",
+            "JPS"
+          ]
+        },
+        "abstracts": {
+          "@count": "1",
+          "abstract": {
+            "abstract_text": {
+              "@count": "1",
+              "p": "Jupiter hypnotoads lead mysterious lives.  This first of its kind study explores the daily habits of hypnotoads on Europa and their cohabitation with Ophiophagus hannah."
+            }
+          }
+        }
+      },
+      "item": {
+        "@xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "@xsi:type": "itemType_wos",
+        "@coll_id": "WOS",
+        "ids": {
+          "@avail": "N",
+          "#text": "ID0XX"
+        },
+        "bib_id": "11: 100-200 JAN 2000",
+        "bib_pagecount": {
+          "@type": "Journal",
+          "#text": "2"
+        },
+        "keywords_plus": {
+          "@count": "10",
+          "keyword": [
+            "WORD1",
+            "WORD2",
+            "WORD3",
+            "WORD4",
+            "WORD5",
+            "WORD6",
+            "WORD7",
+            "WORD8",
+            "WORD9",
+            "WORD0"
+          ]
+        }
+      },
+      "contributors": {
+        "@count": "3",
+        "contributor": [
+          {
+            "name": {
+              "@seq_no": "1",
+              "@role": "researcher_id",
+              "@r_id": "D-0000-2000",
+              "@orcid_id": "0000-0000-0000-0001",
+              "display_name": "Snake, Big Eaty",
+              "full_name": "Snake, Big Eaty",
+              "first_name": "Big Eaty",
+              "last_name": "Snake"
+            }
+          },
+          {
+            "name": {
+              "@seq_no": "2",
+              "@role": "researcher_id",
+              "@r_id": "H-0000-2001",
+              "@orcid_id": "0000-0000-0000-0002",
+              "display_name": "Toad, Hypno",
+              "full_name": "Toad, Hypno",
+              "first_name": "Hypno",
+              "last_name": "Toad"
+            }
+          },
+          {
+            "name": {
+              "@seq_no": "3",
+              "@role": "researcher_id",
+              "@orcid_id": "0000-0000-0000-0003",
+              "display_name": "Historian, Great",
+              "full_name": "Historian, Great",
+              "first_name": "Great",
+              "last_name": "Historian"
+            }
+          }
+        ]
+      }
+    },
+    "dynamic_data": {
+      "citation_related": {
+        "tc_list": {
+          "silo_tc": {
+            "@coll_id": "WOS",
+            "@local_count": "10000"
+          }
+        }
+      },
+      "cluster_related": {
+        "identifiers": {
+          "identifier": [
+            {
+              "@type": "issn",
+              "@value": "0000-0000"
+            },
+            {
+              "@type": "eissn",
+              "@value": "0000-0000"
+            },
+            {
+              "@type": "doi",
+              "@value": "10.0000/j.gaz.2020.01.001"
+            }
+          ]
+        }
+      }
+    }
+  }
+]

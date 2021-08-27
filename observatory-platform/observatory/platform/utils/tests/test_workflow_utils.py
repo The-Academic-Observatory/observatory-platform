@@ -156,7 +156,7 @@ class TestTemplateUtils(unittest.TestCase):
         with runner.isolated_filesystem():
             # Mock getting home path
             reset_variables()
-            data_path = "data"
+            data_path = "../../../../../tests/observatory/platform/utils/data"
             mock_variable_get.return_value = data_path
 
             # The name of the telescope to create and expected root folder
@@ -853,7 +853,7 @@ def side_effect(arg):
         "project_id": "project",
         "download_bucket": "download-bucket",
         "transform_bucket": "transform-bucket",
-        "data_path": os.path.join(os.getcwd(), "data"),
+        "data_path": os.path.join(os.getcwd(), "../../../../../tests/observatory/platform/utils/data"),
         "data_location": "US",
     }
     return values[arg]

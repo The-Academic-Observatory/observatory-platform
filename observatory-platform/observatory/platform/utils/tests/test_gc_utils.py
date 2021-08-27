@@ -656,7 +656,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
         runner = CliRunner()
         with runner.isolated_filesystem():
             testdir = random_id()
-            Path(".", testdir).mkdir(exist_ok=True, parents=True)
+            Path("../../../../../tests/observatory/platform/utils", testdir).mkdir(exist_ok=True, parents=True)
             # Create file
             upload_file_name = f"{testdir}/{random_id()}.txt"
             download_file_name = f"{testdir}/{random_id()}.txt"
