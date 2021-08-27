@@ -22,6 +22,7 @@ import logging
 import os
 import re
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
 from multiprocessing import cpu_count
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -63,6 +64,29 @@ from pendulum import Date
 ES_INDEX_STATE_TOPIC_NAME = "es_index_state"
 CSV_TYPES = ["csv", "csv.gz"]
 JSONL_TYPES = ["jsonl", "jsonl.gz"]
+
+
+def default_index_keep_info():
+    """Construct a default lookup dictionary for index_keep_info settings."""
+
+    keep_info = {"": KeepInfo(ordering=KeepOrder.newest, num=2)}
+    return keep_info
+
+
+@dataclass
+class ElasticImportConfig:
+    dag_id: str = None
+    project_id: str = None
+    dataset_id: str = None
+    bucket_name: str = None
+    data_location: str = None
+    file_type: str = None
+    sensor_dag_ids: List[str] = None
+    elastic_mappings_path: str = None
+    elastic_mappings_func: Callable = None
+    kibana_spaces: List[str] = None
+    kibana_time_fields: List[TimeField] = None
+    index_keep_info: KeepInfo = field(default_factory=default_index_keep_info)
 
 
 def load_elastic_mappings_simple(path: str, table_prefix: str) -> Dict:
@@ -346,15 +370,7 @@ class ElasticImportRelease(SnapshotRelease):
         self.bucket_prefix = f"telescopes/{dag_id}/{self.release_id}"
         self.elastic_import_task_state_path = os.path.join(self.extract_folder, "elastic_import_task_state.json")
 
-        # This needs to be migrated into an API in the future.
-        # If you want to provide a default, add an entry for key "".
-        # If key "" is not specified, get_keep_info will provide its own default.
-        self.index_keep_info = {
-            "": KeepInfo(ordering=KeepOrder.newest, num=2),
-            "dois-doi": KeepInfo(ordering=KeepOrder.newest, num=1),
-        }
-
-    def get_keep_info(self, index: str) -> KeepInfo:
+    def get_keep_info(self, *, index: str, index_keep_info: Dict) -> KeepInfo:
         """Get the best KeepInfo for a given index prefix in self.index_keep_info.
         If there is an exact index match, it will return the info for that.  Otherwise it will keep looking for higher
         level matches.  If it completely fails to match, it will return the default configuration.
@@ -363,16 +379,17 @@ class ElasticImportRelease(SnapshotRelease):
         Index should not include the -YYYYMMD suffix.
 
         :param index: Index pattern to match.
+        :param index_keep_info: Dictionary of settings on how to retain Elastic indices.
         :return: KeepInfo for an index.
         """
 
         index_name = index
         while True:
-            if index_name == "" and index_name not in self.index_keep_info:
+            if index_name == "" and index_name not in index_keep_info:
                 break
 
-            if index_name in self.index_keep_info:
-                return self.index_keep_info[index_name]
+            if index_name in index_keep_info:
+                return index_keep_info[index_name]
 
             end_ptr = index_name.rfind("-")
             index_name = index_name[:end_ptr]
@@ -540,8 +557,11 @@ class ElasticImportRelease(SnapshotRelease):
 
         return success
 
-    def delete_stale_indices(self):
-        """Delete all the stale indices."""
+    def delete_stale_indices(self, index_keep_info: Dict):
+        """Delete all the stale indices.
+
+        :param index_keep_info: Dictionary of settings on how to retain Elastic indices.
+        """
 
         client = Elastic(host=self.elastic_host)
 
@@ -551,7 +571,7 @@ class ElasticImportRelease(SnapshotRelease):
         for table_id in indexed_table_ids:
             table_prefix = make_table_prefix(table_id)
             index_prefix = make_index_prefix(table_prefix)
-            keep_info = self.get_keep_info(index_prefix)
+            keep_info = self.get_keep_info(index=index_prefix, index_keep_info=index_keep_info)
             client.delete_stale_indices(index=f"{index_prefix}-*", keep_info=keep_info)
 
     def get_kibana_time_field(self, index_pattern_id):
@@ -608,6 +628,7 @@ class ElasticImportWorkflow(Workflow):
         catchup: Optional[bool] = False,
         airflow_vars: List = None,
         airflow_conns: List = None,
+        index_keep_info: Dict = None,
     ):
         """Create the ElasticImportWorkflow.
 
@@ -631,6 +652,8 @@ class ElasticImportWorkflow(Workflow):
 
         if airflow_conns is None:
             airflow_conns = [AirflowConns.ELASTIC, AirflowConns.KIBANA]
+
+        self.index_keep_info = index_keep_info if index_keep_info is not None else default_index_keep_info()
 
         # Initialise Telesecope base class
         super().__init__(
@@ -806,7 +829,7 @@ class ElasticImportWorkflow(Workflow):
         :return: None.
         """
 
-        release.delete_stale_indices()
+        release.delete_stale_indices(self.index_keep_info)
 
     def create_kibana_index_patterns(self, release: ElasticImportRelease, **kwargs):
         """Create Kibana index patterns.

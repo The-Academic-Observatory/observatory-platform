@@ -17,15 +17,16 @@
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-import dataclasses
-from typing import List, Callable
+from typing import Callable, List
 
+from observatory.dags.config import elastic_mappings_folder
 from observatory.dags.workflows.elastic_import_workflow import (
+    ElasticImportConfig,
     ElasticImportWorkflow,
     load_elastic_mappings_ao,
     load_elastic_mappings_oaebu,
 )
-from observatory.dags.config import elastic_mappings_folder
+from observatory.platform.elastic.elastic import KeepInfo, KeepOrder
 from observatory.platform.elastic.kibana import TimeField
 from observatory.platform.utils.workflow_utils import make_dag_id
 
@@ -42,21 +43,11 @@ OAEBU_KIBANA_TIME_FIELDS = [
     TimeField("^oaebu-.*$", "month"),
 ]
 
-
-@dataclasses.dataclass
-class ElasticImportConfig:
-    dag_id: str = None
-    project_id: str = None
-    dataset_id: str = None
-    bucket_name: str = None
-    data_location: str = None
-    file_type: str = None
-    sensor_dag_ids: List[str] = None
-    elastic_mappings_path: str = None
-    elastic_mappings_func: Callable = None
-    kibana_spaces: List[str] = None
-    kibana_time_fields: List[TimeField] = None
-
+# These can be customised per DAG.  Just using some generic settings for now.
+index_keep_info = {
+    "": KeepInfo(ordering=KeepOrder.newest, num=2),
+    "dois-doi": KeepInfo(ordering=KeepOrder.newest, num=1),
+}
 
 configs = [
     ElasticImportConfig(
@@ -71,6 +62,7 @@ configs = [
         elastic_mappings_path=ELASTIC_MAPPINGS_PATH,
         elastic_mappings_func=load_elastic_mappings_ao,
         kibana_time_fields=AO_KIBANA_TIME_FIELDS,
+        index_keep_info=index_keep_info,
     ),
     ElasticImportConfig(
         dag_id=make_dag_id(DAG_PREFIX, "anu_press"),
@@ -84,6 +76,7 @@ configs = [
         elastic_mappings_func=load_elastic_mappings_oaebu,
         kibana_spaces=["oaebu-anu-press", "dev-oaebu-anu-press"],
         kibana_time_fields=OAEBU_KIBANA_TIME_FIELDS,
+        index_keep_info=index_keep_info,
     ),
     ElasticImportConfig(
         dag_id=make_dag_id(DAG_PREFIX, "ucl_press"),
@@ -97,6 +90,7 @@ configs = [
         elastic_mappings_func=load_elastic_mappings_oaebu,
         kibana_spaces=["oaebu-ucl-press", "dev-oaebu-ucl-press"],
         kibana_time_fields=OAEBU_KIBANA_TIME_FIELDS,
+        index_keep_info=index_keep_info,
     ),
     ElasticImportConfig(
         dag_id=make_dag_id(DAG_PREFIX, "wits_press"),
@@ -110,6 +104,7 @@ configs = [
         elastic_mappings_func=load_elastic_mappings_oaebu,
         kibana_spaces=["oaebu-wits-press", "dev-oaebu-wits-press"],
         kibana_time_fields=OAEBU_KIBANA_TIME_FIELDS,
+        index_keep_info=index_keep_info,
     ),
     ElasticImportConfig(
         dag_id=make_dag_id(DAG_PREFIX, "university_of_michigan_press"),
@@ -123,6 +118,7 @@ configs = [
         elastic_mappings_func=load_elastic_mappings_oaebu,
         kibana_spaces=["oaebu-umich-press", "dev-oaebu-umich-press"],
         kibana_time_fields=OAEBU_KIBANA_TIME_FIELDS,
+        index_keep_info=index_keep_info,
     ),
 ]
 

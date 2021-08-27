@@ -137,26 +137,26 @@ class TestElasticImportRelease(unittest.TestCase):
             kibana_time_fields=list(),
         )
 
-        self.release.index_keep_info = {}
-        keep_info = self.release.get_keep_info("something")
+        index_keep_info = {}
+        keep_info = self.release.get_keep_info(index="something", index_keep_info=index_keep_info)
         self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=2))
 
-        self.release.index_keep_info = {"": KeepInfo(ordering=KeepOrder.newest, num=1)}
-        keep_info = self.release.get_keep_info("something")
+        index_keep_info = {"": KeepInfo(ordering=KeepOrder.newest, num=1)}
+        keep_info = self.release.get_keep_info(index="something", index_keep_info=index_keep_info)
         self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=1))
 
-        self.release.index_keep_info = {
+        index_keep_info = {
             "test-very-specific": KeepInfo(ordering=KeepOrder.newest, num=5),
             "test": KeepInfo(ordering=KeepOrder.newest, num=3),
         }
 
-        keep_info = self.release.get_keep_info("test-very-different")
+        keep_info = self.release.get_keep_info(index="test-very-different", index_keep_info=index_keep_info)
         self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=3))
 
-        keep_info = self.release.get_keep_info("test-very-specific")
+        keep_info = self.release.get_keep_info(index="test-very-specific", index_keep_info=index_keep_info)
         self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=5))
 
-        keep_info = self.release.get_keep_info("nomatch")
+        keep_info = self.release.get_keep_info(index="nomatch", index_keep_info=index_keep_info)
         self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=2))
 
 
@@ -377,6 +377,21 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             expected_mappings = json.loads(expected_mappings_str)
             actual_mappings = load_elastic_mappings_oaebu(path, table_id)
             self.assertEqual(expected_mappings, actual_mappings)
+
+    def test_ctor(self):
+        workflow_default_index_keep_info = ElasticImportWorkflow(
+            dag_id="elastic_import",
+            project_id="project-id",
+            dataset_id="dataset-id",
+            bucket_name="bucket-name",
+            data_location="us",
+            file_type="jsonl.gz",
+            sensor_dag_ids=["doi"],
+            kibana_spaces=[],
+            airflow_conns=[],
+        )
+
+        self.assertTrue(workflow_default_index_keep_info.index_keep_info is not None)
 
     def test_dag_structure(self):
         """Test that the DAG has the correct structure.
