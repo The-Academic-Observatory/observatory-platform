@@ -59,11 +59,17 @@ class TestGenerateCommand(unittest.TestCase):
             self.assertTrue(os.path.exists(config_path))
 
     def test_generate_new_workflows_project(self):
+        """ Test generate a new workflows project
+
+        :return: None.
+        """
         runner = CliRunner()
         with runner.isolated_filesystem():
             project_path = os.path.join(os.getcwd(), "my-project")
             package_name = "my_dags"
-            runner.invoke(generate, ["project", project_path, package_name])
+            result = runner.invoke(generate, ["project", project_path, package_name], input='n')
+            print(result)
+            self.assertEqual(0, result.exit_code)
 
             # Check that all directories and __init__.py files exist
             init_dirs = [
