@@ -1,10 +1,10 @@
 # OrganisationTelescope template
 ## OrganisationTelescope
 ```eval_rst
-See :meth:`platform.telescopes.organisation_telescope.OrganisationTelescope` for the API reference.
+See :meth:`platform.workflows.organisation_telescope.OrganisationTelescope` for the API reference.
 ```
 
-The OrganisationTelescope is a subclass of the Telescope class.
+The OrganisationTelescope is a subclass of the Workflow class.
 This subclass can be used for 'organisation' type telescopes.  
 An 'organisation' telescope is defined by the fact that it uses an Organisation which is provided by the Observatory
  API.
@@ -45,7 +45,7 @@ For each release, the local download, extract and transform directories are dele
 
 ## OrganisationRelease
 ```eval_rst
-See :meth:`platform.telescopes.organisation_telescope.OrganisationRelease` for the API reference.
+See :meth:`platform.workflows.organisation_telescope.OrganisationRelease` for the API reference.
 ```
 
 The OrganisationRelease is used with the OrganisationTelescope.
@@ -60,24 +60,8 @@ This means the release overwrites the methods for the `download_bucket` and `tra
 ## Example
 Below is an example of a simple telescope using the OrganisationTelescope template.
 
-Telescope file:  
+Workflow file:  
 ```python
-# Copyright 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: Aniek Roelofs
-
 import logging
 from typing import Dict, List, Optional
 
@@ -85,9 +69,10 @@ import pendulum
 from airflow.exceptions import AirflowException
 
 from observatory.api.client.model.organisation import Organisation
+from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.platform.workflows.organisation_telescope import OrganisationRelease, OrganisationTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.telescope_utils import make_dag_id
+from observatory.platform.utils.workflow_utils import make_dag_id
 
 
 class MyOrganisationRelease(OrganisationRelease):
@@ -102,7 +87,7 @@ class MyOrganisationRelease(OrganisationRelease):
 
 
 class MyOrganisation(OrganisationTelescope):
-    """MyOrganisation Telescope."""
+    """ MyOrganisation Telescope."""
 
     DAG_ID_PREFIX = "my_organisation"
 
@@ -119,6 +104,7 @@ class MyOrganisation(OrganisationTelescope):
         load_bigquery_table_kwargs: Dict = None,
         table_descriptions: Dict = None,
         schema_prefix: str = "",
+        schema_folder: str = default_schema_folder(),
         airflow_vars=None,
         airflow_conns=None,
     ):
@@ -135,9 +121,10 @@ class MyOrganisation(OrganisationTelescope):
         :param dataset_description: description for the BigQuery dataset.
         :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
+        :param schema_prefix: the prefix used to find the schema path.
+        :param schema_folder: the path to the SQL schema folder.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
-        :param schema_prefix: the prefix used to find the schema path.
         """
         if airflow_vars is None:
             airflow_vars = [
@@ -160,6 +147,7 @@ class MyOrganisation(OrganisationTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            schema_folder,
             load_bigquery_table_kwargs=load_bigquery_table_kwargs,
             dataset_description=dataset_description,
             table_descriptions=table_descriptions,
@@ -221,28 +209,12 @@ class MyOrganisation(OrganisationTelescope):
 
 DAG file:
 ```python
-# Copyright 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: Aniek Roelofs
-
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.utils.identifiers import TelescopeTypes
-from observatory.dags.workflows.my_organisation import MyOrganisation
-from observatory.platform.utils.telescope_utils import make_observatory_api
+from my_dags.utils.identifiers import TelescopeTypes
+from my_dags.workflows.my_organisation import MyOrganisation
+from observatory.platform.utils.workflow_utils import make_observatory_api
 
 # Fetch all telescopes
 api = make_observatory_api()

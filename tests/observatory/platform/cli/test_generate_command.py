@@ -144,10 +144,10 @@ class TestGenerateCommand(unittest.TestCase):
 
             # Test valid workflows
             for workflow_name, workflow_type in [
-                ("MyOrganisation", "OrganisationTelescope"),
                 ("MyWorkflow", "Workflow"),
                 ("MyStream", "StreamTelescope"),
                 ("MySnapshot", "SnapshotTelescope"),
+                ("MyOrganisation", "OrganisationTelescope"),
             ]:
                 cmd.generate_workflow(project_path, package_name, workflow_type, workflow_name)
 
@@ -210,9 +210,14 @@ class TestGenerateCommand(unittest.TestCase):
                 # # Run the unit tests
                 # result = test_suite.run(result=TestResult())
                 # self.assertTrue(result.wasSuccessful(), msg=result.errors)
+
             # Test that identifiers file is only created if it does not exist
             cmd.generate_workflow(project_path, package_name, "OrganisationTelescope", "MyOrganisation2")
             self.assertEqual("7f1de3572c0fb605e4d24e7a2e1c4e30", _hash_file(identifiers_dst_file, "md5"))
+
+            # Test invalid workflow type
+            with self.assertRaises(Exception):
+                cmd.generate_workflow(project_path, package_name, "Invalid", "MyWorkflow")
 
     @patch("click.confirm")
     def test_write_rendered_template(self, mock_click_confirm):

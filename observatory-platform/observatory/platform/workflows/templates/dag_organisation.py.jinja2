@@ -29,4 +29,3 @@ for telescope in telescopes:
     key1 = telescope.extra.get("key1")
     telescope = {{ workflow_class }}(telescope.organisation, key1)
     globals()[telescope.dag_id] = telescope.make_dag()
-

@@ -222,29 +222,29 @@ def get_workflow_template_path(workflow_type: str) -> Tuple[str, str, str, str, 
     templates_dir = module_file_path("observatory.platform.workflows.templates")
 
     workflow_types = {
-        "Workflow": {"dag": "dag.py.jinja2", "telescope": "workflow.py.jinja2", "test": "test.py.jinja2"},
+        "Workflow": {"dag": "dag.py.jinja2", "workflow": "workflow.py.jinja2", "test": "test.py.jinja2"},
         "SnapshotTelescope": {
             "dag": "dag.py.jinja2",
-            "telescope": "telescope_snapshot.py.jinja2",
+            "workflow": "workflow_snapshot.py.jinja2",
             "test": "test_snapshot.py.jinja2",
         },
         "StreamTelescope": {
             "dag": "dag.py.jinja2",
-            "telescope": "telescope_stream.py.jinja2",
+            "workflow": "workflow_stream.py.jinja2",
             "test": "test_stream.py.jinja2",
         },
         "OrganisationTelescope": {
             "dag": "dag_organisation.py.jinja2",
-            "telescope": "telescope_organisation.py.jinja2",
+            "workflow": "workflow_organisation.py.jinja2",
             "test": "test_organisation.py.jinja2",
         },
     }
 
     workflow_files = workflow_types.get(workflow_type)
     if workflow_files is None:
-        raise Exception(f"Unsupported telescope type: {workflow_type}")
+        raise Exception(f"Unsupported workflow type: {workflow_type}")
 
-    workflow_file = workflow_files["telescope"]
+    workflow_file = workflow_files["workflow"]
     dag_file = workflow_files["dag"]
     test_file = workflow_files["test"]
     doc_index_file = "index.rst.jinja2"

@@ -7,14 +7,14 @@ Developing a telescope
 .. toctree::
     :maxdepth: 2
 
-    telescope/intro
-    telescope/telescope_class
-    telescope/snapshot_class
-    telescope/stream_class
-    telescope/organisation_class
-    telescope/step_by_step
-    telescope/cli
-    telescope/style
+    workflow/intro
+    workflow/workflow_class
+    workflow/snapshot_class
+    workflow/stream_class
+    workflow/organisation_class
+    workflow/step_by_step
+    workflow/cli
+    workflow/style
 
 Starting an Observatory Platform development environment
 ##########################################################

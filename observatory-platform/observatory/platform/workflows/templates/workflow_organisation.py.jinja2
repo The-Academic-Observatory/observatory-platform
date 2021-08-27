@@ -27,7 +27,7 @@ from observatory.platform.utils.workflow_utils import make_dag_id
 
 class {{ workflow_class }}Release(OrganisationRelease):
     def __init__(self, dag_id: str, release_date: pendulum.DateTime, organisation: Organisation):
-        """ Construct a {{ workflow_class }}Release.
+        """Construct a {{ workflow_class }}Release.
 
         :param dag_id: the id of the DAG.
         :param release_date: the date of the release.
@@ -58,7 +58,7 @@ class {{ workflow_class }}(OrganisationTelescope):
         airflow_vars=None,
         airflow_conns=None,
     ):
-        """ Construct a {{ workflow_class }}Telescope instance.
+        """Construct a {{ workflow_class }}Telescope instance.
 
         :param organisation: the Organisation of which data is processed.
         :param extra1: the value for extra1, obtained from the 'extra' info from the API regarding the telescope.
@@ -104,7 +104,7 @@ class {{ workflow_class }}(OrganisationTelescope):
             catchup=catchup,
             schema_prefix=schema_prefix,
             airflow_vars=airflow_vars,
-            airflow_conns=airflow_conns
+            airflow_conns=airflow_conns,
         )
 
         self.extra1 = extra1
@@ -123,7 +123,7 @@ class {{ workflow_class }}(OrganisationTelescope):
         self.add_task(self.cleanup)  # From OrganisationTelescope
 
     def make_release(self, **kwargs) -> List[{{ workflow_class }}Release]:
-        """ Make release instances.
+        """Make release instances.
 
         :param kwargs: the context passed from the PythonOperator.
         :return: a list of {{ workflow_class }}Release instances.
@@ -134,7 +134,7 @@ class {{ workflow_class }}(OrganisationTelescope):
         return releases
 
     def check_dependencies(self, **kwargs) -> bool:
-        """ Check dependencies of DAG. Add to parent method to additionally check for a expected extra key
+        """Check dependencies of DAG. Add to parent method to additionally check for a expected extra key
 
         :return: True if dependencies are valid.
         """
@@ -142,12 +142,13 @@ class {{ workflow_class }}(OrganisationTelescope):
 
         if self.extra1 is None:
             expected_extra = {"extra1": "expected_value"}
-            raise AirflowException(f"Value for extra1 is not set in 'extra' of telescope, "
-                                   f"extra example: {expected_extra}")
+            raise AirflowException(
+                f"Value for extra1 is not set in 'extra' of telescope, " f"extra example: {expected_extra}"
+            )
         return True
     
     def task1(self, releases: List[{{ workflow_class }}Release], **kwargs):
-        """ Add your own comments.
+        """Add your own comments.
 
         :param releases: A list of {{ workflow_class }}Release instances
         :param kwargs: The context passed from the PythonOperator.
