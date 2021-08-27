@@ -30,7 +30,7 @@ from observatory.platform.observatory_config import TerraformConfig
 from observatory.platform.observatory_config import ValidationError
 from observatory.platform.platform_builder import HOST_UID, HOST_GID, DEBUG
 from observatory.platform.terraform_api import TerraformApi
-from tests.observatory.test_utils import random_id
+from observatory.platform.utils.test_utils import random_id
 
 
 class TestObservatoryGenerate(unittest.TestCase):

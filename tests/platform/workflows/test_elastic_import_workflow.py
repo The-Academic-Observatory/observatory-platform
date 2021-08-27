@@ -17,8 +17,6 @@
 from __future__ import annotations
 
 import copy
-import json
-import logging
 import os
 import random
 from typing import Dict, List
@@ -29,25 +27,22 @@ from airflow.models import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from faker import Faker
 
-from academic_observatory_workflows.config import elastic_mappings_folder
 from academic_observatory_workflows.model import Table, bq_load_tables
-from observatory.platform.workflows.elastic_import_workflow import (
-    ElasticImportWorkflow,
-    load_elastic_mappings_ao,
-    load_elastic_mappings_simple,
-)
 from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.kibana import Kibana, TimeField
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.file_utils import load_file, load_jsonl
+from observatory.platform.utils.file_utils import load_jsonl
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
-from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     module_file_path,
 )
 from observatory.platform.utils.workflow_utils import make_dag_id
+from observatory.platform.workflows.elastic_import_workflow import (
+    ElasticImportWorkflow,
+    load_elastic_mappings_simple,
+)
 
 
 def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
@@ -129,105 +124,6 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         mappings = load_elastic_mappings_simple(self.cwd, self.table_name)
         self.assertIsInstance(mappings, Dict)
 
-    def test_load_elastic_mappings_ao(self):
-        """Test load_elastic_mappings_ao"""
-
-        path = elastic_mappings_folder()
-        aggregate = "author"
-        expected = [
-            ("ao_dois", load_file(os.path.join(path, "ao-dois-mappings.json"))),
-            (
-                "ao_author_access_types",
-                render_template(
-                    os.path.join(path, "ao-access-types-mappings.json.jinja2"),
-                    aggregate=aggregate,
-                    facet="access_types",
-                ),
-            ),
-            (
-                "ao_author_disciplines",
-                render_template(
-                    os.path.join(path, "ao-disciplines-mappings.json.jinja2"), aggregate=aggregate, facet="disciplines"
-                ),
-            ),
-            (
-                "ao_author_events",
-                render_template(
-                    os.path.join(path, "ao-events-mappings.json.jinja2"), aggregate=aggregate, facet="events"
-                ),
-            ),
-            (
-                "ao_author_metrics",
-                render_template(
-                    os.path.join(path, "ao-metrics-mappings.json.jinja2"), aggregate=aggregate, facet="metrics"
-                ),
-            ),
-            (
-                "ao_author_output_types",
-                render_template(
-                    os.path.join(path, "ao-output-types-mappings.json.jinja2"),
-                    aggregate=aggregate,
-                    facet="output_types",
-                ),
-            ),
-            (
-                "ao_author_unique_list",
-                render_template(
-                    os.path.join(path, "ao-unique-list-mappings.json.jinja2"), aggregate=aggregate, facet="unique_list"
-                ),
-            ),
-            (
-                "ao_author_output_types",
-                render_template(
-                    os.path.join(path, "ao-output-types-mappings.json.jinja2"),
-                    aggregate=aggregate,
-                    facet="output_types",
-                ),
-            ),
-            (
-                "ao_author_countries",
-                render_template(
-                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="countries"
-                ),
-            ),
-            (
-                "ao_author_funders",
-                render_template(
-                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="funders"
-                ),
-            ),
-            (
-                "ao_author_groupings",
-                render_template(
-                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="groupings"
-                ),
-            ),
-            (
-                "ao_author_institutions",
-                render_template(
-                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="institutions"
-                ),
-            ),
-            (
-                "ao_author_journals",
-                render_template(
-                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="journals"
-                ),
-            ),
-            (
-                "ao_author_publishers",
-                render_template(
-                    os.path.join(path, "ao-relations-mappings.json.jinja2"), aggregate=aggregate, facet="publishers"
-                ),
-            ),
-        ]
-
-        for table_id, expected_mappings_str in expected:
-            logging.info(table_id)
-            expected_mappings = json.loads(expected_mappings_str)
-            actual_mappings = load_elastic_mappings_ao(path, table_id)
-            self.assertEqual(expected_mappings, actual_mappings)
-
     def test_dag_structure(self):
         """Test that the DAG has the correct structure.
 
@@ -267,10 +163,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment(self.project_id, self.data_location, enable_api=False)
         with env.create():
-            expected_dag_ids = [
-                make_dag_id("elastic_import", suffix)
-                for suffix in ["observatory"]
-            ]
+            expected_dag_ids = [make_dag_id("elastic_import", suffix) for suffix in ["observatory"]]
 
             dag_file = os.path.join(
                 module_file_path("academic_observatory_workflows.dags"), "elastic_import_workflow.py"
@@ -386,12 +279,30 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             with env.create_dag_run(es_dag, execution_date):
                 # Data folders
                 release_id = f"{workflow.dag_id}_{release_date.strftime('%Y_%m_%d')}"
-                download_folder = os.path.join(t,
-                                               "../../../../../../academic-observatory-workflows/academic_observatory_workflows/workflows/tests/data", "telescopes", "download", workflow.dag_id, release_id)
-                extract_folder = os.path.join(t,
-                                              "../../../../../../academic-observatory-workflows/academic_observatory_workflows/workflows/tests/data", "telescopes", "extract", workflow.dag_id, release_id)
-                transform_folder = os.path.join(t,
-                                                "../../../../../../academic-observatory-workflows/academic_observatory_workflows/workflows/tests/data", "telescopes", "transform", workflow.dag_id, release_id)
+                download_folder = os.path.join(
+                    t,
+                    "../../../../academic-observatory-workflows/academic_observatory_workflows/workflows/tests/data",
+                    "telescopes",
+                    "download",
+                    workflow.dag_id,
+                    release_id,
+                )
+                extract_folder = os.path.join(
+                    t,
+                    "../../../../academic-observatory-workflows/academic_observatory_workflows/workflows/tests/data",
+                    "telescopes",
+                    "extract",
+                    workflow.dag_id,
+                    release_id,
+                )
+                transform_folder = os.path.join(
+                    t,
+                    "../../../../academic-observatory-workflows/academic_observatory_workflows/workflows/tests/data",
+                    "telescopes",
+                    "transform",
+                    workflow.dag_id,
+                    release_id,
+                )
 
                 # Test that sensor goes into 'success' state as the DAGs that they are waiting for have finished
                 ti = env.run_task(task_id_sensor, es_dag, execution_date=execution_date)

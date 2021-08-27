@@ -22,7 +22,8 @@ import unittest
 from click.testing import CliRunner
 
 from observatory.platform.terraform_api import TerraformApi, TerraformVariable
-from tests.observatory.test_utils import test_fixtures_path, random_id
+from observatory.platform.utils.test_utils import random_id
+
 
 VALID_VARIABLE_DICTS = [
     {
