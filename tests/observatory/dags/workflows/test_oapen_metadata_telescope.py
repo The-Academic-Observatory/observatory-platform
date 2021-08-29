@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs
+# Author: Aniek Roelofs, Tuan Chien
 
 import logging
 import os
@@ -21,13 +21,32 @@ from unittest.mock import patch
 
 import pendulum
 import vcr
+from airflow.exceptions import AirflowException
 from click.testing import CliRunner
 from observatory.dags.workflows.oapen_metadata_telescope import (
     OapenMetadataRelease,
     OapenMetadataTelescope,
+    transform_dict,
 )
 from observatory.platform.utils.file_utils import _hash_file, gzip_file_crc
-from tests.observatory.test_utils import test_fixtures_path
+from observatory.platform.utils.test_utils import (
+    ObservatoryEnvironment,
+    ObservatoryTestCase,
+    module_file_path,
+    test_fixtures_path,
+)
+from observatory.platform.utils.workflow_utils import blob_name, table_ids_from_path
+
+
+class MockResponse:
+    def __init__(self):
+        self.status_code = 404
+        self.text = "test text"
+
+
+class MockSession:
+    def get(self, *args, **kwargs):
+        return MockResponse()
 
 
 class MockTaskInstance:
@@ -86,8 +105,8 @@ class TestOapenMetadataTelescope(unittest.TestCase):
         self.oapen_metadata = OapenMetadataTelescope()
 
         # Dag run info
-        self.start_date = pendulum.parse("2021-02-12")
-        self.end_date = pendulum.parse("2021-02-19")
+        self.start_date = "2021-02-12"
+        self.end_date = "2021-02-19"
         self.download_hash = "4c261bbfaceafde1854e102d31fcbc0e"
         self.transform_crc = "415144d7"
 
@@ -96,12 +115,21 @@ class TestOapenMetadataTelescope(unittest.TestCase):
             mock_variable_get.side_effect = side_effect
 
             self.release = OapenMetadataRelease(
-                self.oapen_metadata.dag_id, self.start_date, self.end_date, first_release=True
+                self.oapen_metadata.dag_id,
+                pendulum.parse(self.start_date),
+                pendulum.parse(self.end_date),
+                first_release=True,
             )
 
         # Turn logging to warning because vcr prints too much at info level
         logging.basicConfig()
         logging.getLogger().setLevel(logging.WARNING)
+
+    def test_ctor(self, mock_variable_get):
+        """Cover case when airflow_vars is given."""
+
+        telescope = OapenMetadataTelescope(airflow_vars=list())
+        self.assertEqual(telescope.airflow_vars, ["transform_bucket"])
 
     def test_make_release(self, mock_variable_get):
         """Check that make_release returns a list of GridRelease instances.
@@ -139,6 +167,16 @@ class TestOapenMetadataTelescope(unittest.TestCase):
                 self.assertTrue(os.path.exists(file_path))
                 self.assertEqual(self.download_hash, _hash_file(file_path, algorithm="md5"))
 
+    def test_download_bad_response(self, mock_variable_get):
+        """Validate handling when status code is not 200."""
+
+        with patch("observatory.dags.workflows.oapen_metadata_telescope.retry_session") as m:
+            m.return_value = MockSession()
+            release = OapenMetadataRelease(
+                dag_id="dag", start_date=pendulum.now(), end_date=pendulum.now(), first_release=False
+            )
+            self.assertRaises(AirflowException, release.download)
+
     def test_transform_release(self, mock_variable_get):
         """Test that the release is transformed as expected.
 
@@ -157,3 +195,140 @@ class TestOapenMetadataTelescope(unittest.TestCase):
                 file_path = self.release.transform_files[0]
                 self.assertTrue(os.path.exists(file_path))
                 self.assertEqual(self.transform_crc, gzip_file_crc(file_path))
+
+    def test_transform_dict_invalid(self, mock_variable_get):
+        """Check transform_dict handling of invalid case."""
+        result = transform_dict(None, None, None, None)
+        self.assertEqual(result, None)
+
+
+class TestOapenMetadataTelescopeDag(ObservatoryTestCase):
+    """Tests for the Oapen Metadata telescope DAG"""
+
+    def __init__(self, *args, **kwargs):
+        """Constructor which sets up variables used by tests.
+
+        :param args: arguments.
+        :param kwargs: keyword arguments.
+        """
+        super().__init__(*args, **kwargs)
+        self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
+        self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
+
+        # Paths
+        self.vcr_cassettes_path = os.path.join(test_fixtures_path(), "vcr_cassettes")
+        self.download_path = os.path.join(self.vcr_cassettes_path, "oapen_metadata_2021-02-19.yaml")
+
+        # Telescope instance
+        self.oapen_metadata = OapenMetadataTelescope()
+
+        # Dag run info
+        self.start_date = pendulum.parse("2021-02-12")
+        self.end_date = pendulum.parse("2021-02-19")
+
+    def setup_environment(self) -> ObservatoryEnvironment:
+        """Setup observatory environment"""
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        self.dataset_id = env.add_dataset()
+        return env
+
+    def test_dag_structure(self):
+        """Test that the Oapen Metadata DAG has the correct structure.
+
+        :return: None
+        """
+        dag = OapenMetadataTelescope().make_dag()
+        self.assert_dag_structure(
+            {
+                "check_dependencies": ["get_release_info"],
+                "get_release_info": ["download"],
+                "download": ["upload_downloaded"],
+                "upload_downloaded": ["transform"],
+                "transform": ["upload_transformed"],
+                "upload_transformed": ["bq_load_partition"],
+                "bq_load_partition": ["bq_delete_old"],
+                "bq_delete_old": ["bq_append_new"],
+                "bq_append_new": ["cleanup"],
+                "cleanup": [],
+            },
+            dag,
+        )
+
+    def test_dag_load(self):
+        """Test that the OapenMetadata DAG can be loaded from a DAG bag.
+
+        :return: None
+        """
+
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        with env.create():
+            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "oapen_metadata_telescope.py")
+            self.assert_dag_load("oapen_metadata", dag_file)
+
+    def test_telescope(self):
+        """Test telescope task execution."""
+
+        env = self.setup_environment()
+        telescope = OapenMetadataTelescope(dataset_id=self.dataset_id)
+        dag = telescope.make_dag()
+        execution_date = self.start_date
+        start_date = pendulum.datetime(2018, 5, 14)
+        end_date = pendulum.datetime(2021, 2, 13)
+        release = OapenMetadataRelease(
+            dag_id="oapen_metadata", start_date=start_date, end_date=end_date, first_release=True
+        )
+
+        with env.create():
+            with env.create_dag_run(dag, execution_date):
+                with CliRunner().isolated_filesystem():
+                    # Test that all dependencies are specified: no error should be thrown
+                    env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+
+                    env.run_task(telescope.get_release_info.__name__, dag, execution_date)
+
+                    # Test download
+                    with vcr.use_cassette(self.download_path):
+                        env.run_task(telescope.download.__name__, dag, execution_date)
+                    self.assertEqual(len(release.download_files), 1)
+
+                    # Test upload_downloaded
+                    env.run_task(telescope.upload_downloaded.__name__, dag, execution_date)
+                    for file in release.download_files:
+                        self.assert_blob_integrity(env.download_bucket, blob_name(file), file)
+
+                    # Test download
+                    env.run_task(telescope.transform.__name__, dag, execution_date)
+                    self.assertEqual(len(release.transform_files), 1)
+
+                    # Test upload_transformed
+                    env.run_task(telescope.upload_transformed.__name__, dag, execution_date)
+
+                    for file in release.transform_files:
+                        self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
+
+                    # Test bq_load partition
+                    ti = env.run_task(telescope.bq_load_partition.__name__, dag, execution_date)
+                    self.assertEqual(ti.state, "skipped")
+
+                    # Test bq_delete_old
+                    ti = env.run_task(telescope.bq_delete_old.__name__, dag, execution_date)
+                    self.assertEqual(ti.state, "success")
+
+                    # Test bq_append_new
+                    env.run_task(telescope.bq_append_new.__name__, dag, execution_date)
+
+                    partition_table_id = f"{release.dag_id}"
+                    table_id = f"{self.project_id}.{telescope.dataset_id}.metadata"
+                    expected_rows = 15310
+                    self.assert_table_integrity(table_id, expected_rows)
+
+                    # Test cleanup
+                    download_folder, extract_folder, transform_folder = (
+                        release.download_folder,
+                        release.extract_folder,
+                        release.transform_folder,
+                    )
+
+                    env.run_task(telescope.cleanup.__name__, dag, execution_date)
+
+                    self.assert_cleanup(download_folder, extract_folder, transform_folder)

@@ -24,13 +24,11 @@ from typing import List, Tuple
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-
 from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.url_utils import get_ao_user_agent, retry_session
-from observatory.platform.utils.workflow_utils import convert
-from observatory.platform.utils.workflow_utils import upload_files_from_list
+from observatory.platform.utils.workflow_utils import convert, upload_files_from_list
 from observatory.platform.workflows.stream_telescope import (
     StreamRelease,
     StreamTelescope,
@@ -194,7 +192,7 @@ class OapenMetadataTelescope(StreamTelescope):
             key=OapenMetadataTelescope.RELEASE_INFO, include_prior_dates=True
         )
 
-        release = OapenMetadataRelease(self.dag_id, start_date, end_date, first_release)
+        release = OapenMetadataRelease(self.dag_id, pendulum.parse(start_date), pendulum.parse(end_date), first_release)
         return release
 
     def download(self, release: OapenMetadataRelease, **kwargs):
