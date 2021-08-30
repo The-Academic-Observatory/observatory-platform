@@ -137,33 +137,6 @@ To specify a different config.yaml file use the `--config-path` parameter when s
 observatory platform start --config-path /your/path/to/config.yaml
 ```
 
-### Specify a DAGs folder
-To specify a different dags folder use the `--dags-path` parameter when starting the Observatory Platform:
-```bash
-observatory platform start --dags-path /your/path/to/dags
-```
-
-### Specify a data folder
-To specify a different folder to mount as the host machine's data folder, use the `--data-path` parameter when 
-starting the Observatory Platform:
-```bash
-observatory platform start --data-path /your/path/to/data
-```
-
-### Specify a logs folder
-To specify a different folder to mount as the host machine's logs folder, use the `--logs-path` parameter when 
-starting the Observatory Platform:
-```bash
-observatory platform start --logs-path /your/path/to/logs
-```
-
-### Specify a PostgreSQL folder
-To specify a different folder to mount as the host machine's PostgreSQL data folder, use the `--postgres-path` parameter 
-when starting the Observatory Platform:
-```bash
-observatory platform start --postgres-path /your/path/to/postgres
-```
-
 ### Specify a user id
 To specify different user id, which is used to set the ownership of the volume mounts, use the following command
 when starting the Observatory Platform:
@@ -176,19 +149,6 @@ To specify different group id, which is used to set the ownership of the volume 
 when starting the Observatory Platform:
 ```bash
 observatory platform start --host-gid 5000
-```
-
-### Override default ports
-You may override the host ports for Redis, Flower UI, Airflow UI, Elasticsearch and Kibana. An example is given
-below:
-```bash
-observatory platform start --redis-port 6380 --flower-ui-port 5556 --airflow-ui-port 8081 --elastic-port 9201 --kibana-port 5602
-```
-
-### Specify an existing Docker network
-You may use an existing Docker network by supplying the network name:
-```bash
-observatory platform start --docker-network-name observatory-network
 ```
 
 ## Getting help
