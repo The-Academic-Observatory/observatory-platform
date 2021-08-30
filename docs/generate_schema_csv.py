@@ -111,5 +111,5 @@ def generate_latest_files():
 
 
 if __name__ == "__main__":
-    generate_csv(schema_dir="../observatory-dags/observatory/dags/database/schema")
+    generate_csv(schema_dir="../oaebu_workflows/database/schema")
     generate_latest_files()

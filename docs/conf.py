@@ -23,8 +23,8 @@ from generate_schema_csv import generate_csv, generate_latest_files
 
 # -- Project information -----------------------------------------------------
 
-project = "Observatory Platform"
-copyright = "2020 Curtin University"
+project = "Oaebu Workflows"
+copyright = "2020-2021 Curtin University"
 author = "Curtin University"
 
 # -- General configuration ---------------------------------------------------
@@ -39,12 +39,11 @@ extensions = [
     "sphinx.ext.intersphinx",
     "autoapi.extension",
     "recommonmark",
-    "sphinxcontrib.openapi",
 ]
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = "python"
-autoapi_dirs = ["../observatory-api", "../observatory-platform", "../observatory-dags"]
+autoapi_dirs = ["../oaebu_workflows"]
 autoapi_add_toctree_entry = True
 autoapi_python_use_implicit_namespaces = True
 
@@ -62,6 +61,11 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+html_logo = "logo.png"
+html_theme_options = {
+    "logo_only": True,
+    "display_version": False,
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -75,13 +79,7 @@ def setup(app):
     app.add_transform(AutoStructify)
 
 
-generate_csv(schema_dir="../observatory-dags/observatory/dags/database/schema")
+generate_csv(schema_dir="../oaebu_workflows/database/schema")
 generate_latest_files()
 html_build_dir = "_build/html"
-src_graphics_dir = "graphics"
-dst_graphics_dir = os.path.join(html_build_dir, "graphics")
 Path(html_build_dir).mkdir(exist_ok=True, parents=True)
-
-# In case of older version of shutil. Newer versions of copytree have dirs_exists_ok as a kwarg.
-if not os.path.exists(dst_graphics_dir):
-    shutil.copytree(src_graphics_dir, dst_graphics_dir)
