@@ -2,10 +2,10 @@
  
 A typical workflow pipeline will:
 1. Create a DAG file that calls code to construct the workflow in `my-dags/my_dags/dags`
-2. Create a telescope file containing code for the telescope itself in `my-dags/my_dags/workflows` 
-3. Create one or multiple schema files for the telescope data loaded into BigQuery in `my-dags/my_dags/database/schema`
-4. Create a file with tests for the telescope in `my-dags/tests/workflows`
-5. Create a documentation file about the telescope in `my-dags/docs` and update the `index.rst` file
+2. Create a workflow file containing code for the workflow itself in `my-dags/my_dags/workflows` 
+3. Create one or multiple schema files for the workflow data loaded into BigQuery in `my-dags/my_dags/database/schema`
+4. Create a file with tests for the workflow in `my-dags/tests/workflows`
+5. Create a documentation file about the workflow in `my-dags/docs` and update the `index.rst` file
 
 In these filepaths, `my-dags` is the workflows project folder and `my_dags` is the package name.
 
@@ -261,7 +261,7 @@ This file can be found at:
 
 In there are the AirflowVars and AirflowConns classes, these classes make it easier to use the same key name for a
  variable or connection in many different DAGs.
-The python variable name is used inside the telescope and the value is used inside the `config.yaml` or `config-terraform.yaml`
+The python variable name is used inside the workflow and the value is used inside the `config.yaml` or `config-terraform.yaml`
  file.
  
 For example, to add the airflow variable 'new_variable' and connection 'new_connection', the relevant classes are
@@ -732,7 +732,7 @@ To determine the correct file path, it is recommended to construct a relative pa
  from the directory of the markdown file.  
  
 For example, if the markdown file resides in  
-`my-dags/docs/my_telescope.md`
+`my-dags/docs/my_workflow.md`
 
 And the schema file path is  
 `my-dags/my_dags/database/schema/my_workflow_2021-01-01.json`
