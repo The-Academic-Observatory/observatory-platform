@@ -116,7 +116,7 @@ class TestOapenWorkflow(ObservatoryTestCase):
 
 
 class TestOapenWorkflowFunctional(ObservatoryTestCase):
-    """Functionally test the workflow.  No Google Analytics."""
+    """Functionally test the workflow. """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -190,7 +190,7 @@ class TestOapenWorkflowFunctional(ObservatoryTestCase):
                 ti = env.run_task("dummy_task", dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
 
-            # Run end to end tests for DOI DAG
+            # Run end to end tests for the DAG
             with env.create_dag_run(workflow_dag, execution_date):
                 # Test that sensors go into 'success' state as the DAGs that they are waiting for have finished
                 ti = env.run_task(
@@ -264,31 +264,27 @@ class TestOapenWorkflowFunctional(ObservatoryTestCase):
                 # Test conditions
                 release_suffix = release_date.strftime("%Y%m%d")
 
-
-                table_id = f"{self.gcp_project_id}.{oaebu_output_dataset_id}.book_product{release_suffix}"
-                #self.assert_table_integrity(table_id, 2)
-
-                table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset_id}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
-                #self.assert_table_integrity(table_id, 2)
-
-                table_id = f"{self.gcp_project_id}.{oaebu_elastic_dataset_id}.{self.gcp_project_id.replace('-', '_')}_book_product_publisher_metrics{release_suffix}"
-                #self.assert_table_integrity(table_id, 1)
-
-                # Check Book Product Table
-                sql = f"SELECT ISBN13 from {self.gcp_project_id}.{oaebu_output_dataset_id}.book_product{release_suffix}"
+                # Check records in book_product and book_product_list match
+                sql = f"SELECT COUNT(*) from {self.gcp_project_id}.{oaebu_output_dataset_id}.book_product{release_suffix}"
                 records = run_bigquery_query(sql)
-                isbns = set([record["ISBN13"] for record in records])
-                #self.assertEqual(len(isbns), 2)
-                #self.assertTrue("211" in isbns)
-                #self.assertTrue("112" in isbns)
+                count_book_product = len(records)
 
-                # Check export tables
-                sql = f"SELECT product_id from {self.gcp_project_id}.{oaebu_elastic_dataset_id}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
+                sql = f"SELECT COUNT(*) from {self.gcp_project_id}.{oaebu_elastic_dataset_id}.{self.gcp_project_id.replace('-', '_')}_book_product_list{release_suffix}"
                 records = run_bigquery_query(sql)
-                isbns = set([record["product_id"] for record in records])
-                #self.assertEqual(len(isbns), 2)
-                #self.assertTrue("211" in isbns)
-                #self.assertTrue("112" in isbns)
+                count_book_product_list = len(records)
+
+                self.assertEqual(count_book_product, count_book_product_list)
+
+                # Ensure there are no duplicates
+                sql = f"""  SELECT
+                                count
+                            FROM(SELECT 
+                                COUNT(*) as count
+                                FROM {self.gcp_project_id}.{oaebu_elastic_dataset_id}.{self.gcp_project_id.replace('-', '_')}_book_product_metrics{release_suffix} 
+                                GROUP BY product_id, month)
+                            WHERE count > 1"""
+                records = run_bigquery_query(sql)
+                self.assertEqual(len(records), 0)
 
                 # Cleanup
                 env.run_task(workflow.cleanup.__name__, workflow_dag, execution_date)
