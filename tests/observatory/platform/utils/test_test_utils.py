@@ -330,7 +330,7 @@ class TestObservatoryTestCase(unittest.TestCase):
         with env.create():
             # Upload file to download bucket and check gzip-crc
             file_name = "people.csv"
-            file_path = os.path.join(test_fixtures_path("utils", "gc_utils"), file_name)
+            file_path = test_fixtures_path("utils", file_name)
             result, upload = upload_file_to_cloud_storage(env.download_bucket, file_name, file_path)
             self.assertTrue(result)
 
@@ -349,7 +349,7 @@ class TestObservatoryTestCase(unittest.TestCase):
         with env.create():
             # Upload file to download bucket and check gzip-crc
             file_name = "people.jsonl"
-            file_path = os.path.join(test_fixtures_path("utils", "gc_utils"), file_name)
+            file_path = test_fixtures_path("utils", file_name)
             result, upload = upload_file_to_cloud_storage(env.download_bucket, file_name, file_path)
             self.assertTrue(result)
 
@@ -359,7 +359,7 @@ class TestObservatoryTestCase(unittest.TestCase):
 
             # Test loading JSON newline table
             table_name = random_id()
-            schema_path = os.path.join(test_fixtures_path("utils", "gc_utils"), "people_schema.json")
+            schema_path = test_fixtures_path("utils", "people_schema.json")
             uri = f"gs://{env.download_bucket}/{file_name}"
             result = load_bigquery_table(
                 uri,
