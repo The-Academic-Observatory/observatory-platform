@@ -21,7 +21,7 @@ import re
 import shutil
 from glob import glob
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import List
 
 import pandas as pd
 
@@ -111,5 +111,5 @@ def generate_latest_files():
 
 
 if __name__ == "__main__":
-    generate_csv(schema_dir="../observatory-dags/observatory/dags/database/schema")
+    generate_csv(schema_dir="../academic_observatory_workflows/database/schema")
     generate_latest_files()

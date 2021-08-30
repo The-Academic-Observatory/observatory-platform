@@ -1,4 +1,4 @@
-# Global Research Identifier Database
+# GRID
 
 "GRID has been developed by the team at Digital Science." It is "a free, openly accessible
 database of research institution identifiers which enables users to make sense of their data.
