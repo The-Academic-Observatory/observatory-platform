@@ -354,7 +354,7 @@ class ObservatoryEnvironment:
         run_id = "manual__{0}".format(execution_date.isoformat())
 
         # Make sure google auth uses real DateTime and not freezegun fake time
-        with patch("google.auth._helpers.utcnow", wraps=datetime.datetime.utcnow) as mock_utc_now:
+        with patch("google.auth._helpers.utcnow", wraps=datetime.utcnow) as mock_utc_now:
             try:
                 if freeze:
                     frozen_time.start()

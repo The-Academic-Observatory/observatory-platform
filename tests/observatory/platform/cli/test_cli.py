@@ -108,6 +108,7 @@ class MockConfig(Mock):
 class MockPlatformCommand(Mock):
     def __init__(
         self,
+        *,
         is_environment_valid: bool,
         docker_exe_path: str,
         is_docker_running: bool,
@@ -120,7 +121,7 @@ class MockPlatformCommand(Mock):
         wait_for_airflow_ui: bool,
         config_path: str,
         dags_path: str,
-        **kwargs: Any,
+        **kwargs
     ):
         super().__init__(**kwargs)
         self.is_environment_valid = is_environment_valid
@@ -183,18 +184,18 @@ class TestObservatoryPlatform(unittest.TestCase):
             wait_for_airflow_ui = True
             dags_path = "/path/to/dags"
             mock_cmd.return_value = MockPlatformCommand(
-                is_environment_valid,
-                docker_exe_path,
-                is_docker_running,
-                docker_compose_path,
-                config_exists,
-                config,
-                build_return_code,
-                start_return_code,
-                stop_return_code,
-                wait_for_airflow_ui,
-                config_path,
-                dags_path,
+                is_environment_valid=is_environment_valid,
+                docker_exe_path=docker_exe_path,
+                is_docker_running=is_docker_running,
+                docker_compose_path=docker_compose_path,
+                config_exists=config_exists,
+                config=config,
+                build_return_code=build_return_code,
+                start_return_code=start_return_code,
+                stop_return_code=stop_return_code,
+                wait_for_airflow_ui=wait_for_airflow_ui,
+                config_path=config_path,
+                dags_path=dags_path,
             )
 
             # Test that start command works
@@ -226,18 +227,18 @@ class TestObservatoryPlatform(unittest.TestCase):
             wait_for_airflow_ui = True
             dags_path = "/path/to/dags"
             mock_cmd.return_value = MockPlatformCommand(
-                is_environment_valid,
-                docker_exe_path,
-                is_docker_running,
-                docker_compose_path,
-                config_exists,
-                config,
-                build_return_code,
-                start_return_code,
-                stop_return_code,
-                wait_for_airflow_ui,
-                default_config_path,
-                dags_path,
+                is_environment_valid=is_environment_valid,
+                docker_exe_path=docker_exe_path,
+                is_docker_running=is_docker_running,
+                docker_compose_path=docker_compose_path,
+                config_exists=config_exists,
+                config=config,
+                build_return_code=build_return_code,
+                start_return_code=start_return_code,
+                stop_return_code=stop_return_code,
+                wait_for_airflow_ui=wait_for_airflow_ui,
+                config_path=default_config_path,
+                dags_path=dags_path,
             )
 
             # Test that start command fails
@@ -269,18 +270,18 @@ class TestObservatoryPlatform(unittest.TestCase):
             wait_for_airflow_ui = True
             dags_path = "/path/to/dags"
             mock_cmd.return_value = MockPlatformCommand(
-                is_environment_valid,
-                docker_exe_path,
-                is_docker_running,
-                docker_compose_path,
-                config_exists,
-                config,
-                build_return_code,
-                start_return_code,
-                stop_return_code,
-                wait_for_airflow_ui,
-                default_config_path,
-                dags_path,
+                is_environment_valid=is_environment_valid,
+                docker_exe_path=docker_exe_path,
+                is_docker_running=is_docker_running,
+                docker_compose_path=docker_compose_path,
+                config_exists=config_exists,
+                config=config,
+                build_return_code=build_return_code,
+                start_return_code=start_return_code,
+                stop_return_code=stop_return_code,
+                wait_for_airflow_ui=wait_for_airflow_ui,
+                config_path=default_config_path,
+                dags_path=dags_path,
             )
 
             # Make empty config
@@ -317,18 +318,18 @@ class TestObservatoryPlatform(unittest.TestCase):
             stop_return_code = 0
             wait_for_airflow_ui = True
             mock_cmd.return_value = MockPlatformCommand(
-                is_environment_valid,
-                docker_exe_path,
-                is_docker_running,
-                docker_compose_path,
-                config_exists,
-                config,
-                build_return_code,
-                start_return_code,
-                stop_return_code,
-                wait_for_airflow_ui,
-                default_config_path,
-                dags_path,
+                is_environment_valid=is_environment_valid,
+                docker_exe_path=docker_exe_path,
+                is_docker_running=is_docker_running,
+                docker_compose_path=docker_compose_path,
+                config_exists=config_exists,
+                config=config,
+                build_return_code=build_return_code,
+                start_return_code=start_return_code,
+                stop_return_code=stop_return_code,
+                wait_for_airflow_ui=wait_for_airflow_ui,
+                config_path=default_config_path,
+                dags_path=dags_path,
             )
 
             # Make empty config

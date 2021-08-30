@@ -666,14 +666,14 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Create client for blob
             storage_client = storage.Client()
             bucket = storage_client.get_bucket(self.gc_bucket_name)
-            blob = bucket.blob(upload_file_name)
 
             try:
                 # Upload file
-                result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, upload_file_name, blob_name)
+                result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, blob_name, upload_file_name)
                 self.assertTrue(result)
 
                 # Check that blob exists and has correct hash
+                blob = bucket.blob(blob_name)
                 self.assertTrue(blob.exists())
                 blob.reload()
                 self.assertEqual(self.expected_crc32c, blob.crc32c)
