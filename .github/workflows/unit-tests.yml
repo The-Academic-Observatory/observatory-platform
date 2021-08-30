@@ -32,7 +32,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e observatory-api[tests]
-          pip install -e observatory-platform
+          pip install -e observatory-platform[tests]
 
       - name: Set up JDK 11
         uses: actions/setup-java@v2
