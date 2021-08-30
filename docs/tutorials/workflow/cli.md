@@ -21,19 +21,19 @@ The `observatory generate workflow` command will generate all files that are req
 
 For example:
 ```shell script
-# Package inside "my-dags" is called "dags_package"
+# Package inside "my-dags" is called "my_dags"
 observatory generate workflow SnapshotTelescope MyNewWorkflow -p "my-dags"
 ```
 
 Creates the following new files:
  * `my-dags/docs/my_new_workflow.md`
- * `my-dags/dags_package/dags/my_new_workflow.py`
- * `my-dags/dags_package/database/schema/my_new_workflow_2021-08-01.json`
- * `my-dags/dags_package/workflows/my_new_workflow.py`
+ * `my-dags/my_dags/dags/my_new_workflow.py`
+ * `my-dags/my_dags/database/schema/my_new_workflow_2021-08-01.json`
+ * `my-dags/my_dags/workflows/my_new_workflow.py`
  * `my-dags/tests/workflows/test_my_new_workflow.py`
 
 Updates the index file for the workflow documentation:
  * `my-dags/docs/index.rst`
  
 And updates the TelescopeTypes in the identifiers file in case the new workflow is an OrganisationTelescope type:
- * `my-dags/dags_package/utils/identifiers.py` 
+ * `my-dags/my_dags/utils/identifiers.py` 

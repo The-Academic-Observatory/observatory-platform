@@ -1,10 +1,10 @@
 # SnapshotTelescope template
 ## SnapshotTelescope
  ```eval_rst
-See :meth:`platform.telescopes.snapshot_telescope.SnapshotTelescope` for the API reference.
+See :meth:`platform.workflows.snapshot_telescope.SnapshotTelescope` for the API reference.
 ```
 
-The SnapshotTelescope is a subclass of the Telescope class.
+The SnapshotTelescope is a subclass of the Workflow class.
 This subclass can be used for 'snapshot' type telescopes.  
 A 'snapshot' telescope is defined by the fact that each release contains a complete snapshot of all data and is loaded
  into a BigQuery table shard.  
@@ -40,7 +40,7 @@ For each release, the local download, extract and transform directories are dele
 
 ## SnapshotRelease
  ```eval_rst
-See :meth:`platform.telescopes.snapshot_telescope.SnapshotRelease` for the API reference.
+See :meth:`platform.workflows.snapshot_telescope.SnapshotRelease` for the API reference.
 ```
 
 The SnapshotRelease is used with the SnapshotTelescope.  
@@ -49,27 +49,12 @@ The snapshot release always has a release date, and this date is used to create 
 ## Example
 Below is an example of a simple telescope using the SnapshotTelescope template.
 
-Telescope file:  
+Workflow file:  
 ```python
-# Copyright 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: Aniek Roelofs
-
 import pendulum
 from typing import List, Dict
 
+from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 
@@ -86,7 +71,7 @@ class MySnapshotRelease(SnapshotRelease):
 
 
 class MySnapshot(SnapshotTelescope):
-    """MySnapshot Telescope."""
+    """ MySnapshot Telescope."""
 
     DAG_ID = "my_snapshot"
 
@@ -99,11 +84,11 @@ class MySnapshot(SnapshotTelescope):
         dataset_description: str = "The your_dataset dataset: https://dataseturl/",
         load_bigquery_table_kwargs: Dict = None,
         table_descriptions: Dict = None,
+        schema_folder: str = default_schema_folder(),
         airflow_vars: List = None,
         airflow_conns: List = None,
         max_active_runs: int = 1,
     ):
-
         """The MySnapshot telescope
 
         :param dag_id: the id of the DAG.
@@ -113,6 +98,7 @@ class MySnapshot(SnapshotTelescope):
         :param dataset_description: description for the BigQuery dataset.
         :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
+        :param schema_folder: the path to the SQL schema folder.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
@@ -138,6 +124,7 @@ class MySnapshot(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            schema_folder,
             load_bigquery_table_kwargs=load_bigquery_table_kwargs,
             dataset_description=dataset_description,
             table_descriptions=table_descriptions,
@@ -180,27 +167,11 @@ class MySnapshot(SnapshotTelescope):
 
 DAG file:
 ```python
-# Copyright 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: Aniek Roelofs
-
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.workflows.my_snapshot import MySnapshot
+from my_dags.workflows.my_snapshot import MySnapshot
 
-telescope = MySnapshot()
-globals()[telescope.dag_id] = telescope.make_dag()
+workflow = MySnapshot()
+globals()[workflow.dag_id] = workflow.make_dag()
 ```

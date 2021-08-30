@@ -1,11 +1,13 @@
 # Step by step tutorial
+ 
+A typical workflow pipeline will:
+1. Create a DAG file that calls code to construct the workflow in `my-dags/my_dags/dags`
+2. Create a telescope file containing code for the telescope itself in `my-dags/my_dags/workflows` 
+3. Create one or multiple schema files for the telescope data loaded into BigQuery in `my-dags/my_dags/database/schema`
+4. Create a file with tests for the telescope in `my-dags/tests/workflows`
+5. Create a documentation file about the telescope in `my-dags/docs` and update the `index.rst` file
 
-A typical telescope pipeline will:
-1. Create a DAG file that calls code to construct the telescope in `observatory-dags/observatory/dags/dags`
-2. Create a telescope file containing code for the telescope itself in `observatory-dags/observatory/dags/telescopes` 
-3. Create one or multiple schema files for the telescope data loaded into BigQuery in `observatory-dags/observatory/dags/database/schema`
-4. Create a file with tests for the telescope in `tests/observatory/dags/telescopes`
-5. Create a documentation file about the telescope in `docs/telescopes` and update the `index.rst` file
+In these filepaths, `my-dags` is the workflows project folder and `my_dags` is the package name.
 
 ## 1. Creating a DAG file
 For Airflow to pickup new DAGs, it is required to create a DAG file that contains the DAG object as well as the keywords
@@ -14,148 +16,141 @@ Any code in this file is executed every time the file is loaded into the Airflow
  default.  
 This means that the code in this file should be as minimal as possible, preferably limited to just creating the DAG
  object.  
-The filename is usually similar to the DAG id and should be inside the `observatory-dags/observatory/dags/dags` directory.
+The filename is usually similar to the DAG id and the file should be inside the `my-dags/my_dags/dags` directory, 
+ where `my-dags` is the workflows project folder and `my_dags` is the package name.
 
 An example of the DAG file:
 ```python
-# Copyright 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: <Your Name>
-
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.workflows.my_telescope import MyTelescope
+from my_dags.workflows.my_workflow import MyWorkflow
 
-telescope = MyTelescope()
-globals()[telescope.dag_id] = telescope.make_dag()
+workflow = MyWorkflow()
+globals()[workflow.dag_id] = workflow.make_dag()
 ```
 
-## 2. Creating a telescope file
-The telescope file contains the release class at the top, then the telescope class and at the bottom any functions that
+## 2. Creating a workflow file
+The workflow file contains the release class at the top, then the workflow class and at the bottom any functions that
  are used within these classes.  
-This filename is also usually similar to the DAG id and should be inside the `observatory-dags/observatory/dags/telescopes` 
- directory.  
+This filename is also usually similar to the DAG id and should be inside the `my-dags/my_dags/workflows` directory.  
 
-An example of the telescope file:
+An example of the workflow file:
 ```python
-# Copyright 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: <Your Name>
-
 import pendulum
 
 from observatory.platform.workflows.workflow import Release, Workflow
-from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
+from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
 
 
-class MyRelease(Release):
+class MyWorkflowRelease(Release):
     def __init__(self, dag_id: str, release_date: pendulum.DateTime):
-        """Create a MyRelease instance.
+        """Construct a Release instance
 
-        :param dag_id: the DAG id.
-        :param release_date: the date of the release.
+        :param dag_id: the id of the DAG.
+        :param release_date: the release date (used to construct release_id).
         """
 
-        download_files_regex = ".*.json.tar.gz$"
-        extract_files_regex = f".*.json$"
-        transform_files_regex = f".*.jsonl$"
-        release_id = f'{dag_id}_{release_date.strftime("%Y_%m_%d")}'
-        super().__init__(dag_id, release_id, download_files_regex, extract_files_regex, transform_files_regex)
-
-        self.url = MyTelescope.URL.format(year=release_date.year, month=release_date.month)
-
-    def download(self):
-        success = download_from_url(self.url)
+        self.release_date = release_date
+        release_id = f"{dag_id}_{self.release_date.strftime('%Y_%m_%d')}"
+        super().__init__(dag_id, release_id)
 
 
-class MyTelescope(Workflow):
-    """
-    Simple telescope DAG
-    """
+class MyWorkflow(Workflow):
+    """ MyWorkflow Workflow."""
 
-    URL = "https://api.snapshot/{year}/{month:02d}/all.json.tar.gz"
+    DAG_ID = "my_workflow"
 
     def __init__(
         self,
-        dag_id: str = "my_telescope",
-        start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
+        dag_id: str = DAG_ID,
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
         schedule_interval: str = "@weekly",
-        catchup: bool = False,
+        catchup: bool = True,
+        queue: str = "default",
+        max_retries: int = 3,
+        max_active_runs: int = 1,
+        airflow_vars: list = None,
+        airflow_conns: list = None,
     ):
-        """Construct a MyTelescope instance.
+        """Construct a Workflow instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
+        :param catchup: whether to catchup the DAG or not.
+        :param queue: the Airflow queue name.
+        :param max_retries: the number of times to retry each task.
+        :param max_active_runs: the maximum number of DAG runs that can be run at once.
+        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
+        :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         """
+
+        if airflow_vars is None:
+            airflow_vars = [
+                AirflowVars.DATA_PATH,
+                AirflowVars.PROJECT_ID,
+                AirflowVars.DATA_LOCATION,
+                AirflowVars.DOWNLOAD_BUCKET,
+                AirflowVars.TRANSFORM_BUCKET,
+            ]
+
+        # if airflow_conns is None:
+        #     airflow_conns = [AirflowConns.SOMEDEFAULT_CONNECTION]
+
         super().__init__(
             dag_id,
             start_date,
             schedule_interval,
             catchup=catchup,
-            airflow_conns=[AirflowConns.ORCID],
-            airflow_vars=[AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION],
+            queue=queue,
+            max_retries=max_retries,
+            max_active_runs=max_active_runs,
+            airflow_vars=airflow_vars,
+            airflow_conns=airflow_conns,
         )
 
-        self.add_setup_task(self.check_dependencies, retries=3)
-        self.add_task(self.download)
+        # Add sensor tasks
+        # self.add_sensor(some_airflow_sensor)
+
+        # Add setup tasks
+        self.add_setup_task(self.check_dependencies)
+
+        # Add generic tasks
+        self.add_task(self.task1)
         self.add_task(self.cleanup)
 
-    def make_release(self, **kwargs) -> MyRelease:
-        """Create a release instance.
+    def make_release(self, **kwargs) -> MyWorkflowRelease:
+        """Make a release instance.
 
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html for more info.
-        :return: A list with a single release instance.
+        :param kwargs: the context passed from the PythonOperator.
+        :return: A release instance
         """
         release_date = kwargs["execution_date"]
-        return MyRelease(self.dag_id, release_date)
+        release = MyWorkflowRelease(dag_id=self.dag_id, release_date=release_date)
+        return release
 
-    def download(self, release: MyRelease, **kwargs):
-        """Task to download data.
+    def task1(self, release: MyWorkflowRelease, **kwargs):
+        """Add your own comments.
 
-        :param release: A release instance.
-        :param kwargs: the context passed from the PythonOperator. See
-        https://airflow.apache.org/docs/stable/macros-ref.html for more info.
+        :param release: A MyWorkflowRelease instance
+        :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
-        release.download()
+        pass
 
-    def cleanup(self, release: MyRelease, **kwargs):
+    def cleanup(self, release: MyWorkflowRelease, **kwargs):
+        """Delete downloaded, extracted and transformed files of the release.
+
+        :param release: A MyWorkflowRelease instance
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
         release.cleanup()
-
-
-def download_from_url(url: str) -> bool:
-    return True
 ```
 
 ### Using airflow Xcoms
-Xcoms are an Airflow concept and are used with the telescopes to pass on information between tasks.
+Xcoms are an Airflow concept and are used with the workflows to pass on information between tasks.
 The description of Xcoms by Airflow can be read 
  [here](https://airflow.apache.org/docs/apache-airflow/stable/concepts/xcoms.html#xcoms) and is as follows:
  
@@ -169,8 +164,8 @@ XComs are explicitly “pushed” and “pulled” to/from their storage using t
 Many operators will auto-push their results into an XCom key called return_value if the do_xcom_push argument is set
  to True (as it is by default), and @task functions do this as well.
 
-For the telescopes they are commonly used to pass on release information.  
-One task at the beginning of the telescope will retrieve release information such as the release date or possible a
+For the workflows they are commonly used to pass on release information.  
+One task at the beginning of the workflow will retrieve release information such as the release date or possibly a
  relevant release url.  
 The release information is then pushed during this task using Xcoms and it is pulled in the subsequent tasks, so a
  release instance can be made with the given information.    
@@ -231,7 +226,7 @@ def make_release(self, **kwargs) -> OrcidRelease:
 ```
 
 ### Using Airflow variables and connections
-Any information that should not be hardcoded inside the telescope, but is still required for the telescope to function
+Any information that should not be hardcoded inside the workflow, but is still required for the workflow to function
  can be passed on using Airflow variables and connections.   
 Values for both the variables and connections are read from the relevant config file (`config.yaml` in local develop
  environment and `config-terraform.yaml` in deployed terraform environment).  
@@ -287,9 +282,9 @@ class AirflowConns:
     NEW_CONNECTION = "new_connection"
 ```
 
-The variable or connection can then be used inside the telescope like this:
+The variable or connection can then be used inside the workflow like this:
 ```python
-# Inside observatory-dags/observatory/dags/telescopes/my_telescope.py
+# Inside my-dags/my_dags/workflows/my_workflow.py
 from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
 
 airflow_conn = AirflowConns.NEW_CONNECTION
@@ -345,9 +340,9 @@ The custom `AirflowVariable` class solves this by catching the error in a Try/Ex
  will continue to look for a variable in the remaining places.
 
 ## 3. Creating a BigQuery schema file
-BigQuery database schema json files are put in `observatory-dags/dags/database/schema`.  
-They follow the scheme: `<table_name>_YYYY-MM-DD.json`.  
-To provide an additional custom version as well as the date, the files should follow the scheme:  
+BigQuery database schema json files are stored in `my-dag/my_dags/database/schema`.  
+They follow the format: `<table_name>_YYYY-MM-DD.json`.  
+An additional custom version can be provided together with the date, in this case the files should follow the format:  
  `<table_name>_<customversion>_YYYY-MM-DD.json`.
 
 The BigQuery table loading utility functions in the Observatory Platform will try to find the correct schema to use
@@ -364,17 +359,17 @@ The Observatory Platform uses the `unittest` Python framework as a base and prov
  and test DAG structure.
 It also uses the Python `coverage` package to analyse test coverage.
 
-To ensure that the telescope works as expected and in order to pick up any changes in the code base that would break the
- telescope it is required to add unit tests that cover the code in the developed telescope.  
+To ensure that the workflow works as expected and in order to pick up any changes in the code base that would break the
+ workflow it is required to add unit tests that cover the code in the developed workflow.  
 
-The test files for telescopes are stored in `tests/observatory/dags/telescopes`.  
-The `ObservatoryTestCase` class in the `test_utils.py` file contains common test methods and should be used as a
- parent class for the unit tests.  
+The test files for workflows are stored in `my-dags/tests/workflows`.  
+The `ObservatoryTestCase` class in the `observatory-platform/observatory/platform/utils/test_utils.py` file contains
+ common test methods and should be used as a parent class for the unit tests.  
 Additionally, the `ObservatoryEnvironment` class in the `test_utils.py` can be used to simulate the Airflow
- environment and the different telescope tasks can be run and tested inside this environment.  
+ environment and the different workflow tasks can be run and tested inside this environment.  
 
 ### Testing DAG structure
-The telescope's DAG structure can be tested through the `assert_dag_structure` method of `ObservatoryTestCase`.  
+The workflow's DAG structure can be tested through the `assert_dag_structure` method of `ObservatoryTestCase`.  
 The DAG object is compared against a dictionary, where the key is the source node, and the value is a list of sink
  nodes.  
 This expresses the relationship that the source node task is a dependency of all of the sink node tasks.  
@@ -387,10 +382,10 @@ from observatory.platform.utils.test_utils import ObservatoryTestCase
 from observatory.platform.workflows.workflow import Release, Workflow
 
 
-class MyTelescope(Workflow):
+class MyWorkflow(Workflow):
     def __init__(
         self,
-        dag_id: str = "my_telescope",
+        dag_id: str = "my_workflow",
         start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
         schedule_interval: str = "@weekly",
     ):
@@ -411,7 +406,7 @@ class MyTelescope(Workflow):
 
 
 class MyTestClass(ObservatoryTestCase):
-    """Tests for the telescope"""
+    """Tests for the workflow"""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -427,8 +422,8 @@ class MyTestClass(ObservatoryTestCase):
         :return: None
         """
         expected = {"task1": ["task2"], "task2": []}
-        telescope = MyTelescope()
-        dag = telescope.make_dag()
+        workflow = MyWorkflow()
+        dag = workflow.make_dag()
         self.assert_dag_structure(expected, dag)
 ```
 
@@ -445,10 +440,10 @@ from observatory.platform.utils.test_utils import ObservatoryTestCase, Observato
 from observatory.platform.workflows.workflow import Release, Workflow
 
 
-class MyTelescope(Workflow):
+class MyWorkflow(Workflow):
     def __init__(
         self,
-        dag_id: str = "my_telescope",
+        dag_id: str = "my_workflow",
         start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
         schedule_interval: str = "@weekly",
     ):
@@ -469,7 +464,7 @@ class MyTelescope(Workflow):
 
 
 class MyTestClass(ObservatoryTestCase):
-    """Tests for the telescope"""
+    """Tests for the workflow"""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -485,14 +480,14 @@ class MyTestClass(ObservatoryTestCase):
         :return: None
         """
         with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.dags.dags"), "my_telescope.py")
-            self.assert_dag_load("my_telescope", dag_file)
+            dag_file = os.path.join(module_file_path("my_dags.dags"), "my_workflow.py")
+            self.assert_dag_load("my_workflow", dag_file)
 ```
 
-### Testing telescope tasks
-To run and test a telescope task, the `run_task` method can be used within an `ObservatoryEnvironment`.  
+### Testing workflow tasks
+To run and test a workflow task, the `run_task` method can be used within an `ObservatoryEnvironment`.  
 
-The ObservatoryEnvironment is used to simulate the Airflow environment, to ensure that a telescope can be run from
+The ObservatoryEnvironment is used to simulate the Airflow environment, to ensure that a workflow can be run from
  end to end it creates additional resources such as storage buckets and BigQuery datasets.
 
 Creating the Observatory Environment involves:  
@@ -526,10 +521,10 @@ from observatory.platform.utils.test_utils import ObservatoryTestCase, Observato
 from observatory.platform.workflows.workflow import Release, Workflow
 
 
-class MyTelescope(Telescope):
+class MyWorkflow(Workflow):
     def __init__(
         self,
-        dag_id: str = "my_telescope",
+        dag_id: str = "my_workflow",
         start_date: pendulum.DateTime = pendulum.datetime(2017, 3, 20),
         schedule_interval: str = "@weekly",
     ):
@@ -550,7 +545,7 @@ class MyTelescope(Telescope):
 
 
 class MyTestClass(ObservatoryTestCase):
-    """Tests for the telescope"""
+    """Tests for the workflow"""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -560,22 +555,22 @@ class MyTestClass(ObservatoryTestCase):
         super(MyTestClass, self).__init__(*args, **kwargs)
         self.execution_date = pendulum.datetime(2020, 1, 1)
 
-    def test_telescope(self):
-        """Test the telescope end to end.
+    def test_workflow(self):
+        """Test the workflow end to end.
         :return: None.
         """
         # Setup Observatory environment
         env = ObservatoryEnvironment()
 
-        # Setup Telescope
-        telescope = MyTelescope()
-        dag = telescope.make_dag()
+        # Setup Workflow
+        workflow = MyWorkflow()
+        dag = workflow.make_dag()
 
         # Create the Observatory environment and run tests
         with env.create():
             with env.create_dag_run(dag, self.execution_date):
                 # Run task1
-                env.run_task(telescope.task1.__name__)
+                env.run_task(workflow.task1.__name__)
 ```
 
 ### Temporary GCP datasets
@@ -586,8 +581,8 @@ The `ObservatoryEnvironment` has a method called `add_dataset` that can be used 
  project for the duration of the environment.
 
 ### Observatory Platform API
-Some telescopes make use of the Observatory Platform API in order to fetch necessary metadata.  
-When writing unit tests for telescopes that use the platform API, it is necessary to use an isolated API environment
+Some workflows make use of the Observatory Platform API in order to fetch necessary metadata.  
+When writing unit tests for workflows that use the platform API, it is necessary to use an isolated API environment
  where the relevant TelescopeType, Organisations and Telescope exist.  
 The ObservatoryEnvironment that is mentioned above can be used to achieve this.  
 An API session is started when creating the ObservatoryEnvironment and the TelescopeType, Organisations and Telescope
@@ -598,7 +593,7 @@ Example:
 import pendulum
 from airflow.models.connection import Connection
 
-from observatory.dags.utils.identifiers import TelescopeTypes
+from my_dags.utils.identifiers import TelescopeTypes
 from observatory.api.server import orm
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.test_utils import ObservatoryEnvironment
@@ -621,15 +616,15 @@ env.api_session.add(telescope_type)
 organisation = orm.Organisation(name="Curtin Press", created=dt, modified=dt)
 env.api_session.add(organisation)
 
-# Create telescope with API
-telescope = orm.Telescope(
+# Create workflow with API
+workflow = orm.Telescope(
     name="Curtin Press ONIX Telescope",
     telescope_type=telescope_type,
     organisation=organisation,
     modified=dt,
     created=dt,
 )
-env.api_session.add(telescope)
+env.api_session.add(workflow)
 
 # Commit changes
 env.api_session.commit()
@@ -649,11 +644,11 @@ make html
 This will output html documentation in the `docs/_build/html` directory and the file `docs_/build/index.html` can be
  opened in a browser to preview what the documentation will look like.
  
-A documentation file with info on the telescope should be added in the `docs/telescopes` directory.  
+A documentation file with info on the workflow should be added in the `my-dags/docs` directory.  
 This documentation should at least include:  
  * A short summary on the data source
  * A summary table, see example below 
- * Any details on set-up steps that are required to run this telescope
+ * Any details on set-up steps that are required to run this workflow
  * Info on any Airflow connections and variables that are used (see further below) 
  * The latest schema.
  
@@ -681,19 +676,19 @@ This documentation should at least include:
     +------------------------------+---------+
     | Credentials Required         | No      |
     +------------------------------+---------+
-    | Uses Telescope Template      | Snapshot|
+    | Uses Workflow  Template      | Snapshot|
     +------------------------------+---------+
     | Each shard includes all data | Yes     |
     +------------------------------+---------+
     ```
 
 ### Including Airflow variable/connection info in documentation
-If a newly developed telescope uses an Airflow connection or variable, this should be explained in the documentation on
- the telescope.  
+If a newly developed workflow uses an Airflow connection or variable, this should be explained in the documentation on
+ the workflow.  
 An example of the variable/connection is required as well as an explanation on how the value for this 
  variable/connection can be obtained.
 
-See for example this info section on the Airflow connection required with the google_books telescope:
+See for example this info section on the Airflow connection required with the google_books workflow:
 
 ---
 ## Airflow connections
@@ -713,11 +708,11 @@ ssh-keyscan oaebu.exavault.com
 ---
 
 ### Including schemas in documentation
-The documentation build system automatically converts all the schema files from `observatory-dags/observatory/dags/database/schemas` 
+The documentation build system automatically converts all the schema files from `my-dags/my_dags/database/schemas` 
  into CSV files.  
 This is temporarily stored in the `docs/schemas` folder.  
 The csv files have the same filename as the original schema files, except for the suffix, which is changed to csv.  
-If there are multiple schemas for the same telescope, the `_latest` suffix can be used to always get the latest
+If there are multiple schemas for the same workflow, the `_latest` suffix can be used to always get the latest
  version of the schema.  
 The schemas folder is cleaned up as part of the build process so this directory is not visible, but can be made
  visable by disabling the cleanup code in the `Makefile`.  
@@ -737,13 +732,13 @@ To determine the correct file path, it is recommended to construct a relative pa
  from the directory of the markdown file.  
  
 For example, if the markdown file resides in  
-`docs/telescopes/my_telescope.md`
+`my-dags/docs/my_telescope.md`
 
 And the schema file path is  
-`observatory-dags/observatory/dags/database/schema/my_telescpe_2021-01-01.json`
+`my-dags/my_dags/database/schema/my_workflow_2021-01-01.json`
 
 then the correct file path that should be used in the RST code block is  
 ```
-:file: ../schemas/my_telescope_latest.csv
+:file: ../schemas/my_workflow_latest.csv
 ```
-The `..` follows the parent directory, this is needed once to reach `docs` from `docs/telescopes/my_telescope.md`.
+The `..` follows the parent directory, this is needed once to reach `docs` from `my-dags/docs/workflows/my_workflow.md`.

@@ -1,15 +1,15 @@
-# Telescope template
-## Telescope
+# Workflow template
+## Workflow
 ```eval_rst
-See :meth:`platform.telescopes.telescope.Telescope` for the API reference.
+See :meth:`platform.workflows.workflow.Workflow` for the API reference.
 ```
 
-The telescope class is the most basic template that can be used. 
-It implements methods from the AbstractTelescope class and it is not recommended that the AbstractTelescope class is
+The workflow class is the most basic template that can be used. 
+It implements methods from the AbstractWorkflow class and it is not recommended that the AbstractWorkflow class is
  used directly itself.  
 
 ### Make DAG
-The `make_dag` method of the telescope class is used to create an Airflow DAG object. This object is picked up by the
+The `make_dag` method of the workflow class is used to create an Airflow DAG object. This object is picked up by the
  Airflow scheduler and ensures that all tasks are scheduled.
  
 ### Adding tasks to DAG
@@ -44,19 +44,19 @@ The returned value is then evaluated to determine whether the workflow continues
 Additionally, the set-up task does not require a release instance as an argument passed to the Python function, in
  contrast to a 'general' task.   
 The set-up tasks are chained after any sensors and before any remaining 'general' tasks.  
-Tasks of this type are useful for example to check whether all dependencies for a telescope are met or to list which
+Tasks of this type are useful for example to check whether all dependencies for a workflow are met or to list which
  releases are available.
 
 The general **task** type instantiates the PythonOperator.  
 The executable Python function that is called with this operator requires a release instance to be passed on as an
  argument.  
 These tasks are always chained after any sensors and set-up tasks.  
-Tasks of this type are the most common in the telescopes and are useful for any functionality that requires release
+Tasks of this type are the most common in the workflows and are useful for any functionality that requires release
  information such as downloading, transforming, loading into BigQuery, etc.
 
-Order of the different task types within a telescope:  
+Order of the different task types within a workflow:  
 <p align="center">
-<img title="Order of telescope tasks" alt="Order of telescope tasks" src="../../graphics/telescope_flow.png">
+<img title="Order of workflow tasks" alt="Order of workflow tasks" src="../../graphics/workflow_flow.png">
 </p>
 
 By default all tasks within the same type (sensor, setup task, task) are chained linearly in the order they are
@@ -66,23 +66,23 @@ All tasks that are added within that context are added in parallel, however as o
  setup tasks type.
 
 ### The 'make_release' method 
-The general task type requires a release instance and because of this the `make_release` method of the telescope class
+The general task type requires a release instance and because of this the `make_release` method of the workflow class
  always has to be implemented by the developer.  
 This method is called when the PythonOperator for the general task is made and has to return a release instance, the
  release class on which this instance is based is discussed in detail further below.  
 
 ### Checking dependencies
-The telescope class also has a method `check_dependencies` implemented that can be added as a set-up task.  
-All telescopes require that at least some Airflow Variables and Connections are set, so these dependencies should be
- checked at the start of each telescope and this can be done with this task.
+The workflow class also has a method `check_dependencies` implemented that can be added as a set-up task.  
+All workflows require that at least some Airflow Variables and Connections are set, so these dependencies should be
+ checked at the start of each workflow and this can be done with this task.
 
 ## Release
 ```eval_rst
-See :meth:`platform.telescopes.telescope.Release` for the API reference.
+See :meth:`platform.workflows.workflow.Release` for the API reference.
 ```
 
-An instance of the release class is passed on as an argument to any general tasks that are added to the telescope.   
-Similarly in set-up to the telescope class, it implements methods from the AbstractRelease class and it is not
+An instance of the release class is passed on as an argument to any general tasks that are added to the workflow.   
+Similarly in set-up to the workflow class, it implements methods from the AbstractRelease class and it is not
  recommended that the AbstractRelease class is used directly by itself.  
 
 ### The release id
@@ -99,11 +99,11 @@ The release has properties for the paths of 3 different folders:
  It is convenient to use these when downloading/extract/transforming data and writing the data to a file in the
   matching folder.  
 The paths for these folders always include the release id and the format is as follows:    
-`/path/to/telescopes/{download|extract|transform}/{dag_id}/{release_id}/`
+`/path/to/workflows/{download|extract|transform}/{dag_id}/{release_id}/`
 
-The `path/to/telescopes` is determined by a separate function.  
+The `path/to/workflows` is determined by a separate function.  
 Having these folder paths as properties of the release class makes it easy to have the same file structure for each
- telescope.
+ workflow.
 
 ### List files in folders
 The folder paths are also used for the 3 corresponding properties:
@@ -117,7 +117,7 @@ This is useful when e.g. iterating through all download files to transform them,
 The regex patterns for each of the 3 folders is passed on separately when instantiating the release class.  
 
 ### Bucket names
-There are 2 storage buckets used to store the data processed with the telescope, a download bucket and a transform
+There are 2 storage buckets used to store the data processed with the workflow, a download bucket and a transform
  bucket.  
 The bucket names are retrieved from Airflow Variables and there are 2 corresponding properties in the release class, 
 `download_bucket` and `transform_bucket`.  
@@ -126,31 +126,15 @@ These properties are convenient to use when uploading data to either one of thes
 ### Clean up
 The release class has a `cleanup` method which can be called inside a task that will 'clean up' by deleting the 3
  folders mentioned above.  
-This method is part of the release class, because a clean up task is part of each telescope and it uses those
+This method is part of the release class, because a clean up task is part of each workflow and it uses those
  folder paths described above that are properties of the release class. 
  
 
 ## Example
-Below is an example of a simple telescope using the Telescope template.
+Below is an example of a simple workflow using the Workflow template.
 
-Telescope file:  
+Workflow file:  
 ```python
-# Copyright 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: Aniek Roelofs
-
 import pendulum
 from airflow.sensors.external_task import ExternalTaskSensor
 
@@ -171,10 +155,10 @@ class MyRelease(Release):
         super().__init__(dag_id, release_id)
 
 
-class MyTelescope(Telescope):
-    """MyTelescope Telescope."""
+class MyWorkflow(Workflow):
+    """MyWorkflow Workflow."""
 
-    DAG_ID = "my_telescope"
+    DAG_ID = "my_workflow"
 
     def __init__(
         self,
@@ -188,7 +172,7 @@ class MyTelescope(Telescope):
         airflow_vars: list = None,
         airflow_conns: list = None,
     ):
-        """Construct a Telescope instance.
+        """Construct a Workflow instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -226,7 +210,7 @@ class MyTelescope(Telescope):
         )
 
         # Add sensor tasks
-        sensor = ExternalTaskSensor(external_dag_id="my_other_telescope", task_id="important_task", mode="reschedule")
+        sensor = ExternalTaskSensor(external_dag_id="my_other_workflow", task_id="important_task", mode="reschedule")
         self.add_sensor(sensor)
 
         # Add setup tasks
@@ -267,35 +251,19 @@ class MyTelescope(Telescope):
 
 DAG file:
 ```python
-# Copyright 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: Aniek Roelofs
-
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.workflows.my_telescope import MyTelescope
+from observatory.dags.workflows.my_workflow import MyWorkflow
 
-telescope = MyTelescope()
-globals()[telescope.dag_id] = telescope.make_dag()
+workflow = MyWorkflow()
+globals()[workflow.dag_id] = workflow.make_dag()
 ```
 
-In case you are familiar with creating DAGs in Airflow, below is the equivalent telescope without using the template.  
+In case you are familiar with creating DAGs in Airflow, below is the equivalent workflow without using the template.  
 This might help to understand how the template works behind the scenes.  
   
-Telescope and DAG in one file:  
+Workflow and DAG in one file:  
 ```python
 # Copyright 2021 Curtin University
 #
@@ -322,15 +290,15 @@ from airflow.operators.python import ShortCircuitOperator
 from airflow.sensors.external_task import ExternalTaskSensor
 
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars, check_connections, check_variables
-from observatory.platform.utils.template_utils import (
+from observatory.platform.utils.workflow_utils import (
     SubFolder,
     on_failure_callback,
-    telescope_path,
+    workflow_path,
 )
 
 
 def check_dependencies() -> bool:
-    """Checks the 'telescope' attributes, airflow variables & connections and possibly additional custom checks.
+    """Checks the 'workflow' attributes, airflow variables & connections and possibly additional custom checks.
 
     :return: Whether variables and connections are available.
     """
@@ -368,12 +336,12 @@ def cleanup(**kwargs):
     :param kwargs: The context passed from the PythonOperator.
     :return: None.
     """
-    dag_id = "my_telescope"
+    dag_id = "my_workflow"
     release_date = kwargs["execution_date"]
     release_id = f'{dag_id}_{release_date.strftime("%Y_%m_%d")}'
-    download_folder = telescope_path(SubFolder.downloaded.value, dag_id, release_id)
-    extract_folder = telescope_path(SubFolder.extracted.value, dag_id, release_id)
-    transform_folder = telescope_path(SubFolder.transformed.value, dag_id, release_id)
+    download_folder = workflow_path(SubFolder.downloaded.value, dag_id, release_id)
+    extract_folder = workflow_path(SubFolder.extracted.value, dag_id, release_id)
+    transform_folder = workflow_path(SubFolder.transformed.value, dag_id, release_id)
 
     for path in [download_folder, extract_folder, transform_folder]:
         try:
@@ -390,17 +358,17 @@ default_args = {
 }
 
 with DAG(
-    dag_id="my_telescope",
+    dag_id="my_workflow",
     start_date=datetime(2020, 1, 1),
     schedule_interval="@weekly",
     default_args=default_args,
     catchup=True,
     max_active_runs=1,
-    doc_md="MyTelescope Telescope",
+    doc_md="MyWorkflow Workflow",
 ) as dag:
 
     sensor_task = ExternalTaskSensor(
-        external_dag_id="my_other_telescope",
+        external_dag_id="my_other_workflow",
         task_id="important_task",
         mode="reschedule",
         queue="default",

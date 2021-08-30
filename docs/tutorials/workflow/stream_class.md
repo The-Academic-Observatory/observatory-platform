@@ -1,10 +1,10 @@
 # StreamTelescope template
 ## StreamTelescope
 ```eval_rst
-See :meth:`platform.telescopes.stream_telescope.StreamTelescope` for the API reference.
+See :meth:`platform.workflows.stream_telescope.StreamTelescope` for the API reference.
 ```
 
-The StreamTelescope is another subclass of the Telescope class.
+The StreamTelescope is another subclass of the Workflow class.
 This subclass can be used for 'stream' type telescopes.  
 A 'stream' telescope is defined by the fact that there is one main table with data and this table is
  constantly kept up to date with a stream of data.  
@@ -112,7 +112,7 @@ The local download, extract and transform directories of the release are deleted
  
 ## StreamRelease
 ```eval_rst
-See :meth:`platform.telescopes.stream_telescope.StreamRelease` for the API reference.
+See :meth:`platform.workflows.stream_telescope.StreamRelease` for the API reference.
 ```
 
 The StreamRelease is used with the StreamTelescope.  
@@ -123,28 +123,13 @@ The first_release property is a boolean and described whether this release is th
  ## Example
 Below is an example of a simple telescope using the StreamTelescope template.
 
-Telescope file:  
+Workflow file:  
 ```python
-# Copyright 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: Aniek Roelofs
-
 import pendulum
 from airflow.models.taskinstance import TaskInstance
 from typing import Dict, List
 
+from observatory.dags.config import schema_folder as default_schema_folder
 from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope
 from observatory.platform.utils.airflow_utils import AirflowVars
 
@@ -163,7 +148,7 @@ class MyStreamRelease(StreamRelease):
 
 
 class MyStream(StreamTelescope):
-    """MyStream Telescope."""
+    """ MyStream Telescope."""
 
     DAG_ID = "my_stream"
 
@@ -179,6 +164,7 @@ class MyStream(StreamTelescope):
         batch_load: bool = True,
         load_bigquery_table_kwargs: Dict = None,
         table_descriptions: Dict = None,
+        schema_folder: str = default_schema_folder(),
         airflow_vars: List = None,
         airflow_conns: List = None,
     ):
@@ -192,6 +178,7 @@ class MyStream(StreamTelescope):
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param bq_merge_days: how often partitions should be merged (every x days)
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
+        :param schema_folder: the path to the SQL schema folder.
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
@@ -219,6 +206,7 @@ class MyStream(StreamTelescope):
             dataset_id,
             merge_partition_field,
             bq_merge_days,
+            schema_folder,
             batch_load=batch_load,
             load_bigquery_table_kwargs=load_bigquery_table_kwargs,
             dataset_description=dataset_description,
@@ -241,7 +229,7 @@ class MyStream(StreamTelescope):
         # BQ loading functions from StreamTelescope
         # self.add_task(self.bq_load_partition)
         # self.add_task_chain([self.bq_delete_old,
-        #                     self.bq_append_new], trigger_rule='none_failed')
+        #                     self.bq_append_new], trigger_rule="none_failed")
 
         # cleanup
         self.add_task(self.cleanup)  # From StreamTelescope
@@ -254,6 +242,9 @@ class MyStream(StreamTelescope):
         """
         ti: TaskInstance = kwargs["ti"]
         start_date, end_date, first_release = ti.xcom_pull(key=MyStream.RELEASE_INFO, include_prior_dates=True)
+
+        start_date = pendulum.parse(start_date)
+        end_date = pendulum.parse(end_date)
 
         release = MyStreamRelease(self.dag_id, start_date, end_date, first_release)
         return release
@@ -270,27 +261,11 @@ class MyStream(StreamTelescope):
 
 DAG file:
 ```python
-# Copyright 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Author: Aniek Roelofs
-
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from observatory.dags.workflows.my_stream import MyStream
+from my_dags.workflows.my_stream import MyStream
 
-telescope = MyStream()
-globals()[telescope.dag_id] = telescope.make_dag()
+workflow = MyStream()
+globals()[workflow.dag_id] = workflow.make_dag()
 ```
