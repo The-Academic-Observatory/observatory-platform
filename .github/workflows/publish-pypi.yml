@@ -15,15 +15,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: 3.8
 
       - name: Install packages
         run: |
           python -m pip install --upgrade pip
-          pip install -e observatory-api
-          pip install -e observatory-platform
-          pip install -e observatory-dags
-          pip install -e observatory-reports
+          pip install -e
 
       - name: Build packages
         run: |
@@ -45,34 +42,10 @@ jobs:
 
           cd ../
 
-      - name: Publish observatory-api
+      - name: Publish oaebu-workflows
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
           packages_dir: observatory-api/dist/
-
-      - name: Publish observatory-platform
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_PASSWORD }}
-          packages_dir: observatory-platform/dist/
-
-      - name: Publish observatory-dags
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_PASSWORD }}
-          packages_dir: observatory-dags/dist/
-
-      - name: Publish observatory-reports
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_PASSWORD }}
-          packages_dir: observatory-reports/dist/

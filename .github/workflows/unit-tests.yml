@@ -14,8 +14,8 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [ 3.7 ]
-        os: [ ubuntu-18.04 ]
+        python-version: [ 3.8 ]
+        os: [ ubuntu-20.04 ]
 
     steps:
       - name: Checkout ${{ matrix.python-version }}
@@ -31,10 +31,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e observatory-api[tests]
-          pip install -e observatory-platform
-          pip install -e observatory-dags
 
+          cd ..
+          git clone --single-branch --branch feature/remove-observatory-dags https://github.com/The-Academic-Observatory/observatory-platform.git observatory-platform-2
+          cd observatory-platform-2
+          pip install -e observatory-api
+          pip install -e observatory-platform
+          cd ..
+
+          cd observatory-platform
+          pip install -e .[tests]
       - name: Set up JDK 11
         uses: actions/setup-java@v2
         with:
@@ -44,9 +50,7 @@ jobs:
       - name: Check licenses
         run: |
           # stop the build if there are licensing issues
-          liccheck --sfile strategy.ini --rfile observatory-api/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
-          liccheck --sfile strategy.ini --rfile observatory-platform/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
-          liccheck --sfile strategy.ini --rfile observatory-dags/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
+          liccheck --sfile strategy.ini --rfile requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
 
       - name: Lint with flake8
         run: |
