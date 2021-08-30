@@ -75,7 +75,7 @@ class TestGenerateCommand(unittest.TestCase):
             # Test creating new project
             project_path = os.path.join(os.getcwd(), "my-project")
             package_name = "my_dags"
-            cmd.generate_workflows_project(project_path, package_name)
+            cmd.generate_workflows_project(project_path, package_name, "Author Name")
 
             # Check that all directories and __init__.py files exist
             init_dirs = [
@@ -100,9 +100,20 @@ class TestGenerateCommand(unittest.TestCase):
             self.assertTrue(os.path.isfile(setup_cfg_path))
             self.assertTrue(os.path.isfile(setup_py_path))
 
+            # Check that all docs files exist
+            docs_dirs = ["_build", "_static", "_templates", "workflows"]
+            for d in docs_dirs:
+                dir_path = os.path.join(project_path, "docs", d)
+                self.assertTrue(os.path.isdir(dir_path))
+
+            docs_files = ["conf.py", "generate_schema_csv.py", "index.rst", "make.bat", "Makefile"]
+            for f in docs_files:
+                file_path = os.path.join(project_path, "docs", f)
+                self.assertTrue(os.path.isfile(file_path))
+
             # Test creating new project when files already exist
             mock_cli_confirm.return_value = "y"
-            cmd.generate_workflows_project(project_path, package_name)
+            cmd.generate_workflows_project(project_path, package_name, "Author Name")
 
             # Check that file hash stayed the same (no new empty init files)
             for d in init_dirs:
@@ -131,7 +142,7 @@ class TestGenerateCommand(unittest.TestCase):
             # Create new workflows project
             project_path = os.path.join(os.getcwd(), "my-project")
             package_name = "unittest_dags"
-            result = runner.invoke(generate, ["project", project_path, package_name], input="n")
+            result = runner.invoke(generate, ["project", project_path, package_name, "Author Name"], input="n")
             self.assertEqual(0, result.exit_code)
 
             # Get expected file dirs
@@ -157,7 +168,7 @@ class TestGenerateCommand(unittest.TestCase):
                 workflow_dst_file = os.path.join(workflow_dst_dir, f"{workflow_module}.py")
                 test_dst_file = os.path.join(test_dst_dir, f"test_{workflow_module}.py")
                 index_dst_file = os.path.join(doc_dst_dir, "index.rst")
-                doc_dst_file = os.path.join(doc_dst_dir, f"{workflow_module}.md")
+                doc_dst_file = os.path.join(doc_dst_dir, "workflows", f"{workflow_module}.md")
                 schema_dst_file = os.path.join(
                     schema_dst_dir, f"{workflow_module}_{datetime.now().strftime('%Y-%m-%d')}.json"
                 )

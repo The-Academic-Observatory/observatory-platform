@@ -105,7 +105,7 @@ class GenerateCommand:
                 open(os.path.join(path, "__init__.py"), "a").close()
 
         # Make setup files
-        templates_dir = module_file_path("observatory.platform.cli.templates")
+        templates_dir = module_file_path("observatory.platform.cli.templates.generate_project")
         setup_cfg_template = os.path.join(templates_dir, "setup.cfg.jinja2")
         setup_py_template = os.path.join(templates_dir, "setup.py.jinja2")
 
@@ -123,7 +123,15 @@ class GenerateCommand:
         dst = os.path.join(project_path, "docs", "generate_schema_csv.py")
         shutil.copy(src, dst)
 
+        # Copy requirements.txt to docs
+        src = os.path.join(templates_dir, "docs_requirements.txt")
+        dst = os.path.join(project_path, "docs", "requirements.txt")
+        shutil.copy(src, dst)
+
         # Run sphinx quickstart to set up docs
+        if os.path.isdir(os.path.join(project_path, "docs")):
+            print(f"WARNING, the docs directory is not empty. The sphinx-quickstart command to set up the docs "
+                  f"directory will raise an error.")
         sphinx_template_dir = os.path.join(templates_dir, "sphinx-quickstart")
         proc = subprocess.Popen(
             ["sphinx-quickstart", "-q", "-t", sphinx_template_dir, "-p", package_name, "-a", author_name, "-d",

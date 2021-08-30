@@ -95,9 +95,9 @@ class TestObservatoryGenerate(unittest.TestCase):
         with runner.isolated_filesystem():
             # Test creating project and installing package with pip
             os.makedirs("project_path")
-            result = runner.invoke(generate, ["project", "project_path", "package_name"], input='y')
+            result = runner.invoke(generate, ["project", "project_path", "package_name", "Author Name"], input='y')
             self.assertEqual(0, result.exit_code)
-            mock_generate_project.assert_called_once_with("project_path", "package_name")
+            mock_generate_project.assert_called_once_with("project_path", "package_name", "Author Name")
             mock_subprocess.assert_called_once_with([sys.executable, "-m", "pip", "install", "-e", "."],
                                                     cwd="project_path", stderr=-1, stdout=-1)
             mock_stream_process.called_once_with("proc", True)
@@ -106,9 +106,9 @@ class TestObservatoryGenerate(unittest.TestCase):
             mock_generate_project.reset_mock()
             mock_subprocess.reset_mock()
             mock_stream_process.reset_mock()
-            result = runner.invoke(generate, ["project", "project_path", "package_name"], input='n')
+            result = runner.invoke(generate, ["project", "project_path", "package_name", "Author Name"], input='n')
             self.assertEqual(0, result.exit_code)
-            mock_generate_project.assert_called_once_with("project_path", "package_name")
+            mock_generate_project.assert_called_once_with("project_path", "package_name", "Author Name")
             mock_subprocess.assert_not_called()
             mock_stream_process.assert_not_called()
 
