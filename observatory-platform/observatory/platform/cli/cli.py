@@ -226,12 +226,14 @@ def generate():
 @generate.command()
 @click.argument("project_path", type=click.Path(exists=False, file_okay=False, dir_okay=True))
 @click.argument("package_name", type=str)
-def project(project_path: str, package_name: str):
+@click.argument("author_name", type=str)
+def project(project_path: str, package_name: str, author_name: str):
     """Generate a new workflows project.
 
     \b
     PROJECT_PATH is the Python project path.
     PACKAGE_NAME is the Python package name.
+    AUTHOR_NAME is the author name, used for readthedocs.
 
     \b
     For example, the command: observatory generate project /path/to/my-workflows-project my_workflows_project
@@ -241,7 +243,14 @@ def project(project_path: str, package_name: str):
     \b
     └── my-workflows-project
         ├── docs
-        │   └── index.rst
+        │   ├── _build
+        │   ├── _static
+        │   ├── _templates
+        │   ├── workflows
+        │   ├── generate_schema_csv.py
+        │   ├── index.rst
+        │   ├── make.bat
+        │   └── Makefile
         ├── my_workflows_project
         │   ├── __init__.py
         │   ├── dags
@@ -262,7 +271,7 @@ def project(project_path: str, package_name: str):
                 └── __init__.py
     """
     cmd = GenerateCommand()
-    cmd.generate_workflows_project(project_path, package_name)
+    cmd.generate_workflows_project(project_path, package_name, author_name)
 
     if click.confirm(
         f"Would you like to install the '{package_name}' package inside your new project? This is required for "
@@ -306,8 +315,15 @@ def workflow(workflow_type: str, workflow_name: str, project_path: str):
     \b
     └── my-workflows-project
         ├── docs
+        │   ├── _build
+        │   ├── _static
+        │   ├── _templates
+        │   ├── workflows
+        │   │   └── \033[1mmy_workflow.md\033[0m
+        │   ├── generate_schema_csv.py
         │   ├── index.rst
-        │   └── \033[1mmy_workflow.md\033[0m
+        │   ├── make.bat
+        │   └── Makefile
         ├── my_workflows_project
         │   ├── __init__.py
         │   ├── dags

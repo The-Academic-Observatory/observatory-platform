@@ -14,16 +14,19 @@
 
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
 import os
+import shutil
 import re
 from datetime import datetime
 from typing import Tuple
 
 import click
+import subprocess
 from cryptography.fernet import Fernet
 
 from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.proc_utils import stream_process
 
 
 class GenerateCommand:
@@ -63,11 +66,12 @@ class GenerateCommand:
             "Parameters commented out with '#' are optional."
         )
 
-    def generate_workflows_project(self, project_path: str, package_name: str):
+    def generate_workflows_project(self, project_path: str, package_name: str, author_name: str):
         """ Create all directories, init files and a setup.cfg + setup.py file for a new workflows project.
 
         :param project_path: The path to the new project directory
         :param package_name: The name of the new project package
+        :param author_name: The name of the author, used for readthedocs.
         :return: None.
         """
         # Get paths to folders
@@ -76,7 +80,7 @@ class GenerateCommand:
         workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
         schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
         test_dst_dir = os.path.join(project_path, "tests", "workflows")
-        doc_dst_dir = os.path.join(project_path, "docs")
+        doc_dst_dir = os.path.join(project_path, "docs", "workflows")
 
         # Make folders
         for path in [dag_dst_dir, utils_dst_dir, workflow_dst_dir, test_dst_dir, doc_dst_dir, schema_dst_dir]:
@@ -101,7 +105,7 @@ class GenerateCommand:
                 open(os.path.join(path, "__init__.py"), "a").close()
 
         # Make setup files
-        templates_dir = module_file_path("observatory.platform.utils.templates")
+        templates_dir = module_file_path("observatory.platform.cli.templates")
         setup_cfg_template = os.path.join(templates_dir, "setup.cfg.jinja2")
         setup_py_template = os.path.join(templates_dir, "setup.py.jinja2")
 
@@ -114,12 +118,36 @@ class GenerateCommand:
         write_rendered_template(setup_cfg_path, setup_cfg, "setup.cfg")
         write_rendered_template(setup_py_path, setup_py, "setup.py")
 
+        # Copy generate_schema_csv.py to docs
+        src = os.path.join(templates_dir, "generate_schema_csv.py")
+        dst = os.path.join(project_path, "docs", "generate_schema_csv.py")
+        shutil.copy(src, dst)
+
+        # Run sphinx quickstart to set up docs
+        sphinx_template_dir = os.path.join(templates_dir, "sphinx-quickstart")
+        proc = subprocess.Popen(
+            ["sphinx-quickstart", "-q", "-t", sphinx_template_dir, "-p", package_name, "-a", author_name, "-d",
+             f"package_name={package_name}"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=os.path.join(project_path, "docs"),
+        )
+        stream_process(proc, True)
+
         print(
             f"""
         Created the following files and directories:
         
         └── {project_path}
             ├── docs
+            │   ├── _build
+            │   ├── _static
+            │   ├── _templates
+            │   ├── workflows
+            │   ├── generate_schema_csv.py
+            │   ├── index.rst
+            │   ├── make.bat
+            │   └── Makefile
             ├── {package_name}
             │   ├── __init__.py
             │   ├── dags
@@ -167,7 +195,7 @@ class GenerateCommand:
         workflow_dst_file = os.path.join(workflow_dst_dir, f"{workflow_module}.py")
         test_dst_file = os.path.join(test_dst_dir, f"test_{workflow_module}.py")
         index_dst_file = os.path.join(doc_dst_dir, "index.rst")
-        doc_dst_file = os.path.join(doc_dst_dir, f"{workflow_module}.md")
+        doc_dst_file = os.path.join(doc_dst_dir, "workflows", f"{workflow_module}.md")
         schema_dst_file = os.path.join(schema_dst_dir, f"{workflow_module}_{datetime.now().strftime('%Y-%m-%d')}.json")
 
         # Render templates
@@ -198,7 +226,7 @@ class GenerateCommand:
         if not os.path.isfile(index_dst_file):
             write_rendered_template(index_dst_file, doc_index, "index.rst")
         with open(index_dst_file, "a") as f:
-            f.write(f"    {workflow_module}\n")
+            f.write(f"   workflows/{workflow_module}\n")
         print(f"- Updated the documentation index file: {index_dst_file}")
 
         # Update TelescopeTypes in identifiers.py when using organisation template
