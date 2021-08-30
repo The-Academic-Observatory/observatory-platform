@@ -50,34 +50,6 @@ class TestOapenWorkflow(ObservatoryTestCase):
         self.ao_gcp_project_id = "academic-observatory"
         self.oapen_metadata_dataset_id = "oapen"
         self.oapen_metadata_table_id = "metadata"
-        self.public_book_metadata_dataset_id = "observatory"
-        self.public_book_metadata_table_id = "book"
-        self.irus_uk_dag_id_prefix = "oapen_irus_uk"
-        self.irus_uk_dataset_id = "oapen"
-        self.irus_uk_table_id = "oapen_irus_uk"
-
-
-    @patch("observatory.dags.workflows.oapen_workflow.select_table_shard_dates")
-    def test_make_release(self, mock_sel_table_suffixes):
-        mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
-
-        with CliRunner().isolated_filesystem():
-            wf = OapenWorkflow(
-                org_name=self.org_name,
-                gcp_project_id=self.gcp_project_id,
-            )
-
-            kwargs = {"next_execution_date": pendulum.datetime(2021, 2, 1)}
-            release = wf.make_release(**kwargs)
-            self.assertIsInstance(release, OapenWorkflowRelease)
-            self.assertEqual(release.dag_id, "oapen_workflow_oapen")
-            self.assertEqual(release.release_date, pendulum.date(2021, 1, 31))
-            self.assertEqual(release.gcp_project_id, "project_id")
-            self.assertEqual("academic-observatory", release.ao_gcp_project_id)
-            self.assertEqual("oapen", release.oapen_metadata_dataset_id)
-            self.assertEqual("metadata", release.oapen_metadata_table_id)
-            self.assertEqual("observatory", release.public_book_metadata_dataset_id)
-            self.assertEqual("book", release.public_book_metadata_table_id)
 
 
     @patch("observatory.dags.workflows.oapen_workflow.OapenWorkflow.make_release")
@@ -85,17 +57,14 @@ class TestOapenWorkflow(ObservatoryTestCase):
     def test_cleanup(self, mock_sel_table_suffixes, mock_mr):
         mock_sel_table_suffixes.return_value = [pendulum.datetime(2021, 1, 1)]
         with CliRunner().isolated_filesystem():
-            wf = OapenWorkflow(
-                org_name=self.org_name,
-                gcp_project_id=self.gcp_project_id,
-            )
+            wf = OapenWorkflow()
 
             mock_mr.return_value = OapenWorkflowRelease(
                 dag_id="oapen_workflow_test",
                 release_date=pendulum.datetime(2021, 1, 1),
                 gcp_project_id=self.gcp_project_id,
-                oapen_metadata_dataset_id="oapen",
-                oapen_metadata_table_id="metadata",
+                oapen_metadata_dataset_id=self.oapen_metadata_dataset_id,
+                oapen_metadata_table_id=self.oapen_metadata_table_id,
             )
 
             release = wf.make_release(execution_date=pendulum.datetime(2021, 1, 1))
@@ -104,11 +73,7 @@ class TestOapenWorkflow(ObservatoryTestCase):
     def test_dag_structure(self):
 
         with CliRunner().isolated_filesystem():
-            wf = OapenWorkflow(
-                org_name=self.org_name,
-                gcp_project_id=self.gcp_project_id,
-                irus_uk_dag_id_prefix=self.irus_uk_dag_id_prefix,
-            )
+            wf = OapenWorkflow()
             dag = wf.make_dag()
             self.assert_dag_structure(
                 {
@@ -201,11 +166,7 @@ class TestOapenWorkflowFunctional(ObservatoryTestCase):
 
             # Setup workflow
             start_date = pendulum.datetime(year=2021, month=5, day=9)
-            workflow = OapenWorkflow(
-                org_name=self.org_name,
-                gcp_project_id=self.gcp_project_id,
-                start_date=start_date,
-            )
+            workflow = OapenWorkflow(start_date=start_date)
 
             # Make DAG
             workflow_dag = workflow.make_dag()

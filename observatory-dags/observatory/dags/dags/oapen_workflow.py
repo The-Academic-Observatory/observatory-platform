@@ -19,12 +19,5 @@
 
 from observatory.dags.workflows.oapen_workflow import OapenWorkflow
 
-org_name = 'OAPEN'
-gcp_project_id = 'oaebu-oapen'
-
-oapen_workflow = OapenWorkflow(
-    org_name=org_name,
-    gcp_project_id=gcp_project_id,
-)
-
+oapen_workflow = OapenWorkflow()
 globals()[oapen_workflow.dag_id] = oapen_workflow.make_dag()

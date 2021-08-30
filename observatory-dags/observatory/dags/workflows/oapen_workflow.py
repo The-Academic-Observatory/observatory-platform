@@ -23,6 +23,7 @@ from typing import List, Optional
 
 import pendulum
 from airflow.exceptions import AirflowException
+from airflow.models import Variable
 from airflow.sensors.external_task import ExternalTaskSensor
 from google.cloud.bigquery import SourceFormat
 from observatory.dags.config import sql_folder
@@ -37,6 +38,7 @@ from observatory.platform.utils.gc_utils import (
     copy_bigquery_table
 )
 from observatory.platform.utils.jinja2_utils import render_template
+from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
     bq_load_shard_v2,
     table_ids_from_path,
@@ -210,20 +212,19 @@ class OapenWorkflow(Workflow):
     """
 
     DAG_ID_PREFIX = "oapen_workflow"
+    ORG_NAME = "OAPEN"
 
     def __init__(
         self,
         *,
-        org_name: str,
-        gcp_project_id: str,
         irus_uk_dag_id_prefix: str = "oapen_irus_uk",
         dag_id: Optional[str] = None,
         start_date: Optional[pendulum.datetime] = pendulum.datetime(2021, 3, 28),
         schedule_interval: Optional[str] = "@weekly",
         catchup: Optional[bool] = False,
+        airflow_vars: List = None,
     ):
         """Initialises the workflow object.
-        :param org_name: Organisation name.
         :param gcp_project_id: Project ID in GCP.
         :param gcp_dataset_id: Dataset ID in GCP.
         :param irus_uk_dag_id_prefix: OAEBU IRUS_UK dag id prefix.
@@ -231,23 +232,32 @@ class OapenWorkflow(Workflow):
         :param start_date: Start date of the DAG.
         :param schedule_interval: Scheduled interval for running the DAG.
         :param catchup: Whether to catch up missed DAG runs.
+        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         """
 
         self.dag_id = dag_id
         if dag_id is None:
-            self.dag_id = make_dag_id(self.DAG_ID_PREFIX, org_name)
+            self.dag_id = make_dag_id(self.DAG_ID_PREFIX, self.ORG_NAME)
 
-        self.org_name = org_name
-        self.gcp_project_id = gcp_project_id
+        if airflow_vars is None:
+            airflow_vars = [
+                AirflowVars.DATA_PATH,
+                AirflowVars.PROJECT_ID,
+                AirflowVars.DATA_LOCATION,
+                AirflowVars.DOWNLOAD_BUCKET,
+                AirflowVars.TRANSFORM_BUCKET,
+            ]
+
+        self.org_name = self.ORG_NAME
         self.irus_uk_dag_id_prefix = irus_uk_dag_id_prefix
 
         # Initialise Telesecope base class
         super().__init__(
-            dag_id=self.dag_id, start_date=start_date, schedule_interval=schedule_interval, catchup=catchup
+            dag_id=self.dag_id, start_date=start_date, schedule_interval=schedule_interval, catchup=catchup, airflow_vars=airflow_vars
         )
 
         # Wait for irus_uk workflow to finish
-        ext_dag_id = make_dag_id(irus_uk_dag_id_prefix, org_name)
+        ext_dag_id = make_dag_id(irus_uk_dag_id_prefix, self.ORG_NAME)
         sensor = ExternalTaskSensor(task_id=f"{ext_dag_id}_sensor", external_dag_id=ext_dag_id, mode="reschedule")
         self.add_sensor(sensor)
 
@@ -284,11 +294,12 @@ class OapenWorkflow(Workflow):
 
         # Make release date
         release_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
 
         return OapenWorkflowRelease(
             dag_id=self.dag_id,
             release_date=release_date,
-            gcp_project_id=self.gcp_project_id,
+            gcp_project_id=project_id,
         )
 
 
@@ -313,6 +324,9 @@ class OapenWorkflow(Workflow):
 
         source_table_id = f"{release.gcp_project_id}.{release.irus_uk_dataset_id}.{release.irus_uk_table_id}"
         destination_table_id = f"{release.gcp_project_id}.{release.oaebu_intermediate_dataset}.{release.irus_uk_dataset_id}_{bigquery_sharded_table_id('oapen_irus_uk_matched', release.release_date)}"
+
+        create_bigquery_dataset(project_id=release.gcp_project_id, dataset_id=release.oaebu_intermediate_dataset, location=release.dataset_location)
+
         status = copy_bigquery_table(source_table_id, destination_table_id, release.dataset_location)
 
         if not status:
