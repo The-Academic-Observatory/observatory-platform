@@ -1,16 +1,6 @@
 Tutorials
 ----------------------------
 
-Telescope Programming
-#######################
-
-.. toctree::
-    :maxdepth: 1
-
-    installation
-    observatory_dev
-
-
 Workflow Programming
 #######################
 
@@ -21,7 +11,6 @@ Workflow Programming
     workflow_prog_stream
     workflow_prog_snapshot
     workflow_prog_testing
-
 
 Terraform
 #######################

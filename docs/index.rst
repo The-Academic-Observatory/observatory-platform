@@ -4,10 +4,17 @@ Observatory Platform
 The Observatory Platform provides an environment and workflows for fetching, processing and analysing data to
 understand how well universities operate as Open Knowledge Institutions.
 
+Getting Started
+=======================
+.. toctree::
+    :maxdepth: 3
+
+    setup/index
+
 Tutorials
 =======================
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 3
 
     tutorials/index
 
@@ -25,7 +32,6 @@ Information about licenses, contributing guidelines etc.
 .. toctree::
     :maxdepth: 1
 
-    ../CONTRIBUTING.md
     license
 
 Python API Reference
