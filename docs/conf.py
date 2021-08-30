@@ -43,7 +43,7 @@ extensions = [
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = "python"
-autoapi_dirs = ["../observatory-api", "../observatory-dags"]
+autoapi_dirs = ["../observatory-api", "../observatory-platform"]
 autoapi_add_toctree_entry = True
 autoapi_python_use_implicit_namespaces = True
 
