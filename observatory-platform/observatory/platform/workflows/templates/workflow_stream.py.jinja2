@@ -23,7 +23,7 @@ from observatory.platform.utils.airflow_utils import AirflowVars
 
 class {{ workflow_class }}Release(StreamRelease):
     def __init__(self, dag_id: str, start_date: pendulum.DateTime, end_date: pendulum.DateTime, first_release: bool):
-        """ Construct a {{ workflow_class }}Release instance
+        """Construct a {{ workflow_class }}Release instance
 
         :param dag_id: the id of the DAG.
         :param start_date: the start_date of the release.
@@ -40,21 +40,22 @@ class {{ workflow_class }}(StreamTelescope):
     DAG_ID = "{{ workflow_module }}"
 
     def __init__(
-            self, dag_id: str = DAG_ID,
-            start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
-            schedule_interval: str = "@weekly",
-            dataset_id: str = "your_dataset_id",
-            dataset_description: str = "The your_dataset_name dataset: https://dataseturl",
-            merge_partition_field: str = "id",
-            bq_merge_days: int = 7,
-            batch_load: bool = True,
-            load_bigquery_table_kwargs: Dict = None,
-            table_descriptions: Dict = None,
-            schema_folder: str = default_schema_folder(),
-            airflow_vars: List = None,
-            airflow_conns: List = None
-            ):
-        """ Construct a {{ workflow_class }} telescope instance.
+        self,
+        dag_id: str = DAG_ID,
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
+        schedule_interval: str = "@weekly",
+        dataset_id: str = "your_dataset_id",
+        dataset_description: str = "The your_dataset_name dataset: https://dataseturl",
+        merge_partition_field: str = "id",
+        bq_merge_days: int = 7,
+        batch_load: bool = True,
+        load_bigquery_table_kwargs: Dict = None,
+        table_descriptions: Dict = None,
+        schema_folder: str = default_schema_folder(),
+        airflow_vars: List = None,
+        airflow_conns: List = None,
+    ):
+        """Construct a {{ workflow_class }} telescope instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -98,7 +99,7 @@ class {{ workflow_class }}(StreamTelescope):
             dataset_description=dataset_description,
             table_descriptions=table_descriptions,
             airflow_vars=airflow_vars,
-            airflow_conns=airflow_conns
+            airflow_conns=airflow_conns,
         )
 
         # Add sensor tasks
@@ -121,14 +122,13 @@ class {{ workflow_class }}(StreamTelescope):
         self.add_task(self.cleanup)  # From StreamTelescope
 
     def make_release(self, **kwargs) -> {{ workflow_class }}Release:
-        """ Make a Release instance
+        """Make a Release instance
 
         :param kwargs: The context passed from the PythonOperator.
         :return: {{ workflow_class }}Release
         """
         ti: TaskInstance = kwargs["ti"]
-        start_date, end_date, first_release = ti.xcom_pull(key={{ workflow_class }}.RELEASE_INFO,
-                                                           include_prior_dates=True)
+        start_date, end_date, first_release = ti.xcom_pull(key={{ workflow_class }}.RELEASE_INFO, include_prior_dates=True)
 
         start_date = pendulum.parse(start_date)
         end_date = pendulum.parse(end_date)
@@ -137,7 +137,7 @@ class {{ workflow_class }}(StreamTelescope):
         return release
 
     def task1(self, release: {{ workflow_class }}Release, **kwargs):
-        """ Add your own comments.
+        """Add your own comments.
 
         :param release: A {{ workflow_class }} instance
         :param kwargs: The context passed from the PythonOperator.
