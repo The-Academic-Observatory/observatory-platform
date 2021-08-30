@@ -19,10 +19,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Dict
-
-from academic_observatory_workflows.config import elastic_mappings_folder
-from academic_observatory_workflows.dags.elastic_import_workflow import load_elastic_mappings_ao
 from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.kibana import Kibana
 from observatory.platform.utils.config_utils import module_file_path
@@ -31,6 +27,10 @@ from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
 from observatory.platform.utils.workflow_utils import make_dag_id
 from observatory.platform.workflows.elastic_import_workflow import load_elastic_mappings_simple
+from typing import Dict
+
+from academic_observatory_workflows.config import elastic_mappings_folder
+from academic_observatory_workflows.dags.elastic_import_workflow import load_elastic_mappings_ao
 
 
 class TestElasticImportWorkflow(ObservatoryTestCase):
@@ -39,22 +39,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.elastic_port = 9201
-        self.kibana_port = 5602
-        self.elastic_uri = f"http://localhost:{self.elastic_port}"
-        self.kibana_uri = f"http://localhost:{self.kibana_port}"
-        self.elastic = Elastic(host=self.elastic_uri)
-        self.kibana = Kibana(host=self.kibana_uri)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
-        self.table_name = "ao_author"
-        self.cwd = os.path.dirname(os.path.abspath(__file__))
-
-    def test_load_elastic_mappings_simple(self):
-        """Test load_elastic_mappings_simple"""
-
-        mappings = load_elastic_mappings_simple(self.cwd, self.table_name)
-        self.assertIsInstance(mappings, Dict)
 
     def test_load_elastic_mappings_ao(self):
         """Test load_elastic_mappings_ao"""
