@@ -27,7 +27,6 @@ from airflow.models import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from faker import Faker
 
-from academic_observatory_workflows.model import Table, bq_load_tables
 from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.kibana import Kibana, TimeField
 from observatory.platform.utils.airflow_utils import AirflowConns
@@ -36,9 +35,8 @@ from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
-    module_file_path,
 )
-from observatory.platform.utils.workflow_utils import make_dag_id
+from observatory.platform.utils.test_utils import Table, bq_load_tables, test_fixtures_path
 from observatory.platform.workflows.elastic_import_workflow import (
     ElasticImportWorkflow,
     load_elastic_mappings_simple,
@@ -116,12 +114,12 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
         self.table_name = "ao_author"
-        self.cwd = os.path.dirname(os.path.abspath(__file__))
 
     def test_load_elastic_mappings_simple(self):
         """Test load_elastic_mappings_simple"""
 
-        mappings = load_elastic_mappings_simple(self.cwd, self.table_name)
+        path = test_fixtures_path("workflows")
+        mappings = load_elastic_mappings_simple(path, self.table_name)
         self.assertIsInstance(mappings, Dict)
 
     def test_dag_structure(self):
@@ -155,22 +153,6 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             dag,
         )
 
-    def test_dag_load(self):
-        """Test that the DAG can be loaded from a DAG bag.
-
-        :return: None
-        """
-
-        env = ObservatoryEnvironment(self.project_id, self.data_location, enable_api=False)
-        with env.create():
-            expected_dag_ids = [make_dag_id("elastic_import", suffix) for suffix in ["observatory"]]
-
-            dag_file = os.path.join(
-                module_file_path("academic_observatory_workflows.dags"), "elastic_import_workflow.py"
-            )
-            for dag_id in expected_dag_ids:
-                self.assert_dag_load(dag_id, dag_file)
-
     def setup_data_export(
         self,
         table_name: str,
@@ -189,6 +171,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         :return: None.
         """
 
+        schema_folder = test_fixtures_path("workflows")
         tables = [
             Table(
                 table_name=table_name,
@@ -196,7 +179,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 dataset_id=dataset_id,
                 records=author_records,
                 schema_prefix=table_name,
-                schema_folder=self.cwd,
+                schema_folder=schema_folder,
             )
         ]
 
@@ -214,6 +197,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         author_records = generate_authors_table(num_rows=10)
         sort_key = lambda x: x["name"]
         author_records.sort(key=sort_key)
+        elastic_mappings_folder = test_fixtures_path("workflows")
 
         env = ObservatoryEnvironment(
             self.project_id,
@@ -242,7 +226,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 data_location=self.data_location,
                 file_type="jsonl.gz",
                 sensor_dag_ids=[dag_id_sensor],
-                elastic_mappings_folder=self.cwd,
+                elastic_mappings_folder=elastic_mappings_folder,
                 elastic_mappings_func=load_elastic_mappings_simple,
                 kibana_spaces=[space_id],
                 kibana_time_fields=kibana_time_fields,
@@ -279,30 +263,9 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             with env.create_dag_run(es_dag, execution_date):
                 # Data folders
                 release_id = f"{workflow.dag_id}_{release_date.strftime('%Y_%m_%d')}"
-                download_folder = os.path.join(
-                    t,
-                    "../../../../academic-observatory-workflows/academic_observatory_workflows/workflows/tests/data",
-                    "telescopes",
-                    "download",
-                    workflow.dag_id,
-                    release_id,
-                )
-                extract_folder = os.path.join(
-                    t,
-                    "../../../../academic-observatory-workflows/academic_observatory_workflows/workflows/tests/data",
-                    "telescopes",
-                    "extract",
-                    workflow.dag_id,
-                    release_id,
-                )
-                transform_folder = os.path.join(
-                    t,
-                    "../../../../academic-observatory-workflows/academic_observatory_workflows/workflows/tests/data",
-                    "telescopes",
-                    "transform",
-                    workflow.dag_id,
-                    release_id,
-                )
+                download_folder = os.path.join(t, "data", "telescopes", "download", workflow.dag_id, release_id,)
+                extract_folder = os.path.join(t, "data", "telescopes", "extract", workflow.dag_id, release_id,)
+                transform_folder = os.path.join(t, "data", "telescopes", "transform", workflow.dag_id, release_id,)
 
                 # Test that sensor goes into 'success' state as the DAGs that they are waiting for have finished
                 ti = env.run_task(task_id_sensor, es_dag, execution_date=execution_date)

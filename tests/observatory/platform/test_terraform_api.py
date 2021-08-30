@@ -22,8 +22,7 @@ import unittest
 from click.testing import CliRunner
 
 from observatory.platform.terraform_api import TerraformApi, TerraformVariable
-from observatory.platform.utils.test_utils import random_id
-
+from observatory.platform.utils.test_utils import random_id, test_fixtures_path
 
 VALID_VARIABLE_DICTS = [
     {
@@ -283,7 +282,7 @@ class TestTerraformApi(unittest.TestCase):
         # create configuration version
         upload_url, _ = self.terraform_api.create_configuration_version(workspace_id)
 
-        configuration_path = os.path.join(test_fixtures_path(), "../../../../tests/observatory/platform/utils", "terraform_utils", "main.tf")
+        configuration_path = test_fixtures_path("utils", "main.tf")
         configuration_tar = "conf.tar.gz"
 
         with CliRunner().isolated_filesystem():
@@ -302,7 +301,7 @@ class TestTerraformApi(unittest.TestCase):
         # create configuration version
         upload_url, configuration_id = self.terraform_api.create_configuration_version(workspace_id)
 
-        configuration_path = os.path.join(test_fixtures_path(), "../../../../tests/observatory/platform/utils", "terraform_utils", "main.tf")
+        configuration_path = test_fixtures_path("utils", "main.tf")
         configuration_tar = "conf.tar.gz"
 
         with CliRunner().isolated_filesystem():
@@ -334,7 +333,7 @@ class TestTerraformApi(unittest.TestCase):
         # create configuration version
         upload_url, configuration_id = self.terraform_api.create_configuration_version(workspace_id)
 
-        configuration_path = os.path.join(test_fixtures_path(), "../../../../tests/observatory/platform/utils", "terraform_utils", "main.tf")
+        configuration_path = test_fixtures_path("utils", "main.tf")
         configuration_tar = "conf.tar.gz"
 
         with CliRunner().isolated_filesystem():

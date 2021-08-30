@@ -392,7 +392,7 @@ class TestObservatoryTestCase(unittest.TestCase):
         """Test assert_file_integrity"""
 
         test_case = ObservatoryTestCase()
-        tests_path = test_fixtures_path("utils", "gc_utils")
+        tests_path = test_fixtures_path("utils")
 
         # Test md5
         file_path = os.path.join(tests_path, "people.csv")

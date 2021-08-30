@@ -43,8 +43,8 @@ from observatory.api.client.exceptions import (
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType
-from observatory.api.server.tests.test_elastic import SCROLL_ID, Elasticsearch
 from observatory.api.testing import ObservatoryApiEnvironment
+from tests.observatory.api.server.test_elastic import SCROLL_ID, Elasticsearch
 
 RES_EXAMPLE = {
     "_scroll_id": SCROLL_ID,
