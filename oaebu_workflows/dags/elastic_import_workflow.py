@@ -21,11 +21,12 @@ import json
 import os
 from typing import Dict
 
-from academic_observatory_workflows.config import elastic_mappings_folder
 from observatory.platform.elastic.kibana import TimeField
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.workflow_utils import make_dag_id
 from observatory.platform.workflows.elastic_import_workflow import ElasticImportWorkflow, ElasticImportConfig
+
+from oaebu_workflows.config import elastic_mappings_folder
 
 DATASET_ID = "data_export"
 DATA_LOCATION = "us"
