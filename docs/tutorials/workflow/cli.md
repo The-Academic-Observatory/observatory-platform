@@ -83,3 +83,11 @@ Updates the index file for the workflow documentation:
  
 And updates the TelescopeTypes in the identifiers file in case the new workflow is an OrganisationTelescope type:
  * `my-dags/my_dags/utils/identifiers.py` 
+ 
+## License information
+```eval_rst
+The observatory-platform project itself has the :doc:`Apache License </license>` as specified.  
+This means that all templates that are included in the observatory-platform project are subject to this License.  
+However, the actual files that are generated with the templates and all code within those files are not subject to this
+ License.  
+```
